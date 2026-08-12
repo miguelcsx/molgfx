@@ -1,0 +1,4 @@
+# The structural-model dependency lives in a private repository; fetch with
+# the git CLI so its credential helpers apply.
+[net]
+git-fetch-with-cli = true
