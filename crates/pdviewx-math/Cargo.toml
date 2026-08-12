@@ -1,0 +1,18 @@
+[package]
+name = "pdviewx-math"
+description = "glam-based math foundation: cameras, projections, bounds, splines, transport frames."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+glam.workspace = true
+bytemuck.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

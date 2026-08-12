@@ -1,0 +1,64 @@
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/miguelcsx/pdviewx"
+
+[workspace.dependencies]
+# Internal crates (layered; a crate depends only on lower layers).
+pdviewx-math = { version = "0.1.0", path = "crates/pdviewx-math" }
+pdviewx-core = { version = "0.1.0", path = "crates/pdviewx-core" }
+pdviewx-gpu = { version = "0.1.0", path = "crates/pdviewx-gpu" }
+pdviewx-gpu-wgpu = { version = "0.1.0", path = "crates/pdviewx-gpu-wgpu" }
+pdviewx-gpu-vulkan = { version = "0.1.0", path = "crates/pdviewx-gpu-vulkan" }
+pdviewx-shaders = { version = "0.1.0", path = "crates/pdviewx-shaders" }
+pdviewx-geometry = { version = "0.1.0", path = "crates/pdviewx-geometry" }
+pdviewx-render = { version = "0.1.0", path = "crates/pdviewx-render" }
+pdviewx-semantic = { version = "0.1.0", path = "crates/pdviewx-semantic" }
+
+# The structural model and every detection the engine consumes.
+# Path dependency on the sibling checkout while the repository goes public;
+# switches back to a pinned git dependency after.
+pdbiox = { path = "../pdbiox/crates/pdbiox", default-features = false, features = ["mmcif", "bcif", "pdb", "analysis"] }
+
+# External dependencies, declared once and inherited.
+glam = { version = "0.33", features = ["bytemuck"] }
+bytemuck = { version = "1.25", features = ["derive"] }
+smallvec = "1.15"
+hashbrown = "0.17"
+thiserror = "2.0"
+roaring = "0.11"
+bitflags = "2.13"
+wgpu = "30"
+naga = { version = "30", features = ["wgsl-in", "spv-out"] }
+raw-window-handle = "0.6"
+proptest = "1.11"
+criterion = "0.8"
+winit = "0.30"
+fontdue = "0.9"
+
+[workspace.lints.rust]
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# The no-unwrap rule includes unwrap_or and unwrap_or_default; these two lints
+# would rewrite the compliant `match`/`let..else` forms back into unwrap_or
+# calls, so they stay allowed. Do not "fix" these allows.
+manual_unwrap_or = "allow"
+manual_unwrap_or_default = "allow"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.bench]
+# Benchmarks compile often; global LTO would dominate iteration time for
+# little measurement benefit.
+lto = false

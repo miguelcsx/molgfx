@@ -1,0 +1,13 @@
+[package]
+name = "pdviewx-shaders"
+description = "The shared WGSL shader library and its build-time composition and validation."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

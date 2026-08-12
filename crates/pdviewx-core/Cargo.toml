@@ -1,0 +1,23 @@
+[package]
+name = "pdviewx-core"
+description = "The semantic scene graph: columnar tables, GPU record layouts, the borrowed coordinate seam."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+pdviewx-math.workspace = true
+pdbiox.workspace = true
+bytemuck.workspace = true
+smallvec.workspace = true
+hashbrown.workspace = true
+thiserror.workspace = true
+roaring.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true
