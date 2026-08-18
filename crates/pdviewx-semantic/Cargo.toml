@@ -8,6 +8,12 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+thiserror.workspace = true
+pdviewx-core.workspace = true
+pdviewx-math.workspace = true
+
+[dev-dependencies]
+pdbiox = { workspace = true, features = ["mmcif"] }
 
 [lints]
 workspace = true
