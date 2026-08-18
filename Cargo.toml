@@ -15,7 +15,6 @@ pdviewx-math = { version = "0.1.0", path = "crates/pdviewx-math" }
 pdviewx-core = { version = "0.1.0", path = "crates/pdviewx-core" }
 pdviewx-gpu = { version = "0.1.0", path = "crates/pdviewx-gpu" }
 pdviewx-gpu-wgpu = { version = "0.1.0", path = "crates/pdviewx-gpu-wgpu" }
-pdviewx-gpu-vulkan = { version = "0.1.0", path = "crates/pdviewx-gpu-vulkan" }
 pdviewx-shaders = { version = "0.1.0", path = "crates/pdviewx-shaders" }
 pdviewx-geometry = { version = "0.1.0", path = "crates/pdviewx-geometry" }
 pdviewx-render = { version = "0.1.0", path = "crates/pdviewx-render" }
@@ -24,10 +23,10 @@ pdviewx-semantic = { version = "0.1.0", path = "crates/pdviewx-semantic" }
 # The structural model and every detection the engine consumes.
 # Path dependency on the sibling checkout while the repository goes public;
 # switches back to a pinned git dependency after.
-pdbiox = { path = "../pdbiox/crates/pdbiox", default-features = false, features = ["mmcif", "bcif", "pdb", "analysis"] }
+pdbiox = { path = "../pdbiox/crates/pdbiox", default-features = false, features = ["mmcif", "bcif", "pdb"] }
 
 # External dependencies, declared once and inherited.
-glam = { version = "0.33", features = ["bytemuck"] }
+glam = { version = "0.33", features = ["bytemuck", "serde"] }
 bytemuck = { version = "1.25", features = ["derive"] }
 smallvec = "1.15"
 hashbrown = "0.17"
@@ -37,10 +36,17 @@ bitflags = "2.13"
 wgpu = "30"
 naga = { version = "30", features = ["wgsl-in", "spv-out"] }
 raw-window-handle = "0.6"
+pollster = "0.4"
+futures-channel = "0.3"
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = ["HtmlCanvasElement"] }
 proptest = "1.11"
 criterion = "0.8"
 winit = "0.30"
 fontdue = "0.9"
+png = "0.18"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 [workspace.lints.rust]
 missing_docs = "warn"
