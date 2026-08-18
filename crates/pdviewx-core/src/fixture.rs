@@ -30,6 +30,19 @@ ATOM   5 H H   . GLY A 1 1 -1.525  1.362 0.100 1.00 10.0 1 A 1
 ATOM   6 O OXT . GLY A 1 1  2.100 -1.180 0.000 1.00 10.0 1 A 1
 HETATM 7 O O   . HOH A 2 . 5.000  5.000 5.000 1.00 20.0 2 A 1
 HETATM 8 S S1  . SO4 A 3 . 8.000  1.000 2.000 1.00 30.0 3 A 1
+loop_
+_struct_conn.id
+_struct_conn.conn_type_id
+_struct_conn.ptnr1_label_asym_id
+_struct_conn.ptnr1_label_seq_id
+_struct_conn.ptnr1_label_comp_id
+_struct_conn.ptnr1_label_atom_id
+_struct_conn.ptnr2_label_asym_id
+_struct_conn.ptnr2_label_seq_id
+_struct_conn.ptnr2_label_comp_id
+_struct_conn.ptnr2_label_atom_id
+_struct_conn.pdbx_value_order
+1 covale A 1 GLY N A 1 GLY CA SING
 ";
 
 /// Parses the fixture; panics with the diagnostics on failure (tests only).
