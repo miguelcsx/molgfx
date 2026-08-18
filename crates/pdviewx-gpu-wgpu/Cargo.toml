@@ -8,6 +8,11 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+pdviewx-gpu.workspace = true
+wgpu.workspace = true
+pollster.workspace = true
+futures-channel.workspace = true
+raw-window-handle.workspace = true
 
 [lints]
 workspace = true
