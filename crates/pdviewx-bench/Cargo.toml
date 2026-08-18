@@ -8,6 +8,17 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+thiserror.workspace = true
+pdviewx = { path = "../pdviewx", features = ["realtime", "semantic"] }
+pdbiox = { workspace = true, features = ["mmcif", "bcif", "pdb", "chem", "spatial"] }
+png.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "kernels"
+harness = false
 
 [lints]
 workspace = true
