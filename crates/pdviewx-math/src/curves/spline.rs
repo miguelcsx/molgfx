@@ -1,0 +1,111 @@
+//! Deterministic Catmull-Rom evaluation and curvature-adaptive sampling.
+
+use crate::Vec3;
+
+#[cfg(test)]
+#[path = "spline_tests.rs"]
+mod tests;
+
+/// One sampled point and unit tangent along a spline.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct CurveSample {
+    /// Evaluated position.
+    pub position: Vec3,
+    /// Unit direction of increasing curve parameter.
+    pub tangent: Vec3,
+    /// Source control-point interval.
+    pub segment: u32,
+    /// Local parameter within the source interval.
+    pub parameter: f32,
+}
+
+/// Samples a centripetal-looking uniform Catmull-Rom trace with more samples
+/// where midpoint deviation and tangent change are high. Output storage is
+/// caller-owned and reused; work and output are bounded by `max_steps`.
+pub fn sample_catmull_rom(
+    points: &[Vec3],
+    tolerance: f32,
+    max_steps: u8,
+    out: &mut Vec<CurveSample>,
+) {
+    out.clear();
+    if points.len() < 2 {
+        if let Some(&position) = points.first() {
+            out.push(CurveSample {
+                position,
+                tangent: Vec3::Z,
+                segment: 0,
+                parameter: 0.0,
+            });
+        }
+        return;
+    }
+    let maximum = max_steps.max(1);
+    for segment in 0..points.len() - 1 {
+        let curve = segment_points(points, segment);
+        let steps = adaptive_steps(curve, tolerance.max(1e-4), maximum);
+        let start = u8::from(segment != 0);
+        for step in start..=steps {
+            let t = f32::from(step) / f32::from(steps);
+            let derivative = tangent(curve, t);
+            out.push(CurveSample {
+                position: position(curve, t),
+                tangent: normalized(derivative, Vec3::Z),
+                segment: u32::try_from(segment).map_or(u32::MAX, |value| value),
+                parameter: t,
+            });
+        }
+    }
+}
+
+fn segment_points(points: &[Vec3], segment: usize) -> [Vec3; 4] {
+    let last = points.len() - 1;
+    [
+        points[segment.saturating_sub(1)],
+        points[segment],
+        points[(segment + 1).min(last)],
+        points[(segment + 2).min(last)],
+    ]
+}
+
+fn adaptive_steps(points: [Vec3; 4], tolerance: f32, maximum: u8) -> u8 {
+    let midpoint = position(points, 0.5);
+    let chord_midpoint = (points[1] + points[2]) * 0.5;
+    let deviation = midpoint.distance(chord_midpoint);
+    let start = normalized(tangent(points, 0.0), Vec3::Z);
+    let end = normalized(tangent(points, 1.0), start);
+    let turn = start.dot(end).clamp(-1.0, 1.0).acos();
+    let demand = (deviation / tolerance).sqrt() + turn * 2.0;
+    let mut steps = 1u8;
+    while steps < maximum && f32::from(steps) < demand {
+        steps = steps.saturating_mul(2).min(maximum);
+    }
+    steps
+}
+
+fn normalized(value: Vec3, fallback: Vec3) -> Vec3 {
+    match value.try_normalize() {
+        Some(unit) => unit,
+        None => fallback,
+    }
+}
+
+fn position(points: [Vec3; 4], t: f32) -> Vec3 {
+    let [p0, p1, p2, p3] = points;
+    let t2 = t * t;
+    let t3 = t2 * t;
+    (p1 * 2.0
+        + (p2 - p0) * t
+        + (p0 * 2.0 - p1 * 5.0 + p2 * 4.0 - p3) * t2
+        + (-p0 + p1 * 3.0 - p2 * 3.0 + p3) * t3)
+        * 0.5
+}
+
+fn tangent(points: [Vec3; 4], t: f32) -> Vec3 {
+    let [p0, p1, p2, p3] = points;
+    let t2 = t * t;
+    ((p2 - p0)
+        + (p0 * 4.0 - p1 * 10.0 + p2 * 8.0 - p3 * 2.0) * t
+        + (-p0 * 3.0 + p1 * 9.0 - p2 * 9.0 + p3 * 3.0) * t2)
+        * 0.5
+}
