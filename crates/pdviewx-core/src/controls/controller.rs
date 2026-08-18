@@ -36,19 +36,24 @@ pub struct OrbitController {
 }
 
 /// First-person flight: the eye moves, the view direction turns.
-// Six independent held-key states are exactly six booleans; packing them
-// into a bitset would only obscure the mapping.
-#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FlyController {
     turning: bool,
     last: Option<(f32, f32)>,
-    forward: bool,
-    backward: bool,
-    left: bool,
-    right: bool,
-    up: bool,
-    down: bool,
+    /// Held state per navigation key, indexed by `held_index`.
+    held: [bool; 6],
+}
+
+/// The `held` array slot for a navigation key.
+fn held_index(key: Key) -> usize {
+    match key {
+        Key::Forward => 0,
+        Key::Backward => 1,
+        Key::Left => 2,
+        Key::Right => 3,
+        Key::Up => 4,
+        Key::Down => 5,
+    }
 }
 
 /// Shared drag bookkeeping: returns the pixel delta when dragging.
@@ -204,14 +209,7 @@ impl FlyController {
                     camera.target = camera.eye + new_dir * camera.focus_distance();
                 }
             }
-            InputEvent::Key { key, pressed } => match key {
-                Key::Forward => self.forward = pressed,
-                Key::Backward => self.backward = pressed,
-                Key::Left => self.left = pressed,
-                Key::Right => self.right = pressed,
-                Key::Up => self.up = pressed,
-                Key::Down => self.down = pressed,
-            },
+            InputEvent::Key { key, pressed } => self.held[held_index(key)] = pressed,
             InputEvent::Scroll { delta } => zoom(camera, ZOOM_STEP.powf(delta)),
             InputEvent::Pinch { .. } | InputEvent::PointerButton { .. } => {}
         }
@@ -222,24 +220,12 @@ impl FlyController {
     pub fn advance(&self, camera: &mut Camera, dt: f32, speed: f32) {
         let view_dir = (camera.target - camera.eye).normalize_or_zero();
         let right = view_dir.cross(camera.up).normalize_or_zero();
+        let axes = [view_dir, -view_dir, -right, right, Vec3::Y, -Vec3::Y];
         let mut motion = Vec3::ZERO;
-        if self.forward {
-            motion += view_dir;
-        }
-        if self.backward {
-            motion -= view_dir;
-        }
-        if self.right {
-            motion += right;
-        }
-        if self.left {
-            motion -= right;
-        }
-        if self.up {
-            motion += Vec3::Y;
-        }
-        if self.down {
-            motion -= Vec3::Y;
+        for (held, axis) in self.held.iter().zip(axes) {
+            if *held {
+                motion += axis;
+            }
         }
         let step = motion.normalize_or_zero() * speed * dt;
         camera.eye += step;
