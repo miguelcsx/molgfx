@@ -1,0 +1,247 @@
+// Atom, bond and ribbon shadow casters.
+//
+// A sphere's depth comes straight from its circular cross-section and a bond
+// resolves only its ray parameter, so neither reconstructs a full hit point
+// it would immediately discard. Ribbons use native indexed vertex fetching.
+
+struct ShadowSphereVsOut {
+    @builtin(position) position: vec4f,
+
+    @location(0) @interpolate(linear) light_xy: vec2f,
+
+    // xyz = light-space center, w = radius².
+    @location(1) @interpolate(flat, first) center_radius_sq: vec4f,
+}
+
+@vertex
+fn vs_shadow_sphere(
+    @builtin(vertex_index) vertex: u32,
+    @builtin(instance_index) instance: u32,
+) -> ShadowSphereVsOut {
+    let atom =
+        atoms[
+            visible_atoms[instance]
+        ];
+
+    let center =
+        shadow_view_position(
+            atom_position(atom.entity_id)
+        );
+
+    let radius =
+        abs(atom.radius);
+
+    let light_xy =
+        center.xy
+        + quad_corner(vertex) * radius;
+
+    return ShadowSphereVsOut(
+        shadow_clip(
+            vec3f(
+                light_xy,
+                center.z,
+            )
+        ),
+        light_xy,
+        vec4f(
+            center,
+            radius * radius,
+        ),
+    );
+}
+
+@fragment
+fn fs_shadow_sphere(
+    in: ShadowSphereVsOut,
+) -> @builtin(frag_depth) f32 {
+    let delta =
+        in.light_xy
+        - in.center_radius_sq.xy;
+
+    let radial_sq =
+        dot(delta, delta);
+
+    let radius_sq =
+        in.center_radius_sq.w;
+
+    if radial_sq > radius_sq {
+        discard;
+    }
+
+    let root =
+        sqrt(
+            max(
+                radius_sq - radial_sq,
+                0.0,
+            )
+        );
+
+    let center_z =
+        in.center_radius_sq.z;
+
+    let front_z =
+        center_z + root;
+
+    let rear_z =
+        center_z - root;
+
+    // Ray starts at light-space Z=0 and travels toward -Z.
+    let hit_z =
+        select(
+            rear_z,
+            front_z,
+            front_z < 0.0,
+        );
+
+    if hit_z >= 0.0 {
+        discard;
+    }
+
+    return shadow_depth(
+        vec3f(
+            in.light_xy,
+            hit_z,
+        )
+    );
+}
+
+// -----------------------------------------------------------------------------
+// Bond capsules
+// -----------------------------------------------------------------------------
+
+struct ShadowBondVsOut {
+    @builtin(position) position: vec4f,
+
+    @location(0) @interpolate(linear) light_xy: vec2f,
+
+    @location(1) @interpolate(flat, first) endpoint_a: vec3f,
+    @location(2) @interpolate(flat, first) endpoint_b: vec3f,
+    @location(3) @interpolate(flat, first) radius: f32,
+}
+
+@vertex
+fn vs_shadow_bond(
+    @builtin(vertex_index) vertex: u32,
+    @builtin(instance_index) instance: u32,
+) -> ShadowBondVsOut {
+    let bond =
+        bonds[
+            visible_bonds[instance]
+        ];
+
+    let endpoint_a =
+        shadow_view_position(
+            atom_position(
+                atoms[bond.atom_a].entity_id
+            )
+        );
+
+    let endpoint_b =
+        shadow_view_position(
+            atom_position(
+                atoms[bond.atom_b].entity_id
+            )
+        );
+
+    let radius =
+        abs(bond.radius);
+
+    // Construct the bounding rectangle directly in light-view units.
+    // No project -> NDC -> inverse-project round trip is required.
+    let low =
+        min(
+            endpoint_a.xy,
+            endpoint_b.xy,
+        ) - vec2f(radius);
+
+    let high =
+        max(
+            endpoint_a.xy,
+            endpoint_b.xy,
+        ) + vec2f(radius);
+
+    let light_xy =
+        mix(
+            low,
+            high,
+            quad_uv(vertex),
+        );
+
+    let proxy_z =
+        (
+            endpoint_a.z +
+            endpoint_b.z
+        ) * 0.5;
+
+    return ShadowBondVsOut(
+        shadow_clip(
+            vec3f(
+                light_xy,
+                proxy_z,
+            )
+        ),
+        light_xy,
+        endpoint_a,
+        endpoint_b,
+        radius,
+    );
+}
+
+@fragment
+fn fs_shadow_bond(
+    in: ShadowBondVsOut,
+) -> @builtin(frag_depth) f32 {
+    let origin =
+        vec3f(
+            in.light_xy,
+            0.0,
+        );
+
+    let t =
+        ray_capsule(
+            vec3f(0.0, 0.0, -1.0),
+            in.endpoint_a - origin,
+            in.endpoint_b - origin,
+            in.radius,
+        );
+
+    if t <= 0.0 {
+        discard;
+    }
+
+    // No hit reconstruction / matrix transform needed:
+    // origin.z = 0 and direction.z = -1.
+    return shadow_depth(
+        vec3f(
+            in.light_xy,
+            -t,
+        )
+    );
+}
+
+// -----------------------------------------------------------------------------
+// Ribbon triangles
+// -----------------------------------------------------------------------------
+//
+// Bind the existing 32-byte RibbonVertex buffer as a vertex buffer:
+//
+//   arrayStride = 32
+//   location 0  = float32x3 @ offset 0
+//
+// Bind the index buffer normally and issue drawIndexed().
+
+struct ShadowRibbonVertexIn {
+    @location(0) position: vec3f,
+}
+
+@vertex
+fn vs_shadow_ribbon(
+    vertex: ShadowRibbonVertexIn,
+) -> @builtin(position) vec4f {
+    let world =
+        model.model_to_world *
+        vec4f(vertex.position, 1.0);
+
+    return frame.shadow_view_proj *
+        world;
+}
