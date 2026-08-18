@@ -19,12 +19,48 @@ fn atom_record_fields_sit_at_their_contracted_offsets() {
 }
 
 #[test]
-fn a_bond_record_is_exactly_twelve_bytes_at_four_byte_alignment() {
-    assert_eq!(size_of::<BondGpu>(), 12);
+fn a_bond_record_is_exactly_sixteen_bytes_at_four_byte_alignment() {
+    assert_eq!(size_of::<BondGpu>(), 16);
     assert_eq!(align_of::<BondGpu>(), 4);
     assert_eq!(offset_of!(BondGpu, atom_a), 0);
     assert_eq!(offset_of!(BondGpu, atom_b), 4);
     assert_eq!(offset_of!(BondGpu, radius), 8);
+    assert_eq!(offset_of!(BondGpu, entity_id), 12);
+}
+
+#[test]
+fn an_interaction_record_is_six_aligned_gpu_lanes() {
+    assert_eq!(size_of::<InteractionGpu>(), 96);
+    assert_eq!(align_of::<InteractionGpu>(), 16);
+    assert_eq!(offset_of!(InteractionGpu, start_width), 0);
+    assert_eq!(offset_of!(InteractionGpu, end_period), 16);
+    assert_eq!(offset_of!(InteractionGpu, color), 32);
+    assert_eq!(offset_of!(InteractionGpu, metadata), 48);
+    assert_eq!(offset_of!(InteractionGpu, style), 64);
+    assert_eq!(offset_of!(InteractionGpu, animation), 80);
+}
+
+#[test]
+fn a_primitive_record_is_seven_aligned_gpu_lanes() {
+    assert_eq!(size_of::<PrimitiveGpu>(), 112);
+    assert_eq!(align_of::<PrimitiveGpu>(), 16);
+    assert_eq!(offset_of!(PrimitiveGpu, center_radius), 0);
+    assert_eq!(offset_of!(PrimitiveGpu, orientation), 16);
+    assert_eq!(offset_of!(PrimitiveGpu, size_opacity), 32);
+    assert_eq!(offset_of!(PrimitiveGpu, inverse_primary), 48);
+    assert_eq!(offset_of!(PrimitiveGpu, inverse_cross), 64);
+    assert_eq!(offset_of!(PrimitiveGpu, color), 80);
+    assert_eq!(offset_of!(PrimitiveGpu, metadata), 96);
+}
+
+#[test]
+fn a_particle_motion_record_is_four_aligned_gpu_lanes() {
+    assert_eq!(size_of::<ParticleMotionGpu>(), 64);
+    assert_eq!(align_of::<ParticleMotionGpu>(), 16);
+    assert_eq!(offset_of!(ParticleMotionGpu, velocity_step), 0);
+    assert_eq!(offset_of!(ParticleMotionGpu, minimum), 16);
+    assert_eq!(offset_of!(ParticleMotionGpu, maximum), 32);
+    assert_eq!(offset_of!(ParticleMotionGpu, metadata), 48);
 }
 
 #[test]
@@ -52,6 +88,8 @@ fn entity_ids_round_trip_every_kind_and_boundary_index() {
         EntityKind::Bond,
         EntityKind::Edge,
         EntityKind::Label,
+        EntityKind::Primitive,
+        EntityKind::Mesh,
     ] {
         for index in [0u32, 1, 99_999, EntityId::MAX_INDEX] {
             let id = EntityId::pack(kind, index);
@@ -71,16 +109,16 @@ fn the_empty_entity_sentinel_unpacks_to_nothing() {
 
 #[test]
 fn aromatic_bonds_keep_their_flag_and_radius_through_packing() {
-    let plain = BondGpu::new(1, 2, 0.2, false);
+    let plain = BondGpu::new(1, 2, 0.2, false, EntityId::pack(EntityKind::Bond, 4));
     assert!(!plain.is_aromatic());
     assert!((plain.draw_radius() - 0.2).abs() < 1e-6);
 
-    let aromatic = BondGpu::new(3, 4, 0.2, true);
+    let aromatic = BondGpu::new(3, 4, 0.2, true, EntityId::pack(EntityKind::Bond, 5));
     assert!(aromatic.is_aromatic());
     assert!((aromatic.draw_radius() - 0.2).abs() < 1e-6);
 
     // A zero input radius must not erase the sign bit.
-    let degenerate = BondGpu::new(5, 6, 0.0, true);
+    let degenerate = BondGpu::new(5, 6, 0.0, true, EntityId::pack(EntityKind::Bond, 6));
     assert!(degenerate.is_aromatic());
     assert!(degenerate.draw_radius() > 0.0);
 }
