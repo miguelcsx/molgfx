@@ -4,12 +4,24 @@
 //! Everything here is plain data, byte-castable for direct GPU upload.
 
 pub use glam::{Mat3, Mat4, Quat, Vec2, Vec3, Vec4};
+use serde::{Deserialize, Serialize};
 
 /// A color packed as four 8-bit channels, in memory order red, green, blue,
 /// alpha. Exactly four bytes, so a per-atom color column stays compact and
 /// uploads without conversion.
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    bytemuck::Pod,
+    bytemuck::Zeroable,
+)]
 pub struct Rgba8 {
     /// Red channel, 0–255.
     pub r: u8,

@@ -10,9 +10,15 @@ repository.workspace = true
 [dependencies]
 glam.workspace = true
 bytemuck.workspace = true
+serde.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "math"
+harness = false
 
 [lints]
 workspace = true

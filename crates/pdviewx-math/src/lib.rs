@@ -9,12 +9,17 @@
 
 #![forbid(unsafe_code)]
 
-mod aabb;
+mod bounds;
 mod camera;
-mod projection;
+mod curves;
 mod types;
 
-pub use aabb::{Aabb, BoundingSphere};
-pub use camera::Camera;
-pub use projection::Projection;
+pub(crate) use bounds::aabb;
+pub(crate) use camera::projection;
+
+pub use bounds::{Aabb, BoundingSphere, Bvh, BvhBuildScratch, BvhNode};
+pub use camera::{Camera, Projection};
+pub use curves::{
+    CurveSample, TransportFrame, parallel_transport, sample_catmull_rom, sample_cubic_bezier,
+};
 pub use types::{Mat3, Mat4, Quat, Rgba8, Vec2, Vec3, Vec4};
