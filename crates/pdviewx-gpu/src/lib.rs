@@ -17,13 +17,14 @@ mod error;
 mod queue;
 mod surface;
 
-pub use capabilities::Capabilities;
+pub use capabilities::{Capabilities, CapabilityFlags};
 pub use descriptors::{
     BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType,
     BlendMode, BufferDesc, BufferUsage, ColorAttachment, ColorTarget, CompareFunction,
     ComputePassDesc, ComputePipelineDesc, DepthAttachment, DepthLoadOp, DepthState, FilterMode,
     LoadOp, PrimitiveTopology, RenderPassDesc, RenderPipelineDesc, SamplerDesc, ShaderModuleDesc,
-    ShaderStages, TextureDesc, TextureFormat, TextureUsage, TextureViewDesc,
+    ShaderStages, TextureDesc, TextureDimension, TextureFormat, TextureUsage, TextureViewDesc,
+    TextureWrite, TimestampWrites,
 };
 pub use device::{Device, DeviceDesc, Opened, PowerPreference, WindowSource, WindowTarget};
 pub use encoder::{CommandEncoder, ComputePassEncoder, RenderPassEncoder};
