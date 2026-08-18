@@ -8,6 +8,21 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+pdviewx-math.workspace = true
+pdviewx-core.workspace = true
+pdviewx-gpu.workspace = true
+pdviewx-shaders.workspace = true
+pdviewx-geometry.workspace = true
+smallvec.workspace = true
+bytemuck.workspace = true
+thiserror.workspace = true
+png.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+pdbiox = { workspace = true, features = ["mmcif"] }
+pollster.workspace = true
 
 [lints]
 workspace = true
