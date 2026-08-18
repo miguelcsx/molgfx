@@ -1,0 +1,362 @@
+// Specialized caller-authored analytic primitives into the shared gbuffer.
+//
+// Pipelines are specialized by primitive type:
+//   ellipsoid -> fs_primitive_ellipsoid[_transparent]
+//   polygon   -> fs_primitive_polygon[_transparent]
+//   box       -> fs_primitive_box[_transparent]
+//   particle  -> fs_primitive_particle[_transparent]
+//
+// All types share vs_primitive and a four-vertex triangle-strip impostor.
+//
+// PrimitiveGpu.orientation is expected to contain a normalized quaternion.
+//
+// This file holds the two pipeline stages only. Each analytic primitive owns
+// its interval math and its hit routine under include/primitive/, so adding a
+// shape touches one file and the shared ray and output code stays untouched.
+
+//!include "include/camera.wgsl"
+//!include "include/quad.wgsl"
+//!include "include/intersect.wgsl"
+//!include "include/material_lighting.wgsl"
+//!include "include/oit_input.wgsl"
+//!include "include/motion.wgsl"
+//!include "include/primitive/types.wgsl"
+//!include "include/primitive/ellipsoid.wgsl"
+//!include "include/primitive/box.wgsl"
+//!include "include/primitive/polygon.wgsl"
+
+// Particle integration retains the shared PrimitiveVsOut contract.
+//!include "include/particle.wgsl"
+//!include "include/primitive/output.wgsl"
+
+@vertex
+fn vs_primitive(
+    @builtin(vertex_index) vertex: u32,
+    @builtin(instance_index) instance: u32,
+) -> PrimitiveVsOut {
+    let center_radius =
+        primitive[instance].center_radius;
+
+    let world_center =
+        center_radius.xyz;
+
+    let center =
+        transform_point(
+            frame.view,
+            world_center,
+        );
+
+    let half_size =
+        sphere_quad_half_size(
+            length(center),
+            center_radius.w,
+        );
+
+    let view_position =
+        center +
+        vec3f(
+            primitive_corner(vertex) *
+                half_size,
+            0.0,
+        );
+
+    var out: PrimitiveVsOut;
+
+    out.position =
+        frame.proj *
+        vec4f(view_position, 1.0);
+
+    out.view_position =
+        view_position;
+
+    // Flat values are consumed from vertices 0 and 2 by the strip triangles.
+    //
+    // Assigning them on every vertex keeps this entry point simple while the
+    // four-vertex strip already cuts VS work by 1/3 versus a six-vertex quad.
+    out.world_center =
+        world_center;
+
+    out.radius =
+        center_radius.w;
+
+    out.orientation =
+        primitive[instance].orientation;
+
+    out.size =
+        primitive[instance].size_opacity.xyz;
+
+    out.inverse_primary =
+        primitive[instance].inverse_primary;
+
+    out.inverse_cross =
+        primitive[instance].inverse_cross;
+
+    out.color =
+        primitive[instance].color;
+
+    out.metadata =
+        primitive[instance].metadata;
+
+    out.previous_world_center =
+        primitive_previous[instance].xyz;
+
+    return out;
+}
+
+// -----------------------------------------------------------------------------
+// Ellipsoid
+// -----------------------------------------------------------------------------
+
+@fragment
+fn fs_primitive_ellipsoid(
+    in: PrimitiveVsOut,
+) -> PrimitiveFsOut {
+    if in.color.a < 0.999 {
+        discard;
+    }
+
+    let ray =
+        primitive_ray(
+            in.view_position,
+        );
+
+    let hit =
+        ellipsoid_hit(
+            in,
+            ray,
+        );
+
+    if !hit.valid {
+        discard;
+    }
+
+    return primitive_opaque_output(
+        in,
+        ray,
+        hit,
+    );
+}
+
+@fragment
+fn fs_primitive_ellipsoid_transparent(
+    in: PrimitiveVsOut,
+) -> OitOutput {
+    if in.color.a >= 0.999 {
+        discard;
+    }
+
+    let ray =
+        primitive_ray(
+            in.view_position,
+        );
+
+    let hit =
+        ellipsoid_hit(
+            in,
+            ray,
+        );
+
+    if !hit.valid {
+        discard;
+    }
+
+    return primitive_transparent_output(
+        in,
+        ray,
+        hit,
+    );
+}
+
+// -----------------------------------------------------------------------------
+// Oriented box
+// -----------------------------------------------------------------------------
+
+@fragment
+fn fs_primitive_box(
+    in: PrimitiveVsOut,
+) -> PrimitiveFsOut {
+    if in.color.a < 0.999 {
+        discard;
+    }
+
+    let ray =
+        primitive_ray(
+            in.view_position,
+        );
+
+    let hit =
+        box_hit(
+            in,
+            ray,
+        );
+
+    if !hit.valid {
+        discard;
+    }
+
+    return primitive_opaque_output(
+        in,
+        ray,
+        hit,
+    );
+}
+
+@fragment
+fn fs_primitive_box_transparent(
+    in: PrimitiveVsOut,
+) -> OitOutput {
+    if in.color.a >= 0.999 {
+        discard;
+    }
+
+    let ray =
+        primitive_ray(
+            in.view_position,
+        );
+
+    let hit =
+        box_hit(
+            in,
+            ray,
+        );
+
+    if !hit.valid {
+        discard;
+    }
+
+    return primitive_transparent_output(
+        in,
+        ray,
+        hit,
+    );
+}
+
+// -----------------------------------------------------------------------------
+// Polygon
+// -----------------------------------------------------------------------------
+
+@fragment
+fn fs_primitive_polygon(
+    in: PrimitiveVsOut,
+) -> PrimitiveFsOut {
+    if in.color.a < 0.999 {
+        discard;
+    }
+
+    let ray =
+        primitive_ray(
+            in.view_position,
+        );
+
+    let hit =
+        polygon_hit(
+            in,
+            ray,
+        );
+
+    if !hit.valid {
+        discard;
+    }
+
+    return primitive_opaque_output(
+        in,
+        ray,
+        hit,
+    );
+}
+
+@fragment
+fn fs_primitive_polygon_transparent(
+    in: PrimitiveVsOut,
+) -> OitOutput {
+    if in.color.a >= 0.999 {
+        discard;
+    }
+
+    let ray =
+        primitive_ray(
+            in.view_position,
+        );
+
+    let hit =
+        polygon_hit(
+            in,
+            ray,
+        );
+
+    if !hit.valid {
+        discard;
+    }
+
+    return primitive_transparent_output(
+        in,
+        ray,
+        hit,
+    );
+}
+
+// -----------------------------------------------------------------------------
+// Particle
+// -----------------------------------------------------------------------------
+
+@fragment
+fn fs_primitive_particle(
+    in: PrimitiveVsOut,
+) -> PrimitiveFsOut {
+    if in.color.a < 0.999 {
+        discard;
+    }
+
+    let ray =
+        primitive_ray(
+            in.view_position,
+        );
+
+    let hit =
+        particle_hit(
+            in,
+            ray.origin,
+            ray.direction,
+        );
+
+    if !hit.valid {
+        discard;
+    }
+
+    return primitive_opaque_output(
+        in,
+        ray,
+        hit,
+    );
+}
+
+@fragment
+fn fs_primitive_particle_transparent(
+    in: PrimitiveVsOut,
+) -> OitOutput {
+    if in.color.a >= 0.999 {
+        discard;
+    }
+
+    let ray =
+        primitive_ray(
+            in.view_position,
+        );
+
+    let hit =
+        particle_hit(
+            in,
+            ray.origin,
+            ray.direction,
+        );
+
+    if !hit.valid {
+        discard;
+    }
+
+    return primitive_transparent_output(
+        in,
+        ray,
+        hit,
+    );
+}
