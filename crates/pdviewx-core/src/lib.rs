@@ -11,34 +11,66 @@
 #[cfg(test)]
 mod fixture;
 
-mod atoms;
-mod column;
-mod controller;
-mod coord;
-mod error;
-mod gpu_types;
-mod handle;
-mod hierarchy;
-mod input;
-mod placed;
-mod radii;
+mod controls;
+mod gpu;
 mod representation;
 mod scene;
 mod selection;
+mod serialization;
+mod storage;
+mod structure;
 
-pub use atoms::AtomTable;
-pub use column::{Column, Revision};
-pub use controller::{ArcballController, FlyController, OrbitController};
-pub use coord::CoordRef;
-pub use error::CoreError;
-pub use gpu_types::{AtomFlags, AtomGpu, BondGpu, DrawIndirectArgs, EntityId, EntityKind};
-pub use handle::{RepresentationHandle, SelectionHandle, StructureHandle};
-pub use hierarchy::Hierarchy;
-pub use input::{Button, InputEvent, Key};
-pub use placed::PlacedStructure;
-pub use radii::{cpk_color, vdw_radius};
+pub(crate) use controls::input;
+pub(crate) use gpu::gpu_types;
+pub(crate) use representation::{annotation, interaction, radii};
+pub(crate) use selection::select;
+pub(crate) use storage::{column, error, handle};
+pub(crate) use structure::{atoms, coord, density, hierarchy, placed};
+
+pub use controls::{ArcballController, Button, FlyController, InputEvent, Key, OrbitController};
+pub use gpu::{
+    AtomFlags, AtomGpu, BondGpu, DrawIndirectArgs, EntityId, EntityKind, EntityRef, InteractionGpu,
+    ParticleMotionGpu, PrimitiveGpu, VolumeSegmentRef,
+};
 pub use representation::{
-    ColorScheme, Material, Representation, RepresentationKind, RepresentationParams,
+    Annotation, AnnotationAnchor, AnnotationKind, AtomProperty, AtomPropertyMeaning, ColorScheme,
+    FaceVisibility, Guide, GuideCap, GuideStyle, InteractionAnchor, InteractionDirection,
+    InteractionEdge, InteractionGeometry, InteractionKind, InteractionPattern, InteractionStyle,
+    MAX_MESH_VERTICES, MAX_VOLUME_TRANSFER_POINTS, MarkerShape, MarkerStyle, Material,
+    MaterialModel, Measurement, MeasurementKind, Mesh, MeshInstance, MeshTopology, MeshVertex,
+    OverlayAnchor, OverlayContent, PolylineKind, PropertyAppearance, PropertyAppearanceSample,
+    PropertyLegend, Quadric, Representation, RepresentationKind, RepresentationParams,
+    RepresentationPreset, RepresentationTarget, ScalarContours, ScalarFieldSemantics, ScalarRamp,
+    ScreenOverlay, SurfaceComponentPolicy, SurfaceKind, SurfaceScalarOverlay, SurfaceStyle,
+    TubeRadiusMapping, VolumeRegion, VolumeRendering, VolumeSlice, VolumeStyle,
+    VolumeTransferFunction, VolumeTransferPoint, cpk_color, vdw_radius,
 };
 pub use scene::Scene;
-pub use selection::AtomSelection;
+pub use selection::{
+    AtomSelection, ClipCap, ClipPlane, ClipSet, MAX_CLIP_PLANES, PropertyComparison, Select,
+};
+pub use serialization::{
+    AnchorDescription, AnnotationDescription, AtomPropertyDescription, ClipDescription,
+    ColorDescription, EntityDescription, GuideDescription, GuideStyleDescription,
+    InteractionDescription, MarkerStyleDescription, MaterialDescription, MeasurementDescription,
+    MeshDescription, MeshInstanceDescription, ObjectIdentity, OverlayDescription,
+    ParticleMotionDescription, PrimitiveDescription, PropertyAppearanceDescription,
+    RegionDescription, RepresentationDescription, ScalarSemanticsDescription, SceneDescription,
+    SceneDescriptionSources, SceneManifest, SegmentStyleDescription, SegmentationStyleDescription,
+    SelectionDescription, SelectionMask, StructureDescription, SurfaceScalarDescription,
+    TableCounts, TargetDescription, VolumeDescription, VolumeStyleDescription,
+    VolumeTransferPointDescription,
+};
+pub use storage::{
+    AnnotationHandle, AtomPropertyHandle, Column, CoreError, EnsembleHandle, GuideHandle,
+    InteractionHandle, MeasurementHandle, MeshHandle, MeshInstanceHandle, OverlayHandle,
+    PrimitiveHandle, RepresentationHandle, Revision, SegmentationHandle, SelectionHandle,
+    StructureHandle, VolumeHandle,
+};
+pub use structure::{
+    AnisotropicEllipsoid, AtomTable, CarbohydrateShape, CarbohydrateSymbol, CoordRef, CrystalCell,
+    DensityVolume, Ensemble, EntityProvenance, Hierarchy, Particle, ParticleBoundary,
+    ParticleMotion, ParticleShape, PlacedStructure, PlanarRegion, Primitive, ProvenanceDetail,
+    SecondaryStructure, SegmentStyle, SegmentStyleTable, SegmentationStyle, SegmentedVolume,
+    SymmetryInstance, TrajectoryFrame, TrajectorySegment, ValidationKind, ValidationMarker,
+};
