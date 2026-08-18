@@ -1,0 +1,376 @@
+// Pixel-stable circular atom points for dense semantic zoom.
+//
+// Opaque and transparent paths use dedicated payloads.
+// Point clipping is specialized at pipeline creation and evaluated per vertex,
+// never per covered fragment.
+//
+// Draw contract:
+//   topology    = triangle-strip
+//   vertexCount = 4
+//
+// Input contract:
+//   visible_atoms contains drawable atoms.
+//   Optimized camera.wgsl, atom.wgsl, quad.wgsl and motion.wgsl are used.
+
+//!include "include/camera.wgsl"
+//!include "include/atom.wgsl"
+//!include "include/quad.wgsl"
+//!include "include/material_lighting.wgsl"
+//!include "include/oit_input.wgsl"
+//!include "include/representation.wgsl"
+//!include "include/motion.wgsl"
+
+const POINT_NORMAL: vec3f = vec3f(0.0, 0.0, 1.0);
+const POINT_COVERAGE_EPSILON: f32 = 1.0e-6;
+
+// Compile two pipeline variants when representation clipping is optional.
+override POINT_CLIPPING_ENABLED: bool = false;
+
+struct PointGeometry {
+    clip: vec4f,
+    position: vec4f,
+    corner: vec2f,
+    view_position: vec3f,
+}
+
+struct PointOpaqueVsOut {
+    @builtin(position) position: vec4f,
+
+    @location(0) @interpolate(linear) corner: vec2f,
+
+    @location(1) @interpolate(flat, first) color: vec4f,
+    @location(2) @interpolate(flat, first) motion: vec2f,
+    @location(3) @interpolate(flat, first) entity_id: u32,
+}
+
+struct PointTransparentVsOut {
+    @builtin(position) position: vec4f,
+
+    @location(0) @interpolate(linear) corner: vec2f,
+
+    @location(1) @interpolate(flat, first) view_position: vec3f,
+    @location(2) @interpolate(flat, first) color: vec4f,
+    @location(3) @interpolate(flat, first) softness_pixels: f32,
+}
+
+struct PointFsOut {
+    @location(0) albedo_material: vec4f,
+    @location(1) normal_roughness: vec4f,
+    @location(2) entity_id: u32,
+    @location(3) structure_id: u32,
+    @location(4) motion: vec2f,
+    @builtin(frag_depth) depth: f32,
+}
+
+/// Returns the provoking vertices of the four-vertex triangle strip.
+fn point_flat_source(vertex: u32) -> bool {
+    return vertex == 0u || vertex == 2u;
+}
+
+/// Builds the pixel-stable impostor geometry.
+fn point_geometry(
+    world_position: vec3f,
+    vertex: u32,
+) -> PointGeometry {
+    let view_position =
+        camera_view_position(world_position);
+
+    let clip =
+        camera_view_clip(view_position);
+
+    let corner =
+        quad_corner(vertex);
+
+    let offset =
+        corner *
+        representation.visual.x *
+        frame.viewport.zw *
+        clip.w;
+
+    return PointGeometry(
+        clip,
+        vec4f(
+            clip.xy + offset,
+            clip.zw,
+        ),
+        corner,
+        view_position,
+    );
+}
+
+/// Moves a rejected point outside clip space.
+fn point_rejected_position() -> vec4f {
+    return vec4f(
+        0.0,
+        0.0,
+        -1.0,
+        1.0,
+    );
+}
+
+// -----------------------------------------------------------------------------
+// Opaque
+// -----------------------------------------------------------------------------
+
+@vertex
+fn vs_point(
+    @builtin(vertex_index) vertex: u32,
+    @builtin(instance_index) instance: u32,
+) -> PointOpaqueVsOut {
+    let atom =
+        atoms[
+            visible_atoms[instance]
+        ];
+
+    let flat =
+        point_flat_source(vertex);
+
+    var world_position: vec3f;
+    var previous_world = vec3f(0.0);
+
+    // Previous coordinates are fetched only by the two provoking vertices.
+    if flat {
+        let positions =
+            atom_motion_positions(
+                atom.entity_id
+            );
+
+        world_position =
+            positions.current;
+
+        previous_world =
+            positions.previous;
+    } else {
+        world_position =
+            atom_position(
+                atom.entity_id
+            );
+    }
+
+    let geometry =
+        point_geometry(
+            world_position,
+            vertex,
+        );
+
+    var out: PointOpaqueVsOut;
+
+    out.position =
+        geometry.position;
+
+    out.corner =
+        geometry.corner;
+
+    out.color =
+        vec4f(0.0);
+
+    out.motion =
+        vec2f(0.0);
+
+    out.entity_id =
+        0u;
+
+    if POINT_CLIPPING_ENABLED &&
+        !representation_visible(world_position) {
+        out.position =
+            point_rejected_position();
+
+        return out;
+    }
+
+    if flat {
+        out.color =
+            atom_color(atom.color);
+
+        // Current clip XYW already exists; do not project current_world again.
+        out.motion =
+            screen_motion_from_clip(
+                geometry.clip.xyw,
+
+                clip_xyw(
+                    frame.previous_view_proj,
+                    previous_world,
+                ),
+            );
+
+        out.entity_id =
+            atom.entity_id;
+    }
+
+    return out;
+}
+
+@fragment
+fn fs_point(
+    in: PointOpaqueVsOut,
+) -> PointFsOut {
+    if dot(in.corner, in.corner) > 1.0 {
+        discard;
+    }
+
+    var out: PointFsOut;
+
+    out.albedo_material =
+        vec4f(
+            in.color.rgb,
+            material_payload(
+                representation.material
+            ),
+        );
+
+    out.normal_roughness =
+        vec4f(
+            encode_shading_frame(
+                POINT_NORMAL,
+                canonical_tangent(
+                    POINT_NORMAL
+                ),
+            ),
+            representation.material.x,
+        );
+
+    out.entity_id =
+        in.entity_id;
+
+    out.structure_id =
+        model.structure_id;
+
+    out.motion =
+        in.motion;
+
+    // Fragment position Z is already the rasterized device depth.
+    out.depth =
+        in.position.z;
+
+    return out;
+}
+
+// -----------------------------------------------------------------------------
+// Transparent
+// -----------------------------------------------------------------------------
+
+@vertex
+fn vs_point_transparent(
+    @builtin(vertex_index) vertex: u32,
+    @builtin(instance_index) instance: u32,
+) -> PointTransparentVsOut {
+    let atom =
+        atoms[
+            visible_atoms[instance]
+        ];
+
+    let world_position =
+        atom_position(
+            atom.entity_id
+        );
+
+    let geometry =
+        point_geometry(
+            world_position,
+            vertex,
+        );
+
+    var out: PointTransparentVsOut;
+
+    out.position =
+        geometry.position;
+
+    out.corner =
+        geometry.corner;
+
+    out.view_position =
+        vec3f(0.0);
+
+    out.color =
+        vec4f(0.0);
+
+    out.softness_pixels =
+        0.0;
+
+    if POINT_CLIPPING_ENABLED &&
+        !representation_visible(world_position) {
+        out.position =
+            point_rejected_position();
+
+        return out;
+    }
+
+    if point_flat_source(vertex) {
+        out.view_position =
+            geometry.view_position;
+
+        out.color =
+            atom_color(
+                atom.color
+            );
+
+        out.softness_pixels =
+            atom_softness_pixels(
+                atom.semantic
+            );
+    }
+
+    return out;
+}
+
+@fragment
+fn fs_point_transparent(
+    in: PointTransparentVsOut,
+) -> OitOutput {
+    let radius_sq =
+        dot(
+            in.corner,
+            in.corner,
+        );
+
+    if radius_sq > 1.0 {
+        discard;
+    }
+
+    let radius =
+        sqrt(radius_sq);
+
+    let transition =
+        max(
+            fwidth(radius) *
+                max(
+                    in.softness_pixels,
+                    1.0,
+                ),
+            POINT_COVERAGE_EPSILON,
+        );
+
+    let coverage =
+        smoothstep(
+            0.0,
+            transition,
+            1.0 - radius,
+        );
+
+    if coverage <= 0.0 {
+        discard;
+    }
+
+    let material =
+        material_payload(
+            representation.material
+        );
+
+    let lit =
+        shade_molecule(
+            in.color.rgb,
+            POINT_NORMAL,
+            representation.material.x,
+            material,
+            in.view_position,
+            oit_occlusion(
+                in.position
+            ),
+        );
+
+    return weighted_transparency(
+        lit,
+        in.color.a * coverage,
+        in.position.z,
+    );
+}
