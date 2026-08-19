@@ -77,6 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         samples.push(FrameSample {
             gpu_ns: timing.gpu_ns,
             cpu_ns: timing.cpu_ns,
+            frame_ns: timing.frame_ns,
             ..FrameSample::default()
         });
     }
@@ -90,6 +91,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("gpu_median_ns={}", summary.gpu_median_ns);
     println!("gpu_p99_ns={}", summary.gpu_p99_ns);
     println!("cpu_median_ns={}", summary.cpu_median_ns);
+    println!("frame_median_ns={}", summary.frame_median_ns);
+    println!("frame_p99_ns={}", summary.frame_p99_ns);
+    println!("frame_p99_fps={:.2}", fps(summary.frame_p99_ns));
     println!("gpu_median_fps={:.2}", fps(summary.gpu_median_ns));
     println!("gpu_p99_fps={:.2}", fps(summary.gpu_p99_ns));
     Ok(())

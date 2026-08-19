@@ -6,6 +6,7 @@ fn summaries_report_median_p99_and_resource_peaks() {
         .map(|value| FrameSample {
             gpu_ns: value,
             cpu_ns: 101 - value,
+            frame_ns: value * 2,
             allocations: value % 2,
             upload_bytes: value * 10,
             resident_bytes: value * 100,
@@ -20,6 +21,8 @@ fn summaries_report_median_p99_and_resource_peaks() {
     assert_eq!(summary.gpu_median_ns, 50);
     assert_eq!(summary.gpu_p99_ns, 99);
     assert_eq!(summary.cpu_median_ns, 50);
+    assert_eq!(summary.frame_median_ns, 100);
+    assert_eq!(summary.frame_p99_ns, 198);
     assert_eq!(summary.max_allocations, 1);
     assert_eq!(summary.peak_resident_bytes, 10_000);
 }

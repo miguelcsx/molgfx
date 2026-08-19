@@ -1,8 +1,8 @@
 //! Whole-graph direct-volume benchmark using a deterministic scalar grid.
 
 use pdviewx::{
-    Camera, DensityVolume, Engine, EngineConfig, Image, ImageConfig, Rgba8, Scene, Vec3,
-    VolumeTransferFunction, VolumeTransferPoint,
+    Camera, DensityVolume, Engine, EngineConfig, Image, ImageConfig, Representation, Rgba8, Scene,
+    Vec3, VolumeStyle, VolumeTransferFunction, VolumeTransferPoint,
 };
 use pdviewx_bench::{FrameSample, summarize};
 use std::error::Error;
@@ -20,9 +20,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut scene = Scene::new();
     let volume = scene.add_volume(synthetic_density()?);
     let representation = if isosurface {
-        scene.represent_isosurface(volume)?
+        scene.represent(
+            volume,
+            Representation::volume().volume_style(VolumeStyle::isosurface()),
+        )?
     } else {
-        scene.represent_volume(volume)?
+        scene.represent(volume, Representation::volume())?
     };
     let Some(style) = scene.representation_mut(representation) else {
         return Err("new volume representation became stale".into());
@@ -48,6 +51,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         samples.push(FrameSample {
             gpu_ns: timing.gpu_ns,
             cpu_ns: timing.cpu_ns,
+            frame_ns: timing.frame_ns,
             ..FrameSample::default()
         });
     }
@@ -57,6 +61,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("gpu_median_ns={}", summary.gpu_median_ns);
     println!("gpu_p99_ns={}", summary.gpu_p99_ns);
     println!("cpu_median_ns={}", summary.cpu_median_ns);
+    println!("frame_median_ns={}", summary.frame_median_ns);
+    println!("frame_p99_ns={}", summary.frame_p99_ns);
+    println!("frame_p99_fps={:.2}", fps(summary.frame_p99_ns));
     println!("gpu_median_fps={:.2}", fps(summary.gpu_median_ns));
     println!("gpu_p99_fps={:.2}", fps(summary.gpu_p99_ns));
     if let Some(path) = arguments.get(1) {
