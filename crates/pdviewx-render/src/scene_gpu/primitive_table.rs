@@ -1,6 +1,7 @@
 //! One revision-diffed GPU table for analytic primitives.
 
 use super::buffers::{count, upload_grow, write_draw_args};
+use super::primitive_draw::{PackedPrimitive, PrimitiveDrawGroup, regroup};
 use super::structure::GpuStructure;
 use crate::error::RenderError;
 use pdviewx_core::{
@@ -8,7 +9,19 @@ use pdviewx_core::{
     PrimitiveGpu, Scene,
 };
 use pdviewx_gpu::{BindGroupDesc, BindGroupEntry, Device};
+
+/// The three bind-group layouts a primitive sync binds: the gbuffer table, the
+/// particle-motion compute group, and the shadow-caster group.
+pub(super) struct PrimitiveLayouts<'a, D: Device> {
+    pub(super) table: &'a D::BindGroupLayout,
+    pub(super) motion: &'a D::BindGroupLayout,
+    pub(super) shadow: &'a D::BindGroupLayout,
+}
 use pdviewx_math::{Mat3, Mat4, Quat, Vec3};
+
+/// Above this count, realtime shadows use SSAO/contact shadows instead of a
+/// second full primitive raster. Quality mode retains the complete caster set.
+const REALTIME_SHADOW_PRIMITIVES: u32 = 4_096;
 
 #[derive(Debug)]
 pub(super) struct GpuPrimitives<D: Device> {
@@ -17,6 +30,7 @@ pub(super) struct GpuPrimitives<D: Device> {
     motion: Option<D::Buffer>,
     args: Option<D::Buffer>,
     group: Option<D::BindGroup>,
+    shadow_group: Option<D::BindGroup>,
     motion_group: Option<D::BindGroup>,
     capacity: u64,
     previous_capacity: u64,
@@ -28,6 +42,8 @@ pub(super) struct GpuPrimitives<D: Device> {
     scratch: Vec<PrimitiveGpu>,
     previous_scratch: Vec<[f32; 4]>,
     motion_scratch: Vec<ParticleMotionGpu>,
+    rows: Vec<PackedPrimitive>,
+    groups: Vec<PrimitiveDrawGroup>,
 }
 
 impl<D: Device> GpuPrimitives<D> {
@@ -38,6 +54,7 @@ impl<D: Device> GpuPrimitives<D> {
             motion: None,
             args: None,
             group: None,
+            shadow_group: None,
             motion_group: None,
             capacity: 0,
             previous_capacity: 0,
@@ -49,6 +66,8 @@ impl<D: Device> GpuPrimitives<D> {
             scratch: Vec::new(),
             previous_scratch: Vec::new(),
             motion_scratch: Vec::new(),
+            rows: Vec::new(),
+            groups: Vec::new(),
         }
     }
 
@@ -56,8 +75,7 @@ impl<D: Device> GpuPrimitives<D> {
         &mut self,
         device: &D,
         queue: &D::Queue,
-        layout: &D::BindGroupLayout,
-        motion_layout: &D::BindGroupLayout,
+        layouts: &PrimitiveLayouts<'_, D>,
         scene: &Scene,
         structures: &[GpuStructure<D>],
     ) -> Result<bool, RenderError> {
@@ -69,9 +87,7 @@ impl<D: Device> GpuPrimitives<D> {
         if self.synced == Some(revision) {
             return Ok(false);
         }
-        self.scratch.clear();
-        self.previous_scratch.clear();
-        self.motion_scratch.clear();
+        self.rows.clear();
         self.translucent = false;
         self.motion_count = 0;
         for (handle, primitive) in scene.primitives() {
@@ -95,11 +111,18 @@ impl<D: Device> GpuPrimitives<D> {
             {
                 self.translucent |= record.color[3] < 0.999;
                 self.motion_count += motion.metadata[0];
-                self.previous_scratch.push(record.center_radius);
-                self.scratch.push(record);
-                self.motion_scratch.push(motion);
+                self.rows.push(PackedPrimitive::new(record, motion));
             }
         }
+        // Sort every class contiguous so each fragment pipeline draws only its
+        // own shape, and rebuild the per-class draw ranges from that order.
+        regroup(
+            &mut self.rows,
+            &mut self.scratch,
+            &mut self.previous_scratch,
+            &mut self.motion_scratch,
+            &mut self.groups,
+        );
         let needed = (self.scratch.len() * std::mem::size_of::<PrimitiveGpu>()) as u64;
         let rebind = self.buffer.is_none()
             || self.previous.is_none()
@@ -129,6 +152,12 @@ impl<D: Device> GpuPrimitives<D> {
             &mut self.motion,
             &mut self.motion_capacity,
         )?;
+        // Packed rows are upload staging, not resident scene state. Retaining
+        // hundreds of MiB after a million-item upload would double the CPU
+        // footprint without making a steady frame faster.
+        if self.rows.capacity() > 262_144 {
+            self.rows = Vec::new();
+        }
         write_draw_args(
             device,
             queue,
@@ -138,27 +167,29 @@ impl<D: Device> GpuPrimitives<D> {
             &mut self.args,
         )?;
         if rebind || self.group.is_none() || self.motion_group.is_none() {
-            self.bind(device, layout, motion_layout);
+            self.bind(device, layouts);
         }
         self.count = count(self.scratch.len());
         self.synced = Some(revision);
         Ok(true)
     }
 
-    fn bind(
-        &mut self,
-        device: &D,
-        layout: &D::BindGroupLayout,
-        motion_layout: &D::BindGroupLayout,
-    ) {
+    fn bind(&mut self, device: &D, layouts: &PrimitiveLayouts<'_, D>) {
         let (Some(buffer), Some(previous), Some(motion)) =
             (&self.buffer, &self.previous, &self.motion)
         else {
             return;
         };
+        // The shadow caster reads the same records at binding 6, sharing one
+        // primitive buffer between the gbuffer and shadow draws.
+        self.shadow_group = Some(device.create_bind_group(&BindGroupDesc {
+            label: "group2: primitive shadow casters",
+            layout: layouts.shadow,
+            entries: &[BindGroupEntry::Buffer { binding: 6, buffer }],
+        }));
         self.group = Some(device.create_bind_group(&BindGroupDesc {
             label: "group2: primitive table",
-            layout,
+            layout: layouts.table,
             entries: &[
                 BindGroupEntry::Buffer { binding: 0, buffer },
                 BindGroupEntry::Buffer {
@@ -173,7 +204,7 @@ impl<D: Device> GpuPrimitives<D> {
         }));
         self.motion_group = Some(device.create_bind_group(&BindGroupDesc {
             label: "group2: primitive particle motion",
-            layout: motion_layout,
+            layout: layouts.motion,
             entries: &[
                 BindGroupEntry::Buffer { binding: 0, buffer },
                 BindGroupEntry::Buffer {
@@ -188,12 +219,16 @@ impl<D: Device> GpuPrimitives<D> {
         }));
     }
 
-    pub(super) fn draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
-        (self.count > 0).then_some((self.group.as_ref()?, self.args.as_ref()?))
+    /// The shadow-caster bind group and its whole-table indirect arguments.
+    pub(super) fn shadow_draw(&self, quality: bool) -> Option<(&D::BindGroup, &D::Buffer)> {
+        (self.count > 0 && (quality || self.count <= REALTIME_SHADOW_PRIMITIVES))
+            .then_some((self.shadow_group.as_ref()?, self.args.as_ref()?))
     }
 
-    pub(super) fn transparent_draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
-        self.translucent.then(|| self.draw()).flatten()
+    /// The shape-sorted table with its per-class draw ranges, for the
+    /// specialized gbuffer and transparency passes.
+    pub(super) fn groups(&self) -> Option<(&D::BindGroup, &[PrimitiveDrawGroup])> {
+        (self.count > 0).then_some((self.group.as_ref()?, self.groups.as_slice()))
     }
 
     pub(super) fn particle_motion(&self) -> Option<(&D::BindGroup, u32)> {

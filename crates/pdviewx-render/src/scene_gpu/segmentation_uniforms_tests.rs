@@ -1,7 +1,8 @@
 use super::SegmentationUniforms;
 use crate::scene_gpu::segmentation_lookup::{LookupMode, SegmentLookup};
 use pdviewx_core::{
-    ClipPlane, Scene, SegmentStyle, SegmentStyleTable, SegmentedVolume, VolumeRegion, VolumeSlice,
+    ClipPlane, Representation, Scene, SegmentStyle, SegmentStyleTable, SegmentationStyle,
+    SegmentedVolume, VolumeRegion, VolumeSlice,
 };
 use pdviewx_math::{Mat4, Rgba8, Vec3};
 use std::sync::Arc;
@@ -20,7 +21,13 @@ fn representation_and_volume() -> (SegmentedVolume, pdviewx_core::Representation
         Ok(styles) => styles,
         Err(error) => panic!("styles build: {error}"),
     };
-    let representation = match scene.represent_segmented_volume(handle, styles) {
+    let representation = match scene.represent(
+        handle,
+        Representation::segmentation().segmentation_style(SegmentationStyle {
+            styles,
+            ..SegmentationStyle::default()
+        }),
+    ) {
         Ok(handle) => handle,
         Err(error) => panic!("segmentation represents: {error}"),
     };

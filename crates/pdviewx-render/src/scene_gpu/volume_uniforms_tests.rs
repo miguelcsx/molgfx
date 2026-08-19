@@ -1,5 +1,7 @@
 use super::*;
-use pdviewx_core::{DensityVolume, RepresentationKind, Scene, VolumeRendering};
+use pdviewx_core::{
+    DensityVolume, Representation, RepresentationKind, Scene, VolumeRendering, VolumeStyle,
+};
 use std::sync::Arc;
 
 #[test]
@@ -14,7 +16,10 @@ fn isosurface_mode_and_level_are_packed_independently_of_the_grid() {
     };
     let mut scene = Scene::new();
     let handle = scene.add_volume(volume.clone());
-    let representation = match scene.represent_isosurface(handle) {
+    let representation = match scene.represent(
+        handle,
+        Representation::volume().volume_style(VolumeStyle::isosurface()),
+    ) {
         Ok(handle) => handle,
         Err(error) => panic!("isosurface applies: {error}"),
     };
@@ -39,7 +44,10 @@ fn participating_medium_is_an_explicit_volume_algorithm() {
     };
     let mut scene = Scene::new();
     let handle = scene.add_volume(volume.clone());
-    let representation = match scene.represent_medium(handle) {
+    let representation = match scene.represent(
+        handle,
+        Representation::volume().volume_style(VolumeStyle::medium()),
+    ) {
         Ok(handle) => handle,
         Err(error) => panic!("medium applies: {error}"),
     };
@@ -59,7 +67,10 @@ fn liquid_surface_mode_keeps_the_caller_grid_and_selects_the_surface_branch() {
     };
     let mut scene = Scene::new();
     let handle = scene.add_volume(volume.clone());
-    let representation = match scene.represent_liquid_surface(handle) {
+    let representation = match scene.represent(
+        handle,
+        Representation::volume().volume_style(VolumeStyle::liquid_surface()),
+    ) {
         Ok(handle) => handle,
         Err(error) => panic!("liquid surface applies: {error}"),
     };
@@ -89,11 +100,14 @@ fn arbitrary_slice_plane_is_packed_in_world_space() {
     };
     let mut scene = Scene::new();
     let handle = scene.add_volume(volume.clone());
-    let representation =
-        match scene.represent_volume_slice(handle, pdviewx_core::VolumeSlice::new(plane)) {
-            Ok(handle) => handle,
-            Err(error) => panic!("slice applies: {error}"),
-        };
+    let representation = match scene.represent(
+        handle,
+        Representation::volume()
+            .volume_style(VolumeStyle::slice(pdviewx_core::VolumeSlice::new(plane))),
+    ) {
+        Ok(handle) => handle,
+        Err(error) => panic!("slice applies: {error}"),
+    };
     let Some(representation) = scene.representation(representation) else {
         panic!("slice representation resolves")
     };
@@ -117,7 +131,10 @@ fn cropped_volume_bounds_are_packed_as_a_half_open_region() {
     };
     let mut scene = Scene::new();
     let handle = scene.add_volume(volume.clone());
-    let representation = match scene.represent_volume_region(handle, region) {
+    let representation = match scene.represent(
+        handle,
+        Representation::volume().volume_style(VolumeStyle::default().region(region)),
+    ) {
         Ok(handle) => handle,
         Err(error) => panic!("cropped volume applies: {error}"),
     };
