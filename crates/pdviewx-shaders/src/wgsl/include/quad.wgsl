@@ -1,4 +1,4 @@
-// Four-vertex triangle-strip impostor synthesis.
+// Six-vertex triangle-list impostor synthesis.
 //
 // Vertex order:
 //   2 ---- 3
@@ -6,22 +6,21 @@
 //   |  /   |
 //   0 ---- 1
 //
-// Draw with:
-//   topology    = triangle-strip
-//   vertexCount = 4
+// Triangle order: 0, 1, 2 and 2, 1, 3.
 
 const SPHERE_MIN_DISTANCE_SQ: f32 = 1.0e-8;
 const SPHERE_MAX_RATIO_SQ: f32 = 0.9801; // 0.99²
 
-/// Returns triangle-strip coordinates in [0, 1].
+/// Returns triangle-list coordinates in [0, 1].
 fn quad_uv(index: u32) -> vec2f {
-    return vec2f(
-        f32(index & 1u),
-        f32(index >> 1u),
+    let corners = array<vec2f, 6>(
+        vec2f(0.0, 0.0), vec2f(1.0, 0.0), vec2f(0.0, 1.0),
+        vec2f(0.0, 1.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0),
     );
+    return corners[min(index, 5u)];
 }
 
-/// Returns triangle-strip coordinates in [-1, 1].
+/// Returns triangle-list coordinates in [-1, 1].
 fn quad_corner(index: u32) -> vec2f {
     return fma(
         quad_uv(index),

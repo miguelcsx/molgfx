@@ -130,17 +130,18 @@ fn bond_view_depth(view: vec3f) -> f32 {
     return zw.x / zw.y;
 }
 
-/// Returns triangle-strip quad coordinates in [0, 1].
+/// Returns triangle-list quad coordinates in [0, 1].
 fn bond_quad_uv(vertex_index: u32) -> vec2f {
-    return vec2f(vec2u(
-        vertex_index & 1u,
-        vertex_index >> 1u,
-    ));
+    let corners = array<vec2f, 6>(
+        vec2f(0.0, 0.0), vec2f(1.0, 0.0), vec2f(0.0, 1.0),
+        vec2f(0.0, 1.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0),
+    );
+    return corners[min(vertex_index, 5u)];
 }
 
-/// Returns true for the provoking vertex of each strip triangle.
+/// Returns true for the provoking vertex of each independent triangle.
 fn bond_flat_source(vertex_index: u32) -> bool {
-    return vertex_index == 0u || vertex_index == 2u;
+    return vertex_index == 0u || vertex_index == 3u;
 }
 
 /// Expands two projected endpoints into a screen rectangle.

@@ -73,17 +73,18 @@ struct SphereFsOut {
     @builtin(frag_depth) depth: f32,
 }
 
-/// Returns triangle-strip corners in [-1, 1].
+/// Returns triangle-list corners in [-1, 1].
 fn sphere_corner(vertex: u32) -> vec2f {
-    return vec2f(
-        f32(vertex & 1u),
-        f32(vertex >> 1u),
-    ) * 2.0 - vec2f(1.0);
+    let corners = array<vec2f, 6>(
+        vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(-1.0, 1.0),
+        vec2f(-1.0, 1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0),
+    );
+    return corners[min(vertex, 5u)];
 }
 
-/// Returns the first vertex of each triangle in the four-vertex strip.
+/// Returns the first vertex of each independent triangle.
 fn sphere_flat_source(vertex: u32) -> bool {
-    return vertex == 0u || vertex == 2u;
+    return vertex == 0u || vertex == 3u;
 }
 
 /// Transforms a world-space point to view space without computing W.
@@ -128,7 +129,7 @@ fn sphere_geometry(
 
     let half_size =
         sphere_quad_half_size(
-            length(center),
+            dot(center, center),
             atom.radius,
         );
 

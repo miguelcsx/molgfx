@@ -5,12 +5,32 @@
 // per-bond attributes are authored by the provoking vertices only, which
 // keeps the interpolator count down and the per-vertex work minimal.
 
+const HIDDEN_WIRE_BOND: u32 = 0xffffffffu;
+
+fn hidden_bond_line() -> BondLineVsOut {
+    var out: BondLineVsOut;
+    out.position = vec4f(2.0, 2.0, 0.0, 1.0);
+    out.endpoint_a = vec3f(0.0);
+    out.endpoint_axis = vec3f(0.0);
+    out.pixel_a_axis = vec4f(0.0);
+    out.color_a = vec4f(0.0);
+    out.color_delta = vec4f(0.0);
+    out.motion_a_delta = vec4f(0.0);
+    out.aux = vec4f(0.0);
+    out.entity_id = HIDDEN_WIRE_BOND;
+    return out;
+}
+
 @vertex
 fn vs_bond_line(
     @builtin(vertex_index) vertex_index: u32,
     @builtin(instance_index) instance_index: u32,
 ) -> BondLineVsOut {
-    let bond = bonds[visible_bonds[instance_index]];
+    let bond_index = visible_bonds[instance_index];
+    if bond_index == HIDDEN_WIRE_BOND {
+        return hidden_bond_line();
+    }
+    let bond = bonds[bond_index];
 
     let atom_a = atoms[bond.atom_a];
     let atom_b = atoms[bond.atom_b];
