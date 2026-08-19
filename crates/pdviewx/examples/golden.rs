@@ -14,6 +14,7 @@
 use pdviewx::{
     AtomSelection, Camera, ColorScheme, Engine, EngineConfig, Image, ImageConfig, RenderProfile,
     RepresentationKind, RepresentationPreset, RepresentationTarget, Scene, SurfaceKind,
+    TubeRadiusMapping,
 };
 use std::error::Error;
 use std::fs::{self, File};
@@ -41,7 +42,7 @@ struct GoldenScene {
 /// The corpus. Each entry covers a distinct geometry path — impostors, splines,
 /// nucleotide slabs, marching-cubes surface, glycosidic ribbons — so a break in
 /// any one of them shows up as a changed picture.
-const CORPUS: [GoldenScene; 8] = [
+const CORPUS: [GoldenScene; 13] = [
     GoldenScene {
         name: "ubiquitin-spacefill",
         structure: "1ubq.cif",
@@ -76,6 +77,51 @@ const CORPUS: [GoldenScene; 8] = [
         preset: None,
         surface: None,
         by_chain: false,
+        cinematic: false,
+    },
+    GoldenScene {
+        name: "trypsin-round-wires",
+        structure: "3PTB.cif",
+        kind: RepresentationKind::Lines,
+        preset: None,
+        surface: None,
+        by_chain: false,
+        cinematic: false,
+    },
+    GoldenScene {
+        name: "ubiquitin-points",
+        structure: "1ubq.cif",
+        kind: RepresentationKind::Points,
+        preset: None,
+        surface: None,
+        by_chain: true,
+        cinematic: false,
+    },
+    GoldenScene {
+        name: "ubiquitin-residue-beads",
+        structure: "1ubq.cif",
+        kind: RepresentationKind::Beads,
+        preset: None,
+        surface: None,
+        by_chain: true,
+        cinematic: false,
+    },
+    GoldenScene {
+        name: "haemoglobin-rocket",
+        structure: "4hhb.cif",
+        kind: RepresentationKind::Rocket,
+        preset: None,
+        surface: None,
+        by_chain: true,
+        cinematic: true,
+    },
+    GoldenScene {
+        name: "haemoglobin-putty",
+        structure: "4hhb.cif",
+        kind: RepresentationKind::Tube,
+        preset: None,
+        surface: None,
+        by_chain: true,
         cinematic: false,
     },
     GoldenScene {
@@ -278,6 +324,10 @@ fn render(root: &Path, scene: &GoldenScene) -> Result<(Image, String), RunError>
         }
         if scene.by_chain {
             representation.color = ColorScheme::ByChain;
+        }
+        if scene.kind == RepresentationKind::Tube {
+            representation.params.tube_radius_mapping =
+                TubeRadiusMapping::b_factor([0.0, 80.0], [0.12, 0.72])?;
         }
     }
     let config = ImageConfig {

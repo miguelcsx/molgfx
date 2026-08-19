@@ -9,7 +9,7 @@
 use pdviewx::{
     AnisotropicEllipsoid, Camera, CarbohydrateShape, CarbohydrateSymbol, Engine, EngineConfig,
     GuideCap, GuideStyle, Image, ImageConfig, InteractionPattern, Particle, ParticleBoundary,
-    ParticleMotion, ParticleShape, PlanarRegion, Rgba8, Scene, Vec3,
+    ParticleMotion, ParticleShape, PlanarRegion, Primitive, Rgba8, Scene, Vec3,
 };
 use pdviewx_math::Quat;
 use std::error::Error;
@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let center = bounds.center();
     let half = bounds.half_extents();
     let scale = half.x.max(half.y).max(half.z).max(2.0);
-    add_particles(&mut scene, owner, center, scale)?;
+    add_particle_batch(&mut scene, owner, center, scale)?;
     add_glyphs(&mut scene, owner, center, scale)?;
     add_streamline(&mut scene, owner, center, scale)?;
 
@@ -55,7 +55,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn add_particles(
+fn add_particle_batch(
     scene: &mut Scene,
     owner: pdviewx::StructureHandle,
     center: Vec3,
@@ -90,6 +90,7 @@ fn add_particles(
         Rgba8::opaque(167, 139, 250),
     ];
     let offsets = [-2.0, -1.0, 0.0, 1.0, 2.0];
+    let mut particles = Vec::with_capacity(shapes.len());
     for (((shape, size), color), offset) in shapes.into_iter().zip(colors).zip(offsets) {
         let motion = if shape == ParticleShape::Gaussian {
             Some(
@@ -122,8 +123,9 @@ fn add_particles(
             Some(motion) => particle.with_motion(motion),
             None => particle,
         };
-        scene.add_particle(particle)?;
+        particles.push(Primitive::Particle(particle));
     }
+    scene.add_primitives(&particles)?;
     Ok(())
 }
 
@@ -137,8 +139,6 @@ fn add_glyphs(
         center + Vec3::new(-scale * 0.72, -scale * 1.12, 0.0),
         [scale * 0.38, scale * 0.16, scale * 0.24, 0.0, 0.0, 0.0],
     )?;
-    scene.add_ellipsoid(owner, ellipsoid, Rgba8::opaque(248, 113, 113), 0.9)?;
-
     let symbol = CarbohydrateSymbol::new(
         owner,
         center + Vec3::new(0.0, -scale * 1.12, 0.0),
@@ -147,8 +147,6 @@ fn add_glyphs(
         CarbohydrateShape::Glc,
         Rgba8::opaque(251, 146, 60),
     )?;
-    scene.add_carbohydrate_symbol(symbol)?;
-
     let plane = PlanarRegion::new(
         owner,
         center + Vec3::new(scale * 0.72, -scale * 1.12, 0.0),
@@ -156,7 +154,22 @@ fn add_glyphs(
         Vec3::X,
         [scale * 0.72, scale * 0.36],
     )?;
-    scene.add_filled_planar_region(plane, Rgba8::opaque(45, 212, 191), 0.46)?;
+    scene.add_primitives(&[
+        Primitive::Ellipsoid {
+            owner,
+            value: ellipsoid,
+            color: Rgba8::opaque(248, 113, 113),
+            opacity: 0.9,
+            visible: true,
+        },
+        Primitive::Carbohydrate(symbol),
+        Primitive::Planar {
+            value: plane,
+            color: Rgba8::opaque(45, 212, 191),
+            opacity: 0.46,
+            visible: true,
+        },
+    ])?;
     Ok(())
 }
 
