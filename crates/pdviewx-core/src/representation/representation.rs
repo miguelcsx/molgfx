@@ -107,6 +107,8 @@ pub enum SurfaceStyle {
     Dots = 2,
     /// Translucent boundary with stronger pixel-stable contour lines.
     FilledContour = 3,
+    /// Pixel-stable triangular wire lattice without a filled boundary.
+    Mesh = 4,
 }
 /// How atoms in a representation are colored.
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
@@ -387,6 +389,19 @@ impl Default for RepresentationParams {
         }
     }
 }
+
+pub(super) fn params_for_kind(kind: RepresentationKind) -> RepresentationParams {
+    let mut params = RepresentationParams::default();
+    match kind {
+        RepresentationKind::BallAndStick => params.radius_scale = 0.25,
+        RepresentationKind::Licorice => params.radius_scale = 1.0,
+        RepresentationKind::Surface => params.isolevel = 0.0,
+        RepresentationKind::Trace => params.tube_radius = 0.12,
+        RepresentationKind::PaperChain => params.ribbon_width = 0.0,
+        _ => {}
+    }
+    params
+}
 /// One drawable view over a selection.
 #[derive(Clone, Debug)]
 pub struct Representation {
@@ -421,33 +436,13 @@ impl Representation {
     /// tuned per kind.
     #[must_use]
     pub fn new(target: RepresentationTarget, kind: RepresentationKind) -> Self {
-        let mut params = RepresentationParams::default();
-        match kind {
-            RepresentationKind::BallAndStick => {
-                // Classic ball-and-stick proportions: small spheres, thin bonds.
-                params.radius_scale = 0.25;
-            }
-            RepresentationKind::Licorice => {
-                params.radius_scale = 1.0;
-            }
-            RepresentationKind::Surface => {
-                params.isolevel = 0.0;
-            }
-            RepresentationKind::Trace => {
-                params.tube_radius = 0.12;
-            }
-            RepresentationKind::PaperChain => {
-                params.ribbon_width = 0.0;
-            }
-            _ => {}
-        }
         Self {
             target,
             kind,
             color: ColorScheme::default(),
             appearance: None,
             material: Material::default(),
-            params,
+            params: params_for_kind(kind),
             volume: VolumeStyle::default(),
             segmentation: SegmentationStyle::default(),
             surface_scalar: None,

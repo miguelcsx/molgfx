@@ -8,6 +8,7 @@ use crate::atoms::AtomTable;
 use crate::hierarchy::Hierarchy;
 use crate::{Column, SecondaryStructure, TrajectorySegment};
 use pdviewx_math::{Aabb, Bvh, Mat4, Vec3};
+use std::sync::OnceLock;
 
 /// One structure in the scene, with its transform and derived tables.
 #[derive(Clone, Debug)]
@@ -21,7 +22,8 @@ pub struct PlacedStructure {
     /// Offset-array hierarchy over the structure's topology.
     pub hierarchy: Hierarchy,
     /// Shared atom hierarchy used by selection, culling, surfaces and picking.
-    pub spatial_bvh: Bvh,
+    spatial_bvh: OnceLock<Bvh>,
+    spatial_bounds: Aabb,
     /// Per-residue secondary structure supplied by the caller or `pdbiox`.
     pub secondary_structure: Column<SecondaryStructure>,
     trajectory: Option<TrajectorySegment>,
@@ -37,14 +39,15 @@ impl PlacedStructure {
         let model = pdbiox::ModelIndex::new(0);
         let atoms = AtomTable::from_structure(structure, model)?;
         let hierarchy = Hierarchy::from_structure(structure);
-        let spatial_bvh = atom_bvh(&atoms);
+        let spatial_bounds = atom_bounds(&atoms);
         let secondary_structure =
             Column::new(vec![SecondaryStructure::Coil; hierarchy.residue_count()]);
         Some(Self {
             structure: structure.clone(),
             model_to_world: Mat4::IDENTITY,
             hierarchy,
-            spatial_bvh,
+            spatial_bvh: OnceLock::new(),
+            spatial_bounds,
             secondary_structure,
             atoms,
             trajectory: None,
@@ -57,7 +60,10 @@ impl PlacedStructure {
     /// World-space bound of the active coordinate interval, `O(1)`.
     #[must_use]
     pub fn world_aabb(&self) -> Aabb {
-        self.render_bvh().bounds().transform(&self.model_to_world)
+        self.trajectory_bvh
+            .as_ref()
+            .map_or(self.spatial_bounds, Bvh::bounds)
+            .transform(&self.model_to_world)
     }
 
     /// Active caller-supplied interpolation interval, when present.
@@ -83,8 +89,19 @@ impl PlacedStructure {
     pub fn render_bvh(&self) -> &Bvh {
         match &self.trajectory_bvh {
             Some(trajectory) => trajectory,
-            None => &self.spatial_bvh,
+            None => self.spatial_bvh(),
         }
+    }
+
+    /// Lazily materializes the atom hierarchy only for spatial work.
+    #[must_use]
+    pub fn spatial_bvh(&self) -> &Bvh {
+        self.spatial_bvh.get_or_init(|| atom_bvh(&self.atoms))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn spatial_bvh_is_ready(&self) -> bool {
+        self.spatial_bvh.get().is_some()
     }
 
     pub(crate) fn replace_trajectory(&mut self, segment: TrajectorySegment) {
@@ -124,18 +141,34 @@ impl PlacedStructure {
 }
 
 fn atom_bvh(atoms: &AtomTable) -> Bvh {
-    let bounds = atoms
+    Bvh::build(&atom_aabbs(atoms))
+}
+
+fn atom_bounds(atoms: &AtomTable) -> Aabb {
+    atoms
         .coords()
         .slice()
         .iter()
         .zip(atoms.radius().values())
-        .map(|(center, radius)| {
-            let center = Vec3::from_array(*center);
-            let extent = Vec3::splat(radius.abs());
-            Aabb::new(center - extent, center + extent)
+        .fold(Aabb::EMPTY, |bounds, (center, radius)| {
+            bounds.union(&atom_aabb(*center, *radius))
         })
-        .collect::<Vec<_>>();
-    Bvh::build(&bounds)
+}
+
+fn atom_aabbs(atoms: &AtomTable) -> Vec<Aabb> {
+    atoms
+        .coords()
+        .slice()
+        .iter()
+        .zip(atoms.radius().values())
+        .map(|(center, radius)| atom_aabb(*center, *radius))
+        .collect()
+}
+
+fn atom_aabb(center: [f32; 3], radius: f32) -> Aabb {
+    let center = Vec3::from_array(center);
+    let extent = Vec3::splat(radius.abs());
+    Aabb::new(center - extent, center + extent)
 }
 
 fn trajectory_bvh(segment: &TrajectorySegment, radii: &[f32]) -> Bvh {
