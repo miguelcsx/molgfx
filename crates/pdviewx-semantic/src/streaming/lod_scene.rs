@@ -149,7 +149,11 @@ impl LodScene {
             color_for(key.level),
             0.82,
         )?;
-        let primitive = scene.add_particle(particle)?;
+        let primitive = scene
+            .add_primitives(&[pdviewx_core::Primitive::particle(particle)])?
+            .ok_or(CoreError::InvalidPrimitive {
+                reason: "non-empty LOD batch produced no handle",
+            })?;
         self.bindings.push(LodBinding {
             key,
             structure: key.structure,
