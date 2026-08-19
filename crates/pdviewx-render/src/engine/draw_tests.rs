@@ -1,8 +1,11 @@
+use super::Engine;
 use super::tests::{camera, engine, structure};
+use crate::testing::MockDevice;
 use pdviewx_core::{
     AnisotropicEllipsoid, AtomSelection, CarbohydrateShape, CarbohydrateSymbol, Material, Mesh,
     MeshInstance, MeshVertex, OverlayAnchor, OverlayContent, Particle, ParticleBoundary,
-    ParticleMotion, ParticleShape, PlanarRegion, RepresentationKind, Scene, ScreenOverlay,
+    ParticleMotion, ParticleShape, PlanarRegion, Primitive, RepresentationKind, Scene,
+    ScreenOverlay,
 };
 use pdviewx_math::{Aabb, Mat4, Quat, Rgba8, Vec3};
 
@@ -131,10 +134,14 @@ fn overlays_share_one_post_tonemap_indirect_draw() {
     let Ok(draws) = engine.device.log.indirect_draws.lock() else {
         panic!("log lock")
     };
-    assert_eq!(
-        draws.len(),
-        1,
-        "all overlay records share one indirect batch"
+    // The overlay kinds — glyph, gradient, scale, axis — are drawn by four
+    // specialized pipelines over one decluttered table, so there are four
+    // indirect draws and all share the same arguments buffer.
+    assert_eq!(draws.len(), 4, "one indirect draw per overlay kind");
+    let batch = draws.first().map(|(args, _)| *args);
+    assert!(
+        draws.iter().all(|(args, _)| Some(*args) == batch),
+        "every overlay kind draws from the one shared table"
     );
 }
 
@@ -302,9 +309,10 @@ fn primitives_share_one_analytic_table_and_transparency_route() {
         Ok(value) => value,
         Err(error) => panic!("ellipsoid validates: {error}"),
     };
-    if let Err(error) = scene.add_ellipsoid(owner, ellipsoid, Rgba8::WHITE, 1.0) {
-        panic!("ellipsoid stores: {error}");
-    }
+    let ellipsoid = match Primitive::ellipsoid(owner, ellipsoid, Rgba8::WHITE, 1.0) {
+        Ok(value) => value,
+        Err(error) => panic!("ellipsoid declares: {error}"),
+    };
     let symbol = match CarbohydrateSymbol::new(
         owner,
         Vec3::new(4.0, 0.0, 0.0),
@@ -316,9 +324,7 @@ fn primitives_share_one_analytic_table_and_transparency_route() {
         Ok(value) => value,
         Err(error) => panic!("symbol validates: {error}"),
     };
-    if let Err(error) = scene.add_carbohydrate_symbol(symbol) {
-        panic!("symbol stores: {error}");
-    }
+    let symbol = Primitive::carbohydrate(symbol);
     let plane = match PlanarRegion::new(
         owner,
         Vec3::new(0.0, 0.0, 3.0),
@@ -329,9 +335,10 @@ fn primitives_share_one_analytic_table_and_transparency_route() {
         Ok(value) => value,
         Err(error) => panic!("plane validates: {error}"),
     };
-    if let Err(error) = scene.add_filled_planar_region(plane, Rgba8::opaque(220, 80, 40), 0.5) {
-        panic!("plane stores: {error}");
-    }
+    let plane = match Primitive::planar(plane, Rgba8::opaque(220, 80, 40), 0.5) {
+        Ok(value) => value,
+        Err(error) => panic!("plane declares: {error}"),
+    };
     let gaussian = match Particle::new(
         owner,
         Vec3::new(-3.0, 0.0, 0.0),
@@ -356,25 +363,36 @@ fn primitives_share_one_analytic_table_and_transparency_route() {
         }
         Err(error) => panic!("Gaussian validates: {error}"),
     };
-    if let Err(error) = scene.add_particle(gaussian) {
-        panic!("Gaussian stores: {error}");
+    if let Err(error) =
+        scene.add_primitives(&[ellipsoid, symbol, plane, Primitive::particle(gaussian)])
+    {
+        panic!("primitive batch stores: {error}");
     }
 
     let mut engine = engine();
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("primitives render: {error}");
     }
-    assert!(engine.scene_gpu.primitive_draw().is_some());
-    assert!(engine.scene_gpu.primitive_transparent_draw().is_some());
+    assert!(engine.scene_gpu.primitive_shadow_draw(false).is_some());
+    assert!(engine.scene_gpu.has_transparent_primitives());
     assert!(engine.scene_gpu.has_translucency());
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
+
+    // Shadows draw the whole shape-sorted table once, indirectly.
+    let Ok(indirect) = engine.device.log.indirect_draws.lock() else {
         panic!("log lock")
     };
     assert_eq!(
-        draws.len(),
-        3,
-        "shadow, opaque, and OIT routes share one indirect table"
+        indirect.len(),
+        1,
+        "the primitive shadow route draws the shared table once"
     );
+
+    // The gbuffer and transparency passes specialize per shape, so each of the
+    // four primitives — opaque ellipsoid, opaque polygon, translucent box and
+    // translucent particle — is one direct instanced draw of the impostor
+    // quad. No other geometry in this scene expands to six vertices.
+    assert_primitive_draws_cover_every_row(&engine, 4);
+
     let Ok(dispatches) = engine.device.log.dispatches.lock() else {
         panic!("log lock")
     };
@@ -382,6 +400,31 @@ fn primitives_share_one_analytic_table_and_transparency_route() {
         dispatches.as_slice(),
         &[(1, 1, 1)],
         "one fixed-step particle dispatch updates the shared primitive table"
+    );
+}
+
+/// Asserts every packed primitive is drawn exactly once by a specialized
+/// six-vertex impostor draw, and that the sorted classes tile the table rows.
+fn assert_primitive_draws_cover_every_row(engine: &Engine<MockDevice>, rows: u32) {
+    let Ok(direct) = engine.device.log.draws.lock() else {
+        panic!("log lock")
+    };
+    let mut instances = direct
+        .iter()
+        .filter(|(vertices, _)| *vertices == (0..6))
+        .map(|(_, instances)| instances.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        instances.len(),
+        rows as usize,
+        "each primitive class is drawn once by its specialized pipeline"
+    );
+    instances.sort_by_key(|range| range.start);
+    let covered = instances.iter().cloned().flatten().collect::<Vec<_>>();
+    assert_eq!(
+        covered,
+        (0..rows).collect::<Vec<_>>(),
+        "the sorted classes cover every table row exactly once"
     );
 }
 

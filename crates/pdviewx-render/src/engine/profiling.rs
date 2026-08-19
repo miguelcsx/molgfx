@@ -19,6 +19,10 @@ pub struct FrameTiming {
     pub gpu_ns: u64,
     /// Host frame-construction time in nanoseconds.
     pub cpu_ns: u64,
+    /// End-to-end blocking profile duration, including device completion and
+    /// timestamp readback. This is the conservative frame-budget metric when
+    /// an adapter reports unusable timestamp values.
+    pub frame_ns: u64,
 }
 
 #[derive(Debug)]
@@ -110,6 +114,53 @@ impl<D: Device> GpuProfiler<D> {
 }
 
 impl<D: Device> Engine<D> {
+    /// Measures sustained native throughput with several frames in flight and
+    /// one completion wait. The returned durations are per-frame averages;
+    /// unlike [`Self::profile_frame`], the end-to-end value does not charge a
+    /// blocking buffer map to every frame.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capability error when timestamps are unavailable, or a typed
+    /// rendering/device error.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn profile_frame_batch(
+        &mut self,
+        scene: &Scene,
+        camera: &Camera,
+        config: ImageConfig,
+        frames: std::num::NonZeroU32,
+    ) -> Result<FrameTiming, RenderError> {
+        let frame_start = std::time::Instant::now();
+        let Some(mut profiler) = self.profiler.take() else {
+            return Err(pdviewx_gpu::GpuError::Capability {
+                name: "timestamp queries",
+            }
+            .into());
+        };
+        let mut cpu_ns = 0_u64;
+        let result = (|| {
+            for _ in 0..frames.get() {
+                let (cpu_start, quality) = self.prepare_profile(scene, camera, config)?;
+                cpu_ns = cpu_ns.saturating_add(self.submit_profile(
+                    &mut profiler,
+                    cpu_start,
+                    config,
+                    quality,
+                )?);
+            }
+            let gpu_ns = profiler.read_timing(&self.device, &self.queue)?;
+            let count = u64::from(frames.get());
+            Ok(FrameTiming {
+                gpu_ns,
+                cpu_ns: cpu_ns / count,
+                frame_ns: duration_ns(frame_start.elapsed()) / count,
+            })
+        })();
+        self.profiler = Some(profiler);
+        result
+    }
+
     /// Asynchronously measures one headless frame using timestamp queries.
     ///
     /// # Errors
@@ -122,6 +173,7 @@ impl<D: Device> Engine<D> {
         camera: &Camera,
         config: ImageConfig,
     ) -> Result<FrameTiming, RenderError> {
+        let frame_start = std::time::Instant::now();
         let (cpu_start, quality) = self.prepare_profile(scene, camera, config)?;
         let Some(mut profiler) = self.profiler.take() else {
             return Err(pdviewx_gpu::GpuError::Capability {
@@ -133,7 +185,11 @@ impl<D: Device> Engine<D> {
             Ok(cpu_ns) => profiler
                 .read_timing_async(&self.device, &self.queue)
                 .await
-                .map(|gpu_ns| FrameTiming { gpu_ns, cpu_ns }),
+                .map(|gpu_ns| FrameTiming {
+                    gpu_ns,
+                    cpu_ns,
+                    frame_ns: duration_ns(frame_start.elapsed()),
+                }),
             Err(error) => Err(error),
         };
         self.profiler = Some(profiler);
@@ -154,6 +210,7 @@ impl<D: Device> Engine<D> {
         camera: &Camera,
         config: ImageConfig,
     ) -> Result<FrameTiming, RenderError> {
+        let frame_start = std::time::Instant::now();
         let (cpu_start, quality) = self.prepare_profile(scene, camera, config)?;
         let Some(mut profiler) = self.profiler.take() else {
             return Err(pdviewx_gpu::GpuError::Capability {
@@ -161,7 +218,7 @@ impl<D: Device> Engine<D> {
             }
             .into());
         };
-        let result = self.profile_with(&mut profiler, cpu_start, config, quality);
+        let result = self.profile_with(&mut profiler, cpu_start, frame_start, config, quality);
         self.profiler = Some(profiler);
         result
     }
@@ -212,6 +269,7 @@ impl<D: Device> Engine<D> {
         &mut self,
         profiler: &mut GpuProfiler<D>,
         cpu_start: std::time::Instant,
+        frame_start: std::time::Instant,
         config: ImageConfig,
         quality: bool,
     ) -> Result<FrameTiming, RenderError> {
@@ -219,6 +277,7 @@ impl<D: Device> Engine<D> {
         Ok(FrameTiming {
             gpu_ns: profiler.read_timing(&self.device, &self.queue)?,
             cpu_ns,
+            frame_ns: duration_ns(frame_start.elapsed()),
         })
     }
 

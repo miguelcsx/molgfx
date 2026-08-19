@@ -233,7 +233,13 @@ impl<D: Device> Engine<D> {
     }
 
     pub(super) fn prepare_image(&mut self, scene: &Scene) -> Result<bool, RenderError> {
-        let scene_changed = self.scene_gpu.sync(&self.device, &self.queue, scene)?;
+        let scene_changed = self.scene_gpu.sync(
+            &self.device,
+            &self.queue,
+            scene,
+            self.mode == RenderMode::Quality,
+            [self.width, self.height],
+        )?;
         let rebuild = self
             .pool
             .as_ref()

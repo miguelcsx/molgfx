@@ -43,6 +43,10 @@ pub(crate) use temporal::{TemporalOptions, TemporalState};
 mod tests;
 
 #[cfg(test)]
+#[path = "scene_identity_tests.rs"]
+mod scene_identity_tests;
+
+#[cfg(test)]
 #[path = "draw_tests.rs"]
 mod draw_tests;
 

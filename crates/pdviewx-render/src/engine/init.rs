@@ -85,7 +85,7 @@ fn realtime_passes<D: Device>(
             &scene.group0_layout,
             &scene.group2_layout,
             &scene.ribbon_layout,
-            &scene.primitive_layout,
+            &scene.primitive_shadow_layout,
         )?,
         oit: OitPass::new(
             device,

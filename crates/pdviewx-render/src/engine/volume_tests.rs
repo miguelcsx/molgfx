@@ -1,6 +1,7 @@
 use super::tests::{camera, engine};
 use pdviewx_core::{
-    ClipPlane, DensityVolume, Scene, SegmentStyle, SegmentStyleTable, SegmentedVolume, VolumeSlice,
+    ClipPlane, DensityVolume, Representation, Scene, SegmentStyle, SegmentStyleTable,
+    SegmentationStyle, SegmentedVolume, VolumeSlice, VolumeStyle,
 };
 use pdviewx_math::{Mat4, Rgba8, Vec3};
 use std::sync::Arc;
@@ -18,17 +19,23 @@ fn density_volume_uploads_the_callers_values_once_and_draws_through_oit() {
     };
     let mut scene = Scene::new();
     let volume = scene.add_volume(volume);
-    if let Err(error) = scene.represent_volume(volume) {
+    if let Err(error) = scene.represent(volume, Representation::volume()) {
         panic!("volume representation applies: {error}")
     }
-    if let Err(error) = scene.represent_isosurface(volume) {
+    if let Err(error) = scene.represent(
+        volume,
+        Representation::volume().volume_style(VolumeStyle::isosurface()),
+    ) {
         panic!("isosurface representation applies: {error}")
     }
     let plane = match ClipPlane::from_point_normal(Vec3::ZERO, Vec3::Z) {
         Ok(plane) => plane,
         Err(error) => panic!("slice plane builds: {error}"),
     };
-    if let Err(error) = scene.represent_volume_slice(volume, VolumeSlice::new(plane)) {
+    if let Err(error) = scene.represent(
+        volume,
+        Representation::volume().volume_style(VolumeStyle::slice(VolumeSlice::new(plane))),
+    ) {
         panic!("slice representation applies: {error}")
     }
     let mut engine = engine();
@@ -73,11 +80,14 @@ fn independent_scalar_channels_keep_distinct_residency_and_styles() {
     let mut scene = Scene::new();
     let first = scene.add_volume(first);
     let second = scene.add_volume(second);
-    let first_representation = match scene.represent_volume(first) {
+    let first_representation = match scene.represent(first, Representation::volume()) {
         Ok(handle) => handle,
         Err(error) => panic!("first channel represents: {error}"),
     };
-    let second_representation = match scene.represent_isosurface(second) {
+    let second_representation = match scene.represent(
+        second,
+        Representation::volume().volume_style(VolumeStyle::isosurface()),
+    ) {
         Ok(handle) => handle,
         Err(error) => panic!("second channel represents: {error}"),
     };
@@ -127,11 +137,11 @@ fn categorical_labels_upload_once_share_residency_and_keep_styles_independent() 
             Ok(styles) => styles,
             Err(error) => panic!("second styles build: {error}"),
         };
-    let first = match scene.represent_segmented_volume(volume, first_styles) {
+    let first = match scene.represent(volume, segmentation(first_styles)) {
         Ok(handle) => handle,
         Err(error) => panic!("first segmentation represents: {error}"),
     };
-    let second = match scene.represent_segmented_volume(volume, second_styles) {
+    let second = match scene.represent(volume, segmentation(second_styles)) {
         Ok(handle) => handle,
         Err(error) => panic!("second segmentation represents: {error}"),
     };
@@ -177,7 +187,7 @@ fn categorical_picking_returns_the_typed_volume_segment_identity() {
         Ok(styles) => styles,
         Err(error) => panic!("styles build: {error}"),
     };
-    if let Err(error) = scene.represent_segmented_volume(volume, styles) {
+    if let Err(error) = scene.represent(volume, segmentation(styles)) {
         panic!("segmentation represents: {error}")
     }
     let mut engine = engine();
@@ -223,7 +233,7 @@ fn molecular_picking_remains_compatible_when_categorical_attachments_exist() {
         Ok(styles) => styles,
         Err(error) => panic!("styles build: {error}"),
     };
-    if let Err(error) = scene.represent_segmented_volume(volume, styles) {
+    if let Err(error) = scene.represent(volume, segmentation(styles)) {
         panic!("segmentation represents: {error}");
     }
     let mut engine = engine();
@@ -236,4 +246,11 @@ fn molecular_picking_remains_compatible_when_categorical_attachments_exist() {
         Err(error) => panic!("molecular pick reads: {error}"),
     };
     assert!(matches!(pick.entity, super::PickEntity::Structure(_)));
+}
+
+fn segmentation(styles: SegmentStyleTable) -> pdviewx_core::RepresentationConfig {
+    Representation::segmentation().segmentation_style(SegmentationStyle {
+        styles,
+        ..SegmentationStyle::default()
+    })
 }
