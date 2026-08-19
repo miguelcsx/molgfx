@@ -170,7 +170,7 @@ impl EnsembleScene for Scene {
         if self.ensemble(ensemble).is_none() || self.volume(volume).is_none() {
             return Err(CoreError::StaleHandle);
         }
-        let representation = self.represent_volume(volume)?;
+        let representation = self.represent(volume, pdviewx_core::Representation::volume())?;
         Ok(ProbabilityCloudView {
             ensemble,
             volume,
