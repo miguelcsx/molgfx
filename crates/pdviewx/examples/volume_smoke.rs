@@ -4,8 +4,9 @@
 
 use pdviewx::{
     AtomSelection, BackdropStyle, Camera, ClipPlane, DensityVolume, EffectLayer, Engine,
-    EngineConfig, ImageConfig, PresentationEffect, RenderProfile, RepresentationKind, Rgba8, Scene,
-    Vec3, VolumeRegion, VolumeSlice, VolumeTransferFunction, VolumeTransferPoint,
+    EngineConfig, ImageConfig, Material, PresentationEffect, RenderProfile, Representation, Rgba8,
+    Scene, Vec3, VolumeRegion, VolumeSlice, VolumeStyle, VolumeTransferFunction,
+    VolumeTransferPoint,
 };
 use std::error::Error;
 use std::fs::File;
@@ -34,49 +35,59 @@ fn main() -> Result<(), Box<dyn Error>> {
     let structure = molecular_fixture()?;
     let mut scene = Scene::from_structure(&structure)?;
     let atoms = scene.add_selection(AtomSelection::All);
-    let molecular = scene.represent(atoms, RepresentationKind::BallAndStick)?;
-    if let Some(representation) = scene.representation_mut(molecular) {
-        representation.params.radius_scale = 0.30;
-        representation.params.bond_radius = 0.15;
-        representation.material.roughness = 0.48;
-        representation.material.specular = 0.28;
-        representation.order = 1;
-    }
+    scene.represent(
+        atoms,
+        Representation::ball_and_stick()
+            .radius_scale(0.30)
+            .bond_radius(0.15)
+            .material(Material {
+                roughness: 0.48,
+                specular: 0.28,
+                ..Material::default()
+            })
+            .order(1),
+    )?;
     let volume = scene.add_volume(volume);
-    let representation = match algorithm {
-        "direct" => scene.represent_volume(volume)?,
-        "isosurface" => scene.represent_isosurface(volume)?,
-        "medium" => scene.represent_medium(volume)?,
-        "slice" => scene.represent_volume_slice(
-            volume,
-            VolumeSlice::new(ClipPlane::from_point_normal(Vec3::ZERO, Vec3::Z)?),
-        )?,
-        "crop" => scene.represent_volume_region(
-            volume,
-            VolumeRegion::new([18, 24, 30], [78, 72, 66], [u32::from(GRID); 3])?,
-        )?,
-        name => return Err(format!("unknown volume algorithm {name}").into()),
-    };
-    let Some(style) = scene.representation_mut(representation) else {
-        return Err("new volume representation became stale".into());
-    };
-    style.volume.opacity_scale = match algorithm {
+    let opacity_scale = match algorithm {
         "medium" => 0.60,
         "slice" => 6.0,
         _ => 1.35,
     };
-    style.volume.step_scale = if algorithm == "medium" { 0.65 } else { 0.45 };
+    let step_scale = if algorithm == "medium" { 0.65 } else { 0.45 };
     let opacities = if algorithm == "medium" {
         [0.0, 0.008, 0.04, 0.18]
     } else {
         [0.0, 0.012, 0.09, 0.48]
     };
-    style.volume.transfer = VolumeTransferFunction::new(&[
+    let transfer = VolumeTransferFunction::new(&[
         VolumeTransferPoint::new(0.10, pdviewx::Rgba8::opaque(30, 118, 180), opacities[0]),
         VolumeTransferPoint::new(0.26, pdviewx::Rgba8::opaque(52, 191, 206), opacities[1]),
         VolumeTransferPoint::new(0.62, pdviewx::Rgba8::opaque(160, 218, 166), opacities[2]),
         VolumeTransferPoint::new(1.15, pdviewx::Rgba8::opaque(255, 213, 79), opacities[3]),
     ])?;
+    let volume_style = match algorithm {
+        "direct" => VolumeStyle::default(),
+        "isosurface" => VolumeStyle::isosurface(),
+        "medium" => VolumeStyle::medium(),
+        "slice" => VolumeStyle::slice(VolumeSlice::new(ClipPlane::from_point_normal(
+            Vec3::ZERO,
+            Vec3::Z,
+        )?)),
+        "crop" => VolumeStyle::default().region(VolumeRegion::new(
+            [18, 24, 30],
+            [78, 72, 66],
+            [u32::from(GRID); 3],
+        )?),
+        name => return Err(format!("unknown volume algorithm {name}").into()),
+    };
+    scene.represent(
+        volume,
+        Representation::volume().volume_style(
+            volume_style
+                .sampling(opacity_scale, step_scale)
+                .transfer(transfer),
+        ),
+    )?;
 
     let config = ImageConfig {
         width: 960,
