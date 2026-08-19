@@ -11,6 +11,7 @@ repository = "https://github.com/miguelcsx/pdviewx"
 
 [workspace.dependencies]
 # Internal crates (layered; a crate depends only on lower layers).
+pdviewx = { version = "0.1.0", path = "crates/pdviewx" }
 pdviewx-math = { version = "0.1.0", path = "crates/pdviewx-math" }
 pdviewx-core = { version = "0.1.0", path = "crates/pdviewx-core" }
 pdviewx-gpu = { version = "0.1.0", path = "crates/pdviewx-gpu" }
@@ -24,6 +25,10 @@ pdviewx-semantic = { version = "0.1.0", path = "crates/pdviewx-semantic" }
 # Path dependency on the sibling checkout while the repository goes public;
 # switches back to a pinned git dependency after.
 pdbiox = { path = "../pdbiox/crates/pdbiox", default-features = false, features = ["mmcif", "bcif", "pdb"] }
+
+# Python ABI shared by the thin binding crate and the sibling pdbiox bridge.
+pyo3 = "0.29"
+numpy = "0.29"
 
 # External dependencies, declared once and inherited.
 glam = { version = "0.33", features = ["bytemuck", "serde"] }
@@ -39,6 +44,7 @@ raw-window-handle = "0.6"
 pollster = "0.4"
 futures-channel = "0.3"
 wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = ["HtmlCanvasElement"] }
 proptest = "1.11"
 criterion = "0.8"
