@@ -148,6 +148,7 @@ impl<D: Device> GpuSlot<D> {
             lod: self.atom_count >= REALTIME_SHADOW_INSTANCES,
             fast_points: self.kind == RepresentationKind::Points
                 && self.bond_count == 0
+                && self.atom_count >= REALTIME_SHADOW_INSTANCES
                 && self.atom_count < 1_048_575
                 && fast_tile_lod,
             bond_groups: self.bond_count.div_ceil(64),
