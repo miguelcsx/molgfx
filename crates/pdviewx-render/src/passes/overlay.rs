@@ -10,7 +10,9 @@ use pdviewx_gpu::{
 
 #[derive(Debug)]
 pub struct OverlayPass<D: Device> {
-    pipeline: D::Pipeline,
+    /// One pipeline per overlay kind — glyph, gradient, scale, axis. Each
+    /// shares the overlay instance array and skips the kinds it does not draw.
+    pipelines: [D::Pipeline; 4],
 }
 
 impl<D: Device> OverlayPass<D> {
@@ -24,21 +26,34 @@ impl<D: Device> OverlayPass<D> {
             label: "screen overlays",
             wgsl: pdviewx_shaders::OVERLAY,
         })?;
-        Ok(Self {
-            pipeline: device.create_render_pipeline(&RenderPipelineDesc {
-                label: "screen overlays",
+        let targets = [ColorTarget {
+            format: target_format,
+            blend: BlendMode::Alpha,
+        }];
+        let build = |label, vs_entry, fs_entry| {
+            device.create_render_pipeline(&RenderPipelineDesc {
+                label,
                 layouts: &[Some(frame), None, Some(overlays)],
                 shader: &shader,
-                vs_entry: "vs_overlay",
-                fs_entry: Some("fs_overlay"),
-                color_targets: &[ColorTarget {
-                    format: target_format,
-                    blend: BlendMode::Alpha,
-                }],
+                vs_entry,
+                fs_entry: Some(fs_entry),
+                color_targets: &targets,
                 depth: None,
                 constants: &[],
                 topology: PrimitiveTopology::TriangleList,
-            })?,
+            })
+        };
+        Ok(Self {
+            pipelines: [
+                build("overlay glyphs", "vs_overlay_glyph", "fs_overlay_glyph")?,
+                build(
+                    "overlay gradients",
+                    "vs_overlay_gradient",
+                    "fs_overlay_gradient",
+                )?,
+                build("overlay scale bars", "vs_overlay_scale", "fs_overlay_line")?,
+                build("overlay axes", "vs_overlay_axis", "fs_overlay_line")?,
+            ],
         })
     }
 
@@ -58,9 +73,11 @@ impl<D: Device> OverlayPass<D> {
             depth: None,
             timestamps: ctx.timestamps,
         });
-        pass.set_pipeline(&ctx.passes.overlay.pipeline);
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         pass.set_bind_group(2, group, &[]);
-        pass.draw_indirect(args, 0);
+        for pipeline in &ctx.passes.overlay.pipelines {
+            pass.set_pipeline(pipeline);
+            pass.draw_indirect(args, 0);
+        }
     }
 }

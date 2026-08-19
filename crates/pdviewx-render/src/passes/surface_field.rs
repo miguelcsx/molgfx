@@ -10,8 +10,7 @@ use pdviewx_gpu::{
 #[path = "surface_field_tests.rs"]
 mod tests;
 
-const WORKGROUP_SIZE: u32 = 64;
-const PORTABLE_WORKGROUPS_PER_DIMENSION: u32 = 65_535;
+const WORKGROUP_EDGE: u32 = 4;
 
 /// Compute state shared by every SES representation.
 #[derive(Debug)]
@@ -95,6 +94,11 @@ impl<D: Device> SurfaceFieldPass<D> {
                         format: pdviewx_gpu::TextureFormat::R32Uint,
                     },
                 },
+                BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::Storage { read_only: true },
+                },
             ],
         })
     }
@@ -145,7 +149,7 @@ impl<D: Device> SurfaceFieldPass<D> {
         encoder: &mut D::CommandEncoder,
         output: &D::BindGroup,
         representation: &D::BindGroup,
-        cells: u32,
+        dimensions: [u32; 3],
         gaussian: bool,
     ) {
         let mut pass = encoder.begin_compute_pass(&ComputePassDesc {
@@ -159,8 +163,8 @@ impl<D: Device> SurfaceFieldPass<D> {
         });
         pass.set_bind_group(1, output, &[]);
         pass.set_bind_group(2, representation, &[]);
-        let [x, y] = dispatch_grid(cells);
-        pass.dispatch(x, y, 1);
+        let [x, y, z] = dispatch_grid(dimensions);
+        pass.dispatch(x, y, z);
     }
 
     pub(crate) fn record_erode(
@@ -168,7 +172,7 @@ impl<D: Device> SurfaceFieldPass<D> {
         encoder: &mut D::CommandEncoder,
         erosion: &D::BindGroup,
         representation: &D::BindGroup,
-        cells: u32,
+        dimensions: [u32; 3],
     ) {
         let mut pass = encoder.begin_compute_pass(&ComputePassDesc {
             label: "rolling-probe surface erosion",
@@ -177,14 +181,11 @@ impl<D: Device> SurfaceFieldPass<D> {
         pass.set_pipeline(&self.erode);
         pass.set_bind_group(1, erosion, &[]);
         pass.set_bind_group(2, representation, &[]);
-        let [x, y] = dispatch_grid(cells);
-        pass.dispatch(x, y, 1);
+        let [x, y, z] = dispatch_grid(dimensions);
+        pass.dispatch(x, y, z);
     }
 }
 
-fn dispatch_grid(items: u32) -> [u32; 2] {
-    let groups = items.div_ceil(WORKGROUP_SIZE);
-    let x = groups.min(PORTABLE_WORKGROUPS_PER_DIMENSION);
-    let y = groups.div_ceil(PORTABLE_WORKGROUPS_PER_DIMENSION).max(1);
-    [x, y]
+fn dispatch_grid(dimensions: [u32; 3]) -> [u32; 3] {
+    dimensions.map(|axis| axis.div_ceil(WORKGROUP_EDGE))
 }

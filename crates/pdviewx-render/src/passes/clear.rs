@@ -62,6 +62,9 @@ impl ClearPass {
     /// Clears the categorical picking attachments to their shared empty
     /// sentinel before any transparent segment draw.
     pub fn segment_ids<D: Device>(ctx: &mut PassContext<'_, D>) {
+        if ctx.scene.is_massive_points_only() {
+            return;
+        }
         let (Some(volume), Some(label)) = (
             ctx.resources.view(SEGMENT_VOLUME_RESOURCE),
             ctx.resources.view(SEGMENT_LABEL_RESOURCE),

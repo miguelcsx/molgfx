@@ -14,7 +14,7 @@ impl ResourceId {
     pub const SWAPCHAIN: Self = Self(u32::MAX);
 }
 
-/// How a transient texture is sized relative to the frame. Half-resolution
+/// How a transient texture is sized relative to the frame. Reduced-resolution
 /// and fixed-size classes arrive with the passes that need them.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SizeClass {

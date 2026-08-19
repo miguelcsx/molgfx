@@ -1,20 +1,27 @@
-//! Analytic caller-authored primitive pass.
+//! Analytic caller-authored primitive gbuffer pass.
+//!
+//! The table is sorted so each primitive class is one contiguous instance
+//! range, so the pass changes pipeline at most once per class and draws each
+//! range directly with its first-instance offset — no per-instance branching
+//! and no rebinding between classes.
 
 use crate::error::RenderError;
 use crate::graph::PassContext;
+use crate::passes::primitive_pipelines::{
+    OPAQUE_ENTRIES, PRIMITIVE_QUAD_VERTICES, PrimitivePipelineSet,
+};
 use crate::passes::{
     ALBEDO_RESOURCE, DEPTH_RESOURCE, ENTITY_RESOURCE, MOTION_RESOURCE, NORMAL_RESOURCE,
     STRUCTURE_RESOURCE, gbuffer_targets,
 };
 use pdviewx_gpu::{
     ColorAttachment, CommandEncoder as _, CompareFunction, DepthAttachment, DepthLoadOp,
-    DepthState, Device, LoadOp, PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _,
-    RenderPipelineDesc, ShaderModuleDesc, TextureFormat,
+    DepthState, Device, LoadOp, RenderPassDesc, RenderPassEncoder as _, TextureFormat,
 };
 
 #[derive(Debug)]
 pub struct PrimitivePass<D: Device> {
-    pub(crate) pipeline: D::Pipeline,
+    pipelines: PrimitivePipelineSet<D>,
 }
 
 impl<D: Device> PrimitivePass<D> {
@@ -23,26 +30,20 @@ impl<D: Device> PrimitivePass<D> {
         group0: &D::BindGroupLayout,
         primitive: &D::BindGroupLayout,
     ) -> Result<Self, RenderError> {
-        let shader = device.create_shader_module(&ShaderModuleDesc {
-            label: "geometry_primitive",
-            wgsl: pdviewx_shaders::GEOMETRY_PRIMITIVE,
-        })?;
         Ok(Self {
-            pipeline: device.create_render_pipeline(&RenderPipelineDesc {
-                label: "analytic primitives",
-                layouts: &[Some(group0), None, Some(primitive)],
-                shader: &shader,
-                vs_entry: "vs_primitive",
-                fs_entry: Some("fs_primitive"),
-                color_targets: &gbuffer_targets(),
-                depth: Some(DepthState {
+            pipelines: PrimitivePipelineSet::build(
+                device,
+                group0,
+                None,
+                primitive,
+                &OPAQUE_ENTRIES,
+                &gbuffer_targets(),
+                Some(DepthState {
                     format: TextureFormat::Depth32Float,
                     write: true,
                     compare: CompareFunction::GreaterEqual,
                 }),
-                constants: &[],
-                topology: PrimitiveTopology::TriangleList,
-            })?,
+            )?,
         })
     }
 
@@ -57,9 +58,12 @@ impl<D: Device> PrimitivePass<D> {
         ) else {
             return;
         };
-        let Some((group, args)) = ctx.scene.primitive_draw() else {
+        let Some((table, runs)) = ctx.scene.primitive_groups() else {
             return;
         };
+        if runs.iter().all(|run| run.translucent) {
+            return;
+        }
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
             label: "analytic primitives",
             colors: &[
@@ -76,10 +80,15 @@ impl<D: Device> PrimitivePass<D> {
             }),
             timestamps: ctx.timestamps,
         });
-        pass.set_pipeline(&ctx.passes.primitive.pipeline);
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
-        pass.set_bind_group(2, group, &[]);
-        pass.draw_indirect(args, 0);
+        pass.set_bind_group(2, table, &[]);
+        for run in runs.iter().filter(|run| !run.translucent) {
+            let Some(pipeline) = ctx.passes.primitive.pipelines.pipeline(run) else {
+                continue;
+            };
+            pass.set_pipeline(pipeline);
+            pass.draw(0..PRIMITIVE_QUAD_VERTICES, run.first..run.first + run.len);
+        }
     }
 }
 

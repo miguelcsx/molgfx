@@ -50,3 +50,26 @@ pub(super) fn record_surfaces<D: Device, P: RenderPassEncoder<D>>(
         pass.draw_indirect(args, 0);
     }
 }
+
+/// Records transparent primitives, changing pipeline at most once per class as
+/// it walks the shape-sorted table.
+pub(super) fn record_primitives<D: Device, P: RenderPassEncoder<D>>(
+    passes: &PassRegistry<D>,
+    scene: &GpuScene<D>,
+    pass: &mut P,
+) {
+    let Some((table, runs)) = scene.primitive_groups() else {
+        return;
+    };
+    pass.set_bind_group(2, table, &[]);
+    for run in runs.iter().filter(|run| run.translucent) {
+        let Some(pipeline) = passes.oit.primitive.pipeline(run) else {
+            continue;
+        };
+        pass.set_pipeline(pipeline);
+        pass.draw(
+            0..crate::passes::primitive_pipelines::PRIMITIVE_QUAD_VERTICES,
+            run.first..run.first + run.len,
+        );
+    }
+}
