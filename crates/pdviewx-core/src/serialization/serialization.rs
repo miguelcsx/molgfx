@@ -368,6 +368,7 @@ fn surface_style_value(style: crate::SurfaceStyle) -> f32 {
         crate::SurfaceStyle::Contour => 1.0,
         crate::SurfaceStyle::Dots => 2.0,
         crate::SurfaceStyle::FilledContour => 3.0,
+        crate::SurfaceStyle::Mesh => 4.0,
     }
 }
 

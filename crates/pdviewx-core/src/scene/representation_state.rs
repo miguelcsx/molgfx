@@ -1,9 +1,98 @@
 //! Representation lookup, visibility and revision state.
 
-use super::{RepresentationHandle, Scene};
-use crate::{Representation, VolumeHandle};
+use super::{RepresentationHandle, Scene, StoredRepresentation};
+use crate::{
+    CoreError, Representation, RepresentationConfig, RepresentationInput, RepresentationKind,
+    RepresentationTarget, VolumeHandle,
+};
 
 impl Scene {
+    /// Adds one declarative representation over a stored or inline selection.
+    ///
+    /// # Errors
+    ///
+    /// Fails on an invalid query, stale handle, or unsupported target kind.
+    pub fn represent(
+        &mut self,
+        target: impl Into<RepresentationInput>,
+        representation: impl Into<RepresentationConfig>,
+    ) -> Result<RepresentationHandle, CoreError> {
+        let target = match target.into() {
+            RepresentationInput::Stored(handle) => RepresentationTarget::Selection(handle),
+            RepresentationInput::Query(query) => {
+                RepresentationTarget::Selection(self.select(query)?)
+            }
+            RepresentationInput::Source(source) => {
+                RepresentationTarget::Selection(self.select_str(&source)?)
+            }
+            RepresentationInput::Volume(handle) => RepresentationTarget::Volume(handle),
+            RepresentationInput::Segmentation(handle) => {
+                RepresentationTarget::SegmentedVolume(handle)
+            }
+        };
+        let representation = representation.into();
+        let kind = representation.kind;
+        self.validate_representation_target(target, kind)?;
+        let mut value = representation.bind(target);
+        if let RepresentationTarget::Volume(handle) = target {
+            let range = self
+                .volumes
+                .get(handle.0)
+                .map(|stored| stored.value.range())
+                .ok_or(CoreError::StaleHandle)?;
+            if value.volume == crate::VolumeStyle::default() {
+                value.volume.transfer = crate::VolumeTransferFunction::linear(
+                    range,
+                    pdviewx_math::Rgba8::opaque(68, 1, 84),
+                    pdviewx_math::Rgba8::opaque(253, 231, 37),
+                );
+                value.params.isolevel = (range[0] + range[1]) * 0.5;
+            }
+        }
+        self.representation_revision = self.representation_revision.wrapping_add(1);
+        let handle = self
+            .representations
+            .insert(StoredRepresentation { value, revision: 0 });
+        Ok(RepresentationHandle(handle))
+    }
+
+    fn validate_representation_target(
+        &self,
+        target: RepresentationTarget,
+        kind: RepresentationKind,
+    ) -> Result<(), CoreError> {
+        match target {
+            RepresentationTarget::Selection(handle) => {
+                if self.selections.get(handle.0).is_none() {
+                    return Err(CoreError::StaleHandle);
+                }
+                if matches!(
+                    kind,
+                    RepresentationKind::Volume | RepresentationKind::Segmentation
+                ) {
+                    return Err(CoreError::Unsupported { kind });
+                }
+            }
+            RepresentationTarget::Volume(handle) => {
+                if self.volumes.get(handle.0).is_none() {
+                    return Err(CoreError::StaleHandle);
+                }
+                if kind != RepresentationKind::Volume {
+                    return Err(CoreError::Unsupported { kind });
+                }
+            }
+            RepresentationTarget::SegmentedVolume(handle) => {
+                if self.segmentations.get(handle.0).is_none() {
+                    return Err(CoreError::StaleHandle);
+                }
+                if kind != RepresentationKind::Segmentation {
+                    return Err(CoreError::Unsupported { kind });
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Resolves a representation handle.
     #[must_use]
     pub fn representation(&self, handle: RepresentationHandle) -> Option<&Representation> {

@@ -21,10 +21,6 @@ fn primitives_share_revisions_bounds_and_pick_provenance() {
         Ok(value) => value,
         Err(error) => panic!("ellipsoid validates: {error}"),
     };
-    let ellipsoid_handle = match scene.add_ellipsoid(owner, ellipsoid, Rgba8::WHITE, 1.0) {
-        Ok(handle) => handle,
-        Err(error) => panic!("ellipsoid stores: {error}"),
-    };
     let symbol = match CarbohydrateSymbol::new(
         owner,
         Vec3::new(4.0, 0.0, 0.0),
@@ -36,10 +32,6 @@ fn primitives_share_revisions_bounds_and_pick_provenance() {
         Ok(value) => value,
         Err(error) => panic!("symbol validates: {error}"),
     };
-    let symbol_handle = match scene.add_carbohydrate_symbol(symbol) {
-        Ok(handle) => handle,
-        Err(error) => panic!("symbol stores: {error}"),
-    };
     let plane = match PlanarRegion::new(
         owner,
         Vec3::new(0.0, 0.0, 3.0),
@@ -50,11 +42,29 @@ fn primitives_share_revisions_bounds_and_pick_provenance() {
         Ok(value) => value,
         Err(error) => panic!("plane validates: {error}"),
     };
-    let plane_handle = match scene.add_filled_planar_region(plane, Rgba8::opaque(220, 80, 40), 0.5)
-    {
-        Ok(handle) => handle,
-        Err(error) => panic!("plane stores: {error}"),
+    let values = [
+        match Primitive::ellipsoid(owner, ellipsoid, Rgba8::WHITE, 1.0) {
+            Ok(value) => value,
+            Err(error) => panic!("ellipsoid declares: {error}"),
+        },
+        Primitive::carbohydrate(symbol),
+        match Primitive::planar(plane, Rgba8::opaque(220, 80, 40), 0.5) {
+            Ok(value) => value,
+            Err(error) => panic!("plane declares: {error}"),
+        },
+    ];
+    if let Err(error) = scene.add_primitives(&values) {
+        panic!("primitive batch stores: {error}")
+    }
+    let handles = scene
+        .primitives()
+        .map(|(handle, _)| handle)
+        .collect::<Vec<_>>();
+    let [ellipsoid_handle, symbol_handle, plane_handle] = handles.as_slice() else {
+        panic!("three handles resolve")
     };
+    let (ellipsoid_handle, symbol_handle, plane_handle) =
+        (*ellipsoid_handle, *symbol_handle, *plane_handle);
 
     assert!(scene.primitive_revision() > initial);
     assert_eq!(scene.primitives().count(), 3);
@@ -93,11 +103,16 @@ fn primitives_reject_stale_owners_and_invalid_opacity() {
     };
     assert!(scene.remove_structure(stale).is_some());
     assert!(matches!(
-        scene.add_ellipsoid(stale, value, Rgba8::WHITE, 1.0),
+        scene.add_primitives(&[
+            match Primitive::ellipsoid(stale, value, Rgba8::WHITE, 1.0) {
+                Ok(value) => value,
+                Err(error) => panic!("stale primitive still declares: {error}"),
+            }
+        ]),
         Err(CoreError::StaleHandle)
     ));
     assert!(matches!(
-        scene.add_ellipsoid(owner, value, Rgba8::WHITE, f32::NAN),
+        Primitive::ellipsoid(owner, value, Rgba8::WHITE, f32::NAN),
         Err(CoreError::InvalidPrimitive { .. })
     ));
 }
@@ -127,8 +142,9 @@ fn particles_and_streamlines_lower_to_pickable_scene_tables() {
         Ok(value) => value.with_motion(motion),
         Err(error) => panic!("particle validates: {error}"),
     };
-    let primitive = match scene.add_particle(particle) {
-        Ok(handle) => handle,
+    let primitive = match scene.add_primitives(&[Primitive::particle(particle)]) {
+        Ok(Some(handle)) => handle,
+        Ok(None) => panic!("non-empty batch returns its last handle"),
         Err(error) => panic!("particle stores: {error}"),
     };
     let points = [
@@ -163,6 +179,31 @@ fn particles_and_streamlines_lower_to_pickable_scene_tables() {
         scene.add_streamline_bundle(owner, &[vec![Vec3::ZERO]], GuideStyle::default()),
         Err(CoreError::InvalidAnnotation { .. })
     ));
+}
+
+#[test]
+fn one_native_batch_validates_atomically_and_advances_one_revision() {
+    let (mut scene, owner) = scene_with_owner();
+    let particle = match Particle::new(
+        owner,
+        Vec3::ZERO,
+        Quat::IDENTITY,
+        Vec3::ONE,
+        ParticleShape::Sphere,
+        Rgba8::WHITE,
+        1.0,
+    ) {
+        Ok(value) => value,
+        Err(error) => panic!("particle builds: {error}"),
+    };
+    let revision = scene.primitive_revision();
+    assert!(
+        scene
+            .add_primitives(&[Primitive::Particle(particle), Primitive::Particle(particle)])
+            .is_ok()
+    );
+    assert_eq!(scene.primitives().count(), 2);
+    assert_eq!(scene.primitive_revision(), revision.wrapping_add(1));
 }
 
 #[test]

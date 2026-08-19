@@ -1,6 +1,7 @@
 use super::Scene;
 use crate::{
-    RepresentationKind, RepresentationTarget, SegmentStyle, SegmentStyleTable, SegmentedVolume,
+    Representation, RepresentationKind, RepresentationTarget, SegmentStyle, SegmentStyleTable,
+    SegmentationStyle, SegmentedVolume,
 };
 use pdviewx_math::{Mat4, Rgba8, Vec3};
 use std::sync::Arc;
@@ -21,7 +22,13 @@ fn scene_tracks_categorical_volume_lifecycle_and_bounds() {
         Ok(styles) => styles,
         Err(error) => panic!("styles build: {error}"),
     };
-    let representation = match scene.represent_segmented_volume(handle, styles) {
+    let representation = match scene.represent(
+        handle,
+        Representation::segmentation().segmentation_style(SegmentationStyle {
+            styles,
+            ..SegmentationStyle::default()
+        }),
+    ) {
         Ok(representation) => representation,
         Err(error) => panic!("segmentation represents: {error}"),
     };

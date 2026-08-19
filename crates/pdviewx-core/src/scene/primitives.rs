@@ -1,128 +1,34 @@
 //! Revisioned storage for caller-authored analytic primitives.
 
-use crate::{
-    AnisotropicEllipsoid, CarbohydrateSymbol, CoreError, Particle, PlanarRegion, Primitive,
-    PrimitiveHandle, Scene, StructureHandle,
-};
-use pdviewx_math::Rgba8;
+use crate::{CoreError, Primitive, PrimitiveHandle, Scene};
 
 impl Scene {
-    /// Stores a validated ellipsoid owned by one placed structure.
+    /// Inserts one validated native batch into the shared analytic table.
     ///
-    /// The tensor is kept in model space and transformed once when the GPU
-    /// table is packed; it is never approximated by a mesh on the CPU.
+    /// Validation is atomic, storage is reserved once and the scene revision
+    /// advances once, regardless of item count. This is the public path for
+    /// high-cardinality caller geometry.
     ///
     /// # Errors
     ///
-    /// Returns [`CoreError::StaleHandle`] when `owner` does not identify a
-    /// structure in this scene, or [`CoreError::InvalidPrimitive`]
-    /// when `opacity` is not finite or is outside `[0, 1]`.
-    pub fn add_ellipsoid(
+    /// Returns without inserting anything when an owner is stale or an alpha
+    /// value is malformed.
+    pub fn add_primitives(
         &mut self,
-        owner: StructureHandle,
-        value: AnisotropicEllipsoid,
-        color: Rgba8,
-        opacity: f32,
-    ) -> Result<PrimitiveHandle, CoreError> {
-        if self.structure(owner).is_none() || !valid_opacity(opacity) {
-            return Err(if self.structure(owner).is_none() {
-                CoreError::StaleHandle
-            } else {
-                CoreError::InvalidPrimitive {
-                    reason: "primitive opacity must be finite in [0, 1]",
-                }
-            });
+        values: &[Primitive],
+    ) -> Result<Option<PrimitiveHandle>, CoreError> {
+        for value in values {
+            self.validate_primitive(*value)?;
         }
-        Ok(self.insert_primitive(Primitive::Ellipsoid {
-            owner,
-            value,
-            color,
-            opacity,
-            visible: true,
-        }))
-    }
-
-    /// Stores a caller-resolved carbohydrate symbol.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::StaleHandle`] when the symbol's owner does not
-    /// identify a structure in this scene.
-    pub fn add_carbohydrate_symbol(
-        &mut self,
-        value: CarbohydrateSymbol,
-    ) -> Result<PrimitiveHandle, CoreError> {
-        if self.structure(value.owner).is_none() {
-            return Err(CoreError::StaleHandle);
+        self.primitive.reserve(values.len());
+        let mut last = None;
+        for value in values {
+            last = Some(PrimitiveHandle(self.primitive.insert(*value)));
         }
-        Ok(self.insert_primitive(Primitive::Carbohydrate(value)))
-    }
-
-    /// Stores a filled rectangular primitive plane.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::StaleHandle`] when the plane's owner does not
-    /// identify a structure in this scene, or
-    /// [`CoreError::InvalidPrimitive`] when `opacity` is not finite
-    /// or is outside `[0, 1]`.
-    pub fn add_filled_planar_region(
-        &mut self,
-        value: PlanarRegion,
-        color: Rgba8,
-        opacity: f32,
-    ) -> Result<PrimitiveHandle, CoreError> {
-        if self.structure(value.owner).is_none() || !valid_opacity(opacity) {
-            return Err(if self.structure(value.owner).is_none() {
-                CoreError::StaleHandle
-            } else {
-                CoreError::InvalidPrimitive {
-                    reason: "primitive opacity must be finite in [0, 1]",
-                }
-            });
+        if !values.is_empty() {
+            self.primitive_revision = self.primitive_revision.wrapping_add(1);
         }
-        Ok(self.insert_primitive(Primitive::Planar {
-            value,
-            color,
-            opacity,
-            visible: true,
-        }))
-    }
-
-    /// Stores one generic caller-authored particle in the shared analytic table.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::StaleHandle`] when the particle owner is absent.
-    pub fn add_particle(&mut self, value: Particle) -> Result<PrimitiveHandle, CoreError> {
-        if self.structure(value.owner).is_none() {
-            return Err(CoreError::StaleHandle);
-        }
-        Ok(self.insert_primitive(Primitive::Particle(value)))
-    }
-
-    /// Stores a batch of generic particles in caller input order. The returned
-    /// handles retain that order and share the same heterogeneous GPU table.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::StaleHandle`] without inserting anything when one
-    /// particle owner is absent.
-    pub fn add_particles(
-        &mut self,
-        values: &[Particle],
-    ) -> Result<Vec<PrimitiveHandle>, CoreError> {
-        if values
-            .iter()
-            .any(|value| self.structure(value.owner).is_none())
-        {
-            return Err(CoreError::StaleHandle);
-        }
-        let mut handles = Vec::with_capacity(values.len());
-        for value in values.iter().copied() {
-            handles.push(self.insert_primitive(Primitive::Particle(value)));
-        }
-        Ok(handles)
+        Ok(last)
     }
 
     /// Resolves one primitive.
@@ -175,9 +81,22 @@ impl Scene {
             .map(|(_, value)| value)
     }
 
-    fn insert_primitive(&mut self, value: Primitive) -> PrimitiveHandle {
-        self.primitive_revision = self.primitive_revision.wrapping_add(1);
-        PrimitiveHandle(self.primitive.insert(value))
+    fn validate_primitive(&self, value: Primitive) -> Result<(), CoreError> {
+        if self.structure(value.owner()).is_none() {
+            return Err(CoreError::StaleHandle);
+        }
+        let opacity = match value {
+            Primitive::Ellipsoid { opacity, .. } | Primitive::Planar { opacity, .. } => opacity,
+            Primitive::Particle(value) => value.opacity,
+            Primitive::Carbohydrate(_) => return Ok(()),
+        };
+        if valid_opacity(opacity) {
+            Ok(())
+        } else {
+            Err(CoreError::InvalidPrimitive {
+                reason: "primitive opacity must be finite in [0, 1]",
+            })
+        }
     }
 }
 

@@ -253,7 +253,7 @@ fn world_sphere_rows(
         .sum::<f32>()
         .sqrt();
     placed
-        .spatial_bvh
+        .spatial_bvh()
         .sphere_candidates(local_center, local_radius, traversal, candidates);
     let radius_sq = radius * radius;
     candidates
@@ -285,7 +285,7 @@ fn box_rows(
     let world_box = Aabb::new(min, max);
     let local_box = world_box.transform(&placed.model_to_world.inverse());
     placed
-        .spatial_bvh
+        .spatial_bvh()
         .aabb_candidates(local_box, traversal, candidates);
     candidates
         .iter()
@@ -335,9 +335,12 @@ fn spatial_rows(
         };
         let source_position = pdviewx_math::Vec3::from_array(source_position);
         let source_world = world_from_model.transform_point3(source_position);
-        placed
-            .spatial_bvh
-            .sphere_candidates(source_position, local_radius, traversal, candidates);
+        placed.spatial_bvh().sphere_candidates(
+            source_position,
+            local_radius,
+            traversal,
+            candidates,
+        );
         for &candidate in candidates.iter() {
             let Some(candidate_position) = coordinates.get(candidate as usize).copied() else {
                 continue;

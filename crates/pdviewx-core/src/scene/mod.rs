@@ -10,6 +10,7 @@ mod overlays;
 pub(crate) mod primitives;
 pub(crate) mod properties;
 pub(crate) mod query;
+mod representation_input;
 pub(crate) mod segmentation;
 pub(crate) mod selection;
 pub(crate) mod state;
@@ -22,6 +23,7 @@ mod overlay_instance_tests;
 #[path = "primitive_tests.rs"]
 mod primitive_tests;
 
+pub use representation_input::RepresentationInput;
 pub use state::Scene;
 pub(crate) use state::{
     StoredAtomProperty, StoredRepresentation, StoredSegmentation, StoredSelection, StoredVolume,

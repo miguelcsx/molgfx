@@ -1,9 +1,8 @@
 //! Scene lifecycle for caller-owned categorical label volumes.
 
-use super::{Scene, StoredRepresentation, StoredSegmentation};
-use crate::handle::{RepresentationHandle, SegmentationHandle};
-use crate::representation::{Representation, RepresentationKind, RepresentationTarget};
-use crate::{SegmentStyleTable, SegmentedVolume};
+use super::{Scene, StoredSegmentation};
+use crate::SegmentedVolume;
+use crate::handle::SegmentationHandle;
 
 #[cfg(test)]
 #[path = "segmentation_tests.rs"]
@@ -58,33 +57,6 @@ impl Scene {
             self.segmentation_revision = self.segmentation_revision.wrapping_add(1);
         }
         removed
-    }
-
-    /// Adds one independently styled representation of a categorical grid.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::CoreError::StaleHandle`] when the grid was removed.
-    pub fn represent_segmented_volume(
-        &mut self,
-        volume: SegmentationHandle,
-        styles: SegmentStyleTable,
-    ) -> Result<RepresentationHandle, crate::CoreError> {
-        if self.segmentations.get(volume.0).is_none() {
-            return Err(crate::CoreError::StaleHandle);
-        }
-        let mut representation = Representation::new(
-            RepresentationTarget::SegmentedVolume(volume),
-            RepresentationKind::Segmentation,
-        );
-        representation.segmentation.styles = styles;
-        self.representation_revision = self.representation_revision.wrapping_add(1);
-        Ok(RepresentationHandle(self.representations.insert(
-            StoredRepresentation {
-                value: representation,
-                revision: 0,
-            },
-        )))
     }
 
     /// Counter keying categorical-grid texture reconciliation.

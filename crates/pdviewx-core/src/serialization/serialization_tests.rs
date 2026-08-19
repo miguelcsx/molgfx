@@ -2,8 +2,8 @@ use super::*;
 use crate::{
     AnisotropicEllipsoid, Annotation, AnnotationAnchor, AtomSelection, Guide, GuideStyle,
     InteractionAnchor, InteractionEdge, InteractionGeometry, InteractionKind, Measurement,
-    Particle, ParticleBoundary, ParticleMotion, ParticleShape, PlanarRegion, RepresentationKind,
-    SceneDescriptionSources,
+    Particle, ParticleBoundary, ParticleMotion, ParticleShape, PlanarRegion, Primitive,
+    RepresentationKind, SceneDescriptionSources,
 };
 use pdviewx_math::{Aabb, Quat, Rgba8, Vec3};
 
@@ -63,6 +63,45 @@ fn scene_manifest_rehydrates_against_a_cold_source() {
         Err(error) => panic!("cold-source scene rehydrates: {error}"),
     };
     assert_eq!(rebuilt.describe(), description);
+}
+
+#[test]
+fn mesh_surface_style_survives_cold_source_rehydration() {
+    let structure = crate::fixture::structure();
+    let mut scene = match Scene::from_structure(&structure) {
+        Ok(scene) => scene,
+        Err(error) => panic!("fixture scene builds: {error}"),
+    };
+    let selection = scene.add_selection(AtomSelection::All);
+    let surface = match scene.represent(selection, RepresentationKind::Surface) {
+        Ok(handle) => handle,
+        Err(error) => panic!("surface builds: {error}"),
+    };
+    let Some(representation) = scene.representation_mut(surface) else {
+        panic!("surface resolves")
+    };
+    representation.params.surface_style = crate::SurfaceStyle::Mesh;
+    let description = scene.describe();
+    let rebuilt = match Scene::from_description(
+        &description,
+        SceneDescriptionSources {
+            structures: std::slice::from_ref(&structure),
+            volumes: &[],
+            segmentations: &[],
+            atom_properties: &[],
+            meshes: &[],
+        },
+    ) {
+        Ok(scene) => scene,
+        Err(error) => panic!("mesh surface rehydrates: {error}"),
+    };
+    let Some((_, representation)) = rebuilt.representations().next() else {
+        panic!("rehydrated surface exists")
+    };
+    assert_eq!(
+        representation.params.surface_style,
+        crate::SurfaceStyle::Mesh
+    );
 }
 
 #[test]
@@ -163,9 +202,11 @@ fn add_primitive_payloads(scene: &mut Scene, owner: crate::StructureHandle) {
         Ok(value) => value,
         Err(error) => panic!("manifest ellipsoid validates: {error}"),
     };
-    if let Err(error) = scene.add_ellipsoid(owner, ellipsoid, Rgba8::opaque(120, 150, 220), 0.8) {
-        panic!("manifest ellipsoid stores: {error}");
-    }
+    let ellipsoid = match Primitive::ellipsoid(owner, ellipsoid, Rgba8::opaque(120, 150, 220), 0.8)
+    {
+        Ok(value) => value,
+        Err(error) => panic!("manifest ellipsoid declares: {error}"),
+    };
     let plane = match PlanarRegion::new(
         owner,
         Vec3::new(0.0, 0.0, 2.0),
@@ -176,9 +217,10 @@ fn add_primitive_payloads(scene: &mut Scene, owner: crate::StructureHandle) {
         Ok(value) => value,
         Err(error) => panic!("manifest plane validates: {error}"),
     };
-    if let Err(error) = scene.add_filled_planar_region(plane, Rgba8::WHITE, 0.5) {
-        panic!("manifest plane stores: {error}");
-    }
+    let plane = match Primitive::planar(plane, Rgba8::WHITE, 0.5) {
+        Ok(value) => value,
+        Err(error) => panic!("manifest plane declares: {error}"),
+    };
     let symbol = match crate::CarbohydrateSymbol::new(
         owner,
         Vec3::new(1.0, 0.0, 0.0),
@@ -190,9 +232,7 @@ fn add_primitive_payloads(scene: &mut Scene, owner: crate::StructureHandle) {
         Ok(value) => value,
         Err(error) => panic!("manifest symbol validates: {error}"),
     };
-    if let Err(error) = scene.add_carbohydrate_symbol(symbol) {
-        panic!("manifest symbol stores: {error}");
-    }
+    let symbol = Primitive::carbohydrate(symbol);
     let gaussian_motion = match ParticleMotion::new(
         Vec3::new(0.5, 0.0, 0.0),
         Aabb::new(Vec3::splat(-4.0), Vec3::splat(4.0)),
@@ -216,8 +256,10 @@ fn add_primitive_payloads(scene: &mut Scene, owner: crate::StructureHandle) {
         Ok(value) => value.with_motion(gaussian_motion),
         Err(error) => panic!("manifest Gaussian validates: {error}"),
     };
-    if let Err(error) = scene.add_particle(gaussian) {
-        panic!("manifest Gaussian stores: {error}");
+    if let Err(error) =
+        scene.add_primitives(&[ellipsoid, plane, symbol, Primitive::particle(gaussian)])
+    {
+        panic!("manifest primitive batch stores: {error}");
     }
     if let Err(error) = scene.add_guide(
         match Guide::new(owner, Vec3::ZERO, Vec3::X, GuideStyle::default()) {

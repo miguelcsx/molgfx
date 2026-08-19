@@ -10,15 +10,16 @@ use crate::SegmentedVolume;
 use crate::atoms::AtomTable;
 use crate::density::DensityVolume;
 use crate::error::CoreError;
-use crate::handle::{
-    RepresentationHandle, SelectionHandle, SlotMap, StructureHandle, VolumeHandle,
-};
+use crate::handle::{RepresentationHandle, SlotMap, StructureHandle, VolumeHandle};
 use crate::placed::PlacedStructure;
 use crate::representation::{Representation, RepresentationKind, RepresentationTarget};
+#[path = "identity.rs"]
+mod identity;
 #[path = "representation_state.rs"]
 mod representation_state;
 #[path = "world_bound.rs"]
 mod world_bound;
+use identity::SceneIdentity;
 
 #[cfg(test)]
 #[path = "state_tests.rs"]
@@ -27,6 +28,7 @@ mod tests;
 /// The renderable model of one or more structures.
 #[derive(Debug, Default)]
 pub struct Scene {
+    identity: SceneIdentity,
     pub(crate) structures: SlotMap<PlacedStructure>,
     pub(crate) selections: SlotMap<StoredSelection>,
     pub(crate) representations: SlotMap<StoredRepresentation>,
@@ -234,44 +236,6 @@ impl Scene {
         removed
     }
 
-    /// Adds a representation of `kind` over a stored selection.
-    ///
-    /// # Errors
-    ///
-    /// Fails on a stale selection handle, or a kind the engine cannot draw
-    /// yet.
-    pub fn represent(
-        &mut self,
-        selection: SelectionHandle,
-        kind: RepresentationKind,
-    ) -> Result<RepresentationHandle, CoreError> {
-        if self.selections.get(selection.0).is_none() {
-            return Err(CoreError::StaleHandle);
-        }
-        match kind {
-            RepresentationKind::Spacefill
-            | RepresentationKind::BallAndStick
-            | RepresentationKind::Licorice
-            | RepresentationKind::Lines
-            | RepresentationKind::Cartoon
-            | RepresentationKind::Trace
-            | RepresentationKind::Tube
-            | RepresentationKind::Surface
-            | RepresentationKind::Beads
-            | RepresentationKind::Rocket
-            | RepresentationKind::Twister
-            | RepresentationKind::PaperChain
-            | RepresentationKind::Points => {}
-            other => return Err(CoreError::Unsupported { kind: other }),
-        }
-        self.representation_revision = self.representation_revision.wrapping_add(1);
-        let handle = self.representations.insert(StoredRepresentation {
-            value: Representation::new(RepresentationTarget::Selection(selection), kind),
-            revision: 0,
-        });
-        Ok(RepresentationHandle(handle))
-    }
-
     /// Adds one declarative preset over a compatible selection or volume.
     ///
     /// Signed isosurfaces return two handles in negative-then-positive order;
@@ -355,140 +319,19 @@ impl Scene {
                 reason: "signed isosurfaces require one negative and one positive level",
             });
         }
-        let negative = self.represent_isosurface(volume)?;
-        let positive = self.represent_isosurface(volume)?;
-        if let Some(representation) = self.representation_mut(negative) {
-            representation.params.isolevel = negative_level;
-        }
-        if let Some(representation) = self.representation_mut(positive) {
-            representation.params.isolevel = positive_level;
-        }
-        for (handle, color) in [(negative, negative_color), (positive, positive_color)] {
-            if let Some(representation) = self.representation_mut(handle) {
-                representation.volume.transfer = crate::VolumeTransferFunction::linear(
-                    [negative_level, positive_level],
-                    color,
-                    color,
-                );
-            }
-        }
+        let recipe = |level, color| {
+            crate::Representation::volume()
+                .isolevel(level)
+                .volume_style(crate::VolumeStyle::isosurface().transfer(
+                    crate::VolumeTransferFunction::linear(
+                        [negative_level, positive_level],
+                        color,
+                        color,
+                    ),
+                ))
+        };
+        let negative = self.represent(volume, recipe(negative_level, negative_color))?;
+        let positive = self.represent(volume, recipe(positive_level, positive_color))?;
         Ok(vec![negative, positive])
-    }
-
-    /// Adds direct volume rendering over one stored density grid.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::StaleHandle`] after the grid was removed.
-    pub fn represent_volume(
-        &mut self,
-        volume: VolumeHandle,
-    ) -> Result<RepresentationHandle, CoreError> {
-        self.represent_volume_with(volume, crate::VolumeRendering::Direct)
-    }
-
-    /// Adds a lit implicit isosurface over one stored density grid.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::StaleHandle`] after the grid was removed.
-    pub fn represent_isosurface(
-        &mut self,
-        volume: VolumeHandle,
-    ) -> Result<RepresentationHandle, CoreError> {
-        self.represent_volume_with(volume, crate::VolumeRendering::Isosurface)
-    }
-
-    /// Adds a participating optical medium over one caller-supplied density.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::StaleHandle`] after the grid was removed.
-    pub fn represent_medium(
-        &mut self,
-        volume: VolumeHandle,
-    ) -> Result<RepresentationHandle, CoreError> {
-        self.represent_volume_with(volume, crate::VolumeRendering::Medium)
-    }
-
-    /// Adds one arbitrary transfer-mapped plane through a stored scalar grid.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::StaleHandle`] after the grid was removed.
-    pub fn represent_volume_slice(
-        &mut self,
-        volume: VolumeHandle,
-        slice: crate::VolumeSlice,
-    ) -> Result<RepresentationHandle, CoreError> {
-        let handle = self.represent_volume_with(volume, crate::VolumeRendering::Slice)?;
-        if let Some(representation) = self.representations.get_mut(handle.0) {
-            representation.value.volume.slice = Some(slice);
-            representation.revision = representation.revision.wrapping_add(1);
-        }
-        Ok(handle)
-    }
-
-    /// Adds a screen-space liquid-like boundary over caller-provided density.
-    ///
-    /// The field remains caller-owned; this mode only changes the boundary
-    /// shading and screen-space termination, never the underlying scalar data.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::StaleHandle`] after the grid was removed.
-    pub fn represent_liquid_surface(
-        &mut self,
-        volume: VolumeHandle,
-    ) -> Result<RepresentationHandle, CoreError> {
-        self.represent_volume_with(volume, crate::VolumeRendering::LiquidSurface)
-    }
-
-    /// Adds direct rendering over a validated region of one resident grid.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::StaleHandle`] after the grid was removed.
-    pub fn represent_volume_region(
-        &mut self,
-        volume: VolumeHandle,
-        region: crate::VolumeRegion,
-    ) -> Result<RepresentationHandle, CoreError> {
-        let handle = self.represent_volume_with(volume, crate::VolumeRendering::Direct)?;
-        if let Some(representation) = self.representations.get_mut(handle.0) {
-            representation.value.volume.region = Some(region);
-            representation.revision = representation.revision.wrapping_add(1);
-        }
-        Ok(handle)
-    }
-
-    fn represent_volume_with(
-        &mut self,
-        volume: VolumeHandle,
-        rendering: crate::VolumeRendering,
-    ) -> Result<RepresentationHandle, CoreError> {
-        let range = self
-            .volumes
-            .get(volume.0)
-            .map(|stored| stored.value.range())
-            .ok_or(CoreError::StaleHandle)?;
-        let mut representation = Representation::new(
-            RepresentationTarget::Volume(volume),
-            RepresentationKind::Volume,
-        );
-        representation.volume.transfer = crate::VolumeTransferFunction::linear(
-            range,
-            pdviewx_math::Rgba8::opaque(68, 1, 84),
-            pdviewx_math::Rgba8::opaque(253, 231, 37),
-        );
-        representation.volume.rendering = rendering;
-        representation.params.isolevel = (range[0] + range[1]) * 0.5;
-        self.representation_revision = self.representation_revision.wrapping_add(1);
-        Ok(RepresentationHandle(self.representations.insert(
-            StoredRepresentation {
-                value: representation,
-                revision: 0,
-            },
-        )))
     }
 }

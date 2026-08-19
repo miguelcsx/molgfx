@@ -332,7 +332,7 @@ impl Scene {
                 };
                 let source_position = pdviewx_math::Vec3::from_array(source_position);
                 let source_world = world_from_model.transform_point3(source_position);
-                placed.spatial_bvh.sphere_candidates(
+                placed.spatial_bvh().sphere_candidates(
                     source_position,
                     local_radius,
                     &mut self.spatial_traversal,
