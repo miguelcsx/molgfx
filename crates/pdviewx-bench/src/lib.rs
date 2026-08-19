@@ -13,6 +13,8 @@ pub struct FrameSample {
     pub gpu_ns: u64,
     /// CPU frame-construction duration in nanoseconds.
     pub cpu_ns: u64,
+    /// Conservative end-to-end blocking frame duration in nanoseconds.
+    pub frame_ns: u64,
     /// Host allocations during frame construction.
     pub allocations: u64,
     /// Bytes uploaded this frame.
@@ -34,6 +36,10 @@ pub struct FrameSummary {
     pub gpu_p99_ns: u64,
     /// Median CPU construction duration.
     pub cpu_median_ns: u64,
+    /// Median end-to-end blocking frame duration.
+    pub frame_median_ns: u64,
+    /// Nearest-rank 99th-percentile end-to-end frame duration.
+    pub frame_p99_ns: u64,
     /// Maximum allocations observed in a frame.
     pub max_allocations: u64,
     /// Maximum upload bytes observed in a frame.
@@ -71,10 +77,16 @@ pub fn summarize(
     scratch.clear();
     scratch.extend(samples.iter().map(|sample| sample.cpu_ns));
     scratch.sort_unstable();
+    let cpu_median_ns = percentile(scratch, 50);
+    scratch.clear();
+    scratch.extend(samples.iter().map(|sample| sample.frame_ns));
+    scratch.sort_unstable();
     Ok(FrameSummary {
         gpu_median_ns,
         gpu_p99_ns,
-        cpu_median_ns: percentile(scratch, 50),
+        cpu_median_ns,
+        frame_median_ns: percentile(scratch, 50),
+        frame_p99_ns: percentile(scratch, 99),
         max_allocations: maximum(samples, |sample| sample.allocations),
         max_upload_bytes: maximum(samples, |sample| sample.upload_bytes),
         peak_resident_bytes: maximum(samples, |sample| sample.resident_bytes),
