@@ -95,12 +95,18 @@ fn primitive_miss() -> PrimitiveHit {
     );
 }
 
-/// Returns four-vertex triangle-strip corners in [-1, 1].
+/// Returns six-vertex triangle-list corners in [-1, 1].
 fn primitive_corner(vertex: u32) -> vec2f {
-    return vec2f(
-        f32(vertex & 1u),
-        f32(vertex >> 1u),
-    ) * 2.0 - vec2f(1.0);
+    let corners = array<vec2f, 6>(
+        vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(-1.0, 1.0),
+        vec2f(-1.0, 1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0),
+    );
+    return corners[min(vertex, 5u)];
+}
+
+/// Returns the provoking vertex for each independent triangle.
+fn primitive_flat_source(vertex: u32) -> bool {
+    return vertex == 0u || vertex == 3u;
 }
 
 /// Transforms an affine point without computing the unused homogeneous W.

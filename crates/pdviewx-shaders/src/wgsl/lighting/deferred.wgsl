@@ -14,6 +14,8 @@
 //!include "include/deferred/illustration.wgsl"
 //!include "include/deferred/shadow.wgsl"
 
+override MASSIVE_POINTS: bool = false;
+
 @fragment
 fn fs_lighting(
     in: FullscreenOut,
@@ -75,19 +77,15 @@ fn fs_lighting(
             dimensions,
         );
 
-    let occlusion =
-        textureLoad(
-            ao_texture,
-            pixel,
-            0,
-        ).rg;
+    var occlusion = vec2f(1.0);
+    if !MASSIVE_POINTS {
+        occlusion = textureLoad(ao_texture, pixel, 0).rg;
+    }
 
-    let visibility =
-        direct_visibility(
-            position,
-            shading_frame.normal,
-            occlusion.g,
-        );
+    var visibility = 1.0;
+    if !MASSIVE_POINTS {
+        visibility = direct_visibility(position, shading_frame.normal, occlusion.g);
+    }
 
     let lit =
         shade_ribbon(

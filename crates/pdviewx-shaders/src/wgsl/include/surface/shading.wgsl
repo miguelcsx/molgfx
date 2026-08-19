@@ -155,11 +155,29 @@ fn surface_pattern_weight(
             );
     }
 
+    var edge =
+        min(cell.x, cell.y);
+
+    if mode == 4u {
+        let diagonal =
+            abs(
+                fract(
+                    (coordinates.x + coordinates.y) *
+                        inverse_spacing +
+                    0.5
+                ) -
+                0.5
+            );
+
+        edge =
+            min(edge, diagonal);
+    }
+
     return 1.0 -
         smoothstep(
             width,
             width * 1.65,
-            min(cell.x, cell.y),
+            edge,
         );
 }
 

@@ -99,10 +99,11 @@ fn segment_transform_direction(
 }
 
 fn segment_quad_uv(vertex: u32) -> vec2f {
-    return vec2f(
-        f32(vertex & 1u),
-        f32(vertex >> 1u),
+    let corners = array<vec2f, 6>(
+        vec2f(0.0, 0.0), vec2f(1.0, 0.0), vec2f(0.0, 1.0),
+        vec2f(0.0, 1.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0),
     );
+    return corners[min(vertex, 5u)];
 }
 
 fn segment_homogeneous(value: vec4f) -> vec3f {

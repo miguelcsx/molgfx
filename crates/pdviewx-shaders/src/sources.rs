@@ -29,6 +29,9 @@ pub const GEOMETRY_PRIMITIVE: &str = include_str!(concat!(env!("OUT_DIR"), "/pri
 /// Scene-fit analytic primitive shadow map.
 pub const SHADOW: &str = include_str!(concat!(env!("OUT_DIR"), "/shadow.wgsl"));
 
+/// Depth-only cartoon-ribbon shadow caster, pulled from ribbon storage.
+pub const SHADOW_RIBBON: &str = include_str!(concat!(env!("OUT_DIR"), "/shadow_ribbon.wgsl"));
+
 /// Pixel-stable circular atom points.
 pub const GEOMETRY_POINT: &str = include_str!(concat!(env!("OUT_DIR"), "/point.wgsl"));
 

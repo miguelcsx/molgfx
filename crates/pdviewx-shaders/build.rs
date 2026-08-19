@@ -1,10 +1,10 @@
-//! Composes and validates the WGSL library at build time.
+//! Composes, validates, and cross-compiles the WGSL library at build time.
 //!
 //! Shared routines live once under `src/wgsl/include/` and are pulled into
 //! composed shaders by an `//!include "path"` directive — included, never
-//! copied. Every composed unit is validated with naga here, so a shader
-//! error fails the build with a file and line rather than surfacing on the
-//! first frame. Composed sources are plain standard WGSL.
+//! copied. Every composed unit is validated and emitted as SPIR-V with naga
+//! here, so either frontend or backend errors fail the build rather than
+//! surfacing on the first frame. Composed sources are plain standard WGSL.
 
 use std::collections::HashSet;
 use std::error::Error;
@@ -32,8 +32,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
         let mut included = HashSet::new();
         let composed = compose(&path, &wgsl_dir, &mut included)?;
-        if let Err(diagnostic) = validate(name, &composed) {
-            diagnostics.push(diagnostic);
+        match validate_and_compile_spirv(name, &composed) {
+            Ok(spirv) => {
+                let spirv_path = out_dir.join(Path::new(name).with_extension("spv"));
+                fs::write(spirv_path, spirv_bytes(&spirv))?;
+            }
+            Err(diagnostic) => diagnostics.push(diagnostic),
         }
         fs::write(out_dir.join(name), composed)?;
     }
@@ -104,7 +108,7 @@ fn compose(path: &Path, root: &Path, included: &mut HashSet<PathBuf>) -> Result<
 }
 
 /// Validates one composed unit and returns diagnostics that fail the build.
-fn validate(name: &str, source: &str) -> Result<(), String> {
+fn validate_and_compile_spirv(name: &str, source: &str) -> Result<Vec<u32>, String> {
     let module = match naga::front::wgsl::parse_str(source) {
         Ok(module) => module,
         Err(e) => {
@@ -118,11 +122,43 @@ fn validate(name: &str, source: &str) -> Result<(), String> {
         naga::valid::ValidationFlags::all(),
         naga::valid::Capabilities::CLIP_DISTANCES,
     );
-    if let Err(e) = validator.validate(&module) {
-        return Err(format!(
+    let info = validator.validate(&module).map_err(|error| {
+        format!(
             "{name}: WGSL validation error:\n{}",
-            e.emit_to_string(source)
-        ));
+            error.emit_to_string(source)
+        )
+    })?;
+    let mut pipeline_constants = naga::back::PipelineConstants::default();
+    for (_, constant) in module.overrides.iter() {
+        if constant.init.is_none() {
+            let Some(override_name) = &constant.name else {
+                return Err(format!(
+                    "{name}: required pipeline override has neither a name nor a default"
+                ));
+            };
+            pipeline_constants.insert(override_name.clone(), 0.0);
+        }
     }
-    Ok(())
+    let (specialized, specialized_info) = naga::back::pipeline_constants::process_overrides(
+        &module,
+        &info,
+        None,
+        &pipeline_constants,
+    )
+    .map_err(|error| format!("{name}: override specialization error: {error}"))?;
+    naga::back::spv::write_vec(
+        &specialized,
+        &specialized_info,
+        &naga::back::spv::Options::default(),
+        None,
+    )
+    .map_err(|error| format!("{name}: SPIR-V emission error: {error}"))
+}
+
+fn spirv_bytes(words: &[u32]) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(std::mem::size_of_val(words));
+    for word in words {
+        bytes.extend_from_slice(&word.to_le_bytes());
+    }
+    bytes
 }

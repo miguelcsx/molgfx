@@ -6,7 +6,7 @@
 //   box       -> fs_primitive_box[_transparent]
 //   particle  -> fs_primitive_particle[_transparent]
 //
-// All types share vs_primitive and a four-vertex triangle-strip impostor.
+// All types share vs_primitive and a six-vertex triangle-list impostor.
 //
 // PrimitiveGpu.orientation is expected to contain a normalized quaternion.
 //
@@ -48,7 +48,7 @@ fn vs_primitive(
 
     let half_size =
         sphere_quad_half_size(
-            length(center),
+            dot(center, center),
             center_radius.w,
         );
 
@@ -69,36 +69,30 @@ fn vs_primitive(
     out.view_position =
         view_position;
 
-    // Flat values are consumed from vertices 0 and 2 by the strip triangles.
-    //
-    // Assigning them on every vertex keeps this entry point simple while the
-    // four-vertex strip already cuts VS work by 1/3 versus a six-vertex quad.
-    out.world_center =
-        world_center;
+    out.world_center = vec3f(0.0);
+    out.radius = 0.0;
+    out.orientation = vec4f(0.0);
+    out.size = vec3f(0.0);
+    out.inverse_primary = vec4f(0.0);
+    out.inverse_cross = vec4f(0.0);
+    out.color = vec4f(0.0);
+    out.metadata = vec4u(0u);
+    out.previous_world_center = vec3f(0.0);
 
-    out.radius =
-        center_radius.w;
-
-    out.orientation =
-        primitive[instance].orientation;
-
-    out.size =
-        primitive[instance].size_opacity.xyz;
-
-    out.inverse_primary =
-        primitive[instance].inverse_primary;
-
-    out.inverse_cross =
-        primitive[instance].inverse_cross;
-
-    out.color =
-        primitive[instance].color;
-
-    out.metadata =
-        primitive[instance].metadata;
-
-    out.previous_world_center =
-        primitive_previous[instance].xyz;
+    // Flat interpolation reads vertices 0 and 3 for the two triangles.
+    // Only those vertices pay for the remaining six storage-record fields and
+    // the previous-frame position; the other half perform geometry work only.
+    if primitive_flat_source(vertex) {
+        out.world_center = world_center;
+        out.radius = center_radius.w;
+        out.orientation = primitive[instance].orientation;
+        out.size = primitive[instance].size_opacity.xyz;
+        out.inverse_primary = primitive[instance].inverse_primary;
+        out.inverse_cross = primitive[instance].inverse_cross;
+        out.color = primitive[instance].color;
+        out.metadata = primitive[instance].metadata;
+        out.previous_world_center = primitive_previous[instance].xyz;
+    }
 
     return out;
 }

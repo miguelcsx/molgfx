@@ -218,30 +218,3 @@ fn fs_shadow_bond(
         )
     );
 }
-
-// -----------------------------------------------------------------------------
-// Ribbon triangles
-// -----------------------------------------------------------------------------
-//
-// Bind the existing 32-byte RibbonVertex buffer as a vertex buffer:
-//
-//   arrayStride = 32
-//   location 0  = float32x3 @ offset 0
-//
-// Bind the index buffer normally and issue drawIndexed().
-
-struct ShadowRibbonVertexIn {
-    @location(0) position: vec3f,
-}
-
-@vertex
-fn vs_shadow_ribbon(
-    vertex: ShadowRibbonVertexIn,
-) -> @builtin(position) vec4f {
-    let world =
-        model.model_to_world *
-        vec4f(vertex.position, 1.0);
-
-    return frame.shadow_view_proj *
-        world;
-}

@@ -34,9 +34,9 @@ var<storage, read> shadow_primitives: array<ShadowPrimitiveGpu>;
 // Shared helpers
 // -----------------------------------------------------------------------------
 
-/// Returns true for the provoking vertices of a four-vertex strip.
+/// Returns true for the provoking vertices of the two independent triangles.
 fn shadow_flat_source(vertex: u32) -> bool {
-    return vertex == 0u || vertex == 2u;
+    return vertex == 0u || vertex == 3u;
 }
 
 /// Transforms a world-space point into directional-light view space.

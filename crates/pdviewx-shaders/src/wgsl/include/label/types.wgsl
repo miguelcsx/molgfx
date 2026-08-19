@@ -30,6 +30,22 @@ struct LabelGpu {
 
 @group(2) @binding(0) var<storage, read> labels: array<LabelGpu>;
 
+// Label kind, carried in metadata.z: 0 glyph, 1 guide, 2+ marker.
+const LABEL_KIND_GLYPH: u32 = 0u;
+const LABEL_KIND_GUIDE: u32 = 1u;
+const LABEL_KIND_MARKER: u32 = 2u;
+
+/// The kind this label draws with, folding every marker code onto one value.
+fn label_kind(label: LabelGpu) -> u32 {
+    return min(label.metadata.z, LABEL_KIND_MARKER);
+}
+
+/// A clip position outside the view volume. Every vertex of a mismatched
+/// instance collapses here, so its primitive has zero area and emits no
+/// fragments — the kind-specialized pipelines share one instance array and
+/// each skips the kinds it does not draw.
+const LABEL_CULLED: vec4f = vec4f(2.0, 2.0, 2.0, 1.0);
+
 struct ProjectedPoint {
     pixel: vec2f,
     depth: f32,
@@ -110,12 +126,13 @@ fn project_point(point: vec3f) -> ProjectedPoint {
     );
 }
 
-/// Returns triangle-strip coordinates in [0,1].
+/// Returns triangle-list coordinates in [0,1].
 fn quad_uv(vertex_index: u32) -> vec2f {
-    return vec2f(
-        f32(vertex_index & 1u),
-        f32(vertex_index >> 1u),
+    let corners = array<vec2f, 6>(
+        vec2f(0.0, 0.0), vec2f(1.0, 0.0), vec2f(0.0, 1.0),
+        vec2f(0.0, 1.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0),
     );
+    return corners[min(vertex_index, 5u)];
 }
 
 /// Expands a pixel-space rectangle.
