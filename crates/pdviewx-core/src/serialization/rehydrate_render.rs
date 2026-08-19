@@ -123,6 +123,7 @@ fn parse_surface_style(value: f32) -> Result<SurfaceStyle, crate::CoreError> {
         value if value == 1.0f32.to_bits() => Ok(SurfaceStyle::Contour),
         value if value == 2.0f32.to_bits() => Ok(SurfaceStyle::Dots),
         value if value == 3.0f32.to_bits() => Ok(SurfaceStyle::FilledContour),
+        value if value == 4.0f32.to_bits() => Ok(SurfaceStyle::Mesh),
         _ => invalid("unknown surface presentation style"),
     }
 }

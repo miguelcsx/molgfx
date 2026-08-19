@@ -180,6 +180,11 @@ impl<T> SlotMap<T> {
         }
     }
 
+    /// Reserves backing slots for an insertion batch without changing handles.
+    pub fn reserve(&mut self, additional: usize) {
+        self.slots.reserve(additional);
+    }
+
     /// Inserts a value, reusing a freed slot when one exists.
     pub fn insert(&mut self, value: T) -> RawHandle {
         if let Some(index) = self.free.pop() {

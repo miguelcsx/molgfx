@@ -23,6 +23,19 @@ fn a_scene_built_from_a_structure_exposes_its_atoms() {
 }
 
 #[test]
+fn ordinary_scene_bounds_do_not_materialize_the_spatial_hierarchy() {
+    let s = scene();
+    let Some((_, placed)) = s.structures().next() else {
+        panic!("scene has a structure")
+    };
+    assert!(!placed.spatial_bvh_is_ready());
+    assert!(!s.world_aabb().is_empty());
+    assert!(!placed.spatial_bvh_is_ready());
+    assert!(!placed.spatial_bvh().nodes.is_empty());
+    assert!(placed.spatial_bvh_is_ready());
+}
+
+#[test]
 fn representing_a_selection_succeeds_for_supported_kinds_only() {
     let mut s = scene();
     let sel = s.add_selection(AtomSelection::All);
@@ -38,6 +51,25 @@ fn representing_a_selection_succeeds_for_supported_kinds_only() {
         panic!("volume is not drawable yet")
     };
     assert_eq!(err.code(), "PDVIEWX-E0042");
+}
+
+#[test]
+fn one_declaration_compiles_a_query_and_applies_the_representation_recipe() {
+    let mut scene = scene();
+    let color = crate::ColorScheme::Uniform(pdviewx_math::Rgba8::opaque(12, 34, 56));
+    let recipe = crate::Representation::licorice()
+        .color(color)
+        .radius_scale(0.4);
+    let handle = match scene.represent(crate::Select::protein(), recipe) {
+        Ok(handle) => handle,
+        Err(error) => panic!("declarative representation builds: {error}"),
+    };
+    let Some(view) = scene.representation(handle) else {
+        panic!("representation resolves")
+    };
+    assert_eq!(view.kind, RepresentationKind::Licorice);
+    assert_eq!(view.color, color);
+    assert_eq!(view.params.radius_scale.to_bits(), 0.4_f32.to_bits());
 }
 
 #[test]
@@ -369,7 +401,7 @@ fn a_density_volume_has_a_dedicated_representation_target_and_world_bound() {
         panic!("volume builds")
     };
     let volume = scene.add_volume(volume);
-    let Ok(representation) = scene.represent_volume(volume) else {
+    let Ok(representation) = scene.represent(volume, crate::Representation::volume()) else {
         panic!("volume is representable")
     };
     let Some(representation) = scene.representation(representation) else {
@@ -392,11 +424,14 @@ fn direct_volume_and_isosurface_share_one_stored_grid() {
         Err(error) => panic!("volume builds: {error}"),
     };
     let volume = scene.add_volume(volume);
-    let direct = match scene.represent_volume(volume) {
+    let direct = match scene.represent(volume, crate::Representation::volume()) {
         Ok(handle) => handle,
         Err(error) => panic!("direct volume applies: {error}"),
     };
-    let surface = match scene.represent_isosurface(volume) {
+    let surface = match scene.represent(
+        volume,
+        crate::Representation::volume().volume_style(crate::VolumeStyle::isosurface()),
+    ) {
         Ok(handle) => handle,
         Err(error) => panic!("isosurface applies: {error}"),
     };
@@ -423,7 +458,10 @@ fn liquid_surface_reuses_one_stored_grid_with_a_distinct_presentation_mode() {
         Err(error) => panic!("liquid volume builds: {error}"),
     };
     let volume = scene.add_volume(volume);
-    let representation = match scene.represent_liquid_surface(volume) {
+    let representation = match scene.represent(
+        volume,
+        crate::Representation::volume().volume_style(crate::VolumeStyle::liquid_surface()),
+    ) {
         Ok(handle) => handle,
         Err(error) => panic!("liquid surface applies: {error}"),
     };
