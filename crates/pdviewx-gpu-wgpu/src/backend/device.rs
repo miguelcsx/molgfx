@@ -77,6 +77,9 @@ impl WgpuDevice {
         _label: &'static str,
         create: impl FnOnce() -> T,
     ) -> Result<T, GpuError> {
+        if self.capabilities.max_storage_buffer_bytes == 0 {
+            return Err(GpuError::NoAdapter);
+        }
         Ok(create())
     }
 }

@@ -151,7 +151,6 @@ impl Bvh {
                 .map(|(source, bound)| MortonEntry {
                     code: morton_code(bound.center(), scene_bounds),
                     source: u32::try_from(source).map_or(u32::MAX, |value| value),
-                    bounds: *bound,
                 })
                 .filter(|entry| entry.source != u32::MAX),
         );
@@ -161,7 +160,7 @@ impl Bvh {
         self.nodes.reserve(scratch.entries.len().saturating_mul(2));
         self.primitive_indices.reserve(scratch.entries.len());
         self.nodes.push(BvhNode::default());
-        build_range(&scratch.entries, 0, scratch.entries.len(), 0, self);
+        build_range(&scratch.entries, bounds, 0, scratch.entries.len(), 0, self);
         self.thread_escapes(&mut scratch.stack);
     }
 
@@ -330,11 +329,11 @@ fn point_box_distance_squared(point: Vec3, bound: Aabb) -> f32 {
 struct MortonEntry {
     code: u32,
     source: u32,
-    bounds: Aabb,
 }
 
 fn build_range(
     entries: &[MortonEntry],
+    source_bounds: &[Aabb],
     start: usize,
     end: usize,
     node: usize,
@@ -345,8 +344,11 @@ fn build_range(
         let mut bounds = Aabb::EMPTY;
         let mut max_radius = 0.0f32;
         for entry in &entries[start..end] {
-            bounds = bounds.union(&entry.bounds);
-            max_radius = max_radius.max(entry.bounds.half_extents().max_element());
+            let Some(bound) = source_bounds.get(entry.source as usize) else {
+                continue;
+            };
+            bounds = bounds.union(bound);
+            max_radius = max_radius.max(bound.half_extents().max_element());
             out.primitive_indices.push(entry.source);
         }
         let count = u32::try_from(end - start).map_or(u32::MAX, |value| value);
@@ -357,8 +359,8 @@ fn build_range(
     let split = split_range(entries, start, end);
     let left = out.nodes.len();
     out.nodes.extend([BvhNode::default(), BvhNode::default()]);
-    let left_bounds = build_range(entries, start, split, left, out);
-    let right_bounds = build_range(entries, split, end, left + 1, out);
+    let left_bounds = build_range(entries, source_bounds, start, split, left, out);
+    let right_bounds = build_range(entries, source_bounds, split, end, left + 1, out);
     let bounds = left_bounds.bounds.union(&right_bounds.bounds);
     let max_radius = left_bounds.max_radius.max(right_bounds.max_radius);
     let left = u32::try_from(left).map_or(u32::MAX, |value| value);

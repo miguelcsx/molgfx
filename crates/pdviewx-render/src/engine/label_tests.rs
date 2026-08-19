@@ -47,7 +47,12 @@ fn all_label_records_compact_to_one_indirect_draw() {
         .indirect_draws
         .lock()
         .unwrap_or_else(|error| panic!("{error}"));
-    assert_eq!(draws.len(), 1);
+    // The glyph, guide and marker kinds share one compacted table but each
+    // draws with its own specialized pipeline, so there are three indirect
+    // draws over the same arguments buffer.
+    assert_eq!(draws.len(), 3);
+    let batch = draws.first().map(|(args, _)| *args);
+    assert!(draws.iter().all(|(args, _)| Some(*args) == batch));
     let dispatches = engine
         .device
         .log

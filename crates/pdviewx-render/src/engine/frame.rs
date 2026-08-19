@@ -27,7 +27,13 @@ impl<D: Device> Engine<D> {
     /// failures.
     pub fn render(&mut self, scene: &Scene, camera: &Camera) -> Result<FrameOutcome, RenderError> {
         // Sync: upload only what changed since the last frame.
-        let scene_changed = self.scene_gpu.sync(&self.device, &self.queue, scene)?;
+        let scene_changed = self.scene_gpu.sync(
+            &self.device,
+            &self.queue,
+            scene,
+            self.mode == RenderMode::Quality,
+            [self.width, self.height],
+        )?;
 
         // Build: (re)allocate the transient pool when the size changed.
         let rebuild = match &self.pool {
