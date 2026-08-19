@@ -6,16 +6,22 @@
 //!    `cargo run --example docking_viewer --release -- [structure.cif]`
 //!
 //! 2. Holo pocket view — ligand inside a clipped molecular surface:
-//!    `cargo run --example docking_viewer --release -- [protein.cif] [ligand_name]`
+//!    `cargo run --example docking_viewer --release --features semantic -- [protein.cif] [ligand_name]`
 //!
 //! 3. Multi-structure comparison — several poses side by side:
 //!    `cargo run --example docking_viewer --release -- --compare [pose1.cif] [pose2.cif] ...`
+//!
+//! 4. Headless representation audit:
+//!    `cargo run --example docking_viewer --release -- --audit-representations [output-dir]`
 //!
 //! Controls (all modes):
 //!   left drag  orbit
 //!   wheel      zoom
 //!   1-0        switch representation (spacefill / ball-stick / cartoon /
 //!              licorice / lines / surface / twister / trace / tube / rocket)
+//!   B/O/G/U    beads / points / paper-chain / putty
+//!   , .        previous / next representation
+//!   M          cycle surface style (solid / mesh / contour / dots / filled)
 //!   C          cycle colour scheme (element → chain → secondary structure)
 //!   R          reset camera
 //!   P          toggle pocket surface on/off  (holo mode only)
@@ -24,7 +30,7 @@
 
 use pdviewx::{
     ArcballController, BoundingSphere, Button, Camera, ClipPlane, ClipSet, ColorScheme, Engine,
-    EngineConfig, FocusView, InputEvent, RepresentationHandle, RepresentationKind, Scene, Vec3,
+    EngineConfig, InputEvent, RepresentationHandle, RepresentationKind, Scene, SurfaceStyle, Vec3,
 };
 use std::sync::Arc;
 use winit::application::ApplicationHandler;
@@ -34,6 +40,10 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Window, WindowId};
 
+#[path = "docking_viewer/audit.rs"]
+mod audit;
+#[path = "docking_viewer/catalog.rs"]
+mod catalog;
 #[path = "common/mod.rs"]
 mod common;
 #[path = "docking_viewer/scenes.rs"]
@@ -41,7 +51,10 @@ mod scenes;
 
 struct App {
     scene: Scene,
-    representation: RepresentationHandle,
+    representations: Vec<RepresentationHandle>,
+    representation_index: usize,
+    surface_style_index: usize,
+    putty_domain: Option<[f32; 2]>,
     color_index: usize,
     bound: BoundingSphere,
     state: Option<Running>,
@@ -50,7 +63,6 @@ struct App {
 }
 
 struct HoloState {
-    _focus: FocusView,
     pocket: RepresentationHandle,
     lining: RepresentationHandle,
     _ligand: RepresentationHandle,
@@ -226,21 +238,21 @@ impl App {
     fn on_key(&mut self, key: PhysicalKey) {
         let mut changed = false;
         if let PhysicalKey::Code(code) = key {
-            let new_kind = match code {
-                KeyCode::Digit1 => Some(RepresentationKind::Spacefill),
-                KeyCode::Digit2 => Some(RepresentationKind::BallAndStick),
-                KeyCode::Digit3 => Some(RepresentationKind::Cartoon),
-                KeyCode::Digit4 => Some(RepresentationKind::Licorice),
-                KeyCode::Digit5 => Some(RepresentationKind::Lines),
-                KeyCode::Digit6 => Some(RepresentationKind::Surface),
-                KeyCode::Digit7 => Some(RepresentationKind::Twister),
-                KeyCode::Digit8 => Some(RepresentationKind::Trace),
-                KeyCode::Digit9 => Some(RepresentationKind::Tube),
-                KeyCode::Digit0 => Some(RepresentationKind::Rocket),
+            let choice = catalog::choice_for_key(code).or_else(|| match code {
+                KeyCode::Comma => Some(catalog::cycled_choice(
+                    self.representation_index,
+                    catalog::CycleDirection::Previous,
+                )),
+                KeyCode::Period => Some(catalog::cycled_choice(
+                    self.representation_index,
+                    catalog::CycleDirection::Next,
+                )),
+                _ => None,
+            });
+            match code {
                 KeyCode::KeyC => {
                     self.cycle_color();
                     changed = true;
-                    None
                 }
                 KeyCode::KeyR => {
                     if let Some(state) = &mut self.state {
@@ -248,8 +260,8 @@ impl App {
                         state.camera = Camera::framing(&self.bound, aspect(size));
                         changed = true;
                     }
-                    None
                 }
+                KeyCode::KeyM => changed = self.cycle_surface_style(),
                 // Holo-only controls
                 KeyCode::KeyP => {
                     if let Some(holo) = &mut self.holo {
@@ -264,7 +276,6 @@ impl App {
                         }
                         changed = true;
                     }
-                    None
                 }
                 KeyCode::KeyL => {
                     if let Some(holo) = &mut self.holo {
@@ -279,7 +290,6 @@ impl App {
                         }
                         changed = true;
                     }
-                    None
                 }
                 KeyCode::BracketRight => {
                     if let Some(holo) = &mut self.holo {
@@ -287,7 +297,6 @@ impl App {
                         self.apply_cut();
                         changed = true;
                     }
-                    None
                 }
                 KeyCode::BracketLeft => {
                     if let Some(holo) = &mut self.holo {
@@ -295,14 +304,11 @@ impl App {
                         self.apply_cut();
                         changed = true;
                     }
-                    None
                 }
-                _ => None,
-            };
-            if let Some(kind) = new_kind
-                && let Some(rep) = self.scene.representation_mut(self.representation)
-            {
-                rep.kind = kind;
+                _ => {}
+            }
+            if let Some(choice) = choice {
+                self.set_representation(choice);
                 changed = true;
             }
         }
@@ -332,14 +338,60 @@ impl App {
             ColorScheme::BySecondaryStructure,
         ];
         self.color_index = (self.color_index + 1) % schemes.len();
-        if let Some(rep) = self.scene.representation_mut(self.representation) {
-            rep.color = schemes[self.color_index];
+        for handle in &self.representations {
+            if let Some(rep) = self.scene.representation_mut(*handle) {
+                rep.color = schemes[self.color_index];
+            }
         }
+    }
+
+    fn set_representation(&mut self, choice: catalog::RepresentationChoice) {
+        self.representation_index = choice.index();
+        self.surface_style_index = 0;
+        for handle in &self.representations {
+            if let Some(rep) = self.scene.representation_mut(*handle) {
+                choice.apply(rep, self.putty_domain);
+            }
+        }
+        println!("representation: {}", choice.name());
+    }
+
+    fn cycle_surface_style(&mut self) -> bool {
+        let styles = [
+            SurfaceStyle::Solid,
+            SurfaceStyle::Mesh,
+            SurfaceStyle::Contour,
+            SurfaceStyle::Dots,
+            SurfaceStyle::FilledContour,
+        ];
+        self.surface_style_index = (self.surface_style_index + 1) % styles.len();
+        let mut changed = false;
+        for handle in &self.representations {
+            if let Some(rep) = self.scene.representation_mut(*handle)
+                && rep.kind == RepresentationKind::Surface
+            {
+                rep.params.surface_style = styles[self.surface_style_index];
+                changed = true;
+            }
+        }
+        if changed {
+            println!("surface style: {:?}", styles[self.surface_style_index]);
+        }
+        changed
     }
 }
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("--audit-representations") {
+        let output = args
+            .get(1)
+            .map_or("target/visual-checks/docking-viewer", String::as_str);
+        if let Err(error) = audit::run(output) {
+            eprintln!("representation audit failed: {error}");
+        }
+        return;
+    }
 
     // Determine mode from arguments
     let result = match args.first().map(String::as_str) {
@@ -377,6 +429,9 @@ fn main() {
     println!("  wheel      zoom");
     println!("  1-0        switch representation (spacefill / ball-stick / cartoon /");
     println!("               licorice / lines / surface / twister / trace / tube / rocket)");
+    println!("  B/O/G/U    beads / points / paper-chain / putty");
+    println!("  , .        previous / next representation");
+    println!("  M          cycle surface style (solid / mesh / contour / dots / filled)");
     println!("  C          cycle colour scheme");
     println!("  R          reset camera");
     if app.holo.is_some() {

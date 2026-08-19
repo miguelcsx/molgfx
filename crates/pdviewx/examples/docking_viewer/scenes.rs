@@ -1,9 +1,18 @@
 //! Scene construction for the docking viewer modes.
 
-use super::{App, HoloState, common};
+#[cfg(test)]
+#[path = "scenes_tests.rs"]
+mod tests;
+
+use super::{App, common};
+use pdviewx::{AtomSelection, ColorScheme, Mat4, RepresentationKind, Scene, Vec3};
+
+#[cfg(feature = "semantic")]
+use super::HoloState;
+#[cfg(feature = "semantic")]
 use pdviewx::{
-    Aabb, AtomSelection, BoundingSphere, ClipPlane, ClipSet, ColorScheme, FocusScene, FocusStyle,
-    FocusSurfaceExtent, Mat4, RepresentationKind, Rgba8, Scene, SurfaceStyle, Vec3,
+    Aabb, BoundingSphere, ClipPlane, ClipSet, FocusScene, FocusStyle, FocusSurfaceExtent, Rgba8,
+    SurfaceStyle,
 };
 
 pub(super) fn build_plain_scene(path: &str) -> Result<(App, String), String> {
@@ -30,7 +39,10 @@ pub(super) fn build_plain_scene(path: &str) -> Result<(App, String), String> {
     let bound = scene.world_aabb().bounding_sphere();
     let app = App {
         scene,
-        representation,
+        representations: vec![representation],
+        representation_index: 2,
+        surface_style_index: 0,
+        putty_domain: guide_b_factor_domain(&structure),
         color_index: 1,
         bound,
         state: None,
@@ -42,6 +54,7 @@ pub(super) fn build_plain_scene(path: &str) -> Result<(App, String), String> {
     ))
 }
 
+#[cfg(feature = "semantic")]
 pub(super) fn build_holo_scene(path: &str, ligand_name: &str) -> Result<(App, String), String> {
     let parsed = pdbiox::read(path)
         .map_err(|diagnostic| format!("could not read {path}: {diagnostic:?}"))?;
@@ -99,7 +112,6 @@ pub(super) fn build_holo_scene(path: &str, ligand_name: &str) -> Result<(App, St
         .representation(focus.pocket_representation)
         .map_or(1.0, |value| value.material.opacity);
     let holo = HoloState {
-        _focus: focus,
         pocket: focus.pocket_representation,
         lining: focus.near_representation,
         _ligand: focus.focus_representation,
@@ -113,7 +125,10 @@ pub(super) fn build_holo_scene(path: &str, ligand_name: &str) -> Result<(App, St
     };
     let app = App {
         scene,
-        representation: focus.context_representation,
+        representations: vec![focus.context_representation],
+        representation_index: 8,
+        surface_style_index: 0,
+        putty_domain: guide_b_factor_domain(&structure),
         color_index: 1,
         bound: frame,
         state: None,
@@ -124,6 +139,11 @@ pub(super) fn build_holo_scene(path: &str, ligand_name: &str) -> Result<(App, St
         structure.data().atoms().count(),
     );
     Ok((app, description))
+}
+
+#[cfg(not(feature = "semantic"))]
+pub(super) fn build_holo_scene(_path: &str, _ligand_name: &str) -> Result<(App, String), String> {
+    Err("holo mode requires `--features semantic`".to_owned())
 }
 
 pub(super) fn build_compare_scene(paths: &[String]) -> Result<(App, String), String> {
@@ -155,7 +175,7 @@ pub(super) fn build_compare_scene(paths: &[String]) -> Result<(App, String), Str
     let count = u16::try_from(handles.len())
         .map_err(|_| "comparison supports at most 65535 structures".to_owned())?;
     let center = f32::from(count.saturating_sub(1)) * 0.5;
-    let mut representation = None;
+    let mut representations = Vec::with_capacity(handles.len());
     for (index, handle) in handles.iter().enumerate() {
         let index = u16::try_from(index).map_err(|_| "comparison index overflow".to_owned())?;
         let offset = (f32::from(index) - center) * spacing;
@@ -174,14 +194,23 @@ pub(super) fn build_compare_scene(paths: &[String]) -> Result<(App, String), Str
         if let Some(item) = scene.representation_mut(value) {
             item.color = ColorScheme::ByChain;
         }
-        representation = Some(value);
+        representations.push(value);
     }
-    let representation = representation.ok_or_else(|| "no representations created".to_owned())?;
+    if representations.is_empty() {
+        return Err("no representations created".to_owned());
+    }
+    let putty_domain = structures
+        .iter()
+        .filter_map(guide_b_factor_domain)
+        .reduce(|left, right| [left[0].min(right[0]), left[1].max(right[1])]);
     let bound = scene.world_aabb().bounding_sphere();
     Ok((
         App {
             scene,
-            representation,
+            representations,
+            representation_index: 2,
+            surface_style_index: 0,
+            putty_domain,
             color_index: 1,
             bound,
             state: None,
@@ -191,11 +220,31 @@ pub(super) fn build_compare_scene(paths: &[String]) -> Result<(App, String), Str
     ))
 }
 
+fn guide_b_factor_domain(structure: &pdbiox::Structure) -> Option<[f32; 2]> {
+    let mut domain: Option<[f32; 2]> = None;
+    for atom in structure
+        .data()
+        .atoms()
+        .filter(|atom| matches!(atom.name(), Some("CA" | "C4'")))
+    {
+        let Some(value) = atom.b_factor().filter(|value| value.is_finite()) else {
+            continue;
+        };
+        domain = Some(match domain {
+            Some([minimum, maximum]) => [minimum.min(value), maximum.max(value)],
+            None => [value, value],
+        });
+    }
+    domain.filter(|domain| domain[0] < domain[1])
+}
+
+#[cfg(feature = "semantic")]
 struct LigandSelection {
     atoms: Vec<u32>,
     points: Vec<Vec3>,
 }
 
+#[cfg(feature = "semantic")]
 fn ligand_selection(
     structure: &pdbiox::Structure,
     ligand_name: &str,
@@ -224,6 +273,7 @@ fn ligand_selection(
     Ok(LigandSelection { atoms, points })
 }
 
+#[cfg(feature = "semantic")]
 fn ligand_view_direction(points: &[Vec3], center: Vec3) -> Vec3 {
     let primary = points
         .iter()
