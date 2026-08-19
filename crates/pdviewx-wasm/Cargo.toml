@@ -1,0 +1,21 @@
+[package]
+name = "pdviewx-wasm"
+description = "Thin browser bindings for pdviewx over WebGPU."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pdviewx.workspace = true
+pdbiox = { workspace = true, features = ["mmcif", "bcif", "pdb"] }
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+web-sys.workspace = true
+
+[lints]
+workspace = true

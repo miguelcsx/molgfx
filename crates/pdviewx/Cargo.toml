@@ -47,6 +47,14 @@ name = "mem_stress"
 required-features = ["semantic"]
 
 [[example]]
+name = "docking_swarm"
+required-features = ["semantic"]
+
+[[example]]
+name = "million_particles"
+required-features = ["realtime"]
+
+[[example]]
 name = "showcase"
 required-features = ["semantic"]
 
