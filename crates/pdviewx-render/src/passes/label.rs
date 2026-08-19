@@ -15,7 +15,10 @@ use pdviewx_gpu::{
 #[derive(Debug)]
 pub struct LabelPass<D: Device> {
     declutter: D::Pipeline,
-    render: D::Pipeline,
+    /// One pipeline per label kind — glyph, guide, marker. Each shares the
+    /// decluttered instance array and skips the kinds it does not draw, so the
+    /// three specialized fragment routines never branch per fragment.
+    render: [D::Pipeline; 3],
 }
 
 impl<D: Device> LabelPass<D> {
@@ -40,21 +43,7 @@ impl<D: Device> LabelPass<D> {
                 shader: &declutter_shader,
                 entry: "declutter_labels",
             })?,
-            render: device.create_render_pipeline(&RenderPipelineDesc {
-                label: "analytic semantic labels",
-                layouts: &[Some(frame), None, Some(render_layout)],
-                shader: &render_shader,
-                vs_entry: "vs_label",
-                fs_entry: Some("fs_label"),
-                color_targets: &label_targets(),
-                depth: Some(DepthState {
-                    format: TextureFormat::Depth32Float,
-                    write: false,
-                    compare: CompareFunction::GreaterEqual,
-                }),
-                constants: &[],
-                topology: PrimitiveTopology::TriangleList,
-            })?,
+            render: label_pipelines(device, frame, render_layout, &render_shader)?,
         })
     }
 
@@ -112,11 +101,47 @@ impl<D: Device> LabelPass<D> {
             }),
             timestamps: ctx.timestamps,
         });
-        pass.set_pipeline(&ctx.passes.label.render);
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         pass.set_bind_group(2, group, &[]);
-        pass.draw_indirect(args, 0);
+        for pipeline in &ctx.passes.label.render {
+            pass.set_pipeline(pipeline);
+            pass.draw_indirect(args, 0);
+        }
     }
+}
+
+fn label_pipelines<D: Device>(
+    device: &D,
+    frame: &D::BindGroupLayout,
+    render_layout: &D::BindGroupLayout,
+    shader: &D::ShaderModule,
+) -> Result<[D::Pipeline; 3], RenderError> {
+    let build = |label, vs_entry, fs_entry| {
+        device.create_render_pipeline(&RenderPipelineDesc {
+            label,
+            layouts: &[Some(frame), None, Some(render_layout)],
+            shader,
+            vs_entry,
+            fs_entry: Some(fs_entry),
+            color_targets: &label_targets(),
+            depth: Some(DepthState {
+                format: TextureFormat::Depth32Float,
+                write: false,
+                compare: CompareFunction::GreaterEqual,
+            }),
+            constants: &[],
+            topology: PrimitiveTopology::TriangleList,
+        })
+    };
+    Ok([
+        build("semantic label glyphs", "vs_label_glyph", "fs_label_glyph")?,
+        build("semantic label guides", "vs_label_guide", "fs_label_guide")?,
+        build(
+            "semantic label markers",
+            "vs_label_marker",
+            "fs_label_marker",
+        )?,
+    ])
 }
 
 const fn label_targets() -> [ColorTarget; 4] {

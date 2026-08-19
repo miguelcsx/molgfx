@@ -12,6 +12,7 @@ use pdviewx_gpu::{
 #[derive(Debug)]
 pub struct LightingPass<D: Device> {
     pipeline: D::Pipeline,
+    massive_points: D::Pipeline,
     pub(crate) layout: D::BindGroupLayout,
 }
 
@@ -44,21 +45,27 @@ impl<D: Device> LightingPass<D> {
             label: "lighting",
             wgsl: pdviewx_shaders::LIGHTING,
         })?;
-        let pipeline = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "HDR deferred lighting",
-            layouts: &[Some(group0), Some(&layout)],
-            shader: &shader,
-            vs_entry: "vs_fullscreen",
-            fs_entry: Some("fs_lighting"),
-            color_targets: &[ColorTarget {
-                format: TextureFormat::Rgba16Float,
-                blend: pdviewx_gpu::BlendMode::Replace,
-            }],
-            depth: None,
-            constants: &[],
-            topology: PrimitiveTopology::TriangleList,
-        })?;
-        Ok(Self { pipeline, layout })
+        let pipeline = |label, constants| {
+            device.create_render_pipeline(&RenderPipelineDesc {
+                label,
+                layouts: &[Some(group0), Some(&layout)],
+                shader: &shader,
+                vs_entry: "vs_fullscreen",
+                fs_entry: Some("fs_lighting"),
+                color_targets: &[ColorTarget {
+                    format: TextureFormat::Rgba16Float,
+                    blend: pdviewx_gpu::BlendMode::Replace,
+                }],
+                depth: None,
+                constants,
+                topology: PrimitiveTopology::TriangleList,
+            })
+        };
+        Ok(Self {
+            pipeline: pipeline("HDR deferred lighting", &[])?,
+            massive_points: pipeline("HDR point-cloud lighting", &[("MASSIVE_POINTS", 1.0)])?,
+            layout,
+        })
     }
 
     pub fn record(ctx: &mut PassContext<'_, D>) {
@@ -77,7 +84,11 @@ impl<D: Device> LightingPass<D> {
             depth: None,
             timestamps: ctx.timestamps,
         });
-        pass.set_pipeline(&ctx.passes.lighting.pipeline);
+        pass.set_pipeline(if ctx.scene.is_massive_points_only() {
+            &ctx.passes.lighting.massive_points
+        } else {
+            &ctx.passes.lighting.pipeline
+        });
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         pass.set_bind_group(1, lighting, &[]);
         pass.draw(0..3, 0..1);

@@ -20,6 +20,7 @@ mod overlay;
 mod particle_motion;
 mod point;
 mod primitive;
+mod primitive_pipelines;
 mod registry;
 mod resources;
 mod shadow;

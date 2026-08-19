@@ -6,11 +6,35 @@
 //! do not need it.
 
 use crate::error::RenderError;
+use crate::passes::primitive_pipelines::{PrimitivePipelineSet, TRANSPARENT_ENTRIES};
 use crate::passes::segmentation_targets;
 use pdviewx_gpu::{
     BlendMode, ColorTarget, CompareFunction, DepthState, Device, PrimitiveTopology,
     RenderPipelineDesc, ShaderModuleDesc, TextureFormat,
 };
+
+/// The order-independent transparency accumulation and revealage targets, and
+/// the read-only depth every transparent pass shares.
+fn oit_targets() -> [ColorTarget; 2] {
+    [
+        ColorTarget {
+            format: TextureFormat::Rgba16Float,
+            blend: BlendMode::Additive,
+        },
+        ColorTarget {
+            format: TextureFormat::R8Unorm,
+            blend: BlendMode::ReverseMultiply,
+        },
+    ]
+}
+
+fn oit_depth() -> DepthState {
+    DepthState {
+        format: TextureFormat::Depth32Float,
+        write: false,
+        compare: CompareFunction::GreaterEqual,
+    }
+}
 
 pub(super) struct OitPipelineDesc<'a, D: Device> {
     pub(super) label: &'static str,
@@ -20,23 +44,24 @@ pub(super) struct OitPipelineDesc<'a, D: Device> {
     pub(super) group2: &'a D::BindGroupLayout,
 }
 
-pub(super) fn primitive_pipeline<D: Device>(
+/// The transparent primitive class set: one pipeline per family and per
+/// particle shape, sharing the transparency targets. Group 1 is the pass
+/// input; the primitive vertex stage does not read it, but the layout must
+/// still match the pipeline layout the pass binds.
+pub(super) fn primitive_pipelines<D: Device>(
     device: &D,
     group0: &D::BindGroupLayout,
     group1: &D::BindGroupLayout,
     group2: &D::BindGroupLayout,
-) -> Result<D::Pipeline, RenderError> {
-    pipeline(
+) -> Result<PrimitivePipelineSet<D>, RenderError> {
+    PrimitivePipelineSet::build(
         device,
         group0,
-        group1,
-        &OitPipelineDesc {
-            label: "transparent primitives",
-            wgsl: pdviewx_shaders::GEOMETRY_PRIMITIVE,
-            vertex: "vs_primitive",
-            fragment: "fs_primitive_transparent",
-            group2,
-        },
+        Some(group1),
+        group2,
+        &TRANSPARENT_ENTRIES,
+        &oit_targets(),
+        Some(oit_depth()),
     )
 }
 
@@ -122,21 +147,8 @@ pub(super) fn pipeline<D: Device>(
         shader: &shader,
         vs_entry: desc.vertex,
         fs_entry: Some(desc.fragment),
-        color_targets: &[
-            ColorTarget {
-                format: TextureFormat::Rgba16Float,
-                blend: BlendMode::Additive,
-            },
-            ColorTarget {
-                format: TextureFormat::R8Unorm,
-                blend: BlendMode::ReverseMultiply,
-            },
-        ],
-        depth: Some(DepthState {
-            format: TextureFormat::Depth32Float,
-            write: false,
-            compare: CompareFunction::GreaterEqual,
-        }),
+        color_targets: &oit_targets(),
+        depth: Some(oit_depth()),
         constants: &[],
         topology: PrimitiveTopology::TriangleList,
     })?)

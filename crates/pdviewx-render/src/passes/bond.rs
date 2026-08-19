@@ -15,7 +15,8 @@ use pdviewx_gpu::{
 
 #[derive(Debug)]
 pub struct BondPass<D: Device> {
-    pipeline: D::Pipeline,
+    capsule: D::Pipeline,
+    wire: D::Pipeline,
 }
 
 impl<D: Device> BondPass<D> {
@@ -29,22 +30,27 @@ impl<D: Device> BondPass<D> {
             label: "geometry_bond",
             wgsl: pdviewx_shaders::GEOMETRY_BOND,
         })?;
-        let pipeline = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "bond capsules",
-            layouts: &[Some(group0), None, Some(group2)],
-            shader: &shader,
-            vs_entry: "vs_bond_capsule",
-            fs_entry: Some("fs_bond_capsule"),
-            color_targets: &gbuffer_targets(),
-            depth: Some(DepthState {
-                format: TextureFormat::Depth32Float,
-                write: true,
-                compare: CompareFunction::GreaterEqual,
-            }),
-            constants: &[],
-            topology: PrimitiveTopology::TriangleList,
-        })?;
-        Ok(Self { pipeline })
+        let pipeline = |label, vertex, fragment| {
+            device.create_render_pipeline(&RenderPipelineDesc {
+                label,
+                layouts: &[Some(group0), None, Some(group2)],
+                shader: &shader,
+                vs_entry: vertex,
+                fs_entry: Some(fragment),
+                color_targets: &gbuffer_targets(),
+                depth: Some(DepthState {
+                    format: TextureFormat::Depth32Float,
+                    write: true,
+                    compare: CompareFunction::GreaterEqual,
+                }),
+                constants: &[],
+                topology: PrimitiveTopology::TriangleList,
+            })
+        };
+        Ok(Self {
+            capsule: pipeline("bond capsules", "vs_bond_capsule", "fs_bond_capsule")?,
+            wire: pipeline("bond wires", "vs_bond_line", "fs_bond_line")?,
+        })
     }
 
     pub fn record(ctx: &mut PassContext<'_, D>) {
@@ -92,9 +98,17 @@ impl<D: Device> BondPass<D> {
             }),
             timestamps: ctx.timestamps,
         });
-        pass.set_pipeline(&ctx.passes.bond.pipeline);
+        let mut bound = None;
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
-        for (group2, args, _) in ctx.scene.bond_draws(false) {
+        for (group2, args, shading) in ctx.scene.bond_draws(false) {
+            if bound != Some(shading.wire) {
+                pass.set_pipeline(if shading.wire {
+                    &ctx.passes.bond.wire
+                } else {
+                    &ctx.passes.bond.capsule
+                });
+                bound = Some(shading.wire);
+            }
             pass.set_bind_group(2, group2, &[]);
             pass.draw_indirect(args, 0);
         }

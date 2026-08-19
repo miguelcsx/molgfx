@@ -5,6 +5,7 @@
 
 use crate::error::RenderError;
 use crate::graph::PassContext;
+use crate::passes::primitive_pipelines::PrimitivePipelineSet;
 use crate::passes::{
     DEPTH_RESOURCE, FrameBindings, OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE, SEGMENT_LABEL_RESOURCE,
     SEGMENT_VOLUME_RESOURCE,
@@ -21,10 +22,11 @@ pub struct OitPass<D: Device> {
     sphere_clipped: D::Pipeline,
     point: D::Pipeline,
     bond: D::Pipeline,
+    wire: D::Pipeline,
     cartoon: D::Pipeline,
     union_surface: D::Pipeline,
     grid_surface: D::Pipeline,
-    primitive: D::Pipeline,
+    primitive: PrimitivePipelineSet<D>,
     volume: D::Pipeline,
     segmentation: D::Pipeline,
     pub(crate) layout: D::BindGroupLayout,
@@ -84,6 +86,18 @@ impl<D: Device> OitPass<D> {
                     group2,
                 },
             )?,
+            wire: pipeline(
+                device,
+                group0,
+                &layout,
+                &OitPipelineDesc {
+                    label: "transparent bond wires",
+                    wgsl: pdviewx_shaders::GEOMETRY_BOND,
+                    vertex: "vs_bond_line",
+                    fragment: "fs_bond_line_transparent",
+                    group2,
+                },
+            )?,
             cartoon: pipeline(
                 device,
                 group0,
@@ -98,7 +112,7 @@ impl<D: Device> OitPass<D> {
             )?,
             union_surface,
             grid_surface,
-            primitive: primitive_pipeline(device, group0, &layout, primitive)?,
+            primitive: primitive_pipelines(device, group0, &layout, primitive)?,
             volume: pipeline(
                 device,
                 group0,
@@ -176,7 +190,7 @@ impl<D: Device> OitPass<D> {
     }
 
     pub fn primitive(ctx: &mut PassContext<'_, D>) {
-        if ctx.scene.primitive_transparent_draw().is_some() {
+        if ctx.scene.has_transparent_primitives() {
             record(ctx, Primitive::Analytic);
         }
     }
@@ -293,8 +307,16 @@ fn record<D: Device>(ctx: &mut PassContext<'_, D>, primitive: Primitive) {
     match primitive {
         Primitive::Spheres => record_spheres(ctx.passes, ctx.scene, &mut pass),
         Primitive::Bonds => {
-            pass.set_pipeline(&ctx.passes.oit.bond);
-            for (group, args, _) in ctx.scene.bond_draws(true) {
+            let mut bound = None;
+            for (group, args, shading) in ctx.scene.bond_draws(true) {
+                if bound != Some(shading.wire) {
+                    pass.set_pipeline(if shading.wire {
+                        &ctx.passes.oit.wire
+                    } else {
+                        &ctx.passes.oit.bond
+                    });
+                    bound = Some(shading.wire);
+                }
                 pass.set_bind_group(2, group, &[]);
                 pass.draw_indirect(args, 0);
             }
@@ -318,13 +340,7 @@ fn record<D: Device>(ctx: &mut PassContext<'_, D>, primitive: Primitive) {
             }
         }
         Primitive::Surfaces => record_surfaces(ctx.passes, ctx.scene, &mut pass),
-        Primitive::Analytic => {
-            pass.set_pipeline(&ctx.passes.oit.primitive);
-            if let Some((group, args)) = ctx.scene.primitive_transparent_draw() {
-                pass.set_bind_group(2, group, &[]);
-                pass.draw_indirect(args, 0);
-            }
-        }
+        Primitive::Analytic => record_primitives(ctx.passes, ctx.scene, &mut pass),
         Primitive::Volumes => {
             pass.set_pipeline(&ctx.passes.oit.volume);
             for group in ctx.scene.volume_draws() {
@@ -338,6 +354,6 @@ fn record<D: Device>(ctx: &mut PassContext<'_, D>, primitive: Primitive) {
 mod pipelines;
 mod record;
 
-use pipelines::{OitPipelineDesc, pipeline, primitive_pipeline, segmentation_pipeline};
+use pipelines::{OitPipelineDesc, pipeline, primitive_pipelines, segmentation_pipeline};
 use pipelines::{sphere_pipelines, surface_pipelines};
-use record::{record_spheres, record_surfaces};
+use record::{record_primitives, record_spheres, record_surfaces};

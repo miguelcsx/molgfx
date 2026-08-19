@@ -65,6 +65,9 @@ impl<D: Device> AoDenoisePass<D> {
     }
 
     pub fn record(ctx: &mut PassContext<'_, D>) {
+        if ctx.scene.is_massive_points_only() {
+            return;
+        }
         let Some(target) = ctx.resources.view(AO_DENOISED_RESOURCE) else {
             return;
         };

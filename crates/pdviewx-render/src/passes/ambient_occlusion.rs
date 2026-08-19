@@ -81,6 +81,9 @@ impl<D: Device> AmbientOcclusionPass<D> {
     }
 
     pub fn record(ctx: &mut PassContext<'_, D>) {
+        if ctx.scene.is_massive_points_only() {
+            return;
+        }
         let Some(target) = ctx.resources.view(AO_RESOURCE) else {
             return;
         };

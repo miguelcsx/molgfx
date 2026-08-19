@@ -10,8 +10,12 @@ use pdviewx_gpu::{
 #[derive(Debug)]
 pub struct CullPass<D: Device> {
     reset: D::Pipeline,
+    reset_tiles: D::Pipeline,
+    bin_atoms: D::Pipeline,
+    compact_tiles: D::Pipeline,
     atoms: D::Pipeline,
     bonds: D::Pipeline,
+    direct_bonds: D::Pipeline,
 }
 
 impl<D: Device> CullPass<D> {
@@ -30,8 +34,12 @@ impl<D: Device> CullPass<D> {
         };
         Ok(Self {
             reset: pipeline("reset indirect arguments", "reset_cull")?,
+            reset_tiles: pipeline("reset screen tile visibility", "reset_tiles")?,
+            bin_atoms: pipeline("bin nearest screen tile atoms", "bin_atoms")?,
+            compact_tiles: pipeline("compact screen tile atoms", "compact_tiles")?,
             atoms: pipeline("compact visible atoms", "cull_atoms")?,
             bonds: pipeline("compact visible bonds", "cull_bonds")?,
+            direct_bonds: pipeline("compact visible wire bonds", "cull_bonds_direct")?,
         })
     }
 
@@ -45,11 +53,34 @@ impl<D: Device> CullPass<D> {
             pass.set_pipeline(&ctx.passes.cull.reset);
             pass.dispatch(1, 1, 1);
             if dispatch.atom_groups > 0 {
-                pass.set_pipeline(&ctx.passes.cull.atoms);
-                pass.dispatch(dispatch.atom_groups, 1, 1);
+                if dispatch.lod {
+                    pass.set_pipeline(&ctx.passes.cull.reset_tiles);
+                    pass.dispatch(dispatch.tile_groups, 1, 1);
+                    pass.set_pipeline(&ctx.passes.cull.bin_atoms);
+                    pass.dispatch(
+                        if dispatch.fast_points {
+                            dispatch.bin_groups
+                        } else {
+                            dispatch.atom_groups
+                        },
+                        1,
+                        1,
+                    );
+                }
+                if dispatch.fast_points {
+                    pass.set_pipeline(&ctx.passes.cull.compact_tiles);
+                    pass.dispatch(dispatch.tile_groups, 1, 1);
+                } else {
+                    pass.set_pipeline(&ctx.passes.cull.atoms);
+                    pass.dispatch(dispatch.atom_groups, 1, 1);
+                }
             }
             if dispatch.bond_groups > 0 {
-                pass.set_pipeline(&ctx.passes.cull.bonds);
+                pass.set_pipeline(if dispatch.direct_bonds {
+                    &ctx.passes.cull.direct_bonds
+                } else {
+                    &ctx.passes.cull.bonds
+                });
                 pass.dispatch(dispatch.bond_groups, 1, 1);
             }
         }

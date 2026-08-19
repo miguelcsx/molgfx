@@ -62,10 +62,14 @@ impl<D: Device> ShadowPass<D> {
             constants: &[],
             topology: PrimitiveTopology::TriangleList,
         })?;
+        let ribbon_shader = device.create_shader_module(&ShaderModuleDesc {
+            label: "cartoon ribbon shadows",
+            wgsl: pdviewx_shaders::SHADOW_RIBBON,
+        })?;
         let ribbon = device.create_render_pipeline(&RenderPipelineDesc {
             label: "ribbon shadow map",
             layouts: &[Some(group0), None, Some(ribbon)],
-            shader: &shader,
+            shader: &ribbon_shader,
             vs_entry: "vs_shadow_ribbon",
             fs_entry: None,
             color_targets: &[],
@@ -94,6 +98,9 @@ impl<D: Device> ShadowPass<D> {
 
     /// Records one depth pass over the GPU-cull-selected opaque streams.
     pub fn record(ctx: &mut PassContext<'_, D>) {
+        if ctx.scene.is_massive_points_only() {
+            return;
+        }
         let Some(depth) = ctx.resources.view(SHADOW_RESOURCE) else {
             return;
         };
@@ -109,12 +116,12 @@ impl<D: Device> ShadowPass<D> {
         });
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         pass.set_pipeline(&ctx.passes.shadow.sphere);
-        for (group, args, _) in ctx.scene.atom_draws(false) {
+        for (group, args, _) in ctx.scene.shadow_atom_draws(ctx.quality) {
             pass.set_bind_group(2, group, &[]);
             pass.draw_indirect(args, 0);
         }
         pass.set_pipeline(&ctx.passes.shadow.bond);
-        for (group, args, _) in ctx.scene.bond_draws(false) {
+        for (group, args, _) in ctx.scene.shadow_bond_draws(ctx.quality) {
             pass.set_bind_group(2, group, &[]);
             pass.draw_indirect(args, 0);
         }
@@ -128,7 +135,7 @@ impl<D: Device> ShadowPass<D> {
             pass.draw_indirect(args, 0);
         }
         pass.set_pipeline(&ctx.passes.shadow.primitive);
-        if let Some((group, args)) = ctx.scene.primitive_draw() {
+        if let Some((group, args)) = ctx.scene.primitive_shadow_draw(ctx.quality) {
             pass.set_bind_group(2, group, &[]);
             pass.draw_indirect(args, 0);
         }
