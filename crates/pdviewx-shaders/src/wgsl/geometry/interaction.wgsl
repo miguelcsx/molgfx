@@ -1,6 +1,6 @@
 // Pixel-stable analytic molecular interaction glyphs.
 //
-// Each interaction expands to a four-vertex triangle strip.
+// Each interaction expands to a six-vertex triangle-list quad.
 // Per-interaction geometry is flat and precomputed in the vertex stage;
 // fragments only resolve the 2D pattern, optional marker and analytic depth.
 
@@ -49,12 +49,13 @@ struct InteractionHit {
     valid: bool,
 }
 
-/// Returns triangle-strip quad coordinates in [0, 1].
+/// Returns triangle-list quad coordinates in [0, 1].
 fn interaction_quad_uv(vertex_index: u32) -> vec2f {
-    return vec2f(
-        f32(vertex_index & 1u),
-        f32(vertex_index >> 1u),
+    let corners = array<vec2f, 6>(
+        vec2f(0.0, 0.0), vec2f(1.0, 0.0), vec2f(0.0, 1.0),
+        vec2f(0.0, 1.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0),
     );
+    return corners[min(vertex_index, 5u)];
 }
 
 /// Resolves the main solid, dashed, dotted or spring stroke.

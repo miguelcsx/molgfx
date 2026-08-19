@@ -1,7 +1,7 @@
 // Scene-fit directional shadow map for analytic molecular geometry.
 //
 // Optimizations:
-//   - four-vertex triangle-strip impostors;
+//   - six-vertex triangle-list impostors;
 //   - orthographic shadow rays are always light-space -Z;
 //   - sphere depth is solved directly from its circular cross-section;
 //   - bond/primitive hits only resolve t; light-space hit Z is therefore -t;
@@ -14,7 +14,7 @@
 //   - shadow_primitives contains only shadow-casting opaque primitives;
 //   - frame.shadow_view / shadow_inv_view are rigid transforms;
 //   - frame.shadow_projection is orthographic;
-//   - impostors use triangle-strip with vertexCount = 4.
+//   - impostors use triangle-list with vertexCount = 6.
 //
 // The casters share only their light-space setup, so each family owns its
 // stages under include/shadow/ and none carries another's intersection code.
@@ -26,5 +26,4 @@
 //!include "include/shadow/types.wgsl"
 //!include "include/shadow/molecular.wgsl"
 //!include "include/shadow/primitive.wgsl"
-
 

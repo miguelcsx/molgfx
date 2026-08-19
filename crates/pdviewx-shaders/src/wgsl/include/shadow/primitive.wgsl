@@ -66,7 +66,7 @@ fn vs_shadow_primitive(
     out.inverse_cross =
         vec4f(0.0);
 
-    // Only vertices 0 and 2 provide flat data for the strip triangles.
+    // Only vertices 0 and 3 provide flat data for the independent triangles.
     if shadow_flat_source(vertex) {
         out.world_center =
             center_radius.xyz;

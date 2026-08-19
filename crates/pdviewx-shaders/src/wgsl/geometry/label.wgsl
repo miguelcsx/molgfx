@@ -5,7 +5,7 @@
 //   1 = guide
 //   2+ = marker
 //
-// Each instance expands to a four-vertex triangle strip.
+// Each instance expands to a six-vertex triangle-list quad.
 //
 // This file holds the three pipelines; the payloads they share and the
 // distance fields they sample live beside it under include/label/.
@@ -26,6 +26,12 @@ fn vs_label_glyph(
 ) -> GlyphVsOut {
     let label =
         labels[instance_index];
+
+    if label_kind(label) != LABEL_KIND_GLYPH {
+        var culled: GlyphVsOut;
+        culled.position = LABEL_CULLED;
+        return culled;
+    }
 
     let anchor =
         project_point(
@@ -160,6 +166,12 @@ fn vs_label_guide(
 ) -> GuideVsOut {
     let label =
         labels[instance_index];
+
+    if label_kind(label) != LABEL_KIND_GUIDE {
+        var culled: GuideVsOut;
+        culled.position = LABEL_CULLED;
+        return culled;
+    }
 
     let start =
         project_point(
@@ -328,6 +340,12 @@ fn vs_label_marker(
 ) -> MarkerVsOut {
     let label =
         labels[instance_index];
+
+    if label_kind(label) != LABEL_KIND_MARKER {
+        var culled: MarkerVsOut;
+        culled.position = LABEL_CULLED;
+        return culled;
+    }
 
     let anchor =
         project_point(

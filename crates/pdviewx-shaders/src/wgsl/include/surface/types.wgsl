@@ -82,12 +82,13 @@ fn surface_miss() -> SurfaceHit {
     );
 }
 
-/// Returns four-vertex triangle-strip coordinates in [0, 1].
+/// Returns six-vertex triangle-list coordinates in [0, 1].
 fn surface_quad_uv(vertex: u32) -> vec2f {
-    return vec2f(
-        f32(vertex & 1u),
-        f32(vertex >> 1u),
+    let corners = array<vec2f, 6>(
+        vec2f(0.0, 0.0), vec2f(1.0, 0.0), vec2f(0.0, 1.0),
+        vec2f(0.0, 1.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0),
     );
+    return corners[min(vertex, 5u)];
 }
 
 /// Transforms an affine point without computing an unused homogeneous W.
