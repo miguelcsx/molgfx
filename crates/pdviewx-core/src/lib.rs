@@ -39,13 +39,13 @@ pub use representation::{
     MAX_MESH_VERTICES, MAX_VOLUME_TRANSFER_POINTS, MarkerShape, MarkerStyle, Material,
     MaterialModel, Measurement, MeasurementKind, Mesh, MeshInstance, MeshTopology, MeshVertex,
     OverlayAnchor, OverlayContent, PolylineKind, PropertyAppearance, PropertyAppearanceSample,
-    PropertyLegend, Quadric, Representation, RepresentationKind, RepresentationParams,
-    RepresentationPreset, RepresentationTarget, ScalarContours, ScalarFieldSemantics, ScalarRamp,
-    ScreenOverlay, SurfaceComponentPolicy, SurfaceKind, SurfaceScalarOverlay, SurfaceStyle,
-    TubeRadiusMapping, VolumeRegion, VolumeRendering, VolumeSlice, VolumeStyle,
-    VolumeTransferFunction, VolumeTransferPoint, cpk_color, vdw_radius,
+    PropertyLegend, Quadric, Representation, RepresentationConfig, RepresentationKind,
+    RepresentationParams, RepresentationPreset, RepresentationTarget, ScalarContours,
+    ScalarFieldSemantics, ScalarRamp, ScreenOverlay, SurfaceComponentPolicy, SurfaceKind,
+    SurfaceScalarOverlay, SurfaceStyle, TubeRadiusMapping, VolumeRegion, VolumeRendering,
+    VolumeSlice, VolumeStyle, VolumeTransferFunction, VolumeTransferPoint, cpk_color, vdw_radius,
 };
-pub use scene::Scene;
+pub use scene::{RepresentationInput, Scene};
 pub use selection::{
     AtomSelection, ClipCap, ClipPlane, ClipSet, MAX_CLIP_PLANES, PropertyComparison, Select,
 };

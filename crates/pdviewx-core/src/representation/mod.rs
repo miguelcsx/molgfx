@@ -2,6 +2,7 @@
 
 pub(crate) mod annotation;
 pub(crate) mod atom_property;
+mod config;
 pub(crate) mod guide;
 pub(crate) mod interaction;
 #[path = "representation.rs"]
@@ -14,6 +15,7 @@ pub(crate) mod quadric;
 pub(crate) mod radii;
 pub(crate) mod scalar;
 pub(crate) mod tube_radius;
+mod volume_style;
 
 pub use annotation::{
     Annotation, AnnotationAnchor, AnnotationKind, MarkerShape, MarkerStyle, Measurement,
@@ -22,6 +24,7 @@ pub use annotation::{
 pub use atom_property::{
     AtomProperty, AtomPropertyMeaning, PropertyAppearance, PropertyAppearanceSample, PropertyLegend,
 };
+pub use config::RepresentationConfig;
 pub use guide::{Guide, GuideCap, GuideStyle, PolylineKind};
 pub use interaction::{
     InteractionAnchor, InteractionDirection, InteractionEdge, InteractionGeometry, InteractionKind,

@@ -9,6 +9,7 @@ pub(crate) mod particle;
 pub(crate) mod placed;
 pub(crate) mod planar;
 pub(crate) mod primitive;
+mod primitive_declaration;
 pub(crate) mod provenance;
 pub(crate) mod secondary;
 pub(crate) mod segmentation;
