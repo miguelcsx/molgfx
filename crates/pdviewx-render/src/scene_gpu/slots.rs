@@ -32,7 +32,6 @@ pub(super) struct GpuSlot<D: Device> {
     cull_group: Option<D::BindGroup>,
     visible_atoms: Option<D::Buffer>,
     visible_bonds: Option<D::Buffer>,
-    atom_visibility: Option<D::Buffer>,
     counts: Option<D::Buffer>,
     atom_count: u32,
     bond_count: u32,
@@ -41,7 +40,6 @@ pub(super) struct GpuSlot<D: Device> {
     compaction_capacity: u64,
     visible_atoms_capacity: u64,
     visible_bonds_capacity: u64,
-    atom_visibility_capacity: u64,
     synced: Option<SlotSynced>,
     translucent: bool,
     kind: RepresentationKind,
@@ -65,7 +63,6 @@ impl<D: Device> GpuSlot<D> {
             cull_group: None,
             visible_atoms: None,
             visible_bonds: None,
-            atom_visibility: None,
             counts: None,
             atom_count: 0,
             bond_count: 0,
@@ -74,7 +71,6 @@ impl<D: Device> GpuSlot<D> {
             compaction_capacity: 0,
             visible_atoms_capacity: 0,
             visible_bonds_capacity: 0,
-            atom_visibility_capacity: 0,
             synced: None,
             translucent: false,
             shading: SlotShading::default(),
@@ -104,6 +100,7 @@ impl<D: Device> GpuSlot<D> {
                 input.placed.trajectory_pair_revision(),
             ],
             overlay_binding: input.overlay_binding_revision,
+            cull_binding: input.cull_binding_revision,
         };
         if self.synced == Some(current) {
             return Ok(false);
@@ -111,6 +108,7 @@ impl<D: Device> GpuSlot<D> {
         self.translucent = input.representation.is_translucent();
         self.kind = input.representation.kind;
         self.shading = SlotShading {
+            wire: input.representation.kind == RepresentationKind::Lines,
             clipped: !input.representation.clipping.planes().is_empty(),
             surface_grid: matches!(
                 input.representation.params.surface_kind,
@@ -166,21 +164,26 @@ impl<D: Device> GpuSlot<D> {
                 input.overlay_view,
             );
         }
-        if self.cull_group.is_none()
-            || self
-                .synced
-                .is_some_and(|old| old.structure_binding != current.structure_binding)
-        {
+        if self.cull_binding_changed(&current) {
             self.bind_cull(
                 input.device,
                 input.cull_layout,
                 input.structure_gpu,
                 input.frame,
+                input.cull_tiles,
             );
         }
         self.sync_uniforms(&input, &current, representation_changed);
         self.synced = Some(current);
         Ok(true)
+    }
+
+    fn cull_binding_changed(&self, current: &SlotSynced) -> bool {
+        self.cull_group.is_none()
+            || self.synced.is_some_and(|old| {
+                old.structure_binding != current.structure_binding
+                    || old.cull_binding != current.cull_binding
+            })
     }
 
     fn sync_cartoon(
@@ -248,7 +251,7 @@ impl<D: Device> GpuSlot<D> {
                 input.queue,
                 uniforms,
                 input.representation,
-                input.structure_gpu.bvh_bounds(),
+                input.selection_bounds,
                 input.overlay_volume,
             );
         }
@@ -341,7 +344,7 @@ impl<D: Device> GpuSlot<D> {
         ensure_indices(
             input.device,
             "visible atom indices",
-            self.atom_count,
+            self.atom_count.saturating_mul(2),
             &mut self.visible_atoms,
             &mut self.visible_atoms_capacity,
         )?;
@@ -352,19 +355,22 @@ impl<D: Device> GpuSlot<D> {
             &mut self.visible_bonds,
             &mut self.visible_bonds_capacity,
         )?;
-        ensure_indices(
-            input.device,
-            "atom visibility cache",
-            self.atom_count,
-            &mut self.atom_visibility,
-            &mut self.atom_visibility_capacity,
-        )?;
         self.write_args(input.device, input.queue)?;
         write_counts(
             input.device,
             input.queue,
             self.atom_count,
             self.bond_count,
+            if self.atom_count < 131_072 {
+                0
+            } else if self.kind == RepresentationKind::Points
+                && self.bond_count == 0
+                && self.atom_count < 1_048_575
+            {
+                2
+            } else {
+                1
+            },
             &mut self.counts,
         )?;
         self.bind(
@@ -380,6 +386,7 @@ impl<D: Device> GpuSlot<D> {
             input.cull_layout,
             input.structure_gpu,
             input.frame,
+            input.cull_tiles,
         );
         Ok(())
     }
@@ -409,6 +416,7 @@ impl<D: Device> GpuSlot<D> {
         };
         self.surface.sync(&SurfaceSync {
             device: input.device,
+            queue: input.queue,
             output_layout: input.surface_field_output_layout,
             input_layout: input.surface_field_input_layout,
             erosion_layout: input.surface_field_erosion_layout,
@@ -418,6 +426,7 @@ impl<D: Device> GpuSlot<D> {
             compaction,
             uniforms,
             atom_count: self.atom_count,
+            selection_bounds: input.selection_bounds,
             force_generate,
             overlay_volume: input.overlay_volume,
         })
@@ -434,6 +443,7 @@ impl<D: Device> GpuSlot<D> {
         };
         self.surface.sync(&SurfaceSync {
             device: input.device,
+            queue: input.queue,
             output_layout: input.surface_field_output_layout,
             input_layout: input.surface_field_input_layout,
             erosion_layout: input.surface_field_erosion_layout,
@@ -443,6 +453,7 @@ impl<D: Device> GpuSlot<D> {
             compaction,
             uniforms,
             atom_count: self.atom_count,
+            selection_bounds: input.selection_bounds,
             force_generate: true,
             overlay_volume: input.overlay_volume,
         })

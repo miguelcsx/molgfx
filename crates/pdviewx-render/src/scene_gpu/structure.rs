@@ -6,7 +6,7 @@ use super::uniforms::ModelUniforms;
 use crate::error::RenderError;
 use pdviewx_core::{PlacedStructure, StructureHandle};
 use pdviewx_gpu::{BufferDesc, BufferUsage, Device, Queue};
-use pdviewx_math::{Aabb, Mat4};
+use pdviewx_math::Mat4;
 
 #[derive(Debug)]
 pub(super) struct GpuStructure<D: Device> {
@@ -25,7 +25,6 @@ pub(super) struct GpuStructure<D: Device> {
     model_needs_settle: bool,
     structure_id: u32,
     pub(super) binding_revision: u64,
-    bvh_bounds: Aabb,
     bvh_source: Option<BvhSource>,
     trajectory: GpuTrajectory<D>,
 }
@@ -41,9 +40,6 @@ impl<D: Device> GpuStructure<D> {
         self.structure_id
     }
 
-    pub(super) fn bvh_bounds(&self) -> Aabb {
-        self.bvh_bounds
-    }
     pub(super) fn new(handle: StructureHandle, structure_id: u32) -> Self {
         Self {
             handle,
@@ -61,7 +57,6 @@ impl<D: Device> GpuStructure<D> {
             model_needs_settle: false,
             structure_id,
             binding_revision: 0,
-            bvh_bounds: Aabb::EMPTY,
             bvh_source: None,
             trajectory: GpuTrajectory::new(),
         }
@@ -80,6 +75,7 @@ impl<D: Device> GpuStructure<D> {
         queue: &D::Queue,
         placed: &PlacedStructure,
         trajectory_layout: &D::BindGroupLayout,
+        requires_bvh: bool,
     ) -> Result<bool, RenderError> {
         let mut changed = false;
         let coord_bytes = placed.atoms.coords().as_bytes();
@@ -111,13 +107,18 @@ impl<D: Device> GpuStructure<D> {
             self.binding_revision = self.binding_revision.wrapping_add(1);
         }
         changed |= trajectory.changed;
-        let bvh_source = match placed.trajectory() {
-            Some(_) => BvhSource::Trajectory(placed.trajectory_pair_revision()),
-            None => BvhSource::Parsed(generation),
-        };
-        if self.bvh_source != Some(bvh_source) {
-            self.sync_bvh(device, queue, placed)?;
-            self.bvh_source = Some(bvh_source);
+        if requires_bvh {
+            let bvh_source = match placed.trajectory() {
+                Some(_) => BvhSource::Trajectory(placed.trajectory_pair_revision()),
+                None => BvhSource::Parsed(generation),
+            };
+            if self.bvh_source != Some(bvh_source) {
+                self.sync_bvh(device, queue, placed)?;
+                self.bvh_source = Some(bvh_source);
+                changed = true;
+            }
+        } else if self.bvh_nodes.is_none() {
+            self.sync_bvh_fallback(device, queue)?;
             changed = true;
         }
         Ok(self.sync_model(device, queue, placed)? || changed)
@@ -130,7 +131,6 @@ impl<D: Device> GpuStructure<D> {
         placed: &PlacedStructure,
     ) -> Result<(), RenderError> {
         let bvh = placed.render_bvh();
-        self.bvh_bounds = bvh.bounds();
         let nodes_rebind = needs_growth::<pdviewx_math::BvhNode, D>(
             bvh.nodes.len(),
             self.bvh_nodes.as_ref(),
@@ -172,6 +172,38 @@ impl<D: Device> GpuStructure<D> {
         )?;
         if nodes_rebind || indices_rebind || escape_rebind {
             self.binding_revision = self.binding_revision.wrapping_add(1);
+        }
+        Ok(())
+    }
+
+    fn sync_bvh_fallback(&mut self, device: &D, queue: &D::Queue) -> Result<(), RenderError> {
+        let revision = self.binding_revision;
+        upload_grow(
+            device,
+            queue,
+            "shared BVH nodes",
+            &[] as &[pdviewx_math::BvhNode],
+            &mut self.bvh_nodes,
+            &mut self.bvh_nodes_capacity,
+        )?;
+        upload_grow(
+            device,
+            queue,
+            "shared BVH primitive indices",
+            &[] as &[u32],
+            &mut self.bvh_indices,
+            &mut self.bvh_indices_capacity,
+        )?;
+        upload_grow(
+            device,
+            queue,
+            "shared BVH escape indices",
+            &[] as &[u32],
+            &mut self.bvh_escape,
+            &mut self.bvh_escape_capacity,
+        )?;
+        if self.bvh_nodes.is_some() && self.bvh_indices.is_some() && self.bvh_escape.is_some() {
+            self.binding_revision = revision.wrapping_add(1);
         }
         Ok(())
     }

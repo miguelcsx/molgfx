@@ -5,6 +5,18 @@ use crate::error::RenderError;
 use pdviewx_core::DrawIndirectArgs;
 use pdviewx_gpu::{BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
 
+pub(super) fn create_cull_tiles<D: Device>(
+    device: &D,
+    bytes: u64,
+) -> Result<(D::Buffer, u64), RenderError> {
+    let buffer = device.create_buffer(&BufferDesc {
+        label: "screen tile visibility",
+        size: bytes,
+        usage: BufferUsage::STORAGE,
+    })?;
+    Ok((buffer, bytes))
+}
+
 pub(super) fn upload_grow<D: Device, T: bytemuck::Pod>(
     device: &D,
     queue: &D::Queue,
@@ -43,6 +55,7 @@ pub(super) fn write_counts<D: Device>(
     queue: &D::Queue,
     atoms: u32,
     bonds: u32,
+    lod_mode: u32,
     buffer: &mut Option<D::Buffer>,
 ) -> Result<(), RenderError> {
     if buffer.is_none() {
@@ -59,7 +72,12 @@ pub(super) fn write_counts<D: Device>(
             bytemuck::bytes_of(&CullCounts {
                 atoms,
                 bonds,
-                padding: [0; 2],
+                lod_enabled: lod_mode,
+                padding: if lod_mode == 2 {
+                    atoms.div_ceil(65_536).max(1)
+                } else {
+                    1
+                },
             }),
         );
     }

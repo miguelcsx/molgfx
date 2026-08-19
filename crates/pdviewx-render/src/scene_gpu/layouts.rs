@@ -79,6 +79,20 @@ pub(super) fn primitive_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     })
 }
 
+pub(super) fn primitive_shadow_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    // The shadow module shares one binding space with the atom caster, which
+    // owns bindings 0..5 and 13, so the primitive buffer is read at binding 6.
+    // It is the same PrimitiveGpu records the gbuffer pass draws, bound here at
+    // a slot that does not collide with the atom caster's storage.
+    device.create_bind_group_layout(&BindGroupLayoutDesc {
+        label: "group2: primitive shadow casters",
+        entries: &[storage_visible(
+            6,
+            ShaderStages::VERTEX.union(ShaderStages::FRAGMENT),
+        )],
+    })
+}
+
 pub(super) fn primitive_motion_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: primitive particle motion",
@@ -186,12 +200,16 @@ pub(super) fn cartoon_layout<D: Device>(device: &D) -> D::BindGroupLayout {
             storage(1),
             BindGroupLayoutEntry {
                 binding: 2,
-                visibility: ShaderStages::VERTEX,
+                // The model transform is used per vertex and the structure id
+                // it carries is written per fragment, so both stages bind it.
+                visibility: ShaderStages::VERTEX.union(ShaderStages::FRAGMENT),
                 ty: BindingType::Uniform,
             },
             BindGroupLayoutEntry {
                 binding: 3,
-                visibility: ShaderStages::FRAGMENT,
+                // The clip planes are evaluated per vertex and the ribbon
+                // material is read per fragment, so both stages bind it.
+                visibility: ShaderStages::VERTEX.union(ShaderStages::FRAGMENT),
                 ty: BindingType::Uniform,
             },
         ],

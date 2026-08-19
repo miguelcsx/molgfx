@@ -10,7 +10,9 @@ mod layouts;
 mod mesh_caps;
 mod mesh_slot;
 mod overlay_table;
+mod primitive_draw;
 mod primitive_table;
+mod probe_offsets;
 mod ribbon_slot;
 mod scalar_overlay;
 mod segmentation_lookup;
@@ -26,5 +28,8 @@ mod uniforms;
 mod volume_slot;
 mod volume_uniforms;
 
+pub(crate) use primitive_draw::{
+    FAMILY_BOX, FAMILY_ELLIPSOID, FAMILY_PARTICLE, FAMILY_POLYGON, PrimitiveDrawGroup,
+};
 pub(crate) use sync::GpuScene;
 pub(crate) use uniforms::{FrameUniforms, TemporalFrame};

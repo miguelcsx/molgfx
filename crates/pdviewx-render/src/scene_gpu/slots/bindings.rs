@@ -12,13 +12,13 @@ impl<D: Device> GpuSlot<D> {
         layout: &D::BindGroupLayout,
         structure: &GpuStructure<D>,
         frame: &D::Buffer,
+        cull_tiles: &D::Buffer,
     ) {
         let (
             Some(atoms),
             Some(bonds),
             Some(visible_atoms),
             Some(visible_bonds),
-            Some(atom_visibility),
             Some(atom_args),
             Some(bond_args),
             Some(counts),
@@ -29,7 +29,6 @@ impl<D: Device> GpuSlot<D> {
             &self.bonds,
             &self.visible_atoms,
             &self.visible_bonds,
-            &self.atom_visibility,
             &self.atom_args,
             &self.bond_args,
             &self.counts,
@@ -53,7 +52,7 @@ impl<D: Device> GpuSlot<D> {
                 buffer_entry(7, frame),
                 buffer_entry(8, model),
                 buffer_entry(9, coords),
-                buffer_entry(10, atom_visibility),
+                buffer_entry(10, cull_tiles),
             ],
         }));
     }

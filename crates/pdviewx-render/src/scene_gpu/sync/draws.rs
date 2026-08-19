@@ -42,6 +42,24 @@ impl<D: Device> GpuScene<D> {
             .filter_map(move |slot| slot.bond_draw(translucent))
     }
 
+    pub(crate) fn shadow_atom_draws(
+        &self,
+        quality: bool,
+    ) -> impl Iterator<Item = (&D::BindGroup, &D::Buffer, SlotShading)> {
+        self.slots
+            .iter()
+            .filter_map(move |slot| slot.shadow_atom_draw(quality))
+    }
+
+    pub(crate) fn shadow_bond_draws(
+        &self,
+        quality: bool,
+    ) -> impl Iterator<Item = (&D::BindGroup, &D::Buffer, SlotShading)> {
+        self.slots
+            .iter()
+            .filter_map(move |slot| slot.shadow_bond_draw(quality))
+    }
+
     pub(crate) fn point_draws(
         &self,
         translucent: bool,
@@ -95,16 +113,35 @@ impl<D: Device> GpuScene<D> {
             .filter_map(super::super::segmentation_slot::GpuSegmentationSlot::draw)
     }
 
-    pub(crate) fn primitive_draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
-        self.primitive.draw()
+    /// The primitive shadow-caster bind group and its whole-table arguments.
+    pub(crate) fn primitive_shadow_draw(
+        &self,
+        quality: bool,
+    ) -> Option<(&D::BindGroup, &D::Buffer)> {
+        self.primitive.shadow_draw(quality)
     }
 
-    pub(crate) fn primitive_transparent_draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
-        self.primitive.transparent_draw()
+    /// The shape-sorted primitive table with its per-class draw ranges.
+    pub(crate) fn primitive_groups(
+        &self,
+    ) -> Option<(&D::BindGroup, &[crate::scene_gpu::PrimitiveDrawGroup])> {
+        self.primitive.groups()
+    }
+
+    /// Whether any primitive group is translucent, so the transparency pass
+    /// knows to run without scanning every group twice.
+    pub(crate) fn has_transparent_primitives(&self) -> bool {
+        self.primitive
+            .groups()
+            .is_some_and(|(_, groups)| groups.iter().any(|group| group.translucent))
     }
 
     pub(crate) fn cull_dispatches(&self) -> impl Iterator<Item = CullDispatch<'_, D>> {
-        self.slots.iter().filter_map(GpuSlot::cull)
+        let tile_groups = self.cull_tile_count.div_ceil(64);
+        let fast_tile_lod = self.cull_tile_count < 262_143;
+        self.slots
+            .iter()
+            .filter_map(move |slot| slot.cull(tile_groups, fast_tile_lod))
     }
 
     pub(crate) fn record_surface_fields(
@@ -136,6 +173,18 @@ impl<D: Device> GpuScene<D> {
             || self.has_segmentation_translucency()
             || self.slots.iter().any(GpuSlot::is_translucent)
             || self.mesh_slots.iter().any(GpuMeshSlot::is_translucent)
+    }
+
+    /// Dense point-only scenes have no molecular surface to integrate. Their
+    /// exact ambient term is white, so the expensive cavity filters are idle.
+    pub(crate) fn is_massive_points_only(&self) -> bool {
+        self.slots.iter().any(GpuSlot::is_massive_point)
+            && self.atom_draws(false).next().is_none()
+            && self.bond_draws(false).next().is_none()
+            && self.cartoon_draws(false).next().is_none()
+            && self.surface_draws(false).next().is_none()
+            && self.mesh_draws(false).next().is_none()
+            && self.primitive.groups().is_none()
     }
 
     pub(crate) fn interaction_draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {

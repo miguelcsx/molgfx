@@ -6,13 +6,15 @@ use pdviewx_core::{
     RepresentationHandle, RepresentationKind, RepresentationTarget, StructureHandle,
 };
 use pdviewx_gpu::Device;
+use pdviewx_math::Aabb;
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub(super) struct CullCounts {
     pub(super) atoms: u32,
     pub(super) bonds: u32,
-    pub(super) padding: [u32; 2],
+    pub(super) lod_enabled: u32,
+    pub(super) padding: u32,
 }
 
 /// Which specialized pipeline one slot's draw needs.
@@ -23,6 +25,8 @@ pub(super) struct CullCounts {
 /// with the draw, rather than being rediscovered inside every pass.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub(crate) struct SlotShading {
+    /// Bond instances use the pixel-stable line pipeline instead of capsules.
+    pub(crate) wire: bool,
     /// The representation carries clip planes and needs the clipped path.
     pub(crate) clipped: bool,
     /// The surface is field-based and traced through the persistent grid
@@ -56,6 +60,7 @@ pub(super) struct SlotSynced {
     pub(super) coordinates: [u64; 2],
     pub(super) spatial_bounds: [u64; 2],
     pub(super) overlay_binding: u64,
+    pub(super) cull_binding: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -159,11 +164,14 @@ pub(super) struct SlotSync<'a, D: Device> {
     pub(super) overlay_view: &'a D::TextureView,
     pub(super) overlay_binding_revision: u64,
     pub(super) frame: &'a D::Buffer,
+    pub(super) cull_tiles: &'a D::Buffer,
+    pub(super) cull_binding_revision: u64,
     pub(super) structure_gpu: &'a GpuStructure<D>,
     pub(super) placed: &'a PlacedStructure,
     pub(super) representation: &'a Representation,
     pub(super) representation_revision: u64,
     pub(super) selection: &'a AtomSelection,
+    pub(super) selection_bounds: Aabb,
     pub(super) color_property: Option<&'a pdviewx_core::AtomProperty>,
     pub(super) appearance_property: Option<&'a pdviewx_core::AtomProperty>,
     pub(super) property_revisions: [u64; 2],
@@ -186,10 +194,12 @@ pub(super) struct RecordUpload<'a, D: Device> {
     pub(super) overlay_volume: Option<&'a DensityVolume>,
     pub(super) overlay_view: &'a D::TextureView,
     pub(super) frame: &'a D::Buffer,
+    pub(super) cull_tiles: &'a D::Buffer,
     pub(super) structure_gpu: &'a GpuStructure<D>,
     pub(super) placed: &'a PlacedStructure,
     pub(super) representation: &'a Representation,
     pub(super) selection: &'a AtomSelection,
+    pub(super) selection_bounds: Aabb,
     pub(super) color_property: Option<&'a pdviewx_core::AtomProperty>,
     pub(super) appearance_property: Option<&'a pdviewx_core::AtomProperty>,
     pub(super) atoms: &'a mut Vec<AtomGpu>,
@@ -200,7 +210,12 @@ pub(super) struct RecordUpload<'a, D: Device> {
 pub(crate) struct CullDispatch<'a, D: Device> {
     pub(crate) group: &'a D::BindGroup,
     pub(crate) atom_groups: u32,
+    pub(crate) bin_groups: u32,
+    pub(crate) tile_groups: u32,
+    pub(crate) lod: bool,
+    pub(crate) fast_points: bool,
     pub(crate) bond_groups: u32,
+    pub(crate) direct_bonds: bool,
 }
 
 impl<D: Device> SlotSync<'_, D> {
@@ -218,10 +233,12 @@ impl<D: Device> SlotSync<'_, D> {
             overlay_volume: self.overlay_volume,
             overlay_view: self.overlay_view,
             frame: self.frame,
+            cull_tiles: self.cull_tiles,
             structure_gpu: self.structure_gpu,
             placed: self.placed,
             representation: self.representation,
             selection: self.selection,
+            selection_bounds: self.selection_bounds,
             color_property: self.color_property,
             appearance_property: self.appearance_property,
             atoms: &mut *self.atoms,

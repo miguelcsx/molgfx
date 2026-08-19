@@ -1,22 +1,26 @@
 //! Revision-diffed synchronization of persistent scene GPU state.
 //!
-//! Reconciliation is `O(structures + representation slots)` after scene
-//! edits. An unchanged frame performs no scene uploads or allocations.
+//! Reconciliation is linear in resident slots; unchanged frames do no uploads.
 
 mod draws;
 mod fallback;
 mod properties;
+mod scene_identity;
 mod segmentations;
+mod selection_bounds;
+mod semantic_tables;
 mod trajectories;
+mod upload_scratch;
 mod volumes;
 
 use self::fallback::fallback_texture;
+use super::buffers::create_cull_tiles;
 use super::interaction_table::GpuInteractions;
 use super::label_table::GpuLabels;
 use super::layouts::{
     cartoon_layout, cull_layout, interaction_layout, label_declutter_layout, label_render_layout,
-    overlay_layout, primitive_layout, primitive_motion_layout, representation_layout,
-    segmentation_layout, trajectory_layout, volume_layout,
+    overlay_layout, primitive_layout, primitive_motion_layout, primitive_shadow_layout,
+    representation_layout, segmentation_layout, trajectory_layout, volume_layout,
 };
 use super::overlay_table::GpuOverlays;
 use super::primitive_table::GpuPrimitives;
@@ -33,7 +37,7 @@ use pdviewx_core::{
 };
 use pdviewx_gpu::{
     BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType,
-    BufferDesc, BufferUsage, Device, Queue, ShaderStages, TextureFormat,
+    BufferDesc, BufferUsage, Device, ShaderStages, TextureFormat,
 };
 
 /// GPU-resident scene state with stable structure and representation slots.
@@ -50,9 +54,14 @@ pub struct GpuScene<D: Device> {
     pub surface_field_erosion_layout: D::BindGroupLayout,
     pub ribbon_layout: D::BindGroupLayout,
     pub cull_layout: D::BindGroupLayout,
+    cull_tiles: D::Buffer,
+    cull_tiles_capacity: u64,
+    cull_binding_revision: u64,
+    cull_tile_count: u32,
     pub interaction_layout: D::BindGroupLayout,
     pub primitive_layout: D::BindGroupLayout,
     pub primitive_motion_layout: D::BindGroupLayout,
+    pub primitive_shadow_layout: D::BindGroupLayout,
     pub label_declutter_layout: D::BindGroupLayout,
     pub label_render_layout: D::BindGroupLayout,
     pub overlay_layout: D::BindGroupLayout,
@@ -73,6 +82,7 @@ pub struct GpuScene<D: Device> {
     primitive: GpuPrimitives<D>,
     labels: GpuLabels<D>,
     overlays: GpuOverlays<D>,
+    scene_identity: Option<u64>,
     structure_revision: Option<u64>,
     slot_structure_revision: Option<u64>,
     representation_revision: Option<u64>,
@@ -125,9 +135,11 @@ impl<D: Device> GpuScene<D> {
             fallback_texture(device, "unused surface provenance", TextureFormat::R32Uint)?;
         let ribbon_layout = cartoon_layout(device);
         let cull_layout = cull_layout(device);
+        let (cull_tiles, cull_tiles_capacity) = create_cull_tiles(device, 256)?;
         let interaction_layout = interaction_layout(device);
         let primitive_layout = primitive_layout(device);
         let primitive_motion_layout = primitive_motion_layout(device);
+        let primitive_shadow_layout = primitive_shadow_layout(device);
         let label_declutter_layout = label_declutter_layout(device);
         let label_render_layout = label_render_layout(device);
         let overlay_layout = overlay_layout(device);
@@ -144,9 +156,14 @@ impl<D: Device> GpuScene<D> {
             surface_field_erosion_layout,
             ribbon_layout,
             cull_layout,
+            cull_tiles,
+            cull_tiles_capacity,
+            cull_binding_revision: 0,
+            cull_tile_count: 0,
             interaction_layout,
             primitive_layout,
             primitive_motion_layout,
+            primitive_shadow_layout,
             label_declutter_layout,
             label_render_layout,
             overlay_layout,
@@ -167,6 +184,7 @@ impl<D: Device> GpuScene<D> {
             primitive: GpuPrimitives::new(),
             labels: GpuLabels::new(),
             overlays: GpuOverlays::new(),
+            scene_identity: None,
             structure_revision: None,
             slot_structure_revision: None,
             representation_revision: None,
@@ -181,10 +199,6 @@ impl<D: Device> GpuScene<D> {
             compaction_scratch: Vec::new(),
             ribbon_scratch: pdviewx_geometry::RibbonMesh::default(),
         })
-    }
-
-    pub fn write_frame_uniforms(&self, queue: &D::Queue, uniforms: &FrameUniforms) {
-        queue.write_buffer(&self.frame_uniforms, 0, bytemuck::bytes_of(uniforms));
     }
 
     /// Rebuilds resident caller meshes when the mesh table or the structures
@@ -241,8 +255,13 @@ impl<D: Device> GpuScene<D> {
         device: &D,
         queue: &D::Queue,
         scene: &Scene,
+        quality: bool,
+        extent: [u32; 2],
     ) -> Result<bool, RenderError> {
-        let mut changed = self.structure_revision != Some(scene.structure_revision())
+        self.ensure_cull_tiles(device, extent)?;
+        let scene_changed = self.begin_scene(scene.cache_identity());
+        let mut changed = scene_changed
+            || self.structure_revision != Some(scene.structure_revision())
             || self.representation_revision != Some(scene.representation_revision())
             || self.volume_slot_revision
                 != Some((scene.volume_revision(), scene.representation_revision()))
@@ -258,9 +277,14 @@ impl<D: Device> GpuScene<D> {
         self.reconcile_segmentations(scene);
         changed |= self.sync_volume_resources(device, queue, scene)?;
         changed |= self.sync_segmentation_resources(device, queue, scene)?;
+        let requires_bvh = quality
+            || scene.representations().any(|(_, representation)| {
+                representation.kind == pdviewx_core::RepresentationKind::Surface
+            });
         for gpu in &mut self.structures {
             if let Some(placed) = scene.structure(gpu.handle) {
-                changed |= gpu.sync(device, queue, placed, &self.trajectory_layout)?;
+                changed |=
+                    gpu.sync(device, queue, placed, &self.trajectory_layout, requires_bvh)?;
             }
         }
         for slot in &mut self.slots {
@@ -308,11 +332,14 @@ impl<D: Device> GpuScene<D> {
                 overlay_view,
                 overlay_binding_revision,
                 frame: &self.frame_uniforms,
+                cull_tiles: &self.cull_tiles,
+                cull_binding_revision: self.cull_binding_revision,
                 structure_gpu,
                 placed,
                 representation,
                 representation_revision,
                 selection,
+                selection_bounds: selection_bounds::selected_atom_bounds(placed, selection),
                 color_property,
                 appearance_property,
                 property_revisions,
@@ -322,45 +349,23 @@ impl<D: Device> GpuScene<D> {
                 ribbon: &mut self.ribbon_scratch,
             })?;
         }
+        self.release_upload_scratch();
         changed |= self.sync_volume_slots(device, queue, scene)?;
         changed |= self.sync_mesh_slots(device, queue, scene)?;
         changed |= self.sync_segmentation_slots(device, queue, scene)?;
         Ok(changed)
     }
 
-    fn sync_semantic_tables(
-        &mut self,
-        device: &D,
-        queue: &D::Queue,
-        scene: &Scene,
-    ) -> Result<bool, RenderError> {
-        let mut changed = self.interactions.sync(
-            device,
-            queue,
-            &self.interaction_layout,
-            scene,
-            &self.structures,
-        )?;
-        changed |= self.primitive.sync(
-            device,
-            queue,
-            &self.primitive_layout,
-            &self.primitive_motion_layout,
-            scene,
-            &self.structures,
-        )?;
-        changed |= self.labels.sync(
-            device,
-            queue,
-            &self.label_declutter_layout,
-            &self.label_render_layout,
-            scene,
-            &self.structures,
-        )?;
-        changed |= self
-            .overlays
-            .sync(device, queue, &self.overlay_layout, scene)?;
-        Ok(changed)
+    fn ensure_cull_tiles(&mut self, device: &D, extent: [u32; 2]) -> Result<(), RenderError> {
+        self.cull_tile_count = extent[0].div_ceil(8).saturating_mul(extent[1].div_ceil(8));
+        let bytes = u64::from(self.cull_tile_count)
+            .saturating_mul(std::mem::size_of::<u32>() as u64)
+            .max(256);
+        if bytes > self.cull_tiles_capacity {
+            (self.cull_tiles, self.cull_tiles_capacity) = create_cull_tiles(device, bytes)?;
+            self.cull_binding_revision = self.cull_binding_revision.wrapping_add(1);
+        }
+        Ok(())
     }
 
     fn reconcile_structures(&mut self, scene: &Scene) {

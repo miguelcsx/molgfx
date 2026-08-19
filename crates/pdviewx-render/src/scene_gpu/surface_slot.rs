@@ -1,6 +1,7 @@
 //! Persistent resources for one implicit solvent-excluded representation.
 
-use super::buffers::buffer_entry;
+use super::buffers::{buffer_entry, upload_grow};
+use super::probe_offsets::probe_offsets;
 use super::structure::GpuStructure;
 use super::uniforms::RepresentationUniforms;
 use crate::error::RenderError;
@@ -10,9 +11,11 @@ use pdviewx_gpu::{
     BindGroupDesc, BindGroupEntry, Device, TextureDesc, TextureDimension, TextureFormat,
     TextureUsage, TextureViewDesc,
 };
+use pdviewx_math::Aabb;
 
 pub(super) struct SurfaceSync<'a, D: Device> {
     pub(super) device: &'a D,
+    pub(super) queue: &'a D::Queue,
     pub(super) output_layout: &'a D::BindGroupLayout,
     pub(super) input_layout: &'a D::BindGroupLayout,
     pub(super) erosion_layout: &'a D::BindGroupLayout,
@@ -22,6 +25,7 @@ pub(super) struct SurfaceSync<'a, D: Device> {
     pub(super) compaction: &'a D::Buffer,
     pub(super) uniforms: &'a D::Buffer,
     pub(super) atom_count: u32,
+    pub(super) selection_bounds: Aabb,
     pub(super) force_generate: bool,
     pub(super) overlay_volume: Option<&'a DensityVolume>,
 }
@@ -63,9 +67,10 @@ pub(super) struct SurfaceSlot<D: Device> {
     field_provenance_view: Option<D::TextureView>,
     output: Option<D::BindGroup>,
     erosion: Option<D::BindGroup>,
+    erosion_offsets: Option<D::Buffer>,
+    erosion_offsets_capacity: u64,
     input: Option<D::BindGroup>,
     dimensions: [u32; 3],
-    cells: u32,
     pending: bool,
     enabled: bool,
     /// Which boundary this slot generates. The field algorithm follows from
@@ -88,9 +93,10 @@ impl<D: Device> SurfaceSlot<D> {
             field_provenance_view: None,
             output: None,
             erosion: None,
+            erosion_offsets: None,
+            erosion_offsets_capacity: 0,
             input: None,
             dimensions: [0; 3],
-            cells: 0,
             pending: false,
             enabled: false,
             kind: SurfaceKind::SolventExcluded,
@@ -110,7 +116,7 @@ impl<D: Device> SurfaceSlot<D> {
     pub(super) fn sync(&mut self, sync: &SurfaceSync<'_, D>) -> Result<(), RenderError> {
         let value = RepresentationUniforms::new(
             sync.representation,
-            sync.structure.bvh_bounds(),
+            sync.selection_bounds,
             sync.overlay_volume,
         );
         let previous_enabled = self.enabled;
@@ -128,17 +134,13 @@ impl<D: Device> SurfaceSlot<D> {
             return Ok(());
         }
         self.field_state = Some(field_state);
-        self.cells = value.grid_size[3];
         self.ensure_field(
             sync.device,
             [value.grid_size[0], value.grid_size[1], value.grid_size[2]],
         )?;
-        let (Some(inflated), Some(inflated_id), Some(field), Some(field_id)) = (
-            &self.inflated_view,
-            &self.inflated_provenance_view,
-            &self.field_view,
-            &self.field_provenance_view,
-        ) else {
+        let (Some(inflated), Some(inflated_id)) =
+            (&self.inflated_view, &self.inflated_provenance_view)
+        else {
             return Ok(());
         };
         self.output = Some(sync.device.create_bind_group(&BindGroupDesc {
@@ -155,28 +157,7 @@ impl<D: Device> SurfaceSlot<D> {
                 },
             ],
         }));
-        self.erosion = Some(sync.device.create_bind_group(&BindGroupDesc {
-            label: "surface field erosion",
-            layout: sync.erosion_layout,
-            entries: &[
-                BindGroupEntry::Texture {
-                    binding: 0,
-                    view: inflated,
-                },
-                BindGroupEntry::Texture {
-                    binding: 1,
-                    view: field,
-                },
-                BindGroupEntry::Texture {
-                    binding: 2,
-                    view: inflated_id,
-                },
-                BindGroupEntry::Texture {
-                    binding: 3,
-                    view: field_id,
-                },
-            ],
-        }));
+        self.bind_erosion(sync, value.surface[0])?;
         let (Some(coords), Some(nodes), Some(indices)) = (
             sync.structure.coords(),
             &sync.structure.bvh_nodes,
@@ -197,6 +178,59 @@ impl<D: Device> SurfaceSlot<D> {
             ],
         }));
         self.pending = true;
+        Ok(())
+    }
+
+    /// Rebuilds the erosion bind group, regenerating the rolling-probe offset
+    /// table for the current probe radius.
+    ///
+    /// The offsets are the probe sample directions scaled by `probe`, so they
+    /// must be refreshed whenever the probe changes; this runs on exactly those
+    /// field regenerations.
+    fn bind_erosion(&mut self, sync: &SurfaceSync<'_, D>, probe: f32) -> Result<(), RenderError> {
+        let (Some(inflated), Some(inflated_id), Some(field), Some(field_id)) = (
+            &self.inflated_view,
+            &self.inflated_provenance_view,
+            &self.field_view,
+            &self.field_provenance_view,
+        ) else {
+            return Ok(());
+        };
+        let offsets = probe_offsets(probe);
+        upload_grow(
+            sync.device,
+            sync.queue,
+            "surface erosion probe offsets",
+            &offsets,
+            &mut self.erosion_offsets,
+            &mut self.erosion_offsets_capacity,
+        )?;
+        let Some(erosion_offsets) = &self.erosion_offsets else {
+            return Ok(());
+        };
+        self.erosion = Some(sync.device.create_bind_group(&BindGroupDesc {
+            label: "surface field erosion",
+            layout: sync.erosion_layout,
+            entries: &[
+                BindGroupEntry::Texture {
+                    binding: 0,
+                    view: inflated,
+                },
+                BindGroupEntry::Texture {
+                    binding: 1,
+                    view: field,
+                },
+                BindGroupEntry::Texture {
+                    binding: 2,
+                    view: inflated_id,
+                },
+                BindGroupEntry::Texture {
+                    binding: 3,
+                    view: field_id,
+                },
+                buffer_entry(4, erosion_offsets),
+            ],
+        }));
         Ok(())
     }
 
@@ -290,13 +324,13 @@ impl<D: Device> SurfaceSlot<D> {
                 encoder,
                 output,
                 input,
-                self.cells,
+                self.dimensions,
                 self.kind == SurfaceKind::Gaussian,
             );
             if self.erodes()
                 && let Some(erosion) = &self.erosion
             {
-                pass.record_erode(encoder, erosion, input, self.cells);
+                pass.record_erode(encoder, erosion, input, self.dimensions);
             }
             self.pending = false;
         }
