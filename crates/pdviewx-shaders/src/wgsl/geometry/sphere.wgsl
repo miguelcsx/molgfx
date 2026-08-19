@@ -4,7 +4,7 @@
 // Clipped and unclipped fragment paths are separate so the common path pays
 // no clipping branch or clip-cap material work.
 //
-// One visible atom expands to a four-vertex triangle strip.
+// One visible atom expands to a six-vertex triangle-list quad.
 //
 // Contract:
 //   visible_atoms contains only drawable atoms with radius > 0.

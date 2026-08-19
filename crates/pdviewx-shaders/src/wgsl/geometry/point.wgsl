@@ -5,8 +5,8 @@
 // never per covered fragment.
 //
 // Draw contract:
-//   topology    = triangle-strip
-//   vertexCount = 4
+//   topology    = triangle-list
+//   vertexCount = 6
 //
 // Input contract:
 //   visible_atoms contains drawable atoms.
@@ -62,9 +62,9 @@ struct PointFsOut {
     @builtin(frag_depth) depth: f32,
 }
 
-/// Returns the provoking vertices of the four-vertex triangle strip.
+/// Returns the provoking vertices of the two independent triangles.
 fn point_flat_source(vertex: u32) -> bool {
-    return vertex == 0u || vertex == 2u;
+    return vertex == 0u || vertex == 3u;
 }
 
 /// Builds the pixel-stable impostor geometry.
