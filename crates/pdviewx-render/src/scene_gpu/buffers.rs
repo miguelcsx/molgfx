@@ -5,6 +5,10 @@ use crate::error::RenderError;
 use pdviewx_core::DrawIndirectArgs;
 use pdviewx_gpu::{BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
 
+#[cfg(test)]
+#[path = "buffers_tests.rs"]
+mod tests;
+
 pub(super) fn create_cull_tiles<D: Device>(
     device: &D,
     bytes: u64,
@@ -28,7 +32,11 @@ pub(super) fn upload_grow<D: Device, T: bytemuck::Pod>(
     let bytes = bytemuck::cast_slice(records);
     let needed = bytes.len() as u64;
     if buffer.is_none() || needed > *capacity {
-        *capacity = needed.next_power_of_two().max(256);
+        *capacity = grow_capacity(
+            needed,
+            device.capabilities().max_storage_buffer_bytes,
+            label,
+        )?;
         *buffer = Some(device.create_buffer(&BufferDesc {
             label,
             size: *capacity,
@@ -39,6 +47,21 @@ pub(super) fn upload_grow<D: Device, T: bytemuck::Pod>(
         queue.write_buffer(buffer, 0, bytes);
     }
     Ok(())
+}
+
+fn grow_capacity(needed: u64, limit: u64, label: &'static str) -> Result<u64, RenderError> {
+    if needed > limit || limit == 0 {
+        return Err(pdviewx_gpu::GpuError::LimitExceeded {
+            resource: label,
+            limit,
+        }
+        .into());
+    }
+    let grown = match needed.checked_next_power_of_two() {
+        Some(value) => value,
+        None => needed,
+    };
+    Ok(grown.max(256).min(limit))
 }
 
 pub(super) fn write_args<D: Device>(

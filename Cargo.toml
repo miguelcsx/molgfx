@@ -24,7 +24,7 @@ pdviewx-semantic = { version = "0.1.0", path = "crates/pdviewx-semantic" }
 # The structural model and every detection the engine consumes.
 # Path dependency on the sibling checkout while the repository goes public;
 # switches back to a pinned git dependency after.
-pdbiox = { path = "../pdbiox/crates/pdbiox", default-features = false, features = ["mmcif", "bcif", "pdb"] }
+pdbiox = { path = "../pdbiox/crates/pdbiox", default-features = false, features = ["mmcif", "bcif", "pdb", "mmap"] }
 
 # Python ABI shared by the thin binding crate and the sibling pdbiox bridge.
 pyo3 = "0.29"
