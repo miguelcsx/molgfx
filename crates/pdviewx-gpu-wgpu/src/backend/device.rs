@@ -17,9 +17,7 @@ pub struct WgpuDevice {
 }
 
 impl WgpuDevice {
-    fn probe_capabilities(adapter: &wgpu::Adapter) -> Capabilities {
-        let features = adapter.features();
-        let limits = adapter.limits();
+    fn probe_capabilities(features: wgpu::Features, limits: &wgpu::Limits) -> Capabilities {
         let mut flags = pdviewx_gpu::CapabilityFlags::empty();
         let feature_map = [
             (
@@ -50,6 +48,30 @@ impl WgpuDevice {
             max_texture_dim: limits.max_texture_dimension_2d,
             max_texture_dim_3d: limits.max_texture_dimension_3d,
         }
+    }
+
+    fn required_limits(supported: &wgpu::Limits) -> wgpu::Limits {
+        wgpu::Limits {
+            max_storage_buffer_binding_size: supported.max_storage_buffer_binding_size,
+            max_buffer_size: supported.max_buffer_size,
+            ..wgpu::Limits::default()
+                .using_resolution(supported.clone())
+                .using_alignment(supported.clone())
+        }
+    }
+
+    fn validate_buffer(desc: &BufferDesc, limits: &wgpu::Limits) -> Result<(), GpuError> {
+        let mut limit = limits.max_buffer_size;
+        if desc.usage.contains(pdviewx_gpu::BufferUsage::STORAGE) {
+            limit = limit.min(limits.max_storage_buffer_binding_size);
+        }
+        if desc.size > limit {
+            return Err(GpuError::LimitExceeded {
+                resource: desc.label,
+                limit,
+            });
+        }
+        Ok(())
     }
 
     /// Runs a closure under a pushed validation error scope, turning any
@@ -151,9 +173,10 @@ impl pdviewx_gpu::Device for WgpuDevice {
                 .await
                 .map_err(|_| GpuError::NoAdapter)?;
 
-            let capabilities = Self::probe_capabilities(&adapter);
+            let features = adapter.features();
+            let supported_limits = adapter.limits();
             let mut required_features = wgpu::Features::empty();
-            if capabilities.timestamp_queries() {
+            if features.contains(wgpu::Features::TIMESTAMP_QUERY) {
                 required_features |= wgpu::Features::TIMESTAMP_QUERY;
             }
 
@@ -161,11 +184,12 @@ impl pdviewx_gpu::Device for WgpuDevice {
                 .request_device(&wgpu::DeviceDescriptor {
                     label: Some("pdviewx"),
                     required_features,
-                    required_limits: wgpu::Limits::default(),
+                    required_limits: Self::required_limits(&supported_limits),
                     ..Default::default()
                 })
                 .await
                 .map_err(|_| GpuError::NoAdapter)?;
+            let capabilities = Self::probe_capabilities(features, &device.limits());
 
             let surface = surface.map(|surface| {
                 let mut surface = WgpuSurface::new(surface, &adapter, &device);
@@ -193,6 +217,7 @@ impl pdviewx_gpu::Device for WgpuDevice {
     }
 
     fn create_buffer(&self, desc: &BufferDesc) -> Result<wgpu::Buffer, GpuError> {
+        Self::validate_buffer(desc, &self.device.limits())?;
         Ok(self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(desc.label),
             size: desc.size,
@@ -424,3 +449,7 @@ impl pdviewx_gpu::Device for WgpuDevice {
         &self.capabilities
     }
 }
+
+#[cfg(test)]
+#[path = "device_tests.rs"]
+mod tests;
