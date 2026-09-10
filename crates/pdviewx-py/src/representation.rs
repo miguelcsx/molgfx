@@ -6,6 +6,7 @@ use crate::values::{
     PyClipSet, PyColorScheme, PySegmentationStyle, PySurfaceKind, PySurfaceScalarOverlay,
     PySurfaceStyle, PyVolumeStyle,
 };
+use crate::visual::PyVisualStyle;
 use pyo3::prelude::*;
 
 #[pyclass(name = "RepresentationKind", frozen, eq, eq_int, from_py_object)]
@@ -67,7 +68,7 @@ impl From<pdviewx::RepresentationKind> for PyRepresentationKind {
             pdviewx::RepresentationKind::Rocket => Self::Rocket,
             pdviewx::RepresentationKind::Twister => Self::Twister,
             pdviewx::RepresentationKind::PaperChain => Self::PaperChain,
-            _ => Self::Points,
+            pdviewx::RepresentationKind::Points => Self::Points,
         }
     }
 }
@@ -200,6 +201,11 @@ impl PyRepresentation {
     fn surface_scalar(&self, overlay: PySurfaceScalarOverlay) -> Self {
         Self {
             config: self.config.clone().surface_scalar(overlay.0),
+        }
+    }
+    fn visual(&self, style: PyVisualStyle) -> Self {
+        Self {
+            config: self.config.clone().visual(style.0),
         }
     }
 
