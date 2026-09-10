@@ -136,19 +136,29 @@ pub struct MeasurementDescription {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 pub struct TableCounts {
     /// Interaction edges.
-    pub interactions: u32,
+    pub interactions: u64,
     /// Analytic guides.
-    pub guides: u32,
+    pub guides: u64,
     /// Notes and markers.
-    pub annotations: u32,
+    pub annotations: u64,
     /// Caller-computed measurements.
-    pub measurements: u32,
+    pub measurements: u64,
     /// Per-atom scalar columns.
-    pub atom_properties: u32,
+    pub atom_properties: u64,
     /// Shared-mesh instances.
-    #[serde(default)]
-    pub mesh_instances: u32,
+    pub mesh_instances: u64,
     /// Screen overlays.
-    #[serde(default)]
-    pub overlays: u32,
+    pub overlays: u64,
+    /// Compact ligand pose batches.
+    pub ligand_pose_batches: u64,
+    /// Generic point batches.
+    pub point_batches: u64,
+    /// Shared-template instance batches.
+    pub instance_batches: u64,
+    /// Generic typed attribute columns.
+    pub attributes: u64,
+    /// Generic relation batches.
+    pub relation_batches: u64,
+    /// Generic domain visual descriptors.
+    pub domain_visuals: u64,
 }
