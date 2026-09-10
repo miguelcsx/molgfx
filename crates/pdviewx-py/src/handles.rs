@@ -56,6 +56,24 @@ handle_type!(
     MeshInstanceHandle
 );
 handle_type!(PyOverlayHandle, "OverlayHandle", OverlayHandle);
+handle_type!(PyPrimitiveHandle, "PrimitiveHandle", PrimitiveHandle);
+handle_type!(PyAttributeHandle, "AttributeHandle", AttributeHandle);
+handle_type!(PyPointBatchHandle, "PointBatchHandle", PointBatchHandle);
+handle_type!(
+    PyInstanceBatchHandle,
+    "InstanceBatchHandle",
+    InstanceBatchHandle
+);
+handle_type!(
+    PyRelationBatchHandle,
+    "RelationBatchHandle",
+    RelationBatchHandle
+);
+handle_type!(
+    PyTimelineTrackHandle,
+    "TimelineTrackHandle",
+    TimelineTrackHandle
+);
 
 macro_rules! opaque_handle_type {
     ($rust:ident, $python:literal, $native:ident) => {
@@ -78,8 +96,6 @@ macro_rules! opaque_handle_type {
     };
 }
 
-opaque_handle_type!(PyEnsembleHandle, "EnsembleHandle", EnsembleHandle);
-opaque_handle_type!(PyInteractionHandle, "InteractionHandle", InteractionHandle);
 opaque_handle_type!(PyGuideHandle, "GuideHandle", GuideHandle);
 opaque_handle_type!(PyAnnotationHandle, "AnnotationHandle", AnnotationHandle);
 opaque_handle_type!(PyMeasurementHandle, "MeasurementHandle", MeasurementHandle);
@@ -93,6 +109,12 @@ pub(crate) enum PyEntityKind {
     Label,
     Primitive,
     Mesh,
+    Guide,
+    DynamicBond,
+    Point,
+    Instance,
+    TemplatePart,
+    Relation,
 }
 
 impl From<PyEntityKind> for pdviewx::EntityKind {
@@ -104,19 +126,12 @@ impl From<PyEntityKind> for pdviewx::EntityKind {
             PyEntityKind::Label => Self::Label,
             PyEntityKind::Primitive => Self::Primitive,
             PyEntityKind::Mesh => Self::Mesh,
-        }
-    }
-}
-
-impl From<pdviewx::EntityKind> for PyEntityKind {
-    fn from(value: pdviewx::EntityKind) -> Self {
-        match value {
-            pdviewx::EntityKind::Atom => Self::Atom,
-            pdviewx::EntityKind::Bond => Self::Bond,
-            pdviewx::EntityKind::Edge => Self::Edge,
-            pdviewx::EntityKind::Label => Self::Label,
-            pdviewx::EntityKind::Primitive => Self::Primitive,
-            pdviewx::EntityKind::Mesh => Self::Mesh,
+            PyEntityKind::Guide => Self::Guide,
+            PyEntityKind::DynamicBond => Self::DynamicBond,
+            PyEntityKind::Point => Self::Point,
+            PyEntityKind::Instance => Self::Instance,
+            PyEntityKind::TemplatePart => Self::TemplatePart,
+            PyEntityKind::Relation => Self::Relation,
         }
     }
 }
@@ -146,8 +161,24 @@ impl PyEntityRef {
         self.0.structure.into()
     }
     #[getter]
-    fn kind(&self) -> PyEntityKind {
-        self.0.kind.into()
+    fn kind(&self) -> PyResult<PyEntityKind> {
+        match self.0.kind {
+            pdviewx::EntityKind::Atom => Ok(PyEntityKind::Atom),
+            pdviewx::EntityKind::Bond => Ok(PyEntityKind::Bond),
+            pdviewx::EntityKind::Edge => Ok(PyEntityKind::Edge),
+            pdviewx::EntityKind::Label => Ok(PyEntityKind::Label),
+            pdviewx::EntityKind::Primitive => Ok(PyEntityKind::Primitive),
+            pdviewx::EntityKind::Mesh => Ok(PyEntityKind::Mesh),
+            pdviewx::EntityKind::Guide => Ok(PyEntityKind::Guide),
+            pdviewx::EntityKind::DynamicBond => Ok(PyEntityKind::DynamicBond),
+            pdviewx::EntityKind::Point => Ok(PyEntityKind::Point),
+            pdviewx::EntityKind::Instance => Ok(PyEntityKind::Instance),
+            pdviewx::EntityKind::TemplatePart => Ok(PyEntityKind::TemplatePart),
+            pdviewx::EntityKind::Relation => Ok(PyEntityKind::Relation),
+            pdviewx::EntityKind::LigandPoseBatch => Err(crate::error::value(
+                "legacy ligand-pose entities are not part of the public API",
+            )),
+        }
     }
     #[getter]
     fn index(&self) -> u32 {
@@ -194,8 +225,12 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyMeshHandle>()?;
     module.add_class::<PyMeshInstanceHandle>()?;
     module.add_class::<PyOverlayHandle>()?;
-    module.add_class::<PyEnsembleHandle>()?;
-    module.add_class::<PyInteractionHandle>()?;
+    module.add_class::<PyPrimitiveHandle>()?;
+    module.add_class::<PyAttributeHandle>()?;
+    module.add_class::<PyPointBatchHandle>()?;
+    module.add_class::<PyInstanceBatchHandle>()?;
+    module.add_class::<PyRelationBatchHandle>()?;
+    module.add_class::<PyTimelineTrackHandle>()?;
     module.add_class::<PyGuideHandle>()?;
     module.add_class::<PyAnnotationHandle>()?;
     module.add_class::<PyMeasurementHandle>()?;
