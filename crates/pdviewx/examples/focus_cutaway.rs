@@ -14,9 +14,9 @@
 
 use pdviewx::{
     ArcballController, AtomSelection, BoundingSphere, Button, Camera, ClipPlane, ClipSet, Engine,
-    EngineConfig, FocusScene, FocusStyle, FocusSurfaceExtent, InputEvent, RenderProfile,
-    RepresentationHandle, Rgba8, Scene, Vec3,
+    EngineConfig, InputEvent, RenderProfile, RepresentationHandle, Rgba8, Scene, Vec3,
 };
+use pdviewx_recipes::{FocusScene, FocusStyle, FocusSurfaceExtent};
 use std::sync::Arc;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
@@ -58,7 +58,7 @@ struct Running {
 }
 
 /// Frames drawn after a change. One would do for the realtime path, but a short
-/// burst lets progressive (quality) accumulation converge before the loop
+/// burst lets progressive cinematic accumulation converge before the loop
 /// parks — bounded either way, so it never grows without limit.
 const SETTLE_FRAMES: u32 = 24;
 
@@ -307,9 +307,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let parsed = pdbiox::read(path).map_err(|d| format!("could not read {path}: {d:?}"))?;
-    let structure = pdbiox::infer_bonds(&parsed, pdbiox::BondInference::default())
-        .map_err(|d| format!("bond inference failed: {d:?}"))?
-        .structure;
+    let structure = pdbiox::infer_bonds(
+        &parsed,
+        pdbiox::BondInference::default(),
+        &pdbiox::ExecutionContext::default(),
+    )
+    .map_err(|d| format!("bond inference failed: {d:?}"))?
+    .structure;
 
     let (ligand_atoms, ligand_points) = ligand_selection(&structure, ligand_name)?;
     let point_count = u16::try_from(ligand_points.len()).map_or(u16::MAX, |value| value);
