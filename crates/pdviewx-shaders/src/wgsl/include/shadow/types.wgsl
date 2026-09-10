@@ -12,6 +12,11 @@ const SHADOW_KIND_BOX: u32 = 1u;
 const SHADOW_KIND_PARTICLE_SPHERE: u32 = 2u;
 const SHADOW_KIND_PARTICLE_CYLINDER: u32 = 3u;
 const SHADOW_KIND_PARTICLE_SPHEROCYLINDER: u32 = 4u;
+const SHADOW_KIND_POLYGON_PENTAGON: u32 = 5u;
+const SHADOW_KIND_POLYGON_HEXAGON: u32 = 6u;
+const SHADOW_KIND_PARTICLE_CIRCLE: u32 = 7u;
+const SHADOW_KIND_PARTICLE_SQUARE: u32 = 8u;
+const SHADOW_KIND_PARTICLE_SUPERQUADRIC: u32 = 9u;
 
 // Create one primitive pipeline per kind.
 override SHADOW_PRIMITIVE_KIND: u32 = SHADOW_KIND_ELLIPSOID;
@@ -59,6 +64,13 @@ fn shadow_world_origin(light_xy: vec2f) -> vec3f {
 /// shadow_inv_view is rigid, so this direction is already unit length.
 fn shadow_world_direction() -> vec3f {
     return -frame.shadow_inv_view[2].xyz;
+}
+
+fn shadow_world_position(light_position: vec3f) -> vec3f {
+    return frame.shadow_inv_view[0].xyz * light_position.x
+        + frame.shadow_inv_view[1].xyz * light_position.y
+        + frame.shadow_inv_view[2].xyz * light_position.z
+        + frame.shadow_inv_view[3].xyz;
 }
 
 /// Projects a light-view position.
