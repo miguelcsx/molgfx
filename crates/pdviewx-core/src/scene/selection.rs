@@ -326,13 +326,14 @@ impl Scene {
             .sum::<f32>()
             .sqrt();
             let local_radius = distance * inverse_scale_bound;
+            let hierarchy = placed.spatial_bvh()?;
             reference.for_each(placed.atoms.len(), |source| {
                 let Some(source_position) = coordinates.get(source as usize).copied() else {
                     return;
                 };
                 let source_position = pdviewx_math::Vec3::from_array(source_position);
                 let source_world = world_from_model.transform_point3(source_position);
-                placed.spatial_bvh().sphere_candidates(
+                hierarchy.sphere_candidates(
                     source_position,
                     local_radius,
                     &mut self.spatial_traversal,

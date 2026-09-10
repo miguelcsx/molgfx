@@ -28,7 +28,7 @@ impl Scene {
         let mut candidates = std::mem::take(&mut self.spatial_candidates);
         let mut scoped = Vec::with_capacity(self.structures.len());
         for (raw, placed) in self.structures.iter() {
-            let rows = evaluate(&expression, placed, &mut traversal, &mut candidates);
+            let rows = evaluate(&expression, placed, &mut traversal, &mut candidates)?;
             scoped.push((StructureHandle(raw), adaptive(rows, placed.atoms.len())));
         }
         self.spatial_traversal = traversal;
@@ -68,25 +68,25 @@ fn evaluate(
     placed: &PlacedStructure,
     traversal: &mut Vec<u32>,
     candidates: &mut Vec<u32>,
-) -> RoaringBitmap {
-    match expression {
+) -> Result<RoaringBitmap, CoreError> {
+    Ok(match expression {
         SelectExpr::Class(class) => class_rows(*class, placed),
         SelectExpr::Predicate(predicate) => predicate_rows(predicate, placed),
         SelectExpr::InSphere { center, radius } => {
-            world_sphere_rows(*center, *radius, placed, traversal, candidates)
+            world_sphere_rows(*center, *radius, placed, traversal, candidates)?
         }
-        SelectExpr::InBox { min, max } => box_rows(*min, *max, placed, traversal, candidates),
+        SelectExpr::InBox { min, max } => box_rows(*min, *max, placed, traversal, candidates)?,
         SelectExpr::And(left, right) => {
-            evaluate(left, placed, traversal, candidates)
-                & evaluate(right, placed, traversal, candidates)
+            evaluate(left, placed, traversal, candidates)?
+                & evaluate(right, placed, traversal, candidates)?
         }
         SelectExpr::Or(left, right) => {
-            evaluate(left, placed, traversal, candidates)
-                | evaluate(right, placed, traversal, candidates)
+            evaluate(left, placed, traversal, candidates)?
+                | evaluate(right, placed, traversal, candidates)?
         }
         SelectExpr::Not(inner) => {
             let mut all = (0..placed.atoms.len()).collect::<RoaringBitmap>();
-            all -= evaluate(inner, placed, traversal, candidates);
+            all -= evaluate(inner, placed, traversal, candidates)?;
             all
         }
         SelectExpr::Within {
@@ -95,13 +95,13 @@ fn evaluate(
             residues,
         } => spatial_rows(
             *distance,
-            evaluate(reference, placed, traversal, candidates),
+            evaluate(reference, placed, traversal, candidates)?,
             *residues,
             placed,
             traversal,
             candidates,
-        ),
-    }
+        )?,
+    })
 }
 
 fn class_rows(class: EntityClass, placed: &PlacedStructure) -> RoaringBitmap {
@@ -239,7 +239,7 @@ fn world_sphere_rows(
     placed: &PlacedStructure,
     traversal: &mut Vec<u32>,
     candidates: &mut Vec<u32>,
-) -> RoaringBitmap {
+) -> Result<RoaringBitmap, CoreError> {
     let inverse = placed.model_to_world.inverse();
     let local_center = inverse.transform_point3(center);
     let local_radius = radius
@@ -253,10 +253,10 @@ fn world_sphere_rows(
         .sum::<f32>()
         .sqrt();
     placed
-        .spatial_bvh()
+        .spatial_bvh()?
         .sphere_candidates(local_center, local_radius, traversal, candidates);
     let radius_sq = radius * radius;
-    candidates
+    Ok(candidates
         .iter()
         .copied()
         .filter(|&row| {
@@ -272,7 +272,7 @@ fn world_sphere_rows(
                     world.distance_squared(center) <= radius_sq
                 })
         })
-        .collect()
+        .collect())
 }
 
 fn box_rows(
@@ -281,13 +281,13 @@ fn box_rows(
     placed: &PlacedStructure,
     traversal: &mut Vec<u32>,
     candidates: &mut Vec<u32>,
-) -> RoaringBitmap {
+) -> Result<RoaringBitmap, CoreError> {
     let world_box = Aabb::new(min, max);
     let local_box = world_box.transform(&placed.model_to_world.inverse());
     placed
-        .spatial_bvh()
+        .spatial_bvh()?
         .aabb_candidates(local_box, traversal, candidates);
-    candidates
+    Ok(candidates
         .iter()
         .copied()
         .filter(|&row| {
@@ -297,9 +297,14 @@ fn box_rows(
             let world = placed
                 .model_to_world
                 .transform_point3(pdviewx_math::Vec3::from_array(*position));
-            world.cmpge(min).all() && world.cmple(max).all()
+            world.x >= min.x
+                && world.y >= min.y
+                && world.z >= min.z
+                && world.x <= max.x
+                && world.y <= max.y
+                && world.z <= max.z
         })
-        .collect()
+        .collect())
 }
 
 fn spatial_rows(
@@ -309,7 +314,7 @@ fn spatial_rows(
     placed: &PlacedStructure,
     traversal: &mut Vec<u32>,
     candidates: &mut Vec<u32>,
-) -> RoaringBitmap {
+) -> Result<RoaringBitmap, CoreError> {
     let distance_sq = distance * distance;
     let coordinates = placed.atoms.coords().slice();
     let world_from_model = placed.model_to_world;
@@ -328,6 +333,7 @@ fn spatial_rows(
     .sum::<f32>()
     .sqrt();
     let local_radius = distance * inverse_scale_bound;
+    let hierarchy = placed.spatial_bvh()?;
     let mut rows = RoaringBitmap::new();
     for source in reference {
         let Some(source_position) = coordinates.get(source as usize).copied() else {
@@ -335,12 +341,7 @@ fn spatial_rows(
         };
         let source_position = pdviewx_math::Vec3::from_array(source_position);
         let source_world = world_from_model.transform_point3(source_position);
-        placed.spatial_bvh().sphere_candidates(
-            source_position,
-            local_radius,
-            traversal,
-            candidates,
-        );
+        hierarchy.sphere_candidates(source_position, local_radius, traversal, candidates);
         for &candidate in candidates.iter() {
             let Some(candidate_position) = coordinates.get(candidate as usize).copied() else {
                 continue;
@@ -359,7 +360,7 @@ fn spatial_rows(
             }
         }
     }
-    rows
+    Ok(rows)
 }
 
 fn adaptive(rows: RoaringBitmap, table_len: u32) -> AtomSelection {
