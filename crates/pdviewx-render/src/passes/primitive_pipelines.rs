@@ -128,7 +128,7 @@ impl<D: Device> PrimitivePipelineSet<D> {
             FAMILY_POLYGON => Some(&self.polygon),
             FAMILY_PARTICLE => self
                 .particle
-                .get(group.particle_shape as usize)
+                .get(group.shape as usize)
                 .and_then(Option::as_ref),
             _ => None,
         }
