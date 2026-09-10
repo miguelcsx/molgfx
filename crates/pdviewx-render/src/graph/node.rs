@@ -40,6 +40,8 @@ pub struct ResourceDesc {
     pub size: SizeClass,
     /// Usages the passes need.
     pub usage: TextureUsage,
+    /// Whether contents from the previous frame must survive until first use.
+    pub persistent: bool,
 }
 
 /// Whether a pass records draws or dispatches. The compute kind arrives

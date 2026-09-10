@@ -59,10 +59,6 @@ pub struct PassContext<'a, D: Device> {
     pub temporal_write: usize,
     /// Whether progressive quality effects replace their realtime variants.
     pub quality: bool,
-    /// Whether the resolved graph contains the physical camera pass.
-    pub depth_of_field: bool,
-    /// Whether the resolved graph contains the camera-shutter gather.
-    pub motion_blur: bool,
     /// Display gamut and transfer curve for this frame's presentation.
     ///
     /// The tonemap shader takes these as pipeline constants rather than
