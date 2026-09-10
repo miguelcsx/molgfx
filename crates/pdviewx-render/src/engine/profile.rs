@@ -4,6 +4,7 @@
 //! reads the compact resolved plan, so profile composition adds no per-frame
 //! allocation or dynamic dispatch.
 
+use super::profile_numeric::{finite_clamp, lerp, sanitize_bands, unit};
 use super::{BackdropStyle, DisplayTransform, LightingEnvironment};
 use pdviewx_core::SelectionHandle;
 use pdviewx_math::Vec3;
@@ -47,6 +48,16 @@ pub struct IllustrationStyle {
     pub cavity_strength: f32,
     /// Distance-based fade toward the background, in `[0, 1]`.
     pub depth_cue_strength: f32,
+    /// Cel-shading tone bands (clamped `[2, 16]`); zero keeps continuous shading.
+    #[serde(default)]
+    pub posterize_levels: f32,
+    /// Motion-trail persistence `[0, 1]`; zero keeps crisp TAA, higher values
+    /// retain a bounded exponentially decaying screen-space history.
+    #[serde(default)]
+    pub motion_persistence: f32,
+    /// Silhouette outline thickness in pixels (clamped `[0, 8]`); zero is a 1px edge.
+    #[serde(default)]
+    pub outline_width: f32,
 }
 
 /// Thin-lens depth-of-field settings for cinematic presentation.
@@ -224,6 +235,9 @@ impl IllustrationStyle {
             silhouette_strength: 0.65,
             cavity_strength: 0.35,
             depth_cue_strength: 0.15,
+            posterize_levels: 0.0,
+            motion_persistence: 0.0,
+            outline_width: 0.0,
         }
     }
 
@@ -232,6 +246,9 @@ impl IllustrationStyle {
             silhouette_strength: unit(self.silhouette_strength),
             cavity_strength: unit(self.cavity_strength),
             depth_cue_strength: unit(self.depth_cue_strength),
+            posterize_levels: sanitize_bands(self.posterize_levels),
+            motion_persistence: unit(self.motion_persistence),
+            outline_width: finite_clamp(self.outline_width, 0.0, 8.0, 0.0),
         }
     }
 
@@ -241,6 +258,9 @@ impl IllustrationStyle {
             silhouette_strength: lerp(self.silhouette_strength, other.silhouette_strength, weight),
             cavity_strength: lerp(self.cavity_strength, other.cavity_strength, weight),
             depth_cue_strength: lerp(self.depth_cue_strength, other.depth_cue_strength, weight),
+            posterize_levels: lerp(self.posterize_levels, other.posterize_levels, weight),
+            motion_persistence: lerp(self.motion_persistence, other.motion_persistence, weight),
+            outline_width: lerp(self.outline_width, other.outline_width, weight),
         }
     }
 
@@ -255,6 +275,18 @@ impl IllustrationStyle {
             } else {
                 1.0
             },
+        ]
+    }
+
+    /// Non-photorealistic lane: cel band count in `x`, motion-trail
+    /// persistence in `y`, outline width in `z`, spare in `w`.
+    pub(crate) fn npr_packed(self) -> [f32; 4] {
+        let s = self.sanitize();
+        [
+            s.posterize_levels,
+            s.motion_persistence,
+            s.outline_width,
+            0.0,
         ]
     }
 }
@@ -352,6 +384,9 @@ impl RenderProfile {
                 silhouette_strength: 0.5,
                 cavity_strength: 0.4,
                 depth_cue_strength: 0.28,
+                posterize_levels: 0.0,
+                motion_persistence: 0.0,
+                outline_width: 0.0,
             }))
             .with_effect(PresentationEffect::Lighting(
                 LightingEnvironment::documentary(),
@@ -460,27 +495,6 @@ impl ResolvedRenderPlan {
         }
     }
 }
-
-fn unit(value: f32) -> f32 {
-    if value.is_finite() {
-        value.clamp(0.0, 1.0)
-    } else {
-        0.0
-    }
-}
-
-fn lerp(from: f32, to: f32, weight: f32) -> f32 {
-    from + (to - from) * weight
-}
-
-fn finite_clamp(value: f32, minimum: f32, maximum: f32, fallback: f32) -> f32 {
-    if value.is_finite() {
-        value.clamp(minimum, maximum)
-    } else {
-        fallback
-    }
-}
-
 #[cfg(test)]
 #[path = "profile_tests.rs"]
 mod tests;

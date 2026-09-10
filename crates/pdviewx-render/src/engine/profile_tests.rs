@@ -157,11 +157,17 @@ fn effect_layers_resolve_by_priority_and_blend_weight() {
         silhouette_strength: 1.0,
         cavity_strength: 0.0,
         depth_cue_strength: 0.0,
+        posterize_levels: 0.0,
+        motion_persistence: 0.0,
+        outline_width: 0.0,
     });
     let soft = PresentationEffect::Illustration(IllustrationStyle {
         silhouette_strength: 0.2,
         cavity_strength: 0.4,
         depth_cue_strength: 0.6,
+        posterize_levels: 0.0,
+        motion_persistence: 0.0,
+        outline_width: 0.0,
     });
     let resolved = RenderProfile::inspection()
         .with_layer(EffectLayer::new(soft).with_priority(20))
@@ -180,6 +186,9 @@ fn malformed_layer_values_resolve_to_bounded_neutral_values() {
         silhouette_strength: f32::NAN,
         cavity_strength: -1.0,
         depth_cue_strength: 4.0,
+        posterize_levels: 1.0,
+        motion_persistence: -0.5,
+        outline_width: -3.0,
     });
     let resolved = RenderProfile::inspection()
         .with_layer(EffectLayer::new(effect).with_weight(f32::INFINITY))
@@ -190,6 +199,59 @@ fn malformed_layer_values_resolve_to_bounded_neutral_values() {
         resolved.packed(f32::INFINITY).map(f32::to_bits),
         [0.0, 0.0, 0.0, 1.0].map(f32::to_bits)
     );
+}
+
+#[test]
+fn cel_posterize_bands_snap_and_disable_below_two() {
+    // Off by default, so ordinary shading is unchanged.
+    assert_eq!(
+        IllustrationStyle::default().npr_packed()[0].to_bits(),
+        0.0f32.to_bits()
+    );
+    // A fractional count floors to whole bands.
+    let cel = IllustrationStyle {
+        posterize_levels: 4.7,
+        ..IllustrationStyle::default()
+    };
+    assert_eq!(cel.npr_packed()[0].to_bits(), 4.0f32.to_bits());
+    // Below two disables cel shading rather than snapping up.
+    let low = IllustrationStyle {
+        posterize_levels: 1.5,
+        ..IllustrationStyle::default()
+    };
+    assert_eq!(low.npr_packed()[0].to_bits(), 0.0f32.to_bits());
+    // Clamped above sixteen and immune to non-finite input.
+    let high = IllustrationStyle {
+        posterize_levels: 999.0,
+        ..IllustrationStyle::default()
+    };
+    assert_eq!(high.npr_packed()[0].to_bits(), 16.0f32.to_bits());
+    let bad = IllustrationStyle {
+        posterize_levels: f32::NAN,
+        ..IllustrationStyle::default()
+    };
+    assert_eq!(bad.npr_packed()[0].to_bits(), 0.0f32.to_bits());
+    // Motion-trail persistence rides the same lane's y and clamps to [0, 1].
+    let trails = IllustrationStyle {
+        motion_persistence: 0.6,
+        ..IllustrationStyle::default()
+    };
+    assert!((trails.npr_packed()[1] - 0.6).abs() < 1e-6);
+    let over = IllustrationStyle {
+        motion_persistence: 5.0,
+        ..IllustrationStyle::default()
+    };
+    assert_eq!(over.npr_packed()[1].to_bits(), 1.0f32.to_bits());
+    // Outline width rides z and clamps to [0, 8]; the default stays a 1px edge.
+    assert_eq!(
+        IllustrationStyle::default().npr_packed()[2].to_bits(),
+        0.0f32.to_bits()
+    );
+    let thick = IllustrationStyle {
+        outline_width: 12.0,
+        ..IllustrationStyle::default()
+    };
+    assert_eq!(thick.npr_packed()[2].to_bits(), 8.0f32.to_bits());
 }
 
 #[test]
