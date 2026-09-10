@@ -16,6 +16,11 @@ pub struct PolymerTraces {
     pub(super) entities: Vec<u32>,
     pub(super) styles: Vec<SecondaryStructure>,
     pub(super) properties: Vec<f32>,
+    /// Per-point orientation the ribbon's flat face is held in, where the
+    /// source residue has one. A polymer guide atom carries no such plane, so
+    /// this stays empty for backbone traces and the ribbon keeps its twist-free
+    /// transport frames.
+    pub(super) normals: Vec<Vec3>,
     pub(super) ranges: Vec<TraceRange>,
 }
 
@@ -35,6 +40,7 @@ impl PolymerTraces {
         &mut self,
         points: Vec<Vec3>,
         entities: Vec<u32>,
+        normals: Vec<Vec3>,
         ranges: Vec<TraceRange>,
     ) {
         self.styles.clear();
@@ -43,6 +49,7 @@ impl PolymerTraces {
         self.properties.resize(points.len(), f32::NAN);
         self.points = points;
         self.entities = entities;
+        self.normals = normals;
         self.ranges = ranges;
     }
 }
@@ -59,45 +66,22 @@ pub struct TraceRange {
 /// Extracts C-alpha or C4-prime guide atoms in topology order. Missing guide
 /// atoms and caller-defined spatial gaps split traces instead of drawing a
 /// scientifically false bridge. All output vectors are reused.
+///
+/// # Errors
+///
+/// Returns [`crate::PackingError`] when a guide atom row cannot be encoded.
 pub fn extract_polymer_traces(
     structure: &pdbiox::Structure,
     selection: &pdviewx_core::AtomSelection,
     secondary: &[SecondaryStructure],
     max_gap: f32,
     output: &mut PolymerTraces,
-) {
-    extract_polymer_traces_from(
-        structure,
-        selection,
-        secondary,
-        max_gap,
-        PositionSource::Parsed,
-        output,
-    );
-}
-
-#[derive(Clone, Copy)]
-pub(super) enum PositionSource<'a> {
-    Parsed,
-    Interpolated {
-        start: &'a [[f32; 3]],
-        end: &'a [[f32; 3]],
-        alpha: f32,
-    },
-}
-
-pub(super) fn extract_polymer_traces_from(
-    structure: &pdbiox::Structure,
-    selection: &pdviewx_core::AtomSelection,
-    secondary: &[SecondaryStructure],
-    max_gap: f32,
-    positions: PositionSource<'_>,
-    output: &mut PolymerTraces,
-) {
+) -> Result<(), crate::PackingError> {
     output.points.clear();
     output.entities.clear();
     output.styles.clear();
     output.properties.clear();
+    output.normals.clear();
     output.ranges.clear();
     let max_gap_sq = max_gap.max(0.0).powi(2);
     for chain in structure.data().chains() {
@@ -125,15 +109,7 @@ pub(super) fn extract_polymer_traces_from(
                 trace_start = output.points.len();
                 continue;
             }
-            let position = match positions {
-                PositionSource::Parsed => atom.position().map(Vec3::from),
-                PositionSource::Interpolated { start, end, alpha } => {
-                    let index = atom.index().as_usize();
-                    start.get(index).zip(end.get(index)).map(|(start, end)| {
-                        Vec3::from_array(*start).lerp(Vec3::from_array(*end), alpha)
-                    })
-                }
-            };
+            let position = atom.position().map(Vec3::from);
             let Some(position) = position else {
                 finish_trace(
                     chain_id,
@@ -157,10 +133,12 @@ pub(super) fn extract_polymer_traces_from(
                 );
                 trace_start = output.points.len();
             }
+            let entity = pdviewx_core::EntityId::pack(
+                pdviewx_core::EntityKind::Atom,
+                u64::from(atom.index().get()),
+            )?;
             output.points.push(position);
-            output.entities.push(
-                pdviewx_core::EntityId::pack(pdviewx_core::EntityKind::Atom, atom.index().get()).0,
-            );
+            output.entities.push(entity.0);
             let residue_index = residue.index().as_usize();
             output.styles.push(match secondary.get(residue_index) {
                 Some(&style) => style,
@@ -178,6 +156,7 @@ pub(super) fn extract_polymer_traces_from(
             &mut output.ranges,
         );
     }
+    Ok(())
 }
 
 fn finish_trace(chain: u32, start: usize, end: usize, ranges: &mut Vec<TraceRange>) {

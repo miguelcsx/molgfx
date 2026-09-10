@@ -1,4 +1,5 @@
 use super::*;
+use pdviewx_core::TubeRadiusMapping;
 
 fn trace() -> [Vec3; 5] {
     [
@@ -74,7 +75,7 @@ fn tube_profile_has_a_constant_round_cross_section() {
 }
 
 #[test]
-fn putty_profile_maps_recorded_b_factors_to_interpolated_round_radii() {
+fn putty_lowering_keeps_base_geometry_constant_and_emits_compact_guide_values() {
     let structure = polymer_structure();
     let mapping = match TubeRadiusMapping::b_factor([10.0, 50.0], [0.2, 0.8]) {
         Ok(mapping) => mapping,
@@ -90,22 +91,47 @@ fn putty_profile_maps_recorded_b_factors_to_interpolated_round_radii() {
             width: 0.6,
             thickness: 0.6,
             profile: SplineProfile::Tube,
-            radius_mapping: mapping,
             ..RibbonParams::default()
         },
-    );
-    let rings = mesh
-        .vertices
-        .chunks_exact(PROFILE_SIDES)
-        .collect::<Vec<_>>();
-    let first = profile_diameters(rings.first().copied().unwrap_or(&[]));
-    let last = profile_diameters(rings.last().copied().unwrap_or(&[]));
-    assert!((first.0 - 0.4).abs() < 1.0e-4);
-    assert!((last.0 - 1.6).abs() < 1.0e-4);
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(mesh.radius_source_values(), &[10.0, 30.0, 50.0]);
     assert!(
-        rings
-            .windows(2)
-            .all(|pair| { profile_diameters(pair[0]).0 <= profile_diameters(pair[1]).0 + 1.0e-5 })
+        mesh.vertices
+            .chunks_exact(PROFILE_SIDES)
+            .all(|ring| (profile_diameters(ring).0 - 0.6).abs() < 1.0e-4),
+        "putty radius is deferred to the vertex shader"
+    );
+    let first = mesh.deformations[0];
+    let controls = [first.parameter[1].to_bits(), first.parameter[2].to_bits()];
+    assert_eq!(controls, [0, 1]);
+    assert!(
+        (crate::cartoon::variable_tube_radius(
+            mapping,
+            mesh.radius_source_values(),
+            controls,
+            0.5,
+            0.3,
+        ) - 0.35)
+            .abs()
+            < 1.0e-6
+    );
+}
+
+#[test]
+fn putty_cpu_reference_matches_missing_value_shader_policy() {
+    let mapping = match TubeRadiusMapping::b_factor([0.0, 10.0], [0.2, 1.2]) {
+        Ok(mapping) => mapping,
+        Err(error) => panic!("putty mapping builds: {error}"),
+    };
+    let values = [f32::NAN, 5.0, f32::NAN];
+    assert!(
+        (crate::cartoon::variable_tube_radius(mapping, &values, [0, 1], 0.25, 0.4) - 0.7).abs()
+            < 1.0e-6
+    );
+    assert!(
+        (crate::cartoon::variable_tube_radius(mapping, &values, [0, 2], 0.5, 0.4) - 0.4).abs()
+            < f32::EPSILON
     );
 }
 
@@ -137,49 +163,31 @@ fn secondary_structure_changes_cross_section_without_changing_topology() {
 }
 
 #[test]
-fn trajectory_samples_move_ribbons_without_materializing_a_coordinate_frame() {
+fn structure_ribbons_emit_one_compact_gpu_recipe_per_vertex() {
     let structure = polymer_structure();
-    let start = [[0.0, 0.0, 0.0], [2.0, 0.4, 0.0], [4.0, 0.0, 0.0]];
-    let end = [[0.0, 4.0, 0.0], [2.0, 4.4, 0.0], [4.0, 4.0, 0.0]];
-    let mut initial = RibbonMesh::default();
-    initial.generate_structure_interpolated(
+    let mut mesh = RibbonMesh::default();
+    mesh.generate_structure(
         &structure,
         &pdviewx_core::AtomSelection::All,
         &[SecondaryStructure::Coil; 3],
         8.0,
-        InterpolatedCoordinates {
-            start: &start,
-            end: &end,
-            alpha: 0.0,
-        },
         RibbonParams::default(),
-    );
-    let mut midpoint = RibbonMesh::default();
-    midpoint.generate_structure_interpolated(
-        &structure,
-        &pdviewx_core::AtomSelection::All,
-        &[SecondaryStructure::Coil; 3],
-        8.0,
-        InterpolatedCoordinates {
-            start: &start,
-            end: &end,
-            alpha: 0.5,
-        },
-        RibbonParams::default(),
-    );
-    assert_eq!(initial.indices, midpoint.indices);
-    assert_eq!(initial.vertices.len(), midpoint.vertices.len());
-    assert!(
-        initial
-            .vertices
-            .iter()
-            .zip(&midpoint.vertices)
-            .all(|(a, b)| {
-                (b.position[0] - a.position[0]).abs() < 1.0e-5
-                    && (b.position[1] - a.position[1] - 2.0).abs() < 1.0e-5
-                    && (b.position[2] - a.position[2]).abs() < 1.0e-5
-            })
-    );
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
+    assert!(!mesh.vertices.is_empty());
+    assert_eq!(mesh.deformation_bytes().len(), mesh.vertices.len() * 32);
+    let controls: &[u32] = bytemuck::cast_slice(mesh.deformation_bytes());
+    assert_ne!(controls[0], u32::MAX, "polymer rows are GPU-addressable");
+}
+
+#[test]
+fn twister_faces_use_distinct_orientation_colours() {
+    let base = Rgba8::new(1, 2, 3, 200);
+    let top = profile_color(SplineProfile::Twister, 1.0, base);
+    let bottom = profile_color(SplineProfile::Twister, -1.0, base);
+    assert_ne!(top, bottom);
+    assert_eq!(top.a, 200);
+    assert_eq!(bottom.a, 200);
 }
 
 fn polymer_structure() -> pdbiox::Structure {
@@ -225,4 +233,49 @@ fn profile_diameters(vertices: &[RibbonVertex]) -> (f32, f32) {
         across_width.max(across_thickness),
         across_width.min(across_thickness),
     )
+}
+
+#[test]
+fn the_twister_profile_gives_each_face_its_own_flat_normal() {
+    fn assert_axis(actual: [f32; 3], expected: [f32; 3], what: &str) {
+        assert!(
+            (Vec3::from(actual) - Vec3::from(expected)).length() < 1.0e-5,
+            "{what}: expected {expected:?}, got {actual:?}"
+        );
+    }
+
+    let mut mesh = RibbonMesh::default();
+    mesh.generate(
+        &trace(),
+        &[10, 11, 12, 13, 14],
+        RibbonParams {
+            width: 1.5,
+            thickness: 0.24,
+            profile: SplineProfile::Twister,
+            ..RibbonParams::default()
+        },
+    );
+    let ring = mesh
+        .vertices
+        .chunks_exact(PROFILE_SIDES)
+        .next()
+        .unwrap_or(&[]);
+    assert_eq!(ring.len(), PROFILE_SIDES);
+    // Doubled corners: same position, different normal, which is what makes
+    // the edge read as an edge instead of a gradient.
+    assert_axis(
+        ring[1].position,
+        ring[2].position,
+        "doubled corner position",
+    );
+    assert!(
+        (Vec3::from(ring[1].normal) - Vec3::from(ring[2].normal)).length() > 0.5,
+        "the two faces meeting at a corner carry different normals"
+    );
+    // A face is flat: both of its corners agree.
+    assert_axis(ring[0].normal, ring[1].normal, "face normal");
+    assert!(
+        ring.iter()
+            .all(|vertex| Vec3::from(vertex.normal).is_normalized())
+    );
 }
