@@ -5,30 +5,40 @@
 //! pass into a caller-owned scratch vector, so the steady-state path
 //! allocates nothing: the scratch grows once and is reused.
 
+use super::PackingError;
 use pdviewx_core::{
-    AtomGpu, AtomProperty, AtomSelection, AtomTable, BondGpu, ColorScheme, EntityId, EntityKind,
-    Hierarchy, PropertyAppearance, Representation, RepresentationKind, SecondaryStructure,
+    AtomGpu, AtomProperty, AtomSelection, AtomTable, ColorScheme, EntityId, EntityKind, Hierarchy,
+    PropertyAppearance, Representation, RepresentationKind, SecondaryStructure, SurfaceKind,
+    SurfaceStyle,
 };
 use pdviewx_math::{Rgba8, Vec3};
 
 #[cfg(test)]
 #[path = "pack_tests.rs"]
-mod tests;
+pub(super) mod tests;
 
 /// Packs the selected atoms of one table into instance records, appending
 /// to `out` (cleared first). Radius scaling comes from the representation;
 /// positions are duplicated into the record for backends that cannot bind
 /// the borrowed coordinate column, and gathered from that column otherwise.
+///
+/// # Errors
+///
+/// Returns [`PackingError`] when a selected source row cannot be encoded.
 pub fn pack_atoms(
     table: &AtomTable,
     representation: &Representation,
     selection: &AtomSelection,
     out: &mut Vec<AtomGpu>,
-) {
-    pack_atoms_inner(table, None, None, None, representation, selection, out);
+) -> Result<(), PackingError> {
+    pack_atoms_inner(table, None, None, None, representation, selection, out)
 }
 
 /// Packs atoms with hierarchy-aware representation coloring.
+///
+/// # Errors
+///
+/// Returns [`PackingError`] when a selected source row cannot be encoded.
 pub fn pack_atoms_with_hierarchy(
     table: &AtomTable,
     hierarchy: &Hierarchy,
@@ -37,7 +47,7 @@ pub fn pack_atoms_with_hierarchy(
     representation: &Representation,
     selection: &AtomSelection,
     out: &mut Vec<AtomGpu>,
-) {
+) -> Result<(), PackingError> {
     pack_atoms_with_properties(
         table,
         hierarchy,
@@ -49,7 +59,7 @@ pub fn pack_atoms_with_hierarchy(
         representation,
         selection,
         out,
-    );
+    )
 }
 
 /// Borrowed scientific columns independently driving colour and appearance.
@@ -73,6 +83,10 @@ pub struct RibbonColoring {
 }
 
 /// Packs atoms with independent colour and scientific-appearance properties.
+///
+/// # Errors
+///
+/// Returns [`PackingError`] when a selected source row cannot be encoded.
 pub fn pack_atoms_with_properties(
     table: &AtomTable,
     hierarchy: &Hierarchy,
@@ -81,7 +95,7 @@ pub fn pack_atoms_with_properties(
     representation: &Representation,
     selection: &AtomSelection,
     out: &mut Vec<AtomGpu>,
-) {
+) -> Result<(), PackingError> {
     pack_atoms_inner(
         table,
         Some((hierarchy, secondary_structure)),
@@ -90,7 +104,7 @@ pub fn pack_atoms_with_properties(
         representation,
         selection,
         out,
-    );
+    )
 }
 
 fn pack_atoms_inner(
@@ -101,7 +115,7 @@ fn pack_atoms_inner(
     representation: &Representation,
     selection: &AtomSelection,
     out: &mut Vec<AtomGpu>,
-) {
+) -> Result<(), PackingError> {
     out.clear();
     let coords = table.coords().slice();
     let radii = table.radius().values();
@@ -110,9 +124,21 @@ fn pack_atoms_inner(
     let flags = table.flags().values();
     let semantics = table.semantic().values();
     let residues = table.residue().values();
-    let scale = representation.params.radius_scale;
+    let scale = representation.params.radius_scale.max(0.0);
+    let surface_inflation = if representation.kind == RepresentationKind::Surface
+        && representation.params.surface_kind == SurfaceKind::SolventAccessible
+        && representation.params.surface_style == SurfaceStyle::Solid
+    {
+        representation.params.probe_radius.max(0.0)
+    } else {
+        0.0
+    };
 
+    let mut packing_error = None;
     selection.for_each(table.len(), |index| {
+        if packing_error.is_some() {
+            return;
+        }
         let i = index as usize;
         let (
             Some(position),
@@ -149,22 +175,36 @@ fn pack_atoms_inner(
         if let Some((appearance_opacity, _)) = appearance {
             color.a = multiply_unorm8(color.a, appearance_opacity);
         }
+        let entity_id = match EntityId::pack(EntityKind::Atom, u64::from(index)) {
+            Ok(entity_id) => entity_id,
+            Err(error) => {
+                packing_error = Some(error.into());
+                return;
+            }
+        };
         out.push(AtomGpu {
             position: *position,
             radius: if representation.kind == RepresentationKind::Licorice {
                 representation.params.bond_radius
             } else {
-                radius * scale
+                radius * scale + surface_inflation
             },
             color,
             element: *element,
             flags: *flag,
-            entity_id: EntityId::pack(EntityKind::Atom, index),
+            entity_id,
             semantic: appearance.map_or(*semantic, |(_, softness)| {
                 pack_softness(*semantic, softness)
             }),
         });
     });
+    match packing_error {
+        Some(error) => {
+            out.clear();
+            Err(error)
+        }
+        None => Ok(()),
+    }
 }
 
 pub(crate) fn representation_color(
@@ -270,7 +310,7 @@ fn atom_appearance(
         None => f32::NAN,
     };
     let sample = mapping.sample(value);
-    Some((quantize_unit(sample.opacity), sample.softness_pixels))
+    Some((pdviewx_math::unorm8(sample.opacity), sample.softness_pixels))
 }
 
 fn multiply_unorm8(left: u8, right: u8) -> u8 {
@@ -282,29 +322,8 @@ fn pack_softness(semantic: u32, softness_pixels: f32) -> u32 {
     if softness_pixels <= 0.0 {
         return semantic & 0x00ff_ffff;
     }
-    let quantized = quantize_unit((softness_pixels / 8.0).clamp(0.0, 1.0));
+    let quantized = pdviewx_math::unorm8(softness_pixels / 8.0);
     (semantic & 0x00ff_ffff) | (u32::from(quantized) << 24)
-}
-
-fn quantize_unit(value: f32) -> u8 {
-    let target = value.clamp(0.0, 1.0) * 255.0;
-    let mut low = 0u16;
-    let mut high = u16::from(u8::MAX);
-    while low < high {
-        let middle = (low + high).div_ceil(2);
-        if f32::from(middle) <= target {
-            low = middle;
-        } else {
-            high = middle - 1;
-        }
-    }
-    let upper = (low + 1).min(u16::from(u8::MAX));
-    let selected = if target - f32::from(low) < f32::from(upper) - target {
-        low
-    } else {
-        upper
-    };
-    u8::try_from(selected).map_or(u8::MAX, |value| value)
 }
 
 fn chain_color(chain: usize) -> Rgba8 {
@@ -340,60 +359,6 @@ fn secondary_color(value: SecondaryStructure) -> Rgba8 {
     }
 }
 
-/// Builds an original-row to compacted-instance map in caller-owned storage.
-/// Missing rows carry `u32::MAX`. Work is `O(table_len + selected)` and runs
-/// only when a representation changes.
-pub fn build_compaction_map(atoms: &[AtomGpu], table_len: u32, out: &mut Vec<u32>) {
-    out.clear();
-    out.resize(table_len as usize, u32::MAX);
-    for (compact, atom) in atoms.iter().enumerate() {
-        let Some((EntityKind::Atom, source)) = atom.entity_id.unpack() else {
-            continue;
-        };
-        let Some(slot) = out.get_mut(source as usize) else {
-            continue;
-        };
-        *slot = u32::try_from(compact).map_or(u32::MAX, |index| index);
-    }
-}
-
-/// Packs bonds whose endpoints both survived atom compaction. Endpoints index
-/// the compact atom records, so capsule shaders reuse atom addressing and
-/// colors. Work is `O(bonds)` into reused storage.
-pub fn pack_bonds(
-    structure: &pdbiox::Structure,
-    representation: &Representation,
-    compaction: &[u32],
-    out: &mut Vec<BondGpu>,
-) {
-    out.clear();
-    if !matches!(
-        representation.kind,
-        RepresentationKind::BallAndStick | RepresentationKind::Licorice | RepresentationKind::Lines
-    ) {
-        return;
-    }
-    for (source_index, bond) in structure.data().bonds.iter().enumerate() {
-        let (Some(&atom_a), Some(&atom_b)) = (
-            compaction.get(bond.atom_a.as_usize()),
-            compaction.get(bond.atom_b.as_usize()),
-        ) else {
-            continue;
-        };
-        if atom_a == u32::MAX || atom_b == u32::MAX {
-            continue;
-        }
-        let source_index = u32::try_from(source_index).map_or(EntityId::MAX_INDEX, |value| value);
-        out.push(BondGpu::new(
-            atom_a,
-            atom_b,
-            representation.params.bond_radius,
-            bond.order == pdbiox::BondOrder::Aromatic,
-            EntityId::pack(EntityKind::Bond, source_index),
-        ));
-    }
-}
-
 /// Packs one bead per residue: a sphere enclosing that residue's selected
 /// atoms.
 ///
@@ -403,6 +368,10 @@ pub fn pack_bonds(
 /// extent, so a bead never claims less volume than the residue occupies. The
 /// entity id is the residue's first selected atom, so picking a bead resolves
 /// to real chemistry rather than to a synthetic id.
+///
+/// # Errors
+///
+/// Returns [`PackingError`] when a residue source row cannot be encoded.
 pub fn pack_residue_beads(
     table: &AtomTable,
     hierarchy: &Hierarchy,
@@ -411,7 +380,7 @@ pub fn pack_residue_beads(
     representation: &Representation,
     selection: &AtomSelection,
     out: &mut Vec<AtomGpu>,
-) {
+) -> Result<(), PackingError> {
     out.clear();
     let coords = table.coords().slice();
     let radii = table.radius().values();
@@ -420,15 +389,15 @@ pub fn pack_residue_beads(
     let flags = table.flags().values();
     let semantics = table.semantic().values();
     let residues = table.residue().values();
-    let scale = representation.params.radius_scale;
+    let scale = representation.params.radius_scale.max(0.0);
 
     // One pass gathers each residue's centroid; a second grows the radius to
     // enclose it. Residues arrive in table order, so a single sweep suffices.
     let mut current: Option<u32> = None;
     let mut members: Vec<usize> = Vec::new();
-    let flush = |members: &mut Vec<usize>, out: &mut Vec<AtomGpu>| {
+    let flush = |members: &mut Vec<usize>, out: &mut Vec<AtomGpu>| -> Result<(), PackingError> {
         let Some(&first) = members.first() else {
-            return;
+            return Ok(());
         };
         let (sum, count) = members
             .iter()
@@ -457,6 +426,10 @@ pub fn pack_residue_beads(
             first,
         );
         color.a = representation.material.opacity_unorm8();
+        let source = u64::try_from(first).map_err(|_| PackingError::IndexOverflow {
+            resource: "residue bead source",
+            index: u64::MAX,
+        })?;
         out.push(AtomGpu {
             position: centre.to_array(),
             radius: radius * scale,
@@ -466,23 +439,36 @@ pub fn pack_residue_beads(
                 .get(first)
                 .copied()
                 .map_or(pdviewx_core::AtomFlags(0), |value| value),
-            entity_id: EntityId::pack(
-                EntityKind::Atom,
-                u32::try_from(first).map_or(u32::MAX, |value| value),
-            ),
+            entity_id: EntityId::pack(EntityKind::Atom, source)?,
             semantic: semantics.get(first).copied().map_or(0, |value| value),
         });
         members.clear();
+        Ok(())
     };
 
+    let mut packing_error = None;
     selection.for_each(table.len(), |index| {
+        if packing_error.is_some() {
+            return;
+        }
         let i = index as usize;
         let residue = residues.get(i).copied();
         if current != residue {
-            flush(&mut members, out);
+            if let Err(error) = flush(&mut members, out) {
+                packing_error = Some(error);
+                return;
+            }
             current = residue;
         }
         members.push(i);
     });
-    flush(&mut members, out);
+    if let Some(error) = packing_error {
+        out.clear();
+        return Err(error);
+    }
+    if let Err(error) = flush(&mut members, out) {
+        out.clear();
+        return Err(error);
+    }
+    Ok(())
 }

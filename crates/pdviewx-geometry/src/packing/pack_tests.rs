@@ -1,7 +1,7 @@
 use super::*;
 use pdviewx_core::{
     AtomProperty, AtomPropertyMeaning, ColorScheme, PropertyAppearance, RepresentationKind,
-    ScalarFieldSemantics, Scene,
+    ScalarFieldSemantics, Scene, SurfaceKind,
 };
 use pdviewx_math::Rgba8;
 use std::sync::Arc;
@@ -20,7 +20,7 @@ fn scene_table() -> (Scene, pdviewx_core::RepresentationHandle) {
     (scene, rep)
 }
 
-fn fixture_structure() -> pdbiox::Structure {
+pub(crate) fn fixture_structure() -> pdbiox::Structure {
     let cif = "\
 data_test
 loop_
@@ -76,7 +76,7 @@ fn packing_all_atoms_produces_one_record_per_atom_in_order() {
         panic!("representation resolves")
     };
     let mut out = Vec::new();
-    pack_atoms(table, rep, &AtomSelection::All, &mut out);
+    pack_atoms(table, rep, &AtomSelection::All, &mut out).unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(out.len(), 3);
     // Records preserve atom order; positions come straight from the column.
     let expected = [1.5f32, 0.0, 0.0];
@@ -104,8 +104,49 @@ fn ball_and_stick_scales_radii_down() {
         panic!("representation resolves")
     };
     let mut out = Vec::new();
-    pack_atoms(table, rep, &AtomSelection::All, &mut out);
+    pack_atoms(table, rep, &AtomSelection::All, &mut out).unwrap_or_else(|error| panic!("{error}"));
     assert!(out[0].radius < 1.0, "ball radii are a fraction of vdW");
+}
+
+#[test]
+fn negative_radius_scale_cannot_create_inverted_gpu_spheres() {
+    let (mut scene, rep_handle) = scene_table();
+    let Some(representation) = scene.representation_mut(rep_handle) else {
+        panic!("representation resolves")
+    };
+    representation.params.radius_scale = -4.0;
+    let Some(table) = scene.first_atoms() else {
+        panic!("scene has atoms")
+    };
+    let Some(representation) = scene.representation(rep_handle) else {
+        panic!("representation resolves")
+    };
+    let mut atoms = Vec::new();
+    pack_atoms(table, representation, &AtomSelection::All, &mut atoms)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert!(atoms.iter().all(|atom| atom.radius == 0.0));
+}
+
+#[test]
+fn exact_sas_impostors_pack_the_probe_once() {
+    let (mut scene, rep_handle) = scene_table();
+    let Some(representation) = scene.representation_mut(rep_handle) else {
+        panic!("representation resolves")
+    };
+    representation.kind = RepresentationKind::Surface;
+    representation.params.surface_kind = SurfaceKind::SolventAccessible;
+    let probe = representation.params.probe_radius;
+    let mut atoms = Vec::new();
+    let Some(table) = scene.first_atoms() else {
+        panic!("scene has atoms")
+    };
+    let Some(representation) = scene.representation(rep_handle) else {
+        panic!("representation resolves")
+    };
+    let expected = table.radius().values()[0] * representation.params.radius_scale + probe;
+    pack_atoms(table, representation, &AtomSelection::All, &mut atoms)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(atoms[0].radius.to_bits(), expected.to_bits());
 }
 
 #[test]
@@ -122,7 +163,8 @@ fn representation_opacity_is_packed_once_for_transparent_shaders() {
         panic!("representation resolves")
     };
     let mut atoms = Vec::new();
-    pack_atoms(table, representation, &AtomSelection::All, &mut atoms);
+    pack_atoms(table, representation, &AtomSelection::All, &mut atoms)
+        .unwrap_or_else(|error| panic!("{error}"));
     assert!(atoms.iter().all(|atom| atom.color.a == 102));
 }
 
@@ -141,7 +183,8 @@ fn a_uniform_scheme_replaces_element_rgb_without_losing_material_opacity() {
         panic!("representation resolves")
     };
     let mut atoms = Vec::new();
-    pack_atoms(table, representation, &AtomSelection::All, &mut atoms);
+    pack_atoms(table, representation, &AtomSelection::All, &mut atoms)
+        .unwrap_or_else(|error| panic!("{error}"));
     assert!(
         atoms
             .iter()
@@ -193,7 +236,8 @@ fn caller_property_colors_are_reversible_and_preserve_missing_values() {
         representation,
         &AtomSelection::All,
         &mut atoms,
-    );
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
     let colors = ramp.colors();
     assert_eq!(atoms[0].color, colors[0]);
     assert_eq!(atoms[1].color, colors[2]);
@@ -242,7 +286,8 @@ fn confidence_appearance_packs_reversible_opacity_and_analytic_softness() {
         representation,
         &AtomSelection::All,
         &mut atoms,
-    );
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
     assert!(atoms[0].color.a < atoms[1].color.a);
     assert!(atoms[0].semantic >> 24 > atoms[1].semantic >> 24);
     assert!(atoms[2].color.a < atoms[0].color.a);
@@ -259,90 +304,14 @@ fn a_partial_selection_packs_only_its_rows() {
         panic!("representation resolves")
     };
     let mut out = Vec::new();
-    pack_atoms(table, rep, &AtomSelection::Sparse(vec![0, 2]), &mut out);
+    pack_atoms(table, rep, &AtomSelection::Sparse(vec![0, 2]), &mut out)
+        .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(out.len(), 2);
     let (Some((_, i0)), Some((_, i2))) = (out[0].entity_id.unpack(), out[1].entity_id.unpack())
     else {
         panic!("entity ids unpack")
     };
     assert_eq!((i0, i2), (0, 2), "entity ids keep original row indices");
-}
-
-#[test]
-fn compaction_maps_source_rows_to_packed_indices() {
-    let (scene, rep_handle) = scene_table();
-    let Some(table) = scene.first_atoms() else {
-        panic!("scene has atoms")
-    };
-    let Some(rep) = scene.representation(rep_handle) else {
-        panic!("representation resolves")
-    };
-    let mut atoms = Vec::new();
-    pack_atoms(table, rep, &AtomSelection::Sparse(vec![0, 2]), &mut atoms);
-    let mut map = Vec::new();
-    build_compaction_map(&atoms, table.len(), &mut map);
-    assert_eq!(map, vec![0, u32::MAX, 1]);
-}
-
-#[test]
-fn bond_packing_remaps_endpoints_and_keeps_only_selected_edges() {
-    let structure = fixture_structure();
-    let mut scene = match Scene::from_structure(&structure) {
-        Ok(scene) => scene,
-        Err(error) => panic!("fixture scene builds: {error}"),
-    };
-    let selection = scene.add_selection(AtomSelection::Sparse(vec![1, 2]));
-    let representation = match scene.represent(selection, RepresentationKind::BallAndStick) {
-        Ok(handle) => handle,
-        Err(error) => panic!("ball-and-stick applies: {error}"),
-    };
-    let Some(table) = scene.first_atoms() else {
-        panic!("scene has atoms")
-    };
-    let Some(representation) = scene.representation(representation) else {
-        panic!("representation resolves")
-    };
-    let mut atoms = Vec::new();
-    pack_atoms(
-        table,
-        representation,
-        &AtomSelection::Sparse(vec![1, 2]),
-        &mut atoms,
-    );
-    let mut map = Vec::new();
-    build_compaction_map(&atoms, table.len(), &mut map);
-    let mut bonds = Vec::new();
-    pack_bonds(&structure, representation, &map, &mut bonds);
-    assert_eq!(bonds.len(), 1);
-    assert_eq!((bonds[0].atom_a, bonds[0].atom_b), (0, 1));
-    assert!(bonds[0].is_aromatic());
-}
-
-#[test]
-fn line_representation_packs_indexed_bonds_without_a_second_geometry_path() {
-    let structure = fixture_structure();
-    let mut scene = match Scene::from_structure(&structure) {
-        Ok(scene) => scene,
-        Err(error) => panic!("fixture scene builds: {error}"),
-    };
-    let selection = scene.add_selection(AtomSelection::All);
-    let handle = match scene.represent(selection, RepresentationKind::Lines) {
-        Ok(handle) => handle,
-        Err(error) => panic!("lines apply: {error}"),
-    };
-    let Some(table) = scene.first_atoms() else {
-        panic!("scene has atoms")
-    };
-    let Some(representation) = scene.representation(handle) else {
-        panic!("representation resolves")
-    };
-    let mut atoms = Vec::new();
-    pack_atoms(table, representation, &AtomSelection::All, &mut atoms);
-    let mut map = Vec::new();
-    build_compaction_map(&atoms, table.len(), &mut map);
-    let mut bonds = Vec::new();
-    pack_bonds(&structure, representation, &map, &mut bonds);
-    assert_eq!(bonds.len(), 2);
 }
 
 #[test]
@@ -364,7 +333,8 @@ fn licorice_uses_the_bond_radius_for_atom_junctions() {
         panic!("representation resolves")
     };
     let mut atoms = Vec::new();
-    pack_atoms(table, representation, &AtomSelection::All, &mut atoms);
+    pack_atoms(table, representation, &AtomSelection::All, &mut atoms)
+        .unwrap_or_else(|error| panic!("{error}"));
     assert!(
         atoms
             .iter()
@@ -382,10 +352,10 @@ fn repacking_reuses_the_scratch_allocation() {
         panic!("representation resolves")
     };
     let mut out = Vec::new();
-    pack_atoms(table, rep, &AtomSelection::All, &mut out);
+    pack_atoms(table, rep, &AtomSelection::All, &mut out).unwrap_or_else(|error| panic!("{error}"));
     let capacity = out.capacity();
     let pointer = out.as_ptr();
-    pack_atoms(table, rep, &AtomSelection::All, &mut out);
+    pack_atoms(table, rep, &AtomSelection::All, &mut out).unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(out.capacity(), capacity);
     assert_eq!(
         out.as_ptr(),
@@ -423,7 +393,8 @@ fn a_bead_encloses_its_residue_and_keeps_one_sphere_per_residue() {
         &representation,
         &selection,
         &mut beads,
-    );
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
 
     let residues = placed.atoms.residue().values();
     let distinct = {
