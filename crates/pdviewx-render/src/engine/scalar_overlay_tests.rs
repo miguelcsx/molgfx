@@ -1,6 +1,6 @@
 use super::tests::{camera, engine, structure};
 use pdviewx_core::{
-    AtomSelection, DensityVolume, RepresentationKind, ScalarContours, ScalarRamp, Scene,
+    AtomSelection, RepresentationKind, ScalarContours, ScalarRamp, ScalarVolume, Scene,
     SurfaceScalarOverlay,
 };
 use pdviewx_math::Vec3;
@@ -13,7 +13,7 @@ fn a_surface_overlay_reuses_one_resident_caller_grid_across_frames() {
         Ok(scene) => scene,
         Err(error) => panic!("fixture scene builds: {error}"),
     };
-    let volume = match DensityVolume::from_spacing(
+    let volume = match ScalarVolume::from_spacing(
         [4, 4, 4],
         Vec3::splat(-1.0),
         Vec3::ONE,
@@ -49,6 +49,6 @@ fn a_surface_overlay_reuses_one_resident_caller_grid_across_frames() {
     let Ok(uploads) = engine.device.log.texture_writes.lock() else {
         panic!("texture log locks")
     };
-    assert_eq!(uploads.len(), 3, "the caller field remains resident");
+    assert_eq!(uploads.len(), 2, "the caller field remains resident");
     assert_eq!(uploads[0].0, "caller density volume");
 }

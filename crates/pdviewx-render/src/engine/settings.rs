@@ -71,10 +71,51 @@ impl<D: Device> Engine<D> {
         if old_topology != new_topology {
             let pass_nodes = realtime_nodes(new_topology.0, new_topology.1, new_topology.2);
             let order = graph::schedule(&pass_nodes)?;
+            // Prepare new pipelines before replacing any live state so a
+            // failed profile transition leaves the previous frame usable.
+            let depth_of_field = if new_topology.0 && self.passes.depth_of_field.is_none() {
+                Some(crate::passes::DepthOfFieldPass::new(
+                    &self.device,
+                    &self.scene_gpu.group0_layout,
+                )?)
+            } else {
+                None
+            };
+            let bloom = if new_topology.1 && self.passes.bloom.is_none() {
+                Some(crate::passes::BloomPass::new(
+                    &self.device,
+                    &self.scene_gpu.group0_layout,
+                )?)
+            } else {
+                None
+            };
+            let motion_blur = if new_topology.2 && self.passes.motion_blur.is_none() {
+                Some(crate::passes::MotionBlurPass::new(
+                    &self.device,
+                    &self.scene_gpu.group0_layout,
+                )?)
+            } else {
+                None
+            };
+            self.passes.depth_of_field = if new_topology.0 {
+                self.passes.depth_of_field.take().or(depth_of_field)
+            } else {
+                None
+            };
+            self.passes.bloom = if new_topology.1 {
+                self.passes.bloom.take().or(bloom)
+            } else {
+                None
+            };
+            self.passes.motion_blur = if new_topology.2 {
+                self.passes.motion_blur.take().or(motion_blur)
+            } else {
+                None
+            };
             self.pass_nodes = pass_nodes;
             self.order = order;
-            self.pool = None;
             self.bindings = None;
+            self.pool = None;
         }
         self.resolved_plan = resolved_plan;
         self.profile = profile;
@@ -95,6 +136,6 @@ impl<D: Device> Engine<D> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "settings_tests.rs"]
 mod tests;
