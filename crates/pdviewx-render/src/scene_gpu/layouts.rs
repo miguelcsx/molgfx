@@ -1,6 +1,17 @@
 //! Persistent scene bind-group layouts, grouped away from synchronization.
 
+use crate::error::RenderError;
 use pdviewx_gpu::{BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, Device, ShaderStages};
+
+#[path = "layouts/storage.rs"]
+mod storage_limits;
+#[cfg(test)]
+use storage_limits::storage_counts;
+use storage_limits::validate_storage_limit;
+
+#[cfg(test)]
+#[path = "layouts_tests.rs"]
+mod tests;
 
 pub(super) fn volume_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
@@ -21,10 +32,11 @@ pub(super) fn volume_layout<D: Device>(device: &D) -> D::BindGroupLayout {
                 visibility: ShaderStages::FRAGMENT,
                 ty: BindingType::Texture3dFloat { filterable: false },
             },
+            storage_visible(3, ShaderStages::FRAGMENT),
             BindGroupLayoutEntry {
-                binding: 3,
+                binding: 4,
                 visibility: ShaderStages::FRAGMENT,
-                ty: BindingType::Texture3dFloat { filterable: false },
+                ty: BindingType::Uniform,
             },
         ],
     })
@@ -49,6 +61,12 @@ pub(super) fn segmentation_layout<D: Device>(device: &D) -> D::BindGroupLayout {
                 visibility: ShaderStages::FRAGMENT,
                 ty: BindingType::Storage { read_only: true },
             },
+            storage_visible(3, ShaderStages::FRAGMENT),
+            BindGroupLayoutEntry {
+                binding: 4,
+                visibility: ShaderStages::FRAGMENT,
+                ty: BindingType::Uniform,
+            },
         ],
     })
 }
@@ -56,7 +74,150 @@ pub(super) fn segmentation_layout<D: Device>(device: &D) -> D::BindGroupLayout {
 pub(super) fn interaction_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: interaction glyph table",
-        entries: &[storage(0)],
+        entries: &[storage(0), storage_visible(1, ShaderStages::VERTEX)],
+    })
+}
+
+pub(super) fn relation_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    device.create_bind_group_layout(&BindGroupLayoutDesc {
+        label: "group1: relation culling",
+        entries: &relation_cull_entries(),
+    })
+}
+
+pub(super) fn relation_resolve_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    device.create_bind_group_layout(&BindGroupLayoutDesc {
+        label: "group1: dynamic relation resolver",
+        entries: &relation_resolve_entries(),
+    })
+}
+
+fn relation_resolve_entries() -> [BindGroupLayoutEntry; 10] {
+    [
+        storage_visible(0, ShaderStages::COMPUTE),
+        storage_visible(1, ShaderStages::COMPUTE),
+        storage_visible(2, ShaderStages::COMPUTE),
+        writable_storage(3),
+        compute_uniform(4),
+        compute_uniform(5),
+        storage_visible(6, ShaderStages::COMPUTE),
+        storage_visible(7, ShaderStages::COMPUTE),
+        compute_uniform(8),
+        compute_uniform(9),
+    ]
+}
+
+pub(super) fn generic_point_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    device.create_bind_group_layout(&BindGroupLayoutDesc {
+        label: "group1: generic point culling",
+        entries: &[
+            storage_visible(0, ShaderStages::COMPUTE),
+            writable_storage(1),
+            compute_uniform(3),
+            writable_storage(4),
+            storage_visible(5, ShaderStages::COMPUTE),
+            storage_visible(6, ShaderStages::COMPUTE),
+            storage_visible(7, ShaderStages::COMPUTE),
+            writable_storage(8),
+            compute_uniform(9),
+            storage_visible(10, ShaderStages::COMPUTE),
+        ],
+    })
+}
+
+pub(super) fn generic_point_render_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    device.create_bind_group_layout(&BindGroupLayoutDesc {
+        label: "group2: generic point rendering",
+        entries: &[
+            storage_visible(0, ShaderStages::VERTEX),
+            storage_visible(1, ShaderStages::VERTEX),
+            BindGroupLayoutEntry {
+                binding: 2,
+                visibility: ShaderStages::VERTEX.union(ShaderStages::FRAGMENT),
+                ty: BindingType::Uniform,
+            },
+            storage_visible(3, ShaderStages::FRAGMENT),
+            storage_visible(4, ShaderStages::VERTEX.union(ShaderStages::FRAGMENT)),
+            BindGroupLayoutEntry {
+                binding: 5,
+                visibility: ShaderStages::VERTEX.union(ShaderStages::FRAGMENT),
+                ty: BindingType::Uniform,
+            },
+            BindGroupLayoutEntry {
+                binding: 6,
+                visibility: ShaderStages::FRAGMENT,
+                ty: BindingType::Uniform,
+            },
+            storage_visible(7, ShaderStages::VERTEX),
+        ],
+    })
+}
+
+pub(super) fn generic_instance_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    device.create_bind_group_layout(&BindGroupLayoutDesc {
+        label: "group1: generic instance culling",
+        entries: &[
+            storage_visible(0, ShaderStages::COMPUTE),
+            writable_storage(1),
+            compute_uniform(3),
+            storage_visible(4, ShaderStages::COMPUTE),
+            storage_visible(5, ShaderStages::COMPUTE),
+            storage_visible(6, ShaderStages::COMPUTE),
+            writable_storage(7),
+            compute_uniform(8),
+            storage_visible(9, ShaderStages::COMPUTE),
+            storage_visible(10, ShaderStages::COMPUTE),
+        ],
+    })
+}
+
+pub(super) fn generic_instance_render_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    device.create_bind_group_layout(&BindGroupLayoutDesc {
+        label: "group2: generic analytic instances",
+        entries: &[
+            storage_visible(5, ShaderStages::VERTEX),
+            storage_visible(6, ShaderStages::VERTEX),
+            storage_visible(7, ShaderStages::VERTEX),
+            storage_visible(8, ShaderStages::VERTEX),
+            BindGroupLayoutEntry {
+                binding: 9,
+                visibility: ShaderStages::VERTEX.union(ShaderStages::FRAGMENT),
+                ty: BindingType::Uniform,
+            },
+            storage_visible(10, ShaderStages::FRAGMENT),
+            storage_visible(11, ShaderStages::VERTEX.union(ShaderStages::FRAGMENT)),
+            BindGroupLayoutEntry {
+                binding: 12,
+                visibility: ShaderStages::VERTEX.union(ShaderStages::FRAGMENT),
+                ty: BindingType::Uniform,
+            },
+            BindGroupLayoutEntry {
+                binding: 13,
+                visibility: ShaderStages::FRAGMENT,
+                ty: BindingType::Uniform,
+            },
+            storage_visible(14, ShaderStages::VERTEX),
+            storage_visible(15, ShaderStages::VERTEX),
+        ],
+    })
+}
+
+pub(super) fn instance_timeline_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    device.create_bind_group_layout(&BindGroupLayoutDesc {
+        label: "group0: generic instance timeline",
+        entries: &[
+            storage_visible(0, ShaderStages::COMPUTE),
+            storage_visible(1, ShaderStages::COMPUTE),
+            writable_storage(2),
+            compute_uniform(3),
+        ],
+    })
+}
+
+pub(super) fn attribute_timeline_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    device.create_bind_group_layout(&BindGroupLayoutDesc {
+        label: "attribute timeline materialization",
+        entries: &[writable_storage(0), compute_uniform(1)],
     })
 }
 
@@ -116,6 +277,19 @@ pub(super) fn primitive_motion_layout<D: Device>(device: &D) -> D::BindGroupLayo
     })
 }
 
+pub(super) fn ligand_pose_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    device.create_bind_group_layout(&BindGroupLayoutDesc {
+        label: "group2: compact ligand poses",
+        entries: &[
+            storage_visible(7, ShaderStages::VERTEX),
+            storage_visible(8, ShaderStages::VERTEX),
+            storage_visible(9, ShaderStages::VERTEX),
+            storage_visible(10, ShaderStages::VERTEX),
+            storage_visible(11, ShaderStages::VERTEX),
+        ],
+    })
+}
+
 pub(super) fn label_render_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: visible semantic labels",
@@ -144,53 +318,7 @@ pub(super) fn label_declutter_layout<D: Device>(device: &D) -> D::BindGroupLayou
     })
 }
 
-pub(super) fn representation_layout<D: Device>(device: &D) -> D::BindGroupLayout {
-    device.create_bind_group_layout(&BindGroupLayoutDesc {
-        label: "group2: per-representation",
-        entries: &[
-            storage_visible(0, all_stages()),
-            storage_visible(1, all_stages()),
-            BindGroupLayoutEntry {
-                binding: 2,
-                visibility: ShaderStages::VERTEX.union(ShaderStages::FRAGMENT),
-                ty: BindingType::Uniform,
-            },
-            storage_visible(3, ShaderStages::VERTEX.union(ShaderStages::FRAGMENT)),
-            storage_visible(4, ShaderStages::VERTEX),
-            storage_visible(5, ShaderStages::VERTEX),
-            storage_visible(6, all_stages()),
-            storage_visible(7, ShaderStages::FRAGMENT.union(ShaderStages::COMPUTE)),
-            storage_visible(8, ShaderStages::FRAGMENT.union(ShaderStages::COMPUTE)),
-            BindGroupLayoutEntry {
-                binding: 9,
-                visibility: all_stages(),
-                ty: BindingType::Uniform,
-            },
-            BindGroupLayoutEntry {
-                binding: 10,
-                visibility: ShaderStages::FRAGMENT,
-                ty: BindingType::Texture3dFloat { filterable: false },
-            },
-            BindGroupLayoutEntry {
-                binding: 11,
-                visibility: ShaderStages::FRAGMENT,
-                ty: BindingType::Texture3dUint,
-            },
-            BindGroupLayoutEntry {
-                binding: 12,
-                visibility: ShaderStages::FRAGMENT,
-                ty: BindingType::Texture3dFloat { filterable: false },
-            },
-            storage_visible(13, all_stages()),
-            BindGroupLayoutEntry {
-                binding: 14,
-                visibility: all_stages(),
-                ty: BindingType::Uniform,
-            },
-            storage_visible(15, ShaderStages::FRAGMENT.union(ShaderStages::COMPUTE)),
-        ],
-    })
-}
+include!("layouts/representation.rs");
 
 pub(super) fn cartoon_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
@@ -212,27 +340,94 @@ pub(super) fn cartoon_layout<D: Device>(device: &D) -> D::BindGroupLayout {
                 visibility: ShaderStages::VERTEX.union(ShaderStages::FRAGMENT),
                 ty: BindingType::Uniform,
             },
+            storage_visible(4, ShaderStages::VERTEX),
+            storage_visible(5, ShaderStages::VERTEX),
+            storage_visible(6, ShaderStages::VERTEX),
+            storage_visible(7, ShaderStages::VERTEX),
+            storage_visible(8, ShaderStages::VERTEX.union(ShaderStages::FRAGMENT)),
+            storage_visible(9, ShaderStages::FRAGMENT),
+            storage_visible(10, ShaderStages::FRAGMENT),
+            storage_visible(11, ShaderStages::FRAGMENT),
+            BindGroupLayoutEntry {
+                binding: 12,
+                visibility: ShaderStages::VERTEX.union(ShaderStages::FRAGMENT),
+                ty: BindingType::Uniform,
+            },
+            storage_visible(13, ShaderStages::VERTEX),
         ],
     })
 }
 
-pub(super) fn cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(super) fn atom_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    let entries = atom_cull_entries();
     device.create_bind_group_layout(&BindGroupLayoutDesc {
-        label: "cull slot",
-        entries: &[
-            storage(0),
-            storage(1),
-            writable_storage(2),
-            writable_storage(3),
-            writable_storage(4),
-            writable_storage(5),
-            compute_uniform(6),
-            compute_uniform(7),
-            compute_uniform(8),
-            storage_visible(9, ShaderStages::COMPUTE),
-            writable_storage(10),
-        ],
+        label: "atom cull slot",
+        entries: &entries,
     })
+}
+
+fn atom_cull_entries() -> [BindGroupLayoutEntry; 11] {
+    [
+        storage_visible(0, ShaderStages::COMPUTE),
+        writable_storage(2),
+        writable_storage(4),
+        writable_storage(5),
+        compute_uniform(6),
+        compute_uniform(7),
+        compute_uniform(8),
+        storage_visible(9, ShaderStages::COMPUTE),
+        writable_storage(10),
+        writable_storage(14),
+        compute_uniform(15),
+    ]
+}
+
+pub(super) fn bond_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    let entries = bond_cull_entries();
+    device.create_bind_group_layout(&BindGroupLayoutDesc {
+        label: "bond cull slot",
+        entries: &entries,
+    })
+}
+
+fn bond_cull_entries() -> [BindGroupLayoutEntry; 12] {
+    [
+        storage_visible(0, ShaderStages::COMPUTE),
+        storage_visible(1, ShaderStages::COMPUTE),
+        writable_storage(2),
+        writable_storage(3),
+        writable_storage(4),
+        writable_storage(5),
+        compute_uniform(6),
+        compute_uniform(7),
+        compute_uniform(8),
+        storage_visible(9, ShaderStages::COMPUTE),
+        writable_storage(14),
+        compute_uniform(15),
+    ]
+}
+
+pub(super) fn visual_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    let entries = visual_cull_entries();
+    device.create_bind_group_layout(&BindGroupLayoutDesc {
+        label: "visual evaluation slot",
+        entries: &entries,
+    })
+}
+
+fn visual_cull_entries() -> [BindGroupLayoutEntry; 10] {
+    [
+        storage_visible(0, ShaderStages::COMPUTE),
+        writable_storage(2),
+        writable_storage(4),
+        compute_uniform(8),
+        storage_visible(9, ShaderStages::COMPUTE),
+        storage_visible(11, ShaderStages::COMPUTE),
+        storage_visible(12, ShaderStages::COMPUTE),
+        storage_visible(13, ShaderStages::COMPUTE),
+        writable_storage(14),
+        compute_uniform(15),
+    ]
 }
 
 pub(super) fn trajectory_layout<D: Device>(device: &D) -> D::BindGroupLayout {
@@ -248,36 +443,4 @@ pub(super) fn trajectory_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     })
 }
 
-const fn compute_uniform(binding: u32) -> BindGroupLayoutEntry {
-    BindGroupLayoutEntry {
-        binding,
-        visibility: ShaderStages::COMPUTE,
-        ty: BindingType::Uniform,
-    }
-}
-
-pub(super) fn storage(binding: u32) -> BindGroupLayoutEntry {
-    storage_visible(binding, all_stages())
-}
-
-pub(super) fn writable_storage(binding: u32) -> BindGroupLayoutEntry {
-    BindGroupLayoutEntry {
-        binding,
-        visibility: ShaderStages::COMPUTE,
-        ty: BindingType::Storage { read_only: false },
-    }
-}
-
-fn storage_visible(binding: u32, visibility: ShaderStages) -> BindGroupLayoutEntry {
-    BindGroupLayoutEntry {
-        binding,
-        visibility,
-        ty: BindingType::Storage { read_only: true },
-    }
-}
-
-fn all_stages() -> ShaderStages {
-    ShaderStages::VERTEX
-        .union(ShaderStages::FRAGMENT)
-        .union(ShaderStages::COMPUTE)
-}
+include!("layouts_helpers.rs");

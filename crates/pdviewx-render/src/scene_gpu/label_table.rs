@@ -68,7 +68,7 @@ impl<D: Device> GpuLabels<D> {
             structures,
             &mut self.headers_scratch,
             &mut self.records_scratch,
-        );
+        )?;
         let header_needed = byte_len::<LabelHeaderGpu>(self.headers_scratch.len());
         let record_needed = byte_len::<LabelGpu>(self.records_scratch.len());
         let rebind = self.headers.is_none()
