@@ -180,6 +180,7 @@ fn overlay_ramp(value: f32) -> vec3f {
 }
 
 /// Applies the scalar overlay and optional derivative-antialiased contours.
+@diagnostic(off, derivative_uniformity)
 fn scalar_overlay_color(
     local_position: vec3f,
     local_normal: vec3f,

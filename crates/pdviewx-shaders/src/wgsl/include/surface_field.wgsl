@@ -3,9 +3,6 @@
 const BVH_COUNT_SHIFT: u32 = 29u;
 const BVH_INDEX_MASK: u32 = 0x1FFFFFFFu;
 const EMPTY_COMPACT_INDEX: u32 = 0xFFFFFFFFu;
-const SURFACE_KIND_SOLVENT_EXCLUDED: u32 = 2u;
-const SURFACE_KIND_GAUSSIAN: u32 = 3u;
-
 struct BvhNode {
     min_left: vec4f,
     max_radius: vec4f,
@@ -44,7 +41,7 @@ fn union_sample(point: vec3f, probe: f32) -> DistanceSample {
         }
         let node = bvh_nodes[node_index];
         let lower_bound = distance_to_box(point, node.min_left.xyz, node.max_radius.xyz)
-            - node.max_radius.w - probe;
+            - node.max_radius.w * representation.visual.w - probe;
         if lower_bound > best.distance {
             continue;
         }
@@ -61,7 +58,9 @@ fn union_sample(point: vec3f, probe: f32) -> DistanceSample {
                 let atom = atoms[compact_index];
                 let base = source_index * 3u;
                 let center = vec3f(coords[base], coords[base + 1u], coords[base + 2u]);
-                let distance = length(point - center) - atom.radius - probe;
+                let distance = length(point - center)
+                    - atom.radius * representation.visual.w
+                    - probe;
                 if distance < best.distance {
                     best = DistanceSample(distance, compact_index);
                 }
@@ -97,8 +96,7 @@ fn gaussian_sample(point: vec3f) -> DistanceSample {
             continue;
         }
         let node = bvh_nodes[node_index];
-        let lower_bound = distance_to_box(point, node.min_left.xyz, node.max_radius.xyz)
-            - node.max_radius.w;
+        let lower_bound = distance_to_box(point, node.min_left.xyz, node.max_radius.xyz);
         if lower_bound > support {
             continue;
         }

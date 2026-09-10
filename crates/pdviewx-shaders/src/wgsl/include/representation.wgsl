@@ -6,6 +6,8 @@
 // Primitive resolution selects the retained front shell, optional clip cap,
 // or retained rear shell without constructing intermediate hit records.
 
+const SURFACE_KIND_GAUSSIAN: u32 = 3u;
+
 struct RepresentationUniforms {
     surface: vec4f,
     grid_min: vec4f,
@@ -80,6 +82,17 @@ fn representation_transform_direction(
     return transform[0].xyz * direction.x
         + transform[1].xyz * direction.y
         + transform[2].xyz * direction.z;
+}
+
+/// Transforms an affine point without computing homogeneous W.
+fn representation_transform_point(
+    transform: mat4x4f,
+    point: vec3f,
+) -> vec3f {
+    return representation_transform_direction(
+        transform,
+        point,
+    ) + transform[3].xyz;
 }
 
 /// Tests a world-space point against all active clipping half-spaces.
@@ -209,6 +222,7 @@ fn representation_clip_interval(
 /// entry-plane cap. With clipping disabled this reduces directly to the
 /// nearest positive primitive endpoint.
 fn representation_primitive_hit(
+    view_origin: vec3f,
     view_direction: vec3f,
     primitive: vec2f,
     world_from_view: mat4x4f,
@@ -236,9 +250,11 @@ fn representation_primitive_hit(
         );
     }
 
-    // Camera origin in world space is exactly the affine translation column.
     let world_origin =
-        world_from_view[3].xyz;
+        representation_transform_point(
+            world_from_view,
+            view_origin,
+        );
 
     let world_direction =
         representation_transform_direction(
