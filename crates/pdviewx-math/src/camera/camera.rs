@@ -6,7 +6,7 @@
 
 use crate::aabb::{Aabb, BoundingSphere};
 use crate::projection::Projection;
-use glam::{Mat4, Vec3, Vec4};
+use crate::{Mat4, Vec3, Vec4};
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
@@ -31,7 +31,7 @@ impl Camera {
     /// Builds a right-handed world-to-view look-at transform.
     #[must_use]
     pub fn look_at(eye: Vec3, target: Vec3, up: Vec3) -> Mat4 {
-        glam::camera::rh::view::look_at_mat4(eye, target, up)
+        glam::camera::rh::view::look_at_mat4(eye.into(), target.into(), up.into()).into()
     }
 
     /// Frames a world-space box tightly from the +Z axis with deterministic
@@ -132,7 +132,8 @@ impl Camera {
     /// The view-from-world matrix.
     #[must_use]
     pub fn view(&self) -> Mat4 {
-        glam::camera::rh::view::look_at_mat4(self.eye, self.target, self.up)
+        glam::camera::rh::view::look_at_mat4(self.eye.into(), self.target.into(), self.up.into())
+            .into()
     }
 
     /// The clip-from-world matrix: projection composed with view, in that
