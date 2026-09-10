@@ -5,22 +5,35 @@
 // instance data instead of a vertex ring. Clipped and unclipped resolution
 // are separate, keeping the clip-plane work off the common path.
 
-/// Reconstructs the perspective view-space ray direction.
-fn sphere_ray(in: SphereVsOut) -> vec3f {
-    return vec3f(
-        in.ray_xy,
-        in.center_radius.z,
+struct SphereRay {
+    origin: vec3f,
+    direction: vec3f,
+}
+
+/// Reconstructs one view-space ray for either camera projection.
+fn sphere_ray(in: SphereVsOut) -> SphereRay {
+    if frame.projection_kind.x > 0.5 {
+        return SphereRay(
+            vec3f(in.ray_xy, 0.0),
+            vec3f(0.0, 0.0, -1.0),
+        );
+    }
+
+    return SphereRay(
+        vec3f(0.0),
+        vec3f(in.ray_xy, in.center_radius.z),
     );
 }
 
 /// Solves the sphere quadratic once and retains the ray-center distance data
 /// needed by transparent soft edges.
 fn sphere_intersection(
+    origin: vec3f,
     direction: vec3f,
     center_radius: vec4f,
 ) -> SphereIntersection {
     let center =
-        center_radius.xyz;
+        center_radius.xyz - origin;
 
     let radius =
         center_radius.w;
@@ -107,12 +120,13 @@ fn sphere_surface_miss() -> SphereSurface {
 fn sphere_surface_unclipped(
     in: SphereVsOut,
 ) -> SphereSurface {
-    let direction =
+    let ray =
         sphere_ray(in);
 
     let intersection =
         sphere_intersection(
-            direction,
+            ray.origin,
+            ray.direction,
             in.center_radius,
         );
 
@@ -130,7 +144,7 @@ fn sphere_surface_unclipped(
     }
 
     let hit =
-        direction * t;
+        ray.origin + ray.direction * t;
 
     // An analytic sphere hit lies exactly radius units from its center.
     // Multiplying by the precomputed reciprocal avoids normalize().
@@ -153,12 +167,13 @@ fn sphere_surface_unclipped(
 fn sphere_surface_clipped(
     in: SphereVsOut,
 ) -> SphereSurface {
-    let direction =
+    let ray =
         sphere_ray(in);
 
     let intersection =
         sphere_intersection(
-            direction,
+            ray.origin,
+            ray.direction,
             in.center_radius,
         );
 
@@ -168,7 +183,8 @@ fn sphere_surface_clipped(
 
     let resolved =
         representation_primitive_hit(
-            direction,
+            ray.origin,
+            ray.direction,
             intersection.interval,
             frame.inv_view,
         );
@@ -178,7 +194,7 @@ fn sphere_surface_clipped(
     }
 
     let hit =
-        direction *
+        ray.origin + ray.direction *
         resolved.t;
 
     var normal: vec3f;
