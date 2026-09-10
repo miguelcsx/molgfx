@@ -13,7 +13,7 @@ fn vs_bond_capsule(
     let bond =
         bonds[visible_bonds[instance_index]];
 
-    let radius =
+    var radius =
         abs(bond.radius);
 
     var out: BondCapsuleVsOut;
@@ -35,6 +35,14 @@ fn vs_bond_capsule(
 
     let atom_b =
         atoms[bond.atom_b];
+
+    if visual_counts.visual_enabled != 0u {
+        let scale = 0.5 * (
+            atom_visual_geometry(atom_a.entity_id).z
+                + atom_visual_geometry(atom_b.entity_id).z
+        ) * 4.0;
+        radius *= scale;
+    }
 
     let world_a =
         atom_position(atom_a.entity_id);
@@ -74,10 +82,7 @@ fn vs_bond_capsule(
         );
 
     out.ray_xy =
-        vec2f(
-            ndc.x / frame.proj[0][0],
-            ndc.y / frame.proj[1][1],
-        );
+        bond_ray_xy(ndc);
 
     if bond_flat_source(vertex_index) {
         let axis =
@@ -85,10 +90,10 @@ fn vs_bond_capsule(
             endpoint_a;
 
         let color_a =
-            atom_color(atom_a.color);
+            atom_visual_color(atom_a.entity_id, atom_a.color);
 
         let color_b =
-            atom_color(atom_b.color);
+            atom_visual_color(atom_b.entity_id, atom_b.color);
 
         let motion_a =
             screen_motion(
@@ -151,6 +156,9 @@ fn vs_bond_capsule(
 
         out.entity_id =
             bond.entity_id;
+
+        out.atom_entities =
+            vec2u(atom_a.entity_id, atom_b.entity_id);
     }
 
     return out;
@@ -169,19 +177,21 @@ fn bond_capsule_miss() -> BondCapsuleHit {
 /// Resolves the nearest capsule intersection and optional clipping.
 fn bond_capsule_resolve(
     in: BondCapsuleVsOut,
-    ray: vec3f,
+    ray_origin: vec3f,
+    ray_direction: vec3f,
 ) -> RepresentationPrimitiveHit {
     let interval =
         ray_capsule_interval(
-            ray,
-            in.endpoint_a_radius.xyz,
-            in.endpoint_b_inv_axis_sq.xyz,
+            ray_direction,
+            in.endpoint_a_radius.xyz - ray_origin,
+            in.endpoint_b_inv_axis_sq.xyz - ray_origin,
             in.endpoint_a_radius.w,
         );
 
     if representation.clip_meta.x != 0u {
         return representation_primitive_hit(
-            ray,
+            ray_origin,
+            ray_direction,
             interval,
             frame.inv_view,
         );
@@ -203,16 +213,28 @@ fn bond_capsule_resolve(
 fn bond_capsule_hit(
     in: BondCapsuleVsOut,
 ) -> BondCapsuleHit {
-    let ray =
+    var ray_origin =
+        vec3f(0.0);
+
+    var ray_direction =
         vec3f(
             in.ray_xy,
             -1.0,
         );
 
+    if frame.projection_kind.x > 0.5 {
+        ray_origin =
+            vec3f(in.ray_xy, 0.0);
+
+        ray_direction =
+            vec3f(0.0, 0.0, -1.0);
+    }
+
     let resolved =
         bond_capsule_resolve(
             in,
-            ray,
+            ray_origin,
+            ray_direction,
         );
 
     if !resolved.valid {
@@ -220,7 +242,7 @@ fn bond_capsule_hit(
     }
 
     let position =
-        resolved.t * ray;
+        ray_origin + resolved.t * ray_direction;
 
     let endpoint_a =
         in.endpoint_a_radius.xyz;
@@ -312,12 +334,23 @@ fn fs_bond_capsule(
             hit.cap,
         );
 
+    let visual = bond_visual(
+        in.atom_entities,
+        hit.along,
+        vec4f(material.base, color.a),
+        hit.position,
+        hit.normal,
+    );
+    if !visual.visible {
+        discard;
+    }
+
     var out: BondFsOut;
 
     out.albedo_material =
         vec4f(
-            material.base,
-            material.material,
+            visual.color.rgb + visual.emission,
+            visual_gbuffer_payload(visual),
         );
 
     out.normal_roughness =
@@ -328,14 +361,14 @@ fn fs_bond_capsule(
                     hit.normal,
                 ),
             ),
-            material.roughness,
+            visual.roughness,
         );
 
     out.entity_id =
-        in.entity_id;
+        pick_local_row(in.entity_id);
 
-    out.structure_id =
-        model.structure_id;
+    out.resident_page =
+        model_pick_page(in.entity_id);
 
     out.motion =
         bond_motion(
@@ -376,6 +409,17 @@ fn fs_bond_capsule_transparent(
             hit.cap,
         );
 
+    let visual = bond_visual(
+        in.atom_entities,
+        hit.along,
+        vec4f(material.base, color.a),
+        hit.position,
+        hit.normal,
+    );
+    if !visual.visible {
+        discard;
+    }
+
     let depth =
         bond_view_depth(
             hit.position,
@@ -383,17 +427,17 @@ fn fs_bond_capsule_transparent(
 
     let lit =
         shade_molecule(
-            material.base,
+            visual.color.rgb,
             hit.normal,
-            material.roughness,
-            material.material,
+            visual.roughness,
+            visual_material_payload(visual),
             hit.position,
             oit_occlusion(in.position),
-        );
+        ) + visual.emission;
 
     return weighted_transparency(
         lit,
-        color.a,
+        visual.color.a,
         depth,
     );
 }
