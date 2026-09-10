@@ -1,6 +1,6 @@
 //! Python adapters for colors, scalar fields and surface overlays.
 
-use crate::core::{PyAtomPropertyHandle, PyVolumeHandle};
+use crate::core::PyVolumeHandle;
 use crate::error::core;
 use crate::math::PyRgba8;
 use pyo3::prelude::*;
@@ -31,14 +31,6 @@ impl PyColorScheme {
     fn uniform(color: PyRgba8) -> Self {
         Self(pdviewx::ColorScheme::Uniform(color.0))
     }
-    #[staticmethod]
-    fn by_property(property: PyAtomPropertyHandle, ramp: PyScalarRamp, missing: PyRgba8) -> Self {
-        Self(pdviewx::ColorScheme::ByProperty {
-            property: property.0,
-            ramp: ramp.0,
-            missing: missing.0,
-        })
-    }
     #[getter]
     fn kind(&self) -> &'static str {
         match self.0 {
@@ -49,13 +41,6 @@ impl PyColorScheme {
             pdviewx::ColorScheme::ByProperty { .. } => "by_property",
             pdviewx::ColorScheme::Uniform(_) => "uniform",
             _ => "unknown",
-        }
-    }
-    #[getter]
-    fn property(&self) -> Option<PyAtomPropertyHandle> {
-        match self.0 {
-            pdviewx::ColorScheme::ByProperty { property, .. } => Some(property.into()),
-            _ => None,
         }
     }
 }
@@ -88,6 +73,7 @@ pub(crate) enum PySurfaceStyle {
     Dots,
     FilledContour,
     Mesh,
+    SoftUnion,
 }
 
 impl From<PySurfaceStyle> for pdviewx::SurfaceStyle {
@@ -98,6 +84,7 @@ impl From<PySurfaceStyle> for pdviewx::SurfaceStyle {
             PySurfaceStyle::Dots => Self::Dots,
             PySurfaceStyle::FilledContour => Self::FilledContour,
             PySurfaceStyle::Mesh => Self::Mesh,
+            PySurfaceStyle::SoftUnion => Self::SoftUnion,
         }
     }
 }
