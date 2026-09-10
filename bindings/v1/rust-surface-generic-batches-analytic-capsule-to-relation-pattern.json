@@ -1,0 +1,825 @@
+{
+  "symbols": [
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "bindings": {
+          "AnalyticTemplate": [
+            "__init__"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/generic_batches/mod.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "AnalyticTemplate"
+        ]
+      },
+      "rust": "AnalyticCapsule",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebAnalyticTemplate",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebAnalyticTemplate",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "bindings": {
+          "AnalyticTemplate": [
+            "__init__"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/generic_batches/mod.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "AnalyticTemplate"
+        ]
+      },
+      "rust": "AnalyticSphere",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebAnalyticTemplate",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebAnalyticTemplate",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/generic_batches/mod.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "AnalyticTemplate"
+        ]
+      },
+      "rust": "AnalyticTemplate",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebAnalyticTemplate",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebAnalyticTemplate",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "bindings": {
+          "Scene": [
+            "add_scalar_attribute_from_numpy",
+            "add_category_attribute_from_numpy",
+            "add_vector_attribute_from_numpy",
+            "add_color_attribute_from_numpy"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/generic_batches/mod.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ]
+      },
+      "rust": "AttributeColumn",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "reason": "AttributeDescription is serialized through the schema-8 manifest rather than row objects.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "AttributeDescription",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "AttributeDescription is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "AttributeDescription is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/handles.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "AttributeHandle"
+        ]
+      },
+      "rust": "AttributeHandle",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebAttributeHandle",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebAttributeHandle",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "bindings": {
+          "Scene": [
+            "add_scalar_attribute_from_numpy",
+            "add_category_attribute_from_numpy",
+            "add_vector_attribute_from_numpy",
+            "add_color_attribute_from_numpy"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/generic_batches/mod.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ]
+      },
+      "rust": "AttributeKind",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "bindings": {
+          "Scene": [
+            "add_scalar_attribute_from_numpy",
+            "add_category_attribute_from_numpy",
+            "add_vector_attribute_from_numpy",
+            "add_color_attribute_from_numpy"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/generic_batches/mod.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ]
+      },
+      "rust": "AttributeValues",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "bindings": {
+          "DerivedCacheBudget": [
+            "__init__",
+            "default",
+            "cpu_bytes",
+            "gpu_bytes"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/render/config.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "DerivedCacheBudget"
+        ]
+      },
+      "rust": "DerivedCacheBudget",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "DerivedCacheBudget is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "DerivedCacheBudget is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "reason": "DerivedCacheUsage remains part of native renderer statistics.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "DerivedCacheUsage",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "DerivedCacheUsage is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "DerivedCacheUsage is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "reason": "DomainVisualDescription is represented by set_domain_visual and schema-8 manifests.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "DomainVisualDescription",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "DomainVisualDescription is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "DomainVisualDescription is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "reason": "EntitySelection is an adaptive native container; batch domain operations avoid Python row objects.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "EntitySelection",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "EntitySelection is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "EntitySelection is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "reason": "EntitySelectionRows is a native iterator over adaptive storage.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "EntitySelectionRows",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "EntitySelectionRows is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "EntitySelectionRows is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "borrowed-call",
+      "python": {
+        "reason": "GenericSceneDescriptionSources borrows native Arc payloads and has no row-object binding.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "GenericSceneDescriptionSources",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "GenericSceneDescriptionSources is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "GenericSceneDescriptionSources is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "reason": "GpuEntitySelection is renderer-owned lowering state.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "GpuEntitySelection",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "GpuEntitySelection is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "GpuEntitySelection is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "bindings": {
+          "Scene": [
+            "add_instance_batch_from_numpy"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/generic_batches/mod.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ]
+      },
+      "rust": "InstanceBatch",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "reason": "InstanceBatchDescription is serialized through schema-8 payload references.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "InstanceBatchDescription",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "InstanceBatchDescription is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "InstanceBatchDescription is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/handles.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "InstanceBatchHandle"
+        ]
+      },
+      "rust": "InstanceBatchHandle",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebInstanceBatchHandle",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebInstanceBatchHandle",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "bindings": {
+          "Scene": [
+            "add_instance_batch_from_numpy"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/generic_batches/mod.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ]
+      },
+      "rust": "InstanceStyle",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "bindings": {
+          "Scene": [
+            "add_point_batch_from_numpy"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/generic_batches/mod.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ]
+      },
+      "rust": "PointBatch",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "reason": "PointBatchDescription is serialized through schema-8 payload references.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "PointBatchDescription",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "PointBatchDescription is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "PointBatchDescription is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/handles.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "PointBatchHandle"
+        ]
+      },
+      "rust": "PointBatchHandle",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebPointBatchHandle",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebPointBatchHandle",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "bindings": {
+          "Scene": [
+            "add_point_batch_from_numpy"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/generic_batches/mod.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ]
+      },
+      "rust": "PointGlyph",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "bindings": {
+          "Scene": [
+            "add_point_batch_from_numpy"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/generic_batches/mod.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ]
+      },
+      "rust": "PointStyle",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "bindings": {
+          "Scene": [
+            "add_world_relations_from_numpy",
+            "add_entity_relations_from_numpy"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/generic_batches/mod.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ]
+      },
+      "rust": "Relation",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "bindings": {
+          "Scene": [
+            "add_world_relations_from_numpy",
+            "add_entity_relations_from_numpy"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/generic_batches/mod.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ]
+      },
+      "rust": "RelationBatch",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebScene",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "reason": "RelationBatchDescription is serialized through schema-8 payload references.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "RelationBatchDescription",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "RelationBatchDescription is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "RelationBatchDescription is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/handles.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "RelationBatchHandle"
+        ]
+      },
+      "rust": "RelationBatchHandle",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebRelationBatchHandle",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "name": "WebRelationBatchHandle",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "reason": "RelationDependency is validated internally when a batch is inserted.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "RelationDependency",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "RelationDependency is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "RelationDependency is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "reason": "RelationLayout is selected internally from contiguous endpoint arrays.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "RelationLayout",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "RelationLayout is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "RelationLayout is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "reason": "RelationPartition is renderer lowering metadata, not a row-object API.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "RelationPartition",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "RelationPartition is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "RelationPartition is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "reason": "RelationPattern currently uses the solid portable batch adapter.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "RelationPattern",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "RelationPattern is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "gap": "RelationPattern is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    }
+  ]
+}
