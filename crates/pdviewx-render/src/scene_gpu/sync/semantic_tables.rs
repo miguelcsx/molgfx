@@ -2,23 +2,77 @@
 
 use super::GpuScene;
 use crate::error::RenderError;
+use crate::scene_gpu::generic_visual::GenericVisualResources;
+use crate::scene_gpu::instance_batch_table::InstanceBatchSync;
+use crate::scene_gpu::interaction_table::RelationSources;
+use crate::scene_gpu::point_batch_table::PointBatchSync;
 use crate::scene_gpu::primitive_table::PrimitiveLayouts;
 use pdviewx_core::Scene;
 use pdviewx_gpu::Device;
 
 impl<D: Device> GpuScene<D> {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn sync_semantic_tables(
         &mut self,
         device: &D,
         queue: &D::Queue,
         scene: &Scene,
+        quality: bool,
+        extent: [u32; 2],
+        dynamic_sources_changed: bool,
+        derived_cache: &mut crate::DerivedCache,
+        derived_frame: u64,
     ) -> Result<bool, RenderError> {
-        let mut changed = self.interactions.sync(
+        let mut changed = self.visual_fallback.sync(queue);
+        let visual_resources = GenericVisualResources {
+            programs: &self.visual_programs,
+            parameters: &self.visual_parameters,
+            properties: &self.visual_properties,
+            fallback: self.visual_fallback.entries(),
+            parameter_slot_base: self.slots.len(),
+            time_seconds: scene.presentation_time_seconds(),
+        };
+        changed |= self.point_batches.sync(&mut PointBatchSync {
+            device,
+            queue,
+            cull_layout: &self.generic_point_cull_layout,
+            render_layout: &self.generic_point_render_layout,
+            timeline_layout: &self.instance_timeline_layout,
+            scene,
+            picking: &self.picking_pages,
+            extent,
+            visual: visual_resources,
+            derived_cache,
+            frame: derived_frame,
+        })?;
+        changed |= self.instance_batches.sync(&mut InstanceBatchSync {
+            device,
+            queue,
+            cull_layout: &self.generic_instance_cull_layout,
+            render_layout: &self.generic_instance_render_layout,
+            timeline_layout: &self.instance_timeline_layout,
+            scene,
+            picking: &self.picking_pages,
+            visual: visual_resources,
+            derived_cache,
+            frame: derived_frame,
+        })?;
+        changed |= self.interactions.sync(
             device,
             queue,
             &self.interaction_layout,
+            &self.relation_cull_layout,
+            &self.relation_resolve_layout,
             scene,
-            &self.structures,
+            RelationSources {
+                structures: &self.structures,
+                asset_arena: &self.asset_arena,
+                points: &self.point_batches,
+                instances: &self.instance_batches,
+            },
+            &self.picking_pages,
+            dynamic_sources_changed,
+            visual_resources,
         )?;
         changed |= self.primitive.sync(
             device,
@@ -30,6 +84,14 @@ impl<D: Device> GpuScene<D> {
             },
             scene,
             &self.structures,
+        )?;
+        changed |= self.ligand_poses.sync(
+            device,
+            queue,
+            &self.ligand_pose_layout,
+            scene,
+            &self.structures,
+            quality,
         )?;
         changed |= self.labels.sync(
             device,
