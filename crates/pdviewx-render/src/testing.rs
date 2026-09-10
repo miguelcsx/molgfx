@@ -2,20 +2,36 @@
 //! testable without a GPU.
 
 use pdviewx_gpu::{
-    BindGroupDesc, BindGroupLayoutDesc, BufferDesc, Capabilities, ComputePassDesc,
+    BindGroupDesc, BindGroupLayoutDesc, BindingType, BufferDesc, Capabilities, ComputePassDesc,
     ComputePipelineDesc, DeviceDesc, GpuError, Opened, RenderPassDesc, RenderPipelineDesc,
-    SamplerDesc, ShaderModuleDesc, SurfaceConfig, SurfaceError, TextureDesc, TextureFormat,
-    TextureViewDesc, WindowTarget,
+    SamplerDesc, ShaderModuleDesc, ShaderStages, SurfaceConfig, SurfaceError, TextureDesc,
+    TextureFormat, TextureViewDesc, WindowTarget,
 };
 use std::ops::Range;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-
+/// One buffer-range binding observed by the mock backend.
+pub type MockBufferBinding = (&'static str, u32, u32, u64, u64);
+/// Per-stage storage usage carried by a mock bind-group layout.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct MockBindGroupLayout {
+    storage_counts: [u32; 3],
+}
 /// Everything the mock observed, shared across handles.
 #[derive(Debug)]
 pub struct MockLog {
+    /// Physical buffers created as (id, label, byte size).
+    pub buffers: Mutex<Vec<(u32, &'static str, u64)>>,
     /// (buffer id, offset, byte length, source pointer) per write.
     pub writes: Mutex<Vec<(u32, u64, usize, usize)>>,
+    /// Exact bytes observed by each buffer write, for upload assertions.
+    pub write_payloads: Mutex<Vec<Vec<u8>>>,
+    /// GPU-to-GPU buffer copies as (source, destination, bytes).
+    pub buffer_copies: Mutex<Vec<(u32, u32, u64)>>,
+    /// Bound buffer ranges as (group label, binding, buffer, offset, size).
+    pub buffer_bindings: Mutex<Vec<MockBufferBinding>>,
+    /// Storage-buffer counts per shader stage for every created layout.
+    pub bind_group_layouts: Mutex<Vec<(&'static str, [u32; 3])>>,
     /// (texture label, byte length, source pointer) per upload.
     pub texture_writes: Mutex<Vec<(&'static str, usize, usize)>>,
     /// Draw calls: (pipeline set count irrelevant) — records direct draws.
@@ -24,35 +40,68 @@ pub struct MockLog {
     pub indirect_draws: Mutex<Vec<(u32, u64)>>,
     /// Compute dispatches.
     pub dispatches: Mutex<Vec<(u32, u32, u32)>>,
+    /// Compute passes in command-recording order.
+    pub compute_passes: Mutex<Vec<&'static str>>,
     /// Created textures by label.
     pub textures: Mutex<Vec<&'static str>>,
     /// Created texture extents by label.
     pub texture_extents: Mutex<Vec<(&'static str, [u32; 3])>>,
+    /// Created texture formats by label.
+    pub texture_formats: Mutex<Vec<(&'static str, TextureFormat)>>,
     /// Submissions.
     pub submits: Mutex<u32>,
+    /// Greatest submission issued by the mock queue.
+    pub submitted_fence: AtomicU64,
+    /// Greatest submission explicitly completed by a test.
+    pub completed_fence: AtomicU64,
     /// Source id returned by categorical pick fixtures.
     pub segment_pick_source: Mutex<u32>,
     /// Label returned by categorical pick fixtures.
     pub segment_pick_label: Mutex<u32>,
+    /// Local row returned by molecular pick fixtures.
+    pub pick_local_row: Mutex<u32>,
+    /// Resident page returned by molecular pick fixtures.
+    pub pick_resident_page: Mutex<u32>,
+    /// BLAS builds recorded by the hardware quality path.
+    pub blas_builds: AtomicU32,
+    /// TLAS builds recorded by the hardware quality path.
+    pub tlas_builds: AtomicU32,
+    /// Acceleration structures allocated by the quality path.
+    pub acceleration_allocations: AtomicU32,
+    /// Makes the next acceleration operation fail as device loss.
+    pub fail_ray_query: std::sync::atomic::AtomicBool,
 }
-
 impl Default for MockLog {
     fn default() -> Self {
         Self {
+            buffers: Mutex::default(),
             writes: Mutex::default(),
+            write_payloads: Mutex::default(),
+            buffer_copies: Mutex::default(),
+            buffer_bindings: Mutex::default(),
+            bind_group_layouts: Mutex::default(),
             texture_writes: Mutex::default(),
             draws: Mutex::default(),
             indirect_draws: Mutex::default(),
             dispatches: Mutex::default(),
+            compute_passes: Mutex::default(),
             textures: Mutex::default(),
             texture_extents: Mutex::default(),
+            texture_formats: Mutex::default(),
             submits: Mutex::default(),
+            submitted_fence: AtomicU64::new(0),
+            completed_fence: AtomicU64::new(0),
             segment_pick_source: Mutex::new(u32::MAX),
             segment_pick_label: Mutex::new(0),
+            pick_local_row: Mutex::new(0),
+            pick_resident_page: Mutex::new(0),
+            blas_builds: AtomicU32::new(0),
+            tlas_builds: AtomicU32::new(0),
+            acceleration_allocations: AtomicU32::new(0),
+            fail_ray_query: std::sync::atomic::AtomicBool::new(false),
         }
     }
 }
-
 /// The mock device.
 #[derive(Debug, Clone)]
 pub struct MockDevice {
@@ -69,6 +118,7 @@ impl Default for MockDevice {
             capabilities: Capabilities {
                 flags: pdviewx_gpu::CapabilityFlags::empty(),
                 max_storage_buffer_bytes: 1 << 30,
+                max_storage_buffers_per_shader_stage: 8,
                 max_texture_dim: 16_384,
                 max_texture_dim_3d: 2_048,
             },
@@ -98,6 +148,39 @@ impl MockDevice {
             surface: Some(surface),
         }
     }
+
+    pub(crate) fn queue(&self) -> MockQueue {
+        MockQueue {
+            log: Arc::clone(&self.log),
+        }
+    }
+
+    pub(crate) fn with_storage_limit(max_storage_buffer_bytes: u64) -> Self {
+        let mut device = Self::default();
+        device.capabilities.max_storage_buffer_bytes = max_storage_buffer_bytes;
+        device
+    }
+
+    pub(crate) fn with_ray_query() -> Self {
+        let mut device = Self::default();
+        device.capabilities.flags |= pdviewx_gpu::CapabilityFlags::RAY_QUERY;
+        device
+    }
+
+    pub(crate) fn with_timestamp_queries() -> Self {
+        let mut device = Self::default();
+        device.capabilities.flags |= pdviewx_gpu::CapabilityFlags::TIMESTAMP_QUERIES;
+        device
+    }
+
+    pub(crate) fn fail_next_ray_query(&self) {
+        self.log.fail_ray_query.store(true, Ordering::Release);
+    }
+
+    pub(crate) fn complete_submissions(&self) {
+        let submitted = self.log.submitted_fence.load(Ordering::Acquire);
+        self.log.completed_fence.store(submitted, Ordering::Release);
+    }
 }
 
 /// A mock buffer, identified for the log.
@@ -112,6 +195,16 @@ pub struct MockBuffer {
 /// A mock timestamp query set.
 #[derive(Debug)]
 pub struct MockQuerySet;
+
+/// Mock bottom-level acceleration structure.
+#[derive(Debug)]
+pub struct MockBlas;
+
+/// Mock top-level acceleration structure.
+#[derive(Debug)]
+pub struct MockTlas {
+    instances: Vec<bool>,
+}
 
 /// A mock texture; carries its creation label.
 #[derive(Debug)]
@@ -190,6 +283,9 @@ impl pdviewx_gpu::Queue<MockDevice> for MockQueue {
         if let Ok(mut writes) = self.log.writes.lock() {
             writes.push((buffer.id, offset, data.len(), data.as_ptr() as usize));
         }
+        if let Ok(mut payloads) = self.log.write_payloads.lock() {
+            payloads.push(data.to_vec());
+        }
     }
 
     fn write_texture(&self, texture: &MockTexture, write: &pdviewx_gpu::TextureWrite<'_>) {
@@ -202,6 +298,20 @@ impl pdviewx_gpu::Queue<MockDevice> for MockQueue {
         if let Ok(mut submits) = self.log.submits.lock() {
             *submits += 1;
         }
+    }
+
+    fn submit_tracked(&self, _encoder: MockEncoder) -> pdviewx_gpu::FenceValue {
+        if let Ok(mut submits) = self.log.submits.lock() {
+            *submits += 1;
+        }
+        let fence = self.log.submitted_fence.fetch_add(1, Ordering::AcqRel) + 1;
+        pdviewx_gpu::FenceValue(fence)
+    }
+
+    fn completed_fence(&self, _device: &MockDevice) -> Result<pdviewx_gpu::FenceValue, GpuError> {
+        Ok(pdviewx_gpu::FenceValue(
+            self.log.completed_fence.load(Ordering::Acquire),
+        ))
     }
 
     async fn read_buffer_async(
@@ -233,7 +343,17 @@ impl pdviewx_gpu::Queue<MockDevice> for MockQueue {
 fn mock_readback(size: u64, label: &'static str, log: &Arc<MockLog>) -> Result<Vec<u8>, GpuError> {
     let length = usize::try_from(size).map_err(|_| GpuError::DeviceLost)?;
     let mut bytes = vec![0; length];
-    if label == "segment volume pick readback" {
+    if label == "local row pick readback" {
+        let row = log.pick_local_row.lock().map_or(u32::MAX, |row| *row);
+        if let Some(word) = bytes.get_mut(..4) {
+            word.copy_from_slice(&row.to_le_bytes());
+        }
+    } else if label == "resident page pick readback" {
+        let page = log.pick_resident_page.lock().map_or(u32::MAX, |page| *page);
+        if let Some(word) = bytes.get_mut(..4) {
+            word.copy_from_slice(&page.to_le_bytes());
+        }
+    } else if label == "segment volume pick readback" {
         let source = log
             .segment_pick_source
             .lock()
@@ -260,19 +380,25 @@ impl pdviewx_gpu::CommandEncoder<MockDevice> for MockEncoder {
 
     fn begin_compute_pass<'e>(
         &'e mut self,
-        _desc: &ComputePassDesc<'_, MockDevice>,
+        desc: &ComputePassDesc<'_, MockDevice>,
     ) -> MockPass<'e> {
+        if let Ok(mut passes) = self.log.compute_passes.lock() {
+            passes.push(desc.label);
+        }
         MockPass { log: &self.log }
     }
 
     fn copy_buffer_to_buffer(
         &mut self,
-        _s: &MockBuffer,
+        source: &MockBuffer,
         _so: u64,
-        _d: &MockBuffer,
+        destination: &MockBuffer,
         _do_: u64,
-        _n: u64,
+        bytes: u64,
     ) {
+        if let Ok(mut copies) = self.log.buffer_copies.lock() {
+            copies.push((source.id, destination.id, bytes));
+        }
     }
 
     fn copy_texture_to_buffer(
@@ -292,6 +418,29 @@ impl pdviewx_gpu::CommandEncoder<MockDevice> for MockEncoder {
         _dst: &MockBuffer,
         _offset: u64,
     ) {
+    }
+
+    fn build_blas(
+        &mut self,
+        _desc: &pdviewx_gpu::BlasBuildDesc<'_, MockDevice>,
+    ) -> Result<(), GpuError> {
+        fail_mock_ray_query(&self.log)?;
+        self.log.blas_builds.fetch_add(1, Ordering::Relaxed);
+        Ok(())
+    }
+
+    fn build_tlas(&mut self, _tlas: &MockTlas) -> Result<(), GpuError> {
+        fail_mock_ray_query(&self.log)?;
+        self.log.tlas_builds.fetch_add(1, Ordering::Relaxed);
+        Ok(())
+    }
+}
+
+fn fail_mock_ray_query(log: &MockLog) -> Result<(), GpuError> {
+    if log.fail_ray_query.swap(false, Ordering::AcqRel) {
+        Err(GpuError::DeviceLost)
+    } else {
+        Ok(())
     }
 }
 
@@ -320,99 +469,4 @@ impl pdviewx_gpu::ComputePassEncoder<MockDevice> for MockPass<'_> {
     }
 }
 
-impl pdviewx_gpu::Device for MockDevice {
-    type Buffer = MockBuffer;
-    type Texture = MockTexture;
-    type TextureView = MockView;
-    type Sampler = ();
-    type ShaderModule = ();
-    type BindGroupLayout = ();
-    type BindGroup = u32;
-    type Pipeline = u32;
-    type QuerySet = MockQuerySet;
-    type CommandEncoder = MockEncoder;
-    type Queue = MockQueue;
-    type Surface = MockSurface;
-
-    async fn open_async(
-        _desc: &DeviceDesc,
-        _window: Option<WindowTarget>,
-    ) -> Result<Opened<Self>, GpuError> {
-        Ok(Self::opened())
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    fn open_blocking(
-        _desc: &DeviceDesc,
-        _window: Option<WindowTarget>,
-    ) -> Result<Opened<Self>, GpuError> {
-        Ok(Self::opened())
-    }
-
-    fn create_buffer(&self, desc: &BufferDesc) -> Result<MockBuffer, GpuError> {
-        Ok(MockBuffer {
-            id: self.next_id.fetch_add(1, Ordering::Relaxed),
-            label: desc.label,
-        })
-    }
-
-    fn create_texture(&self, desc: &TextureDesc) -> Result<MockTexture, GpuError> {
-        if let Ok(mut textures) = self.log.textures.lock() {
-            textures.push(desc.label);
-        }
-        if let Ok(mut extents) = self.log.texture_extents.lock() {
-            extents.push((desc.label, [desc.width, desc.height, desc.depth]));
-        }
-        Ok(MockTexture(desc.label))
-    }
-
-    fn create_texture_view(&self, texture: &MockTexture, _desc: &TextureViewDesc) -> MockView {
-        MockView(texture.0)
-    }
-
-    fn create_sampler(&self, _desc: &SamplerDesc) {}
-
-    fn create_shader_module(&self, _desc: &ShaderModuleDesc<'_>) -> Result<(), GpuError> {
-        Ok(())
-    }
-
-    fn create_bind_group_layout(&self, _desc: &BindGroupLayoutDesc<'_>) {}
-
-    fn create_bind_group(&self, _desc: &BindGroupDesc<'_, Self>) -> u32 {
-        0
-    }
-
-    fn create_render_pipeline(
-        &self,
-        _desc: &RenderPipelineDesc<'_, Self>,
-    ) -> Result<u32, GpuError> {
-        Ok(0)
-    }
-
-    fn create_compute_pipeline(
-        &self,
-        _desc: &ComputePipelineDesc<'_, Self>,
-    ) -> Result<u32, GpuError> {
-        Ok(0)
-    }
-
-    fn create_command_encoder(&self) -> MockEncoder {
-        MockEncoder {
-            log: Arc::clone(&self.log),
-        }
-    }
-
-    fn create_timestamp_query_set(&self, _count: u32) -> Result<MockQuerySet, GpuError> {
-        if self.capabilities.timestamp_queries() {
-            Ok(MockQuerySet)
-        } else {
-            Err(GpuError::Capability {
-                name: "timestamp queries",
-            })
-        }
-    }
-
-    fn capabilities(&self) -> &Capabilities {
-        &self.capabilities
-    }
-}
+mod device;
