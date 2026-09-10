@@ -1,0 +1,798 @@
+{
+  "symbols": [
+    {
+      "declaration": "class BackdropStyle:\n    def __init__(self, top: Rgba8 | None = ..., bottom: Rgba8 | None = ..., glow_color: Rgba8 | None = ..., glow_strength: float = ...) -> None: ...\n    @staticmethod\n    def compositing() -> BackdropStyle: ...\n    @staticmethod\n    def transparent() -> BackdropStyle: ...\n    @staticmethod\n    def studio() -> BackdropStyle: ...\n    top: Rgba8\n    bottom: Rgba8\n    glow_color: Rgba8\n    glow_strength: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, top: Rgba8 | None = ..., bottom: Rgba8 | None = ..., glow_color: Rgba8 | None = ..., glow_strength: float = ...) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "compositing",
+          "ownership": "borrowed-call",
+          "signature": "def compositing() -> BackdropStyle: ..."
+        },
+        {
+          "kind": "method",
+          "name": "transparent",
+          "ownership": "borrowed-call",
+          "signature": "def transparent() -> BackdropStyle: ..."
+        },
+        {
+          "kind": "method",
+          "name": "studio",
+          "ownership": "borrowed-call",
+          "signature": "def studio() -> BackdropStyle: ..."
+        },
+        {
+          "kind": "property",
+          "name": "top",
+          "ownership": "copied-value",
+          "signature": "top: Rgba8"
+        },
+        {
+          "kind": "property",
+          "name": "bottom",
+          "ownership": "copied-value",
+          "signature": "bottom: Rgba8"
+        },
+        {
+          "kind": "property",
+          "name": "glow_color",
+          "ownership": "copied-value",
+          "signature": "glow_color: Rgba8"
+        },
+        {
+          "kind": "property",
+          "name": "glow_strength",
+          "ownership": "copied-value",
+          "signature": "glow_strength: float"
+        }
+      ],
+      "name": "BackdropStyle",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyBackdropStyle",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/profile/context.rs"
+      }
+    },
+    {
+      "declaration": "class BloomStyle:\n    def __init__(self, threshold: float = ..., intensity: float = ..., radius: float = ...) -> None: ...\n    @staticmethod\n    def cinematic() -> BloomStyle: ...\n    threshold: float\n    intensity: float\n    radius: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, threshold: float = ..., intensity: float = ..., radius: float = ...) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "cinematic",
+          "ownership": "borrowed-call",
+          "signature": "def cinematic() -> BloomStyle: ..."
+        },
+        {
+          "kind": "property",
+          "name": "threshold",
+          "ownership": "copied-value",
+          "signature": "threshold: float"
+        },
+        {
+          "kind": "property",
+          "name": "intensity",
+          "ownership": "copied-value",
+          "signature": "intensity: float"
+        },
+        {
+          "kind": "property",
+          "name": "radius",
+          "ownership": "copied-value",
+          "signature": "radius: float"
+        }
+      ],
+      "name": "BloomStyle",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyBloomStyle",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/profile/effects.rs"
+      }
+    },
+    {
+      "declaration": "class DisplayTransform:\n    def __init__(self, exposure_ev: float = ..., contrast: float = ..., saturation: float = ..., vignette_strength: float = ..., tone_mapping: ToneMapping | None = ..., gamut: DisplayGamut | None = ..., transfer: TransferFunction | None = ..., peak_luminance_nits: float = ...) -> None: ...\n    @staticmethod\n    def cinematic() -> DisplayTransform: ...\n    exposure_ev: float\n    contrast: float\n    saturation: float\n    vignette_strength: float\n    tone_mapping: ToneMapping\n    gamut: DisplayGamut\n    transfer: TransferFunction\n    peak_luminance_nits: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, exposure_ev: float = ..., contrast: float = ..., saturation: float = ..., vignette_strength: float = ..., tone_mapping: ToneMapping | None = ..., gamut: DisplayGamut | None = ..., transfer: TransferFunction | None = ..., peak_luminance_nits: float = ...) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "cinematic",
+          "ownership": "borrowed-call",
+          "signature": "def cinematic() -> DisplayTransform: ..."
+        },
+        {
+          "kind": "property",
+          "name": "exposure_ev",
+          "ownership": "copied-value",
+          "signature": "exposure_ev: float"
+        },
+        {
+          "kind": "property",
+          "name": "contrast",
+          "ownership": "copied-value",
+          "signature": "contrast: float"
+        },
+        {
+          "kind": "property",
+          "name": "saturation",
+          "ownership": "copied-value",
+          "signature": "saturation: float"
+        },
+        {
+          "kind": "property",
+          "name": "vignette_strength",
+          "ownership": "copied-value",
+          "signature": "vignette_strength: float"
+        },
+        {
+          "kind": "property",
+          "name": "tone_mapping",
+          "ownership": "copied-value",
+          "signature": "tone_mapping: ToneMapping"
+        },
+        {
+          "kind": "property",
+          "name": "gamut",
+          "ownership": "copied-value",
+          "signature": "gamut: DisplayGamut"
+        },
+        {
+          "kind": "property",
+          "name": "transfer",
+          "ownership": "copied-value",
+          "signature": "transfer: TransferFunction"
+        },
+        {
+          "kind": "property",
+          "name": "peak_luminance_nits",
+          "ownership": "copied-value",
+          "signature": "peak_luminance_nits: float"
+        }
+      ],
+      "name": "DisplayTransform",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyDisplayTransform",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/profile/display.rs"
+      }
+    },
+    {
+      "declaration": "class LightingEnvironment:\n    def __init__(\n        self,\n        zenith: Rgba8 | None = ...,\n        horizon: Rgba8 | None = ...,\n        ground: Rgba8 | None = ...,\n        rim_color: Rgba8 | None = ...,\n        key_color: Rgba8 | None = ...,\n        fill_color: Rgba8 | None = ...,\n        key_direction: Vec3 | None = ...,\n        fill_direction: Vec3 | None = ...,\n        diffuse_strength: float = ...,\n        specular_strength: float = ...,\n        rim_strength: float = ...,\n        key_strength: float = ...,\n        fill_strength: float = ...,\n        key_angular_radius: float = ...,\n        shadow_strength: float = ...,\n    ) -> None: ...\n    @staticmethod\n    def neutral() -> LightingEnvironment: ...\n    @staticmethod\n    def documentary() -> LightingEnvironment: ...\n    zenith: Rgba8\n    horizon: Rgba8\n    ground: Rgba8\n    rim_color: Rgba8\n    key_color: Rgba8\n    fill_color: Rgba8\n    key_direction: Vec3\n    fill_direction: Vec3\n    diffuse_strength: float\n    specular_strength: float\n    rim_strength: float\n    key_strength: float\n    fill_strength: float\n    key_angular_radius: float\n    shadow_strength: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__("
+        },
+        {
+          "kind": "method",
+          "name": "neutral",
+          "ownership": "borrowed-call",
+          "signature": "def neutral() -> LightingEnvironment: ..."
+        },
+        {
+          "kind": "method",
+          "name": "documentary",
+          "ownership": "borrowed-call",
+          "signature": "def documentary() -> LightingEnvironment: ..."
+        },
+        {
+          "kind": "property",
+          "name": "zenith",
+          "ownership": "copied-value",
+          "signature": "zenith: Rgba8"
+        },
+        {
+          "kind": "property",
+          "name": "horizon",
+          "ownership": "copied-value",
+          "signature": "horizon: Rgba8"
+        },
+        {
+          "kind": "property",
+          "name": "ground",
+          "ownership": "copied-value",
+          "signature": "ground: Rgba8"
+        },
+        {
+          "kind": "property",
+          "name": "rim_color",
+          "ownership": "copied-value",
+          "signature": "rim_color: Rgba8"
+        },
+        {
+          "kind": "property",
+          "name": "key_color",
+          "ownership": "copied-value",
+          "signature": "key_color: Rgba8"
+        },
+        {
+          "kind": "property",
+          "name": "fill_color",
+          "ownership": "copied-value",
+          "signature": "fill_color: Rgba8"
+        },
+        {
+          "kind": "property",
+          "name": "key_direction",
+          "ownership": "copied-value",
+          "signature": "key_direction: Vec3"
+        },
+        {
+          "kind": "property",
+          "name": "fill_direction",
+          "ownership": "copied-value",
+          "signature": "fill_direction: Vec3"
+        },
+        {
+          "kind": "property",
+          "name": "diffuse_strength",
+          "ownership": "copied-value",
+          "signature": "diffuse_strength: float"
+        },
+        {
+          "kind": "property",
+          "name": "specular_strength",
+          "ownership": "copied-value",
+          "signature": "specular_strength: float"
+        },
+        {
+          "kind": "property",
+          "name": "rim_strength",
+          "ownership": "copied-value",
+          "signature": "rim_strength: float"
+        },
+        {
+          "kind": "property",
+          "name": "key_strength",
+          "ownership": "copied-value",
+          "signature": "key_strength: float"
+        },
+        {
+          "kind": "property",
+          "name": "fill_strength",
+          "ownership": "copied-value",
+          "signature": "fill_strength: float"
+        },
+        {
+          "kind": "property",
+          "name": "key_angular_radius",
+          "ownership": "copied-value",
+          "signature": "key_angular_radius: float"
+        },
+        {
+          "kind": "property",
+          "name": "shadow_strength",
+          "ownership": "copied-value",
+          "signature": "shadow_strength: float"
+        }
+      ],
+      "name": "LightingEnvironment",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyLightingEnvironment",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/profile/context.rs"
+      }
+    },
+    {
+      "declaration": "class IllustrationStyle:\n    def __init__(self, silhouette_strength: float = ..., cavity_strength: float = ..., depth_cue_strength: float = ..., posterize_levels: float = ..., motion_persistence: float = ..., outline_width: float = ...) -> None: ...\n    @staticmethod\n    def publication() -> IllustrationStyle: ...\n    silhouette_strength: float\n    cavity_strength: float\n    depth_cue_strength: float\n    posterize_levels: float\n    motion_persistence: float\n    outline_width: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, silhouette_strength: float = ..., cavity_strength: float = ..., depth_cue_strength: float = ..., posterize_levels: float = ..., motion_persistence: float = ..., outline_width: float = ...) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "publication",
+          "ownership": "borrowed-call",
+          "signature": "def publication() -> IllustrationStyle: ..."
+        },
+        {
+          "kind": "property",
+          "name": "silhouette_strength",
+          "ownership": "copied-value",
+          "signature": "silhouette_strength: float"
+        },
+        {
+          "kind": "property",
+          "name": "cavity_strength",
+          "ownership": "copied-value",
+          "signature": "cavity_strength: float"
+        },
+        {
+          "kind": "property",
+          "name": "depth_cue_strength",
+          "ownership": "copied-value",
+          "signature": "depth_cue_strength: float"
+        },
+        {
+          "kind": "property",
+          "name": "posterize_levels",
+          "ownership": "copied-value",
+          "signature": "posterize_levels: float"
+        },
+        {
+          "kind": "property",
+          "name": "motion_persistence",
+          "ownership": "copied-value",
+          "signature": "motion_persistence: float"
+        },
+        {
+          "kind": "property",
+          "name": "outline_width",
+          "ownership": "copied-value",
+          "signature": "outline_width: float"
+        }
+      ],
+      "name": "IllustrationStyle",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyIllustrationStyle",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/profile/context.rs"
+      }
+    },
+    {
+      "declaration": "class DepthOfField:\n    def __init__(self, focal_length_mm: float = ..., f_number: float = ..., sensor_width_mm: float = ..., max_blur_pixels: float = ..., blade_count: int = ..., focus: FocusTarget | None = ...) -> None: ...\n    @staticmethod\n    def cinematic() -> DepthOfField: ...\n    focal_length_mm: float\n    f_number: float\n    sensor_width_mm: float\n    max_blur_pixels: float\n    blade_count: int\n    focus: FocusTarget",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, focal_length_mm: float = ..., f_number: float = ..., sensor_width_mm: float = ..., max_blur_pixels: float = ..., blade_count: int = ..., focus: FocusTarget | None = ...) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "cinematic",
+          "ownership": "borrowed-call",
+          "signature": "def cinematic() -> DepthOfField: ..."
+        },
+        {
+          "kind": "property",
+          "name": "focal_length_mm",
+          "ownership": "copied-value",
+          "signature": "focal_length_mm: float"
+        },
+        {
+          "kind": "property",
+          "name": "f_number",
+          "ownership": "copied-value",
+          "signature": "f_number: float"
+        },
+        {
+          "kind": "property",
+          "name": "sensor_width_mm",
+          "ownership": "copied-value",
+          "signature": "sensor_width_mm: float"
+        },
+        {
+          "kind": "property",
+          "name": "max_blur_pixels",
+          "ownership": "copied-value",
+          "signature": "max_blur_pixels: float"
+        },
+        {
+          "kind": "property",
+          "name": "blade_count",
+          "ownership": "copied-value",
+          "signature": "blade_count: int"
+        },
+        {
+          "kind": "property",
+          "name": "focus",
+          "ownership": "copied-value",
+          "signature": "focus: FocusTarget"
+        }
+      ],
+      "name": "DepthOfField",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyDepthOfField",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/profile/effects.rs"
+      }
+    },
+    {
+      "declaration": "class MotionBlur:\n    def __init__(self, shutter: float = ..., max_blur_pixels: float = ...) -> None: ...\n    @staticmethod\n    def cinematic() -> MotionBlur: ...\n    shutter: float\n    max_blur_pixels: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, shutter: float = ..., max_blur_pixels: float = ...) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "cinematic",
+          "ownership": "borrowed-call",
+          "signature": "def cinematic() -> MotionBlur: ..."
+        },
+        {
+          "kind": "property",
+          "name": "shutter",
+          "ownership": "copied-value",
+          "signature": "shutter: float"
+        },
+        {
+          "kind": "property",
+          "name": "max_blur_pixels",
+          "ownership": "copied-value",
+          "signature": "max_blur_pixels: float"
+        }
+      ],
+      "name": "MotionBlur",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyMotionBlur",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/profile/effects.rs"
+      }
+    },
+    {
+      "declaration": "class PresentationEffect:\n    @staticmethod\n    def illustration(style: IllustrationStyle) -> PresentationEffect: ...\n    @staticmethod\n    def depth_of_field(settings: DepthOfField) -> PresentationEffect: ...\n    @staticmethod\n    def motion_blur(settings: MotionBlur) -> PresentationEffect: ...\n    @staticmethod\n    def backdrop(value: BackdropStyle) -> PresentationEffect: ...\n    @staticmethod\n    def lighting(value: LightingEnvironment) -> PresentationEffect: ...\n    @staticmethod\n    def display(value: DisplayTransform) -> PresentationEffect: ...\n    @staticmethod\n    def bloom(value: BloomStyle) -> PresentationEffect: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "illustration",
+          "ownership": "borrowed-call",
+          "signature": "def illustration(style: IllustrationStyle) -> PresentationEffect: ..."
+        },
+        {
+          "kind": "method",
+          "name": "depth_of_field",
+          "ownership": "borrowed-call",
+          "signature": "def depth_of_field(settings: DepthOfField) -> PresentationEffect: ..."
+        },
+        {
+          "kind": "method",
+          "name": "motion_blur",
+          "ownership": "borrowed-call",
+          "signature": "def motion_blur(settings: MotionBlur) -> PresentationEffect: ..."
+        },
+        {
+          "kind": "method",
+          "name": "backdrop",
+          "ownership": "borrowed-call",
+          "signature": "def backdrop(value: BackdropStyle) -> PresentationEffect: ..."
+        },
+        {
+          "kind": "method",
+          "name": "lighting",
+          "ownership": "borrowed-call",
+          "signature": "def lighting(value: LightingEnvironment) -> PresentationEffect: ..."
+        },
+        {
+          "kind": "method",
+          "name": "display",
+          "ownership": "borrowed-call",
+          "signature": "def display(value: DisplayTransform) -> PresentationEffect: ..."
+        },
+        {
+          "kind": "method",
+          "name": "bloom",
+          "ownership": "borrowed-call",
+          "signature": "def bloom(value: BloomStyle) -> PresentationEffect: ..."
+        }
+      ],
+      "name": "PresentationEffect",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyPresentationEffect",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/profile/effects.rs"
+      }
+    },
+    {
+      "declaration": "class EffectLayer:\n    def __init__(self, effect: PresentationEffect) -> None: ...\n    def with_weight(self, weight: float) -> EffectLayer: ...\n    def with_priority(self, priority: int) -> EffectLayer: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, effect: PresentationEffect) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "with_weight",
+          "ownership": "borrowed-call",
+          "signature": "def with_weight(self, weight: float) -> EffectLayer: ..."
+        },
+        {
+          "kind": "method",
+          "name": "with_priority",
+          "ownership": "borrowed-call",
+          "signature": "def with_priority(self, priority: int) -> EffectLayer: ..."
+        }
+      ],
+      "name": "EffectLayer",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyEffectLayer",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/profile/effects.rs"
+      }
+    },
+    {
+      "declaration": "class RenderProfile:\n    @staticmethod\n    def inspection() -> RenderProfile: ...\n    @staticmethod\n    def illustrative() -> RenderProfile: ...\n    @staticmethod\n    def cinematic() -> RenderProfile: ...\n    def with_effect(self, effect: PresentationEffect) -> RenderProfile: ...\n    def with_layer(self, layer: EffectLayer) -> RenderProfile: ...\n    layer_count: int",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "inspection",
+          "ownership": "borrowed-call",
+          "signature": "def inspection() -> RenderProfile: ..."
+        },
+        {
+          "kind": "method",
+          "name": "illustrative",
+          "ownership": "borrowed-call",
+          "signature": "def illustrative() -> RenderProfile: ..."
+        },
+        {
+          "kind": "method",
+          "name": "cinematic",
+          "ownership": "borrowed-call",
+          "signature": "def cinematic() -> RenderProfile: ..."
+        },
+        {
+          "kind": "method",
+          "name": "with_effect",
+          "ownership": "borrowed-call",
+          "signature": "def with_effect(self, effect: PresentationEffect) -> RenderProfile: ..."
+        },
+        {
+          "kind": "method",
+          "name": "with_layer",
+          "ownership": "borrowed-call",
+          "signature": "def with_layer(self, layer: EffectLayer) -> RenderProfile: ..."
+        },
+        {
+          "kind": "property",
+          "name": "layer_count",
+          "ownership": "copied-value",
+          "signature": "layer_count: int"
+        }
+      ],
+      "name": "RenderProfile",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyRenderProfile",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/profile/composition.rs"
+      }
+    },
+    {
+      "declaration": "class ResolvedRenderPlan:\n    illustration: IllustrationStyle\n    depth_of_field: DepthOfField | None\n    motion_blur: MotionBlur | None\n    backdrop: BackdropStyle\n    lighting: LightingEnvironment\n    display: DisplayTransform\n    bloom: BloomStyle | None",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "illustration",
+          "ownership": "copied-value",
+          "signature": "illustration: IllustrationStyle"
+        },
+        {
+          "kind": "property",
+          "name": "depth_of_field",
+          "ownership": "copied-value",
+          "signature": "depth_of_field: DepthOfField | None"
+        },
+        {
+          "kind": "property",
+          "name": "motion_blur",
+          "ownership": "copied-value",
+          "signature": "motion_blur: MotionBlur | None"
+        },
+        {
+          "kind": "property",
+          "name": "backdrop",
+          "ownership": "copied-value",
+          "signature": "backdrop: BackdropStyle"
+        },
+        {
+          "kind": "property",
+          "name": "lighting",
+          "ownership": "copied-value",
+          "signature": "lighting: LightingEnvironment"
+        },
+        {
+          "kind": "property",
+          "name": "display",
+          "ownership": "copied-value",
+          "signature": "display: DisplayTransform"
+        },
+        {
+          "kind": "property",
+          "name": "bloom",
+          "ownership": "copied-value",
+          "signature": "bloom: BloomStyle | None"
+        }
+      ],
+      "name": "ResolvedRenderPlan",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyResolvedRenderPlan",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/profile/composition.rs"
+      }
+    },
+    {
+      "declaration": "class RenderSession:\n    @staticmethod\n    def capture(scene: Scene, camera: Camera, profile: RenderProfile) -> RenderSession: ...\n    @staticmethod\n    def from_json(source: str) -> RenderSession: ...\n    def to_json(self) -> str: ...\n    schema: int\n    camera: Camera\n    profile: RenderProfile",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "capture",
+          "ownership": "borrowed-call",
+          "signature": "def capture(scene: Scene, camera: Camera, profile: RenderProfile) -> RenderSession: ..."
+        },
+        {
+          "kind": "method",
+          "name": "from_json",
+          "ownership": "borrowed-call",
+          "signature": "def from_json(source: str) -> RenderSession: ..."
+        },
+        {
+          "kind": "method",
+          "name": "to_json",
+          "ownership": "borrowed-call",
+          "signature": "def to_json(self) -> str: ..."
+        },
+        {
+          "kind": "property",
+          "name": "schema",
+          "ownership": "copied-value",
+          "signature": "schema: int"
+        },
+        {
+          "kind": "property",
+          "name": "camera",
+          "ownership": "copied-value",
+          "signature": "camera: Camera"
+        },
+        {
+          "kind": "property",
+          "name": "profile",
+          "ownership": "copied-value",
+          "signature": "profile: RenderProfile"
+        }
+      ],
+      "name": "RenderSession",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyRenderSession",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/session.rs"
+      }
+    },
+    {
+      "declaration": "class ImageConfig:\n    def __init__(self, width: int, height: int) -> None: ...\n    @staticmethod\n    def publication_4k() -> ImageConfig: ...\n    width: int\n    height: int",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, width: int, height: int) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "publication_4k",
+          "ownership": "borrowed-call",
+          "signature": "def publication_4k() -> ImageConfig: ..."
+        },
+        {
+          "kind": "property",
+          "name": "width",
+          "ownership": "copied-value",
+          "signature": "width: int"
+        },
+        {
+          "kind": "property",
+          "name": "height",
+          "ownership": "copied-value",
+          "signature": "height: int"
+        }
+      ],
+      "name": "ImageConfig",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyImageConfig",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/config.rs"
+      }
+    },
+    {
+      "declaration": "class EngineConfig:\n    def __init__(self, width: int = ..., height: int = ..., mode: RenderMode | None = ..., profile: RenderProfile | None = ..., power: PowerPreference | None = ..., derived_cache: DerivedCacheBudget | None = ...) -> None: ...\n    @staticmethod\n    def default() -> EngineConfig: ...\n    width: int\n    height: int\n    mode: RenderMode\n    profile: RenderProfile\n    power: PowerPreference\n    derived_cache: DerivedCacheBudget",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, width: int = ..., height: int = ..., mode: RenderMode | None = ..., profile: RenderProfile | None = ..., power: PowerPreference | None = ..., derived_cache: DerivedCacheBudget | None = ...) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "default",
+          "ownership": "borrowed-call",
+          "signature": "def default() -> EngineConfig: ..."
+        },
+        {
+          "kind": "property",
+          "name": "width",
+          "ownership": "copied-value",
+          "signature": "width: int"
+        },
+        {
+          "kind": "property",
+          "name": "height",
+          "ownership": "copied-value",
+          "signature": "height: int"
+        },
+        {
+          "kind": "property",
+          "name": "mode",
+          "ownership": "copied-value",
+          "signature": "mode: RenderMode"
+        },
+        {
+          "kind": "property",
+          "name": "profile",
+          "ownership": "copied-value",
+          "signature": "profile: RenderProfile"
+        },
+        {
+          "kind": "property",
+          "name": "power",
+          "ownership": "copied-value",
+          "signature": "power: PowerPreference"
+        },
+        {
+          "kind": "property",
+          "name": "derived_cache",
+          "ownership": "copied-value",
+          "signature": "derived_cache: DerivedCacheBudget"
+        }
+      ],
+      "name": "EngineConfig",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyEngineConfig",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/config.rs"
+      }
+    }
+  ]
+}
