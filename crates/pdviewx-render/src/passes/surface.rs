@@ -6,6 +6,7 @@
 
 use crate::error::RenderError;
 use crate::graph::PassContext;
+use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
 use crate::passes::{
     ALBEDO_RESOURCE, DEPTH_RESOURCE, ENTITY_RESOURCE, MOTION_RESOURCE, NORMAL_RESOURCE,
     STRUCTURE_RESOURCE, gbuffer_targets,
@@ -19,9 +20,9 @@ use pdviewx_gpu::{
 #[derive(Debug)]
 pub struct SurfacePass<D: Device> {
     /// Analytic union of atom spheres: van der Waals and solvent-accessible.
-    pub(crate) union_surface: D::Pipeline,
+    union_surface: VisualPipelineSet<D>,
     /// Ray march through the persistent field: solvent-excluded and Gaussian.
-    pub(crate) grid_surface: D::Pipeline,
+    grid_surface: VisualPipelineSet<D>,
 }
 
 impl<D: Device> SurfacePass<D> {
@@ -37,22 +38,29 @@ impl<D: Device> SurfacePass<D> {
         // The two tracings share a vertex stage but nothing else, so each is
         // its own pipeline: an analytic surface never carries the grid march,
         // and a field surface never carries the hierarchy walk.
-        let pipeline = |label, fs_entry| {
-            device.create_render_pipeline(&RenderPipelineDesc {
-                label,
-                layouts: &[Some(group0), None, Some(group2)],
-                shader: &shader,
-                vs_entry: "vs_surface",
-                fs_entry: Some(fs_entry),
-                color_targets: &gbuffer_targets(),
-                depth: Some(DepthState {
-                    format: TextureFormat::Depth32Float,
-                    write: true,
-                    compare: CompareFunction::GreaterEqual,
-                }),
-                constants: &[],
-                topology: PrimitiveTopology::TriangleList,
-            })
+        let pipeline = |label, fs_entry| -> Result<VisualPipelineSet<D>, RenderError> {
+            let build = |pipeline_constants: &[(&'static str, f64)]| {
+                device.create_render_pipeline(&RenderPipelineDesc {
+                    label,
+                    layouts: &[Some(group0), None, Some(group2)],
+                    shader: &shader,
+                    vs_entry: "vs_surface",
+                    fs_entry: Some(fs_entry),
+                    color_targets: &gbuffer_targets(),
+                    depth: Some(DepthState {
+                        format: TextureFormat::Depth32Float,
+                        write: true,
+                        compare: CompareFunction::GreaterEqual,
+                    }),
+                    constants: pipeline_constants,
+                    topology: PrimitiveTopology::TriangleList,
+                })
+            };
+            Ok(VisualPipelineSet::new(
+                build(&[])?,
+                build(&constants(false))?,
+                build(&constants(true))?,
+            ))
         };
         Ok(Self {
             union_surface: pipeline("analytic molecular surfaces", "fs_surface_union")?,
@@ -93,13 +101,13 @@ impl<D: Device> SurfacePass<D> {
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         let mut bound = None;
         for (group, args, shading) in ctx.scene.surface_draws(false) {
-            if bound != Some(shading.surface_grid) {
-                pass.set_pipeline(if shading.surface_grid {
-                    &ctx.passes.surface.grid_surface
+            if bound != Some(shading) {
+                pass.set_pipeline(if shading.surface_grid() {
+                    ctx.passes.surface.grid_surface.get(shading)
                 } else {
-                    &ctx.passes.surface.union_surface
+                    ctx.passes.surface.union_surface.get(shading)
                 });
-                bound = Some(shading.surface_grid);
+                bound = Some(shading);
             }
             pass.set_bind_group(2, group, &[]);
             pass.draw_indirect(args, 0);

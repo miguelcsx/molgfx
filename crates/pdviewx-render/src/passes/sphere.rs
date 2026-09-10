@@ -7,6 +7,7 @@
 
 use crate::error::RenderError;
 use crate::graph::{PassContext, ResourceId};
+use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
 use crate::passes::{
     ALBEDO_RESOURCE, ENTITY_RESOURCE, MOTION_RESOURCE, NORMAL_RESOURCE, STRUCTURE_RESOURCE,
     gbuffer_targets,
@@ -27,8 +28,9 @@ pub const DEPTH_RESOURCE: ResourceId = ResourceId(0);
 /// never evaluates a clip test or clip-cap material on any covered pixel.
 #[derive(Debug)]
 pub struct SpherePass<D: Device> {
-    unclipped: D::Pipeline,
-    clipped: D::Pipeline,
+    unclipped: VisualPipelineSet<D>,
+    clipped: VisualPipelineSet<D>,
+    paged: D::Pipeline,
 }
 
 impl<D: Device> SpherePass<D> {
@@ -42,32 +44,60 @@ impl<D: Device> SpherePass<D> {
         _target_format: TextureFormat,
         group0: &D::BindGroupLayout,
         group2: &D::BindGroupLayout,
+        paged_layout: &D::BindGroupLayout,
     ) -> Result<Self, RenderError> {
         let shader = device.create_shader_module(&ShaderModuleDesc {
             label: "geometry_sphere",
             wgsl: pdviewx_shaders::GEOMETRY_SPHERE,
         })?;
         // Groups: 0 per-frame camera, 1 unused, 2 per-representation atoms.
-        let pipeline = |label, fs_entry| {
-            device.create_render_pipeline(&RenderPipelineDesc {
-                label,
-                layouts: &[Some(group0), None, Some(group2)],
-                shader: &shader,
-                vs_entry: "vs_sphere_opaque",
-                fs_entry: Some(fs_entry),
-                color_targets: &gbuffer_targets(),
-                depth: Some(DepthState {
-                    format: TextureFormat::Depth32Float,
-                    write: true,
-                    compare: CompareFunction::GreaterEqual,
-                }),
-                constants: &[],
-                topology: PrimitiveTopology::TriangleList,
-            })
+        let pipeline = |label, fs_entry| -> Result<VisualPipelineSet<D>, RenderError> {
+            let build = |pipeline_constants: &[(&'static str, f64)]| {
+                device.create_render_pipeline(&RenderPipelineDesc {
+                    label,
+                    layouts: &[Some(group0), None, Some(group2)],
+                    shader: &shader,
+                    vs_entry: "vs_sphere_opaque",
+                    fs_entry: Some(fs_entry),
+                    color_targets: &gbuffer_targets(),
+                    depth: Some(DepthState {
+                        format: TextureFormat::Depth32Float,
+                        write: true,
+                        compare: CompareFunction::GreaterEqual,
+                    }),
+                    constants: pipeline_constants,
+                    topology: PrimitiveTopology::TriangleList,
+                })
+            };
+            Ok(VisualPipelineSet::new(
+                build(&[])?,
+                build(&constants(false))?,
+                build(&constants(true))?,
+            ))
         };
+        let paged_shader = device.create_shader_module(&ShaderModuleDesc {
+            label: "paged structure chunks",
+            wgsl: pdviewx_shaders::PAGED_CHUNK,
+        })?;
+        let paged = device.create_render_pipeline(&RenderPipelineDesc {
+            label: "paged spacefill spheres",
+            layouts: &[Some(group0), Some(paged_layout)],
+            shader: &paged_shader,
+            vs_entry: "paged_spacefill_vertex",
+            fs_entry: Some("paged_spacefill_fragment"),
+            color_targets: &gbuffer_targets(),
+            depth: Some(DepthState {
+                format: TextureFormat::Depth32Float,
+                write: true,
+                compare: CompareFunction::GreaterEqual,
+            }),
+            constants: &[],
+            topology: PrimitiveTopology::TriangleList,
+        })?;
         Ok(Self {
             unclipped: pipeline("sphere impostors", "fs_sphere")?,
             clipped: pipeline("clipped sphere impostors", "fs_sphere_clipped")?,
+            paged,
         })
     }
 
@@ -83,7 +113,9 @@ impl<D: Device> SpherePass<D> {
         ) else {
             return;
         };
-        if ctx.scene.atom_draws(false).next().is_none() {
+        if ctx.scene.atom_draws(false).next().is_none()
+            && ctx.scene.paged_spacefill_draw().is_none()
+        {
             return;
         }
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
@@ -122,16 +154,21 @@ impl<D: Device> SpherePass<D> {
         // most once per representation rather than once per draw.
         let mut bound = None;
         for (group2, args, shading) in ctx.scene.atom_draws(false) {
-            if bound != Some(shading.clipped) {
-                pass.set_pipeline(if shading.clipped {
-                    &ctx.passes.sphere.clipped
+            if bound != Some(shading) {
+                pass.set_pipeline(if shading.clipped() {
+                    ctx.passes.sphere.clipped.get(shading)
                 } else {
-                    &ctx.passes.sphere.unclipped
+                    ctx.passes.sphere.unclipped.get(shading)
                 });
-                bound = Some(shading.clipped);
+                bound = Some(shading);
             }
             pass.set_bind_group(2, group2, &[]);
             pass.draw_indirect(args, 0);
+        }
+        if let Some((group, args, offset)) = ctx.scene.paged_spacefill_draw() {
+            pass.set_pipeline(&ctx.passes.sphere.paged);
+            pass.set_bind_group(1, group, &[]);
+            pass.draw_indirect(args, offset);
         }
     }
 }
