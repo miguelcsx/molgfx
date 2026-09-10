@@ -26,8 +26,11 @@ fn interpolate_coordinate(index: u32) {
 }
 
 @compute @workgroup_size(64)
-fn interpolate_trajectory(@builtin(global_invocation_id) id: vec3u) {
-    let coordinate = id.x;
+fn interpolate_trajectory(
+    @builtin(global_invocation_id) id: vec3u,
+    @builtin(num_workgroups) groups: vec3u,
+) {
+    let coordinate = id.x + id.y * groups.x * 64u;
 
     if coordinate >= trajectory.count * 3u {
         return;
