@@ -17,7 +17,6 @@ pub struct ParticleMotionDescription {
     /// `bounce` or `wrap`.
     pub boundary: String,
     /// Fixed-step lifetime before deterministic respawn; zero disables it.
-    #[serde(default)]
     pub respawn_after_steps: u32,
 }
 
@@ -51,13 +50,7 @@ pub struct PrimitiveDescription {
     /// Stable carbohydrate family or particle shape.
     pub shape: Option<String>,
     /// Shape-specific parameters; superquadrics store their two exponents.
-    #[serde(default = "default_shape_parameters")]
     pub shape_parameters: [f32; 2],
     /// Optional bounded visual-advection state for a particle.
-    #[serde(default)]
     pub motion: Option<ParticleMotionDescription>,
-}
-
-fn default_shape_parameters() -> [f32; 2] {
-    [1.0, 1.0]
 }

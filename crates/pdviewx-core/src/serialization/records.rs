@@ -1,5 +1,4 @@
 //! Conversion of scene-owned records into deterministic manifest payloads.
-
 use super::types::{
     AnchorDescription, AnnotationDescription, AtomPropertyDescription, EntityDescription,
     GuideDescription, GuideStyleDescription, InteractionDescription, MarkerStyleDescription,
@@ -11,29 +10,25 @@ use super::types::{
 use crate::handle::StructureHandle;
 use crate::{
     AnnotationKind, AtomPropertyMeaning, EntityKind, Guide, GuideCap, InteractionAnchor,
-    InteractionDirection, InteractionKind, InteractionPattern, MarkerShape, MeasurementKind,
-    ScalarFieldSemantics, Scene,
+    InteractionDirection, InteractionKind, MarkerShape, MeasurementKind, ScalarFieldSemantics,
+    Scene,
 };
 use pdviewx_math::Rgba8;
-
 #[path = "hash.rs"]
 mod hash;
 #[path = "primitive_records.rs"]
 mod primitive_records;
 #[path = "record_values.rs"]
 mod record_values;
-
 pub(crate) use hash::{label_hash, mesh_hash, value_hash};
 use primitive_records::primitive_description;
-use record_values::{saturating_u32, volume_rendering};
-
+use record_values::volume_rendering;
 pub(crate) fn primitives(scene: &Scene) -> Vec<PrimitiveDescription> {
     scene
         .primitives()
         .map(|(handle, value)| primitive_description(handle.0, value))
         .collect()
 }
-
 pub(crate) fn meshes(scene: &Scene) -> Vec<MeshDescription> {
     scene
         .meshes()
@@ -52,14 +47,20 @@ pub(crate) fn meshes(scene: &Scene) -> Vec<MeshDescription> {
                     crate::FaceVisibility::BackOnly => "back",
                 }
                 .to_owned(),
-                minimum_component_area: policy.minimum_area,
-                maximum_components: policy.maximum_components,
+                minimum_component_area: match policy.threshold() {
+                    crate::SurfaceComponentThreshold::Area(value) => value,
+                    crate::SurfaceComponentThreshold::Disabled
+                    | crate::SurfaceComponentThreshold::Volume(_)
+                    | crate::SurfaceComponentThreshold::Voxels(_) => 0.0,
+                },
+                maximum_components: policy
+                    .maximum_components()
+                    .and_then(|value| usize::try_from(value).ok()),
                 visible: mesh.visible(),
             }
         })
         .collect()
 }
-
 pub(crate) fn mesh_instances(scene: &Scene) -> Vec<MeshInstanceDescription> {
     scene
         .mesh_instances()
@@ -75,7 +76,6 @@ pub(crate) fn mesh_instances(scene: &Scene) -> Vec<MeshInstanceDescription> {
         })
         .collect()
 }
-
 pub(crate) fn overlays(scene: &Scene) -> Vec<OverlayDescription> {
     scene
         .overlays()
@@ -138,7 +138,6 @@ pub(crate) fn overlays(scene: &Scene) -> Vec<OverlayDescription> {
         })
         .collect()
 }
-
 pub(crate) fn atom_properties(scene: &Scene) -> Vec<AtomPropertyDescription> {
     scene
         .atom_properties()
@@ -150,7 +149,7 @@ pub(crate) fn atom_properties(scene: &Scene) -> Vec<AtomPropertyDescription> {
                 generation: property.owner().generation(),
             },
             name: property.name().to_owned(),
-            length: saturating_u32(property.values().len()),
+            length: property.values().len() as u64,
             finite_domain: property.finite_domain(),
             meaning: property_meaning(property.meaning()).to_owned(),
             semantics: scalar_semantics(property.semantics()),
@@ -341,7 +340,7 @@ fn guide_style(guide: &Guide) -> GuideStyleDescription {
     let style = guide.style();
     GuideStyleDescription {
         color: rgba(style.color),
-        pattern: pattern(style.pattern).to_owned(),
+        pattern: relation_pattern(style.pattern).to_owned(),
         width_pixels: style.width_pixels,
         opacity: style.opacity,
         period_pixels: style.period_pixels,
@@ -400,6 +399,13 @@ fn entity_kind(kind: EntityKind) -> &'static str {
         EntityKind::Label => "label",
         EntityKind::Primitive => "primitive",
         EntityKind::Mesh => "mesh",
+        EntityKind::LigandPoseBatch => "ligand_pose_batch",
+        EntityKind::Guide => "guide",
+        EntityKind::DynamicBond => "dynamic_bond",
+        EntityKind::Point => "point",
+        EntityKind::Instance => "instance",
+        EntityKind::TemplatePart => "template_part",
+        EntityKind::Relation => "relation",
     }
 }
 
@@ -421,12 +427,12 @@ fn interaction_direction(direction: InteractionDirection) -> &'static str {
     }
 }
 
-fn pattern(pattern: InteractionPattern) -> &'static str {
+fn relation_pattern(pattern: crate::RelationPattern) -> &'static str {
     match pattern {
-        InteractionPattern::Solid => "solid",
-        InteractionPattern::Dashes => "dashes",
-        InteractionPattern::Dots => "dots",
-        InteractionPattern::Spring => "spring",
+        crate::RelationPattern::Solid => "solid",
+        crate::RelationPattern::Dashed => "dashes",
+        crate::RelationPattern::Dotted => "dots",
+        crate::RelationPattern::Spring => "spring",
     }
 }
 
@@ -476,23 +482,4 @@ pub(crate) fn property_meaning(value: AtomPropertyMeaning) -> &'static str {
     }
 }
 
-pub(crate) fn scalar_semantics(value: &ScalarFieldSemantics) -> ScalarSemanticsDescription {
-    match value {
-        ScalarFieldSemantics::UncalibratedRank => ScalarSemanticsDescription {
-            kind: "rank".to_owned(),
-            name: None,
-            units: None,
-            provenance: None,
-        },
-        ScalarFieldSemantics::Quantity {
-            name,
-            units,
-            provenance,
-        } => ScalarSemanticsDescription {
-            kind: "quantity".to_owned(),
-            name: Some(name.to_string()),
-            units: Some(units.to_string()),
-            provenance: Some(provenance.to_string()),
-        },
-    }
-}
+include!("records_scalar.rs");
