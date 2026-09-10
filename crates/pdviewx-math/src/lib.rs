@@ -12,14 +12,22 @@
 mod bounds;
 mod camera;
 mod curves;
+pub mod parallel;
+mod quantize;
+pub mod simd;
 mod types;
 
 pub(crate) use bounds::aabb;
 pub(crate) use camera::projection;
 
-pub use bounds::{Aabb, BoundingSphere, Bvh, BvhBuildScratch, BvhNode};
+pub use bounds::{
+    Aabb, BoundingSphere, Bvh, BvhBuildError, BvhBuildScratch, BvhNode, BvhSource, SphereBounds,
+    SweptSphereBounds,
+};
 pub use camera::{Camera, Projection};
 pub use curves::{
-    CurveSample, TransportFrame, parallel_transport, sample_catmull_rom, sample_cubic_bezier,
+    CurveSample, TransportFrame, parallel_transport, sample_catmull_rom,
+    sample_catmull_rom_demanding, sample_catmull_rom_fixed, sample_cubic_bezier,
 };
+pub use quantize::{round_u8, truncate_u16, unit_to_grid, unorm8};
 pub use types::{Mat3, Mat4, Quat, Rgba8, Vec2, Vec3, Vec4};
