@@ -14,6 +14,10 @@ use crate::encoder::CommandEncoder;
 use crate::error::GpuError;
 use crate::queue::Queue;
 use crate::surface::Surface;
+use crate::{
+    BlasDesc, RayQueryBindGroupDesc, RayQueryBindGroupLayoutDesc, RayQueryLimits, TlasDesc,
+    TlasInstance,
+};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use std::future::Future;
 #[cfg(not(target_arch = "wasm32"))]
@@ -61,6 +65,27 @@ pub enum PowerPreference {
 pub struct DeviceDesc {
     /// Adapter preference.
     pub power: PowerPreference,
+    /// Optional hard ceiling for live buffer and texture bytes owned by the device.
+    pub resource_memory_limit_bytes: Option<u64>,
+}
+
+/// Live physical resources allocated through a device.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+pub struct ResourceMemory {
+    /// Live buffer bytes.
+    pub buffer_bytes: u64,
+    /// Live texture bytes, including all layers.
+    pub texture_bytes: u64,
+    /// Highest live total observed since device creation.
+    pub peak_bytes: u64,
+}
+
+impl ResourceMemory {
+    /// Current accounted device bytes.
+    #[must_use]
+    pub const fn total_bytes(self) -> u64 {
+        self.buffer_bytes.saturating_add(self.texture_bytes)
+    }
 }
 
 /// The result of opening a device: the device, its queue, and a surface
@@ -98,6 +123,14 @@ pub trait Device: Sized + 'static {
     type Pipeline: std::fmt::Debug;
     /// Timestamp or occlusion query storage.
     type QuerySet: std::fmt::Debug;
+    /// Bottom-level acceleration structure. Portable devices may use a
+    /// zero-sized placeholder and return a capability error from every
+    /// ray-query operation.
+    type Blas: std::fmt::Debug;
+    /// Top-level acceleration structure. Portable devices may use a
+    /// zero-sized placeholder and return a capability error from every
+    /// ray-query operation.
+    type Tlas: std::fmt::Debug;
     /// Command encoder.
     type CommandEncoder: CommandEncoder<Self>;
     /// Submission queue.
@@ -200,4 +233,157 @@ pub trait Device: Sized + 'static {
 
     /// The opened device's capability report.
     fn capabilities(&self) -> &Capabilities;
+
+    /// Reports asynchronous backend failures observed since the last check.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first pending runtime diagnostic or a sticky device loss.
+    fn check_errors(&self) -> Result<(), GpuError> {
+        Ok(())
+    }
+
+    /// Returns live physical resource accounting when the backend supports it.
+    fn resource_memory(&self) -> ResourceMemory {
+        ResourceMemory::default()
+    }
+
+    /// Returns negotiated acceleration-structure ceilings.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capability error when ray queries were not negotiated.
+    fn ray_query_limits(&self) -> Result<RayQueryLimits, GpuError> {
+        Err(GpuError::Capability { name: "ray query" })
+    }
+
+    /// Allocates a BLAS with fixed geometry ceilings.
+    ///
+    /// # Errors
+    ///
+    /// Returns capability, size or backend allocation failures.
+    fn create_blas(&self, _desc: &BlasDesc<'_>) -> Result<Self::Blas, GpuError> {
+        Err(GpuError::Capability { name: "ray query" })
+    }
+
+    /// Allocates a TLAS with a fixed instance ceiling.
+    ///
+    /// # Errors
+    ///
+    /// Returns capability, size or backend allocation failures.
+    fn create_tlas(&self, _desc: &TlasDesc) -> Result<Self::Tlas, GpuError> {
+        Err(GpuError::Capability { name: "ray query" })
+    }
+
+    /// Replaces or clears one TLAS instance.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capability error or an out-of-range instance failure.
+    fn set_tlas_instance(
+        &self,
+        _tlas: &mut Self::Tlas,
+        _index: u32,
+        _instance: Option<TlasInstance<'_, Self>>,
+    ) -> Result<(), GpuError> {
+        Err(GpuError::Capability { name: "ray query" })
+    }
+
+    /// Creates a layout containing acceleration-structure slots.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capability or backend layout failure.
+    fn create_ray_query_bind_group_layout(
+        &self,
+        _desc: &RayQueryBindGroupLayoutDesc<'_>,
+    ) -> Result<Self::BindGroupLayout, GpuError> {
+        Err(GpuError::Capability { name: "ray query" })
+    }
+
+    /// Creates a bind group containing TLAS resources.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capability or backend binding failure.
+    fn create_ray_query_bind_group(
+        &self,
+        _desc: &RayQueryBindGroupDesc<'_, Self>,
+    ) -> Result<Self::BindGroup, GpuError> {
+        Err(GpuError::Capability { name: "ray query" })
+    }
 }
+
+/// Device extension for hardware acceleration structures and WGSL ray queries.
+///
+/// Implementations must return [`GpuError::Capability`] when the opened device
+/// did not negotiate the ray-query feature. Keeping this separate from
+/// [`Device`] lets portable mocks and browser-only backends remain minimal.
+pub trait RayQueryDevice: Device {
+    /// Returns negotiated acceleration-structure ceilings.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capability error when ray queries were not negotiated.
+    fn ray_query_limits(&self) -> Result<RayQueryLimits, GpuError> {
+        Device::ray_query_limits(self)
+    }
+
+    /// Allocates a BLAS with fixed geometry ceilings.
+    ///
+    /// # Errors
+    ///
+    /// Returns capability, size or backend allocation failures.
+    fn create_blas(&self, desc: &BlasDesc<'_>) -> Result<Self::Blas, GpuError> {
+        Device::create_blas(self, desc)
+    }
+
+    /// Allocates a TLAS with a fixed instance ceiling.
+    ///
+    /// # Errors
+    ///
+    /// Returns capability, size or backend allocation failures.
+    fn create_tlas(&self, desc: &TlasDesc) -> Result<Self::Tlas, GpuError> {
+        Device::create_tlas(self, desc)
+    }
+
+    /// Replaces or clears one TLAS instance without exposing backend types.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capability error or an out-of-range instance failure.
+    fn set_tlas_instance(
+        &self,
+        tlas: &mut Self::Tlas,
+        index: u32,
+        instance: Option<TlasInstance<'_, Self>>,
+    ) -> Result<(), GpuError> {
+        Device::set_tlas_instance(self, tlas, index, instance)
+    }
+
+    /// Creates a layout containing acceleration-structure slots.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capability or backend layout failure.
+    fn create_ray_query_bind_group_layout(
+        &self,
+        desc: &RayQueryBindGroupLayoutDesc<'_>,
+    ) -> Result<Self::BindGroupLayout, GpuError> {
+        Device::create_ray_query_bind_group_layout(self, desc)
+    }
+
+    /// Creates a bind group containing TLAS resources.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capability or backend binding failure.
+    fn create_ray_query_bind_group(
+        &self,
+        desc: &RayQueryBindGroupDesc<'_, Self>,
+    ) -> Result<Self::BindGroup, GpuError> {
+        Device::create_ray_query_bind_group(self, desc)
+    }
+}
+
+impl<D: Device> RayQueryDevice for D {}
