@@ -12,7 +12,7 @@ impl Scene {
             aabb = aabb.union(&placed.world_aabb());
         }
         for (_, volume) in self.volumes.iter() {
-            aabb = aabb.union(&volume.value.world_aabb());
+            aabb = aabb.union(&volume.world_aabb(self));
         }
         for (_, volume) in self.segmentations.iter() {
             aabb = aabb.union(&volume.value.world_aabb());
@@ -28,6 +28,9 @@ impl Scene {
             }
         }
         for (_, primitive) in self.primitive.iter() {
+            if !primitive.visible() {
+                continue;
+            }
             if let Some(placed) = self.structure(primitive.owner()) {
                 let transform = placed.model_to_world;
                 for corner in primitive.bounds().corners() {
@@ -45,6 +48,27 @@ impl Scene {
                         aabb.extend(transform.transform_point3(corner));
                     }
                 }
+            }
+        }
+        for (_, batch) in self.ligand_pose_batches.iter() {
+            if !batch.visible() {
+                continue;
+            }
+            let Some(placed) = self.structure(batch.owner()) else {
+                continue;
+            };
+            for corner in batch.bounds().corners() {
+                aabb.extend(placed.model_to_world.transform_point3(corner));
+            }
+        }
+        for (_, batch) in self.point_batches.iter() {
+            if batch.visible() {
+                aabb = aabb.union(&batch.bounds());
+            }
+        }
+        for (_, batch) in self.instance_batches.iter() {
+            if batch.visible() {
+                aabb = aabb.union(&batch.bounds());
             }
         }
         aabb
