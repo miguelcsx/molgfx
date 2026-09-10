@@ -1,0 +1,820 @@
+{
+  "symbols": [
+    {
+      "declaration": "class Provenance:\n    entity: EntityRef\n    entry_id: str | None\n    entry_title: str | None\n    method: str | None\n    resolution: float | None\n    detail_kind: str",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "entity",
+          "ownership": "copied-value",
+          "signature": "entity: EntityRef"
+        },
+        {
+          "kind": "property",
+          "name": "entry_id",
+          "ownership": "copied-value",
+          "signature": "entry_id: str | None"
+        },
+        {
+          "kind": "property",
+          "name": "entry_title",
+          "ownership": "copied-value",
+          "signature": "entry_title: str | None"
+        },
+        {
+          "kind": "property",
+          "name": "method",
+          "ownership": "copied-value",
+          "signature": "method: str | None"
+        },
+        {
+          "kind": "property",
+          "name": "resolution",
+          "ownership": "copied-value",
+          "signature": "resolution: float | None"
+        },
+        {
+          "kind": "property",
+          "name": "detail_kind",
+          "ownership": "copied-value",
+          "signature": "detail_kind: str"
+        }
+      ],
+      "name": "Provenance",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyProvenance",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/provenance.rs"
+      }
+    },
+    {
+      "declaration": "class ColorScheme:\n    @staticmethod\n    def by_element() -> ColorScheme: ...\n    @staticmethod\n    def by_chain() -> ColorScheme: ...\n    @staticmethod\n    def by_residue() -> ColorScheme: ...\n    @staticmethod\n    def by_secondary_structure() -> ColorScheme: ...\n    @staticmethod\n    def uniform(color: Rgba8) -> ColorScheme: ...\n    kind: str",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "by_element",
+          "ownership": "borrowed-call",
+          "signature": "def by_element() -> ColorScheme: ..."
+        },
+        {
+          "kind": "method",
+          "name": "by_chain",
+          "ownership": "borrowed-call",
+          "signature": "def by_chain() -> ColorScheme: ..."
+        },
+        {
+          "kind": "method",
+          "name": "by_residue",
+          "ownership": "borrowed-call",
+          "signature": "def by_residue() -> ColorScheme: ..."
+        },
+        {
+          "kind": "method",
+          "name": "by_secondary_structure",
+          "ownership": "borrowed-call",
+          "signature": "def by_secondary_structure() -> ColorScheme: ..."
+        },
+        {
+          "kind": "method",
+          "name": "uniform",
+          "ownership": "borrowed-call",
+          "signature": "def uniform(color: Rgba8) -> ColorScheme: ..."
+        },
+        {
+          "kind": "property",
+          "name": "kind",
+          "ownership": "copied-value",
+          "signature": "kind: str"
+        }
+      ],
+      "name": "ColorScheme",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyColorScheme",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/color.rs"
+      }
+    },
+    {
+      "declaration": "class SurfaceKind:\n    VanDerWaals: SurfaceKind\n    SolventAccessible: SurfaceKind\n    SolventExcluded: SurfaceKind\n    Gaussian: SurfaceKind",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "VanDerWaals",
+          "ownership": "copied-value",
+          "signature": "VanDerWaals: SurfaceKind"
+        },
+        {
+          "kind": "property",
+          "name": "SolventAccessible",
+          "ownership": "copied-value",
+          "signature": "SolventAccessible: SurfaceKind"
+        },
+        {
+          "kind": "property",
+          "name": "SolventExcluded",
+          "ownership": "copied-value",
+          "signature": "SolventExcluded: SurfaceKind"
+        },
+        {
+          "kind": "property",
+          "name": "Gaussian",
+          "ownership": "copied-value",
+          "signature": "Gaussian: SurfaceKind"
+        }
+      ],
+      "name": "SurfaceKind",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PySurfaceKind",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/color.rs"
+      }
+    },
+    {
+      "declaration": "class SurfaceStyle:\n    Solid: SurfaceStyle\n    Contour: SurfaceStyle\n    Dots: SurfaceStyle\n    FilledContour: SurfaceStyle\n    Mesh: SurfaceStyle\n    SoftUnion: SurfaceStyle",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "Solid",
+          "ownership": "copied-value",
+          "signature": "Solid: SurfaceStyle"
+        },
+        {
+          "kind": "property",
+          "name": "Contour",
+          "ownership": "copied-value",
+          "signature": "Contour: SurfaceStyle"
+        },
+        {
+          "kind": "property",
+          "name": "Dots",
+          "ownership": "copied-value",
+          "signature": "Dots: SurfaceStyle"
+        },
+        {
+          "kind": "property",
+          "name": "FilledContour",
+          "ownership": "copied-value",
+          "signature": "FilledContour: SurfaceStyle"
+        },
+        {
+          "kind": "property",
+          "name": "Mesh",
+          "ownership": "copied-value",
+          "signature": "Mesh: SurfaceStyle"
+        },
+        {
+          "kind": "property",
+          "name": "SoftUnion",
+          "ownership": "copied-value",
+          "signature": "SoftUnion: SurfaceStyle"
+        }
+      ],
+      "name": "SurfaceStyle",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PySurfaceStyle",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/color.rs"
+      }
+    },
+    {
+      "declaration": "class AnnotationAnchor:\n    @staticmethod\n    def world(position: Vec3) -> AnnotationAnchor: ...\n    @staticmethod\n    def entity(position: Vec3, entity: EntityRef) -> AnnotationAnchor: ...\n    position: Vec3\n    source_entity: EntityRef | None",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "world",
+          "ownership": "borrowed-call",
+          "signature": "def world(position: Vec3) -> AnnotationAnchor: ..."
+        },
+        {
+          "kind": "method",
+          "name": "entity",
+          "ownership": "borrowed-call",
+          "signature": "def entity(position: Vec3, entity: EntityRef) -> AnnotationAnchor: ..."
+        },
+        {
+          "kind": "property",
+          "name": "position",
+          "ownership": "copied-value",
+          "signature": "position: Vec3"
+        },
+        {
+          "kind": "property",
+          "name": "source_entity",
+          "ownership": "copied-value",
+          "signature": "source_entity: EntityRef | None"
+        }
+      ],
+      "name": "AnnotationAnchor",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyAnnotationAnchor",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/annotations.rs"
+      }
+    },
+    {
+      "declaration": "class MarkerShape:\n    Circle: MarkerShape\n    Diamond: MarkerShape\n    Crosshair: MarkerShape",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "Circle",
+          "ownership": "copied-value",
+          "signature": "Circle: MarkerShape"
+        },
+        {
+          "kind": "property",
+          "name": "Diamond",
+          "ownership": "copied-value",
+          "signature": "Diamond: MarkerShape"
+        },
+        {
+          "kind": "property",
+          "name": "Crosshair",
+          "ownership": "copied-value",
+          "signature": "Crosshair: MarkerShape"
+        }
+      ],
+      "name": "MarkerShape",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyMarkerShape",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/annotations.rs"
+      }
+    },
+    {
+      "declaration": "class MarkerStyle:\n    def __init__(self, color: Rgba8 | None = ..., radius_pixels: float = ..., shape: MarkerShape | None = ...) -> None: ...\n    color: Rgba8\n    radius_pixels: float\n    shape: MarkerShape",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, color: Rgba8 | None = ..., radius_pixels: float = ..., shape: MarkerShape | None = ...) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "color",
+          "ownership": "copied-value",
+          "signature": "color: Rgba8"
+        },
+        {
+          "kind": "property",
+          "name": "radius_pixels",
+          "ownership": "copied-value",
+          "signature": "radius_pixels: float"
+        },
+        {
+          "kind": "property",
+          "name": "shape",
+          "ownership": "copied-value",
+          "signature": "shape: MarkerShape"
+        }
+      ],
+      "name": "MarkerStyle",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyMarkerStyle",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/annotations.rs"
+      }
+    },
+    {
+      "declaration": "class AnnotationKind:\n    Note: AnnotationKind\n    Marker: AnnotationKind\n    Region: AnnotationKind\n    Hypothesis: AnnotationKind",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "Note",
+          "ownership": "copied-value",
+          "signature": "Note: AnnotationKind"
+        },
+        {
+          "kind": "property",
+          "name": "Marker",
+          "ownership": "copied-value",
+          "signature": "Marker: AnnotationKind"
+        },
+        {
+          "kind": "property",
+          "name": "Region",
+          "ownership": "copied-value",
+          "signature": "Region: AnnotationKind"
+        },
+        {
+          "kind": "property",
+          "name": "Hypothesis",
+          "ownership": "copied-value",
+          "signature": "Hypothesis: AnnotationKind"
+        }
+      ],
+      "name": "AnnotationKind",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyAnnotationKind",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/annotations.rs"
+      }
+    },
+    {
+      "declaration": "class Annotation:\n    @staticmethod\n    def note(owner: StructureHandle, anchor: AnnotationAnchor, text: str) -> Annotation: ...\n    @staticmethod\n    def hypothesis(owner: StructureHandle, anchor: AnnotationAnchor, text: str) -> Annotation: ...\n    @staticmethod\n    def marker(owner: StructureHandle, anchor: AnnotationAnchor, style: MarkerStyle) -> Annotation: ...\n    @staticmethod\n    def region(owner: StructureHandle, selection: SelectionHandle, label: str) -> Annotation: ...\n    def with_priority(self, priority: int) -> Annotation: ...\n    owner: StructureHandle\n    kind: AnnotationKind\n    anchor: AnnotationAnchor | None\n    region_selection: SelectionHandle | None\n    text: str\n    marker_style: MarkerStyle\n    priority: int\n    visible: bool",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "note",
+          "ownership": "borrowed-call",
+          "signature": "def note(owner: StructureHandle, anchor: AnnotationAnchor, text: str) -> Annotation: ..."
+        },
+        {
+          "kind": "method",
+          "name": "hypothesis",
+          "ownership": "borrowed-call",
+          "signature": "def hypothesis(owner: StructureHandle, anchor: AnnotationAnchor, text: str) -> Annotation: ..."
+        },
+        {
+          "kind": "method",
+          "name": "marker",
+          "ownership": "borrowed-call",
+          "signature": "def marker(owner: StructureHandle, anchor: AnnotationAnchor, style: MarkerStyle) -> Annotation: ..."
+        },
+        {
+          "kind": "method",
+          "name": "region",
+          "ownership": "borrowed-call",
+          "signature": "def region(owner: StructureHandle, selection: SelectionHandle, label: str) -> Annotation: ..."
+        },
+        {
+          "kind": "method",
+          "name": "with_priority",
+          "ownership": "borrowed-call",
+          "signature": "def with_priority(self, priority: int) -> Annotation: ..."
+        },
+        {
+          "kind": "property",
+          "name": "owner",
+          "ownership": "copied-value",
+          "signature": "owner: StructureHandle"
+        },
+        {
+          "kind": "property",
+          "name": "kind",
+          "ownership": "copied-value",
+          "signature": "kind: AnnotationKind"
+        },
+        {
+          "kind": "property",
+          "name": "anchor",
+          "ownership": "copied-value",
+          "signature": "anchor: AnnotationAnchor | None"
+        },
+        {
+          "kind": "property",
+          "name": "region_selection",
+          "ownership": "copied-value",
+          "signature": "region_selection: SelectionHandle | None"
+        },
+        {
+          "kind": "property",
+          "name": "text",
+          "ownership": "copied-value",
+          "signature": "text: str"
+        },
+        {
+          "kind": "property",
+          "name": "marker_style",
+          "ownership": "copied-value",
+          "signature": "marker_style: MarkerStyle"
+        },
+        {
+          "kind": "property",
+          "name": "priority",
+          "ownership": "copied-value",
+          "signature": "priority: int"
+        },
+        {
+          "kind": "property",
+          "name": "visible",
+          "ownership": "copied-value",
+          "signature": "visible: bool"
+        }
+      ],
+      "name": "Annotation",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyAnnotation",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/annotations.rs"
+      }
+    },
+    {
+      "declaration": "class MeasurementKind:\n    Distance: MeasurementKind\n    Angle: MeasurementKind\n    Dihedral: MeasurementKind",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "Distance",
+          "ownership": "copied-value",
+          "signature": "Distance: MeasurementKind"
+        },
+        {
+          "kind": "property",
+          "name": "Angle",
+          "ownership": "copied-value",
+          "signature": "Angle: MeasurementKind"
+        },
+        {
+          "kind": "property",
+          "name": "Dihedral",
+          "ownership": "copied-value",
+          "signature": "Dihedral: MeasurementKind"
+        }
+      ],
+      "name": "MeasurementKind",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyMeasurementKind",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/annotations.rs"
+      }
+    },
+    {
+      "declaration": "class Measurement:\n    @staticmethod\n    def distance(owner: StructureHandle, anchors: Sequence[AnnotationAnchor], value: float, provenance: str) -> Measurement: ...\n    @staticmethod\n    def angle(owner: StructureHandle, anchors: Sequence[AnnotationAnchor], value: float, provenance: str) -> Measurement: ...\n    @staticmethod\n    def dihedral(owner: StructureHandle, anchors: Sequence[AnnotationAnchor], value: float, provenance: str) -> Measurement: ...\n    owner: StructureHandle\n    kind: MeasurementKind\n    anchors: list[AnnotationAnchor]\n    value: float\n    label: str\n    provenance: str\n    def with_priority(self, priority: int) -> Measurement: ...\n    priority: int\n    visible: bool",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "distance",
+          "ownership": "borrowed-call",
+          "signature": "def distance(owner: StructureHandle, anchors: Sequence[AnnotationAnchor], value: float, provenance: str) -> Measurement: ..."
+        },
+        {
+          "kind": "method",
+          "name": "angle",
+          "ownership": "borrowed-call",
+          "signature": "def angle(owner: StructureHandle, anchors: Sequence[AnnotationAnchor], value: float, provenance: str) -> Measurement: ..."
+        },
+        {
+          "kind": "method",
+          "name": "dihedral",
+          "ownership": "borrowed-call",
+          "signature": "def dihedral(owner: StructureHandle, anchors: Sequence[AnnotationAnchor], value: float, provenance: str) -> Measurement: ..."
+        },
+        {
+          "kind": "property",
+          "name": "owner",
+          "ownership": "copied-value",
+          "signature": "owner: StructureHandle"
+        },
+        {
+          "kind": "property",
+          "name": "kind",
+          "ownership": "copied-value",
+          "signature": "kind: MeasurementKind"
+        },
+        {
+          "kind": "property",
+          "name": "anchors",
+          "ownership": "copied-value",
+          "signature": "anchors: list[AnnotationAnchor]"
+        },
+        {
+          "kind": "property",
+          "name": "value",
+          "ownership": "copied-value",
+          "signature": "value: float"
+        },
+        {
+          "kind": "property",
+          "name": "label",
+          "ownership": "copied-value",
+          "signature": "label: str"
+        },
+        {
+          "kind": "property",
+          "name": "provenance",
+          "ownership": "copied-value",
+          "signature": "provenance: str"
+        },
+        {
+          "kind": "method",
+          "name": "with_priority",
+          "ownership": "borrowed-call",
+          "signature": "def with_priority(self, priority: int) -> Measurement: ..."
+        },
+        {
+          "kind": "property",
+          "name": "priority",
+          "ownership": "copied-value",
+          "signature": "priority: int"
+        },
+        {
+          "kind": "property",
+          "name": "visible",
+          "ownership": "copied-value",
+          "signature": "visible: bool"
+        }
+      ],
+      "name": "Measurement",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyMeasurement",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/annotations.rs"
+      }
+    },
+    {
+      "declaration": "class LodLevel:\n    Atom: LodLevel\n    Residue: LodLevel\n    SecondaryStructure: LodLevel\n    Domain: LodLevel",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "Atom",
+          "ownership": "copied-value",
+          "signature": "Atom: LodLevel"
+        },
+        {
+          "kind": "property",
+          "name": "Residue",
+          "ownership": "copied-value",
+          "signature": "Residue: LodLevel"
+        },
+        {
+          "kind": "property",
+          "name": "SecondaryStructure",
+          "ownership": "copied-value",
+          "signature": "SecondaryStructure: LodLevel"
+        },
+        {
+          "kind": "property",
+          "name": "Domain",
+          "ownership": "copied-value",
+          "signature": "Domain: LodLevel"
+        }
+      ],
+      "name": "LodLevel",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyLodLevel",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+      }
+    },
+    {
+      "declaration": "class LodPolicy:\n    def __init__(self, atom_pixels: float = ..., residue_pixels: float = ..., secondary_pixels: float = ..., hysteresis: float = ...) -> None: ...\n    @staticmethod\n    def default() -> LodPolicy: ...\n    def select(self, error_pixels: float, importance: float, previous: LodLevel) -> LodLevel: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, atom_pixels: float = ..., residue_pixels: float = ..., secondary_pixels: float = ..., hysteresis: float = ...) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "default",
+          "ownership": "borrowed-call",
+          "signature": "def default() -> LodPolicy: ..."
+        },
+        {
+          "kind": "method",
+          "name": "select",
+          "ownership": "borrowed-call",
+          "signature": "def select(self, error_pixels: float, importance: float, previous: LodLevel) -> LodLevel: ..."
+        }
+      ],
+      "name": "LodPolicy",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyLodPolicy",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+      }
+    },
+    {
+      "declaration": "class LodClusterKey:\n    structure: StructureHandle\n    level: LodLevel\n    index: int",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "structure",
+          "ownership": "copied-value",
+          "signature": "structure: StructureHandle"
+        },
+        {
+          "kind": "property",
+          "name": "level",
+          "ownership": "copied-value",
+          "signature": "level: LodLevel"
+        },
+        {
+          "kind": "property",
+          "name": "index",
+          "ownership": "copied-value",
+          "signature": "index: int"
+        }
+      ],
+      "name": "LodClusterKey",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyLodClusterKey",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+      }
+    },
+    {
+      "declaration": "class LodFrame:\n    def __init__(self) -> None: ...\n    visible: list[LodClusterKey]\n    atom_structures: list[StructureHandle]\n    levels: list[tuple[StructureHandle, LodLevel]]\n    def level(self, structure: StructureHandle) -> LodLevel | None: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "visible",
+          "ownership": "copied-value",
+          "signature": "visible: list[LodClusterKey]"
+        },
+        {
+          "kind": "property",
+          "name": "atom_structures",
+          "ownership": "copied-value",
+          "signature": "atom_structures: list[StructureHandle]"
+        },
+        {
+          "kind": "property",
+          "name": "levels",
+          "ownership": "copied-value",
+          "signature": "levels: list[tuple[StructureHandle, LodLevel]]"
+        },
+        {
+          "kind": "method",
+          "name": "level",
+          "ownership": "borrowed-call",
+          "signature": "def level(self, structure: StructureHandle) -> LodLevel | None: ..."
+        }
+      ],
+      "name": "LodFrame",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyLodFrame",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+      }
+    },
+    {
+      "declaration": "class LodIndex:\n    def __init__(self, scene: Scene) -> None: ...\n    cluster_count: int\n    def select_into(self, camera: Camera, viewport: tuple[int, int], output: LodFrame, policy: LodPolicy | None = ..., previous: LodFrame | None = ...) -> None: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, scene: Scene) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "cluster_count",
+          "ownership": "copied-value",
+          "signature": "cluster_count: int"
+        },
+        {
+          "kind": "method",
+          "name": "select_into",
+          "ownership": "borrowed-call",
+          "signature": "def select_into(self, camera: Camera, viewport: tuple[int, int], output: LodFrame, policy: LodPolicy | None = ..., previous: LodFrame | None = ...) -> None: ..."
+        }
+      ],
+      "name": "LodIndex",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyLodIndex",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+      }
+    },
+    {
+      "declaration": "class LodScene:\n    def __init__(self) -> None: ...\n    primitive_count: int\n    detail_representation_count: int\n    coarse_representation_count: int\n    def apply(self, scene: Scene, index: LodIndex, frame: LodFrame) -> None: ...\n    def apply_transition(self, scene: Scene, index: LodIndex, from_frame: LodFrame, to_frame: LodFrame, weight: float) -> None: ...\n    def bind_detail_representation(self, scene: Scene, structure: StructureHandle, representation: RepresentationHandle) -> None: ...\n    def unbind_detail_representation(self, scene: Scene, representation: RepresentationHandle) -> None: ...\n    def bind_coarse_representation(self, scene: Scene, structure: StructureHandle, representation: RepresentationHandle) -> None: ...\n    def unbind_coarse_representation(self, scene: Scene, representation: RepresentationHandle) -> None: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "primitive_count",
+          "ownership": "copied-value",
+          "signature": "primitive_count: int"
+        },
+        {
+          "kind": "property",
+          "name": "detail_representation_count",
+          "ownership": "copied-value",
+          "signature": "detail_representation_count: int"
+        },
+        {
+          "kind": "property",
+          "name": "coarse_representation_count",
+          "ownership": "copied-value",
+          "signature": "coarse_representation_count: int"
+        },
+        {
+          "kind": "method",
+          "name": "apply",
+          "ownership": "borrowed-call",
+          "signature": "def apply(self, scene: Scene, index: LodIndex, frame: LodFrame) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "apply_transition",
+          "ownership": "borrowed-call",
+          "signature": "def apply_transition(self, scene: Scene, index: LodIndex, from_frame: LodFrame, to_frame: LodFrame, weight: float) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "bind_detail_representation",
+          "ownership": "borrowed-call",
+          "signature": "def bind_detail_representation(self, scene: Scene, structure: StructureHandle, representation: RepresentationHandle) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "unbind_detail_representation",
+          "ownership": "borrowed-call",
+          "signature": "def unbind_detail_representation(self, scene: Scene, representation: RepresentationHandle) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "bind_coarse_representation",
+          "ownership": "borrowed-call",
+          "signature": "def bind_coarse_representation(self, scene: Scene, structure: StructureHandle, representation: RepresentationHandle) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "unbind_coarse_representation",
+          "ownership": "borrowed-call",
+          "signature": "def unbind_coarse_representation(self, scene: Scene, representation: RepresentationHandle) -> None: ..."
+        }
+      ],
+      "name": "LodScene",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyLodScene",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+      }
+    },
+    {
+      "declaration": "class StreamingBudget:\n    def __init__(self, max_resident_bytes: int = ..., max_requests_per_frame: int = ...) -> None: ...\n    @staticmethod\n    def default() -> StreamingBudget: ...\n    max_resident_bytes: int\n    max_requests_per_frame: int",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, max_resident_bytes: int = ..., max_requests_per_frame: int = ...) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "default",
+          "ownership": "borrowed-call",
+          "signature": "def default() -> StreamingBudget: ..."
+        },
+        {
+          "kind": "property",
+          "name": "max_resident_bytes",
+          "ownership": "copied-value",
+          "signature": "max_resident_bytes: int"
+        },
+        {
+          "kind": "property",
+          "name": "max_requests_per_frame",
+          "ownership": "copied-value",
+          "signature": "max_requests_per_frame: int"
+        }
+      ],
+      "name": "StreamingBudget",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyStreamingBudget",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+      }
+    }
+  ]
+}
