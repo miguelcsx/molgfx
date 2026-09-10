@@ -3,7 +3,6 @@ use crate::testing::MockDevice;
 use pdviewx_core::{AtomSelection, ClipPlane, ClipSet, RepresentationKind, Scene, SurfaceKind};
 use pdviewx_gpu::SurfaceError;
 use pdviewx_math::{BoundingSphere, Camera, Vec3};
-
 pub(super) fn camera() -> Camera {
     Camera::framing(
         &BoundingSphere {
@@ -13,7 +12,6 @@ pub(super) fn camera() -> Camera {
         1.0,
     )
 }
-
 pub(super) fn engine() -> Engine<MockDevice> {
     match Engine::new(&EngineConfig::default(), None) {
         Ok(engine) => engine,
@@ -21,6 +19,37 @@ pub(super) fn engine() -> Engine<MockDevice> {
     }
 }
 
+#[test]
+fn engine_creation_keeps_every_registered_layout_within_the_portable_storage_limit() {
+    for mode in [RenderMode::Realtime, RenderMode::Cinematic] {
+        for profile in [
+            RenderProfile::inspection(),
+            RenderProfile::illustrative(),
+            RenderProfile::cinematic(),
+        ] {
+            let config = EngineConfig {
+                mode,
+                profile,
+                ..EngineConfig::default()
+            };
+            let engine = Engine::<MockDevice>::new(&config, None)
+                .unwrap_or_else(|error| panic!("portable mock engine opens: {error}"));
+            let layouts = engine
+                .device
+                .log
+                .bind_group_layouts
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            assert!(!layouts.is_empty());
+            for (label, counts) in layouts.iter() {
+                assert!(
+                    counts.iter().all(|count| *count <= 8),
+                    "{label} uses vertex/fragment/compute storage counts {counts:?}"
+                );
+            }
+        }
+    }
+}
 pub(super) fn structure() -> pdbiox::Structure {
     let cif = "\
 data_test
@@ -68,8 +97,7 @@ _struct_conn.pdbx_value_order
         Err(diagnostics) => panic!("fixture parses: {diagnostics:?}"),
     }
 }
-
-fn represented_scene(structure_count: usize, representation_count: usize) -> Scene {
+pub(super) fn represented_scene(structure_count: usize, representation_count: usize) -> Scene {
     let source = structure();
     let mut scene = Scene::new();
     for _ in 0..structure_count {
@@ -89,7 +117,6 @@ fn represented_scene(structure_count: usize, representation_count: usize) -> Sce
     }
     scene
 }
-
 #[test]
 fn a_healthy_frame_presents_with_exactly_one_submission() {
     let mut engine = engine();
@@ -98,14 +125,13 @@ fn a_healthy_frame_presents_with_exactly_one_submission() {
         Ok(outcome) => outcome,
         Err(e) => panic!("frame renders: {e}"),
     };
-    assert_eq!(outcome, FrameOutcome::Presented);
+    assert_eq!(outcome.status, FrameStatus::Presented);
     let Ok(submits) = engine.device.log.submits.lock() else {
         panic!("log lock")
     };
     let submits = *submits;
     assert_eq!(submits, 1, "one queue submission per frame");
 }
-
 #[test]
 fn a_lost_surface_skips_the_frame_and_reconfigures_instead_of_panicking() {
     let mut engine = engine();
@@ -117,15 +143,14 @@ fn a_lost_surface_skips_the_frame_and_reconfigures_instead_of_panicking() {
         Ok(outcome) => outcome,
         Err(e) => panic!("surface loss is recoverable: {e}"),
     };
-    assert_eq!(outcome, FrameOutcome::Skipped);
+    assert_eq!(outcome.status, FrameStatus::Skipped);
     // The next frame recovers.
     let outcome = match engine.render(&scene, &camera()) {
         Ok(outcome) => outcome,
         Err(e) => panic!("recovery frame renders: {e}"),
     };
-    assert_eq!(outcome, FrameOutcome::Presented);
+    assert_eq!(outcome.status, FrameStatus::Presented);
 }
-
 #[test]
 fn an_outdated_surface_is_reconfigured_before_the_next_acquire() {
     let mut engine = engine();
@@ -137,7 +162,11 @@ fn an_outdated_surface_is_reconfigured_before_the_next_acquire() {
         surface.script = vec![Err(SurfaceError::Outdated)];
     }
     let scene = Scene::new();
-    let Ok(FrameOutcome::Skipped) = engine.render(&scene, &camera()) else {
+    let Ok(FrameReport {
+        status: FrameStatus::Skipped,
+        ..
+    }) = engine.render(&scene, &camera())
+    else {
         panic!("an outdated surface skips the frame")
     };
     let configures_after = match &engine.surface {
@@ -146,11 +175,8 @@ fn an_outdated_surface_is_reconfigured_before_the_next_acquire() {
     };
     assert!(configures_after > configures_before);
 }
-
 #[test]
 fn frame_recording_issues_no_direct_scene_draws() {
-    // The only direct draw allowed is the fullscreen pass's three vertices;
-    // scene geometry must arrive via indirect draws.
     let mut engine = engine();
     let scene = Scene::new();
     let Ok(_) = engine.render(&scene, &camera()) else {
@@ -165,7 +191,6 @@ fn frame_recording_issues_no_direct_scene_draws() {
         "direct draws are fullscreen triangles only"
     );
 }
-
 #[test]
 fn every_structure_representation_pair_has_one_indirect_draw() {
     let mut engine = engine();
@@ -190,7 +215,6 @@ fn every_structure_representation_pair_has_one_indirect_draw() {
         "draw ordering is stable"
     );
 }
-
 #[test]
 fn opaque_and_translucent_representations_are_routed_to_disjoint_draws() {
     let mut scene = represented_scene(1, 2);
@@ -338,11 +362,14 @@ fn solvent_excluded_field_generates_once_and_not_on_an_unchanged_frame() {
     };
     assert_eq!(
         before.len(),
-        2,
-        "SES has one field and one erosion dispatch"
+        3,
+        "SES generates its field, erosion and continuous normals once"
     );
     assert!(before[0].0 > 1, "the field contains many workgroups");
-    assert_eq!(before[0], before[1], "both stages cover the same grid");
+    assert!(
+        before.windows(2).all(|pair| pair[0] == pair[1]),
+        "all three stages cover the same grid"
+    );
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("unchanged frame renders: {error}")
     }
@@ -379,11 +406,16 @@ fn gaussian_surface_generates_one_persistent_field_dispatch() {
         Ok(dispatches) => dispatches.clone(),
         Err(error) => panic!("log lock: {error}"),
     };
-    assert_eq!(before.len(), 1, "Gaussian surfaces only generate one field");
+    assert_eq!(
+        before.len(),
+        2,
+        "Gaussian surfaces generate one scalar field and its normals"
+    );
     assert!(
         before[0].0 > 1,
         "the Gaussian field contains many workgroups"
     );
+    assert_eq!(before[0], before[1], "both stages cover the same grid");
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("unchanged Gaussian frame renders: {error}")
     }
@@ -441,31 +473,4 @@ fn profiling_without_timestamp_queries_is_a_typed_capability_error() {
         panic!("mock deliberately exposes no timestamp queries")
     };
     assert_eq!(error.code(), "PDVIEWX-E0010");
-}
-
-#[test]
-fn picking_resolves_the_structure_and_source_atom_from_integer_attachments() {
-    let mut engine = engine();
-    let scene = represented_scene(2, 1);
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
-    let pick = match engine.pick(0, 0) {
-        Ok(Some(pick)) => pick,
-        Ok(None) => panic!("mock readback resolves zero ids"),
-        Err(error) => panic!("pick resolves: {error}"),
-    };
-    let Some((expected, _)) = scene.structures().next() else {
-        panic!("scene has structures")
-    };
-    let super::PickEntity::Structure(entity) = pick.entity else {
-        panic!("molecular pick resolves to a structure entity")
-    };
-    assert_eq!(entity.structure, expected);
-    assert_eq!(entity.kind, pdviewx_core::EntityKind::Atom);
-    assert_eq!(entity.index, 0);
-    assert!(pick.selection.contains(0));
-    assert_eq!(pick.selection.count(3), 1);
-    let outside = engine.width;
-    assert!(matches!(engine.pick(outside, 0), Ok(None)));
 }
