@@ -2,9 +2,10 @@
 
 use super::{
     AmbientOcclusionPass, AoDenoisePass, BloomPass, BondPass, CartoonPass, CullPass,
-    DepthOfFieldPass, InteractionPass, LabelPass, LightingPass, MotionBlurPass, OitCompositePass,
-    OitPass, OverlayPass, ParticleMotionPass, PointPass, PrimitivePass, ShadowPass, SpherePass,
-    SurfaceFieldPass, SurfacePass, TemporalPass, TonemapPass, TrajectoryPass,
+    DepthOfFieldPass, InteractionPass, LabelPass, LightingPass, MotionBlurPass, OccupancyPass,
+    OitCompositePass, OitPass, OverlayPass, ParticleMotionPass, PointPass, PrimitivePass,
+    RelationResolvePass, ShadowPass, SpherePass, SurfaceComponentPass, SurfaceFieldPass,
+    SurfacePass, TemporalPass, TonemapPass, TrajectoryPass,
 };
 use pdviewx_gpu::Device;
 
@@ -22,6 +23,8 @@ pub struct PassRegistry<D: Device> {
     pub(crate) surface: SurfacePass<D>,
     /// Persistent solvent-excluded field generation.
     pub(crate) surface_field: SurfaceFieldPass<D>,
+    /// Working-set sampled-field connected-component filtering.
+    pub(crate) surface_components: SurfaceComponentPass<D>,
     /// Analytic bond capsules.
     pub(crate) bond: BondPass<D>,
     /// Transport-framed polymer cartoons.
@@ -29,7 +32,7 @@ pub struct PassRegistry<D: Device> {
     /// GPU visibility compaction and indirect arguments.
     pub(crate) cull: CullPass<D>,
     /// Tile-classified physical camera depth of field.
-    pub(crate) depth_of_field: DepthOfFieldPass<D>,
+    pub(crate) depth_of_field: Option<DepthOfFieldPass<D>>,
     /// Deterministic cavity/contact ambient occlusion.
     pub(crate) ambient_occlusion: AmbientOcclusionPass<D>,
     /// Edge-aware denoise of the traced occlusion buffer.
@@ -44,20 +47,24 @@ pub struct PassRegistry<D: Device> {
     pub(crate) oit: OitPass<D>,
     /// Caller-supplied analytic interaction glyphs.
     pub(crate) interaction: InteractionPass<D>,
+    /// Branch-free dynamic relation endpoint kernels.
+    pub(crate) relation_resolve: RelationResolvePass<D>,
     /// Persistent annotations, markers and typed measurements.
     pub(crate) label: LabelPass<D>,
     /// Composites translucent accumulation over opaque HDR.
     pub(crate) oit_composite: OitCompositePass<D>,
     /// Bright-pass highlight bleed.
-    pub(crate) bloom: BloomPass<D>,
+    pub(crate) bloom: Option<BloomPass<D>>,
     /// Camera-shutter blur driven by the opaque motion-vector buffer.
-    pub(crate) motion_blur: MotionBlurPass<D>,
+    pub(crate) motion_blur: Option<MotionBlurPass<D>>,
     /// HDR presentation transform.
     pub(crate) tonemap: TonemapPass<D>,
     /// Depth-independent post-tonemap presentation overlays.
     pub(crate) overlay: OverlayPass<D>,
     /// Topology-stable coordinate interpolation.
     pub(crate) trajectory: TrajectoryPass<D>,
+    /// GPU-resident temporal occupancy accumulation.
+    pub(crate) occupancy: OccupancyPass<D>,
     /// Fixed-step caller-supplied visual particle advection.
     pub(crate) particle_motion: ParticleMotionPass<D>,
 }

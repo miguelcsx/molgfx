@@ -60,9 +60,9 @@ pub(crate) const fn segmentation_targets() -> [ColorTarget; 4] {
 pub(crate) const ALBEDO_RESOURCE: crate::graph::ResourceId = crate::graph::ResourceId(1);
 /// View-space normal plus perceptual roughness.
 pub(crate) const NORMAL_RESOURCE: crate::graph::ResourceId = crate::graph::ResourceId(2);
-/// Stable entity identifier for picking and provenance.
+/// Chunk-local row written by the visible fragment.
 pub(crate) const ENTITY_RESOURCE: crate::graph::ResourceId = crate::graph::ResourceId(3);
-/// Deterministic structure slot paired with the entity identifier.
+/// Resident picking page paired with the chunk-local row.
 pub(crate) const STRUCTURE_RESOURCE: crate::graph::ResourceId = crate::graph::ResourceId(4);
 /// Source categorical-volume slot written by the segmentation OIT pass.
 pub(crate) const SEGMENT_VOLUME_RESOURCE: crate::graph::ResourceId = crate::graph::ResourceId(19);
