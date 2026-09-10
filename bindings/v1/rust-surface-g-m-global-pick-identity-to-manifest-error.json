@@ -1,0 +1,841 @@
+{
+  "symbols": [
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/engine.rs",
+          "crates/pdviewx-py/src/render/engine.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "GlobalPickIdentity"
+        ]
+      },
+      "rust": "GlobalPickIdentity",
+      "typescript": {
+        "adapters": {
+          "WebPick": [
+            "dataset",
+            "chunk",
+            "row"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_types.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "tests/browser/smoke.js"
+        ]
+      },
+      "wasm": {
+        "adapters": {
+          "WebPick": [
+            "dataset",
+            "chunk",
+            "row"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_types.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "tests/browser/smoke.js"
+        ]
+      }
+    },
+    {
+      "kind": "error",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/error.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "GpuError"
+        ]
+      },
+      "rust": "GpuError",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "GpuError is part of the renderer-owned typed error contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "GpuError is part of the renderer-owned typed error contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/pending_surface/geometry.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "Guide"
+        ]
+      },
+      "rust": "Guide",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "Guide is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "Guide is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/authoring.rs",
+          "crates/pdviewx-py/src/authoring.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "GuideCap"
+        ]
+      },
+      "rust": "GuideCap",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "GuideCap is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "GuideCap is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/authoring.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "GuideHandle"
+        ]
+      },
+      "rust": "GuideHandle",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "GuideHandle is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "GuideHandle is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/authoring.rs",
+          "crates/pdviewx-py/src/authoring.rs",
+          "crates/pdviewx-py/src/authoring.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "GuideStyle"
+        ]
+      },
+      "rust": "GuideStyle",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "GuideStyle is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "GuideStyle is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "transferred",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/engine.rs",
+          "crates/pdviewx-py/src/render/engine.rs",
+          "crates/pdviewx-py/src/render/engine.rs",
+          "crates/pdviewx-py/src/render/engine.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "HdrImage"
+        ]
+      },
+      "rust": "HdrImage",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "HdrImage is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "HdrImage is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/profile/context.rs",
+          "crates/pdviewx-py/src/render/profile/context.rs",
+          "crates/pdviewx-py/src/render/profile/context.rs",
+          "crates/pdviewx-py/src/render/profile/context.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "IllustrationStyle"
+        ]
+      },
+      "rust": "IllustrationStyle",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "IllustrationStyle is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "IllustrationStyle is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "transferred",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/engine.rs",
+          "crates/pdviewx-py/src/render/engine.rs",
+          "crates/pdviewx-py/src/render/engine.rs",
+          "crates/pdviewx-py/src/render/engine.rs",
+          "crates/pdviewx-py/src/render/engine.rs",
+          "crates/pdviewx-py/src/render/engine.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "Image"
+        ]
+      },
+      "rust": "Image",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "Image is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "Image is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/config.rs",
+          "crates/pdviewx-py/src/render/config.rs",
+          "crates/pdviewx-py/src/render/config.rs",
+          "crates/pdviewx-py/src/render/config.rs",
+          "crates/pdviewx-py/src/render/engine.rs",
+          "crates/pdviewx-py/src/render/engine.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "ImageConfig"
+        ]
+      },
+      "rust": "ImageConfig",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ImageConfig is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ImageConfig is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/controls.rs",
+          "crates/pdviewx-py/src/controls.rs",
+          "crates/pdviewx-py/src/controls.rs",
+          "crates/pdviewx-py/src/controls.rs",
+          "crates/pdviewx-py/src/controls.rs",
+          "crates/pdviewx-py/src/controls.rs",
+          "crates/pdviewx-py/src/controls.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "InputEvent"
+        ]
+      },
+      "rust": "InputEvent",
+      "typescript": {
+        "adapters": {
+          "WebCameraController": [
+            "pointerMove",
+            "pointerButton",
+            "scroll",
+            "pinch",
+            "key"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_controls.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "scripts/test-web-package.sh"
+        ]
+      },
+      "wasm": {
+        "adapters": {
+          "WebCameraController": [
+            "pointerMove",
+            "pointerButton",
+            "scroll",
+            "pinch",
+            "key"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_controls.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "scripts/test-web-package.sh"
+        ]
+      }
+    },
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/controls.rs",
+          "crates/pdviewx-py/src/controls.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "Key"
+        ]
+      },
+      "rust": "Key",
+      "typescript": {
+        "adapters": {
+          "WebNavigationKey": [
+            "Forward",
+            "Backward",
+            "Left",
+            "Right",
+            "Up",
+            "Down"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_controls.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "scripts/test-web-package.sh"
+        ]
+      },
+      "wasm": {
+        "adapters": {
+          "WebNavigationKey": [
+            "Forward",
+            "Backward",
+            "Left",
+            "Right",
+            "Up",
+            "Down"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_controls.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "scripts/test-web-package.sh"
+        ]
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/profile/context.rs",
+          "crates/pdviewx-py/src/render/profile/context.rs",
+          "crates/pdviewx-py/src/render/profile/context.rs",
+          "crates/pdviewx-py/src/render/profile/context.rs",
+          "crates/pdviewx-py/src/render/profile/context.rs",
+          "crates/pdviewx-py/src/render/profile/context.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "LightingEnvironment"
+        ]
+      },
+      "rust": "LightingEnvironment",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LightingEnvironment is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LightingEnvironment is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/dataset.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "LocalRow"
+        ]
+      },
+      "rust": "LocalRow",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "name": "WebLocalRow",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "name": "WebLocalRow",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/pending_surface/semantic.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "LodCluster"
+        ]
+      },
+      "rust": "LodCluster",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodCluster is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodCluster is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "LodClusterKey"
+        ]
+      },
+      "rust": "LodClusterKey",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodClusterKey is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodClusterKey is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "LodFrame"
+        ]
+      },
+      "rust": "LodFrame",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodFrame is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodFrame is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "LodIndex"
+        ]
+      },
+      "rust": "LodIndex",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodIndex is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodIndex is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "LodLevel"
+        ]
+      },
+      "rust": "LodLevel",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodLevel is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodLevel is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "LodPolicy"
+        ]
+      },
+      "rust": "LodPolicy",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodPolicy is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodPolicy is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "LodScene"
+        ]
+      },
+      "rust": "LodScene",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodScene is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "LodScene is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/dataset.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "LogicalRow"
+        ]
+      },
+      "rust": "LogicalRow",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "name": "WebLogicalRow",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "name": "WebLogicalRow",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "constant",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/visual_register.rs",
+          "crates/pdviewx-py/src/visual_register.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "MAX_CLIP_PLANES"
+        ]
+      },
+      "rust": "MAX_CLIP_PLANES",
+      "typescript": {
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "MAX_CLIP_PLANES is an implementation/layout detail and is deliberately absent from the portable public SDK.",
+        "state": "internal"
+      },
+      "wasm": {
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "MAX_CLIP_PLANES is an implementation/layout detail and is deliberately absent from the portable public SDK.",
+        "state": "internal"
+      }
+    },
+    {
+      "kind": "constant",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/visual_register.rs",
+          "crates/pdviewx-py/src/visual_register.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "MAX_VISUAL_INSTRUCTIONS"
+        ]
+      },
+      "rust": "MAX_VISUAL_INSTRUCTIONS",
+      "typescript": {
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "MAX_VISUAL_INSTRUCTIONS is an implementation/layout detail and is deliberately absent from the portable public SDK.",
+        "state": "internal"
+      },
+      "wasm": {
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "MAX_VISUAL_INSTRUCTIONS is an implementation/layout detail and is deliberately absent from the portable public SDK.",
+        "state": "internal"
+      }
+    },
+    {
+      "kind": "constant",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/visual_register.rs",
+          "crates/pdviewx-py/src/visual_register.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "MAX_VISUAL_PARAMETERS"
+        ]
+      },
+      "rust": "MAX_VISUAL_PARAMETERS",
+      "typescript": {
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "MAX_VISUAL_PARAMETERS is an implementation/layout detail and is deliberately absent from the portable public SDK.",
+        "state": "internal"
+      },
+      "wasm": {
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "MAX_VISUAL_PARAMETERS is an implementation/layout detail and is deliberately absent from the portable public SDK.",
+        "state": "internal"
+      }
+    },
+    {
+      "kind": "constant",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/visual_register.rs",
+          "crates/pdviewx-py/src/visual_register.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "MAX_VISUAL_PROPERTIES"
+        ]
+      },
+      "rust": "MAX_VISUAL_PROPERTIES",
+      "typescript": {
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "MAX_VISUAL_PROPERTIES is an implementation/layout detail and is deliberately absent from the portable public SDK.",
+        "state": "internal"
+      },
+      "wasm": {
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "MAX_VISUAL_PROPERTIES is an implementation/layout detail and is deliberately absent from the portable public SDK.",
+        "state": "internal"
+      }
+    },
+    {
+      "kind": "constant",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/visual_register.rs",
+          "crates/pdviewx-py/src/visual_register.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "MAX_VOLUME_TRANSFER_POINTS"
+        ]
+      },
+      "rust": "MAX_VOLUME_TRANSFER_POINTS",
+      "typescript": {
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "MAX_VOLUME_TRANSFER_POINTS is an implementation/layout detail and is deliberately absent from the portable public SDK.",
+        "state": "internal"
+      },
+      "wasm": {
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "MAX_VOLUME_TRANSFER_POINTS is an implementation/layout detail and is deliberately absent from the portable public SDK.",
+        "state": "internal"
+      }
+    },
+    {
+      "kind": "error",
+      "ownership": "copied-value",
+      "python": {
+        "error_route": "CoreError",
+        "evidence": [
+          "crates/pdviewx-py/src/error.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "CoreError"
+        ]
+      },
+      "rust": "ManifestError",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ManifestError is part of the renderer-owned typed error contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ManifestError is part of the renderer-owned typed error contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    }
+  ]
+}
