@@ -36,12 +36,13 @@ struct BondLineVsOut {
     @location(6) @interpolate(flat, first) aux: vec4f,
 
     @location(7) @interpolate(flat, first) entity_id: u32,
+    @location(8) @interpolate(flat, first) atom_entities: vec2u,
 }
 
 struct BondCapsuleVsOut {
     @builtin(position) position: vec4f,
 
-    // ray.z is invariant -1.0.
+    // Perspective ray direction XY or orthographic ray-origin XY.
     @location(0) ray_xy: vec2f,
 
     // xyz = endpoint A, w = radius.
@@ -61,6 +62,7 @@ struct BondCapsuleVsOut {
     @location(6) @interpolate(flat, first) aux: vec4f,
 
     @location(7) @interpolate(flat, first) entity_id: u32,
+    @location(8) @interpolate(flat, first) atom_entities: vec2u,
 }
 
 struct BondLineHit {
@@ -87,7 +89,7 @@ struct BondFsOut {
     @location(0) albedo_material: vec4f,
     @location(1) normal_roughness: vec4f,
     @location(2) entity_id: u32,
-    @location(3) structure_id: u32,
+    @location(3) resident_page: u32,
     @location(4) motion: vec2f,
     @builtin(frag_depth) depth: f32,
 }
@@ -117,6 +119,25 @@ fn bond_project_ndc(view: vec3f) -> vec2f {
         + frame.proj[3].xyw;
 
     return xyw.xy * (1.0 / xyw.z);
+}
+
+/// Reconstructs view XY from an impostor corner's projected coordinates.
+fn bond_ray_xy(ndc: vec2f) -> vec2f {
+    if frame.projection_kind.x > 0.5 {
+        return (
+            ndc - frame.proj[3].xy
+        ) / vec2f(
+            frame.proj[0][0],
+            frame.proj[1][1],
+        );
+    }
+
+    return (
+        ndc + frame.proj[2].xy
+    ) / vec2f(
+        frame.proj[0][0],
+        frame.proj[1][1],
+    );
 }
 
 /// Computes depth from a true view-space hit.
@@ -179,15 +200,23 @@ fn bond_capsule_extent(
     b: vec3f,
     radius: f32,
 ) -> vec2f {
-    let depth = max(
-        min(-a.z, -b.z),
-        BOND_MIN_VIEW_DEPTH,
-    );
+    var scale =
+        radius;
 
-    return vec2f(
+    if frame.projection_kind.x < 0.5 {
+        let depth = max(
+            min(-a.z, -b.z) - radius,
+            BOND_MIN_VIEW_DEPTH,
+        );
+
+        scale =
+            radius / depth;
+    }
+
+    return abs(vec2f(
         frame.proj[0][0],
         frame.proj[1][1],
-    ) * (radius / depth);
+    )) * scale;
 }
 
 fn bond_color(
@@ -210,5 +239,23 @@ fn bond_motion(
         packed.zw,
         vec2f(along),
         packed.xy,
+    );
+}
+
+fn bond_visual(
+    atom_entities: vec2u,
+    along: f32,
+    color: vec4f,
+    view_position: vec3f,
+    view_normal: vec3f,
+) -> VisualFragmentResult {
+    let entity_id = select(atom_entities.x, atom_entities.y, along >= 0.5);
+    let world_position = bond_world_position(view_position);
+    return visual_fragment(
+        entity_id,
+        color,
+        visual_local_position(world_position),
+        world_position,
+        visual_world_normal(view_normal),
     );
 }

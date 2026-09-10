@@ -18,6 +18,7 @@ fn hidden_bond_line() -> BondLineVsOut {
     out.motion_a_delta = vec4f(0.0);
     out.aux = vec4f(0.0);
     out.entity_id = HIDDEN_WIRE_BOND;
+    out.atom_entities = vec2u(0u);
     return out;
 }
 
@@ -44,7 +45,11 @@ fn vs_bond_line(
     let ndc_a = bond_project_ndc(endpoint_a);
     let ndc_b = bond_project_ndc(endpoint_b);
 
-    let line_width = representation.visual.w;
+    let width_scale = 0.5 * (
+        atom_visual_geometry(atom_a.entity_id).w
+            + atom_visual_geometry(atom_b.entity_id).w
+    ) * 4.0;
+    let line_width = representation.visual.w * width_scale;
 
     let ndc = bond_quad_ndc(
         ndc_a,
@@ -69,10 +74,10 @@ fn vs_bond_line(
             );
 
         let color_a =
-            atom_color(atom_a.color);
+            atom_visual_color(atom_a.entity_id, atom_a.color);
 
         let color_b =
-            atom_color(atom_b.color);
+            atom_visual_color(atom_b.entity_id, atom_b.color);
 
         let motion_a =
             screen_motion(
@@ -133,6 +138,9 @@ fn vs_bond_line(
 
         out.entity_id =
             bond.entity_id;
+
+        out.atom_entities =
+            vec2u(atom_a.entity_id, atom_b.entity_id);
     }
 
     return out;
@@ -207,12 +215,23 @@ fn fs_bond_line(
             hit.along,
         );
 
+    let visual = bond_visual(
+        in.atom_entities,
+        hit.along,
+        color,
+        hit.position,
+        BOND_LINE_NORMAL,
+    );
+    if !visual.visible {
+        discard;
+    }
+
     var out: BondFsOut;
 
     out.albedo_material =
         vec4f(
-            color.rgb,
-            in.aux.w,
+            visual.color.rgb + visual.emission,
+            visual_gbuffer_payload(visual),
         );
 
     out.normal_roughness =
@@ -223,14 +242,14 @@ fn fs_bond_line(
                     BOND_LINE_NORMAL,
                 ),
             ),
-            in.aux.x,
+            visual.roughness,
         );
 
     out.entity_id =
-        in.entity_id;
+        pick_local_row(in.entity_id);
 
-    out.structure_id =
-        model.structure_id;
+    out.resident_page =
+        model_pick_page(in.entity_id);
 
     out.motion =
         bond_motion(
@@ -263,6 +282,17 @@ fn fs_bond_line_transparent(
             hit.along,
         );
 
+    let visual = bond_visual(
+        in.atom_entities,
+        hit.along,
+        color,
+        hit.position,
+        BOND_LINE_NORMAL,
+    );
+    if !visual.visible {
+        discard;
+    }
+
     let depth =
         bond_view_depth(
             hit.position,
@@ -270,17 +300,17 @@ fn fs_bond_line_transparent(
 
     let lit =
         shade_molecule(
-            color.rgb,
+            visual.color.rgb,
             BOND_LINE_NORMAL,
-            in.aux.x,
-            in.aux.w,
+            visual.roughness,
+            visual_material_payload(visual),
             hit.position,
             oit_occlusion(in.position),
-        );
+        ) + visual.emission;
 
     return weighted_transparency(
         lit,
-        color.a,
+        visual.color.a,
         depth,
     );
 }
