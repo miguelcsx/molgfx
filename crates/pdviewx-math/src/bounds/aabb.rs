@@ -3,7 +3,7 @@
 //! Building a bound over `n` points is `O(n)`; every query on a built bound
 //! is `O(1)`.
 
-use glam::{Mat4, Vec3};
+use crate::{Mat4, Vec3};
 
 #[cfg(test)]
 #[path = "aabb_tests.rs"]
@@ -23,6 +23,7 @@ pub struct Aabb {
 }
 
 impl Default for Aabb {
+    #[inline]
     fn default() -> Self {
         Self::EMPTY
     }
@@ -37,6 +38,7 @@ impl Aabb {
 
     /// Builds a box from explicit corners; callers guarantee `min <= max`.
     #[must_use]
+    #[inline]
     pub const fn new(min: Vec3, max: Vec3) -> Self {
         Self { min, max }
     }
@@ -55,11 +57,13 @@ impl Aabb {
 
     /// True when no point has been added.
     #[must_use]
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.min.x > self.max.x
     }
 
     /// Grows the box to contain `point`; non-finite points are ignored.
+    #[inline]
     pub fn extend(&mut self, point: Vec3) {
         if point.is_finite() {
             self.min = self.min.min(point);
@@ -68,6 +72,7 @@ impl Aabb {
     }
 
     /// Grows the box to contain a sphere of `radius` around `center`.
+    #[inline]
     pub fn extend_sphere(&mut self, center: Vec3, radius: f32) {
         if center.is_finite() && radius.is_finite() {
             let r = Vec3::splat(radius.abs());
@@ -78,6 +83,7 @@ impl Aabb {
 
     /// The smallest box containing both operands.
     #[must_use]
+    #[inline]
     pub fn union(&self, other: &Self) -> Self {
         Self {
             min: self.min.min(other.min),
@@ -87,27 +93,35 @@ impl Aabb {
 
     /// True when two non-empty boxes share any volume or boundary.
     #[must_use]
+    #[inline]
     pub fn overlaps(&self, other: &Self) -> bool {
         !self.is_empty()
             && !other.is_empty()
-            && self.min.cmple(other.max).all()
-            && other.min.cmple(self.max).all()
+            && self.min.x <= other.max.x
+            && self.min.y <= other.max.y
+            && self.min.z <= other.max.z
+            && other.min.x <= self.max.x
+            && other.min.y <= self.max.y
+            && other.min.z <= self.max.z
     }
 
     /// Center point; meaningless on an empty box.
     #[must_use]
+    #[inline]
     pub fn center(&self) -> Vec3 {
         (self.min + self.max) * 0.5
     }
 
     /// Half the diagonal extent on each axis.
     #[must_use]
+    #[inline]
     pub fn half_extents(&self) -> Vec3 {
         (self.max - self.min) * 0.5
     }
 
     /// The eight corner points, fixed order (x fastest, then y, then z).
     #[must_use]
+    #[inline]
     pub fn corners(&self) -> [Vec3; 8] {
         let (lo, hi) = (self.min, self.max);
         [
@@ -125,6 +139,7 @@ impl Aabb {
     /// The tightest axis-aligned box containing this box after an affine
     /// transform: the transformed corners' bound.
     #[must_use]
+    #[inline]
     pub fn transform(&self, matrix: &Mat4) -> Self {
         if self.is_empty() {
             return Self::EMPTY;
@@ -140,6 +155,7 @@ impl Aabb {
     /// `None` when it misses. `inv_dir` is the componentwise reciprocal of
     /// the ray direction (infinities from zero components behave correctly).
     #[must_use]
+    #[inline]
     pub fn ray_intersect(&self, origin: Vec3, inv_dir: Vec3) -> Option<(f32, f32)> {
         let t0 = (self.min - origin) * inv_dir;
         let t1 = (self.max - origin) * inv_dir;
@@ -154,6 +170,7 @@ impl Aabb {
 
     /// The bounding sphere of the box: centered, radius to a corner.
     #[must_use]
+    #[inline]
     pub fn bounding_sphere(&self) -> BoundingSphere {
         if self.is_empty() {
             return BoundingSphere {
@@ -189,7 +206,7 @@ impl BoundingSphere {
         let mut count = 0u32;
         for p in points {
             if p.is_finite() {
-                sum += p.as_dvec3();
+                sum += glam::Vec3::from(*p).as_dvec3();
                 count += 1;
             }
         }
@@ -199,7 +216,7 @@ impl BoundingSphere {
                 radius: 0.0,
             };
         }
-        let center = (sum / f64::from(count)).as_vec3();
+        let center = Vec3::from((sum / f64::from(count)).as_vec3());
         let mut radius_sq = 0.0f32;
         for p in points {
             if p.is_finite() {
