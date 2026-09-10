@@ -23,8 +23,10 @@
 //!include "include/surface/types.wgsl"
 //!include "include/surface/ray.wgsl"
 //!include "include/surface/grid_field.wgsl"
+//!include "include/surface/soft_union.wgsl"
 //!include "include/surface/union_trace.wgsl"
 //!include "include/surface/grid_trace.wgsl"
+//!include "include/visual/fragment.wgsl"
 //!include "include/surface/shading.wgsl"
 
 @vertex

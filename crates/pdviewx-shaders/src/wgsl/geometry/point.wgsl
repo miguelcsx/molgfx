@@ -19,6 +19,7 @@
 //!include "include/oit_input.wgsl"
 //!include "include/representation.wgsl"
 //!include "include/motion.wgsl"
+//!include "include/visual/fragment.wgsl"
 
 const POINT_NORMAL: vec3f = vec3f(0.0, 0.0, 1.0);
 const POINT_COVERAGE_EPSILON: f32 = 1.0e-6;
@@ -51,13 +52,14 @@ struct PointTransparentVsOut {
     @location(1) @interpolate(flat, first) view_position: vec3f,
     @location(2) @interpolate(flat, first) color: vec4f,
     @location(3) @interpolate(flat, first) softness_pixels: f32,
+    @location(4) @interpolate(flat, first) entity_id: u32,
 }
 
 struct PointFsOut {
     @location(0) albedo_material: vec4f,
     @location(1) normal_roughness: vec4f,
     @location(2) entity_id: u32,
-    @location(3) structure_id: u32,
+    @location(3) resident_page: u32,
     @location(4) motion: vec2f,
     @builtin(frag_depth) depth: f32,
 }
@@ -180,7 +182,7 @@ fn vs_point(
 
     if flat {
         out.color =
-            atom_color(atom.color);
+            atom_visual_color(atom.entity_id, atom.color);
 
         // Current clip XYW already exists; do not project current_world again.
         out.motion =
@@ -208,14 +210,24 @@ fn fs_point(
         discard;
     }
 
+    let world_position = atom_position(in.entity_id);
+    let visual = visual_fragment(
+        in.entity_id,
+        in.color,
+        visual_local_position(world_position),
+        world_position,
+        visual_world_normal(POINT_NORMAL),
+    );
+    if !visual.visible {
+        discard;
+    }
+
     var out: PointFsOut;
 
     out.albedo_material =
         vec4f(
-            in.color.rgb,
-            material_payload(
-                representation.material
-            ),
+            visual.color.rgb + visual.emission,
+            visual_gbuffer_payload(visual),
         );
 
     out.normal_roughness =
@@ -226,14 +238,14 @@ fn fs_point(
                     POINT_NORMAL
                 ),
             ),
-            representation.material.x,
+                    visual.roughness,
         );
 
     out.entity_id =
-        in.entity_id;
+        pick_local_row(in.entity_id);
 
-    out.structure_id =
-        model.structure_id;
+    out.resident_page =
+        model_pick_page(in.entity_id);
 
     out.motion =
         in.motion;
@@ -287,6 +299,9 @@ fn vs_point_transparent(
     out.softness_pixels =
         0.0;
 
+    out.entity_id =
+        0u;
+
     if POINT_CLIPPING_ENABLED &&
         !representation_visible(world_position) {
         out.position =
@@ -300,7 +315,8 @@ fn vs_point_transparent(
             geometry.view_position;
 
         out.color =
-            atom_color(
+            atom_visual_color(
+                atom.entity_id,
                 atom.color
             );
 
@@ -308,6 +324,9 @@ fn vs_point_transparent(
             atom_softness_pixels(
                 atom.semantic
             );
+
+        out.entity_id =
+            atom.entity_id;
     }
 
     return out;
@@ -327,6 +346,18 @@ fn fs_point_transparent(
         discard;
     }
 
+    let world_position = atom_position(in.entity_id);
+    let visual = visual_fragment(
+        in.entity_id,
+        in.color,
+        visual_local_position(world_position),
+        world_position,
+        visual_world_normal(POINT_NORMAL),
+    );
+    if !visual.visible {
+        discard;
+    }
+
     let radius =
         sqrt(radius_sq);
 
@@ -334,7 +365,7 @@ fn fs_point_transparent(
         max(
             fwidth(radius) *
                 max(
-                    in.softness_pixels,
+                    max(in.softness_pixels, visual.softness_pixels),
                     1.0,
                 ),
             POINT_COVERAGE_EPSILON,
@@ -351,26 +382,21 @@ fn fs_point_transparent(
         discard;
     }
 
-    let material =
-        material_payload(
-            representation.material
-        );
-
     let lit =
         shade_molecule(
-            in.color.rgb,
+            visual.color.rgb,
             POINT_NORMAL,
-            representation.material.x,
-            material,
+            visual.roughness,
+            visual_material_payload(visual),
             in.view_position,
             oit_occlusion(
                 in.position
             ),
-        );
+        ) + visual.emission;
 
     return weighted_transparency(
         lit,
-        in.color.a * coverage,
+        visual.color.a * coverage,
         in.position.z,
     );
 }

@@ -20,8 +20,10 @@
 //!include "include/oit_input.wgsl"
 //!include "include/representation.wgsl"
 //!include "include/motion.wgsl"
+//!include "include/depth_tie.wgsl"
 //!include "include/sphere/types.wgsl"
 //!include "include/sphere/intersect.wgsl"
+//!include "include/visual/fragment.wgsl"
 //!include "include/sphere/output.wgsl"
 
 @vertex
@@ -50,7 +52,7 @@ fn vs_sphere_opaque(
             geometry.center_radius;
 
         out.color =
-            atom_color(atom.color);
+            atom_visual_color(atom.entity_id, atom.color);
 
         out.previous_softness =
             vec4f(
@@ -95,7 +97,7 @@ fn vs_sphere_transparent(
             geometry.center_radius;
 
         out.color =
-            atom_color(atom.color);
+            atom_visual_color(atom.entity_id, atom.color);
 
         out.previous_softness =
             vec4f(

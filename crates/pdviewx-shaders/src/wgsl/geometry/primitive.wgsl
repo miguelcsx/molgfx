@@ -17,6 +17,7 @@
 //!include "include/camera.wgsl"
 //!include "include/quad.wgsl"
 //!include "include/intersect.wgsl"
+//!include "include/quaternion.wgsl"
 //!include "include/material_lighting.wgsl"
 //!include "include/oit_input.wgsl"
 //!include "include/motion.wgsl"
@@ -46,11 +47,11 @@ fn vs_primitive(
             world_center,
         );
 
-    let half_size =
-        sphere_quad_half_size(
-            dot(center, center),
-            center_radius.w,
-        );
+    var half_size = vec2f(center_radius.w);
+
+    if frame.projection_kind.x < 0.5 {
+        half_size = sphere_quad_half_extent(center, center_radius.w);
+    }
 
     let view_position =
         center +
@@ -77,7 +78,7 @@ fn vs_primitive(
     out.inverse_cross = vec4f(0.0);
     out.color = vec4f(0.0);
     out.metadata = vec4u(0u);
-    out.previous_world_center = vec3f(0.0);
+    out.previous_world_center = world_center;
 
     // Flat interpolation reads vertices 0 and 3 for the two triangles.
     // Only those vertices pay for the remaining six storage-record fields and
@@ -88,10 +89,13 @@ fn vs_primitive(
         out.orientation = primitive[instance].orientation;
         out.size = primitive[instance].size_opacity.xyz;
         out.inverse_primary = primitive[instance].inverse_primary;
-        out.inverse_cross = primitive[instance].inverse_cross;
+        let inverse_cross = primitive[instance].inverse_cross;
+        out.inverse_cross = inverse_cross;
         out.color = primitive[instance].color;
         out.metadata = primitive[instance].metadata;
-        out.previous_world_center = primitive_previous[instance].xyz;
+        if inverse_cross.w > 0.5 {
+            out.previous_world_center = primitive_previous[instance].xyz;
+        }
     }
 
     return out;
