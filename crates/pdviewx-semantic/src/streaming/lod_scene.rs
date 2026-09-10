@@ -2,20 +2,43 @@
 //!
 //! The core scene stays independent of this policy crate. This adapter lowers
 //! visible coarse clusters to persistent particle records, reuses their
-//! handles across frames, and leaves the caller's native atom representations
-//! untouched when atom detail is chosen.
+//! handles across frames, and cross-fades explicitly bound native detail
+//! representations without rebuilding either side.
 
 use super::plan::{LodFrame, LodIndex};
 use crate::LodLevel;
-use pdviewx_core::{
-    CoreError, Particle, ParticleShape, Primitive, PrimitiveHandle, Scene, StructureHandle,
+use pdviewx_core::{CoreError, PrimitiveHandle, RepresentationHandle, Scene, StructureHandle};
+
+#[path = "lod_scene_helpers.rs"]
+mod helpers;
+use helpers::{
+    bind_native, binding, clamp_unit, has_native_binding, set_binding_alpha, set_detail_alpha,
+    unbind_native,
 };
-use pdviewx_math::{Quat, Rgba8, Vec3};
+
+#[cfg(test)]
+#[path = "lod_scene_tests.rs"]
+mod tests;
 
 /// Persistent coarse analytic particles owned by a semantic LOD controller.
-#[derive(Clone, Debug, Default)]
+///
+/// Scene handles never cross scene identities. Cloning creates a fresh,
+/// unbound controller because two controllers cannot own the same primitive.
+#[derive(Debug, Default)]
 pub struct LodScene {
+    scene_identity: Option<u64>,
     bindings: Vec<LodBinding>,
+    details: Vec<DetailBinding>,
+    coarse: Vec<DetailBinding>,
+    desired: Vec<super::plan::LodClusterKey>,
+    missing: Vec<super::plan::LodClusterKey>,
+    free: Vec<usize>,
+}
+
+impl Clone for LodScene {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -26,15 +49,23 @@ struct LodBinding {
     base_opacity: f32,
 }
 
+#[derive(Clone, Copy, Debug)]
+struct DetailBinding {
+    structure: StructureHandle,
+    representation: RepresentationHandle,
+    base_opacity: f32,
+    base_visible: bool,
+}
+
 impl LodScene {
     /// Applies one selected frame while reusing the existing scene handles.
     ///
     /// Each visible residue, secondary-structure or domain cluster becomes one
     /// analytic sphere at the cluster centroid and radius. All records share
     /// the core scientific table and its single indirect draw, so the coarse
-    /// path does not add one CPU draw call per biological cluster. The caller's
-    /// atom-level representations are enabled or disabled by the caller from
-    /// [`LodFrame::atom_structures`].
+    /// path does not add one CPU draw call per biological cluster. Native
+    /// representations registered with [`Self::bind_detail_representation`]
+    /// are switched automatically from [`LodFrame::atom_structures`].
     ///
     /// # Errors
     ///
@@ -46,27 +77,28 @@ impl LodScene {
         index: &LodIndex,
         frame: &LodFrame,
     ) -> Result<(), CoreError> {
+        self.bind_scene(scene);
         self.remove_stale(scene);
-        for &key in frame.visible() {
-            if key.level == LodLevel::Atom || self.bindings.iter().any(|binding| binding.key == key)
-            {
-                continue;
-            }
-            self.create_binding(scene, index, key)?;
-        }
+        self.desired.clear();
+        self.desired
+            .extend(frame.visible().iter().copied().filter(|key| {
+                key.level != LodLevel::Atom && !has_native_binding(&self.coarse, key.structure)
+            }));
+        self.sync_bindings(scene, index)?;
         for binding in &self.bindings {
             let selected = frame.visible().binary_search(&binding.key).is_ok();
             set_binding_alpha(scene, *binding, f32::from(selected));
         }
+        self.apply_details(scene, frame);
+        self.apply_coarse(scene, frame);
         Ok(())
     }
 
     /// Cross-fades persistent coarse records between two selected frames.
     ///
-    /// The transition is deterministic and only changes the shared analytic
-    /// particle table. Atom-level representations remain caller-owned because
-    /// their native atom material may be controlled independently of semantic
-    /// LOD; callers should fade that representation with the same `weight`.
+    /// The transition is deterministic and changes only existing material and
+    /// analytic-particle records. Bound native detail and coarse records remain
+    /// resident, so the transition performs no topology rebuild or allocation.
     ///
     /// # Errors
     ///
@@ -80,23 +112,42 @@ impl LodScene {
         to: &LodFrame,
         weight: f32,
     ) -> Result<(), CoreError> {
+        self.bind_scene(scene);
         self.remove_stale(scene);
         let weight = clamp_unit(weight);
-        let mut keys = Vec::with_capacity(from.visible().len() + to.visible().len());
-        keys.extend(
-            from.visible()
-                .iter()
-                .chain(to.visible())
-                .copied()
-                .filter(|key| key.level != LodLevel::Atom),
-        );
-        keys.sort_unstable();
-        keys.dedup();
-        for key in keys {
-            if !self.bindings.iter().any(|binding| binding.key == key) {
-                self.create_binding(scene, index, key)?;
+        self.desired.clear();
+        let mut from_row = 0usize;
+        let mut to_row = 0usize;
+        while from_row < from.visible().len() || to_row < to.visible().len() {
+            let key = match (from.visible().get(from_row), to.visible().get(to_row)) {
+                (Some(left), Some(right)) if left < right => {
+                    from_row += 1;
+                    *left
+                }
+                (Some(left), Some(right)) if right < left => {
+                    to_row += 1;
+                    *right
+                }
+                (Some(key), Some(_)) => {
+                    from_row += 1;
+                    to_row += 1;
+                    *key
+                }
+                (Some(key), None) => {
+                    from_row += 1;
+                    *key
+                }
+                (None, Some(key)) => {
+                    to_row += 1;
+                    *key
+                }
+                (None, None) => break,
+            };
+            if key.level != LodLevel::Atom && !has_native_binding(&self.coarse, key.structure) {
+                self.desired.push(key);
             }
         }
+        self.sync_bindings(scene, index)?;
         for binding in &self.bindings {
             let was_visible = from.visible().binary_search(&binding.key).is_ok();
             let is_visible = to.visible().binary_search(&binding.key).is_ok();
@@ -108,7 +159,64 @@ impl LodScene {
             };
             set_binding_alpha(scene, *binding, alpha);
         }
+        self.apply_detail_transition(scene, from, to, weight);
+        self.apply_coarse_transition(scene, from, to, weight);
         Ok(())
+    }
+
+    /// Registers one existing native representation as the atom-detail view
+    /// for a structure. Its current visibility and opacity become the values
+    /// restored at full detail.
+    ///
+    /// Re-registering the same pair is a no-op. A representation may be bound
+    /// to only one structure within this controller.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::StaleHandle`] when either handle is absent.
+    pub fn bind_detail_representation(
+        &mut self,
+        scene: &Scene,
+        structure: StructureHandle,
+        representation: RepresentationHandle,
+    ) -> Result<(), CoreError> {
+        self.bind_scene(scene);
+        bind_native(&mut self.details, scene, structure, representation)
+    }
+
+    /// Releases one detail binding and restores its original presentation.
+    pub fn unbind_detail_representation(
+        &mut self,
+        scene: &mut Scene,
+        representation: RepresentationHandle,
+    ) {
+        unbind_native(&mut self.details, scene, representation);
+    }
+
+    /// Registers an existing volume, surface or other representation as the
+    /// coarse view for a structure. It replaces generated coarse particles for
+    /// that structure and cross-fades inversely to atom detail.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::StaleHandle`] when either handle is absent.
+    pub fn bind_coarse_representation(
+        &mut self,
+        scene: &Scene,
+        structure: StructureHandle,
+        representation: RepresentationHandle,
+    ) -> Result<(), CoreError> {
+        self.bind_scene(scene);
+        bind_native(&mut self.coarse, scene, structure, representation)
+    }
+
+    /// Releases one coarse binding and restores its original presentation.
+    pub fn unbind_coarse_representation(
+        &mut self,
+        scene: &mut Scene,
+        representation: RepresentationHandle,
+    ) {
+        unbind_native(&mut self.coarse, scene, representation);
     }
 
     /// Number of persistent coarse analytic records currently owned.
@@ -117,96 +225,151 @@ impl LodScene {
         self.bindings.len()
     }
 
-    fn create_binding(
-        &mut self,
-        scene: &mut Scene,
-        index: &LodIndex,
-        key: super::plan::LodClusterKey,
-    ) -> Result<(), CoreError> {
-        let cluster = index.cluster(key).ok_or(CoreError::InvalidPrimitive {
-            reason: "LOD frame refers to a missing cluster",
-        })?;
-        let placed = scene
-            .structure(key.structure)
-            .ok_or(CoreError::StaleHandle)?;
-        let inverse = placed.model_to_world.inverse();
-        let center = inverse.transform_point3(cluster.center);
-        let scale = [
-            placed.model_to_world.transform_vector3(Vec3::X).length(),
-            placed.model_to_world.transform_vector3(Vec3::Y).length(),
-            placed.model_to_world.transform_vector3(Vec3::Z).length(),
-        ]
-        .into_iter()
-        .fold(f32::INFINITY, f32::min)
-        .max(1.0e-3);
-        let radius = cluster.radius / scale;
-        let particle = Particle::new(
-            key.structure,
-            center,
-            Quat::IDENTITY,
-            Vec3::splat(radius * 2.0),
-            ParticleShape::Sphere,
-            color_for(key.level),
-            0.82,
-        )?;
-        let primitive = scene
-            .add_primitives(&[pdviewx_core::Primitive::particle(particle)])?
-            .ok_or(CoreError::InvalidPrimitive {
-                reason: "non-empty LOD batch produced no handle",
-            })?;
-        self.bindings.push(LodBinding {
-            key,
-            structure: key.structure,
-            primitive,
-            base_opacity: 0.82,
-        });
+    /// Number of native detail representations controlled by this adapter.
+    #[must_use]
+    pub const fn detail_representation_count(&self) -> usize {
+        self.details.len()
+    }
+
+    /// Number of caller-owned coarse representations controlled by this adapter.
+    #[must_use]
+    pub const fn coarse_representation_count(&self) -> usize {
+        self.coarse.len()
+    }
+
+    fn bind_scene(&mut self, scene: &Scene) {
+        let identity = scene.cache_identity();
+        if self.scene_identity == Some(identity) {
+            return;
+        }
+        self.scene_identity = Some(identity);
+        self.bindings.clear();
+        self.details.clear();
+        self.coarse.clear();
+        self.desired.clear();
+        self.missing.clear();
+        self.free.clear();
+    }
+
+    fn sync_bindings(&mut self, scene: &mut Scene, index: &LodIndex) -> Result<(), CoreError> {
+        self.missing.clear();
+        self.free.clear();
+        for &key in &self.desired {
+            if self
+                .bindings
+                .binary_search_by_key(&key, |binding| binding.key)
+                .is_err()
+            {
+                self.missing.push(key);
+            }
+        }
+        for (row, binding) in self.bindings.iter().enumerate() {
+            if self.desired.binary_search(&binding.key).is_err() {
+                self.free.push(row);
+            }
+        }
+        for key in self.missing.iter().copied() {
+            if let Some(row) = self.free.pop() {
+                let primitive = self.bindings[row].primitive;
+                let binding = binding(scene, index, key, Some(primitive))?;
+                self.bindings[row] = binding;
+            } else {
+                self.bindings.push(binding(scene, index, key, None)?);
+            }
+        }
+        for row in self.free.drain(..).rev() {
+            let stale = self.bindings.remove(row);
+            scene.remove_primitive(stale.primitive);
+        }
+        self.bindings.sort_unstable_by_key(|binding| binding.key);
         Ok(())
     }
 
     fn remove_stale(&mut self, scene: &mut Scene) {
-        let old = std::mem::take(&mut self.bindings);
-        for binding in old {
-            if scene.structure(binding.structure).is_some()
-                && scene.primitive(binding.primitive).is_some()
-            {
-                self.bindings.push(binding);
-            } else {
+        self.bindings.retain(|binding| {
+            let keep = scene.structure(binding.structure).is_some()
+                && scene.primitive(binding.primitive).is_some();
+            if !keep {
                 scene.remove_primitive(binding.primitive);
             }
+            keep
+        });
+        self.details.retain(|binding| {
+            scene.structure(binding.structure).is_some()
+                && scene.representation(binding.representation).is_some()
+        });
+        self.coarse.retain(|binding| {
+            scene.structure(binding.structure).is_some()
+                && scene.representation(binding.representation).is_some()
+        });
+    }
+
+    fn apply_details(&self, scene: &mut Scene, frame: &LodFrame) {
+        for &binding in &self.details {
+            let selected = frame
+                .atom_structures()
+                .binary_search(&binding.structure)
+                .is_ok();
+            set_detail_alpha(scene, binding, f32::from(selected));
         }
     }
-}
 
-fn set_binding_alpha(scene: &mut Scene, binding: LodBinding, alpha: f32) {
-    let target_opacity = binding.base_opacity * clamp_unit(alpha);
-    let target_visible = target_opacity > 1.0e-4;
-    let Some(Primitive::Particle(value)) = scene.primitive(binding.primitive).copied() else {
-        return;
-    };
-    if value.visible == target_visible && (value.opacity - target_opacity).abs() <= 1.0e-6 {
-        return;
+    fn apply_detail_transition(
+        &self,
+        scene: &mut Scene,
+        from: &LodFrame,
+        to: &LodFrame,
+        weight: f32,
+    ) {
+        for &binding in &self.details {
+            let was_visible = from
+                .atom_structures()
+                .binary_search(&binding.structure)
+                .is_ok();
+            let is_visible = to
+                .atom_structures()
+                .binary_search(&binding.structure)
+                .is_ok();
+            let alpha = match (was_visible, is_visible) {
+                (true, true) => 1.0,
+                (true, false) => 1.0 - weight,
+                (false, true) => weight,
+                (false, false) => 0.0,
+            };
+            set_detail_alpha(scene, binding, alpha);
+        }
     }
-    if let Some(Primitive::Particle(value)) = scene.primitive_mut(binding.primitive) {
-        value.visible = target_visible;
-        value.opacity = target_opacity;
-    }
-}
 
-fn clamp_unit(value: f32) -> f32 {
-    if value.is_finite() {
-        value.clamp(0.0, 1.0)
-    } else if value.is_sign_positive() {
-        1.0
-    } else {
-        0.0
+    fn apply_coarse(&self, scene: &mut Scene, frame: &LodFrame) {
+        for &binding in &self.coarse {
+            let selected = frame
+                .level(binding.structure)
+                .is_some_and(|level| level != LodLevel::Atom);
+            set_detail_alpha(scene, binding, f32::from(selected));
+        }
     }
-}
 
-fn color_for(level: LodLevel) -> Rgba8 {
-    match level {
-        LodLevel::Atom => Rgba8::opaque(220, 230, 240),
-        LodLevel::Residue => Rgba8::opaque(95, 170, 235),
-        LodLevel::SecondaryStructure => Rgba8::opaque(120, 205, 170),
-        LodLevel::Domain => Rgba8::opaque(230, 175, 90),
+    fn apply_coarse_transition(
+        &self,
+        scene: &mut Scene,
+        from: &LodFrame,
+        to: &LodFrame,
+        weight: f32,
+    ) {
+        for &binding in &self.coarse {
+            let was_visible = from
+                .level(binding.structure)
+                .is_some_and(|level| level != LodLevel::Atom);
+            let is_visible = to
+                .level(binding.structure)
+                .is_some_and(|level| level != LodLevel::Atom);
+            let alpha = match (was_visible, is_visible) {
+                (true, true) => 1.0,
+                (true, false) => 1.0 - weight,
+                (false, true) => weight,
+                (false, false) => 0.0,
+            };
+            set_detail_alpha(scene, binding, alpha);
+        }
     }
 }
