@@ -237,7 +237,17 @@ impl<D: Device> GpuTrajectory<D> {
         };
         pass.set_pipeline(pipeline);
         pass.set_bind_group(0, group, &[]);
-        pass.dispatch(self.count.div_ceil(64), 1, 1);
+        let groups = trajectory_dispatch_groups(self.count);
+        pass.dispatch(groups[0], groups[1], 1);
         self.dirty = false;
     }
 }
+
+fn trajectory_dispatch_groups(atom_count: u32) -> [u32; 2] {
+    let coordinates = u64::from(atom_count) * 3;
+    super::dispatch::workgroups_2d(coordinates.div_ceil(64))
+}
+
+#[cfg(test)]
+#[path = "trajectory_slot_tests.rs"]
+mod tests;
