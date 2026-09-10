@@ -20,6 +20,7 @@ struct InteractionGpu {
 }
 
 @group(2) @binding(0) var<storage, read> interactions: array<InteractionGpu>;
+@group(2) @binding(1) var<storage, read> visible_interactions: array<u32>;
 
 struct InteractionVsOut {
     @builtin(position) position: vec4f,
@@ -33,7 +34,7 @@ struct InteractionVsOut {
     // x = inverse period, y = duty, z = arrow size, w = length / period.
     @location(2) @interpolate(flat) style: vec4f,
 
-    // xy = start clip ZW, zw = end-start clip ZW.
+    // x = start NDC depth, y = end-start NDC depth.
     @location(3) @interpolate(flat) depth_zw: vec4f,
 
     // Alpha already includes the glyph opacity multiplier.
@@ -46,8 +47,11 @@ struct InteractionVsOut {
 struct InteractionHit {
     along: f32,
     depth: f32,
+    coverage: f32,
     valid: bool,
 }
+
+const COVERAGE_FEATHER_PIXELS: f32 = 0.75;
 
 /// Returns triangle-list quad coordinates in [0, 1].
 fn interaction_quad_uv(vertex_index: u32) -> vec2f {
@@ -59,14 +63,27 @@ fn interaction_quad_uv(vertex_index: u32) -> vec2f {
 }
 
 /// Resolves the main solid, dashed, dotted or spring stroke.
-fn interaction_main_visible(
+fn stroke_coverage(distance_pixels: f32, radius_pixels: f32) -> f32 {
+    return 1.0 - smoothstep(
+        max(radius_pixels - COVERAGE_FEATHER_PIXELS, 0.0),
+        radius_pixels + COVERAGE_FEATHER_PIXELS,
+        distance_pixels,
+    );
+}
+
+fn interaction_main_coverage(
     in: InteractionVsOut,
     raw_along: f32,
     along: f32,
     perpendicular: f32,
-) -> bool {
+) -> f32 {
     let radius = in.metrics.z;
     let pattern = in.metadata.z;
+    let endpoint_excess = max(
+        max(-raw_along, raw_along - in.metrics.x),
+        0.0,
+    );
+    let endpoint_coverage = stroke_coverage(endpoint_excess, radius);
 
     // Spring is the only path that pays for sin().
     if pattern == 3u {
@@ -78,15 +95,13 @@ fn interaction_main_visible(
             sin(phase * TAU) *
             radius * 2.2;
 
-        return abs(perpendicular - spring) <= radius;
+        return stroke_coverage(abs(perpendicular - spring), radius) * endpoint_coverage;
     }
 
-    if abs(perpendicular) > radius {
-        return false;
-    }
+    let transverse = stroke_coverage(abs(perpendicular), radius);
 
     if pattern == 0u {
-        return true;
+        return transverse * endpoint_coverage;
     }
 
     let cell = fract(
@@ -95,20 +110,29 @@ fn interaction_main_visible(
     );
 
     if pattern == 1u {
-        return cell <= in.style.y;
+        let edge = in.style.x * COVERAGE_FEATHER_PIXELS;
+        return transverse * endpoint_coverage *
+            (1.0 - smoothstep(in.style.y - edge, in.style.y + edge, cell));
     }
 
-    return abs(cell - 0.5) <= radius * in.style.x;
+    let dot_radius = radius * in.style.x;
+    let edge = in.style.x * COVERAGE_FEATHER_PIXELS;
+    let longitudinal = 1.0 - smoothstep(
+        max(dot_radius - edge, 0.0),
+        dot_radius + edge,
+        abs(cell - 0.5),
+    );
+    return transverse * longitudinal * endpoint_coverage;
 }
 
 /// Tests the optional direction marker.
-fn interaction_arrow_visible(
+fn interaction_arrow_coverage(
     in: InteractionVsOut,
     raw_along: f32,
     perpendicular: f32,
-) -> bool {
-    if in.metadata.w == 0u {
-        return false;
+) -> f32 {
+    if (in.metadata.w & 3u) == 0u {
+        return 0.0;
     }
 
     let radius = in.metrics.z;
@@ -125,20 +149,23 @@ fn interaction_arrow_visible(
         marker_tip - raw_along;
 
     if from_tip < 0.0 || from_tip > arrow_size {
-        return false;
+        return 0.0;
     }
 
-    return abs(
+    return stroke_coverage(abs(
         abs(perpendicular) -
         from_tip * 0.62
-    ) <= max(
+    ), max(
         radius * 0.72,
         0.75,
-    );
+    ));
 }
 
 /// Resolves coverage and true projected depth.
 fn resolve_interaction(in: InteractionVsOut) -> InteractionHit {
+    if in.metrics.x <= 1.0 {
+        return InteractionHit(0.0, 0.0, 0.0, false);
+    }
     let relative =
         in.position.xy -
         in.pixel_start_axis.xy;
@@ -160,30 +187,36 @@ fn resolve_interaction(in: InteractionVsOut) -> InteractionHit {
         axis.x * relative.y -
         axis.y * relative.x;
 
-    if !interaction_main_visible(
+    let coverage = max(interaction_main_coverage(
         in,
         raw_along,
         along,
         perpendicular,
-    ) && !interaction_arrow_visible(
+    ), interaction_arrow_coverage(
         in,
         raw_along,
         perpendicular,
-    ) {
+    ));
+    if coverage <= 1.0e-4 {
         return InteractionHit(
+            0.0,
             0.0,
             0.0,
             false,
         );
     }
 
-    let zw =
-        in.depth_zw.xy +
-        in.depth_zw.zw * along;
-
+    let interpolated_depth = in.depth_zw.x + in.depth_zw.y *
+        (in.depth_zw.z + in.depth_zw.w * along);
+    let depth = select(
+        interpolated_depth,
+        0.0,
+        (in.metadata.w & 4u) != 0u,
+    );
     return InteractionHit(
         along,
-        zw.x / zw.y,
+        depth,
+        coverage,
         true,
     );
 }
@@ -193,14 +226,15 @@ fn vs_interaction(
     @builtin(vertex_index) vertex_index: u32,
     @builtin(instance_index) instance_index: u32,
 ) -> InteractionVsOut {
+    let relation_index = visible_interactions[instance_index];
     let start_width =
-        interactions[instance_index].start_width;
+        interactions[relation_index].start_width;
 
     let end_period =
-        interactions[instance_index].end_period;
+        interactions[relation_index].end_period;
 
     let arrow_size =
-        interactions[instance_index].style.w;
+        interactions[relation_index].style.w;
 
     // view_proj replaces separate world->view and view->clip transforms.
     let clip_start =
@@ -238,7 +272,7 @@ fn vs_interaction(
         frame.viewport.xy *
         vec2f(0.5, -0.5);
 
-    let pixel_start =
+    let anchor_pixel_start =
         ndc_start * pixel_scale +
         frame.viewport.xy * 0.5;
 
@@ -256,7 +290,7 @@ fn vs_interaction(
     let inverse_length =
         inverseSqrt(length_squared);
 
-    let length =
+    let anchor_length =
         length_squared *
         inverse_length;
 
@@ -264,8 +298,14 @@ fn vs_interaction(
         pixel_axis *
         inverse_length;
 
+    let relation_animation = interactions[relation_index].animation;
+    let start_inset = min(relation_animation.y, anchor_length * 0.5);
+    let end_inset = min(relation_animation.z, max(anchor_length - start_inset, 0.0));
+    let length = max(anchor_length - start_inset - end_inset, 0.0);
+    let pixel_start = anchor_pixel_start + unit_axis * start_inset;
+
     let interaction_style =
-        interactions[instance_index].style;
+        interactions[relation_index].style;
 
     let inverse_period =
         1.0 /
@@ -273,14 +313,14 @@ fn vs_interaction(
 
     let phase_pixels =
         interaction_style.z +
-        interactions[instance_index].animation.x *
+        relation_animation.x *
         frame.temporal.w;
 
     let color =
-        interactions[instance_index].color;
+        interactions[relation_index].color;
 
     let metadata =
-        interactions[instance_index].metadata;
+        interactions[relation_index].metadata;
 
     var out: InteractionVsOut;
 
@@ -300,7 +340,7 @@ fn vs_interaction(
     out.metrics =
         vec4f(
             length,
-            inverse_length,
+        1.0 / max(length, 1.0e-3),
             radius,
             phase_pixels * inverse_period,
         );
@@ -313,11 +353,15 @@ fn vs_interaction(
             length * inverse_period,
         );
 
-    out.depth_zw =
-        vec4f(
-            clip_start.zw,
-            clip_end.zw - clip_start.zw,
-        );
+    let start_depth = clip_start.z / clip_start.w;
+    let end_depth = clip_end.z / clip_end.w;
+    let inverse_anchor_length = 1.0 / max(anchor_length, 1.0e-3);
+    out.depth_zw = vec4f(
+        start_depth,
+        end_depth - start_depth,
+        start_inset * inverse_anchor_length,
+        length * inverse_anchor_length,
+    );
 
     out.color =
         vec4f(
@@ -330,7 +374,8 @@ fn vs_interaction(
             metadata.x,
             metadata.y,
             metadata.z,
-            metadata.w & 3u,
+            (metadata.w & 3u) |
+                select(0u, 4u, relation_animation.w > 0.5),
         );
 
     return out;
@@ -340,7 +385,7 @@ struct InteractionOutput {
     @location(0) accumulation: vec4f,
     @location(1) revealage: f32,
     @location(2) entity_id: u32,
-    @location(3) structure_id: u32,
+    @location(3) resident_page: u32,
     @builtin(frag_depth) depth: f32,
 }
 
@@ -358,7 +403,7 @@ fn fs_interaction(
     let transparency =
         weighted_transparency(
             in.color.rgb,
-            in.color.a,
+            in.color.a * hit.coverage,
             hit.depth,
         );
 
@@ -371,9 +416,9 @@ fn fs_interaction(
         transparency.revealage;
 
     out.entity_id =
-        in.metadata.x;
+        in.metadata.x & 0x0fffffffu;
 
-    out.structure_id =
+    out.resident_page =
         in.metadata.y;
 
     out.depth =

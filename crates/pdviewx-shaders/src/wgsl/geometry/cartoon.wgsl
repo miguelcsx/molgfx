@@ -28,6 +28,8 @@ struct RibbonVertex {
     color: u32,
 }
 
+//!include "include/ribbon/deform.wgsl"
+
 @group(2) @binding(0) var<storage, read> ribbon_vertices: array<RibbonVertex>;
 @group(2) @binding(1) var<storage, read> ribbon_indices: array<u32>;
 
@@ -35,20 +37,28 @@ struct ModelUniforms {
     model_to_world: mat4x4f,
     world_to_model: mat4x4f,
     previous_model_to_world: mat4x4f,
-    structure_id: u32,
-    padding_a: u32,
-    padding_b: u32,
-    padding_c: u32,
-}
-
-struct ClipUniforms {
-    planes: array<vec4f, 4>,
-    metadata: vec4u,
-    material: vec4f,
+    pick_pages_a: vec4u,
+    pick_pages_b: vec4u,
+    pick_pages_c: vec4u,
 }
 
 @group(2) @binding(2) var<uniform> model: ModelUniforms;
-@group(2) @binding(3) var<uniform> clipping: ClipUniforms;
+
+fn cartoon_pick_local_row(entity_id: u32) -> u32 {
+    return entity_id & 0x0fffffffu;
+}
+
+fn cartoon_pick_page(entity_id: u32) -> u32 {
+    let kind = entity_id >> 28u;
+    if kind < 4u {
+        return model.pick_pages_a[kind];
+    }
+    if kind < 8u {
+        return model.pick_pages_b[kind - 4u];
+    }
+    return model.pick_pages_c[kind - 8u];
+}
+//!include "include/visual/ribbon.wgsl"
 
 struct CartoonVsOut {
     @builtin(position) position: vec4f,
@@ -83,7 +93,7 @@ struct CartoonFsOut {
     @location(0) albedo_material: vec4f,
     @location(1) normal_roughness: vec4f,
     @location(2) entity_id: u32,
-    @location(3) structure_id: u32,
+    @location(3) resident_page: u32,
     @location(4) motion: vec2f,
 }
 
@@ -129,10 +139,10 @@ fn cartoon_clip_distances(
     var distances = vec4f(1.0);
 
     let count =
-        min(clipping.metadata.x, MAX_CLIP_PLANES);
+        min(ribbon_uniforms.metadata.x, MAX_CLIP_PLANES);
 
     for (var index = 0u; index < count; index++) {
-        let plane = clipping.planes[index];
+        let plane = ribbon_uniforms.planes[index];
 
         distances[index] =
             dot(
@@ -159,11 +169,21 @@ fn vs_cartoon(
     // so its high bits are the spline sample used as the curve parameter.
     let vertex_id = ribbon_indices[draw_index];
     let vertex = ribbon_vertices[vertex_id];
+    let current = ribbon_deform(vertex_id, vertex.position, vertex.normal, false);
+    let previous = ribbon_deform(vertex_id, vertex.position, vertex.normal, true);
+    let model_position = select(vertex.position, current.position, current.enabled != 0u)
+        + ribbon_visual_offset(vertex.entity_id);
+    let model_normal = select(vertex.normal, current.normal, current.enabled != 0u);
+    let previous_model_position = select(
+        vertex.position,
+        previous.position,
+        previous.enabled != 0u,
+    );
 
     let world_position =
         transform_point(
             model.model_to_world,
-            vertex.position,
+            model_position,
         );
 
     let view_position =
@@ -175,7 +195,7 @@ fn vs_cartoon(
     let previous_world_position =
         transform_point(
             model.previous_model_to_world,
-            vertex.position,
+            previous_model_position,
         );
 
     var out: CartoonVsOut;
@@ -191,7 +211,7 @@ fn vs_cartoon(
 
     out.normal_curve =
         vec4f(
-            cartoon_view_normal(vertex.normal),
+            cartoon_view_normal(model_normal),
             f32(vertex_id >> PROFILE_SIDES_SHIFT),
         );
 
@@ -231,17 +251,29 @@ fn fs_cartoon(
             normal,
         );
 
-    let material =
-        ribbon_material_payload(
-            clipping.material,
-        );
+    let world_position = transform_point(frame.inv_view, in.view_position);
+    let world_normal = normalize(
+        frame.inv_view[0].xyz * normal.x
+            + frame.inv_view[1].xyz * normal.y
+            + frame.inv_view[2].xyz * normal.z
+    );
+    let visual = ribbon_visual(
+        in.entity_id,
+        in.color,
+        transform_point(model.world_to_model, world_position),
+        world_position,
+        world_normal,
+    );
+    if !visual.visible {
+        discard;
+    }
 
     var out: CartoonFsOut;
 
     out.albedo_material =
         vec4f(
-            in.color.rgb,
-            material,
+            visual.color.rgb + visual.emission,
+            ribbon_visual_gbuffer_material(visual),
         );
 
     out.normal_roughness =
@@ -250,14 +282,14 @@ fn fs_cartoon(
                 normal,
                 tangent,
             ),
-            clipping.material.x,
+            visual.roughness,
         );
 
     out.entity_id =
-        in.entity_id;
+        cartoon_pick_local_row(in.entity_id);
 
-    out.structure_id =
-        model.structure_id;
+    out.resident_page =
+        cartoon_pick_page(in.entity_id);
 
     out.motion =
         in.motion;
@@ -283,25 +315,37 @@ fn fs_cartoon_transparent(
             normal,
         );
 
-    let material =
-        ribbon_material_payload(
-            clipping.material,
-        );
+    let world_position = transform_point(frame.inv_view, in.view_position);
+    let world_normal = normalize(
+        frame.inv_view[0].xyz * normal.x
+            + frame.inv_view[1].xyz * normal.y
+            + frame.inv_view[2].xyz * normal.z
+    );
+    let visual = ribbon_visual(
+        in.entity_id,
+        in.color,
+        transform_point(model.world_to_model, world_position),
+        world_position,
+        world_normal,
+    );
+    if !visual.visible {
+        discard;
+    }
 
     let lit =
         shade_ribbon(
-            in.color.rgb,
+            visual.color.rgb,
             normal,
             tangent,
-            clipping.material.x,
-            material,
+            visual.roughness,
+            ribbon_visual_material(visual),
             in.view_position,
             oit_occlusion(in.position),
-        );
+        ) + visual.emission;
 
     return weighted_transparency(
         lit,
-        in.color.a,
+        visual.color.a,
         in.position.z,
     );
 }
