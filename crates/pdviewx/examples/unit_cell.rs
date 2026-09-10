@@ -10,7 +10,7 @@
 
 use pdviewx::{
     AtomSelection, BoundingSphere, Camera, ColorScheme, Engine, EngineConfig, Guide, GuideStyle,
-    Image, ImageConfig, InteractionPattern, Material, Mesh, MeshVertex, RenderMode, RenderProfile,
+    Image, ImageConfig, Material, Mesh, MeshVertex, RelationPattern, RenderMode, RenderProfile,
     RepresentationKind, Rgba8, Scene, StructureHandle, Vec3,
 };
 use std::error::Error;
@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // as another piece of matter in the scene.
     let style = GuideStyle {
         color: Rgba8::opaque(90, 100, 118),
-        pattern: InteractionPattern::Dashes,
+        pattern: RelationPattern::Dashed,
         width_pixels: 1.4,
         opacity: 0.85,
         period_pixels: 11.0,
@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut engine = Engine::new(
         &EngineConfig {
-            mode: RenderMode::Quality,
+            mode: RenderMode::Cinematic,
             profile: RenderProfile::illustrative(),
             ..EngineConfig::default()
         },

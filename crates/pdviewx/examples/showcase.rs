@@ -132,7 +132,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut engine = Engine::new(
         &EngineConfig {
-            mode: RenderMode::Quality,
+            mode: RenderMode::Cinematic,
             profile: RenderProfile::cinematic(),
             ..EngineConfig::default()
         },

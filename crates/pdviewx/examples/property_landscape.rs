@@ -4,9 +4,9 @@
 //! backdrop is only a compositing fallback and is not presented as environment.
 
 use pdviewx::{
-    AtomProperty, AtomPropertyMeaning, BackdropStyle, Camera, ColorScheme, Engine, EngineConfig,
-    Image, ImageConfig, Material, PresentationEffect, PropertyAppearance, RenderProfile,
-    RepresentationKind, ScalarFieldSemantics, Scene, Select,
+    AttributeColumn, AttributeHandle, AttributeValues, BackdropStyle, Camera, Engine, EngineConfig,
+    Image, ImageConfig, Material, PresentationEffect, RenderProfile, RepresentationKind, RowDomain,
+    ScalarRamp, Scene, Select, VisualProgramBuilder, VisualStyle,
 };
 use std::error::Error;
 use std::fs::File;
@@ -48,19 +48,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         .next()
         .map(|(handle, _)| handle)
         .ok_or_else(|| io::Error::other("structure placement is absent"))?;
-    let property = AtomProperty::new(
-        owner,
+    let domain = display_domain(&values)?;
+    let attribute = scene.add_attribute(AttributeColumn::new(
+        RowDomain::Atoms(owner),
         "recorded B factor",
-        Arc::from(values),
-        AtomPropertyMeaning::Flexibility,
-        ScalarFieldSemantics::quantity(
-            Arc::from("isotropic atomic displacement parameter"),
-            Arc::from("A^2"),
-            Arc::from(structure_path),
-        )?,
-    )?;
-    let property_handle = scene.add_atom_property(property)?;
-    add_biological_layers(&mut scene, property_handle)?;
+        AttributeValues::Scalar(Arc::from(values)),
+    )?)?;
+    add_biological_layers(&mut scene, attribute, domain)?;
 
     let camera = Camera::framing_aabb(&scene.world_aabb(), 4.0 / 3.0);
     let transparent = arguments.iter().any(|value| value == "transparent");
@@ -83,10 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     if arguments.iter().any(|value| value == "profile") {
         profile_frames(&mut engine, &scene, &camera)?;
     }
-    let property = scene
-        .atom_property(property_handle)
-        .ok_or_else(|| io::Error::other("property became stale"))?;
-    let [low, high] = property.finite_domain();
+    let [low, high] = domain;
     println!(
         "recorded B-factor domain [{low:.2}, {high:.2}] A^2; alpha [{}, {}]; wrote {output}",
         coverage[0], coverage[1]
@@ -96,23 +87,27 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn add_biological_layers(
     scene: &mut Scene,
-    property: pdviewx::AtomPropertyHandle,
+    attribute: AttributeHandle,
+    domain: [f32; 2],
 ) -> Result<(), Box<dyn Error>> {
     let protein = scene.select(Select::polymer())?;
     let protein_view = scene.represent(protein, RepresentationKind::Cartoon)?;
-    let color = scene
-        .atom_property(property)
-        .map(|value| ColorScheme::property(property, value))
-        .ok_or_else(|| io::Error::other("property became stale"))?;
-    let domain = scene
-        .atom_property(property)
-        .map(pdviewx::AtomProperty::display_domain)
-        .ok_or_else(|| io::Error::other("property became stale"))?;
+    let mut builder = VisualProgramBuilder::new();
+    let value = builder.scalar_attribute(attribute)?;
+    let color = builder.ramp(value, ScalarRamp::sequential(domain))?;
+    let low = builder.scalar(domain[0])?;
+    let high = builder.scalar(domain[1])?;
+    let weight = builder.smoothstep(low, high, value)?;
+    let faint = builder.scalar(0.24)?;
+    let opaque = builder.scalar(1.0)?;
+    let opacity = builder.mix_scalar(faint, opaque, weight)?;
+    builder.set_base_color(color)?;
+    builder.set_opacity(opacity)?;
+    let visual = VisualStyle::new(builder.finish()?);
     let representation = scene
         .representation_mut(protein_view)
         .ok_or_else(|| io::Error::other("protein representation became stale"))?;
-    representation.color = color;
-    representation.appearance = Some(PropertyAppearance::flexibility(property, domain)?);
+    representation.visual = Some(visual);
     representation.params.ribbon_width = 1.35;
     representation.material = Material::anisotropic_ribbon(0.42);
     representation.material.roughness = 0.48;
@@ -140,6 +135,21 @@ fn add_biological_layers(
     representation.material.specular = 0.32;
     representation.order = 1;
     Ok(())
+}
+
+fn display_domain(values: &[f32]) -> Result<[f32; 2], io::Error> {
+    let mut finite = values.iter().copied().filter(|value| value.is_finite());
+    let Some(first) = finite.next() else {
+        return Err(io::Error::other("property has no finite values"));
+    };
+    let [low, high] = finite.fold([first, first], |[low, high], value| {
+        [low.min(value), high.max(value)]
+    });
+    Ok(if low < high {
+        [low, high]
+    } else {
+        [low - 0.5, high + 0.5]
+    })
 }
 
 fn profile_frames(
