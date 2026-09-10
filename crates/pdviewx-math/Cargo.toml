@@ -8,11 +8,12 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+rayon.workspace = true
 glam.workspace = true
 bytemuck.workspace = true
 serde.workspace = true
 
-[dev-dependencies]
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 proptest.workspace = true
 criterion.workspace = true
 
