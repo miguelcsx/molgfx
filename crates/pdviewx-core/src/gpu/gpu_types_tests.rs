@@ -90,9 +90,13 @@ fn entity_ids_round_trip_every_kind_and_boundary_index() {
         EntityKind::Label,
         EntityKind::Primitive,
         EntityKind::Mesh,
+        EntityKind::LigandPoseBatch,
+        EntityKind::Guide,
+        EntityKind::DynamicBond,
     ] {
         for index in [0u32, 1, 99_999, EntityId::MAX_INDEX] {
-            let id = EntityId::pack(kind, index);
+            let id =
+                EntityId::pack(kind, u64::from(index)).unwrap_or_else(|error| panic!("{error}"));
             let Some((k, i)) = id.unpack() else {
                 panic!("packed id must unpack")
             };
@@ -103,22 +107,100 @@ fn entity_ids_round_trip_every_kind_and_boundary_index() {
 }
 
 #[test]
+fn ligand_pose_batches_and_primitives_never_alias_at_the_same_row() {
+    let primitive =
+        EntityId::pack(EntityKind::Primitive, 42).unwrap_or_else(|error| panic!("{error}"));
+    let batch =
+        EntityId::pack(EntityKind::LigandPoseBatch, 42).unwrap_or_else(|error| panic!("{error}"));
+
+    assert_ne!(primitive, batch);
+    assert_eq!(primitive.unpack(), Some((EntityKind::Primitive, 42)));
+    assert_eq!(batch.unpack(), Some((EntityKind::LigandPoseBatch, 42)));
+}
+
+#[test]
+fn guides_and_interactions_never_alias_at_the_same_row() {
+    let interaction =
+        EntityId::pack(EntityKind::Edge, 42).unwrap_or_else(|error| panic!("{error}"));
+    let guide = EntityId::pack(EntityKind::Guide, 42).unwrap_or_else(|error| panic!("{error}"));
+
+    assert_ne!(interaction, guide);
+    assert_eq!(interaction.unpack(), Some((EntityKind::Edge, 42)));
+    assert_eq!(guide.unpack(), Some((EntityKind::Guide, 42)));
+}
+
+#[test]
+fn the_shared_glyph_record_keeps_guide_and_interaction_tags_distinct() {
+    let owner = crate::StructureHandle(crate::handle::RawHandle::new_for_test(0, 0));
+    let start = crate::InteractionAnchor::world(pdviewx_math::Vec3::ZERO)
+        .unwrap_or_else(|error| panic!("{error}"));
+    let end = crate::InteractionAnchor::world(pdviewx_math::Vec3::X)
+        .unwrap_or_else(|error| panic!("{error}"));
+    let geometry =
+        crate::InteractionGeometry::new(1.0, None).unwrap_or_else(|error| panic!("{error}"));
+    let edge = crate::InteractionEdge::new(
+        owner,
+        start,
+        end,
+        crate::InteractionKind::HydrogenBond,
+        geometry,
+        "test",
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
+    let guide = crate::Guide::new(
+        owner,
+        pdviewx_math::Vec3::ZERO,
+        pdviewx_math::Vec3::Y,
+        crate::GuideStyle::default(),
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
+
+    let edge_gpu = InteractionGpu::new(&edge, 0, 0).unwrap_or_else(|error| panic!("{error}"));
+    let guide_gpu =
+        InteractionGpu::from_guide(&guide, 0, 0).unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(
+        EntityId(edge_gpu.metadata[0]).unpack(),
+        Some((EntityKind::Edge, 0))
+    );
+    assert_eq!(
+        EntityId(guide_gpu.metadata[0]).unpack(),
+        Some((EntityKind::Guide, 0))
+    );
+}
+
+#[test]
 fn the_empty_entity_sentinel_unpacks_to_nothing() {
     assert!(EntityId::NONE.unpack().is_none());
 }
 
 #[test]
+fn entity_ids_reject_every_index_above_the_attachment_limit() {
+    let just_above = u64::from(EntityId::MAX_INDEX) + 1;
+    let above_u32 = u64::from(u32::MAX) + 1;
+
+    for index in [just_above, u64::from(u32::MAX), above_u32] {
+        let error = EntityId::pack(EntityKind::Atom, index)
+            .expect_err("an out-of-range local row must be rejected");
+        assert_eq!(error.index(), index);
+    }
+}
+
+#[test]
 fn aromatic_bonds_keep_their_flag_and_radius_through_packing() {
-    let plain = BondGpu::new(1, 2, 0.2, false, EntityId::pack(EntityKind::Bond, 4));
+    let plain_id = EntityId::pack(EntityKind::Bond, 4).unwrap_or_else(|error| panic!("{error}"));
+    let plain = BondGpu::new(1, 2, 0.2, false, plain_id);
     assert!(!plain.is_aromatic());
     assert!((plain.draw_radius() - 0.2).abs() < 1e-6);
 
-    let aromatic = BondGpu::new(3, 4, 0.2, true, EntityId::pack(EntityKind::Bond, 5));
+    let aromatic_id = EntityId::pack(EntityKind::Bond, 5).unwrap_or_else(|error| panic!("{error}"));
+    let aromatic = BondGpu::new(3, 4, 0.2, true, aromatic_id);
     assert!(aromatic.is_aromatic());
     assert!((aromatic.draw_radius() - 0.2).abs() < 1e-6);
 
     // A zero input radius must not erase the sign bit.
-    let degenerate = BondGpu::new(5, 6, 0.0, true, EntityId::pack(EntityKind::Bond, 6));
+    let degenerate_id =
+        EntityId::pack(EntityKind::Bond, 6).unwrap_or_else(|error| panic!("{error}"));
+    let degenerate = BondGpu::new(5, 6, 0.0, true, degenerate_id);
     assert!(degenerate.is_aromatic());
     assert!(degenerate.draw_radius() > 0.0);
 }

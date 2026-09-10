@@ -10,6 +10,7 @@
 mod tests;
 
 use pdviewx_math::Rgba8;
+use std::fmt;
 
 /// Per-atom flag bits, packed into the atom record.
 ///
@@ -48,7 +49,7 @@ impl AtomFlags {
 }
 
 /// What kind of scene entity a packed id refers to.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EntityKind {
     /// An atom row.
     Atom,
@@ -62,6 +63,20 @@ pub enum EntityKind {
     Primitive,
     /// A caller-supplied indexed mesh.
     Mesh,
+    /// One compact reusable-topology ligand candidate batch.
+    LigandPoseBatch,
+    /// A caller-authored analytic guide segment.
+    Guide,
+    /// A bond row from the active caller-decoded dynamic topology interval.
+    DynamicBond,
+    /// One row in a generic point batch.
+    Point,
+    /// One rigid occurrence in a shared-template instance batch.
+    Instance,
+    /// One analytic part in a shared instance template.
+    TemplatePart,
+    /// One row in a generic relation batch.
+    Relation,
 }
 
 /// A scene-wide entity reference resolved from the GPU picking attachments.
@@ -85,28 +100,67 @@ pub struct VolumeSegmentRef {
     pub label: u32,
 }
 
-/// A pickable identity packed into 32 bits: three tag bits for the entity
-/// kind, twenty-nine bits of row index. Every fragment writes one of these,
+/// A pickable identity packed into 32 bits: four tag bits for the entity kind
+/// and twenty-eight bits of row index. Every fragment writes one of these,
 /// and picking reads it back; the packing must round-trip exactly.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct EntityId(pub u32);
 
+/// Failure to encode a chunk-local row in the 32-bit picking attachment.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct EntityIdError {
+    index: u64,
+}
+
+impl EntityIdError {
+    /// The rejected row index.
+    #[must_use]
+    pub const fn index(self) -> u64 {
+        self.index
+    }
+}
+
+impl fmt::Display for EntityIdError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "entity row {} exceeds the GPU picking limit {}",
+            self.index,
+            EntityId::MAX_INDEX
+        )
+    }
+}
+
+impl std::error::Error for EntityIdError {}
+
 impl EntityId {
     /// The sentinel meaning "nothing here"; the clear value of the id buffer.
     pub const NONE: Self = Self(u32::MAX);
 
-    const TAG_SHIFT: u32 = 29;
+    const TAG_SHIFT: u32 = 28;
     const INDEX_MASK: u32 = (1 << Self::TAG_SHIFT) - 1;
 
     /// The largest packable row index. The all-ones word is the `NONE`
     /// sentinel, so the top index is reserved rather than aliasing it.
     pub const MAX_INDEX: u32 = Self::INDEX_MASK - 1;
 
-    /// Packs a kind and row index. Indices are limited to `MAX_INDEX`; the
-    /// largest supported structure stays well under that.
-    #[must_use]
-    pub const fn pack(kind: EntityKind, index: u32) -> Self {
+    /// Packs a kind and chunk-local row index.
+    ///
+    /// Logical rows are wider than this attachment. Callers must first resolve
+    /// them to a resident chunk and pass its local row; an out-of-range value
+    /// is rejected instead of aliasing the last encodable entity.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EntityIdError`] when the row does not fit the picking attachment.
+    pub fn pack(kind: EntityKind, index: u64) -> Result<Self, EntityIdError> {
+        if index > u64::from(Self::MAX_INDEX) {
+            return Err(EntityIdError { index });
+        }
+        let Ok(index) = u32::try_from(index) else {
+            return Err(EntityIdError { index });
+        };
         let tag = match kind {
             EntityKind::Atom => 0u32,
             EntityKind::Bond => 1,
@@ -114,13 +168,15 @@ impl EntityId {
             EntityKind::Label => 3,
             EntityKind::Primitive => 4,
             EntityKind::Mesh => 5,
+            EntityKind::LigandPoseBatch => 6,
+            EntityKind::Guide => 7,
+            EntityKind::DynamicBond => 8,
+            EntityKind::Point => 9,
+            EntityKind::Instance => 10,
+            EntityKind::TemplatePart => 11,
+            EntityKind::Relation => 12,
         };
-        let index = if index > Self::MAX_INDEX {
-            Self::MAX_INDEX
-        } else {
-            index
-        };
-        Self((tag << Self::TAG_SHIFT) | index)
+        Ok(Self((tag << Self::TAG_SHIFT) | index))
     }
 
     /// Unpacks the kind and row index; `None` for the empty sentinel.
@@ -136,6 +192,13 @@ impl EntityId {
             3 => EntityKind::Label,
             4 => EntityKind::Primitive,
             5 => EntityKind::Mesh,
+            6 => EntityKind::LigandPoseBatch,
+            7 => EntityKind::Guide,
+            8 => EntityKind::DynamicBond,
+            9 => EntityKind::Point,
+            10 => EntityKind::Instance,
+            11 => EntityKind::TemplatePart,
+            12 => EntityKind::Relation,
             _ => return None,
         };
         Some((kind, self.0 & Self::INDEX_MASK))
@@ -205,24 +268,91 @@ pub struct InteractionGpu {
     pub metadata: [u32; 4],
     /// Opacity, duty cycle, deterministic phase and arrow size in pixels.
     pub style: [f32; 4],
-    /// Deterministic phase speed in pixels per frame followed by spare lanes.
+    /// Phase speed followed by start/end screen-space endpoint insets.
     pub animation: [f32; 4],
 }
 
 impl InteractionGpu {
+    /// Packs the stable visual and picking lanes of a generic relation.
+    /// Dynamic endpoint kernels overwrite only the two position lanes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EntityIdError`] when `row` exceeds the picking attachment.
+    pub fn from_relation_style(
+        style: crate::RelationStyle,
+        row: u64,
+        pick_page: u32,
+    ) -> Result<Self, EntityIdError> {
+        let (period, duty) = match style.pattern {
+            crate::RelationPattern::Solid => (1.0, 1.0),
+            crate::RelationPattern::Dashed | crate::RelationPattern::Spring => (10.0, 0.55),
+            crate::RelationPattern::Dotted => (6.0, 0.2),
+        };
+        let phase_byte = row.wrapping_mul(2_654_435_761).to_le_bytes()[3];
+        let phase = f32::from(phase_byte) / 255.0 * period;
+        Ok(Self {
+            start_width: [0.0, 0.0, 0.0, style.width_pixels],
+            end_period: [0.0, 0.0, 0.0, period],
+            color: style.color.to_f32(),
+            metadata: [
+                EntityId::pack(EntityKind::Relation, row)?.0,
+                pick_page,
+                style.pattern as u32,
+                0,
+            ],
+            style: [style.opacity, duty, phase, 0.0],
+            animation: [
+                0.0,
+                style.endpoint_insets_pixels[0],
+                style.endpoint_insets_pixels[1],
+                f32::from(u8::from(style.depth_behind_anchors)),
+            ],
+        })
+    }
+
+    /// Packs one static world/world generic relation into the shared analytic
+    /// glyph stream. Dynamic anchors are left for the GPU resolver.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EntityIdError`] when `row` exceeds the picking attachment.
+    pub fn from_relation(
+        relation: crate::Relation,
+        style: crate::RelationStyle,
+        row: u64,
+        pick_page: u32,
+    ) -> Result<Option<Self>, EntityIdError> {
+        let (crate::SpatialAnchor::World(start), crate::SpatialAnchor::World(end)) =
+            (relation.start, relation.end)
+        else {
+            return Ok(None);
+        };
+        let mut packed = Self::from_relation_style(style, row, pick_page)?;
+        packed.start_width[..3].copy_from_slice(&start.to_array());
+        packed.end_period[..3].copy_from_slice(&end.to_array());
+        Ok(Some(packed))
+    }
+
     /// Packs a caller interaction for one indirect instanced draw.
-    #[must_use]
-    pub fn new(edge: &crate::InteractionEdge, row: u32, structure_id: u32) -> Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EntityIdError`] when `row` does not fit the picking attachment.
+    pub fn new(
+        edge: &crate::InteractionEdge,
+        row: u64,
+        structure_id: u32,
+    ) -> Result<Self, EntityIdError> {
         let style = edge.resolved_style();
         let (start, end, directional) = match edge.direction() {
             crate::InteractionDirection::Undirected => (edge.start(), edge.end(), 0),
             crate::InteractionDirection::Forward => (edge.start(), edge.end(), 1),
             crate::InteractionDirection::Reverse => (edge.end(), edge.start(), 1),
         };
-        let phase_byte = u8::try_from((row.wrapping_mul(2_654_435_761) >> 24) & 0xff)
-            .map_or(u8::MAX, |value| value);
+        let phase_byte = row.wrapping_mul(2_654_435_761).to_le_bytes()[3];
         let phase_unit = f32::from(phase_byte) / 255.0;
-        Self {
+        Ok(Self {
             start_width: [
                 start.position().x,
                 start.position().y,
@@ -237,7 +367,7 @@ impl InteractionGpu {
             ],
             color: style.color.to_f32(),
             metadata: [
-                EntityId::pack(EntityKind::Edge, row).0,
+                EntityId::pack(EntityKind::Edge, row)?.0,
                 structure_id,
                 style.pattern as u32,
                 directional,
@@ -249,7 +379,7 @@ impl InteractionGpu {
                 8.0 + style.width_pixels * 2.0,
             ],
             animation: [style.phase_speed_pixels_per_frame, 0.0, 0.0, 0.0],
-        }
+        })
     }
 
     /// Packs a caller-authored guide into the same instanced draw.
@@ -257,8 +387,15 @@ impl InteractionGpu {
     /// A guide carries its own style rather than deriving one from an
     /// interaction class, but it is the same analytic segment on the GPU, so it
     /// shares the glyph pass, its transparency, depth and picking.
-    #[must_use]
-    pub fn from_guide(guide: &crate::Guide, row: u32, structure_id: u32) -> Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EntityIdError`] when `row` does not fit the picking attachment.
+    pub fn from_guide(
+        guide: &crate::Guide,
+        row: u64,
+        structure_id: u32,
+    ) -> Result<Self, EntityIdError> {
         let style = guide.style().sanitized();
         // A double arrow is drawn as a forward arrow whose tail also carries a
         // head; the glyph pass reads the marker flag as a count.
@@ -267,10 +404,9 @@ impl InteractionGpu {
             crate::GuideCap::Arrow => 1,
             crate::GuideCap::DoubleArrow => 2,
         };
-        let phase_byte = u8::try_from((row.wrapping_mul(2_654_435_761) >> 24) & 0xff)
-            .map_or(u8::MAX, |value| value);
+        let phase_byte = row.wrapping_mul(2_654_435_761).to_le_bytes()[3];
         let phase_unit = f32::from(phase_byte) / 255.0;
-        Self {
+        Ok(Self {
             start_width: [
                 guide.start().x,
                 guide.start().y,
@@ -285,7 +421,7 @@ impl InteractionGpu {
             ],
             color: style.color.to_f32(),
             metadata: [
-                EntityId::pack(EntityKind::Edge, row).0,
+                EntityId::pack(EntityKind::Guide, row)?.0,
                 structure_id,
                 style.pattern as u32,
                 directional,
@@ -297,7 +433,7 @@ impl InteractionGpu {
                 style.arrow_pixels,
             ],
             animation: [0.0; 4],
-        }
+        })
     }
 }
 
@@ -317,7 +453,7 @@ pub struct PrimitiveGpu {
     pub size_opacity: [f32; 4],
     /// Symmetric inverse tensor `[xx, yy, zz, xy]`.
     pub inverse_primary: [f32; 4],
-    /// Remaining inverse tensor `[xz, yz]`, plus two spare lanes.
+    /// Remaining inverse tensor `[xz, yz]`, reserved, and motion-active flag.
     pub inverse_cross: [f32; 4],
     /// Linear display color.
     pub color: [f32; 4],
@@ -344,48 +480,4 @@ pub struct ParticleMotionGpu {
     pub metadata: [u32; 4],
 }
 
-/// The smallest encodable bond radius, keeping the aromatic sign bit
-/// unambiguous on any input.
-pub const MIN_BOND_RADIUS: f32 = 1.0e-4;
-
-impl BondGpu {
-    /// Packs a bond record.
-    #[must_use]
-    pub fn new(atom_a: u32, atom_b: u32, radius: f32, aromatic: bool, entity_id: EntityId) -> Self {
-        let magnitude = radius.abs().max(MIN_BOND_RADIUS);
-        let radius = if aromatic { -magnitude } else { magnitude };
-        Self {
-            atom_a,
-            atom_b,
-            radius,
-            entity_id,
-        }
-    }
-
-    /// The drawn radius, always positive.
-    #[must_use]
-    pub fn draw_radius(self) -> f32 {
-        self.radius.abs()
-    }
-
-    /// Whether the aromatic bit is set.
-    #[must_use]
-    pub fn is_aromatic(self) -> bool {
-        self.radius.is_sign_negative()
-    }
-}
-
-/// The non-indexed indirect draw arguments the cull pass writes: exactly the
-/// wire format the GPU consumes, 16 bytes.
-#[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct DrawIndirectArgs {
-    /// Vertices per instance; 6 (two triangles) for an impostor quad.
-    pub vertex_count: u32,
-    /// Instances to draw; written by the cull pass, never read by the CPU.
-    pub instance_count: u32,
-    /// First vertex.
-    pub first_vertex: u32,
-    /// First instance; kept 0, the slot base rides in a uniform instead.
-    pub first_instance: u32,
-}
+include!("gpu_types_bonds.rs");
