@@ -38,6 +38,14 @@ fn illustration_cues_active(
     var edge = 0.0;
     var laplacian = 0.0;
 
+    // Outline thickness: npr.z widens the sample cross so silhouettes read as
+    // thicker ink lines for a blueprint look. Zero resolves to one pixel, so
+    // the default cue is byte-identical to a unit cross.
+    // ponytail: shared cross, so a wide outline also rescales cavity sampling;
+    // separate cavity taps only if that coupling ever matters.
+    let outline_width =
+        max(1, i32(round(frame.npr.z)));
+
     for (
         var index = 0u;
         index < 4u;
@@ -45,7 +53,8 @@ fn illustration_cues_active(
     ) {
         let sample_pixel = clamp(
             pixel +
-            ILLUSTRATION_OFFSETS[index],
+            ILLUSTRATION_OFFSETS[index] *
+                outline_width,
             vec2i(0),
             dimensions - 1,
         );
@@ -198,6 +207,21 @@ fn illustration_cues(
     );
 }
 
+/// Quantises shaded luminance into flat bands for a cel/blueprint look while
+/// preserving hue. A band count below two returns the colour unchanged.
+fn posterize_tone(color: vec3f, levels: f32) -> vec3f {
+    if levels < 2.0 {
+        return color;
+    }
+    let luma = dot(color, vec3f(0.2126, 0.7152, 0.0722));
+    if luma <= 0.0 {
+        return color;
+    }
+    let steps = floor(levels);
+    let banded = floor(luma * steps + 0.5) / steps;
+    return color * (banded / luma);
+}
+
 fn apply_illustration(
     color: vec3f,
     pixel: vec2i,
@@ -209,9 +233,12 @@ fn apply_illustration(
     let style =
         frame.illustration.xyz;
 
+    let posterize =
+        frame.npr.x;
+
     if all(
         style <= vec3f(0.0)
-    ) {
+    ) && posterize < 2.0 {
         return color;
     }
 
@@ -253,6 +280,12 @@ fn apply_illustration(
             (1.0 - silhouette) *
             (1.0 - cavity);
     }
+
+    shaped =
+        posterize_tone(
+            shaped,
+            posterize,
+        );
 
     // Avoid background(), including its length()/smoothstep work, unless
     // depth cueing can actually affect this fragment.
