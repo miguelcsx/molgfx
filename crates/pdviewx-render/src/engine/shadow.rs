@@ -4,6 +4,10 @@ use super::LightingEnvironment;
 use pdviewx_core::Scene;
 use pdviewx_math::{Aabb, Camera, Mat4, Projection, Vec3};
 
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "shadow_tests.rs"]
+mod tests;
+
 /// The three matrices shared by shadow rasterization and HDR lighting.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ShadowMatrices {
@@ -15,11 +19,44 @@ pub(crate) struct ShadowMatrices {
     pub(crate) view_projection: Mat4,
 }
 
-/// Fits a directional light to the current scene bound in `O(1)` after the
-/// scene has supplied its cached world-space bound.
-#[must_use]
-pub(crate) fn fit(scene: &Scene, camera: &Camera, lighting: LightingEnvironment) -> ShadowMatrices {
-    fit_bound(scene.world_aabb(), camera, lighting)
+/// Revision-diffed world bound used by every shadow-producing render path.
+#[derive(Debug)]
+pub(crate) struct ShadowBoundCache {
+    scene_identity: Option<u64>,
+    bound: Aabb,
+}
+
+impl Default for ShadowBoundCache {
+    fn default() -> Self {
+        Self {
+            scene_identity: None,
+            bound: Aabb::EMPTY,
+        }
+    }
+}
+
+impl ShadowBoundCache {
+    /// Recomputes heterogeneous scene bounds only after scene synchronization
+    /// reports a change. Camera and lighting remain free to vary every frame.
+    pub(crate) fn fit(
+        &mut self,
+        scene: &Scene,
+        camera: &Camera,
+        lighting: LightingEnvironment,
+        scene_changed: bool,
+    ) -> ShadowMatrices {
+        let identity = scene.cache_identity();
+        if scene_changed || self.scene_identity != Some(identity) {
+            self.bound = scene.world_aabb();
+            self.scene_identity = Some(identity);
+        }
+        fit_bound(self.bound, camera, lighting)
+    }
+
+    #[cfg(test)]
+    pub(super) const fn bound(&self) -> Aabb {
+        self.bound
+    }
 }
 
 fn fit_bound(bound: Aabb, camera: &Camera, lighting: LightingEnvironment) -> ShadowMatrices {
