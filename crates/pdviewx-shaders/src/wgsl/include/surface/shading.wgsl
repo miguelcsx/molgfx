@@ -43,6 +43,8 @@ fn surface_frame(
             world_position,
         ),
 
+        world_normal,
+
         view_normal,
     );
 }
@@ -59,24 +61,6 @@ fn surface_view_depth(
     return zw.x / zw.y;
 }
 
-fn surface_material(
-    cap: bool,
-) -> SurfaceMaterial {
-    if cap {
-        return SurfaceMaterial(
-            SURFACE_CAP_ROUGHNESS,
-            SURFACE_CAP_MATERIAL,
-        );
-    }
-
-    return SurfaceMaterial(
-        representation.material.x,
-        material_payload(
-            representation.material,
-        ),
-    );
-}
-
 fn surface_pattern_weight(
     hit: SurfaceHit,
     view_position: vec3f,
@@ -84,7 +68,7 @@ fn surface_pattern_weight(
     let mode =
         representation.options.w;
 
-    if mode == 0u || hit.cap {
+    if mode == 0u || mode == 5u || hit.cap {
         return 1.0;
     }
 
@@ -201,7 +185,7 @@ struct SurfaceFsOut {
     @location(0) albedo_material: vec4f,
     @location(1) normal_roughness: vec4f,
     @location(2) entity_id: u32,
-    @location(3) structure_id: u32,
+    @location(3) resident_page: u32,
     @location(4) motion: vec2f,
     @builtin(frag_depth) depth: f32,
 }
@@ -213,7 +197,7 @@ fn surface_opaque_output(
         atoms[hit.compact_index];
 
     let color =
-        atom_color(atom.color);
+        atom_visual_color(atom.entity_id, atom.color);
 
     let mapped =
         scalar_overlay_color(
@@ -239,13 +223,30 @@ fn surface_opaque_output(
         );
 
     if representation.options.w != 0u
+        && representation.options.w != 5u
         && representation.options.w != 3u
         && pattern <= 0.01 {
         discard;
     }
 
-    let material =
-        surface_material(hit.cap);
+    let presented =
+        surface_presented_color(
+            base,
+            pattern,
+        );
+
+    let visual =
+        visual_fragment(
+            atom.entity_id,
+            vec4f(presented, color.a),
+            hit.local_position,
+            geometry.world_position,
+            geometry.world_normal,
+        );
+
+    if !visual.visible {
+        discard;
+    }
 
     let source_index =
         atom.entity_id &
@@ -283,11 +284,8 @@ fn surface_opaque_output(
 
     out.albedo_material =
         vec4f(
-            surface_presented_color(
-                base,
-                pattern,
-            ),
-            material.material,
+            visual.color.rgb + visual.emission,
+            visual_gbuffer_payload(visual),
         );
 
     out.normal_roughness =
@@ -299,14 +297,14 @@ fn surface_opaque_output(
                     geometry.view_normal
                 ),
             ),
-            material.roughness,
+            visual.roughness,
         );
 
     out.entity_id =
-        atom.entity_id;
+        pick_local_row(atom.entity_id);
 
-    out.structure_id =
-        model.structure_id;
+    out.resident_page =
+        model_pick_page(atom.entity_id);
 
     out.motion =
         screen_motion(
@@ -330,7 +328,7 @@ fn surface_transparent_output(
         atoms[hit.compact_index];
 
     let color =
-        atom_color(atom.color);
+        atom_visual_color(atom.entity_id, atom.color);
 
     let mapped =
         scalar_overlay_color(
@@ -356,19 +354,30 @@ fn surface_transparent_output(
         );
 
     if representation.options.w != 0u
+        && representation.options.w != 5u
         && representation.options.w != 3u
         && pattern <= 0.01 {
         discard;
     }
-
-    let material =
-        surface_material(hit.cap);
 
     let presented =
         surface_presented_color(
             base,
             pattern,
         );
+
+    let visual =
+        visual_fragment(
+            atom.entity_id,
+            vec4f(presented, color.a),
+            hit.local_position,
+            geometry.world_position,
+            geometry.world_normal,
+        );
+
+    if !visual.visible {
+        discard;
+    }
 
     let depth =
         surface_view_depth(
@@ -377,16 +386,16 @@ fn surface_transparent_output(
 
     let lit =
         shade_molecule(
-            presented,
+            visual.color.rgb,
             geometry.view_normal,
-            material.roughness,
-            material.material,
+            visual.roughness,
+            visual_material_payload(visual),
             geometry.view_position,
             oit_occlusion(in.position),
-        );
+        ) + visual.emission;
 
     var opacity =
-        color.a;
+        visual.color.a;
 
     if !hit.cap {
         if representation.options.w == 3u {
@@ -396,7 +405,8 @@ fn surface_transparent_output(
                     1.0,
                     pattern,
                 );
-        } else if representation.options.w != 0u {
+        } else if representation.options.w != 0u
+            && representation.options.w != 5u {
             opacity *= pattern;
         }
     }

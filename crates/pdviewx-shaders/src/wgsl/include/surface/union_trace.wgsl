@@ -51,15 +51,77 @@ fn union_clip_face(
 
 const BVH_ESCAPE_END: u32 = 0xFFFFFFFFu;
 
-// Persistent threaded-BVH escape index.
-// Same element count as bvh_nodes.
-//
 // Contract:
 //   - internal node children remain `first` and `first + 1`
-//   - bvh_escape[node] points to the next node after this subtree
+//   - the escape table follows primitive indices in the shared index buffer
 //   - root escape is BVH_ESCAPE_END
-@group(2) @binding(15)
-var<storage, read> bvh_escape: array<u32>;
+fn bvh_escape_index(node: u32) -> u32 {
+    let first = arrayLength(&bvh_indices) - arrayLength(&bvh_nodes);
+    return bvh_indices[first + node];
+}
+
+/// Finds the exact closest selected atom at one resolved field hit.
+///
+/// Grid provenance used to retain one integer texture beside every scalar
+/// field and changed candidates at voxel faces. One stackless BVH query at the
+/// final hit removes both full-resolution provenance textures and makes colour
+/// ownership independent of the grid.
+fn surface_nearest_atom(point: vec3f) -> u32 {
+    var best_distance = SURFACE_INFINITY;
+    var best_index = EMPTY_COMPACT_INDEX;
+    var node_index = 0u;
+
+    while node_index != BVH_ESCAPE_END {
+        let node = bvh_nodes[node_index];
+        let lower_bound = distance_to_box(
+            point,
+            node.min_left.xyz,
+            node.max_radius.xyz,
+        ) - node.max_radius.w * representation.visual.w;
+
+        if lower_bound > best_distance {
+            node_index = bvh_escape_index(node_index);
+            continue;
+        }
+
+        let metadata = bitcast<u32>(node.min_left.w);
+        let count = metadata >> BVH_COUNT_SHIFT;
+        let first = metadata & BVH_INDEX_MASK;
+
+        if count == 0u {
+            node_index = first;
+            continue;
+        }
+
+        for (var offset = 0u; offset < count; offset++) {
+            let source_index = bvh_indices[first + offset];
+            let compact_index = source_to_compact[source_index];
+
+            if compact_index == EMPTY_COMPACT_INDEX {
+                continue;
+            }
+
+            let atom = atoms[compact_index];
+            let base = source_index * 3u;
+            let center = vec3f(
+                coords[base],
+                coords[base + 1u],
+                coords[base + 2u],
+            );
+            let distance = length(point - center)
+                - atom.radius * representation.visual.w;
+
+            if distance < best_distance {
+                best_distance = distance;
+                best_index = compact_index;
+            }
+        }
+
+        node_index = bvh_escape_index(node_index);
+    }
+
+    return best_index;
+}
 
 /// Returns the nearest valid intersection with one inflated atom.
 ///
@@ -68,7 +130,7 @@ fn union_atom_hit_t(
     ray: SurfaceRay,
     source_index: u32,
     compact_index: u32,
-    probe: f32,
+    inflation: f32,
     minimum_t: f32,
 ) -> f32 {
     let atom =
@@ -94,7 +156,11 @@ fn union_atom_hit_t(
         );
 
     let radius =
-        atom.radius + probe;
+        atom.radius * representation.visual.w + inflation;
+
+    if radius <= SURFACE_RAY_EPSILON {
+        return SURFACE_INFINITY;
+    }
 
     let discriminant =
         projected * projected -
@@ -138,6 +204,9 @@ fn intersect_union_surface(
     let probe =
         representation.surface.x;
 
+    let inflation =
+        probe + representation.surface.y;
+
     let root =
         bvh_nodes[0];
 
@@ -146,9 +215,9 @@ fn intersect_union_surface(
             ray.origin,
             ray.inverse_direction,
             root.min_left.xyz -
-                vec3f(probe),
+                vec3f(surface_node_padding(root)),
             root.max_radius.xyz +
-                vec3f(probe),
+                vec3f(surface_node_padding(root)),
         );
 
     let clipped =
@@ -189,7 +258,21 @@ fn intersect_union_surface(
     var best_index =
         EMPTY_COMPACT_INDEX;
 
+    var second_t =
+        SURFACE_INFINITY;
+
+    var second_index =
+        EMPTY_COMPACT_INDEX;
+
+    var third_t = SURFACE_INFINITY;
+    var third_index = EMPTY_COMPACT_INDEX;
+    var fourth_t = SURFACE_INFINITY;
+    var fourth_index = EMPTY_COMPACT_INDEX;
+
     var node_index = 0u;
+
+    let soft_union = probe > 0.0 && representation.options.w == 5u;
+    let normal_blend_span = select(0.0, 2.0, soft_union);
 
     while (node_index != BVH_ESCAPE_END) {
         let node =
@@ -200,19 +283,19 @@ fn intersect_union_surface(
                 ray.origin,
                 ray.inverse_direction,
                 node.min_left.xyz -
-                    vec3f(probe),
+                    vec3f(surface_node_padding(node)),
                 node.max_radius.xyz +
-                    vec3f(probe),
+                    vec3f(surface_node_padding(node)),
             );
 
         // Reject the complete subtree without pushing/popping anything.
         if (
             interval.x > interval.y ||
             interval.y < minimum_t ||
-            interval.x > min(best_t, maximum_t)
+            interval.x > min(best_t + normal_blend_span, maximum_t)
         ) {
             node_index =
-                bvh_escape[node_index];
+                bvh_escape_index(node_index);
 
             continue;
         }
@@ -267,7 +350,7 @@ fn intersect_union_surface(
                     ray,
                     source_index,
                     compact_index,
-                    probe,
+                    inflation,
                     minimum_t,
                 );
 
@@ -275,16 +358,40 @@ fn intersect_union_surface(
                 t <= maximum_t &&
                 t < best_t
             ) {
+                fourth_t = third_t;
+                fourth_index = third_index;
+                third_t = second_t;
+                third_index = second_index;
+                second_t = best_t;
+                second_index = best_index;
                 best_t =
                     t;
 
                 best_index =
                     compact_index;
+            } else if (
+                t <= maximum_t &&
+                t < second_t
+            ) {
+                fourth_t = third_t;
+                fourth_index = third_index;
+                third_t = second_t;
+                third_index = second_index;
+                second_t = t;
+                second_index = compact_index;
+            } else if (t <= maximum_t && t < third_t) {
+                fourth_t = third_t;
+                fourth_index = third_index;
+                third_t = t;
+                third_index = compact_index;
+            } else if (t <= maximum_t && t < fourth_t) {
+                fourth_t = t;
+                fourth_index = compact_index;
             }
         }
 
         node_index =
-            bvh_escape[node_index];
+            bvh_escape_index(node_index);
     }
 
     if (
@@ -294,41 +401,49 @@ fn intersect_union_surface(
         return surface_miss();
     }
 
+    var resolved_t = best_t;
+
+    let nearest_parameters = array<f32, 4>(best_t, second_t, third_t, fourth_t);
+    let nearest_indices = array<u32, 4>(
+        best_index,
+        second_index,
+        third_index,
+        fourth_index,
+    );
+
+    if soft_union && second_index != EMPTY_COMPACT_INDEX {
+        resolved_t = soft_union_parameter(nearest_parameters, normal_blend_span);
+    }
+
     let hit =
         fma(
             ray.direction,
-            vec3f(best_t),
+            vec3f(resolved_t),
             ray.origin,
         );
 
-    let atom =
-        atoms[best_index];
+    var normal = union_atom_surface_normal(hit, best_index, inflation);
 
-    let source_index =
-        atom.entity_id &
-        0x1FFFFFFFu;
-
-    let base =
-        source_index * 3u;
-
-    let center =
-        vec3f(
-            coords[base],
-            coords[base + 1u],
-            coords[base + 2u],
+    // SoftUnion is an explicit illustrative preview, distinct from exact
+    // Solid SAS. It applies a two-nearest polynomial soft minimum and the
+    // matching normal blend, rounding intersection cusps without a voxel grid.
+    // Exact SAS and vdW keep their literal sphere-union position and normal.
+    if (
+        soft_union &&
+        second_index != EMPTY_COMPACT_INDEX
+    ) {
+        normal = soft_union_surface_normal(
+            hit,
+            nearest_parameters,
+            nearest_indices,
+            normal_blend_span,
+            inflation,
         );
-
-    let inverse_radius =
-        1.0 /
-        max(
-            atom.radius + probe,
-            SURFACE_RAY_EPSILON,
-        );
+    }
 
     return SurfaceHit(
         hit,
-        (hit - center) *
-            inverse_radius,
+        normal,
         best_index,
         true,
         false,
