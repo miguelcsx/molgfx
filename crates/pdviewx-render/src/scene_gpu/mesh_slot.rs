@@ -8,6 +8,7 @@
 use super::buffers::{count, upload_grow, write_draw_args};
 use super::structure::GpuStructure;
 use super::uniforms::ClipUniforms;
+use super::visual::VisualCullEntries;
 use crate::error::RenderError;
 use pdviewx_core::{EntityId, Mesh};
 use pdviewx_geometry::RibbonVertex;
@@ -62,10 +63,14 @@ impl<D: Device> GpuMeshSlot<D> {
         device: &D,
         queue: &D::Queue,
         mesh: &Mesh,
-        layout: &D::BindGroupLayout,
-        structure: &GpuStructure<D>,
+        bindings: (
+            &D::BindGroupLayout,
+            &GpuStructure<D>,
+            VisualCullEntries<'_, D>,
+        ),
         occurrences: MeshOccurrences<'_>,
     ) -> Result<(), RenderError> {
+        let (layout, structure, visual) = bindings;
         self.translucent = mesh.material().is_translucent()
             || mesh.vertices().iter().any(|vertex| vertex.color.a < 255);
         let opacity = mesh.material().opacity_unorm8();
@@ -133,7 +138,7 @@ impl<D: Device> GpuMeshSlot<D> {
             &mut self.args,
         )?;
         self.sync_clipping(device, queue, mesh)?;
-        self.bind(device, layout, structure);
+        self.bind(device, layout, structure, &visual);
         Ok(())
     }
 
@@ -160,7 +165,13 @@ impl<D: Device> GpuMeshSlot<D> {
         Ok(())
     }
 
-    fn bind(&mut self, device: &D, layout: &D::BindGroupLayout, structure: &GpuStructure<D>) {
+    fn bind(
+        &mut self,
+        device: &D,
+        layout: &D::BindGroupLayout,
+        structure: &GpuStructure<D>,
+        visual: &VisualCullEntries<'_, D>,
+    ) {
         let (Some(vertices), Some(indices), Some(model), Some(clipping)) = (
             &self.vertices,
             &self.indices,
@@ -188,6 +199,33 @@ impl<D: Device> GpuMeshSlot<D> {
                 BindGroupEntry::Buffer {
                     binding: 3,
                     buffer: clipping,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 8,
+                    buffer: visual.results,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 9,
+                    buffer: visual.instructions,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 10,
+                    buffer: visual.parameters,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 11,
+                    buffer: visual.properties,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 12,
+                    buffer: visual.config,
+                },
+                // Static caller meshes never enable tube mapping. Reusing the
+                // vertex allocation satisfies the shared layout without
+                // creating a per-mesh dummy resource.
+                BindGroupEntry::Buffer {
+                    binding: 13,
+                    buffer: vertices,
                 },
             ],
         }));
