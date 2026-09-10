@@ -11,6 +11,10 @@ pub const AMBIENT_OCCLUSION: &str =
 /// Progressive shared-BVH cavity occlusion and area-light shadows.
 pub const QUALITY_AO: &str = include_str!(concat!(env!("OUT_DIR"), "/quality_ao.wgsl"));
 
+/// Progressive analytic AO/shadows using hardware ray queries for traversal.
+pub const QUALITY_AO_RAY_QUERY: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/quality_ao_ray_query.wgsl"));
+
 /// Gbuffer sphere impostors.
 pub const GEOMETRY_SPHERE: &str = include_str!(concat!(env!("OUT_DIR"), "/sphere.wgsl"));
 
@@ -26,14 +30,58 @@ pub const GEOMETRY_SURFACE: &str = include_str!(concat!(env!("OUT_DIR"), "/surfa
 /// Analytic caller-authored ellipsoids, carbohydrate symbols and planes.
 pub const GEOMETRY_PRIMITIVE: &str = include_str!(concat!(env!("OUT_DIR"), "/primitive.wgsl"));
 
+/// Compact reusable-topology ligand pose impostors.
+pub const GEOMETRY_LIGAND_POSE: &str = include_str!(concat!(env!("OUT_DIR"), "/ligand_pose.wgsl"));
+
 /// Scene-fit analytic primitive shadow map.
 pub const SHADOW: &str = include_str!(concat!(env!("OUT_DIR"), "/shadow.wgsl"));
+
+/// Depth-only compact ligand-pose impostors.
+pub const LIGAND_POSE_SHADOW: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/ligand_pose_shadow.wgsl"));
 
 /// Depth-only cartoon-ribbon shadow caster, pulled from ribbon storage.
 pub const SHADOW_RIBBON: &str = include_str!(concat!(env!("OUT_DIR"), "/shadow_ribbon.wgsl"));
 
 /// Pixel-stable circular atom points.
 pub const GEOMETRY_POINT: &str = include_str!(concat!(env!("OUT_DIR"), "/point.wgsl"));
+
+/// Generic analytic points over tightly packed caller positions.
+pub const GENERIC_POINT: &str = include_str!(concat!(env!("OUT_DIR"), "/generic_point.wgsl"));
+
+/// Generic point culling and indirect argument generation.
+pub const GENERIC_POINT_CULL: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/generic_point_cull.wgsl"));
+
+/// Shared analytic templates expanded from compact rigid transforms.
+pub const GENERIC_INSTANCE: &str = include_str!(concat!(env!("OUT_DIR"), "/generic_instance.wgsl"));
+
+/// Rigid-instance culling and indirect analytic draw generation.
+pub const GENERIC_INSTANCE_CULL: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/generic_instance_cull.wgsl"));
+
+/// Optional shared interpolation for repeatedly consumed rigid instances.
+pub const INSTANCE_TIMELINE: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/instance_timeline.wgsl"));
+
+/// Optional shared interpolation for deformable point positions.
+pub const POINT_TIMELINE: &str = include_str!(concat!(env!("OUT_DIR"), "/point_timeline.wgsl"));
+
+/// Optional shared interpolation for scalar and vector attribute frames.
+pub const ATTRIBUTE_TIMELINE: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/attribute_timeline.wgsl"));
+
+/// Branch-free dynamic relation endpoint resolution.
+pub const RELATION_RESOLVE: &str = include_str!(concat!(env!("OUT_DIR"), "/relation_resolve.wgsl"));
+
+/// Relation visibility compaction and indirect argument generation.
+pub const RELATION_CULL: &str = include_str!(concat!(env!("OUT_DIR"), "/relation_cull.wgsl"));
+
+/// Batched provider-backed point chunks.
+pub const PAGED_CHUNK: &str = include_str!(concat!(env!("OUT_DIR"), "/paged_chunk.wgsl"));
+
+/// Batched provider-backed analytic bonds over resident atom pages.
+pub const PAGED_BOND: &str = include_str!(concat!(env!("OUT_DIR"), "/paged_bond.wgsl"));
 
 /// Pixel-stable molecular interaction glyphs.
 pub const GEOMETRY_INTERACTION: &str = include_str!(concat!(env!("OUT_DIR"), "/interaction.wgsl"));
@@ -61,11 +109,25 @@ pub const SURFACE_FIELD_COMPUTE: &str =
 pub const SURFACE_FIELD_ERODE: &str =
     include_str!(concat!(env!("OUT_DIR"), "/surface_field_erode.wgsl"));
 
+/// Compact continuous normals generated from the final molecular field.
+pub const SURFACE_FIELD_NORMAL: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/surface_field_normal.wgsl"));
+
+/// Working-set connected-component labeling and sampled-field filtering.
+pub const SURFACE_COMPONENT_FILTER: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/surface_component_filter.wgsl"));
+
 /// Visibility compaction and indirect argument generation.
 pub const CULL: &str = include_str!(concat!(env!("OUT_DIR"), "/cull.wgsl"));
 
+/// Bounded typed visual-program entity evaluator.
+pub const VISUAL_PROGRAM: &str = include_str!(concat!(env!("OUT_DIR"), "/visual_program.wgsl"));
+
 /// Topology-stable two-frame coordinate interpolation.
 pub const TRAJECTORY: &str = include_str!(concat!(env!("OUT_DIR"), "/trajectory.wgsl"));
+
+/// GPU-resident temporal occupancy accumulation and volume resolution.
+pub const OCCUPANCY: &str = include_str!(concat!(env!("OUT_DIR"), "/occupancy.wgsl"));
 
 /// Fixed-step caller-supplied visual particle advection.
 pub const PARTICLE_ADVECTION: &str =
@@ -94,3 +156,7 @@ pub const TONEMAP: &str = include_str!(concat!(env!("OUT_DIR"), "/tonemap.wgsl")
 
 /// Bounded camera-shutter gather driven by true surface motion.
 pub const MOTION_BLUR: &str = include_str!(concat!(env!("OUT_DIR"), "/motion_blur.wgsl"));
+
+#[cfg(test)]
+#[path = "sources_tests.rs"]
+mod tests;
