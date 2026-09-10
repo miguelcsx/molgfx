@@ -5,15 +5,17 @@
 mod tests;
 
 use super::{App, common};
-use pdviewx::{AtomSelection, ColorScheme, Mat4, RepresentationKind, Scene, Vec3};
+use pdviewx::{
+    AtomSelection, ColorScheme, Mat4, RepresentationKind, Scene, SelectionHandle, StructureHandle,
+    Vec3,
+};
 
 #[cfg(feature = "semantic")]
 use super::HoloState;
 #[cfg(feature = "semantic")]
-use pdviewx::{
-    Aabb, BoundingSphere, ClipPlane, ClipSet, FocusScene, FocusStyle, FocusSurfaceExtent, Rgba8,
-    SurfaceStyle,
-};
+use pdviewx::{Aabb, BoundingSphere, ClipPlane, ClipSet, Rgba8, SurfaceStyle};
+#[cfg(feature = "semantic")]
+use pdviewx_recipes::{FocusScene, FocusStyle, FocusSurfaceExtent};
 
 pub(super) fn build_plain_scene(path: &str) -> Result<(App, String), String> {
     let structure = common::read_structure(path)?;
@@ -25,10 +27,7 @@ pub(super) fn build_plain_scene(path: &str) -> Result<(App, String), String> {
     if !records.is_empty() {
         let _ = scene.apply_secondary_structure(handle, &records);
     }
-    let selection = match scene.add_structure_selection(handle, AtomSelection::All) {
-        Ok(selection) => selection,
-        Err(_) => scene.add_selection(AtomSelection::All),
-    };
+    let selection = solute_selection(&mut scene, handle);
     let representation = scene
         .represent(selection, RepresentationKind::Cartoon)
         .or_else(|_| scene.represent(selection, RepresentationKind::Spacefill))
@@ -44,6 +43,7 @@ pub(super) fn build_plain_scene(path: &str) -> Result<(App, String), String> {
         surface_style_index: 0,
         putty_domain: guide_b_factor_domain(&structure),
         color_index: 1,
+        available_choices: catalog_availability(std::slice::from_ref(&structure)),
         bound,
         state: None,
         holo: None,
@@ -58,9 +58,13 @@ pub(super) fn build_plain_scene(path: &str) -> Result<(App, String), String> {
 pub(super) fn build_holo_scene(path: &str, ligand_name: &str) -> Result<(App, String), String> {
     let parsed = pdbiox::read(path)
         .map_err(|diagnostic| format!("could not read {path}: {diagnostic:?}"))?;
-    let structure = pdbiox::infer_bonds(&parsed, pdbiox::BondInference::default())
-        .map_err(|diagnostic| format!("bond inference failed: {diagnostic:?}"))?
-        .structure;
+    let structure = pdbiox::infer_bonds(
+        &parsed,
+        pdbiox::BondInference::default(),
+        &pdbiox::ExecutionContext::default(),
+    )
+    .map_err(|diagnostic| format!("bond inference failed: {diagnostic:?}"))?
+    .structure;
     let selection = ligand_selection(&structure, ligand_name)?;
     let ligand_bound = Aabb::from_points(selection.points.iter().copied());
     let view_direction = ligand_view_direction(&selection.points, ligand_bound.center());
@@ -130,6 +134,7 @@ pub(super) fn build_holo_scene(path: &str, ligand_name: &str) -> Result<(App, St
         surface_style_index: 0,
         putty_domain: guide_b_factor_domain(&structure),
         color_index: 1,
+        available_choices: catalog_availability(std::slice::from_ref(&structure)),
         bound: frame,
         state: None,
         holo: Some(holo),
@@ -183,10 +188,7 @@ pub(super) fn build_compare_scene(paths: &[String]) -> Result<(App, String), Str
             .structure_mut(*handle)
             .ok_or_else(|| "structure became stale".to_owned())?;
         placed.model_to_world = Mat4::from_translation(Vec3::new(offset, 0.0, 0.0));
-        let selection = match scene.add_structure_selection(*handle, AtomSelection::All) {
-            Ok(selection) => selection,
-            Err(_) => scene.add_selection(AtomSelection::All),
-        };
+        let selection = solute_selection(&mut scene, *handle);
         let value = scene
             .represent(selection, RepresentationKind::Cartoon)
             .or_else(|_| scene.represent(selection, RepresentationKind::Spacefill))
@@ -212,12 +214,99 @@ pub(super) fn build_compare_scene(paths: &[String]) -> Result<(App, String), Str
             surface_style_index: 0,
             putty_domain,
             color_index: 1,
+            available_choices: catalog_availability(&structures),
             bound,
             state: None,
             holo: None,
         },
         format!("comparison view: {} structures side by side", paths.len()),
     ))
+}
+
+fn catalog_availability(structures: &[pdbiox::Structure]) -> [bool; 14] {
+    let mut available = [true; 14];
+    let twister = super::catalog::RepresentationChoice::Kind(RepresentationKind::Twister);
+    let paper_chain = super::catalog::RepresentationChoice::Kind(RepresentationKind::PaperChain);
+    available[twister.index()] = structures.iter().any(has_linked_sugar_rings);
+    available[paper_chain.index()] = structures
+        .iter()
+        .any(|structure| has_nucleotide_base(structure) || has_sugar_ring(structure));
+    available
+}
+
+fn has_sugar_ring(structure: &pdbiox::Structure) -> bool {
+    structure.data().residues().any(|residue| {
+        ["C1", "C2", "C3", "C4"]
+            .iter()
+            .all(|name| residue.atom(name).is_some())
+            && ((residue.atom("C5").is_some() && residue.atom("O5").is_some())
+                || residue.atom("O4").is_some())
+    })
+}
+
+fn has_nucleotide_base(structure: &pdbiox::Structure) -> bool {
+    structure.data().residues().any(|residue| {
+        residue.atom("C1'").is_some()
+            && ["N1", "C2", "N3", "C4", "C5", "C6", "N7", "C8", "N9"]
+                .iter()
+                .filter(|name| residue.atom(name).is_some())
+                .count()
+                >= 3
+    })
+}
+
+fn has_linked_sugar_rings(structure: &pdbiox::Structure) -> bool {
+    const RING_ATOMS: [&str; 7] = ["C1", "C2", "C3", "C4", "C5", "O5", "O4"];
+    const MAX_LINK_DISTANCE: f32 = 7.5;
+    let centres = structure
+        .data()
+        .residues()
+        .filter_map(|residue| {
+            if residue.atom("O5").is_none() && residue.atom("O4").is_none() {
+                return None;
+            }
+            let (sum, count) = RING_ATOMS
+                .iter()
+                .filter_map(|name| residue.atom(name).and_then(pdbiox::AtomRef::position))
+                .map(Vec3::from)
+                .fold((Vec3::ZERO, 0_u8), |(sum, count), point| {
+                    (sum + point, count.saturating_add(1))
+                });
+            if count < 4 {
+                return None;
+            }
+            Some(sum / f32::from(count))
+        })
+        .collect::<Vec<_>>();
+
+    centres.iter().enumerate().any(|(index, left)| {
+        centres
+            .iter()
+            .skip(index + 1)
+            .any(|right| left.distance(*right) <= MAX_LINK_DISTANCE)
+    })
+}
+
+/// Every atom of the placed structure except declared solvent.
+///
+/// Ordered waters are solvent, not solute. A molecular surface is the boundary
+/// the water probe rolls over, so including the waters themselves puts detached
+/// probe-sized blobs around the protein and reports a boundary no molecule has.
+/// Dropping them also tightens the surface grid: its extent is the bounding box
+/// of the selected atoms, and scattered waters inflate that box, which coarsens
+/// the cell size the whole field is sampled at.
+///
+/// A structure that declares no water entity yields an empty water mask, so the
+/// complement is every atom and the view is unchanged.
+fn solute_selection(scene: &mut Scene, structure: StructureHandle) -> SelectionHandle {
+    let water = scene.select_water();
+    match scene.complement_selection(water) {
+        Ok(solute) => solute,
+        Err(_) => match scene.add_structure_selection(structure, AtomSelection::All) {
+            Ok(selection) => selection,
+            Err(_) => scene.add_selection(AtomSelection::All),
+        },
+    }
 }
 
 fn guide_b_factor_domain(structure: &pdbiox::Structure) -> Option<[f32; 2]> {

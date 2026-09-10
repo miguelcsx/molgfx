@@ -1,15 +1,13 @@
 //! The golden-image corpus: renders the reference scenes and diffs them against
 //! the stored references (`docs/22-testing.md` §3, §5).
 //!
-//! Two tiers, as the contract requires. On the adapter the references were
-//! captured on, a diff above tolerance is a **failure**. On any other adapter
-//! the same diff is **advisory**: pixel determinism binds one adapter only
-//! (`docs/18` §3), so drift elsewhere is a signal, not a verdict — and it is
-//! reported, never silently passed. Adapter identity is a capability
-//! fingerprint rather than a backend name, because nothing above the HAL is
-//! allowed to know which backend it is talking to.
+//! The legacy corpus records a capability fingerprint, not hardware identity.
+//! Matching fingerprints enforce image tolerances; a mismatch means the
+//! reference identity cannot be verified, not that another GPU was selected.
+//! Diagnostic runs report these comparisons as advisory. The integration gate
+//! requires a verified reference with `--require-reference` and fails closed.
 //!
-//! Usage: `cargo run --release --example golden [--update]`
+//! Usage: `cargo run --release --example golden [--update | --require-reference]`
 
 use pdviewx::{
     AtomSelection, Camera, ColorScheme, Engine, EngineConfig, Image, ImageConfig, RenderProfile,
@@ -24,6 +22,10 @@ use std::path::{Path, PathBuf};
 
 #[path = "common/mod.rs"]
 mod common;
+
+#[path = "golden/gate.rs"]
+mod gate;
+use gate::verify_comparison;
 
 /// One corpus entry. Small on purpose: the corpus is a regression net, not a
 /// gallery, and every scene here has to earn its render time.
@@ -177,13 +179,18 @@ const PIXEL_TOLERANCE: f64 = 0.005;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let update = std::env::args().any(|argument| argument == "--update");
+    let require_reference = std::env::args().any(|argument| argument == "--require-reference");
+    if update && require_reference {
+        return Err(
+            io::Error::other("reference verification cannot update the golden corpus").into(),
+        );
+    }
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let golden = root.join("benchmarks/golden");
-    fs::create_dir_all(&golden)?;
+    prepare_references(&golden, update)?;
 
     let fingerprint_path = golden.join("adapter.txt");
     let mut failures = 0usize;
-    let mut advisories = 0usize;
     let mut fingerprint = String::new();
 
     for scene in &CORPUS {
@@ -192,6 +199,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             // No conformant GPU here: the level is skipped with a note rather
             // than passed silently (`docs/22` §3).
             Err(RunError::NoAdapter) => {
+                if require_reference {
+                    return Err(io::Error::other(
+                        "GOLDEN: UNCERTIFIED — no conformant adapter; reference comparison did not execute",
+                    ).into());
+                }
                 println!("GOLDEN: SKIPPED — no conformant adapter on this machine");
                 return Ok(());
             }
@@ -199,7 +211,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
         fingerprint = capabilities;
         let reference_path = golden.join(format!("{}.png", scene.name));
-        if update || !reference_path.exists() {
+        if update {
             write_png(&reference_path, &image)?;
             println!("{:<26} captured", scene.name);
             continue;
@@ -208,8 +220,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         let changed = compare(&image, &reference);
         let verdict = match changed {
             Some(changed) if changed > PIXEL_TOLERANCE => {
-                let diff = golden.join(format!("{}.diff.png", scene.name));
+                let differences = root.join("target/golden-diffs");
+                fs::create_dir_all(&differences)?;
+                let diff = differences.join(format!("{}.diff.png", scene.name));
                 write_png(&diff, &difference_image(&image, &reference))?;
+                write_png(
+                    &differences.join(format!("{}.actual.png", scene.name)),
+                    &image,
+                )?;
                 failures += 1;
                 format!(
                     "{:.3}% changed, diff at {}",
@@ -217,7 +235,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     diff.display()
                 )
             }
-            Some(changed) => format!("{changed:.5}% changed"),
+            Some(changed) => format!("{:.5}% changed", changed * 100.0),
             None => {
                 failures += 1;
                 "reference has a different size".to_owned()
@@ -232,29 +250,39 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    // The tier: the same numbers, a different verdict.
+    // Capability strings can change with negotiation or schema changes, so a
+    // mismatch alone cannot identify different physical hardware.
     let binding = fs::read_to_string(&fingerprint_path)
         .is_ok_and(|recorded| !recorded.trim().is_empty() && recorded.trim() == fingerprint.trim());
     if !binding {
-        advisories = failures;
-        failures = 0;
-    }
-    if advisories > 0 {
         println!(
-            "\n{advisories} scene(s) drifted. ADVISORY: this adapter is not the one the \
-             references were captured on, so the diff is a signal and not a verdict. \
-             Re-run on the reference adapter to get a binding result."
+            "\n{failures} scene(s) drifted. ADVISORY: reference identity cannot be verified. \
+             The legacy capability fingerprint is missing or different; this does not \
+             establish that different hardware was used. This comparison is not a release gate."
         );
-        return Ok(());
     }
-    if failures > 0 {
-        return Err(io::Error::other(format!("{failures} golden scene(s) drifted")).into());
-    }
+    verify_comparison(binding, failures, require_reference)?;
     println!(
         "\nGOLDEN: OK ({} scenes, {})",
         CORPUS.len(),
         if binding { "binding" } else { "advisory" }
     );
+    Ok(())
+}
+
+fn prepare_references(golden: &Path, update: bool) -> io::Result<()> {
+    if update {
+        return fs::create_dir_all(golden);
+    }
+    for scene in &CORPUS {
+        let reference = golden.join(format!("{}.png", scene.name));
+        if !reference.is_file() {
+            return Err(io::Error::other(format!(
+                "missing golden reference {}; capture requires an explicit --update",
+                reference.display()
+            )));
+        }
+    }
     Ok(())
 }
 
@@ -289,7 +317,7 @@ fn render(root: &Path, scene: &GoldenScene) -> Result<(Image, String), RunError>
     );
     let mut engine = match engine {
         Ok(engine) => engine,
-        Err(pdviewx::RenderError::Gpu(pdviewx::GpuError::NoAdapter)) => {
+        Err(pdviewx::RenderError::Gpu(pdviewx::GpuError::NoAdapter { .. })) => {
             return Err(RunError::NoAdapter);
         }
         Err(error) => return Err(RunError::Failed(error.into())),

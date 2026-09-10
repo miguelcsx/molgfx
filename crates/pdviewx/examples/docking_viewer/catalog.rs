@@ -1,6 +1,6 @@
 //! Complete molecular-representation catalogue for the interactive viewer.
 
-use pdviewx::{Representation, RepresentationKind, RepresentationParams, TubeRadiusMapping};
+use pdviewx::{Representation, RepresentationKind, SurfaceKind, SurfaceStyle, TubeRadiusMapping};
 use winit::keyboard::KeyCode;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -83,17 +83,28 @@ impl RepresentationChoice {
     }
 
     pub(super) fn apply(self, representation: &mut Representation, domain: Option<[f32; 2]>) {
-        representation.params = RepresentationParams::default();
-        match self {
-            Self::Kind(kind) => representation.kind = kind,
-            Self::Putty => {
-                representation.kind = RepresentationKind::Tube;
-                if let Some(domain) = domain
-                    && let Ok(mapping) = TubeRadiusMapping::b_factor(domain, [0.18, 0.72])
-                {
-                    representation.params.tube_radius_mapping = mapping;
-                }
-            }
+        let kind = match self {
+            Self::Kind(kind) => kind,
+            Self::Putty => RepresentationKind::Tube,
+        };
+        let defaults = Representation::new(representation.target, kind);
+        representation.params = defaults.params;
+        representation.material = defaults.material;
+        representation.kind = kind;
+        if kind == RepresentationKind::Surface {
+            // The interactive catalogue promises a smooth, resolution-
+            // independent surface even for very large structures. SAS is the
+            // exact analytic union of probe-inflated atoms and needs no dense
+            // 3D field; SES remains available through the explicit API where
+            // its rolling-probe semantics are requested deliberately.
+            representation.params.surface_kind = SurfaceKind::SolventAccessible;
+            representation.params.surface_style = SurfaceStyle::SoftUnion;
+        }
+        if self == Self::Putty
+            && let Some(domain) = domain
+            && let Ok(mapping) = TubeRadiusMapping::b_factor(domain, [0.18, 0.72])
+        {
+            representation.params.tube_radius_mapping = mapping;
         }
     }
 }
