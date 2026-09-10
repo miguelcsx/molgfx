@@ -150,7 +150,7 @@ fn finite_domain(domain: [f32; 2]) -> [f32; 2] {
 fn mix_color(from: Rgba8, to: Rgba8, parameter: f32) -> Rgba8 {
     let channel = |from: u8, to: u8| {
         let value = f32::from(from) + (f32::from(to) - f32::from(from)) * parameter;
-        quantize_u8(value)
+        pdviewx_math::round_u8(value)
     };
     Rgba8::new(
         channel(from.r, to.r),
@@ -158,27 +158,6 @@ fn mix_color(from: Rgba8, to: Rgba8, parameter: f32) -> Rgba8 {
         channel(from.b, to.b),
         channel(from.a, to.a),
     )
-}
-
-fn quantize_u8(value: f32) -> u8 {
-    let target = value.clamp(0.0, 255.0);
-    let mut low = 0u16;
-    let mut high = u16::from(u8::MAX);
-    while low < high {
-        let middle = (low + high).div_ceil(2);
-        if f32::from(middle) <= target {
-            low = middle;
-        } else {
-            high = middle - 1;
-        }
-    }
-    let upper = (low + 1).min(u16::from(u8::MAX));
-    let selected = if target - f32::from(low) < f32::from(upper) - target {
-        low
-    } else {
-        upper
-    };
-    u8::try_from(selected).map_or(u8::MAX, |value| value)
 }
 
 impl Default for ScalarRamp {

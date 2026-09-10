@@ -64,3 +64,44 @@ fn gaussian_surface_parameters_keep_width_and_iso_level_independent() {
     assert_eq!(params.surface_kind, SurfaceKind::SolventExcluded);
     assert_eq!(SurfaceKind::Gaussian as u32, 3);
 }
+
+#[test]
+fn molecular_surface_defaults_use_a_broad_restrained_highlight() {
+    let mut scene = crate::Scene::new();
+    let selection = scene.add_selection(crate::AtomSelection::All);
+    let representation = Representation::new(
+        RepresentationTarget::Selection(selection),
+        RepresentationKind::Surface,
+    );
+    assert_eq!(
+        representation.material.roughness.to_bits(),
+        0.62_f32.to_bits()
+    );
+    assert_eq!(
+        representation.material.specular.to_bits(),
+        0.22_f32.to_bits()
+    );
+}
+
+#[test]
+fn a_visual_opacity_output_routes_the_whole_representation_through_oit() {
+    let mut scene = crate::Scene::new();
+    let selection = scene.add_selection(crate::AtomSelection::All);
+    let mut builder = crate::VisualProgramBuilder::new();
+    let opacity = builder
+        .scalar(1.0)
+        .unwrap_or_else(|error| panic!("opacity should build: {error}"));
+    builder
+        .set_opacity(opacity)
+        .unwrap_or_else(|error| panic!("output should build: {error}"));
+    let mut representation = Representation::new(
+        RepresentationTarget::Selection(selection),
+        RepresentationKind::Spacefill,
+    );
+    representation.visual =
+        Some(crate::VisualStyle::new(builder.finish().unwrap_or_else(
+            |error| panic!("program should build: {error}"),
+        )));
+
+    assert!(representation.is_translucent());
+}
