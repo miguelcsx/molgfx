@@ -1,0 +1,833 @@
+{
+  "symbols": [
+    {
+      "declaration": "class SegmentationStyle:\n    def __init__(self, styles: SegmentStyleTable | None = ..., opacity_scale: float = ..., step_scale: float = ...) -> None: ...\n    @staticmethod\n    def default() -> SegmentationStyle: ...\n    styles: SegmentStyleTable\n    opacity_scale: float\n    step_scale: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, styles: SegmentStyleTable | None = ..., opacity_scale: float = ..., step_scale: float = ...) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "default",
+          "ownership": "borrowed-call",
+          "signature": "def default() -> SegmentationStyle: ..."
+        },
+        {
+          "kind": "property",
+          "name": "styles",
+          "ownership": "copied-value",
+          "signature": "styles: SegmentStyleTable"
+        },
+        {
+          "kind": "property",
+          "name": "opacity_scale",
+          "ownership": "copied-value",
+          "signature": "opacity_scale: float"
+        },
+        {
+          "kind": "property",
+          "name": "step_scale",
+          "ownership": "copied-value",
+          "signature": "step_scale: float"
+        }
+      ],
+      "name": "SegmentationStyle",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PySegmentationStyle",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/volume.rs"
+      }
+    },
+    {
+      "declaration": "class VolumeStyle:\n    @staticmethod\n    def direct() -> VolumeStyle: ...\n    @staticmethod\n    def isosurface() -> VolumeStyle: ...\n    @staticmethod\n    def medium() -> VolumeStyle: ...\n    @staticmethod\n    def liquid_surface() -> VolumeStyle: ...\n    @staticmethod\n    def slice(plane: ClipPlane) -> VolumeStyle: ...\n    def region(self, minimum: tuple[int, int, int], maximum: tuple[int, int, int], dimensions: tuple[int, int, int]) -> VolumeStyle: ...\n    def sampling(self, opacity_scale: float, step_scale: float) -> VolumeStyle: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "direct",
+          "ownership": "borrowed-call",
+          "signature": "def direct() -> VolumeStyle: ..."
+        },
+        {
+          "kind": "method",
+          "name": "isosurface",
+          "ownership": "borrowed-call",
+          "signature": "def isosurface() -> VolumeStyle: ..."
+        },
+        {
+          "kind": "method",
+          "name": "medium",
+          "ownership": "borrowed-call",
+          "signature": "def medium() -> VolumeStyle: ..."
+        },
+        {
+          "kind": "method",
+          "name": "liquid_surface",
+          "ownership": "borrowed-call",
+          "signature": "def liquid_surface() -> VolumeStyle: ..."
+        },
+        {
+          "kind": "method",
+          "name": "slice",
+          "ownership": "borrowed-call",
+          "signature": "def slice(plane: ClipPlane) -> VolumeStyle: ..."
+        },
+        {
+          "kind": "method",
+          "name": "region",
+          "ownership": "borrowed-call",
+          "signature": "def region(self, minimum: tuple[int, int, int], maximum: tuple[int, int, int], dimensions: tuple[int, int, int]) -> VolumeStyle: ..."
+        },
+        {
+          "kind": "method",
+          "name": "sampling",
+          "ownership": "borrowed-call",
+          "signature": "def sampling(self, opacity_scale: float, step_scale: float) -> VolumeStyle: ..."
+        }
+      ],
+      "name": "VolumeStyle",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyVolumeStyle",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/volume.rs"
+      }
+    },
+    {
+      "declaration": "class TubeRadiusMapping:\n    @staticmethod\n    def constant() -> TubeRadiusMapping: ...\n    @staticmethod\n    def b_factor(domain: tuple[float, float], radii: tuple[float, float]) -> TubeRadiusMapping: ...\n    def radius(self, value: float, fallback: float) -> float: ...\n    def value(self, radius: float) -> float | None: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "constant",
+          "ownership": "borrowed-call",
+          "signature": "def constant() -> TubeRadiusMapping: ..."
+        },
+        {
+          "kind": "method",
+          "name": "b_factor",
+          "ownership": "borrowed-call",
+          "signature": "def b_factor(domain: tuple[float, float], radii: tuple[float, float]) -> TubeRadiusMapping: ..."
+        },
+        {
+          "kind": "method",
+          "name": "radius",
+          "ownership": "borrowed-call",
+          "signature": "def radius(self, value: float, fallback: float) -> float: ..."
+        },
+        {
+          "kind": "method",
+          "name": "value",
+          "ownership": "borrowed-call",
+          "signature": "def value(self, radius: float) -> float | None: ..."
+        }
+      ],
+      "name": "TubeRadiusMapping",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyTubeRadiusMapping",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/volume.rs"
+      }
+    },
+    {
+      "declaration": "class CrystalCell:\n    def __init__(self, lengths: tuple[float, float, float], angles_degrees: tuple[float, float, float]) -> None: ...\n    def with_origin(self, origin: Vec3) -> CrystalCell: ...\n    lengths: tuple[float, float, float]\n    angles_degrees: tuple[float, float, float]\n    origin: Vec3",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, lengths: tuple[float, float, float], angles_degrees: tuple[float, float, float]) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "with_origin",
+          "ownership": "borrowed-call",
+          "signature": "def with_origin(self, origin: Vec3) -> CrystalCell: ..."
+        },
+        {
+          "kind": "property",
+          "name": "lengths",
+          "ownership": "copied-value",
+          "signature": "lengths: tuple[float, float, float]"
+        },
+        {
+          "kind": "property",
+          "name": "angles_degrees",
+          "ownership": "copied-value",
+          "signature": "angles_degrees: tuple[float, float, float]"
+        },
+        {
+          "kind": "property",
+          "name": "origin",
+          "ownership": "copied-value",
+          "signature": "origin: Vec3"
+        }
+      ],
+      "name": "CrystalCell",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyCrystalCell",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/volume.rs"
+      }
+    },
+    {
+      "declaration": "class ParticleShape:\n    Sphere: ParticleShape\n    Box: ParticleShape\n    Cylinder: ParticleShape\n    Spherocylinder: ParticleShape\n    Gaussian: ParticleShape\n    Circle: ParticleShape\n    Square: ParticleShape\n    Superquadric: ParticleShape",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "Sphere",
+          "ownership": "copied-value",
+          "signature": "Sphere: ParticleShape"
+        },
+        {
+          "kind": "property",
+          "name": "Box",
+          "ownership": "copied-value",
+          "signature": "Box: ParticleShape"
+        },
+        {
+          "kind": "property",
+          "name": "Cylinder",
+          "ownership": "copied-value",
+          "signature": "Cylinder: ParticleShape"
+        },
+        {
+          "kind": "property",
+          "name": "Spherocylinder",
+          "ownership": "copied-value",
+          "signature": "Spherocylinder: ParticleShape"
+        },
+        {
+          "kind": "property",
+          "name": "Gaussian",
+          "ownership": "copied-value",
+          "signature": "Gaussian: ParticleShape"
+        },
+        {
+          "kind": "property",
+          "name": "Circle",
+          "ownership": "copied-value",
+          "signature": "Circle: ParticleShape"
+        },
+        {
+          "kind": "property",
+          "name": "Square",
+          "ownership": "copied-value",
+          "signature": "Square: ParticleShape"
+        },
+        {
+          "kind": "property",
+          "name": "Superquadric",
+          "ownership": "copied-value",
+          "signature": "Superquadric: ParticleShape"
+        }
+      ],
+      "name": "ParticleShape",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyParticleShape",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/authoring.rs"
+      }
+    },
+    {
+      "declaration": "class MeshTopology:\n    Triangles: MeshTopology\n    TriangleStrip: MeshTopology\n    TriangleFan: MeshTopology\n    Quads: MeshTopology",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "Triangles",
+          "ownership": "copied-value",
+          "signature": "Triangles: MeshTopology"
+        },
+        {
+          "kind": "property",
+          "name": "TriangleStrip",
+          "ownership": "copied-value",
+          "signature": "TriangleStrip: MeshTopology"
+        },
+        {
+          "kind": "property",
+          "name": "TriangleFan",
+          "ownership": "copied-value",
+          "signature": "TriangleFan: MeshTopology"
+        },
+        {
+          "kind": "property",
+          "name": "Quads",
+          "ownership": "copied-value",
+          "signature": "Quads: MeshTopology"
+        }
+      ],
+      "name": "MeshTopology",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyMeshTopology",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/authoring.rs"
+      }
+    },
+    {
+      "declaration": "class GuideCap:\n    Plain: GuideCap\n    Arrow: GuideCap\n    DoubleArrow: GuideCap",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "Plain",
+          "ownership": "copied-value",
+          "signature": "Plain: GuideCap"
+        },
+        {
+          "kind": "property",
+          "name": "Arrow",
+          "ownership": "copied-value",
+          "signature": "Arrow: GuideCap"
+        },
+        {
+          "kind": "property",
+          "name": "DoubleArrow",
+          "ownership": "copied-value",
+          "signature": "DoubleArrow: GuideCap"
+        }
+      ],
+      "name": "GuideCap",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyGuideCap",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/authoring.rs"
+      }
+    },
+    {
+      "declaration": "class GuideStyle:\n    def __init__(self, color: Rgba8, pattern: RelationPattern = ..., width_pixels: float = ..., opacity: float = ..., period_pixels: float = ..., duty_cycle: float = ..., cap: GuideCap = ..., arrow_pixels: float = ...) -> None: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, color: Rgba8, pattern: RelationPattern = ..., width_pixels: float = ..., opacity: float = ..., period_pixels: float = ..., duty_cycle: float = ..., cap: GuideCap = ..., arrow_pixels: float = ...) -> None: ..."
+        }
+      ],
+      "name": "GuideStyle",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyGuideStyle",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/authoring.rs"
+      }
+    },
+    {
+      "declaration": "class SymmetryInstance:\n    def __init__(self, id: int, transform: Mat4) -> None: ...\n    id: int\n    transform: Mat4",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, id: int, transform: Mat4) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "id",
+          "ownership": "copied-value",
+          "signature": "id: int"
+        },
+        {
+          "kind": "property",
+          "name": "transform",
+          "ownership": "copied-value",
+          "signature": "transform: Mat4"
+        }
+      ],
+      "name": "SymmetryInstance",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PySymmetryInstance",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/volume.rs"
+      }
+    },
+    {
+      "declaration": "class TrajectoryChunkWindow:\n    def __init__(self, structure: ResidencyTicket, start: ResidencyTicket, end: ResidencyTicket, interpolation: float) -> None: ...\n    structure: ResidencyTicket\n    start: ResidencyTicket\n    end: ResidencyTicket\n    interpolation: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, structure: ResidencyTicket, start: ResidencyTicket, end: ResidencyTicket, interpolation: float) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "structure",
+          "ownership": "copied-value",
+          "signature": "structure: ResidencyTicket"
+        },
+        {
+          "kind": "property",
+          "name": "start",
+          "ownership": "copied-value",
+          "signature": "start: ResidencyTicket"
+        },
+        {
+          "kind": "property",
+          "name": "end",
+          "ownership": "copied-value",
+          "signature": "end: ResidencyTicket"
+        },
+        {
+          "kind": "property",
+          "name": "interpolation",
+          "ownership": "copied-value",
+          "signature": "interpolation: float"
+        }
+      ],
+      "name": "TrajectoryChunkWindow",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyTrajectoryChunkWindow",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/trajectory.rs"
+      }
+    },
+    {
+      "declaration": "class TrajectoryFrame:\n    @staticmethod\n    def copy_from_numpy(index: int, time_seconds: float, positions: NDArray[np.float32], provenance: str) -> TrajectoryFrame: ...\n    index: int\n    time_seconds: float\n    provenance: str\n    def copy_positions_numpy(self) -> NDArray[np.float32]: ...\n    def aabb(self) -> Aabb: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "copy_from_numpy",
+          "ownership": "explicit-copy",
+          "signature": "def copy_from_numpy(index: int, time_seconds: float, positions: NDArray[np.float32], provenance: str) -> TrajectoryFrame: ..."
+        },
+        {
+          "kind": "property",
+          "name": "index",
+          "ownership": "copied-value",
+          "signature": "index: int"
+        },
+        {
+          "kind": "property",
+          "name": "time_seconds",
+          "ownership": "copied-value",
+          "signature": "time_seconds: float"
+        },
+        {
+          "kind": "property",
+          "name": "provenance",
+          "ownership": "copied-value",
+          "signature": "provenance: str"
+        },
+        {
+          "kind": "method",
+          "name": "copy_positions_numpy",
+          "ownership": "explicit-copy",
+          "signature": "def copy_positions_numpy(self) -> NDArray[np.float32]: ..."
+        },
+        {
+          "kind": "method",
+          "name": "aabb",
+          "ownership": "borrowed-call",
+          "signature": "def aabb(self) -> Aabb: ..."
+        }
+      ],
+      "name": "TrajectoryFrame",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyTrajectoryFrame",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/trajectory.rs"
+      }
+    },
+    {
+      "declaration": "class TrajectorySegment:\n    def __init__(self, start: TrajectoryFrame, end: TrajectoryFrame, sample_seconds: float) -> None: ...\n    def set_sample_time(self, sample_seconds: float) -> None: ...\n    start: TrajectoryFrame\n    end: TrajectoryFrame\n    sample_seconds: float\n    interpolation: float\n    atom_count: int\n    def union_aabb(self) -> Aabb: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, start: TrajectoryFrame, end: TrajectoryFrame, sample_seconds: float) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_sample_time",
+          "ownership": "borrowed-call",
+          "signature": "def set_sample_time(self, sample_seconds: float) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "start",
+          "ownership": "copied-value",
+          "signature": "start: TrajectoryFrame"
+        },
+        {
+          "kind": "property",
+          "name": "end",
+          "ownership": "copied-value",
+          "signature": "end: TrajectoryFrame"
+        },
+        {
+          "kind": "property",
+          "name": "sample_seconds",
+          "ownership": "copied-value",
+          "signature": "sample_seconds: float"
+        },
+        {
+          "kind": "property",
+          "name": "interpolation",
+          "ownership": "copied-value",
+          "signature": "interpolation: float"
+        },
+        {
+          "kind": "property",
+          "name": "atom_count",
+          "ownership": "copied-value",
+          "signature": "atom_count: int"
+        },
+        {
+          "kind": "method",
+          "name": "union_aabb",
+          "ownership": "borrowed-call",
+          "signature": "def union_aabb(self) -> Aabb: ..."
+        }
+      ],
+      "name": "TrajectorySegment",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyTrajectorySegment",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/trajectory.rs"
+      }
+    },
+    {
+      "declaration": "class TrajectoryBranch:\n    def __init__(self, from_state: int, to_state: int, event: str, probability: float = ...) -> None: ...\n    from_state: int\n    to_state: int\n    event: str\n    probability: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, from_state: int, to_state: int, event: str, probability: float = ...) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "from_state",
+          "ownership": "copied-value",
+          "signature": "from_state: int"
+        },
+        {
+          "kind": "property",
+          "name": "to_state",
+          "ownership": "copied-value",
+          "signature": "to_state: int"
+        },
+        {
+          "kind": "property",
+          "name": "event",
+          "ownership": "copied-value",
+          "signature": "event: str"
+        },
+        {
+          "kind": "property",
+          "name": "probability",
+          "ownership": "copied-value",
+          "signature": "probability: float"
+        }
+      ],
+      "name": "TrajectoryBranch",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyTrajectoryBranch",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/trajectory.rs"
+      }
+    },
+    {
+      "declaration": "class TrajectoryStateGraph:\n    def __init__(self, states: Sequence[int], branches: Sequence[TrajectoryBranch], initial: int) -> None: ...\n    def target(self, event: str) -> int | None: ...\n    def transition(self, scene: Scene, structure: StructureHandle, event: str, segment: TrajectorySegment) -> int: ...\n    def seek(self, scene: Scene, structure: StructureHandle, state: int, segment: TrajectorySegment) -> None: ...\n    active: int\n    states: list[int]\n    branches: list[TrajectoryBranch]",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, states: Sequence[int], branches: Sequence[TrajectoryBranch], initial: int) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "target",
+          "ownership": "borrowed-call",
+          "signature": "def target(self, event: str) -> int | None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "transition",
+          "ownership": "borrowed-call",
+          "signature": "def transition(self, scene: Scene, structure: StructureHandle, event: str, segment: TrajectorySegment) -> int: ..."
+        },
+        {
+          "kind": "method",
+          "name": "seek",
+          "ownership": "borrowed-call",
+          "signature": "def seek(self, scene: Scene, structure: StructureHandle, state: int, segment: TrajectorySegment) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "active",
+          "ownership": "copied-value",
+          "signature": "active: int"
+        },
+        {
+          "kind": "property",
+          "name": "states",
+          "ownership": "copied-value",
+          "signature": "states: list[int]"
+        },
+        {
+          "kind": "property",
+          "name": "branches",
+          "ownership": "copied-value",
+          "signature": "branches: list[TrajectoryBranch]"
+        }
+      ],
+      "name": "TrajectoryStateGraph",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyTrajectoryStateGraph",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/trajectory.rs"
+      }
+    },
+    {
+      "declaration": "class TopologyBond:\n    def __init__(self, atom_a: int, atom_b: int, aromatic: bool = ...) -> None: ...\n    atoms: tuple[int, int]\n    aromatic: bool",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, atom_a: int, atom_b: int, aromatic: bool = ...) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "atoms",
+          "ownership": "copied-value",
+          "signature": "atoms: tuple[int, int]"
+        },
+        {
+          "kind": "property",
+          "name": "aromatic",
+          "ownership": "copied-value",
+          "signature": "aromatic: bool"
+        }
+      ],
+      "name": "TopologyBond",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyTopologyBond",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/topology.rs"
+      }
+    },
+    {
+      "declaration": "class BondTopologyFrame:\n    def __init__(self, index: int, time_seconds: float, atom_count: int, bonds: Sequence[TopologyBond], provenance: str) -> None: ...\n    index: int\n    time_seconds: float\n    atom_count: int\n    bonds: list[TopologyBond]\n    provenance: str",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, index: int, time_seconds: float, atom_count: int, bonds: Sequence[TopologyBond], provenance: str) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "index",
+          "ownership": "copied-value",
+          "signature": "index: int"
+        },
+        {
+          "kind": "property",
+          "name": "time_seconds",
+          "ownership": "copied-value",
+          "signature": "time_seconds: float"
+        },
+        {
+          "kind": "property",
+          "name": "atom_count",
+          "ownership": "copied-value",
+          "signature": "atom_count: int"
+        },
+        {
+          "kind": "property",
+          "name": "bonds",
+          "ownership": "copied-value",
+          "signature": "bonds: list[TopologyBond]"
+        },
+        {
+          "kind": "property",
+          "name": "provenance",
+          "ownership": "copied-value",
+          "signature": "provenance: str"
+        }
+      ],
+      "name": "BondTopologyFrame",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyBondTopologyFrame",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/topology.rs"
+      }
+    },
+    {
+      "declaration": "class BondTopologySegment:\n    def __init__(self, start: BondTopologyFrame, end: BondTopologyFrame, sample_seconds: float) -> None: ...\n    def set_sample_time(self, sample_seconds: float) -> None: ...\n    start: BondTopologyFrame\n    end: BondTopologyFrame\n    sample_seconds: float\n    interpolation: float\n    bonds: list[tuple[TopologyBond, float]]",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, start: BondTopologyFrame, end: BondTopologyFrame, sample_seconds: float) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_sample_time",
+          "ownership": "borrowed-call",
+          "signature": "def set_sample_time(self, sample_seconds: float) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "start",
+          "ownership": "copied-value",
+          "signature": "start: BondTopologyFrame"
+        },
+        {
+          "kind": "property",
+          "name": "end",
+          "ownership": "copied-value",
+          "signature": "end: BondTopologyFrame"
+        },
+        {
+          "kind": "property",
+          "name": "sample_seconds",
+          "ownership": "copied-value",
+          "signature": "sample_seconds: float"
+        },
+        {
+          "kind": "property",
+          "name": "interpolation",
+          "ownership": "copied-value",
+          "signature": "interpolation: float"
+        },
+        {
+          "kind": "property",
+          "name": "bonds",
+          "ownership": "copied-value",
+          "signature": "bonds: list[tuple[TopologyBond, float]]"
+        }
+      ],
+      "name": "BondTopologySegment",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyBondTopologySegment",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/topology.rs"
+      }
+    },
+    {
+      "declaration": "class Aabb:\n    def __init__(self, min: Vec3, max: Vec3) -> None: ...\n    EMPTY: Aabb\n    min: Vec3\n    max: Vec3\n    def is_empty(self) -> bool: ...\n    def center(self) -> Vec3: ...\n    def bounding_sphere(self) -> BoundingSphere: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, min: Vec3, max: Vec3) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "EMPTY",
+          "ownership": "copied-value",
+          "signature": "EMPTY: Aabb"
+        },
+        {
+          "kind": "property",
+          "name": "min",
+          "ownership": "copied-value",
+          "signature": "min: Vec3"
+        },
+        {
+          "kind": "property",
+          "name": "max",
+          "ownership": "copied-value",
+          "signature": "max: Vec3"
+        },
+        {
+          "kind": "method",
+          "name": "is_empty",
+          "ownership": "borrowed-call",
+          "signature": "def is_empty(self) -> bool: ..."
+        },
+        {
+          "kind": "method",
+          "name": "center",
+          "ownership": "borrowed-call",
+          "signature": "def center(self) -> Vec3: ..."
+        },
+        {
+          "kind": "method",
+          "name": "bounding_sphere",
+          "ownership": "borrowed-call",
+          "signature": "def bounding_sphere(self) -> BoundingSphere: ..."
+        }
+      ],
+      "name": "Aabb",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyAabb",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/math.rs"
+      }
+    },
+    {
+      "declaration": "class BoundingSphere:\n    def __init__(self, center: Vec3, radius: float) -> None: ...\n    center: Vec3\n    radius: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, center: Vec3, radius: float) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "center",
+          "ownership": "copied-value",
+          "signature": "center: Vec3"
+        },
+        {
+          "kind": "property",
+          "name": "radius",
+          "ownership": "copied-value",
+          "signature": "radius: float"
+        }
+      ],
+      "name": "BoundingSphere",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyBoundingSphere",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/math.rs"
+      }
+    }
+  ]
+}
