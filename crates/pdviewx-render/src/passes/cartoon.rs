@@ -2,6 +2,7 @@
 
 use crate::error::RenderError;
 use crate::graph::PassContext;
+use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
 use crate::passes::{
     ALBEDO_RESOURCE, DEPTH_RESOURCE, ENTITY_RESOURCE, MOTION_RESOURCE, NORMAL_RESOURCE,
     STRUCTURE_RESOURCE, gbuffer_targets,
@@ -14,7 +15,7 @@ use pdviewx_gpu::{
 
 #[derive(Debug)]
 pub struct CartoonPass<D: Device> {
-    pipeline: D::Pipeline,
+    pipeline: VisualPipelineSet<D>,
 }
 
 impl<D: Device> CartoonPass<D> {
@@ -28,21 +29,28 @@ impl<D: Device> CartoonPass<D> {
             wgsl: pdviewx_shaders::GEOMETRY_CARTOON,
         })?;
         let targets = gbuffer_targets();
-        let pipeline = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "cartoon ribbons",
-            layouts: &[Some(group0), None, Some(group2)],
-            shader: &shader,
-            vs_entry: "vs_cartoon",
-            fs_entry: Some("fs_cartoon"),
-            color_targets: &targets,
-            depth: Some(DepthState {
-                format: TextureFormat::Depth32Float,
-                write: true,
-                compare: CompareFunction::GreaterEqual,
-            }),
-            constants: &[],
-            topology: PrimitiveTopology::TriangleList,
-        })?;
+        let build = |pipeline_constants: &[(&'static str, f64)]| {
+            device.create_render_pipeline(&RenderPipelineDesc {
+                label: "cartoon ribbons",
+                layouts: &[Some(group0), None, Some(group2)],
+                shader: &shader,
+                vs_entry: "vs_cartoon",
+                fs_entry: Some("fs_cartoon"),
+                color_targets: &targets,
+                depth: Some(DepthState {
+                    format: TextureFormat::Depth32Float,
+                    write: true,
+                    compare: CompareFunction::GreaterEqual,
+                }),
+                constants: pipeline_constants,
+                topology: PrimitiveTopology::TriangleList,
+            })
+        };
+        let pipeline = VisualPipelineSet::new(
+            build(&[])?,
+            build(&constants(false))?,
+            build(&constants(true))?,
+        );
         Ok(Self { pipeline })
     }
 
@@ -93,13 +101,17 @@ impl<D: Device> CartoonPass<D> {
             }),
             timestamps: ctx.timestamps,
         });
-        pass.set_pipeline(&ctx.passes.cartoon.pipeline);
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
-        for (group2, args, _) in ctx
+        let mut bound = None;
+        for (group2, args, shading) in ctx
             .scene
             .cartoon_draws(false)
             .chain(ctx.scene.mesh_draws(false))
         {
+            if bound != Some(shading) {
+                pass.set_pipeline(ctx.passes.cartoon.pipeline.get(shading));
+                bound = Some(shading);
+            }
             pass.set_bind_group(2, group2, &[]);
             pass.draw_indirect(args, 0);
         }

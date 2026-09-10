@@ -3,6 +3,7 @@
 use crate::error::RenderError;
 use crate::graph::PassContext;
 use crate::passes::DEPTH_RESOURCE;
+use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
 use crate::passes::{
     ALBEDO_RESOURCE, ENTITY_RESOURCE, MOTION_RESOURCE, NORMAL_RESOURCE, STRUCTURE_RESOURCE,
     gbuffer_targets,
@@ -15,8 +16,9 @@ use pdviewx_gpu::{
 
 #[derive(Debug)]
 pub struct BondPass<D: Device> {
-    capsule: D::Pipeline,
-    wire: D::Pipeline,
+    capsule: VisualPipelineSet<D>,
+    wire: VisualPipelineSet<D>,
+    paged: D::Pipeline,
 }
 
 impl<D: Device> BondPass<D> {
@@ -25,31 +27,59 @@ impl<D: Device> BondPass<D> {
         _target_format: TextureFormat,
         group0: &D::BindGroupLayout,
         group2: &D::BindGroupLayout,
+        paged_layout: &D::BindGroupLayout,
     ) -> Result<Self, RenderError> {
         let shader = device.create_shader_module(&ShaderModuleDesc {
             label: "geometry_bond",
             wgsl: pdviewx_shaders::GEOMETRY_BOND,
         })?;
-        let pipeline = |label, vertex, fragment| {
-            device.create_render_pipeline(&RenderPipelineDesc {
-                label,
-                layouts: &[Some(group0), None, Some(group2)],
-                shader: &shader,
-                vs_entry: vertex,
-                fs_entry: Some(fragment),
-                color_targets: &gbuffer_targets(),
-                depth: Some(DepthState {
-                    format: TextureFormat::Depth32Float,
-                    write: true,
-                    compare: CompareFunction::GreaterEqual,
-                }),
-                constants: &[],
-                topology: PrimitiveTopology::TriangleList,
-            })
+        let pipeline = |label, vertex, fragment| -> Result<VisualPipelineSet<D>, RenderError> {
+            let build = |pipeline_constants: &[(&'static str, f64)]| {
+                device.create_render_pipeline(&RenderPipelineDesc {
+                    label,
+                    layouts: &[Some(group0), None, Some(group2)],
+                    shader: &shader,
+                    vs_entry: vertex,
+                    fs_entry: Some(fragment),
+                    color_targets: &gbuffer_targets(),
+                    depth: Some(DepthState {
+                        format: TextureFormat::Depth32Float,
+                        write: true,
+                        compare: CompareFunction::GreaterEqual,
+                    }),
+                    constants: pipeline_constants,
+                    topology: PrimitiveTopology::TriangleList,
+                })
+            };
+            Ok(VisualPipelineSet::new(
+                build(&[])?,
+                build(&constants(false))?,
+                build(&constants(true))?,
+            ))
         };
+        let paged_shader = device.create_shader_module(&ShaderModuleDesc {
+            label: "paged provider bonds",
+            wgsl: pdviewx_shaders::PAGED_BOND,
+        })?;
+        let paged = device.create_render_pipeline(&RenderPipelineDesc {
+            label: "paged analytic bond capsules",
+            layouts: &[Some(group0), Some(paged_layout)],
+            shader: &paged_shader,
+            vs_entry: "paged_bond_vertex",
+            fs_entry: Some("paged_bond_fragment"),
+            color_targets: &gbuffer_targets(),
+            depth: Some(DepthState {
+                format: TextureFormat::Depth32Float,
+                write: true,
+                compare: CompareFunction::GreaterEqual,
+            }),
+            constants: &[],
+            topology: PrimitiveTopology::TriangleList,
+        })?;
         Ok(Self {
             capsule: pipeline("bond capsules", "vs_bond_capsule", "fs_bond_capsule")?,
             wire: pipeline("bond wires", "vs_bond_line", "fs_bond_line")?,
+            paged,
         })
     }
 
@@ -64,7 +94,7 @@ impl<D: Device> BondPass<D> {
         ) else {
             return;
         };
-        if ctx.scene.bond_draws(false).next().is_none() {
+        if ctx.scene.bond_draws(false).next().is_none() && ctx.scene.paged_bond_draw().is_none() {
             return;
         }
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
@@ -101,15 +131,20 @@ impl<D: Device> BondPass<D> {
         let mut bound = None;
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         for (group2, args, shading) in ctx.scene.bond_draws(false) {
-            if bound != Some(shading.wire) {
-                pass.set_pipeline(if shading.wire {
-                    &ctx.passes.bond.wire
+            if bound != Some(shading) {
+                pass.set_pipeline(if shading.wire() {
+                    ctx.passes.bond.wire.get(shading)
                 } else {
-                    &ctx.passes.bond.capsule
+                    ctx.passes.bond.capsule.get(shading)
                 });
-                bound = Some(shading.wire);
+                bound = Some(shading);
             }
             pass.set_bind_group(2, group2, &[]);
+            pass.draw_indirect(args, 0);
+        }
+        if let Some((group, args)) = ctx.scene.paged_bond_draw() {
+            pass.set_pipeline(&ctx.passes.bond.paged);
+            pass.set_bind_group(1, group, &[]);
             pass.draw_indirect(args, 0);
         }
     }
