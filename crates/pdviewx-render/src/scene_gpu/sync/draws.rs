@@ -2,28 +2,14 @@
 
 use super::GpuScene;
 use crate::passes::ParticleMotionPass;
-use crate::passes::SurfaceFieldPass;
+use crate::passes::{SurfaceComponentPass, SurfaceFieldPass};
 use crate::scene_gpu::mesh_slot::GpuMeshSlot;
-use crate::scene_gpu::slot_types::{CullDispatch, SlotShading};
+use crate::scene_gpu::slot_types::{CullDispatch, QualityDraw, SlotShading};
 use crate::scene_gpu::slots::GpuSlot;
 use crate::scene_gpu::volume_slot::GpuVolumeSlot;
 use pdviewx_gpu::Device;
 
 impl<D: Device> GpuScene<D> {
-    pub(crate) fn resolve_entity(
-        &self,
-        structure_id: u32,
-        entity: pdviewx_core::EntityId,
-    ) -> Option<pdviewx_core::EntityRef> {
-        let structure = self.structures.get(structure_id as usize)?.handle;
-        let (kind, index) = entity.unpack()?;
-        Some(pdviewx_core::EntityRef {
-            structure,
-            kind,
-            index,
-        })
-    }
-
     pub(crate) fn atom_draws(
         &self,
         translucent: bool,
@@ -69,6 +55,60 @@ impl<D: Device> GpuScene<D> {
             .filter_map(move |slot| slot.point_draw(translucent))
     }
 
+    pub(crate) fn generic_point_draws(
+        &self,
+        translucent: bool,
+    ) -> impl Iterator<Item = (&D::BindGroup, &D::Buffer, SlotShading)> {
+        self.point_batches.draws(translucent)
+    }
+
+    pub(crate) fn generic_point_dispatches(
+        &self,
+    ) -> impl Iterator<Item = super::super::point_batch_table::GenericPointDispatch<'_, D>> {
+        self.point_batches.dispatches()
+    }
+
+    pub(crate) fn generic_point_timeline_dispatches(
+        &self,
+    ) -> impl Iterator<Item = super::super::point_batch_table::GenericPointTimelineDispatch<'_, D>>
+    {
+        self.point_batches.timeline_dispatches()
+    }
+
+    pub(crate) fn generic_instance_draws(
+        &self,
+        translucent: bool,
+    ) -> impl Iterator<Item = super::super::instance_batch_table::GenericInstanceDraw<'_, D>> {
+        self.instance_batches.draws(translucent)
+    }
+
+    pub(crate) fn generic_instance_dispatches(
+        &self,
+    ) -> impl Iterator<Item = super::super::instance_batch_table::GenericInstanceDispatch<'_, D>>
+    {
+        self.instance_batches.dispatches()
+    }
+
+    pub(crate) fn generic_instance_timeline_dispatches(
+        &self,
+    ) -> impl Iterator<Item = super::super::instance_batch_table::GenericInstanceTimelineDispatch<'_, D>>
+    {
+        self.instance_batches.timeline_dispatches()
+    }
+
+    pub(crate) fn attribute_timeline_dispatches(
+        &self,
+    ) -> impl Iterator<Item = super::super::visual_properties::AttributeTimelineDispatch<'_, D>>
+    {
+        self.visual_properties.timeline_dispatches()
+    }
+
+    pub(crate) fn relation_cull_dispatches(
+        &self,
+    ) -> impl Iterator<Item = super::super::interaction_table::RelationCullDispatch<'_, D>> {
+        self.interactions.cull_dispatches()
+    }
+
     pub(crate) fn cartoon_draws(
         &self,
         translucent: bool,
@@ -99,25 +139,42 @@ impl<D: Device> GpuScene<D> {
             .filter_map(move |slot| slot.surface_draw(translucent))
     }
 
-    pub(crate) fn quality_draws(&self) -> impl Iterator<Item = &D::BindGroup> {
+    pub(crate) fn quality_draws(&self) -> impl Iterator<Item = QualityDraw<'_, D>> {
         self.slots.iter().filter_map(GpuSlot::quality_draw)
     }
 
-    pub(crate) fn volume_draws(&self) -> impl Iterator<Item = &D::BindGroup> {
+    pub(crate) fn record_quality_hardware(
+        &mut self,
+        encoder: &mut D::CommandEncoder,
+        enabled: bool,
+    ) {
+        if !enabled {
+            return;
+        }
+        for slot in &mut self.slots {
+            slot.record_quality_hardware(encoder);
+        }
+    }
+
+    pub(crate) fn volume_draws(
+        &self,
+    ) -> impl Iterator<Item = (pdviewx_core::VolumeRendering, &D::BindGroup)> {
         self.volume_slots.iter().filter_map(GpuVolumeSlot::draw)
     }
 
-    pub(crate) fn segmentation_draws(&self) -> impl Iterator<Item = &D::BindGroup> {
+    pub(crate) fn segmentation_draws(
+        &self,
+    ) -> impl Iterator<Item = (super::super::SegmentationPipelineKey, &D::BindGroup)> {
         self.segmentation_slots
             .iter()
             .filter_map(super::super::segmentation_slot::GpuSegmentationSlot::draw)
     }
 
-    /// The primitive shadow-caster bind group and its whole-table arguments.
+    /// The primitive shadow-caster table and exact opaque class ranges.
     pub(crate) fn primitive_shadow_draw(
         &self,
         quality: bool,
-    ) -> Option<(&D::BindGroup, &D::Buffer)> {
+    ) -> Option<(&D::BindGroup, &[crate::scene_gpu::PrimitiveDrawGroup])> {
         self.primitive.shadow_draw(quality)
     }
 
@@ -128,16 +185,44 @@ impl<D: Device> GpuScene<D> {
         self.primitive.groups()
     }
 
+    pub(crate) fn ligand_pose_draws(
+        &self,
+    ) -> Option<(
+        &D::BindGroup,
+        &D::Buffer,
+        &[crate::scene_gpu::LigandPoseDrawGroup],
+    )> {
+        self.ligand_poses.draws()
+    }
+
+    pub(crate) fn ligand_pose_shadow_draws(
+        &self,
+        quality: bool,
+    ) -> Option<(
+        &D::BindGroup,
+        &D::Buffer,
+        &[crate::scene_gpu::LigandPoseDrawGroup],
+    )> {
+        self.ligand_poses.shadow_draws(quality)
+    }
+
+    pub(crate) const fn ligand_pose_statistics(&self) -> crate::scene_gpu::PoseTableStats {
+        self.ligand_poses.statistics()
+    }
+
     /// Whether any primitive group is translucent, so the transparency pass
     /// knows to run without scanning every group twice.
     pub(crate) fn has_transparent_primitives(&self) -> bool {
         self.primitive
             .groups()
             .is_some_and(|(_, groups)| groups.iter().any(|group| group.translucent))
+            || self.ligand_poses.has_translucency()
+            || self.instance_batches.has_translucency()
     }
 
     pub(crate) fn cull_dispatches(&self) -> impl Iterator<Item = CullDispatch<'_, D>> {
-        let tile_groups = self.cull_tile_count.div_ceil(64);
+        let tile_groups =
+            super::super::dispatch::workgroups_2d(u64::from(self.cull_tile_count).div_ceil(64));
         let fast_tile_lod = self.cull_tile_count < 262_143;
         self.slots
             .iter()
@@ -148,9 +233,10 @@ impl<D: Device> GpuScene<D> {
         &mut self,
         encoder: &mut D::CommandEncoder,
         pass: &SurfaceFieldPass<D>,
+        components: &SurfaceComponentPass<D>,
     ) {
         for slot in &mut self.slots {
-            slot.record_surface_field(encoder, pass);
+            slot.record_surface_field(encoder, pass, components);
         }
     }
 
@@ -168,7 +254,10 @@ impl<D: Device> GpuScene<D> {
     pub(crate) fn has_translucency(&self) -> bool {
         self.labels.has_visible()
             || self.interactions.has_visible()
+            || self.point_batches.has_translucency()
+            || self.instance_batches.has_translucency()
             || self.primitive.has_translucency()
+            || self.ligand_poses.has_translucency()
             || !self.volume_slots.is_empty()
             || self.has_segmentation_translucency()
             || self.slots.iter().any(GpuSlot::is_translucent)
@@ -178,13 +267,24 @@ impl<D: Device> GpuScene<D> {
     /// Dense point-only scenes have no molecular surface to integrate. Their
     /// exact ambient term is white, so the expensive cavity filters are idle.
     pub(crate) fn is_massive_points_only(&self) -> bool {
-        self.slots.iter().any(GpuSlot::is_massive_point)
+        let generic_points_are_eligible =
+            !self.point_batches.has_visible() || self.point_batches.is_massive_opaque_discs();
+        (self.slots.iter().any(GpuSlot::is_massive_point)
+            || self.point_batches.is_massive_opaque_discs())
+            && generic_points_are_eligible
+            && !self.has_translucency()
+            && !self.instance_batches.has_visible()
+            && self.paged_spacefill_draw().is_none()
+            && self.paged_bond_draw().is_none()
+            && self.segmentation_slots.is_empty()
+            && !self.interactions.has_visible()
             && self.atom_draws(false).next().is_none()
             && self.bond_draws(false).next().is_none()
             && self.cartoon_draws(false).next().is_none()
             && self.surface_draws(false).next().is_none()
             && self.mesh_draws(false).next().is_none()
             && self.primitive.groups().is_none()
+            && self.ligand_pose_draws().is_none()
     }
 
     pub(crate) fn interaction_draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
