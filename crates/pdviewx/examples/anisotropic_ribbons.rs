@@ -179,8 +179,8 @@ fn profile_materials(
         set_materials(scene, ribbons, mode)?;
         let timing = engine.profile_frame(scene, camera, IMAGE)?;
         match mode {
-            MaterialMode::Molecular => molecular.push(timing),
-            MaterialMode::Anisotropic => anisotropic.push(timing),
+            MaterialMode::Molecular => molecular.push(&timing),
+            MaterialMode::Anisotropic => anisotropic.push(&timing),
             MaterialMode::Comparison => {}
         }
     }
@@ -209,7 +209,7 @@ impl TimingSamples {
         }
     }
 
-    fn push(&mut self, timing: FrameTiming) {
+    fn push(&mut self, timing: &FrameTiming) {
         self.gpu.push(timing.gpu_ns);
         self.cpu.push(timing.cpu_ns);
     }

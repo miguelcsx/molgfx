@@ -1,17 +1,20 @@
 //! Pocket surface with many deterministic candidate ligand poses in licorice.
 //!
 //! Usage: `cargo run --release --example docking_swarm --features semantic --
-//! [structure] [ligand] [candidate-count] [output.png] [profile-frames]`
+//! [structure] [ligand] [candidate-count] [output.png] [profile-frames]
+//! [opacity] [realtime|cinematic] [surface|instances-only|surface-only]`
 
 use pdviewx::{
-    AtomSelection, BoundingSphere, Camera, ColorScheme, Engine, EngineConfig, Image, ImageConfig,
-    Mat4, Particle, ParticleShape, Primitive, Quat, RepresentationKind, Rgba8, Scene, Select,
-    SurfaceKind, SurfaceStyle, SurfaceZoneScene, SurfaceZoneStyle, Vec3,
+    AnalyticCapsule, AnalyticSphere, AnalyticTemplate, AtomSelection, BoundingSphere, Camera,
+    ColorScheme, Engine, EngineConfig, Image, ImageConfig, InstanceBatch, InstanceStyle, Quat,
+    RenderMode, RepresentationKind, Rgba8, RigidInstance, Scene, Select, SourceNamespace,
+    SourceRows, SurfaceKind, SurfaceStyle, SurfaceZoneScene, SurfaceZoneStyle, Vec3,
 };
 use std::error::Error;
 use std::fs::File;
 use std::io;
 use std::path::Path;
+use std::sync::Arc;
 
 const IMAGE: ImageConfig = ImageConfig {
     width: 1024,
@@ -29,16 +32,34 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get(3)
         .map_or("target/visual-checks/docking-swarm.png", String::as_str);
     let profile_frames = parse_usize(args.get(4), 0, "profile frames")?;
+    let opacity = parse_opacity(args.get(5))?;
+    let mode = match args.get(6).map(String::as_str) {
+        None | Some("realtime") => RenderMode::Realtime,
+        Some("cinematic") => RenderMode::Cinematic,
+        Some(value) => return Err(io::Error::other(format!("unknown render mode {value}")).into()),
+    };
+    let (surface_enabled, instances_enabled) = match args.get(7).map(String::as_str) {
+        None | Some("surface") => (true, true),
+        Some("instances-only") => (false, true),
+        Some("surface-only") => (true, false),
+        Some(value) => return Err(io::Error::other(format!("unknown scene mode {value}")).into()),
+    };
 
     let options = pdbiox::ReadOptions::new().mode(pdbiox::ParseMode::Recover);
     let (parsed, _diagnostics) = pdbiox::read_with_options(path, &options)
         .map_err(|diagnostics| format!("could not read {path}: {diagnostics:?}"))?;
-    let structure = pdbiox::infer_bonds(&parsed, pdbiox::BondInference::default())
-        .map_err(|diagnostics| format!("bond inference failed: {diagnostics:?}"))?
-        .structure;
+    let structure = pdbiox::infer_bonds(
+        &parsed,
+        pdbiox::BondInference::default(),
+        &pdbiox::ExecutionContext::default(),
+    )
+    .map_err(|diagnostics| format!("bond inference failed: {diagnostics:?}"))?
+    .structure;
     let (ligand_atoms, ligand_points) = ligand(&structure, ligand_name)?;
-    let ligand_template = LigandTemplate::new(&structure, &ligand_atoms, ligand_points.clone());
     let ligand_bound = BoundingSphere::from_points(&ligand_points);
+    let ligand_bonds = ligand_bonds(&structure, &ligand_atoms);
+    let ligand_template =
+        analytic_ligand_template(ligand_bound.center, &ligand_points, &ligand_bonds)?;
 
     let mut scene = Scene::new();
     let receptor = scene.add_structure(&structure)?;
@@ -63,6 +84,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         surface.material.roughness = 0.72;
         surface.material.specular = 0.12;
     }
+    if !surface_enabled {
+        scene.hide(zone.representation);
+    }
     let protein_atoms = scene
         .selection_for(protein, receptor)
         .map_or(0, |selection| selection.count(structure.atom_count()));
@@ -71,30 +95,34 @@ fn main() -> Result<(), Box<dyn Error>> {
         .map_or(0, |selection| selection.count(structure.atom_count()));
     add_licorice(&mut scene, anchor, Rgba8::opaque(255, 255, 255))?;
 
-    let mut candidate_primitives = Vec::with_capacity(
-        candidates.saturating_mul(ligand_template.atoms.len() + ligand_template.bonds.len()),
-    );
-    for index in 0..candidates {
-        let transform = candidate_transform(index, ligand_bound.center, ligand_bound.radius);
-        ligand_template.append_pose(
-            receptor,
-            transform,
-            candidate_color(index),
-            &mut candidate_primitives,
+    let template_parts = ligand_template.part_count();
+    if instances_enabled {
+        let _parts = add_candidates(
+            &mut scene,
+            ligand_template,
+            candidates,
+            ligand_bound,
+            opacity,
         )?;
     }
-    scene.add_primitives(&candidate_primitives)?;
 
     let frame = BoundingSphere {
         center: ligand_bound.center,
         radius: ligand_bound.radius + 8.0,
     };
     let camera = Camera::framing(&frame, 4.0 / 3.0);
-    let mut engine = Engine::new(&EngineConfig::default(), None)?;
+    let mut engine = Engine::new(
+        &EngineConfig {
+            mode,
+            ..EngineConfig::default()
+        },
+        None,
+    )?;
     let image = engine.render_image(&scene, &camera, IMAGE)?;
     write_png(output, &image)?;
     println!(
-        "rendered {candidates} candidate poses around {ligand_name}; pocket surface uses {zone_atoms}/{protein_atoms} protein atoms; all poses share one native analytic primitive batch"
+        "registered {candidates} generic instances around {ligand_name}; template parts={template_parts}; transform bytes={}; opacity={opacity:.3}, mode={mode:?}; instances enabled={instances_enabled}; pocket surface enabled={surface_enabled}, uses {zone_atoms}/{protein_atoms} protein atoms; all instances share one analytic template and two homogeneous indirect streams",
+        std::mem::size_of::<RigidInstance>(),
     );
     if profile_frames > 0 {
         profile(&mut engine, &scene, &camera, profile_frames)?;
@@ -102,76 +130,33 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-struct LigandTemplate {
-    atoms: Vec<Vec3>,
-    bonds: Vec<(Vec3, Vec3)>,
-}
-
-impl LigandTemplate {
-    fn new(structure: &pdbiox::Structure, rows: &[u32], atoms: Vec<Vec3>) -> Self {
-        let mut local = vec![usize::MAX; structure.positions().len()];
-        for (index, row) in rows.iter().copied().enumerate() {
-            if let Ok(row) = usize::try_from(row)
-                && let Some(slot) = local.get_mut(row)
-            {
-                *slot = index;
-            }
-        }
-        let bonds = structure
-            .data()
-            .bonds
-            .iter()
-            .filter_map(|bond| {
-                let a = *local.get(bond.atom_a.as_usize())?;
-                let b = *local.get(bond.atom_b.as_usize())?;
-                if a == usize::MAX || b == usize::MAX {
-                    return None;
-                }
-                Some((*atoms.get(a)?, *atoms.get(b)?))
-            })
-            .collect();
-        Self { atoms, bonds }
+fn add_candidates(
+    scene: &mut Scene,
+    template: Arc<AnalyticTemplate>,
+    count: usize,
+    bound: BoundingSphere,
+    opacity: f32,
+) -> Result<usize, Box<dyn Error>> {
+    let row_count = u32::try_from(count)
+        .map_err(|_| io::Error::other("candidate count exceeds the u32 row limit"))?;
+    if row_count == 0 {
+        return Err(io::Error::other("candidate count must be positive").into());
     }
-
-    fn append_pose(
-        &self,
-        owner: pdviewx::StructureHandle,
-        transform: Mat4,
-        color: Rgba8,
-        out: &mut Vec<Primitive>,
-    ) -> Result<(), pdviewx::CoreError> {
-        const DIAMETER: f32 = 0.32;
-        for center in self.atoms.iter().copied() {
-            out.push(Primitive::particle(Particle::new(
-                owner,
-                transform.transform_point3(center),
-                Quat::IDENTITY,
-                Vec3::splat(DIAMETER),
-                ParticleShape::Sphere,
-                color,
-                1.0,
-            )?));
-        }
-        for (start, end) in self.bonds.iter().copied() {
-            let start = transform.transform_point3(start);
-            let end = transform.transform_point3(end);
-            let axis = end - start;
-            let length = axis.length();
-            let Some(direction) = axis.try_normalize() else {
-                continue;
-            };
-            out.push(Primitive::particle(Particle::new(
-                owner,
-                (start + end) * 0.5,
-                Quat::from_rotation_arc(Vec3::Z, direction),
-                Vec3::new(DIAMETER, DIAMETER, length + DIAMETER),
-                ParticleShape::Spherocylinder,
-                color,
-                1.0,
-            )?));
-        }
-        Ok(())
+    let mut transforms = Vec::with_capacity(count);
+    for index in 0..count {
+        transforms.push(candidate_transform(index, bound.center, bound.radius)?);
     }
+    let part_count = template.part_count();
+    let batch = InstanceBatch::new(
+        template,
+        Arc::from(transforms),
+        SourceRows::ordered(SourceNamespace(0x504f_5345), row_count),
+    )?
+    .with_style(InstanceStyle {
+        color: Rgba8::new(56, 189, 248, opacity_alpha(opacity)),
+    });
+    let _handle = scene.add_instance_batch(batch);
+    Ok(part_count)
 }
 
 fn ligand(
@@ -185,24 +170,50 @@ fn ligand(
     else {
         return Err(io::Error::other(format!("component {name} is absent")).into());
     };
-    let atoms = residue
-        .atoms()
-        .map(|atom| atom.index().get())
-        .collect::<Vec<_>>();
-    let points = atoms
-        .iter()
-        .filter_map(|row| {
-            structure
-                .positions()
-                .get(usize::try_from(*row).ok()?)
-                .copied()
-                .map(Vec3::from_array)
-        })
-        .collect::<Vec<_>>();
+    let capacity = residue.atoms().size_hint().0;
+    let mut atoms = Vec::with_capacity(capacity);
+    let mut points = Vec::with_capacity(capacity);
+    for atom in residue.atoms() {
+        let row = atom.index().get();
+        let Ok(index) = usize::try_from(row) else {
+            continue;
+        };
+        let Some(point) = structure.positions().get(index).copied() else {
+            continue;
+        };
+        atoms.push(row);
+        points.push(Vec3::from_array(point));
+    }
     if points.is_empty() {
         return Err(io::Error::other("ligand has no positioned atoms").into());
     }
     Ok((atoms, points))
+}
+
+fn ligand_bonds(structure: &pdbiox::Structure, rows: &[u32]) -> Vec<[u32; 2]> {
+    let mut local = rows
+        .iter()
+        .copied()
+        .enumerate()
+        .filter_map(|(index, row)| u32::try_from(index).ok().map(|index| (row, index)))
+        .collect::<Vec<_>>();
+    local.sort_unstable_by_key(|&(row, _)| row);
+    structure
+        .data()
+        .bonds
+        .iter()
+        .filter_map(|bond| {
+            let a = local_index(&local, bond.atom_a.get())?;
+            let b = local_index(&local, bond.atom_b.get())?;
+            Some([a, b])
+        })
+        .collect()
+}
+
+fn local_index(rows: &[(u32, u32)], atom: u32) -> Option<u32> {
+    rows.binary_search_by_key(&atom, |&(row, _)| row)
+        .ok()
+        .map(|index| rows[index].1)
 }
 
 fn add_licorice(
@@ -223,7 +234,48 @@ fn add_licorice(
     Ok(())
 }
 
-fn candidate_transform(index: usize, center: Vec3, ligand_radius: f32) -> Mat4 {
+fn analytic_ligand_template(
+    center: Vec3,
+    points: &[Vec3],
+    bonds: &[[u32; 2]],
+) -> Result<Arc<AnalyticTemplate>, Box<dyn Error>> {
+    let spheres = points
+        .iter()
+        .map(|point| AnalyticSphere {
+            center: (*point - center).to_array(),
+            radius: 0.30,
+        })
+        .collect::<Vec<_>>();
+    let mut capsules = Vec::with_capacity(bonds.len());
+    for [start, end] in bonds {
+        let start = point_at(points, *start)? - center;
+        let end = point_at(points, *end)? - center;
+        capsules.push(AnalyticCapsule::new(start, end, 0.16)?);
+    }
+    let part_count = spheres.len().saturating_add(capsules.len());
+    let row_count = u32::try_from(part_count)
+        .map_err(|_| io::Error::other("ligand template exceeds the u32 row limit"))?;
+    Ok(Arc::new(AnalyticTemplate::new(
+        Arc::from(spheres),
+        Arc::from(capsules),
+        SourceRows::ordered(SourceNamespace(0x5445_4d50), row_count),
+    )?))
+}
+
+fn point_at(points: &[Vec3], row: u32) -> Result<Vec3, io::Error> {
+    let index = usize::try_from(row)
+        .map_err(|_| io::Error::other("ligand bond index exceeds addressable memory"))?;
+    points
+        .get(index)
+        .copied()
+        .ok_or_else(|| io::Error::other("ligand bond index is outside the template"))
+}
+
+fn candidate_transform(
+    index: usize,
+    center: Vec3,
+    ligand_radius: f32,
+) -> Result<RigidInstance, pdviewx::CoreError> {
     let seed = u32::try_from(index)
         .map_or(u32::MAX, |value| value)
         .wrapping_add(1);
@@ -231,8 +283,8 @@ fn candidate_transform(index: usize, center: Vec3, ligand_radius: f32) -> Mat4 {
     let y = signed_hash(seed.wrapping_mul(0x85eb_ca6b));
     let z = signed_hash(seed.wrapping_mul(0xc2b2_ae35));
     let offset = Vec3::new(x, y, z) * ligand_radius.max(1.0) * 1.35;
-    let rotation = Mat4::from_rotation_y(x * 0.55) * Mat4::from_rotation_x(y * 0.55);
-    Mat4::from_translation(center + offset) * rotation * Mat4::from_translation(-center)
+    let rotation = Quat::from_rotation_y(x * 0.55) * Quat::from_rotation_x(y * 0.55);
+    RigidInstance::new(center + offset, rotation, 1.0)
 }
 
 fn signed_hash(mut value: u32) -> f32 {
@@ -246,16 +298,8 @@ fn signed_hash(mut value: u32) -> f32 {
     unit.mul_add(2.0, -1.0)
 }
 
-fn candidate_color(index: usize) -> Rgba8 {
-    const COLORS: [Rgba8; 6] = [
-        Rgba8::opaque(56, 189, 248),
-        Rgba8::opaque(244, 114, 182),
-        Rgba8::opaque(74, 222, 128),
-        Rgba8::opaque(251, 191, 36),
-        Rgba8::opaque(167, 139, 250),
-        Rgba8::opaque(248, 113, 113),
-    ];
-    COLORS[index % COLORS.len()]
+fn opacity_alpha(opacity: f32) -> u8 {
+    num_traits::cast((opacity.clamp(0.0, 1.0) * 255.0).round()).map_or(u8::MAX, |alpha| alpha)
 }
 
 fn profile(
@@ -287,6 +331,26 @@ fn profile(
         p99(&frame),
         fps(p99(&frame))
     );
+    let Some(batch_size) = std::num::NonZeroU32::new(8) else {
+        return Err(io::Error::other("invalid zero batch size").into());
+    };
+    let batch_len = usize::try_from(batch_size.get()).map_or(8, |value| value);
+    let batches = frames.div_ceil(batch_len).max(1);
+    let mut throughput = Vec::with_capacity(batches);
+    for _ in 0..batches {
+        throughput.push(
+            engine
+                .profile_frame_batch(scene, camera, IMAGE, batch_size)?
+                .frame_ns,
+        );
+    }
+    throughput.sort_unstable();
+    println!(
+        "throughput batch-8 median {} ns; p99 {} ns ({:.2} FPS)",
+        throughput[batches / 2],
+        p99(&throughput),
+        fps(p99(&throughput))
+    );
     Ok(())
 }
 
@@ -310,6 +374,14 @@ fn parse_usize(
             .map_err(|error| io::Error::other(format!("invalid {label}: {error}")).into()),
         None => Ok(fallback),
     }
+}
+
+fn parse_opacity(value: Option<&String>) -> Result<f32, Box<dyn Error>> {
+    let opacity = value.map_or(Ok(1.0), |text| text.parse::<f32>())?;
+    if !opacity.is_finite() || !(0.0..=1.0).contains(&opacity) {
+        return Err(io::Error::other("opacity must be finite and in [0, 1]").into());
+    }
+    Ok(opacity)
 }
 
 fn write_png(path: impl AsRef<Path>, image: &Image) -> Result<(), Box<dyn Error>> {
