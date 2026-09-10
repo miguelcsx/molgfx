@@ -1,9 +1,9 @@
 //! Renders a caller-supplied calibrated scalar field on a molecular surface.
 
 use pdviewx::{
-    AtomSelection, Camera, ColorScheme, DensityVolume, Engine, EngineConfig, ImageConfig,
-    RepresentationKind, Rgba8, ScalarContours, ScalarFieldSemantics, ScalarRamp, Scene,
-    SurfaceKind, SurfaceScalarOverlay, Vec3,
+    AtomSelection, Camera, ColorScheme, Engine, EngineConfig, ImageConfig, RepresentationKind,
+    Rgba8, ScalarContours, ScalarFieldSemantics, ScalarRamp, ScalarVolume, Scene, SurfaceKind,
+    SurfaceScalarOverlay, Vec3,
 };
 use std::error::Error;
 use std::fs::File;
@@ -105,7 +105,7 @@ fn profile(
     Ok(())
 }
 
-fn calibrated_fixture(scene: &Scene) -> Result<DensityVolume, Box<dyn Error>> {
+fn calibrated_fixture(scene: &Scene) -> Result<ScalarVolume, Box<dyn Error>> {
     let bounds = scene.world_aabb();
     let padding = Vec3::splat(3.0);
     let origin = bounds.min - padding;
@@ -129,7 +129,7 @@ fn calibrated_fixture(scene: &Scene) -> Result<DensityVolume, Box<dyn Error>> {
         Arc::from("pdviewx scalar-overlay visual fixture"),
     )?;
     Ok(
-        DensityVolume::from_spacing([u32::from(GRID); 3], origin, spacing, Arc::from(values))?
+        ScalarVolume::from_spacing([u32::from(GRID); 3], origin, spacing, Arc::from(values))?
             .with_semantics(semantics),
     )
 }
