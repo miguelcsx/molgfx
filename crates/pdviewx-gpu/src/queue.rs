@@ -1,8 +1,8 @@
 //! The submission queue trait.
 
-use crate::TextureWrite;
 use crate::device::Device;
 use crate::error::GpuError;
+use crate::{FenceValue, TextureWrite};
 use std::future::Future;
 
 /// Uploads and submission. One submission per frame is the discipline the
@@ -18,6 +18,16 @@ pub trait Queue<D: Device> {
 
     /// Submits one encoder's recorded work.
     fn submit(&self, encoder: D::CommandEncoder);
+
+    /// Submits work whose completion must gate resource residency.
+    fn submit_tracked(&self, encoder: D::CommandEncoder) -> FenceValue;
+
+    /// Polls the backend and returns the greatest submission known complete.
+    ///
+    /// # Errors
+    ///
+    /// Returns device loss when completion status can no longer be queried.
+    fn completed_fence(&self, device: &D) -> Result<FenceValue, GpuError>;
 
     /// Resolves a mapped buffer range without blocking the browser event loop.
     /// Off the frame path only: golden-image capture, picking and export.
