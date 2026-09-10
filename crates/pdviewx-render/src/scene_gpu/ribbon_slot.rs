@@ -1,59 +1,70 @@
 //! Persistent GPU storage for one cartoon representation slot.
 
-use super::buffers::{count, upload_grow, write_draw_args};
+use super::asset_arena::AssetArena;
+use super::buffers::{count, write_draw_args};
+use super::grow_buffer::GrowBuffer;
 use super::structure::GpuStructure;
 use super::uniforms::ClipUniforms;
+use super::visual::VisualCullEntries;
 use crate::error::RenderError;
 use pdviewx_core::{
     AtomSelection, ColorScheme, PlacedStructure, Representation, RepresentationKind,
 };
-use pdviewx_geometry::{InterpolatedCoordinates, RibbonMesh, RibbonParams, SplineProfile};
+use pdviewx_geometry::{RibbonMesh, RibbonParams, SplineProfile};
 use pdviewx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
 
 #[derive(Debug)]
 pub(super) struct RibbonSlot<D: Device> {
-    vertices: Option<D::Buffer>,
-    indices: Option<D::Buffer>,
+    vertices: GrowBuffer<D>,
+    indices: GrowBuffer<D>,
+    deformations: GrowBuffer<D>,
+    radius_sources: GrowBuffer<D>,
     args: Option<D::Buffer>,
     group: Option<D::BindGroup>,
     clipping: Option<D::Buffer>,
-    vertex_capacity: u64,
-    index_capacity: u64,
     index_count: u32,
 }
 
 impl<D: Device> RibbonSlot<D> {
     pub(super) fn new() -> Self {
         Self {
-            vertices: None,
-            indices: None,
+            vertices: GrowBuffer::new(),
+            indices: GrowBuffer::new(),
+            deformations: GrowBuffer::new(),
+            radius_sources: GrowBuffer::new(),
             args: None,
             group: None,
             clipping: None,
-            vertex_capacity: 0,
-            index_capacity: 0,
             index_count: 0,
         }
     }
 
     pub(super) fn sync(&mut self, input: &mut RibbonSync<'_, D>) -> Result<(), RenderError> {
-        prepare_geometry(input);
+        prepare_geometry(input)?;
         self.index_count = count(input.mesh.indices.len());
-        upload_grow(
+        self.vertices.upload(
             input.device,
             input.queue,
             "cartoon vertices",
             &input.mesh.vertices,
-            &mut self.vertices,
-            &mut self.vertex_capacity,
         )?;
-        upload_grow(
+        self.indices.upload(
             input.device,
             input.queue,
             "cartoon indices",
             &input.mesh.indices,
-            &mut self.indices,
-            &mut self.index_capacity,
+        )?;
+        self.deformations.upload(
+            input.device,
+            input.queue,
+            "cartoon GPU deformation recipes",
+            input.mesh.deformation_bytes(),
+        )?;
+        self.radius_sources.upload(
+            input.device,
+            input.queue,
+            "cartoon guide radius sources",
+            input.mesh.radius_source_values(),
         )?;
         write_draw_args(
             input.device,
@@ -64,7 +75,6 @@ impl<D: Device> RibbonSlot<D> {
             &mut self.args,
         )?;
         self.sync_clipping(input.device, input.queue, input.representation)?;
-        self.bind(input.device, input.layout, input.structure);
         Ok(())
     }
 
@@ -96,13 +106,27 @@ impl<D: Device> RibbonSlot<D> {
         device: &D,
         layout: &D::BindGroupLayout,
         structure: &GpuStructure<D>,
+        asset_arena: &AssetArena<D>,
+        visual: Option<VisualCullEntries<'_, D>>,
     ) {
-        let (Some(vertices), Some(indices), Some(model), Some(clipping)) = (
-            &self.vertices,
-            &self.indices,
+        let (
+            Some(vertices),
+            Some(indices),
+            Some(model),
+            Some(clipping),
+            Some(deformations),
+            Some(radius_sources),
+            Some(visual),
+        ) = (
+            self.vertices.get(),
+            self.indices.get(),
             &structure.model,
             &self.clipping,
-        ) else {
+            self.deformations.get(),
+            self.radius_sources.get(),
+            visual,
+        )
+        else {
             return;
         };
         self.group = Some(device.create_bind_group(&BindGroupDesc {
@@ -125,6 +149,37 @@ impl<D: Device> RibbonSlot<D> {
                     binding: 3,
                     buffer: clipping,
                 },
+                structure.coords_entry(asset_arena, 4),
+                structure.previous_coords_entry(asset_arena, 5),
+                BindGroupEntry::Buffer {
+                    binding: 6,
+                    buffer: deformations,
+                },
+                structure.base_coords_entry(asset_arena, 7),
+                BindGroupEntry::Buffer {
+                    binding: 8,
+                    buffer: visual.results,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 9,
+                    buffer: visual.instructions,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 10,
+                    buffer: visual.parameters,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 11,
+                    buffer: visual.properties,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 12,
+                    buffer: visual.config,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 13,
+                    buffer: radius_sources,
+                },
             ],
         }));
     }
@@ -138,54 +193,44 @@ impl<D: Device> RibbonSlot<D> {
     }
 }
 
-fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) {
+fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), RenderError> {
     let params = spline_params(input.representation);
     if input.representation.kind == RepresentationKind::PaperChain {
-        input.mesh.vertices.clear();
-        input.mesh.indices.clear();
+        input.mesh.clear();
     } else if input.representation.kind == RepresentationKind::Twister {
         input
             .mesh
             .generate_glycan(&input.placed.structure, input.selection, params);
     } else {
-        match input.placed.trajectory() {
-            Some(segment) => input.mesh.generate_structure_interpolated(
-                &input.placed.structure,
-                input.selection,
-                input.placed.secondary_structure.values(),
-                8.0,
-                InterpolatedCoordinates {
-                    start: segment.start().positions(),
-                    end: segment.end().positions(),
-                    alpha: segment.interpolation(),
-                },
-                params,
-            ),
-            None => input.mesh.generate_structure(
-                &input.placed.structure,
-                input.selection,
-                input.placed.secondary_structure.values(),
-                8.0,
-                params,
-            ),
-        }
+        input.mesh.generate_structure(
+            &input.placed.structure,
+            input.selection,
+            input.placed.secondary_structure.values(),
+            8.0,
+            params,
+        )?;
     }
-    append_nucleotide_geometry(input);
-    pdviewx_geometry::recolor_ribbon_with_appearance(
-        &mut input.mesh.vertices,
-        &input.placed.atoms,
-        &input.placed.hierarchy,
-        input.placed.secondary_structure.values(),
-        pdviewx_geometry::PropertyColumns {
-            color: input.color_property,
-            appearance: input.appearance_property,
-        },
-        pdviewx_geometry::RibbonColoring {
-            color: input.representation.color,
-            appearance: input.representation.appearance,
-            opacity: input.representation.material.opacity_unorm8(),
-        },
-    );
+    append_nucleotide_geometry(input)?;
+    if !matches!(
+        input.representation.kind,
+        RepresentationKind::Twister | RepresentationKind::PaperChain
+    ) {
+        pdviewx_geometry::recolor_ribbon_with_appearance(
+            &mut input.mesh.vertices,
+            &input.placed.atoms,
+            &input.placed.hierarchy,
+            input.placed.secondary_structure.values(),
+            pdviewx_geometry::PropertyColumns {
+                color: input.color_property,
+                appearance: input.appearance_property,
+            },
+            pdviewx_geometry::RibbonColoring {
+                color: input.representation.color,
+                appearance: input.representation.appearance,
+                opacity: input.representation.material.opacity_unorm8(),
+            },
+        );
+    }
     let vertex_count = input.mesh.vertices.len();
     let index_count = input.mesh.indices.len();
     super::mesh_caps::append_caps(
@@ -196,9 +241,11 @@ fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) {
         input.placed.model_to_world,
         input.representation.clipping,
     );
+    input.mesh.pad_static_deformations();
+    Ok(())
 }
 
-fn append_nucleotide_geometry<D: Device>(input: &mut RibbonSync<'_, D>) {
+fn append_nucleotide_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), RenderError> {
     if input.representation.kind == RepresentationKind::Cartoon {
         pdviewx_geometry::append_base_slabs(
             &input.placed.structure,
@@ -206,21 +253,43 @@ fn append_nucleotide_geometry<D: Device>(input: &mut RibbonSync<'_, D>) {
             BASE_SLAB_THICKNESS,
             &mut input.mesh.vertices,
             &mut input.mesh.indices,
-        );
+        )?;
     } else if input.representation.kind == RepresentationKind::PaperChain {
-        pdviewx_geometry::append_base_polygons(
+        pdviewx_geometry::append_paper_chain(
             &input.placed.structure,
             input.selection,
-            BASE_SLAB_THICKNESS,
-            0.08,
+            PAPER_CHAIN_HEIGHT,
+            input.representation.material.opacity_unorm8(),
             &mut input.mesh.vertices,
             &mut input.mesh.indices,
-        );
+        )?;
     }
+    Ok(())
 }
 
 /// Full depth of a nucleotide base slab, Ångström.
 const BASE_SLAB_THICKNESS: f32 = 0.5;
+/// Half-depth of a ring plate, Ångström.
+///
+/// A sugar ring is roughly 2.9 A across, so the former 1.0 A half-height drew a
+/// 2 A tall double pyramid: a gem, not a sheet. The representation is named for
+/// paper because the ring is meant to read as one, with the pucker as the bend
+/// in it, so the plate is thick enough only to give its rim a lit edge.
+const PAPER_CHAIN_HEIGHT: f32 = 0.09;
+
+/// Twister ribbon width as a multiple of the configured ribbon width.
+///
+/// A pyranose ring is about 2.9 A across and consecutive ring centres sit near
+/// 5.5 A apart, so the face has to be on that order to be a face at all. At the
+/// former 0.3 A the ribbon drew as a thread: no visible plane, and therefore no
+/// readable twist, which is the entire content of the representation.
+const TWISTER_WIDTH_SCALE: f32 = 1.25;
+/// Twister ribbon thickness as a multiple of the configured ribbon width.
+///
+/// The VMD reference default is 0.05 A for a 1.2 A base ribbon width.
+const TWISTER_THICKNESS_SCALE: f32 = 0.2;
+/// Sampling ceiling for the twisting profile.
+const TWISTER_MAX_STEPS: u8 = 32;
 
 fn spline_params(representation: &Representation) -> RibbonParams {
     let opacity = representation.material.opacity_unorm8();
@@ -235,14 +304,20 @@ fn spline_params(representation: &Representation) -> RibbonParams {
                 width: diameter,
                 thickness: diameter,
                 profile: SplineProfile::Tube,
-                radius_mapping: representation.params.tube_radius_mapping,
                 color,
                 ..RibbonParams::default()
             }
         }
+        // A glycan connector is flat on purpose: its face carries the relative
+        // orientation of the rings it connects.
         RepresentationKind::Twister => RibbonParams {
-            width: representation.params.ribbon_width,
-            profile: SplineProfile::Tube,
+            width: representation.params.ribbon_width * TWISTER_WIDTH_SCALE,
+            thickness: representation.params.ribbon_width * TWISTER_THICKNESS_SCALE,
+            profile: SplineProfile::Twister,
+            // Headroom for the twist demand. Two sign-aligned ring planes can
+            // sit most of a half turn apart once projected across the chord, and
+            // the sampler only spends this where a pair actually does.
+            max_steps: TWISTER_MAX_STEPS,
             color,
             ..RibbonParams::default()
         },
@@ -263,8 +338,6 @@ fn spline_params(representation: &Representation) -> RibbonParams {
 pub(super) struct RibbonSync<'a, D: Device> {
     pub(super) device: &'a D,
     pub(super) queue: &'a D::Queue,
-    pub(super) layout: &'a D::BindGroupLayout,
-    pub(super) structure: &'a GpuStructure<D>,
     pub(super) placed: &'a PlacedStructure,
     pub(super) representation: &'a Representation,
     pub(super) selection: &'a AtomSelection,
