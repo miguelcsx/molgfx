@@ -1,7 +1,8 @@
 //! Constant-time resolution from rendered entity ids to source records.
 
 use crate::{
-    Annotation, EntityKind, EntityRef, InteractionEdge, Measurement, Mesh, Primitive, Scene,
+    ActiveTopologyBond, Annotation, EntityKind, EntityRef, Guide, InteractionEdge, LigandPoseBatch,
+    Measurement, Mesh, Primitive, Scene,
 };
 
 #[cfg(test)]
@@ -27,14 +28,20 @@ pub enum ProvenanceDetail<'a> {
     Atom(pdbiox::AtomRef<'a>),
     /// Indexed covalent bond and its file/inference/user provenance.
     Bond(pdbiox::BondRecord),
+    /// Caller-decoded reactive bond and its current birth/death weight.
+    DynamicBond(&'a ActiveTopologyBond),
     /// Caller- or `pdbiox`-supplied interaction fact.
     Interaction(&'a InteractionEdge),
+    /// Caller-authored analytic guide segment.
+    Guide(&'a Guide),
     /// Persistent human-authored note, marker, region or hypothesis.
     Annotation(&'a Annotation),
     /// Persistent caller-computed measurement and its provenance label.
     Measurement(&'a Measurement),
     /// Caller-authored analytic primitive.
     Primitive(&'a Primitive),
+    /// Compact reusable-topology ligand candidate batch.
+    LigandPoseBatch(&'a LigandPoseBatch),
     /// Caller-supplied indexed mesh.
     Mesh(&'a Mesh),
 }
@@ -60,9 +67,13 @@ impl Scene {
                     .bonds
                     .get(pdbiox::BondIndex::new(entity.index))?,
             ),
+            EntityKind::DynamicBond => {
+                ProvenanceDetail::DynamicBond(placed.bond_topology()?.bond(entity.index)?)
+            }
             EntityKind::Edge => {
                 ProvenanceDetail::Interaction(self.interaction_for_entity(entity)?.1)
             }
+            EntityKind::Guide => ProvenanceDetail::Guide(self.guide_for_entity(entity)?.1),
             EntityKind::Label => {
                 if let Some((_, annotation)) = self.annotation_for_entity(entity) {
                     ProvenanceDetail::Annotation(annotation)
@@ -74,6 +85,13 @@ impl Scene {
                 ProvenanceDetail::Primitive(self.primitive_for_entity(entity)?)
             }
             EntityKind::Mesh => ProvenanceDetail::Mesh(self.mesh_for_entity(entity)?),
+            EntityKind::LigandPoseBatch => {
+                ProvenanceDetail::LigandPoseBatch(self.ligand_pose_batch_for_entity(entity)?)
+            }
+            EntityKind::Point
+            | EntityKind::Instance
+            | EntityKind::TemplatePart
+            | EntityKind::Relation => return None,
         };
         Some(EntityProvenance {
             entity,

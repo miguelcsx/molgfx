@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
-    Annotation, AnnotationAnchor, InteractionAnchor, InteractionGeometry, InteractionKind,
-    Material, Measurement, Mesh, MeshVertex,
+    Annotation, AnnotationAnchor, Guide, GuideStyle, InteractionAnchor, InteractionGeometry,
+    InteractionKind, Material, Measurement, Mesh, MeshVertex,
 };
 use pdviewx_math::{Rgba8, Vec3};
 
@@ -105,6 +105,59 @@ fn interactions_annotations_and_measurements_keep_their_source_objects() {
             .provenance(measurement_entity)
             .map(|value| value.detail),
         Some(ProvenanceDetail::Measurement(_))
+    ));
+}
+
+#[test]
+fn guides_and_interactions_with_the_same_row_keep_distinct_provenance() {
+    let structure = crate::fixture::structure();
+    let mut scene = Scene::from_structure(&structure).unwrap_or_else(|error| panic!("{error}"));
+    let Some((owner, _)) = scene.structures().next() else {
+        panic!("fixture structure exists")
+    };
+    let start = InteractionAnchor::entity(Vec3::ZERO, atom(owner, 0))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let end = InteractionAnchor::entity(Vec3::X, atom(owner, 1))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let geometry = InteractionGeometry::new(1.0, None).unwrap_or_else(|error| panic!("{error}"));
+    let interaction = InteractionEdge::new(
+        owner,
+        start,
+        end,
+        InteractionKind::HydrogenBond,
+        geometry,
+        "pdbiox:test",
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
+    let interaction = scene
+        .add_interaction(interaction)
+        .unwrap_or_else(|error| panic!("{error}"));
+    let guide = Guide::new(owner, Vec3::ZERO, Vec3::Y, GuideStyle::default())
+        .unwrap_or_else(|error| panic!("{error}"));
+    let guide = scene
+        .add_guide(guide)
+        .unwrap_or_else(|error| panic!("{error}"));
+
+    assert_eq!(Scene::interaction_row(interaction), Scene::guide_row(guide));
+    let interaction_entity = EntityRef {
+        structure: owner,
+        kind: EntityKind::Edge,
+        index: Scene::interaction_row(interaction),
+    };
+    let guide_entity = EntityRef {
+        structure: owner,
+        kind: EntityKind::Guide,
+        index: Scene::guide_row(guide),
+    };
+    assert!(matches!(
+        scene
+            .provenance(interaction_entity)
+            .map(|value| value.detail),
+        Some(ProvenanceDetail::Interaction(_))
+    ));
+    assert!(matches!(
+        scene.provenance(guide_entity).map(|value| value.detail),
+        Some(ProvenanceDetail::Guide(_))
     ));
 }
 
