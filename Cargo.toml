@@ -2,6 +2,34 @@
 members = ["crates/*"]
 resolver = "3"
 
+[workspace.metadata.pdviewx.wasm]
+portable-crates = [
+    "pdviewx-math",
+    "pdviewx-core",
+    "pdviewx-gpu",
+    "pdviewx-gpu-wgpu",
+    "pdviewx-shaders",
+    "pdviewx-geometry",
+    "pdviewx-render",
+    "pdviewx-semantic",
+    "pdviewx",
+    "pdviewx-wasm",
+]
+portable-test-crates = [
+    "pdviewx-gpu",
+    "pdviewx-gpu-wgpu",
+    "pdviewx-shaders",
+    "pdviewx-wasm",
+]
+native-only-crates = ["pdviewx-bench", "pdviewx-py"]
+native-only-targets = [
+    "pdviewx examples",
+    "criterion benches",
+    "blocking-device integration tests",
+    "parser/provider fixture tests",
+    "proptest suites",
+]
+
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
@@ -20,11 +48,12 @@ pdviewx-shaders = { version = "0.1.0", path = "crates/pdviewx-shaders" }
 pdviewx-geometry = { version = "0.1.0", path = "crates/pdviewx-geometry" }
 pdviewx-render = { version = "0.1.0", path = "crates/pdviewx-render" }
 pdviewx-semantic = { version = "0.1.0", path = "crates/pdviewx-semantic" }
+pdviewx-recipes = { version = "0.1.0", path = "crates/pdviewx-recipes" }
 
 # The structural model and every detection the engine consumes.
-# Path dependency on the sibling checkout while the repository goes public;
-# switches back to a pinned git dependency after.
-pdbiox = { path = "../pdbiox/crates/pdbiox", default-features = false, features = ["mmcif", "bcif", "pdb", "mmap"] }
+# Pin the coordinated provider revision so builds never depend on a mutable
+# sibling checkout.
+pdbiox = { git = "ssh://git@github.com/miguelcsx/pdbiox.git", rev = "27900eb8d93bfe8d8fd3eb2d643e00b77c0e28e1", default-features = false, features = ["mmcif", "bcif", "pdb"] }
 
 # Python ABI shared by the thin binding crate and the sibling pdbiox bridge.
 pyo3 = "0.29"
@@ -35,6 +64,8 @@ glam = { version = "0.33", features = ["bytemuck", "serde"] }
 bytemuck = { version = "1.25", features = ["derive"] }
 smallvec = "1.15"
 hashbrown = "0.17"
+num-traits = "0.2"
+rayon = "1.11"
 thiserror = "2.0"
 roaring = "0.11"
 bitflags = "2.13"
@@ -45,7 +76,9 @@ pollster = "0.4"
 futures-channel = "0.3"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
 web-sys = { version = "0.3", features = ["HtmlCanvasElement"] }
+web-time = "1.1"
 proptest = "1.11"
 criterion = "0.8"
 winit = "0.30"
@@ -53,6 +86,7 @@ fontdue = "0.9"
 png = "0.18"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+sha2 = "0.10"
 
 [workspace.lints.rust]
 missing_docs = "warn"
@@ -71,6 +105,7 @@ lto = "fat"
 codegen-units = 1
 
 [profile.bench]
-# Benchmarks compile often; global LTO would dominate iteration time for
-# little measurement benefit.
-lto = false
+# Thin LTO, not none: the math types are thin wrappers over glam that only
+# collapse once they inline across the crate boundary. Measuring them without
+# any LTO measures a call sequence the release build never emits.
+lto = "thin"

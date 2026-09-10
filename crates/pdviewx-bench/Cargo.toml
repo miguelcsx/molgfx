@@ -10,8 +10,13 @@ repository.workspace = true
 [dependencies]
 thiserror.workspace = true
 pdviewx = { path = "../pdviewx", features = ["realtime", "semantic"] }
+pdviewx-recipes.workspace = true
 pdbiox = { workspace = true, features = ["mmcif", "bcif", "pdb", "chem", "spatial"] }
 png.workspace = true
+num-traits.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+stats_alloc = "0.1.10"
 
 [dev-dependencies]
 criterion.workspace = true

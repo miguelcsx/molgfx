@@ -13,15 +13,18 @@ pdviewx-core.workspace = true
 pdviewx-gpu.workspace = true
 pdviewx-shaders.workspace = true
 pdviewx-geometry.workspace = true
+pdviewx-semantic.workspace = true
+pdbiox.workspace = true
 smallvec.workspace = true
 bytemuck.workspace = true
 thiserror.workspace = true
 png.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+hashbrown.workspace = true
+web-time.workspace = true
 
-[dev-dependencies]
-pdbiox = { workspace = true, features = ["mmcif"] }
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 pollster.workspace = true
 
 [lints]

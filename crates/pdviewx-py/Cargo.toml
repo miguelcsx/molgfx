@@ -13,8 +13,9 @@ name = "pdviewx_native"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+bytemuck.workspace = true
 numpy.workspace = true
-pdbiox-py = { package = "pdbiox-py", path = "../../../pdbiox/crates/pdbiox-py" }
+pdbiox-py = { package = "pdbiox-py", git = "ssh://git@github.com/miguelcsx/pdbiox.git", rev = "27900eb8d93bfe8d8fd3eb2d643e00b77c0e28e1" }
 pdviewx = { workspace = true, features = ["semantic"] }
 pyo3 = { workspace = true, features = ["multiple-pymethods"] }
 
