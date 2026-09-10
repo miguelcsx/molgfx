@@ -20,8 +20,12 @@ pub fn read_structure(path: &str) -> Result<pdbiox::Structure, String> {
     let options = pdbiox::ReadOptions::new().mode(pdbiox::ParseMode::Recover);
     let (parsed, _diagnostics) = pdbiox::read_with_options(path, &options)
         .map_err(|diagnostics| format!("could not read {path}: {diagnostics:?}"))?;
-    let bonded = pdbiox::infer_bonds(&parsed, pdbiox::BondInference::default())
-        .map_err(|diagnostic| format!("bond inference failed for {path}: {diagnostic:?}"))?;
+    let bonded = pdbiox::infer_bonds(
+        &parsed,
+        pdbiox::BondInference::default(),
+        &pdbiox::ExecutionContext::default(),
+    )
+    .map_err(|diagnostic| format!("bond inference failed for {path}: {diagnostic:?}"))?;
     Ok(bonded.structure)
 }
 

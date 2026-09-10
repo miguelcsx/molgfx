@@ -12,13 +12,13 @@
 //!    `cargo run --example docking_viewer --release -- --compare [pose1.cif] [pose2.cif] ...`
 //!
 //! 4. Headless representation audit:
-//!    `cargo run --example docking_viewer --release -- --audit-representations [output-dir]`
+//!    `cargo run --example docking_viewer --release -- --audit-representations [output-dir] [--4k]`
 //!
 //! Controls (all modes):
 //!   left drag  orbit
 //!   wheel      zoom
 //!   1-0        switch representation (spacefill / ball-stick / cartoon /
-//!              licorice / lines / surface / twister / trace / tube / rocket)
+//!              licorice / lines / analytic SAS / twister / trace / tube / rocket)
 //!   B/O/G/U    beads / points / paper-chain / putty
 //!   , .        previous / next representation
 //!   M          cycle surface style (solid / mesh / contour / dots / filled)
@@ -56,6 +56,7 @@ struct App {
     surface_style_index: usize,
     putty_domain: Option<[f32; 2]>,
     color_index: usize,
+    available_choices: [bool; 14],
     bound: BoundingSphere,
     state: Option<Running>,
     // Holo mode state
@@ -85,6 +86,7 @@ struct Running {
 }
 
 const SETTLE_FRAMES: u32 = 24;
+const LARGE_SURFACE_ATOMS: usize = 131_072;
 
 impl Running {
     fn wake(&mut self) {
@@ -239,14 +241,8 @@ impl App {
         let mut changed = false;
         if let PhysicalKey::Code(code) = key {
             let choice = catalog::choice_for_key(code).or_else(|| match code {
-                KeyCode::Comma => Some(catalog::cycled_choice(
-                    self.representation_index,
-                    catalog::CycleDirection::Previous,
-                )),
-                KeyCode::Period => Some(catalog::cycled_choice(
-                    self.representation_index,
-                    catalog::CycleDirection::Next,
-                )),
+                KeyCode::Comma => self.cycled_choice(catalog::CycleDirection::Previous),
+                KeyCode::Period => self.cycled_choice(catalog::CycleDirection::Next),
                 _ => None,
             });
             match code {
@@ -308,8 +304,7 @@ impl App {
                 _ => {}
             }
             if let Some(choice) = choice {
-                self.set_representation(choice);
-                changed = true;
+                changed |= self.set_representation(choice);
             }
         }
         if changed && let Some(state) = &mut self.state {
@@ -345,19 +340,69 @@ impl App {
         }
     }
 
-    fn set_representation(&mut self, choice: catalog::RepresentationChoice) {
+    fn choice_available(&self, choice: catalog::RepresentationChoice) -> bool {
+        match self.available_choices.get(choice.index()) {
+            Some(available) => *available,
+            None => false,
+        }
+    }
+
+    fn cycled_choice(
+        &self,
+        direction: catalog::CycleDirection,
+    ) -> Option<catalog::RepresentationChoice> {
+        let mut index = self.representation_index;
+        for _ in 0..catalog::choices().len() {
+            let choice = catalog::cycled_choice(index, direction);
+            index = choice.index();
+            if self.choice_available(choice) {
+                return Some(choice);
+            }
+        }
+        None
+    }
+
+    fn set_representation(&mut self, choice: catalog::RepresentationChoice) -> bool {
+        if !self.choice_available(choice) {
+            println!(
+                "representation unavailable for this structure: {}",
+                choice.name()
+            );
+            return false;
+        }
         self.representation_index = choice.index();
         self.surface_style_index = 0;
+        let large_surface = choice
+            == catalog::RepresentationChoice::Kind(RepresentationKind::Surface)
+            && self
+                .scene
+                .structures()
+                .map(|(_, placed)| {
+                    usize::try_from(placed.atoms.len()).map_or(usize::MAX, |count| count)
+                })
+                .sum::<usize>()
+                >= LARGE_SURFACE_ATOMS;
         for handle in &self.representations {
             if let Some(rep) = self.scene.representation_mut(*handle) {
                 choice.apply(rep, self.putty_domain);
+                if large_surface {
+                    // Exact solid SAS routes through culled sphere impostors:
+                    // no full-screen BVH walk and no molecular voxel field.
+                    rep.params.surface_style = SurfaceStyle::Solid;
+                }
             }
         }
-        println!("representation: {}", choice.name());
+        if large_surface {
+            println!("representation: surface (large-scene exact SAS)");
+        } else {
+            println!("representation: {}", choice.name());
+        }
+        true
     }
 
     fn cycle_surface_style(&mut self) -> bool {
         let styles = [
+            SurfaceStyle::SoftUnion,
             SurfaceStyle::Solid,
             SurfaceStyle::Mesh,
             SurfaceStyle::Contour,
@@ -381,16 +426,22 @@ impl App {
     }
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.first().map(String::as_str) == Some("--audit-representations") {
         let output = args
             .get(1)
             .map_or("target/visual-checks/docking-viewer", String::as_str);
-        if let Err(error) = audit::run(output) {
-            eprintln!("representation audit failed: {error}");
-        }
-        return;
+        let four_k = args.get(2).is_some_and(|value| value == "--4k");
+        let filter_start = if four_k { 3 } else { 2 };
+        let filters = args.get(filter_start..).map_or(&[][..], |filters| filters);
+        let image = if four_k {
+            audit::FOUR_K_IMAGE
+        } else {
+            audit::PREVIEW_IMAGE
+        };
+        audit::run(output, filters, image)?;
+        return Ok(());
     }
 
     // Determine mode from arguments
@@ -398,8 +449,9 @@ fn main() {
         Some("--compare") => {
             let paths: Vec<String> = args.into_iter().skip(1).collect();
             if paths.is_empty() {
-                eprintln!("usage: --compare pose1.cif pose2.cif ...");
-                return;
+                return Err(
+                    std::io::Error::other("usage: --compare pose1.cif pose2.cif ...").into(),
+                );
             }
             scenes::build_compare_scene(&paths)
         }
@@ -417,10 +469,7 @@ fn main() {
 
     let (app, description) = match result {
         Ok(v) => v,
-        Err(e) => {
-            eprintln!("{e}");
-            return;
-        }
+        Err(e) => return Err(std::io::Error::other(e).into()),
     };
 
     println!("{description}");
@@ -440,14 +489,7 @@ fn main() {
         println!("  [ ]        slide cut plane");
     }
 
-    let event_loop = match EventLoop::new() {
-        Ok(el) => el,
-        Err(e) => {
-            eprintln!("event loop failed: {e}");
-            return;
-        }
-    };
-    if let Err(e) = event_loop.run_app(&mut { app }) {
-        eprintln!("event loop error: {e}");
-    }
+    let event_loop = EventLoop::new()?;
+    event_loop.run_app(&mut { app })?;
+    Ok(())
 }

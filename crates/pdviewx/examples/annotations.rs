@@ -74,7 +74,7 @@ fn add_labels(scene: &mut Scene) -> Result<(), Box<dyn Error>> {
     let front = 15.0;
     let note = Annotation::note(
         owner,
-        AnnotationAnchor::world(Vec3::new(-2.0, 7.2, front))?,
+        AnnotationAnchor::world(Vec3::new(-2.0, 7.2, 8.0))?,
         "BINDING POCKET",
     )?
     .with_priority(30);
