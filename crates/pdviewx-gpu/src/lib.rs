@@ -15,19 +15,32 @@ mod device;
 mod encoder;
 mod error;
 mod queue;
+mod residency;
 mod surface;
 
-pub use capabilities::{Capabilities, CapabilityFlags};
+pub use capabilities::{Capabilities, CapabilityFlags, RayQueryLimits};
 pub use descriptors::{
-    BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType,
+    AabbGeometry, AabbGeometrySize, AccelerationGeometryFlags, AccelerationIndexFormat,
+    AccelerationStructureBinding, AccelerationStructureFlags, AccelerationStructureLayoutEntry,
+    AccelerationStructureUpdateMode, BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc,
+    BindGroupLayoutEntry, BindingType, BlasBuildDesc, BlasDesc, BlasGeometries, BlasGeometrySizes,
     BlendMode, BufferDesc, BufferUsage, ColorAttachment, ColorTarget, CompareFunction,
     ComputePassDesc, ComputePipelineDesc, DepthAttachment, DepthLoadOp, DepthState, FilterMode,
-    LoadOp, PrimitiveTopology, RenderPassDesc, RenderPipelineDesc, SamplerDesc, ShaderModuleDesc,
-    ShaderStages, TextureDesc, TextureDimension, TextureFormat, TextureUsage, TextureViewDesc,
-    TextureWrite, TimestampWrites,
+    LoadOp, PrimitiveTopology, RayQueryBindGroupDesc, RayQueryBindGroupLayoutDesc, RenderPassDesc,
+    RenderPipelineDesc, SamplerDesc, ShaderModuleDesc, ShaderStages, TextureDesc, TextureDimension,
+    TextureFormat, TextureUsage, TextureViewDesc, TextureWrite, TimestampWrites, TlasDesc,
+    TlasInstance, TriangleGeometry, TriangleGeometrySize,
 };
-pub use device::{Device, DeviceDesc, Opened, PowerPreference, WindowSource, WindowTarget};
-pub use encoder::{CommandEncoder, ComputePassEncoder, RenderPassEncoder};
+pub use device::{
+    Device, DeviceDesc, Opened, PowerPreference, RayQueryDevice, ResourceMemory, WindowSource,
+    WindowTarget,
+};
+pub use encoder::{CommandEncoder, ComputePassEncoder, RayQueryCommandEncoder, RenderPassEncoder};
 pub use error::GpuError;
 pub use queue::Queue;
+pub use residency::{
+    ArenaAllocation, ArenaError, ArenaMetrics, CommandScratch, CommandScratchMetrics, FenceValue,
+    PagedArena, Retirement, ScratchFull, UploadBackpressure, UploadMetrics, UploadReservation,
+    UploadRing, UploadRingConfig, UploadState, UploadTicket,
+};
 pub use surface::{Surface, SurfaceConfig, SurfaceError, SurfaceFrame};
