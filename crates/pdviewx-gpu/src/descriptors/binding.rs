@@ -131,3 +131,45 @@ pub struct BindGroupDesc<'a, D: Device> {
     /// The bound resources.
     pub entries: &'a [BindGroupEntry<'a, D>],
 }
+
+/// One TLAS resource bound into a ray-query bind group.
+#[derive(Clone, Copy, Debug)]
+pub struct AccelerationStructureBinding<'a, D: Device> {
+    /// Binding index within the group.
+    pub binding: u32,
+    /// Top-level acceleration structure.
+    pub tlas: &'a D::Tlas,
+}
+
+/// One acceleration-structure slot in a ray-query bind-group layout.
+#[derive(Clone, Copy, Debug)]
+pub struct AccelerationStructureLayoutEntry {
+    /// Binding index within the group.
+    pub binding: u32,
+    /// Shader stages that may issue ray queries.
+    pub visibility: ShaderStages,
+}
+
+/// Layout containing regular slots and acceleration-structure slots.
+#[derive(Debug)]
+pub struct RayQueryBindGroupLayoutDesc<'a> {
+    /// Diagnostic label.
+    pub label: &'static str,
+    /// Buffer, texture and sampler slots.
+    pub entries: &'a [BindGroupLayoutEntry],
+    /// TLAS slots.
+    pub acceleration_structures: &'a [AccelerationStructureLayoutEntry],
+}
+
+/// Bind group containing regular resources and TLAS resources.
+#[derive(Debug)]
+pub struct RayQueryBindGroupDesc<'a, D: Device> {
+    /// Diagnostic label.
+    pub label: &'static str,
+    /// Layout containing matching acceleration-structure entries.
+    pub layout: &'a D::BindGroupLayout,
+    /// Buffer, texture and sampler resources.
+    pub entries: &'a [BindGroupEntry<'a, D>],
+    /// TLAS resources.
+    pub acceleration_structures: &'a [AccelerationStructureBinding<'a, D>],
+}
