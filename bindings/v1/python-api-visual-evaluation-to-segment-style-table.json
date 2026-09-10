@@ -1,0 +1,829 @@
+{
+  "symbols": [
+    {
+      "declaration": "class VisualEvaluation:\n    base_color: tuple[float, float, float, float]\n    opacity: float\n    emission: tuple[float, float, float]\n    roughness: float\n    specular: float\n    material_strength: float\n    visible: bool\n    silhouette_softness: float\n    radius_scale: float\n    width_scale: float\n    position_offset: tuple[float, float, float]",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "base_color",
+          "ownership": "copied-value",
+          "signature": "base_color: tuple[float, float, float, float]"
+        },
+        {
+          "kind": "property",
+          "name": "opacity",
+          "ownership": "copied-value",
+          "signature": "opacity: float"
+        },
+        {
+          "kind": "property",
+          "name": "emission",
+          "ownership": "copied-value",
+          "signature": "emission: tuple[float, float, float]"
+        },
+        {
+          "kind": "property",
+          "name": "roughness",
+          "ownership": "copied-value",
+          "signature": "roughness: float"
+        },
+        {
+          "kind": "property",
+          "name": "specular",
+          "ownership": "copied-value",
+          "signature": "specular: float"
+        },
+        {
+          "kind": "property",
+          "name": "material_strength",
+          "ownership": "copied-value",
+          "signature": "material_strength: float"
+        },
+        {
+          "kind": "property",
+          "name": "visible",
+          "ownership": "copied-value",
+          "signature": "visible: bool"
+        },
+        {
+          "kind": "property",
+          "name": "silhouette_softness",
+          "ownership": "copied-value",
+          "signature": "silhouette_softness: float"
+        },
+        {
+          "kind": "property",
+          "name": "radius_scale",
+          "ownership": "copied-value",
+          "signature": "radius_scale: float"
+        },
+        {
+          "kind": "property",
+          "name": "width_scale",
+          "ownership": "copied-value",
+          "signature": "width_scale: float"
+        },
+        {
+          "kind": "property",
+          "name": "position_offset",
+          "ownership": "copied-value",
+          "signature": "position_offset: tuple[float, float, float]"
+        }
+      ],
+      "name": "VisualEvaluation",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyVisualEvaluation",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/visual.rs"
+      }
+    },
+    {
+      "declaration": "class VisualProgram:\n    fingerprint: int\n    instruction_count: int\n    uniform_instruction_count: int\n    entity_instruction_count: int\n    fragment_instruction_count: int\n    maximum_displacement: float\n    def scalar_parameter(self, index: int) -> ScalarParameter | None: ...\n    def color_parameter(self, index: int) -> ColorParameter | None: ...\n    def vector_parameter(self, index: int) -> VectorParameter | None: ...\n    def evaluate(self, inputs: VisualInputs) -> VisualEvaluation: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "fingerprint",
+          "ownership": "copied-value",
+          "signature": "fingerprint: int"
+        },
+        {
+          "kind": "property",
+          "name": "instruction_count",
+          "ownership": "copied-value",
+          "signature": "instruction_count: int"
+        },
+        {
+          "kind": "property",
+          "name": "uniform_instruction_count",
+          "ownership": "copied-value",
+          "signature": "uniform_instruction_count: int"
+        },
+        {
+          "kind": "property",
+          "name": "entity_instruction_count",
+          "ownership": "copied-value",
+          "signature": "entity_instruction_count: int"
+        },
+        {
+          "kind": "property",
+          "name": "fragment_instruction_count",
+          "ownership": "copied-value",
+          "signature": "fragment_instruction_count: int"
+        },
+        {
+          "kind": "property",
+          "name": "maximum_displacement",
+          "ownership": "copied-value",
+          "signature": "maximum_displacement: float"
+        },
+        {
+          "kind": "method",
+          "name": "scalar_parameter",
+          "ownership": "borrowed-call",
+          "signature": "def scalar_parameter(self, index: int) -> ScalarParameter | None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "color_parameter",
+          "ownership": "borrowed-call",
+          "signature": "def color_parameter(self, index: int) -> ColorParameter | None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "vector_parameter",
+          "ownership": "borrowed-call",
+          "signature": "def vector_parameter(self, index: int) -> VectorParameter | None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "evaluate",
+          "ownership": "borrowed-call",
+          "signature": "def evaluate(self, inputs: VisualInputs) -> VisualEvaluation: ..."
+        }
+      ],
+      "name": "VisualProgram",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyVisualProgram",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/visual.rs"
+      }
+    },
+    {
+      "declaration": "class VisualStyle:\n    def __init__(self, program: VisualProgram) -> None: ...\n    @staticmethod\n    def pulse(color: Rgba8, cycles_per_second: float, minimum: float, maximum: float) -> VisualStyle: ...\n    program: VisualProgram\n    def set_scalar(self, parameter: ScalarParameter, value: float) -> None: ...\n    def set_color(self, parameter: ColorParameter, value: tuple[float, float, float, float]) -> None: ...\n    def set_vector(self, parameter: VectorParameter, value: tuple[float, float, float]) -> None: ...\n    def evaluate(self, inputs: VisualInputs) -> VisualEvaluation: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, program: VisualProgram) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "pulse",
+          "ownership": "borrowed-call",
+          "signature": "def pulse(color: Rgba8, cycles_per_second: float, minimum: float, maximum: float) -> VisualStyle: ..."
+        },
+        {
+          "kind": "property",
+          "name": "program",
+          "ownership": "copied-value",
+          "signature": "program: VisualProgram"
+        },
+        {
+          "kind": "method",
+          "name": "set_scalar",
+          "ownership": "borrowed-call",
+          "signature": "def set_scalar(self, parameter: ScalarParameter, value: float) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_color",
+          "ownership": "borrowed-call",
+          "signature": "def set_color(self, parameter: ColorParameter, value: tuple[float, float, float, float]) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_vector",
+          "ownership": "borrowed-call",
+          "signature": "def set_vector(self, parameter: VectorParameter, value: tuple[float, float, float]) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "evaluate",
+          "ownership": "borrowed-call",
+          "signature": "def evaluate(self, inputs: VisualInputs) -> VisualEvaluation: ..."
+        }
+      ],
+      "name": "VisualStyle",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyVisualStyle",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/visual.rs"
+      }
+    },
+    {
+      "declaration": "class VisualProgramBuilder:\n    def scalar(self, value: float) -> ScalarExpr: ...\n    def color(self, value: tuple[float, float, float, float]) -> ColorExpr: ...\n    def vector(self, value: tuple[float, float, float]) -> VectorExpr: ...\n    def boolean(self, value: bool) -> BoolExpr: ...\n    def base_color(self) -> ColorExpr: ...\n    def base_opacity(self) -> ScalarExpr: ...\n    def time(self) -> ScalarExpr: ...\n    def local_position(self) -> VectorExpr: ...\n    def world_position(self) -> VectorExpr: ...\n    def normal(self) -> VectorExpr: ...\n    def view_direction(self) -> VectorExpr: ...\n    def camera_distance(self) -> ScalarExpr: ...\n    def entity_index(self) -> ScalarExpr: ...\n    def base_roughness(self) -> ScalarExpr: ...\n    def base_specular(self) -> ScalarExpr: ...\n    def base_material_strength(self) -> ScalarExpr: ...\n    def scalar_parameter(self, default: float) -> tuple[ScalarParameter, ScalarExpr]: ...\n    def color_parameter(self, default: tuple[float, float, float, float]) -> tuple[ColorParameter, ColorExpr]: ...\n    def vector_parameter(self, default: tuple[float, float, float]) -> tuple[VectorParameter, VectorExpr]: ...\n    def add(self, a: ScalarExpr, b: ScalarExpr) -> ScalarExpr: ...\n    def subtract(self, a: ScalarExpr, b: ScalarExpr) -> ScalarExpr: ...\n    def multiply(self, a: ScalarExpr, b: ScalarExpr) -> ScalarExpr: ...\n    def safe_divide(self, a: ScalarExpr, b: ScalarExpr) -> ScalarExpr: ...\n    def abs(self, value: ScalarExpr) -> ScalarExpr: ...\n    def minimum(self, a: ScalarExpr, b: ScalarExpr) -> ScalarExpr: ...\n    def maximum(self, a: ScalarExpr, b: ScalarExpr) -> ScalarExpr: ...\n    def clamp(self, value: ScalarExpr, low: ScalarExpr, high: ScalarExpr) -> ScalarExpr: ...\n    def saturate(self, value: ScalarExpr) -> ScalarExpr: ...\n    def step(self, edge: ScalarExpr, value: ScalarExpr) -> ScalarExpr: ...\n    def smoothstep(self, low: ScalarExpr, high: ScalarExpr, value: ScalarExpr) -> ScalarExpr: ...\n    def sine(self, value: ScalarExpr) -> ScalarExpr: ...\n    def mix_scalar(self, a: ScalarExpr, b: ScalarExpr, weight: ScalarExpr) -> ScalarExpr: ...\n    def mix_color(self, a: ColorExpr, b: ColorExpr, weight: ScalarExpr) -> ColorExpr: ...\n    def ramp(self, value: ScalarExpr, ramp: ScalarRamp) -> ColorExpr: ...\n    def less(self, a: ScalarExpr, b: ScalarExpr) -> BoolExpr: ...\n    def greater(self, a: ScalarExpr, b: ScalarExpr) -> BoolExpr: ...\n    def and_(self, a: BoolExpr, b: BoolExpr) -> BoolExpr: ...\n    def or_(self, a: BoolExpr, b: BoolExpr) -> BoolExpr: ...\n    def not_(self, value: BoolExpr) -> BoolExpr: ...\n    def select_scalar(self, condition: BoolExpr, yes: ScalarExpr, no: ScalarExpr) -> ScalarExpr: ...\n    def select_color(self, condition: BoolExpr, yes: ColorExpr, no: ColorExpr) -> ColorExpr: ...\n    def add_vector(self, a: VectorExpr, b: VectorExpr) -> VectorExpr: ...\n    def scale_vector(self, vector: VectorExpr, scale: ScalarExpr) -> VectorExpr: ...\n    def dot(self, a: VectorExpr, b: VectorExpr) -> ScalarExpr: ...\n    def normalize(self, value: VectorExpr) -> VectorExpr: ...\n    def set_base_color(self, value: ColorExpr) -> None: ...\n    def set_opacity(self, value: ScalarExpr) -> None: ...\n    def set_emission(self, value: ColorExpr) -> None: ...\n    def set_roughness(self, value: ScalarExpr) -> None: ...\n    def set_specular(self, value: ScalarExpr) -> None: ...\n    def set_material_strength(self, value: ScalarExpr) -> None: ...\n    def set_visibility(self, value: BoolExpr) -> None: ...\n    def set_silhouette_softness(self, value: ScalarExpr) -> None: ...\n    def set_radius_scale(self, value: ScalarExpr) -> None: ...\n    def set_width_scale(self, value: ScalarExpr) -> None: ...\n    def set_position_offset(self, value: VectorExpr, maximum_displacement: float) -> None: ...\n    def finish(self) -> VisualProgram: ...\n    def finish_color(self, value: ColorExpr) -> VisualProgram: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "scalar",
+          "ownership": "borrowed-call",
+          "signature": "def scalar(self, value: float) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "color",
+          "ownership": "borrowed-call",
+          "signature": "def color(self, value: tuple[float, float, float, float]) -> ColorExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "vector",
+          "ownership": "borrowed-call",
+          "signature": "def vector(self, value: tuple[float, float, float]) -> VectorExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "boolean",
+          "ownership": "borrowed-call",
+          "signature": "def boolean(self, value: bool) -> BoolExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "base_color",
+          "ownership": "borrowed-call",
+          "signature": "def base_color(self) -> ColorExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "base_opacity",
+          "ownership": "borrowed-call",
+          "signature": "def base_opacity(self) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "time",
+          "ownership": "borrowed-call",
+          "signature": "def time(self) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "local_position",
+          "ownership": "borrowed-call",
+          "signature": "def local_position(self) -> VectorExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "world_position",
+          "ownership": "borrowed-call",
+          "signature": "def world_position(self) -> VectorExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "normal",
+          "ownership": "borrowed-call",
+          "signature": "def normal(self) -> VectorExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "view_direction",
+          "ownership": "borrowed-call",
+          "signature": "def view_direction(self) -> VectorExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "camera_distance",
+          "ownership": "borrowed-call",
+          "signature": "def camera_distance(self) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "entity_index",
+          "ownership": "borrowed-call",
+          "signature": "def entity_index(self) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "base_roughness",
+          "ownership": "borrowed-call",
+          "signature": "def base_roughness(self) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "base_specular",
+          "ownership": "borrowed-call",
+          "signature": "def base_specular(self) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "base_material_strength",
+          "ownership": "borrowed-call",
+          "signature": "def base_material_strength(self) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "scalar_parameter",
+          "ownership": "borrowed-call",
+          "signature": "def scalar_parameter(self, default: float) -> tuple[ScalarParameter, ScalarExpr]: ..."
+        },
+        {
+          "kind": "method",
+          "name": "color_parameter",
+          "ownership": "borrowed-call",
+          "signature": "def color_parameter(self, default: tuple[float, float, float, float]) -> tuple[ColorParameter, ColorExpr]: ..."
+        },
+        {
+          "kind": "method",
+          "name": "vector_parameter",
+          "ownership": "borrowed-call",
+          "signature": "def vector_parameter(self, default: tuple[float, float, float]) -> tuple[VectorParameter, VectorExpr]: ..."
+        },
+        {
+          "kind": "method",
+          "name": "add",
+          "ownership": "borrowed-call",
+          "signature": "def add(self, a: ScalarExpr, b: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "subtract",
+          "ownership": "borrowed-call",
+          "signature": "def subtract(self, a: ScalarExpr, b: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "multiply",
+          "ownership": "borrowed-call",
+          "signature": "def multiply(self, a: ScalarExpr, b: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "safe_divide",
+          "ownership": "borrowed-call",
+          "signature": "def safe_divide(self, a: ScalarExpr, b: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "abs",
+          "ownership": "borrowed-call",
+          "signature": "def abs(self, value: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "minimum",
+          "ownership": "borrowed-call",
+          "signature": "def minimum(self, a: ScalarExpr, b: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "maximum",
+          "ownership": "borrowed-call",
+          "signature": "def maximum(self, a: ScalarExpr, b: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "clamp",
+          "ownership": "borrowed-call",
+          "signature": "def clamp(self, value: ScalarExpr, low: ScalarExpr, high: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "saturate",
+          "ownership": "borrowed-call",
+          "signature": "def saturate(self, value: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "step",
+          "ownership": "borrowed-call",
+          "signature": "def step(self, edge: ScalarExpr, value: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "smoothstep",
+          "ownership": "borrowed-call",
+          "signature": "def smoothstep(self, low: ScalarExpr, high: ScalarExpr, value: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "sine",
+          "ownership": "borrowed-call",
+          "signature": "def sine(self, value: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "mix_scalar",
+          "ownership": "borrowed-call",
+          "signature": "def mix_scalar(self, a: ScalarExpr, b: ScalarExpr, weight: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "mix_color",
+          "ownership": "borrowed-call",
+          "signature": "def mix_color(self, a: ColorExpr, b: ColorExpr, weight: ScalarExpr) -> ColorExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "ramp",
+          "ownership": "borrowed-call",
+          "signature": "def ramp(self, value: ScalarExpr, ramp: ScalarRamp) -> ColorExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "less",
+          "ownership": "borrowed-call",
+          "signature": "def less(self, a: ScalarExpr, b: ScalarExpr) -> BoolExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "greater",
+          "ownership": "borrowed-call",
+          "signature": "def greater(self, a: ScalarExpr, b: ScalarExpr) -> BoolExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "and_",
+          "ownership": "borrowed-call",
+          "signature": "def and_(self, a: BoolExpr, b: BoolExpr) -> BoolExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "or_",
+          "ownership": "borrowed-call",
+          "signature": "def or_(self, a: BoolExpr, b: BoolExpr) -> BoolExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "not_",
+          "ownership": "borrowed-call",
+          "signature": "def not_(self, value: BoolExpr) -> BoolExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "select_scalar",
+          "ownership": "borrowed-call",
+          "signature": "def select_scalar(self, condition: BoolExpr, yes: ScalarExpr, no: ScalarExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "select_color",
+          "ownership": "borrowed-call",
+          "signature": "def select_color(self, condition: BoolExpr, yes: ColorExpr, no: ColorExpr) -> ColorExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "add_vector",
+          "ownership": "borrowed-call",
+          "signature": "def add_vector(self, a: VectorExpr, b: VectorExpr) -> VectorExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "scale_vector",
+          "ownership": "borrowed-call",
+          "signature": "def scale_vector(self, vector: VectorExpr, scale: ScalarExpr) -> VectorExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "dot",
+          "ownership": "borrowed-call",
+          "signature": "def dot(self, a: VectorExpr, b: VectorExpr) -> ScalarExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "normalize",
+          "ownership": "borrowed-call",
+          "signature": "def normalize(self, value: VectorExpr) -> VectorExpr: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_base_color",
+          "ownership": "borrowed-call",
+          "signature": "def set_base_color(self, value: ColorExpr) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_opacity",
+          "ownership": "borrowed-call",
+          "signature": "def set_opacity(self, value: ScalarExpr) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_emission",
+          "ownership": "borrowed-call",
+          "signature": "def set_emission(self, value: ColorExpr) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_roughness",
+          "ownership": "borrowed-call",
+          "signature": "def set_roughness(self, value: ScalarExpr) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_specular",
+          "ownership": "borrowed-call",
+          "signature": "def set_specular(self, value: ScalarExpr) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_material_strength",
+          "ownership": "borrowed-call",
+          "signature": "def set_material_strength(self, value: ScalarExpr) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_visibility",
+          "ownership": "borrowed-call",
+          "signature": "def set_visibility(self, value: BoolExpr) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_silhouette_softness",
+          "ownership": "borrowed-call",
+          "signature": "def set_silhouette_softness(self, value: ScalarExpr) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_radius_scale",
+          "ownership": "borrowed-call",
+          "signature": "def set_radius_scale(self, value: ScalarExpr) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_width_scale",
+          "ownership": "borrowed-call",
+          "signature": "def set_width_scale(self, value: ScalarExpr) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "set_position_offset",
+          "ownership": "borrowed-call",
+          "signature": "def set_position_offset(self, value: VectorExpr, maximum_displacement: float) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "finish",
+          "ownership": "borrowed-call",
+          "signature": "def finish(self) -> VisualProgram: ..."
+        },
+        {
+          "kind": "method",
+          "name": "finish_color",
+          "ownership": "borrowed-call",
+          "signature": "def finish_color(self, value: ColorExpr) -> VisualProgram: ..."
+        }
+      ],
+      "name": "VisualProgramBuilder",
+      "ownership": "rust-owned",
+      "registration": {
+        "adapter": "PyVisualProgramBuilder",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/visual.rs"
+      }
+    },
+    {
+      "declaration": "def visual(function: Callable[Concatenate[VisualProgramBuilder, _VisualParameters], ColorExpr | None]) -> Callable[_VisualParameters, VisualStyle]: ...",
+      "kind": "function",
+      "members": [],
+      "name": "visual",
+      "ownership": "borrowed-call",
+      "registration": {
+        "kind": "python-helper",
+        "source": "python/pdviewx/visual.py"
+      }
+    },
+    {
+      "declaration": "class ScalarContours:\n    def __init__(self, interval: float, width_pixels: float) -> None: ...\n    interval: float\n    width_pixels: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, interval: float, width_pixels: float) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "interval",
+          "ownership": "copied-value",
+          "signature": "interval: float"
+        },
+        {
+          "kind": "property",
+          "name": "width_pixels",
+          "ownership": "copied-value",
+          "signature": "width_pixels: float"
+        }
+      ],
+      "name": "ScalarContours",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyScalarContours",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/color.rs"
+      }
+    },
+    {
+      "declaration": "class SurfaceScalarOverlay:\n    def __init__(self, field: VolumeHandle, ramp: ScalarRamp) -> None: ...\n    field: VolumeHandle\n    ramp: ScalarRamp\n    def with_contours(self, contours: ScalarContours) -> SurfaceScalarOverlay: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, field: VolumeHandle, ramp: ScalarRamp) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "field",
+          "ownership": "copied-value",
+          "signature": "field: VolumeHandle"
+        },
+        {
+          "kind": "property",
+          "name": "ramp",
+          "ownership": "copied-value",
+          "signature": "ramp: ScalarRamp"
+        },
+        {
+          "kind": "method",
+          "name": "with_contours",
+          "ownership": "borrowed-call",
+          "signature": "def with_contours(self, contours: ScalarContours) -> SurfaceScalarOverlay: ..."
+        }
+      ],
+      "name": "SurfaceScalarOverlay",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PySurfaceScalarOverlay",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/color.rs"
+      }
+    },
+    {
+      "declaration": "class ClipCap: ...",
+      "kind": "type",
+      "members": [],
+      "name": "ClipCap",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyClipCap",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/volume.rs"
+      }
+    },
+    {
+      "declaration": "class ClipPlane:\n    @staticmethod\n    def from_point_normal(point: Vec3, normal: Vec3) -> ClipPlane: ...\n    normal: Vec3\n    offset: float\n    def reversed(self) -> ClipPlane: ...\n    def signed_distance(self, point: Vec3) -> float: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "from_point_normal",
+          "ownership": "borrowed-call",
+          "signature": "def from_point_normal(point: Vec3, normal: Vec3) -> ClipPlane: ..."
+        },
+        {
+          "kind": "property",
+          "name": "normal",
+          "ownership": "copied-value",
+          "signature": "normal: Vec3"
+        },
+        {
+          "kind": "property",
+          "name": "offset",
+          "ownership": "copied-value",
+          "signature": "offset: float"
+        },
+        {
+          "kind": "method",
+          "name": "reversed",
+          "ownership": "borrowed-call",
+          "signature": "def reversed(self) -> ClipPlane: ..."
+        },
+        {
+          "kind": "method",
+          "name": "signed_distance",
+          "ownership": "borrowed-call",
+          "signature": "def signed_distance(self, point: Vec3) -> float: ..."
+        }
+      ],
+      "name": "ClipPlane",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyClipPlane",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/volume.rs"
+      }
+    },
+    {
+      "declaration": "class ClipSet:\n    def __init__(self, planes: Sequence[ClipPlane]) -> None: ...\n    @staticmethod\n    def slab(center: Vec3, normal: Vec3, thickness: float) -> ClipSet: ...\n    def with_cap(self, cap: ClipCap) -> ClipSet: ...\n    cap: ClipCap\n    plane_count: int\n    def contains(self, point: Vec3) -> bool: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, planes: Sequence[ClipPlane]) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "slab",
+          "ownership": "borrowed-call",
+          "signature": "def slab(center: Vec3, normal: Vec3, thickness: float) -> ClipSet: ..."
+        },
+        {
+          "kind": "method",
+          "name": "with_cap",
+          "ownership": "borrowed-call",
+          "signature": "def with_cap(self, cap: ClipCap) -> ClipSet: ..."
+        },
+        {
+          "kind": "property",
+          "name": "cap",
+          "ownership": "copied-value",
+          "signature": "cap: ClipCap"
+        },
+        {
+          "kind": "property",
+          "name": "plane_count",
+          "ownership": "copied-value",
+          "signature": "plane_count: int"
+        },
+        {
+          "kind": "method",
+          "name": "contains",
+          "ownership": "borrowed-call",
+          "signature": "def contains(self, point: Vec3) -> bool: ..."
+        }
+      ],
+      "name": "ClipSet",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyClipSet",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/volume.rs"
+      }
+    },
+    {
+      "declaration": "class SegmentStyle:\n    def __init__(self, label: int, color: Rgba8, opacity: float) -> None: ...\n    label: int\n    color: Rgba8\n    opacity: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, label: int, color: Rgba8, opacity: float) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "label",
+          "ownership": "copied-value",
+          "signature": "label: int"
+        },
+        {
+          "kind": "property",
+          "name": "color",
+          "ownership": "copied-value",
+          "signature": "color: Rgba8"
+        },
+        {
+          "kind": "property",
+          "name": "opacity",
+          "ownership": "copied-value",
+          "signature": "opacity: float"
+        }
+      ],
+      "name": "SegmentStyle",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PySegmentStyle",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/volume.rs"
+      }
+    },
+    {
+      "declaration": "class SegmentStyleTable:\n    def __init__(self, styles: Sequence[SegmentStyle]) -> None: ...\n    @staticmethod\n    def default() -> SegmentStyleTable: ...\n    def style_for(self, label: int) -> SegmentStyle | None: ...\n    len: int",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, styles: Sequence[SegmentStyle]) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "default",
+          "ownership": "borrowed-call",
+          "signature": "def default() -> SegmentStyleTable: ..."
+        },
+        {
+          "kind": "method",
+          "name": "style_for",
+          "ownership": "borrowed-call",
+          "signature": "def style_for(self, label: int) -> SegmentStyle | None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "len",
+          "ownership": "copied-value",
+          "signature": "len: int"
+        }
+      ],
+      "name": "SegmentStyleTable",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PySegmentStyleTable",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/volume.rs"
+      }
+    }
+  ]
+}
