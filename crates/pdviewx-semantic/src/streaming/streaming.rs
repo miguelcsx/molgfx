@@ -6,11 +6,12 @@
 //! projected screen error, and produces stable chunk requests for the caller's
 //! cache. The selected chunks can therefore be backed by mmCIF, `BinaryCIF`,
 //! memory maps or a remote service without a second renderer-side policy.
+//! Index construction is `O(atoms + residues log residues)`; selection is
+//! `O(clusters + visible clusters)` and can reuse all output storage.
 
 use crate::{LodLevel, LodPolicy};
 use pdviewx_core::{PlacedStructure, Scene, StructureHandle};
 use pdviewx_math::{Aabb, Camera, Vec3};
-use std::collections::HashSet;
 
 #[cfg(test)]
 #[path = "streaming_tests.rs"]
@@ -56,10 +57,16 @@ impl LodIndex {
     /// duplicate the coordinate column.
     #[must_use]
     pub fn from_scene(scene: &Scene) -> Self {
-        let mut clusters = Vec::new();
+        let capacity = scene.structures().fold(0usize, |count, (_, placed)| {
+            count
+                .saturating_add(placed.hierarchy.residue_count().saturating_mul(2))
+                .saturating_add(1)
+        });
+        let mut clusters = Vec::with_capacity(capacity);
         for (structure, placed) in scene.structures() {
             append_structure_clusters(&mut clusters, structure, placed);
         }
+        debug_assert!(clusters.windows(2).all(|rows| rows[0].key < rows[1].key));
         Self { clusters }
     }
 
@@ -72,7 +79,10 @@ impl LodIndex {
     /// Resolves one stable cluster key without rebuilding the hierarchy.
     #[must_use]
     pub fn cluster(&self, key: LodClusterKey) -> Option<&LodCluster> {
-        self.clusters.iter().find(|cluster| cluster.key == key)
+        self.clusters
+            .binary_search_by_key(&key, |cluster| cluster.key)
+            .ok()
+            .map(|row| &self.clusters[row])
     }
 
     /// Returns all clusters at one level without allocating.
@@ -82,57 +92,57 @@ impl LodIndex {
             .filter(move |cluster| cluster.key.level == level)
     }
 
-    /// Computes the current detail selection for a camera and viewport.
-    #[must_use]
-    pub fn select(
+    fn clusters_for(&self, structure: StructureHandle, level: LodLevel) -> &[LodCluster] {
+        let target = (structure, level);
+        let start = self
+            .clusters
+            .partition_point(|cluster| (cluster.key.structure, cluster.key.level) < target);
+        let count = self.clusters[start..]
+            .partition_point(|cluster| (cluster.key.structure, cluster.key.level) == target);
+        &self.clusters[start..start + count]
+    }
+
+    /// Computes the current detail selection into reusable caller storage.
+    ///
+    /// Once the three output columns have reached their high-water marks,
+    /// repeated selection does not allocate. Keep two frames when hysteresis
+    /// needs the preceding result: one is read as `previous` while the other is
+    /// cleared and written as `output`.
+    pub fn select_into(
         &self,
         camera: &Camera,
         viewport: [u32; 2],
         policy: LodPolicy,
         previous: Option<&LodFrame>,
-    ) -> LodFrame {
-        let mut visible = Vec::new();
-        let mut atom_structures = Vec::new();
-        let mut levels = Vec::new();
+        output: &mut LodFrame,
+    ) {
+        output.visible.clear();
+        output.atom_structures.clear();
+        output.levels.clear();
         for domain in self.at_level(LodLevel::Domain) {
-            let Some(previous_level) = previous.and_then(|frame| {
-                frame
-                    .levels
-                    .iter()
-                    .find(|(key, _)| key.structure == domain.key.structure)
-                    .map(|(_, level)| *level)
-            }) else {
-                let level = choose_level(domain, self, camera, viewport, policy, LodLevel::Atom);
-                emit_level(
-                    &mut visible,
-                    &mut atom_structures,
-                    self,
-                    domain.key.structure,
-                    level,
-                    camera,
-                );
-                levels.push((domain.key, level));
-                continue;
+            let previous_level = match previous.and_then(|frame| frame.level(domain.key.structure))
+            {
+                Some(level) => level,
+                None => LodLevel::Atom,
             };
             let level = choose_level(domain, self, camera, viewport, policy, previous_level);
             emit_level(
-                &mut visible,
-                &mut atom_structures,
+                &mut output.visible,
+                &mut output.atom_structures,
                 self,
                 domain.key.structure,
                 level,
                 camera,
             );
-            levels.push((domain.key, level));
+            output.levels.push((domain.key, level));
         }
-        visible.sort_unstable();
-        atom_structures.sort_unstable();
-        atom_structures.dedup();
-        LodFrame {
-            visible,
-            atom_structures,
-            levels,
-        }
+        debug_assert!(output.visible.windows(2).all(|rows| rows[0] < rows[1]));
+        debug_assert!(
+            output
+                .atom_structures
+                .windows(2)
+                .all(|rows| rows[0] < rows[1])
+        );
     }
 }
 
@@ -162,9 +172,9 @@ impl LodFrame {
     #[must_use]
     pub fn level(&self, structure: StructureHandle) -> Option<LodLevel> {
         self.levels
-            .iter()
-            .find(|(key, _)| key.structure == structure)
-            .map(|(_, level)| *level)
+            .binary_search_by_key(&structure, |(key, _)| key.structure)
+            .ok()
+            .map(|row| self.levels[row].1)
     }
 
     /// Selected level for every indexed structure, in stable index order.
@@ -180,6 +190,7 @@ fn append_structure_clusters(
     structure: StructureHandle,
     placed: &PlacedStructure,
 ) {
+    let residue_start = output.len();
     for residue in 0..placed.hierarchy.residue_count() {
         let range = placed.hierarchy.residue_atoms(residue);
         let Ok(index) = u32::try_from(residue) else {
@@ -190,38 +201,8 @@ fn append_structure_clusters(
             output.push(cluster);
         }
     }
-    for chain in 0..placed.hierarchy.chain_count() {
-        let Ok(index) = u32::try_from(chain) else {
-            continue;
-        };
-        let residues = placed.hierarchy.chain_residues(chain);
-        let mut bound = Aabb::EMPTY;
-        let mut atom_count = 0u32;
-        for residue in residues {
-            let range = placed.hierarchy.residue_atoms(residue as usize);
-            if let Some(cluster) = cluster_for_range(
-                placed,
-                structure,
-                LodLevel::SecondaryStructure,
-                residue,
-                range,
-            ) {
-                bound.extend_sphere(cluster.center, cluster.radius);
-                atom_count = atom_count.saturating_add(cluster.atom_count);
-            }
-        }
-        push_bound(
-            output,
-            LodClusterKey {
-                structure,
-                level: LodLevel::SecondaryStructure,
-                index,
-            },
-            bound,
-            atom_count,
-            1.0,
-        );
-    }
+    let residue_end = output.len();
+    append_secondary_clusters(output, structure, placed, residue_start..residue_end);
     push_bound(
         output,
         LodClusterKey {
@@ -231,6 +212,68 @@ fn append_structure_clusters(
         },
         placed.world_aabb(),
         placed.atoms.len(),
+        1.0,
+    );
+}
+
+fn append_secondary_clusters(
+    output: &mut Vec<LodCluster>,
+    structure: StructureHandle,
+    placed: &PlacedStructure,
+    residue_rows: std::ops::Range<usize>,
+) {
+    let mut segment = 0u32;
+    for chain in 0..placed.hierarchy.chain_count() {
+        let mut bound = Aabb::EMPTY;
+        let mut atom_count = 0u32;
+        let mut kind = None;
+        for residue in placed.hierarchy.chain_residues(chain) {
+            let current = match placed.secondary_structure.values().get(residue as usize) {
+                Some(value) => *value,
+                None => pdviewx_core::SecondaryStructure::default(),
+            };
+            if kind.is_some_and(|previous| previous != current) {
+                push_secondary(output, structure, segment, bound, atom_count);
+                segment = segment.saturating_add(1);
+                bound = Aabb::EMPTY;
+                atom_count = 0;
+            }
+            kind = Some(current);
+            let key = LodClusterKey {
+                structure,
+                level: LodLevel::Residue,
+                index: residue,
+            };
+            let Ok(row) =
+                output[residue_rows.clone()].binary_search_by_key(&key, |cluster| cluster.key)
+            else {
+                continue;
+            };
+            let cluster = output[residue_rows.start + row];
+            bound.extend_sphere(cluster.center, cluster.radius);
+            atom_count = atom_count.saturating_add(cluster.atom_count);
+        }
+        push_secondary(output, structure, segment, bound, atom_count);
+        segment = segment.saturating_add(1);
+    }
+}
+
+fn push_secondary(
+    output: &mut Vec<LodCluster>,
+    structure: StructureHandle,
+    index: u32,
+    bound: Aabb,
+    atom_count: u32,
+) {
+    push_bound(
+        output,
+        LodClusterKey {
+            structure,
+            level: LodLevel::SecondaryStructure,
+            index,
+        },
+        bound,
+        atom_count,
         1.0,
     );
 }
@@ -298,20 +341,58 @@ fn choose_level(
     policy: LodPolicy,
     previous: LodLevel,
 ) -> LodLevel {
-    let error = projected_radius_pixels(camera, domain.center, domain.radius, viewport) * 2.0;
-    let level = policy.select(error, domain.importance, previous);
-    if level == LodLevel::Atom {
-        return level;
+    let pixels = |level| {
+        index
+            .clusters_for(domain.key.structure, level)
+            .iter()
+            .map(|cluster| {
+                projected_radius_pixels(camera, cluster.center, cluster.radius, viewport) * 2.0
+            })
+            .fold(0.0_f32, f32::max)
+            * domain.importance.clamp(0.25, 4.0)
+    };
+    choose_hierarchy_level(
+        pixels(LodLevel::Residue),
+        pixels(LodLevel::SecondaryStructure),
+        policy,
+        previous,
+    )
+}
+
+fn choose_hierarchy_level(
+    residue_pixels: f32,
+    secondary_pixels: f32,
+    policy: LodPolicy,
+    previous: LodLevel,
+) -> LodLevel {
+    let candidate = if residue_pixels >= policy.atom_pixels {
+        LodLevel::Atom
+    } else if residue_pixels >= policy.residue_pixels {
+        LodLevel::Residue
+    } else if secondary_pixels >= policy.secondary_pixels {
+        LodLevel::SecondaryStructure
+    } else {
+        LodLevel::Domain
+    };
+    if candidate == previous {
+        return previous;
     }
-    if level == LodLevel::Residue
-        && index.at_level(LodLevel::Residue).all(|cluster| {
-            cluster.key.structure != domain.key.structure
-                || projected_radius_pixels(camera, cluster.center, cluster.radius, viewport) >= 0.25
-        })
+    let boundary = candidate.min(previous);
+    let (metric, threshold) = match boundary {
+        LodLevel::Atom => (residue_pixels, policy.atom_pixels),
+        LodLevel::Residue => (residue_pixels, policy.residue_pixels),
+        LodLevel::SecondaryStructure | LodLevel::Domain => {
+            (secondary_pixels, policy.secondary_pixels)
+        }
+    };
+    let margin = threshold.max(0.0) * policy.hysteresis.clamp(0.0, 0.49);
+    if candidate > previous && metric > threshold - margin
+        || candidate < previous && metric < threshold + margin
     {
-        return LodLevel::Residue;
+        previous
+    } else {
+        candidate
     }
-    level
 }
 
 fn projected_radius_pixels(camera: &Camera, center: Vec3, radius: f32, viewport: [u32; 2]) -> f32 {
@@ -341,13 +422,9 @@ fn emit_level(
     }
     visible.extend(
         index
-            .clusters
+            .clusters_for(structure, level)
             .iter()
-            .filter(|cluster| {
-                cluster.key.structure == structure
-                    && cluster.key.level == level
-                    && cluster_visible(cluster, camera)
-            })
+            .filter(|cluster| cluster_visible(cluster, camera))
             .map(|cluster| cluster.key),
     );
 }
@@ -357,140 +434,4 @@ fn cluster_visible(cluster: &LodCluster, camera: &Camera) -> bool {
         .frustum_planes()
         .into_iter()
         .all(|plane| plane.truncate().dot(cluster.center) + plane.w >= -cluster.radius)
-}
-
-/// One caller-owned chunk request produced by the streaming planner.
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub struct ChunkRequest {
-    /// Requested biological cluster.
-    pub key: ChunkKey,
-    /// Higher values are retained first under pressure.
-    pub priority: f32,
-    /// Resident byte estimate supplied by the caller's manifest.
-    pub bytes: u64,
-}
-
-/// Stable stream key. It contains no file path and performs no I/O.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct ChunkKey {
-    /// Owning structure.
-    pub structure: StructureHandle,
-    /// Detail level.
-    pub level: LodLevel,
-    /// Cluster row.
-    pub index: u32,
-}
-
-impl From<LodClusterKey> for ChunkKey {
-    fn from(key: LodClusterKey) -> Self {
-        Self {
-            structure: key.structure,
-            level: key.level,
-            index: key.index,
-        }
-    }
-}
-
-/// Hard cap for caller-provided resident chunks.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct StreamingBudget {
-    /// Maximum resident bytes.
-    pub max_resident_bytes: u64,
-    /// Maximum number of new requests emitted in one frame.
-    pub max_requests_per_frame: usize,
-}
-
-impl Default for StreamingBudget {
-    fn default() -> Self {
-        Self {
-            max_resident_bytes: 256 * 1024 * 1024,
-            max_requests_per_frame: 64,
-        }
-    }
-}
-
-/// The result of one deterministic residency decision.
-#[derive(Clone, PartialEq, Debug, Default)]
-pub struct StreamPlan {
-    /// Chunks the caller should load or keep hot.
-    pub retain: Vec<ChunkRequest>,
-    /// Previously resident chunks that can be evicted.
-    pub evict: Vec<ChunkKey>,
-    /// Bytes retained after the decision.
-    pub resident_bytes: u64,
-}
-
-/// Stable, allocation-reusing residency planner.
-#[derive(Clone, Debug)]
-pub struct StreamPlanner {
-    budget: StreamingBudget,
-    resident: Vec<ChunkRequest>,
-}
-
-impl StreamPlanner {
-    /// Creates a planner with a bounded resident cache.
-    #[must_use]
-    pub fn new(budget: StreamingBudget) -> Self {
-        Self {
-            budget,
-            resident: Vec::new(),
-        }
-    }
-
-    /// Current budget.
-    #[must_use]
-    pub const fn budget(&self) -> StreamingBudget {
-        self.budget
-    }
-
-    /// Reconciles visible requests with the bounded resident set.
-    #[must_use]
-    pub fn plan(&mut self, requests: &[ChunkRequest]) -> StreamPlan {
-        let mut ordered = requests.to_vec();
-        ordered.retain(|request| request.bytes > 0 && request.priority.is_finite());
-        ordered.sort_unstable_by(|left, right| {
-            right
-                .priority
-                .total_cmp(&left.priority)
-                .then_with(|| left.key.cmp(&right.key))
-        });
-        let resident_keys = self
-            .resident
-            .iter()
-            .map(|request| request.key)
-            .collect::<HashSet<_>>();
-        let mut selected_keys = HashSet::with_capacity(ordered.len());
-        let mut retain = Vec::new();
-        let mut bytes = 0u64;
-        let mut new_requests = 0usize;
-        for request in ordered.iter().copied() {
-            if selected_keys.contains(&request.key)
-                || bytes.saturating_add(request.bytes) > self.budget.max_resident_bytes
-            {
-                continue;
-            }
-            if !resident_keys.contains(&request.key) {
-                if new_requests >= self.budget.max_requests_per_frame {
-                    continue;
-                }
-                new_requests += 1;
-            }
-            selected_keys.insert(request.key);
-            bytes = bytes.saturating_add(request.bytes);
-            retain.push(request);
-        }
-        let mut evict = self
-            .resident
-            .iter()
-            .filter(|old| !selected_keys.contains(&old.key))
-            .map(|old| old.key)
-            .collect::<Vec<_>>();
-        evict.sort_unstable();
-        self.resident.clone_from(&retain);
-        StreamPlan {
-            retain,
-            evict,
-            resident_bytes: bytes,
-        }
-    }
 }
