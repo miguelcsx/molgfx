@@ -14,7 +14,7 @@ mod tests;
 
 /// A row-major scalar grid, x-fastest, positioned by a full affine transform.
 #[derive(Clone, Debug)]
-pub struct DensityVolume {
+pub struct ScalarVolume {
     dimensions: [u32; 3],
     empty_space_dimensions: [u32; 3],
     voxel_to_world: Mat4,
@@ -24,7 +24,7 @@ pub struct DensityVolume {
     semantics: ScalarFieldSemantics,
 }
 
-impl DensityVolume {
+impl ScalarVolume {
     /// Number of source voxels grouped into one conservative skip cell.
     pub const EMPTY_SPACE_BRICK_SIZE: u32 = 8;
 
@@ -197,14 +197,17 @@ fn build_empty_space_bounds(
         for macro_y in 0..macro_dimensions[1] {
             for macro_x in 0..macro_dimensions[0] {
                 let lower = [
-                    macro_x * DensityVolume::EMPTY_SPACE_BRICK_SIZE,
-                    macro_y * DensityVolume::EMPTY_SPACE_BRICK_SIZE,
-                    macro_z * DensityVolume::EMPTY_SPACE_BRICK_SIZE,
+                    macro_x * ScalarVolume::EMPTY_SPACE_BRICK_SIZE,
+                    macro_y * ScalarVolume::EMPTY_SPACE_BRICK_SIZE,
+                    macro_z * ScalarVolume::EMPTY_SPACE_BRICK_SIZE,
                 ];
+                // A sample inside this brick may interpolate with the first
+                // texel of its positive neighbour. Including that one-texel
+                // halo keeps min/max rejection conservative at brick edges.
                 let upper = [
-                    (lower[0] + DensityVolume::EMPTY_SPACE_BRICK_SIZE).min(dimensions[0]),
-                    (lower[1] + DensityVolume::EMPTY_SPACE_BRICK_SIZE).min(dimensions[1]),
-                    (lower[2] + DensityVolume::EMPTY_SPACE_BRICK_SIZE).min(dimensions[2]),
+                    (lower[0] + ScalarVolume::EMPTY_SPACE_BRICK_SIZE + 1).min(dimensions[0]),
+                    (lower[1] + ScalarVolume::EMPTY_SPACE_BRICK_SIZE + 1).min(dimensions[1]),
+                    (lower[2] + ScalarVolume::EMPTY_SPACE_BRICK_SIZE + 1).min(dimensions[2]),
                 ];
                 let mut minimum = f32::INFINITY;
                 let mut maximum = f32::NEG_INFINITY;
