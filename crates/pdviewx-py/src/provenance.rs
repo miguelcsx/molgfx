@@ -19,7 +19,9 @@ impl From<pdviewx::Provenance<'_>> for PyProvenance {
         let detail_kind = match value.detail {
             pdviewx::ProvenanceDetail::Atom(_) => "atom",
             pdviewx::ProvenanceDetail::Bond(_) => "bond",
+            pdviewx::ProvenanceDetail::DynamicBond(_) => "dynamic_bond",
             pdviewx::ProvenanceDetail::Interaction(_) => "interaction",
+            pdviewx::ProvenanceDetail::Guide(_) => "guide",
             pdviewx::ProvenanceDetail::Annotation(_) => "annotation",
             pdviewx::ProvenanceDetail::Measurement(_) => "measurement",
             pdviewx::ProvenanceDetail::Primitive(_) => "primitive",
