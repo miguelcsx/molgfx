@@ -48,14 +48,14 @@ fn density_corners(
         low + vec3i(1);
 
     return DensityCorners(
-        textureLoad(density_texture, vec3i(low), 0).x,
-        textureLoad(density_texture, vec3i(high.x, low.y, low.z), 0).x,
-        textureLoad(density_texture, vec3i(low.x, high.y, low.z), 0).x,
-        textureLoad(density_texture, vec3i(high.x, high.y, low.z), 0).x,
-        textureLoad(density_texture, vec3i(low.x, low.y, high.z), 0).x,
-        textureLoad(density_texture, vec3i(high.x, low.y, high.z), 0).x,
-        textureLoad(density_texture, vec3i(low.x, high.y, high.z), 0).x,
-        textureLoad(density_texture, vec3i(high), 0).x,
+        volume_scalar_texel(vec3i(low)),
+        volume_scalar_texel(vec3i(high.x, low.y, low.z)),
+        volume_scalar_texel(vec3i(low.x, high.y, low.z)),
+        volume_scalar_texel(vec3i(high.x, high.y, low.z)),
+        volume_scalar_texel(vec3i(low.x, low.y, high.z)),
+        volume_scalar_texel(vec3i(high.x, low.y, high.z)),
+        volume_scalar_texel(vec3i(low.x, high.y, high.z)),
+        volume_scalar_texel(vec3i(high)),
     );
 }
 

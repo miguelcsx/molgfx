@@ -52,19 +52,8 @@ fn empty_space_cell(
             upper,
         );
 
-    return EmptySpaceCell(
-        textureLoad(
-            empty_space_minimum_texture,
-            vec3i(cell),
-            0,
-        ).x,
-        textureLoad(
-            empty_space_maximum_texture,
-            vec3i(cell),
-            0,
-        ).x,
-        interval.y,
-    );
+    let bounds = textureLoad(empty_space_bounds_texture, vec3i(cell), 0).xy;
+    return EmptySpaceCell(bounds.x, bounds.y, interval.y);
 }
 
 fn empty_space_can_skip(
