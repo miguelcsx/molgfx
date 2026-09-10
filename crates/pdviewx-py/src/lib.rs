@@ -7,26 +7,22 @@
 #![forbid(unsafe_code)]
 
 mod annotations;
+mod authoring;
+mod controls;
 mod core;
 mod error;
-mod interactions;
+mod generated_registration;
 mod math;
+mod memory;
+mod mesh_instances;
+mod overlay_authoring;
+mod pending_surface;
+mod python_module;
 mod render;
 mod semantic;
+mod timeline;
+mod topology;
 mod trajectory;
+mod validation_markers;
 mod values;
-
-use pyo3::prelude::*;
-
-#[pymodule]
-fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    error::register(module)?;
-    math::register(module)?;
-    core::register(module)?;
-    annotations::register(module)?;
-    interactions::register(module)?;
-    semantic::register(module)?;
-    trajectory::register(module)?;
-    values::register(module)?;
-    render::register(module)
-}
+mod visual;
