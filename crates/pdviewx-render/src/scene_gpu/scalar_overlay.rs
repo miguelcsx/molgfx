@@ -1,7 +1,7 @@
 //! Resolution of scalar-overlay scene handles to resident GPU resources.
 
 use super::volume_slot::GpuVolumeResource;
-use pdviewx_core::{DensityVolume, Representation, Scene};
+use pdviewx_core::{Representation, ScalarVolume, Scene};
 use pdviewx_gpu::Device;
 
 pub(super) fn resolve<'gpu, 'scene, D: Device>(
@@ -9,7 +9,7 @@ pub(super) fn resolve<'gpu, 'scene, D: Device>(
     scene: &'scene Scene,
     representation: &Representation,
     fallback: &'gpu D::TextureView,
-) -> (Option<&'scene DensityVolume>, &'gpu D::TextureView, u64) {
+) -> (Option<&'scene ScalarVolume>, &'gpu D::TextureView, u64) {
     let Some(style) = representation.surface_scalar else {
         return (None, fallback, 0);
     };

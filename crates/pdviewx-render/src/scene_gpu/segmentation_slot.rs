@@ -1,6 +1,6 @@
 //! Persistent categorical-volume textures, lookup tables and bindings.
 
-use super::segmentation_lookup::SegmentLookup;
+use super::segmentation_lookup::{LookupMode, SegmentLookup};
 use super::segmentation_uniforms::SegmentationUniforms;
 use crate::error::RenderError;
 use pdviewx_core::{Representation, RepresentationHandle, SegmentationHandle, SegmentedVolume};
@@ -14,10 +14,46 @@ pub(super) struct GpuSegmentationSlot<D: Device> {
     pub(super) representation: RepresentationHandle,
     uniforms: Option<D::Buffer>,
     lookup: Option<D::Buffer>,
+    sparse_pages: Option<D::Buffer>,
+    sparse_config: Option<D::Buffer>,
     lookup_size: u64,
     group: Option<D::BindGroup>,
-    synced: Option<(u64, SegmentationHandle, u64)>,
+    pipeline: SegmentationPipelineKey,
+    synced: Option<(u64, SegmentationHandle, u64, u32)>,
     has_styles: bool,
+}
+
+/// Pipeline specialization selected once when categorical state changes.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum SegmentationPipelineKey {
+    /// Compact style lookup over the complete volume.
+    #[default]
+    Direct,
+    /// Compact style lookup sampled on one plane.
+    DirectSlice,
+    /// Sparse hashed style lookup over the complete volume.
+    Hash,
+    /// Sparse hashed style lookup sampled on one plane.
+    HashSlice,
+}
+
+impl SegmentationPipelineKey {
+    const fn new(slice: bool, lookup: LookupMode) -> Self {
+        match (slice, lookup) {
+            (false, LookupMode::Direct) => Self::Direct,
+            (true, LookupMode::Direct) => Self::DirectSlice,
+            (false, LookupMode::Hash) => Self::Hash,
+            (true, LookupMode::Hash) => Self::HashSlice,
+        }
+    }
+
+    pub(crate) const fn is_slice(self) -> bool {
+        matches!(self, Self::DirectSlice | Self::HashSlice)
+    }
+
+    pub(crate) const fn is_hash(self) -> bool {
+        matches!(self, Self::Hash | Self::HashSlice)
+    }
 }
 
 #[derive(Debug)]
@@ -132,8 +168,11 @@ impl<D: Device> GpuSegmentationSlot<D> {
             representation,
             uniforms: None,
             lookup: None,
+            sparse_pages: None,
+            sparse_config: None,
             lookup_size: 0,
             group: None,
+            pipeline: SegmentationPipelineKey::Direct,
             synced: None,
             has_styles: false,
         }
@@ -144,6 +183,7 @@ impl<D: Device> GpuSegmentationSlot<D> {
             input.representation_revision,
             input.segmentation_handle,
             input.volume_binding_revision,
+            input.source_id,
         );
         if self.synced == Some(current) {
             return Ok(false);
@@ -155,7 +195,25 @@ impl<D: Device> GpuSegmentationSlot<D> {
                 usage: BufferUsage::UNIFORM.union(BufferUsage::COPY_DST),
             })?);
         }
+        if self.sparse_pages.is_none() {
+            self.sparse_pages = Some(input.device.create_buffer(&BufferDesc {
+                label: "empty sparse segmentation pages",
+                size: 64,
+                usage: BufferUsage::STORAGE,
+            })?);
+        }
+        if self.sparse_config.is_none() {
+            self.sparse_config = Some(input.device.create_buffer(&BufferDesc {
+                label: "empty sparse segmentation configuration",
+                size: 48,
+                usage: BufferUsage::UNIFORM,
+            })?);
+        }
         let lookup = SegmentLookup::new(input.representation.segmentation.styles.styles());
+        let pipeline = SegmentationPipelineKey::new(
+            input.representation.segmentation.slice.is_some(),
+            lookup.mode(),
+        );
         let bytes = bytemuck::cast_slice(lookup.entries());
         let size = match u64::try_from(bytes.len()) {
             Ok(size) => size.max(4),
@@ -185,13 +243,19 @@ impl<D: Device> GpuSegmentationSlot<D> {
             input.queue.write_buffer(lookup_buffer, 0, bytes);
         }
         self.bind(input.device, input.layout, input.volume_view);
+        self.pipeline = pipeline;
         self.has_styles = !input.representation.segmentation.styles.styles().is_empty();
         self.synced = Some(current);
         Ok(true)
     }
 
     fn bind(&mut self, device: &D, layout: &D::BindGroupLayout, view: &D::TextureView) {
-        let (Some(uniforms), Some(lookup)) = (&self.uniforms, &self.lookup) else {
+        let (Some(uniforms), Some(lookup), Some(sparse_pages), Some(sparse_config)) = (
+            &self.uniforms,
+            &self.lookup,
+            &self.sparse_pages,
+            &self.sparse_config,
+        ) else {
             return;
         };
         self.group = Some(device.create_bind_group(&BindGroupDesc {
@@ -207,13 +271,21 @@ impl<D: Device> GpuSegmentationSlot<D> {
                     binding: 2,
                     buffer: lookup,
                 },
+                BindGroupEntry::Buffer {
+                    binding: 3,
+                    buffer: sparse_pages,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 4,
+                    buffer: sparse_config,
+                },
             ],
         }));
     }
 
-    pub(super) fn draw(&self) -> Option<&D::BindGroup> {
+    pub(super) fn draw(&self) -> Option<(SegmentationPipelineKey, &D::BindGroup)> {
         if self.has_styles {
-            self.group.as_ref()
+            Some((self.pipeline, self.group.as_ref()?))
         } else {
             None
         }
