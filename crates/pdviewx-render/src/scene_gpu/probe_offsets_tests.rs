@@ -30,6 +30,14 @@ fn the_directions_average_to_near_zero_so_the_roll_is_isotropic() {
 }
 
 #[test]
+fn equal_area_band_midpoints_do_not_waste_samples_on_the_poles() {
+    let offsets = probe_offsets(1.0);
+    assert!(offsets.iter().all(|offset| offset[1].abs() < 1.0));
+    let y_sum = offsets.iter().map(|offset| offset[1]).sum::<f32>();
+    assert!(y_sum.abs() < 1.0e-6, "latitude bands balance exactly");
+}
+
+#[test]
 fn generation_is_deterministic() {
     assert_eq!(probe_offsets(1.4), probe_offsets(1.4));
 }

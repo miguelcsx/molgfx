@@ -1,14 +1,12 @@
 //! One revision-diffed GPU table for analytic primitives.
 
-use super::buffers::{count, upload_grow, write_draw_args};
+use super::buffers::{count, ensure_upload_buffer};
 use super::primitive_draw::{PackedPrimitive, PrimitiveDrawGroup, regroup};
+use super::primitive_packing::{pack_primitive, placement_revision};
 use super::structure::GpuStructure;
 use crate::error::RenderError;
-use pdviewx_core::{
-    EntityId, EntityKind, ParticleBoundary, ParticleMotionGpu, ParticleShape, Primitive,
-    PrimitiveGpu, Scene,
-};
-use pdviewx_gpu::{BindGroupDesc, BindGroupEntry, Device};
+use pdviewx_core::{ParticleMotionGpu, PrimitiveGpu, Scene};
+use pdviewx_gpu::{BindGroupDesc, BindGroupEntry, Device, Queue};
 
 /// The three bind-group layouts a primitive sync binds: the gbuffer table, the
 /// particle-motion compute group, and the shadow-caster group.
@@ -17,18 +15,20 @@ pub(super) struct PrimitiveLayouts<'a, D: Device> {
     pub(super) motion: &'a D::BindGroupLayout,
     pub(super) shadow: &'a D::BindGroupLayout,
 }
-use pdviewx_math::{Mat3, Mat4, Quat, Vec3};
-
 /// Above this count, realtime shadows use SSAO/contact shadows instead of a
-/// second full primitive raster. Quality mode retains the complete caster set.
+/// second full primitive raster. Cinematic mode retains the complete caster set.
 const REALTIME_SHADOW_PRIMITIVES: u32 = 4_096;
+const RETAINED_STAGING_BYTES: usize = 8 * 1024 * 1024;
+
+#[cfg(test)]
+#[path = "primitive_table_tests.rs"]
+mod tests;
 
 #[derive(Debug)]
 pub(super) struct GpuPrimitives<D: Device> {
     buffer: Option<D::Buffer>,
     previous: Option<D::Buffer>,
     motion: Option<D::Buffer>,
-    args: Option<D::Buffer>,
     group: Option<D::BindGroup>,
     shadow_group: Option<D::BindGroup>,
     motion_group: Option<D::BindGroup>,
@@ -36,6 +36,7 @@ pub(super) struct GpuPrimitives<D: Device> {
     previous_capacity: u64,
     motion_capacity: u64,
     count: u32,
+    opaque_count: u32,
     translucent: bool,
     motion_count: u32,
     synced: Option<(u64, u64, u64)>,
@@ -52,7 +53,6 @@ impl<D: Device> GpuPrimitives<D> {
             buffer: None,
             previous: None,
             motion: None,
-            args: None,
             group: None,
             shadow_group: None,
             motion_group: None,
@@ -60,6 +60,7 @@ impl<D: Device> GpuPrimitives<D> {
             previous_capacity: 0,
             motion_capacity: 0,
             count: 0,
+            opaque_count: 0,
             translucent: false,
             motion_count: 0,
             synced: None,
@@ -98,80 +99,111 @@ impl<D: Device> GpuPrimitives<D> {
             let Some(placed) = scene.structure(owner) else {
                 continue;
             };
-            let Some(structure_id) = structures
+            let Some(pick_page) = structures
                 .iter()
                 .find(|structure| structure.handle == owner)
-                .map(GpuStructure::structure_id)
+                .map(|structure| structure.pick_page(pdviewx_core::EntityKind::Primitive))
             else {
                 continue;
             };
             let row = Scene::primitive_row(handle);
             if let Some((record, motion)) =
-                pack_primitive(*primitive, row, structure_id, placed.model_to_world)
+                pack_primitive(*primitive, row, pick_page, placed.model_to_world)?
             {
                 self.translucent |= record.color[3] < 0.999;
                 self.motion_count += motion.metadata[0];
                 self.rows.push(PackedPrimitive::new(record, motion));
             }
         }
-        // Sort every class contiguous so each fragment pipeline draws only its
-        // own shape, and rebuild the per-class draw ranges from that order.
         regroup(
             &mut self.rows,
             &mut self.scratch,
             &mut self.previous_scratch,
             &mut self.motion_scratch,
             &mut self.groups,
+            self.motion_count > 0,
         );
-        let needed = (self.scratch.len() * std::mem::size_of::<PrimitiveGpu>()) as u64;
-        let rebind = self.buffer.is_none()
-            || self.previous.is_none()
-            || self.motion.is_none()
-            || needed > self.capacity;
-        upload_grow(
-            device,
-            queue,
-            "primitive records",
-            &self.scratch,
-            &mut self.buffer,
-            &mut self.capacity,
-        )?;
-        upload_grow(
-            device,
-            queue,
-            "primitive previous centers",
-            &self.previous_scratch,
-            &mut self.previous,
-            &mut self.previous_capacity,
-        )?;
-        upload_grow(
-            device,
-            queue,
-            "primitive particle motion table",
-            &self.motion_scratch,
-            &mut self.motion,
-            &mut self.motion_capacity,
-        )?;
-        // Packed rows are upload staging, not resident scene state. Retaining
-        // hundreds of MiB after a million-item upload would double the CPU
-        // footprint without making a steady frame faster.
-        if self.rows.capacity() > 262_144 {
-            self.rows = Vec::new();
+        let packed_count = count(self.scratch.len());
+        self.opaque_count = self
+            .groups
+            .iter()
+            .filter(|group| !group.translucent)
+            .map(|group| group.len)
+            .sum();
+        let auxiliary = self.motion_count > 0;
+        let rebind = self.prepare_buffers(device, packed_count, auxiliary)?;
+        let (Some(buffer), Some(previous), Some(motion)) =
+            (&self.buffer, &self.previous, &self.motion)
+        else {
+            return Ok(false);
+        };
+        queue.write_buffer(buffer, 0, bytemuck::cast_slice(&self.scratch));
+        if auxiliary {
+            queue.write_buffer(previous, 0, bytemuck::cast_slice(&self.previous_scratch));
+            queue.write_buffer(motion, 0, bytemuck::cast_slice(&self.motion_scratch));
+        } else {
+            queue.write_buffer(previous, 0, bytemuck::cast_slice(&[[0.0_f32; 4]]));
+            queue.write_buffer(
+                motion,
+                0,
+                bytemuck::cast_slice(&[ParticleMotionGpu::default()]),
+            );
         }
-        write_draw_args(
-            device,
-            queue,
-            "primitive indirect arguments",
-            6,
-            count(self.scratch.len()),
-            &mut self.args,
-        )?;
         if rebind || self.group.is_none() || self.motion_group.is_none() {
             self.bind(device, layouts);
         }
-        self.count = count(self.scratch.len());
+        self.count = packed_count;
         self.synced = Some(revision);
+        release_staging(&mut self.rows);
+        release_staging(&mut self.scratch);
+        release_staging(&mut self.previous_scratch);
+        release_staging(&mut self.motion_scratch);
         Ok(true)
+    }
+
+    fn prepare_buffers(
+        &mut self,
+        device: &D,
+        upper_count: u32,
+        auxiliary: bool,
+    ) -> Result<bool, RenderError> {
+        let needed = required_bytes::<PrimitiveGpu>(upper_count);
+        let previous_needed = if auxiliary {
+            required_bytes::<[f32; 4]>(upper_count)
+        } else {
+            std::mem::size_of::<[f32; 4]>() as u64
+        };
+        let motion_needed = if auxiliary {
+            required_bytes::<ParticleMotionGpu>(upper_count)
+        } else {
+            std::mem::size_of::<ParticleMotionGpu>() as u64
+        };
+        if !auxiliary {
+            release_large_buffer(&mut self.previous, &mut self.previous_capacity);
+            release_large_buffer(&mut self.motion, &mut self.motion_capacity);
+        }
+        let mut rebind = ensure_upload_buffer(
+            device,
+            "primitive records",
+            needed,
+            &mut self.buffer,
+            &mut self.capacity,
+        )?;
+        rebind |= ensure_upload_buffer(
+            device,
+            "primitive previous centers",
+            previous_needed,
+            &mut self.previous,
+            &mut self.previous_capacity,
+        )?;
+        rebind |= ensure_upload_buffer(
+            device,
+            "primitive particle motion table",
+            motion_needed,
+            &mut self.motion,
+            &mut self.motion_capacity,
+        )?;
+        Ok(rebind)
     }
 
     fn bind(&mut self, device: &D, layouts: &PrimitiveLayouts<'_, D>) {
@@ -219,10 +251,13 @@ impl<D: Device> GpuPrimitives<D> {
         }));
     }
 
-    /// The shadow-caster bind group and its whole-table indirect arguments.
-    pub(super) fn shadow_draw(&self, quality: bool) -> Option<(&D::BindGroup, &D::Buffer)> {
-        (self.count > 0 && (quality || self.count <= REALTIME_SHADOW_PRIMITIVES))
-            .then_some((self.shadow_group.as_ref()?, self.args.as_ref()?))
+    /// The shadow table and exact opaque class ranges.
+    pub(super) fn shadow_draw(
+        &self,
+        quality: bool,
+    ) -> Option<(&D::BindGroup, &[PrimitiveDrawGroup])> {
+        shadows_enabled(self.opaque_count, quality)
+            .then_some((self.shadow_group.as_ref()?, self.groups.as_slice()))
     }
 
     /// The shape-sorted table with its per-class draw ranges, for the
@@ -240,237 +275,25 @@ impl<D: Device> GpuPrimitives<D> {
     }
 }
 
-fn pack_primitive(
-    primitive: Primitive,
-    row: u32,
-    structure_id: u32,
-    model: Mat4,
-) -> Option<(PrimitiveGpu, ParticleMotionGpu)> {
-    let entity_id = EntityId::pack(EntityKind::Primitive, row).0;
-    match primitive {
-        Primitive::Ellipsoid {
-            value,
-            color,
-            opacity,
-            ..
-        } => pack_ellipsoid(
-            value,
-            color.to_f32(),
-            opacity,
-            entity_id,
-            structure_id,
-            model,
-        )
-        .map(|record| (record, ParticleMotionGpu::default())),
-        Primitive::Carbohydrate(value) => pack_oriented(
-            OrientedPrimitive {
-                center: value.center,
-                orientation: value.orientation,
-                size: value.size,
-                color: value.color.to_f32(),
-                primitive: 1,
-                shape: value.shape.stable_code(),
-                parameters: [0.0; 2],
-            },
-            entity_id,
-            structure_id,
-            model,
-        )
-        .map(|record| (record, ParticleMotionGpu::default())),
-        Primitive::Planar {
-            value,
-            color,
-            opacity,
-            ..
-        } => {
-            let orientation = Quat::from_mat3(&Mat3::from_cols(
-                value.tangent,
-                value.bitangent,
-                value.normal,
-            ));
-            pack_oriented(
-                OrientedPrimitive {
-                    center: value.center,
-                    orientation,
-                    size: Vec3::new(value.size[0], value.size[1], 0.04),
-                    color: with_opacity(color.to_f32(), opacity),
-                    primitive: 2,
-                    shape: 0,
-                    parameters: [0.0; 2],
-                },
-                entity_id,
-                structure_id,
-                model,
-            )
-            .map(|record| (record, ParticleMotionGpu::default()))
-        }
-        Primitive::Particle(value) => {
-            let mut color = with_opacity(value.color.to_f32(), value.opacity);
-            if value.shape == ParticleShape::Gaussian {
-                color[3] = color[3].min(0.998);
-            }
-            let record = pack_oriented(
-                OrientedPrimitive {
-                    center: value.center,
-                    orientation: value.orientation,
-                    size: value.size,
-                    color,
-                    primitive: match value.shape {
-                        ParticleShape::Box => 2,
-                        ParticleShape::Sphere
-                        | ParticleShape::Cylinder
-                        | ParticleShape::Spherocylinder
-                        | ParticleShape::Gaussian
-                        | ParticleShape::Circle
-                        | ParticleShape::Square
-                        | ParticleShape::Superquadric => 3,
-                    },
-                    shape: value.shape as u32,
-                    parameters: value.shape_parameters,
-                },
-                entity_id,
-                structure_id,
-                model,
-            )?;
-            let motion = value
-                .motion
-                .map_or_else(ParticleMotionGpu::default, |motion| {
-                    pack_motion(motion, model)
-                });
-            Some((record, motion))
-        }
+const fn shadows_enabled(opaque_count: u32, quality: bool) -> bool {
+    opaque_count > 0 && (quality || opaque_count <= REALTIME_SHADOW_PRIMITIVES)
+}
+
+fn release_staging<T>(values: &mut Vec<T>) {
+    if values.capacity().saturating_mul(std::mem::size_of::<T>()) > RETAINED_STAGING_BYTES {
+        *values = Vec::new();
+    } else {
+        values.clear();
     }
 }
 
-fn pack_motion(value: pdviewx_core::ParticleMotion, model: Mat4) -> ParticleMotionGpu {
-    let linear = Mat3::from_mat4(model);
-    let displacement = linear * value.velocity() * value.fixed_timestep();
-    let bounds = value.bounds().transform(&model);
-    if !displacement.is_finite() || bounds.is_empty() {
-        return ParticleMotionGpu::default();
-    }
-    let boundary = match value.boundary() {
-        ParticleBoundary::Bounce => 0,
-        ParticleBoundary::Wrap => 1,
-    };
-    ParticleMotionGpu {
-        velocity_step: [displacement.x, displacement.y, displacement.z, 0.0],
-        minimum: [bounds.min.x, bounds.min.y, bounds.min.z, 0.0],
-        maximum: [bounds.max.x, bounds.max.y, bounds.max.z, 0.0],
-        metadata: [1, boundary, value.seed(), value.respawn_after_steps()],
+fn release_large_buffer<B>(buffer: &mut Option<B>, capacity: &mut u64) {
+    if *capacity > 256 {
+        *buffer = None;
+        *capacity = 0;
     }
 }
 
-#[derive(Clone, Copy)]
-struct OrientedPrimitive {
-    center: Vec3,
-    orientation: Quat,
-    size: Vec3,
-    color: [f32; 4],
-    primitive: u32,
-    shape: u32,
-    parameters: [f32; 2],
-}
-
-fn pack_ellipsoid(
-    value: pdviewx_core::AnisotropicEllipsoid,
-    color: [f32; 4],
-    opacity: f32,
-    entity_id: u32,
-    structure_id: u32,
-    model: Mat4,
-) -> Option<PrimitiveGpu> {
-    let local = value.inverse_tensor()?;
-    let local_inverse = symmetric_matrix(local);
-    let linear = Mat3::from_mat4(model);
-    if !linear.is_finite() || linear.determinant().abs() <= 1.0e-6 {
-        return None;
-    }
-    let inverse_linear = linear.inverse();
-    let world_inverse = inverse_linear.transpose() * local_inverse * inverse_linear;
-    let center = model.transform_point3(value.center());
-    let bound = value.bounds().transform(&model).bounding_sphere().radius;
-    Some(PrimitiveGpu {
-        center_radius: [center.x, center.y, center.z, bound.max(1.0e-3)],
-        orientation: [0.0, 0.0, 0.0, 1.0],
-        size_opacity: [1.0, 1.0, 1.0, 1.0],
-        inverse_primary: [
-            world_inverse.x_axis.x,
-            world_inverse.y_axis.y,
-            world_inverse.z_axis.z,
-            world_inverse.y_axis.x,
-        ],
-        inverse_cross: [world_inverse.z_axis.x, world_inverse.z_axis.y, 0.0, 0.0],
-        color: with_opacity(color, opacity),
-        metadata: [entity_id, structure_id, 0, 0],
-    })
-}
-
-fn pack_oriented(
-    primitive: OrientedPrimitive,
-    entity_id: u32,
-    structure_id: u32,
-    model: Mat4,
-) -> Option<PrimitiveGpu> {
-    let linear = Mat3::from_mat4(model);
-    let local = Mat3::from_quat(primitive.orientation);
-    let transformed = linear * local;
-    let (axis_x, axis_y, axis_z) = (transformed.x_axis, transformed.y_axis, transformed.z_axis);
-    let scales = Vec3::new(axis_x.length(), axis_y.length(), axis_z.length());
-    if !scales.is_finite() || scales.min_element() <= 1.0e-6 || !primitive.size.is_finite() {
-        return None;
-    }
-    let x = axis_x / scales.x;
-    let y = (axis_y - x * x.dot(axis_y)).try_normalize()?;
-    let z = x.cross(y).try_normalize()?;
-    let world_orientation = Quat::from_mat3(&Mat3::from_cols(x, y, z));
-    let world_size = primitive.size * scales;
-    let world_center = model.transform_point3(primitive.center);
-    let bound = (world_size * 0.5).length();
-    Some(PrimitiveGpu {
-        center_radius: [
-            world_center.x,
-            world_center.y,
-            world_center.z,
-            bound.max(1.0e-3),
-        ],
-        orientation: world_orientation.to_array(),
-        size_opacity: [world_size.x, world_size.y, world_size.z, 1.0],
-        inverse_primary: [primitive.parameters[0], primitive.parameters[1], 0.0, 0.0],
-        inverse_cross: [0.0; 4],
-        color: primitive.color,
-        metadata: [
-            entity_id,
-            structure_id,
-            primitive.primitive,
-            primitive.shape,
-        ],
-    })
-}
-
-fn symmetric_matrix(values: [f32; 6]) -> Mat3 {
-    let [xx, yy, zz, xy, xz, yz] = values;
-    Mat3::from_cols(
-        Vec3::new(xx, xy, xz),
-        Vec3::new(xy, yy, yz),
-        Vec3::new(xz, yz, zz),
-    )
-}
-
-fn with_opacity(mut color: [f32; 4], opacity: f32) -> [f32; 4] {
-    color[3] *= opacity.clamp(0.0, 1.0);
-    color
-}
-
-fn placement_revision(scene: &Scene) -> u64 {
-    let mut hash = 14_695_981_039_346_656_037u64;
-    for (handle, placed) in scene.structures() {
-        hash ^= u64::from(handle.row());
-        hash = hash.wrapping_mul(1_099_511_628_211);
-        for value in placed.model_to_world.to_cols_array() {
-            hash ^= u64::from(value.to_bits());
-            hash = hash.wrapping_mul(1_099_511_628_211);
-        }
-    }
-    hash
+const fn required_bytes<T>(count: u32) -> u64 {
+    (count as u64).saturating_mul(std::mem::size_of::<T>() as u64)
 }

@@ -26,13 +26,15 @@ pub(super) const PROBE_SAMPLE_LEN: usize = PROBE_SAMPLE_COUNT as usize;
 /// value for a direct upload — generation allocates nothing.
 pub(super) fn probe_offsets(probe: f32) -> [[f32; 4]; PROBE_SAMPLE_LEN] {
     // The golden angle, pi*(3 - sqrt(5)) in radians, is the turn per step that
-    // spreads the points evenly; the vertical stride marches from pole to pole.
+    // spreads the points evenly. Sampling each equal-area latitude band at its
+    // midpoint avoids spending two of the fixed directions on the poles and
+    // reduces the largest uncovered angle without increasing shader work.
     const GOLDEN_ANGLE: f32 = 2.399_963_2;
     let mut offsets = [[0.0_f32; 4]; PROBE_SAMPLE_LEN];
-    let last = f32::from(PROBE_SAMPLE_COUNT - 1);
+    let inverse_count = 1.0 / f32::from(PROBE_SAMPLE_COUNT);
     for index in 0..PROBE_SAMPLE_COUNT {
         let step = f32::from(index);
-        let y = 1.0 - (step / last) * 2.0;
+        let y = 1.0 - 2.0 * (step + 0.5) * inverse_count;
         let radius = (1.0 - y * y).max(0.0).sqrt();
         let theta = GOLDEN_ANGLE * step;
         offsets[usize::from(index)] = [
