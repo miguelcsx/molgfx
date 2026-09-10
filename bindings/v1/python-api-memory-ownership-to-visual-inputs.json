@@ -1,0 +1,780 @@
+{
+  "prelude": [
+    "from typing import Callable, Concatenate, Literal, ParamSpec, Sequence",
+    "import numpy as np",
+    "from numpy.typing import NDArray"
+  ],
+  "symbols": [
+    {
+      "declaration": "class MemoryOwnership:\n    Shared: MemoryOwnership\n    Transferred: MemoryOwnership\n    Copied: MemoryOwnership",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "Shared",
+          "ownership": "copied-value",
+          "signature": "Shared: MemoryOwnership"
+        },
+        {
+          "kind": "property",
+          "name": "Transferred",
+          "ownership": "copied-value",
+          "signature": "Transferred: MemoryOwnership"
+        },
+        {
+          "kind": "property",
+          "name": "Copied",
+          "ownership": "copied-value",
+          "signature": "Copied: MemoryOwnership"
+        }
+      ],
+      "name": "MemoryOwnership",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyMemoryOwnership",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/memory.rs"
+      }
+    },
+    {
+      "declaration": "class MemoryTransferExclusion:\n    RustStorageNotMovable: MemoryTransferExclusion\n    DlpackLifetimeUnavailable: MemoryTransferExclusion",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "RustStorageNotMovable",
+          "ownership": "copied-value",
+          "signature": "RustStorageNotMovable: MemoryTransferExclusion"
+        },
+        {
+          "kind": "property",
+          "name": "DlpackLifetimeUnavailable",
+          "ownership": "copied-value",
+          "signature": "DlpackLifetimeUnavailable: MemoryTransferExclusion"
+        }
+      ],
+      "name": "MemoryTransferExclusion",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyMemoryTransferExclusion",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/memory.rs"
+      }
+    },
+    {
+      "declaration": "class OverlayAnchor:\n    def __init__(self, normalized: tuple[float, float], pixels: tuple[float, float] = ...) -> None: ...\n    normalized: tuple[float, float]\n    pixels: tuple[float, float]",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, normalized: tuple[float, float], pixels: tuple[float, float] = ...) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "normalized",
+          "ownership": "copied-value",
+          "signature": "normalized: tuple[float, float]"
+        },
+        {
+          "kind": "property",
+          "name": "pixels",
+          "ownership": "copied-value",
+          "signature": "pixels: tuple[float, float]"
+        }
+      ],
+      "name": "OverlayAnchor",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyOverlayAnchor",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/overlay_authoring.rs"
+      }
+    },
+    {
+      "declaration": "class ValidationKind:\n    Clash: ValidationKind\n    Geometry: ValidationKind\n    Density: ValidationKind\n    Other: ValidationKind",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "Clash",
+          "ownership": "copied-value",
+          "signature": "Clash: ValidationKind"
+        },
+        {
+          "kind": "property",
+          "name": "Geometry",
+          "ownership": "copied-value",
+          "signature": "Geometry: ValidationKind"
+        },
+        {
+          "kind": "property",
+          "name": "Density",
+          "ownership": "copied-value",
+          "signature": "Density: ValidationKind"
+        },
+        {
+          "kind": "property",
+          "name": "Other",
+          "ownership": "copied-value",
+          "signature": "Other: ValidationKind"
+        }
+      ],
+      "name": "ValidationKind",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyValidationKind",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/validation_markers.rs"
+      }
+    },
+    {
+      "declaration": "class ValidationMarker:\n    def __init__(self, owner: StructureHandle, anchor: AnnotationAnchor, kind: ValidationKind, severity: float, style: MarkerStyle) -> None: ...\n    severity: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, owner: StructureHandle, anchor: AnnotationAnchor, kind: ValidationKind, severity: float, style: MarkerStyle) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "severity",
+          "ownership": "copied-value",
+          "signature": "severity: float"
+        }
+      ],
+      "name": "ValidationMarker",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyValidationMarker",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/validation_markers.rs"
+      }
+    },
+    {
+      "declaration": "class Vec3:\n    def __init__(self, x: float, y: float, z: float) -> None: ...\n    x: float\n    y: float\n    z: float\n    ZERO: Vec3\n    X: Vec3\n    Y: Vec3\n    Z: Vec3\n    def to_tuple(self) -> tuple[float, float, float]: ...\n    def __repr__(self) -> str: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, x: float, y: float, z: float) -> None: ..."
+        },
+        {
+          "kind": "property",
+          "name": "x",
+          "ownership": "copied-value",
+          "signature": "x: float"
+        },
+        {
+          "kind": "property",
+          "name": "y",
+          "ownership": "copied-value",
+          "signature": "y: float"
+        },
+        {
+          "kind": "property",
+          "name": "z",
+          "ownership": "copied-value",
+          "signature": "z: float"
+        },
+        {
+          "kind": "property",
+          "name": "ZERO",
+          "ownership": "copied-value",
+          "signature": "ZERO: Vec3"
+        },
+        {
+          "kind": "property",
+          "name": "X",
+          "ownership": "copied-value",
+          "signature": "X: Vec3"
+        },
+        {
+          "kind": "property",
+          "name": "Y",
+          "ownership": "copied-value",
+          "signature": "Y: Vec3"
+        },
+        {
+          "kind": "property",
+          "name": "Z",
+          "ownership": "copied-value",
+          "signature": "Z: Vec3"
+        },
+        {
+          "kind": "method",
+          "name": "to_tuple",
+          "ownership": "borrowed-call",
+          "signature": "def to_tuple(self) -> tuple[float, float, float]: ..."
+        },
+        {
+          "kind": "method",
+          "name": "__repr__",
+          "ownership": "borrowed-call",
+          "signature": "def __repr__(self) -> str: ..."
+        }
+      ],
+      "name": "Vec3",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyVec3",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/math.rs"
+      }
+    },
+    {
+      "declaration": "class Quat:\n    def __init__(self, x: float, y: float, z: float, w: float) -> None: ...\n    @staticmethod\n    def identity() -> Quat: ...\n    x: float\n    y: float\n    z: float\n    w: float",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, x: float, y: float, z: float, w: float) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "identity",
+          "ownership": "borrowed-call",
+          "signature": "def identity() -> Quat: ..."
+        },
+        {
+          "kind": "property",
+          "name": "x",
+          "ownership": "copied-value",
+          "signature": "x: float"
+        },
+        {
+          "kind": "property",
+          "name": "y",
+          "ownership": "copied-value",
+          "signature": "y: float"
+        },
+        {
+          "kind": "property",
+          "name": "z",
+          "ownership": "copied-value",
+          "signature": "z: float"
+        },
+        {
+          "kind": "property",
+          "name": "w",
+          "ownership": "copied-value",
+          "signature": "w: float"
+        }
+      ],
+      "name": "Quat",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyQuat",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/math.rs"
+      }
+    },
+    {
+      "declaration": "class Mat4:\n    def __init__(self, values: Sequence[float]) -> None: ...\n    @staticmethod\n    def identity() -> Mat4: ...\n    def to_list(self) -> list[float]: ...\n    def __repr__(self) -> str: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, values: Sequence[float]) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "identity",
+          "ownership": "borrowed-call",
+          "signature": "def identity() -> Mat4: ..."
+        },
+        {
+          "kind": "method",
+          "name": "to_list",
+          "ownership": "borrowed-call",
+          "signature": "def to_list(self) -> list[float]: ..."
+        },
+        {
+          "kind": "method",
+          "name": "__repr__",
+          "ownership": "borrowed-call",
+          "signature": "def __repr__(self) -> str: ..."
+        }
+      ],
+      "name": "Mat4",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyMat4",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/math.rs"
+      }
+    },
+    {
+      "declaration": "class Rgba8:\n    def __init__(self, r: int, g: int, b: int, a: int) -> None: ...\n    @staticmethod\n    def opaque(r: int, g: int, b: int) -> Rgba8: ...\n    WHITE: Rgba8\n    r: int\n    g: int\n    b: int\n    a: int\n    def to_f32(self) -> tuple[float, float, float, float]: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, r: int, g: int, b: int, a: int) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "opaque",
+          "ownership": "borrowed-call",
+          "signature": "def opaque(r: int, g: int, b: int) -> Rgba8: ..."
+        },
+        {
+          "kind": "property",
+          "name": "WHITE",
+          "ownership": "copied-value",
+          "signature": "WHITE: Rgba8"
+        },
+        {
+          "kind": "property",
+          "name": "r",
+          "ownership": "copied-value",
+          "signature": "r: int"
+        },
+        {
+          "kind": "property",
+          "name": "g",
+          "ownership": "copied-value",
+          "signature": "g: int"
+        },
+        {
+          "kind": "property",
+          "name": "b",
+          "ownership": "copied-value",
+          "signature": "b: int"
+        },
+        {
+          "kind": "property",
+          "name": "a",
+          "ownership": "copied-value",
+          "signature": "a: int"
+        },
+        {
+          "kind": "method",
+          "name": "to_f32",
+          "ownership": "borrowed-call",
+          "signature": "def to_f32(self) -> tuple[float, float, float, float]: ..."
+        }
+      ],
+      "name": "Rgba8",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyRgba8",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/math.rs"
+      }
+    },
+    {
+      "declaration": "class ScalarFieldSemantics:\n    @staticmethod\n    def uncalibrated_rank() -> ScalarFieldSemantics: ...\n    @staticmethod\n    def quantity(name: str, units: str, provenance: str) -> ScalarFieldSemantics: ...\n    kind: str",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "uncalibrated_rank",
+          "ownership": "borrowed-call",
+          "signature": "def uncalibrated_rank() -> ScalarFieldSemantics: ..."
+        },
+        {
+          "kind": "method",
+          "name": "quantity",
+          "ownership": "borrowed-call",
+          "signature": "def quantity(name: str, units: str, provenance: str) -> ScalarFieldSemantics: ..."
+        },
+        {
+          "kind": "property",
+          "name": "kind",
+          "ownership": "copied-value",
+          "signature": "kind: str"
+        }
+      ],
+      "name": "ScalarFieldSemantics",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyScalarFieldSemantics",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/color.rs"
+      }
+    },
+    {
+      "declaration": "class ScalarRamp:\n    def __init__(self, values: tuple[float, float, float], colors: tuple[Rgba8, Rgba8, Rgba8]) -> None: ...\n    @staticmethod\n    def diverging(extent: float) -> ScalarRamp: ...\n    @staticmethod\n    def sequential(domain: tuple[float, float]) -> ScalarRamp: ...\n    values: tuple[float, float, float]\n    colors: tuple[Rgba8, Rgba8, Rgba8]\n    def sample(self, value: float, missing: Rgba8) -> Rgba8: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, values: tuple[float, float, float], colors: tuple[Rgba8, Rgba8, Rgba8]) -> None: ..."
+        },
+        {
+          "kind": "method",
+          "name": "diverging",
+          "ownership": "borrowed-call",
+          "signature": "def diverging(extent: float) -> ScalarRamp: ..."
+        },
+        {
+          "kind": "method",
+          "name": "sequential",
+          "ownership": "borrowed-call",
+          "signature": "def sequential(domain: tuple[float, float]) -> ScalarRamp: ..."
+        },
+        {
+          "kind": "property",
+          "name": "values",
+          "ownership": "copied-value",
+          "signature": "values: tuple[float, float, float]"
+        },
+        {
+          "kind": "property",
+          "name": "colors",
+          "ownership": "copied-value",
+          "signature": "colors: tuple[Rgba8, Rgba8, Rgba8]"
+        },
+        {
+          "kind": "method",
+          "name": "sample",
+          "ownership": "borrowed-call",
+          "signature": "def sample(self, value: float, missing: Rgba8) -> Rgba8: ..."
+        }
+      ],
+      "name": "ScalarRamp",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyScalarRamp",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/values/color.rs"
+      }
+    },
+    {
+      "declaration": "class ScalarExpr: ...",
+      "kind": "type",
+      "members": [],
+      "name": "ScalarExpr",
+      "ownership": "copied-value",
+      "registration": {
+        "kind": "module-member",
+        "source": "crates/pdviewx-py/src/visual.rs"
+      }
+    },
+    {
+      "declaration": "class ColorExpr: ...",
+      "kind": "type",
+      "members": [],
+      "name": "ColorExpr",
+      "ownership": "copied-value",
+      "registration": {
+        "kind": "module-member",
+        "source": "crates/pdviewx-py/src/visual.rs"
+      }
+    },
+    {
+      "declaration": "class BoolExpr: ...",
+      "kind": "type",
+      "members": [],
+      "name": "BoolExpr",
+      "ownership": "copied-value",
+      "registration": {
+        "kind": "module-member",
+        "source": "crates/pdviewx-py/src/visual.rs"
+      }
+    },
+    {
+      "declaration": "class VectorExpr: ...",
+      "kind": "type",
+      "members": [],
+      "name": "VectorExpr",
+      "ownership": "copied-value",
+      "registration": {
+        "kind": "module-member",
+        "source": "crates/pdviewx-py/src/visual.rs"
+      }
+    },
+    {
+      "declaration": "class ScalarParameter: ...",
+      "kind": "type",
+      "members": [],
+      "name": "ScalarParameter",
+      "ownership": "copied-value",
+      "registration": {
+        "kind": "module-member",
+        "source": "crates/pdviewx-py/src/visual.rs"
+      }
+    },
+    {
+      "declaration": "class ColorParameter: ...",
+      "kind": "type",
+      "members": [],
+      "name": "ColorParameter",
+      "ownership": "copied-value",
+      "registration": {
+        "kind": "module-member",
+        "source": "crates/pdviewx-py/src/visual.rs"
+      }
+    },
+    {
+      "declaration": "class VectorParameter: ...",
+      "kind": "type",
+      "members": [],
+      "name": "VectorParameter",
+      "ownership": "copied-value",
+      "registration": {
+        "kind": "module-member",
+        "source": "crates/pdviewx-py/src/visual.rs"
+      }
+    },
+    {
+      "declaration": "MAX_VISUAL_INSTRUCTIONS: int",
+      "kind": "constant",
+      "members": [],
+      "name": "MAX_VISUAL_INSTRUCTIONS",
+      "ownership": "copied-value",
+      "registration": {
+        "kind": "module-member",
+        "source": "crates/pdviewx-py/src/visual_register.rs"
+      }
+    },
+    {
+      "declaration": "MAX_VISUAL_PARAMETERS: int",
+      "kind": "constant",
+      "members": [],
+      "name": "MAX_VISUAL_PARAMETERS",
+      "ownership": "copied-value",
+      "registration": {
+        "kind": "module-member",
+        "source": "crates/pdviewx-py/src/visual_register.rs"
+      }
+    },
+    {
+      "declaration": "MAX_VISUAL_PROPERTIES: int",
+      "kind": "constant",
+      "members": [],
+      "name": "MAX_VISUAL_PROPERTIES",
+      "ownership": "copied-value",
+      "registration": {
+        "kind": "module-member",
+        "source": "crates/pdviewx-py/src/visual_register.rs"
+      }
+    },
+    {
+      "declaration": "MAX_CLIP_PLANES: int",
+      "kind": "constant",
+      "members": [],
+      "name": "MAX_CLIP_PLANES",
+      "ownership": "copied-value",
+      "registration": {
+        "kind": "module-member",
+        "source": "crates/pdviewx-py/src/visual_register.rs"
+      }
+    },
+    {
+      "declaration": "MAX_VOLUME_TRANSFER_POINTS: int",
+      "kind": "constant",
+      "members": [],
+      "name": "MAX_VOLUME_TRANSFER_POINTS",
+      "ownership": "copied-value",
+      "registration": {
+        "kind": "module-member",
+        "source": "crates/pdviewx-py/src/visual_register.rs"
+      }
+    },
+    {
+      "declaration": "class VisualOutput:\n    BaseColor: VisualOutput\n    Opacity: VisualOutput\n    Emission: VisualOutput\n    Roughness: VisualOutput\n    Specular: VisualOutput\n    MaterialStrength: VisualOutput\n    Visibility: VisualOutput\n    SilhouetteSoftness: VisualOutput\n    RadiusScale: VisualOutput\n    WidthScale: VisualOutput\n    PositionOffset: VisualOutput",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "BaseColor",
+          "ownership": "copied-value",
+          "signature": "BaseColor: VisualOutput"
+        },
+        {
+          "kind": "property",
+          "name": "Opacity",
+          "ownership": "copied-value",
+          "signature": "Opacity: VisualOutput"
+        },
+        {
+          "kind": "property",
+          "name": "Emission",
+          "ownership": "copied-value",
+          "signature": "Emission: VisualOutput"
+        },
+        {
+          "kind": "property",
+          "name": "Roughness",
+          "ownership": "copied-value",
+          "signature": "Roughness: VisualOutput"
+        },
+        {
+          "kind": "property",
+          "name": "Specular",
+          "ownership": "copied-value",
+          "signature": "Specular: VisualOutput"
+        },
+        {
+          "kind": "property",
+          "name": "MaterialStrength",
+          "ownership": "copied-value",
+          "signature": "MaterialStrength: VisualOutput"
+        },
+        {
+          "kind": "property",
+          "name": "Visibility",
+          "ownership": "copied-value",
+          "signature": "Visibility: VisualOutput"
+        },
+        {
+          "kind": "property",
+          "name": "SilhouetteSoftness",
+          "ownership": "copied-value",
+          "signature": "SilhouetteSoftness: VisualOutput"
+        },
+        {
+          "kind": "property",
+          "name": "RadiusScale",
+          "ownership": "copied-value",
+          "signature": "RadiusScale: VisualOutput"
+        },
+        {
+          "kind": "property",
+          "name": "WidthScale",
+          "ownership": "copied-value",
+          "signature": "WidthScale: VisualOutput"
+        },
+        {
+          "kind": "property",
+          "name": "PositionOffset",
+          "ownership": "copied-value",
+          "signature": "PositionOffset: VisualOutput"
+        }
+      ],
+      "name": "VisualOutput",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyVisualOutput",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/visual_enums.rs"
+      }
+    },
+    {
+      "declaration": "class VisualStage:\n    Uniform: VisualStage\n    Entity: VisualStage\n    Fragment: VisualStage",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "property",
+          "name": "Uniform",
+          "ownership": "copied-value",
+          "signature": "Uniform: VisualStage"
+        },
+        {
+          "kind": "property",
+          "name": "Entity",
+          "ownership": "copied-value",
+          "signature": "Entity: VisualStage"
+        },
+        {
+          "kind": "property",
+          "name": "Fragment",
+          "ownership": "copied-value",
+          "signature": "Fragment: VisualStage"
+        }
+      ],
+      "name": "VisualStage",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyVisualStage",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/visual_enums.rs"
+      }
+    },
+    {
+      "declaration": "class VisualCompatibility:\n    @staticmethod\n    def none() -> VisualCompatibility: ...\n    @staticmethod\n    def appearance() -> VisualCompatibility: ...\n    @staticmethod\n    def analytic_appearance() -> VisualCompatibility: ...\n    @staticmethod\n    def sized() -> VisualCompatibility: ...\n    @staticmethod\n    def deformable() -> VisualCompatibility: ...\n    @staticmethod\n    def ribbon() -> VisualCompatibility: ...\n    @staticmethod\n    def for_representation(kind: RepresentationKind) -> VisualCompatibility: ...\n    def supports(self, output: VisualOutput) -> bool: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "none",
+          "ownership": "borrowed-call",
+          "signature": "def none() -> VisualCompatibility: ..."
+        },
+        {
+          "kind": "method",
+          "name": "appearance",
+          "ownership": "borrowed-call",
+          "signature": "def appearance() -> VisualCompatibility: ..."
+        },
+        {
+          "kind": "method",
+          "name": "analytic_appearance",
+          "ownership": "borrowed-call",
+          "signature": "def analytic_appearance() -> VisualCompatibility: ..."
+        },
+        {
+          "kind": "method",
+          "name": "sized",
+          "ownership": "borrowed-call",
+          "signature": "def sized() -> VisualCompatibility: ..."
+        },
+        {
+          "kind": "method",
+          "name": "deformable",
+          "ownership": "borrowed-call",
+          "signature": "def deformable() -> VisualCompatibility: ..."
+        },
+        {
+          "kind": "method",
+          "name": "ribbon",
+          "ownership": "borrowed-call",
+          "signature": "def ribbon() -> VisualCompatibility: ..."
+        },
+        {
+          "kind": "method",
+          "name": "for_representation",
+          "ownership": "borrowed-call",
+          "signature": "def for_representation(kind: RepresentationKind) -> VisualCompatibility: ..."
+        },
+        {
+          "kind": "method",
+          "name": "supports",
+          "ownership": "borrowed-call",
+          "signature": "def supports(self, output: VisualOutput) -> bool: ..."
+        }
+      ],
+      "name": "VisualCompatibility",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyVisualCompatibility",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/visual_compatibility.rs"
+      }
+    },
+    {
+      "declaration": "class VisualInputs:\n    def __init__(self, base_color: tuple[float, float, float, float] = ..., base_opacity: float = ..., time_seconds: float = ..., local_position: tuple[float, float, float] = ..., world_position: tuple[float, float, float] = ..., normal: tuple[float, float, float] = ..., view_direction: tuple[float, float, float] = ..., camera_distance: float = ..., entity_index: int = ..., roughness: float = ..., specular: float = ..., material_strength: float = ..., properties: tuple[float, float, float, float] | None = ...) -> None: ...",
+      "kind": "type",
+      "members": [
+        {
+          "kind": "method",
+          "name": "__init__",
+          "ownership": "copied-value",
+          "signature": "def __init__(self, base_color: tuple[float, float, float, float] = ..., base_opacity: float = ..., time_seconds: float = ..., local_position: tuple[float, float, float] = ..., world_position: tuple[float, float, float] = ..., normal: tuple[float, float, float] = ..., view_direction: tuple[float, float, float] = ..., camera_distance: float = ..., entity_index: int = ..., roughness: float = ..., specular: float = ..., material_strength: float = ..., properties: tuple[float, float, float, float] | None = ...) -> None: ..."
+        }
+      ],
+      "name": "VisualInputs",
+      "ownership": "copied-value",
+      "registration": {
+        "adapter": "PyVisualInputs",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/visual.rs"
+      }
+    }
+  ]
+}
