@@ -1,0 +1,390 @@
+{
+  "symbols": [
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "rust": "BrickAddress",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "BrickAddress"
+        ]
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickAddress is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickAddress is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "rust": "BrickAtlasConfig",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick_atlas.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "BrickAtlasConfig"
+        ]
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickAtlasConfig is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickAtlasConfig is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "kind": "error",
+      "ownership": "copied-value",
+      "rust": "BrickAtlasError",
+      "python": {
+        "error_route": "RenderError",
+        "evidence": [
+          "crates/pdviewx-py/src/error.rs",
+          "crates/pdviewx-py/src/render/brick_atlas.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "RenderError"
+        ]
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickAtlasError is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickAtlasError is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "rust": "BrickAtlasKind",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick_atlas.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "BrickAtlasKind"
+        ]
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickAtlasKind is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickAtlasKind is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "rust": "BrickAtlasMetrics",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick_atlas.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "BrickAtlasMetrics"
+        ]
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickAtlasMetrics is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickAtlasMetrics is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "borrowed-call",
+      "rust": "BrickAtlasUpload",
+      "python": {
+        "bindings": {
+          "Engine": [
+            "stage_brick"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick_atlas.rs",
+          "crates/pdviewx-py/src/render/engine.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Engine"
+        ]
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickAtlasUpload is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickAtlasUpload is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "rust": "BrickCatalog",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "BrickCatalog"
+        ]
+      },
+      "typescript": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "BrickCatalog belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      },
+      "wasm": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "BrickCatalog belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "rust": "BrickDescriptor",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "BrickDescriptor"
+        ]
+      },
+      "typescript": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "BrickDescriptor belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      },
+      "wasm": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "BrickDescriptor belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "rust": "BrickId",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "BrickId"
+        ]
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickId is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickId is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "rust": "BrickMetadata",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "BrickMetadata"
+        ]
+      },
+      "typescript": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "BrickMetadata belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      },
+      "wasm": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "BrickMetadata belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "rust": "BrickShape",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "BrickShape"
+        ]
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickShape is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "BrickShape is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "rust": "BrickValueRange",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "BrickValueRange"
+        ]
+      },
+      "typescript": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "BrickValueRange belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      },
+      "wasm": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "BrickValueRange belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "rust": "DirtyGeneration",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "DirtyGeneration"
+        ]
+      },
+      "typescript": {
+        "state": "internal",
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "DirtyGeneration is an implementation/layout detail and is deliberately absent from the portable public SDK."
+      },
+      "wasm": {
+        "state": "internal",
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "DirtyGeneration is an implementation/layout detail and is deliberately absent from the portable public SDK."
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "rust": "FenceValue",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick_atlas.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "FenceValue"
+        ]
+      },
+      "typescript": {
+        "state": "internal",
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "FenceValue is an implementation/layout detail and is deliberately absent from the portable public SDK."
+      },
+      "wasm": {
+        "state": "internal",
+        "evidence": "docs/USER-SURFACE.md:46",
+        "reason": "FenceValue is an implementation/layout detail and is deliberately absent from the portable public SDK."
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "rust": "UploadRingConfig",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/brick_atlas.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "UploadRingConfig"
+        ]
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "UploadRingConfig is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "UploadRingConfig is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    }
+  ]
+}
