@@ -1,45 +1,59 @@
 //! Revision-diffed synchronization of persistent scene GPU state.
 //!
 //! Reconciliation is linear in resident slots; unchanged frames do no uploads.
-
+mod assets;
 mod draws;
 mod fallback;
+mod init;
+mod paged_instances;
+mod paged_relations;
 mod properties;
+mod relations;
+mod residency_init;
 mod scene_identity;
 mod segmentations;
-mod selection_bounds;
+pub(super) mod selection_bounds;
 mod semantic_tables;
 mod trajectories;
 mod upload_scratch;
 mod volumes;
-
-use self::fallback::fallback_texture;
+use super::asset::GpuAsset;
+use super::asset_arena::AssetArena;
 use super::buffers::create_cull_tiles;
+use super::instance_batch_table::GpuInstanceBatches;
 use super::interaction_table::GpuInteractions;
 use super::label_table::GpuLabels;
-use super::layouts::{
-    cartoon_layout, cull_layout, interaction_layout, label_declutter_layout, label_render_layout,
-    overlay_layout, primitive_layout, primitive_motion_layout, primitive_shadow_layout,
-    representation_layout, segmentation_layout, trajectory_layout, volume_layout,
-};
+use super::ligand_pose_table::GpuLigandPoses;
 use super::overlay_table::GpuOverlays;
+use super::paged_bonds::PagedBondBatch;
+use super::paged_chunks::PagedChunkBatch;
+use super::picking_pages::PickPages;
+use super::point_batch_table::GpuPointBatches;
 use super::primitive_table::GpuPrimitives;
 use super::segmentation_slot::{GpuSegmentationResource, GpuSegmentationSlot};
 use super::slot_types::{SlotKey, SlotPlan, SlotSync};
 use super::slots::GpuSlot;
 use super::structure::GpuStructure;
 use super::uniforms::FrameUniforms;
+use super::visual::VisualFallback;
+use super::visual_parameters::VisualParameterTable;
+use super::visual_programs::VisualProgramTable;
+use super::visual_properties::VisualPropertyTable;
 use super::volume_slot::{GpuVolumeResource, GpuVolumeSlot};
 use crate::error::RenderError;
-use crate::passes::SurfaceFieldPass;
+use crate::{ResidencyMachine, ResidencyTicket, ResidencyWorkspace};
 use pdviewx_core::{
     AtomGpu, BondGpu, RepresentationHandle, Scene, SegmentationHandle, VolumeHandle,
 };
-use pdviewx_gpu::{
-    BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType,
-    BufferDesc, BufferUsage, Device, ShaderStages, TextureFormat,
-};
+use pdviewx_gpu::{ArenaAllocation, Device, UploadTicket};
+use std::sync::Arc;
 
+#[derive(Clone, Copy, Debug)]
+struct FrameUploadCommand {
+    ticket: UploadTicket,
+    offset: usize,
+    len: usize,
+}
 /// GPU-resident scene state with stable structure and representation slots.
 #[derive(Debug)]
 pub struct GpuScene<D: Device> {
@@ -47,41 +61,73 @@ pub struct GpuScene<D: Device> {
     pub group0: D::BindGroup,
     pub group0_layout: D::BindGroupLayout,
     pub group2_layout: D::BindGroupLayout,
+    pub quality_layout: D::BindGroupLayout,
     pub volume_layout: D::BindGroupLayout,
     pub segmentation_layout: D::BindGroupLayout,
     pub surface_field_output_layout: D::BindGroupLayout,
     pub surface_field_input_layout: D::BindGroupLayout,
     pub surface_field_erosion_layout: D::BindGroupLayout,
+    pub surface_field_normal_layout: D::BindGroupLayout,
+    pub surface_component_layout: D::BindGroupLayout,
     pub ribbon_layout: D::BindGroupLayout,
-    pub cull_layout: D::BindGroupLayout,
+    pub atom_cull_layout: D::BindGroupLayout,
+    pub bond_cull_layout: D::BindGroupLayout,
+    pub visual_cull_layout: D::BindGroupLayout,
     cull_tiles: D::Buffer,
     cull_tiles_capacity: u64,
     cull_binding_revision: u64,
     cull_tile_count: u32,
     pub interaction_layout: D::BindGroupLayout,
+    pub relation_cull_layout: D::BindGroupLayout,
+    pub relation_resolve_layout: D::BindGroupLayout,
+    pub generic_point_cull_layout: D::BindGroupLayout,
+    pub generic_point_render_layout: D::BindGroupLayout,
+    pub generic_instance_cull_layout: D::BindGroupLayout,
+    pub generic_instance_render_layout: D::BindGroupLayout,
+    pub instance_timeline_layout: D::BindGroupLayout,
+    pub attribute_timeline_layout: D::BindGroupLayout,
     pub primitive_layout: D::BindGroupLayout,
     pub primitive_motion_layout: D::BindGroupLayout,
     pub primitive_shadow_layout: D::BindGroupLayout,
+    pub ligand_pose_layout: D::BindGroupLayout,
     pub label_declutter_layout: D::BindGroupLayout,
     pub label_render_layout: D::BindGroupLayout,
     pub overlay_layout: D::BindGroupLayout,
     pub trajectory_layout: D::BindGroupLayout,
+    pub occupancy_layout: D::BindGroupLayout,
     _surface_field_fallback_texture: D::Texture,
     surface_field_fallback: D::TextureView,
-    _surface_provenance_fallback_texture: D::Texture,
-    surface_provenance_fallback: D::TextureView,
+    _surface_normal_fallback_texture: D::Texture,
+    surface_normal_fallback: D::TextureView,
+    asset_arena: AssetArena<D>,
+    assets: Vec<Arc<GpuAsset<D>>>,
     structures: Vec<GpuStructure<D>>,
     slots: Vec<GpuSlot<D>>,
     volume_resources: Vec<GpuVolumeResource<D>>,
+    pub(super) brick_atlases: Vec<super::brick_atlas::upload::GpuBrickAtlas<D>>,
     volume_slots: Vec<GpuVolumeSlot<D>>,
     mesh_slots: Vec<super::mesh_slot::GpuMeshSlot<D>>,
     mesh_synced: Option<(u64, u64)>,
     segmentation_resources: Vec<GpuSegmentationResource<D>>,
     segmentation_slots: Vec<GpuSegmentationSlot<D>>,
     interactions: GpuInteractions<D>,
+    point_batches: GpuPointBatches<D>,
+    instance_batches: GpuInstanceBatches<D>,
     primitive: GpuPrimitives<D>,
+    ligand_poses: GpuLigandPoses<D>,
     labels: GpuLabels<D>,
     overlays: GpuOverlays<D>,
+    pub(super) paged_chunks: PagedChunkBatch<D>,
+    pub(super) paged_bonds: PagedBondBatch<D>,
+    pub(super) picking_pages: PickPages,
+    paged_instance_pick_scratch: Vec<super::picking_pages::ChunkPickPlan>,
+    paged_relation_pick_scratch: Vec<super::picking_pages::ChunkPickPlan>,
+    visual_properties: VisualPropertyTable<D>,
+    visual_programs: VisualProgramTable<D>,
+    visual_parameters: VisualParameterTable<D>,
+    visual_fallback: VisualFallback<D>,
+    paged_visual_time_seconds: f32,
+    paged_visual_time_revision: u64,
     scene_identity: Option<u64>,
     structure_revision: Option<u64>,
     slot_structure_revision: Option<u64>,
@@ -96,111 +142,14 @@ pub struct GpuScene<D: Device> {
     bond_scratch: Vec<BondGpu>,
     compaction_scratch: Vec<u32>,
     ribbon_scratch: pdviewx_geometry::RibbonMesh,
+    residency: ResidencyWorkspace<FrameUploadCommand>,
+    residency_machine: ResidencyMachine,
+    frame_residency_ticket: ResidencyTicket,
+    _frame_allocation: ArenaAllocation,
+    upload_fence: u64,
 }
 
 impl<D: Device> GpuScene<D> {
-    pub fn new(device: &D) -> Result<Self, RenderError> {
-        let frame_uniforms = device.create_buffer(&BufferDesc {
-            label: "frame uniforms",
-            size: std::mem::size_of::<FrameUniforms>() as u64,
-            usage: BufferUsage::UNIFORM.union(BufferUsage::COPY_DST),
-        })?;
-        let group0_layout = device.create_bind_group_layout(&BindGroupLayoutDesc {
-            label: "group0: per-frame",
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::VERTEX
-                    .union(ShaderStages::FRAGMENT)
-                    .union(ShaderStages::COMPUTE),
-                ty: BindingType::Uniform,
-            }],
-        });
-        let group0 = device.create_bind_group(&BindGroupDesc {
-            label: "group0: per-frame",
-            layout: &group0_layout,
-            entries: &[BindGroupEntry::Buffer {
-                binding: 0,
-                buffer: &frame_uniforms,
-            }],
-        });
-        let group2_layout = representation_layout(device);
-        let volume_layout = volume_layout(device);
-        let segmentation_layout = segmentation_layout(device);
-        let surface_field_output_layout = SurfaceFieldPass::<D>::output_layout(device);
-        let surface_field_input_layout = SurfaceFieldPass::<D>::input_layout(device);
-        let surface_field_erosion_layout = SurfaceFieldPass::<D>::erosion_layout(device);
-        let (surface_field_fallback_texture, surface_field_fallback) =
-            fallback_texture(device, "unused surface field", TextureFormat::R32Float)?;
-        let (surface_provenance_fallback_texture, surface_provenance_fallback) =
-            fallback_texture(device, "unused surface provenance", TextureFormat::R32Uint)?;
-        let ribbon_layout = cartoon_layout(device);
-        let cull_layout = cull_layout(device);
-        let (cull_tiles, cull_tiles_capacity) = create_cull_tiles(device, 256)?;
-        let interaction_layout = interaction_layout(device);
-        let primitive_layout = primitive_layout(device);
-        let primitive_motion_layout = primitive_motion_layout(device);
-        let primitive_shadow_layout = primitive_shadow_layout(device);
-        let label_declutter_layout = label_declutter_layout(device);
-        let label_render_layout = label_render_layout(device);
-        let overlay_layout = overlay_layout(device);
-        let trajectory_layout = trajectory_layout(device);
-        Ok(Self {
-            frame_uniforms,
-            group0,
-            group0_layout,
-            group2_layout,
-            volume_layout,
-            segmentation_layout,
-            surface_field_output_layout,
-            surface_field_input_layout,
-            surface_field_erosion_layout,
-            ribbon_layout,
-            cull_layout,
-            cull_tiles,
-            cull_tiles_capacity,
-            cull_binding_revision: 0,
-            cull_tile_count: 0,
-            interaction_layout,
-            primitive_layout,
-            primitive_motion_layout,
-            primitive_shadow_layout,
-            label_declutter_layout,
-            label_render_layout,
-            overlay_layout,
-            trajectory_layout,
-            _surface_field_fallback_texture: surface_field_fallback_texture,
-            surface_field_fallback,
-            _surface_provenance_fallback_texture: surface_provenance_fallback_texture,
-            surface_provenance_fallback,
-            structures: Vec::new(),
-            slots: Vec::new(),
-            volume_resources: Vec::new(),
-            volume_slots: Vec::new(),
-            mesh_slots: Vec::new(),
-            mesh_synced: None,
-            segmentation_resources: Vec::new(),
-            segmentation_slots: Vec::new(),
-            interactions: GpuInteractions::new(),
-            primitive: GpuPrimitives::new(),
-            labels: GpuLabels::new(),
-            overlays: GpuOverlays::new(),
-            scene_identity: None,
-            structure_revision: None,
-            slot_structure_revision: None,
-            representation_revision: None,
-            volume_slot_revision: None,
-            segmentation_slot_revision: None,
-            representation_scratch: Vec::new(),
-            volume_handle_scratch: Vec::new(),
-            segmentation_handle_scratch: Vec::new(),
-            plan_scratch: Vec::new(),
-            atom_scratch: Vec::new(),
-            bond_scratch: Vec::new(),
-            compaction_scratch: Vec::new(),
-            ribbon_scratch: pdviewx_geometry::RibbonMesh::default(),
-        })
-    }
-
     /// Rebuilds resident caller meshes when the mesh table or the structures
     /// they hang from change. Untouched meshes keep their buffers.
     fn sync_mesh_slots(
@@ -231,8 +180,11 @@ impl<D: Device> GpuScene<D> {
                 device,
                 queue,
                 mesh,
-                &self.ribbon_layout,
-                structure,
+                (
+                    &self.ribbon_layout,
+                    structure,
+                    self.visual_fallback.entries(),
+                ),
                 super::mesh_slot::MeshOccurrences {
                     transforms: &instances,
                     model_to_world: scene
@@ -240,8 +192,8 @@ impl<D: Device> GpuScene<D> {
                         .map_or(pdviewx_math::Mat4::IDENTITY, |placed| placed.model_to_world),
                     entity: pdviewx_core::EntityId::pack(
                         pdviewx_core::EntityKind::Mesh,
-                        pdviewx_core::Scene::mesh_row(mesh_handle),
-                    ),
+                        u64::from(pdviewx_core::Scene::mesh_row(mesh_handle)),
+                    )?,
                 },
             )?;
             self.mesh_slots.push(slot);
@@ -250,6 +202,7 @@ impl<D: Device> GpuScene<D> {
         Ok(true)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn sync(
         &mut self,
         device: &D,
@@ -257,9 +210,14 @@ impl<D: Device> GpuScene<D> {
         scene: &Scene,
         quality: bool,
         extent: [u32; 2],
+        ray_query_layout: Option<&D::BindGroupLayout>,
+        derived_cache: &mut crate::DerivedCache,
+        derived_frame: u64,
     ) -> Result<bool, RenderError> {
         self.ensure_cull_tiles(device, extent)?;
-        let scene_changed = self.begin_scene(scene.cache_identity());
+        self.paged_visual_time_seconds = scene.presentation_time_seconds();
+        self.paged_visual_time_revision = scene.presentation_revision();
+        let scene_changed = self.begin_scene(scene.cache_identity())?;
         let mut changed = scene_changed
             || self.structure_revision != Some(scene.structure_revision())
             || self.representation_revision != Some(scene.representation_revision())
@@ -270,24 +228,80 @@ impl<D: Device> GpuScene<D> {
                     scene.segmentation_revision(),
                     scene.representation_revision(),
                 ));
-        self.reconcile_structures(scene);
-        changed |= self.sync_semantic_tables(device, queue, scene)?;
-        self.reconcile_slots(scene);
-        self.reconcile_volume_slots(scene);
-        self.reconcile_segmentations(scene);
-        changed |= self.sync_volume_resources(device, queue, scene)?;
-        changed |= self.sync_segmentation_resources(device, queue, scene)?;
+        for atlas in &mut self.brick_atlases {
+            let retired = atlas.poll(device, queue)?;
+            changed |= retired.uploads_published != 0 || retired.evictions_completed != 0;
+        }
         let requires_bvh = quality
             || scene.representations().any(|(_, representation)| {
                 representation.kind == pdviewx_core::RepresentationKind::Surface
             });
+        changed |= self.reconcile_structures(device, queue, scene)?;
+        changed |= self.picking_pages.sync(scene)?;
+        for structure in &mut self.structures {
+            let Some(placed) = scene.structure(structure.handle) else {
+                return Err(RenderError::PickingOwnerMissing);
+            };
+            changed |= structure.set_pick_pages(self.picking_pages.pages_for(placed.dataset_id()));
+        }
+        self.reconcile_slots(scene);
+        changed |= self.visual_programs.sync(device, queue, scene)?;
+        changed |= self.visual_parameters.reserve(
+            device,
+            self.slots
+                .len()
+                .saturating_add(scene.domain_visuals().count()),
+        )?;
+        changed |= self.visual_properties.sync(
+            device,
+            queue,
+            scene,
+            &self.attribute_timeline_layout,
+            derived_cache,
+            derived_frame,
+        )?;
+        self.reconcile_volume_slots(scene);
+        self.reconcile_segmentations(scene);
+        changed |= self.sync_segmentation_resources(device, queue, scene)?;
+        let mut dynamic_sources_changed = false;
         for gpu in &mut self.structures {
             if let Some(placed) = scene.structure(gpu.handle) {
-                changed |=
+                let source_changed =
                     gpu.sync(device, queue, placed, &self.trajectory_layout, requires_bvh)?;
+                dynamic_sources_changed |= source_changed;
+                changed |= source_changed;
             }
         }
-        for slot in &mut self.slots {
+        changed |= self.sync_semantic_tables(
+            device,
+            queue,
+            scene,
+            quality,
+            extent,
+            dynamic_sources_changed,
+            derived_cache,
+            derived_frame,
+        )?;
+        changed |= self.sync_volume_resources(device, queue, scene)?;
+        changed |=
+            self.sync_representation_slots(device, queue, scene, quality, ray_query_layout)?;
+        self.release_upload_scratch();
+        changed |= self.sync_volume_slots(device, queue, scene)?;
+        changed |= self.sync_mesh_slots(device, queue, scene)?;
+        changed |= self.sync_segmentation_slots(device, queue, scene)?;
+        Ok(changed)
+    }
+
+    fn sync_representation_slots(
+        &mut self,
+        device: &D,
+        queue: &D::Queue,
+        scene: &Scene,
+        quality: bool,
+        ray_query_layout: Option<&D::BindGroupLayout>,
+    ) -> Result<bool, RenderError> {
+        let mut changed = false;
+        for (slot_index, slot) in self.slots.iter_mut().enumerate() {
             let Some(placed) = scene.structure(slot.key.structure) else {
                 continue;
             };
@@ -310,6 +324,21 @@ impl<D: Device> GpuScene<D> {
             };
             let (color_property, appearance_property, property_revisions) =
                 properties::resolve(scene, representation, slot.key.structure);
+            let (_, visual_property_revisions) =
+                properties::resolve_visual(scene, representation, slot.key.structure);
+            let visual_attributes = self.visual_properties.offsets(
+                scene,
+                slot.key.structure,
+                representation.visual.as_ref(),
+            );
+            let visual_program_offset = match representation
+                .visual
+                .as_ref()
+                .and_then(|style| self.visual_programs.offset(style.program()))
+            {
+                Some(offset) => offset,
+                None => 0,
+            };
             let (overlay_volume, overlay_view, overlay_binding_revision) =
                 super::scalar_overlay::resolve(
                     &self.volume_resources,
@@ -321,38 +350,54 @@ impl<D: Device> GpuScene<D> {
                 device,
                 queue,
                 layout: &self.group2_layout,
+                quality_layout: &self.quality_layout,
+                ray_query_layout,
                 ribbon_layout: &self.ribbon_layout,
-                cull_layout: &self.cull_layout,
+                atom_cull_layout: &self.atom_cull_layout,
+                bond_cull_layout: &self.bond_cull_layout,
+                visual_cull_layout: &self.visual_cull_layout,
                 surface_field_output_layout: &self.surface_field_output_layout,
                 surface_field_input_layout: &self.surface_field_input_layout,
                 surface_field_erosion_layout: &self.surface_field_erosion_layout,
+                surface_field_normal_layout: &self.surface_field_normal_layout,
+                surface_component_layout: &self.surface_component_layout,
                 surface_field_fallback: &self.surface_field_fallback,
-                surface_provenance_fallback: &self.surface_provenance_fallback,
+                surface_normal_fallback: &self.surface_normal_fallback,
                 overlay_volume,
                 overlay_view,
                 overlay_binding_revision,
+                quality,
                 frame: &self.frame_uniforms,
                 cull_tiles: &self.cull_tiles,
                 cull_binding_revision: self.cull_binding_revision,
                 structure_gpu,
+                asset_arena: &self.asset_arena,
                 placed,
                 representation,
                 representation_revision,
                 selection,
-                selection_bounds: selection_bounds::selected_atom_bounds(placed, selection),
                 color_property,
                 appearance_property,
                 property_revisions,
+                visual_property_buffer: self.visual_properties.buffer(),
+                visual_program_buffer: self.visual_programs.buffer(),
+                visual_program_offset,
+                visual_program_binding_revision: self.visual_programs.binding_revision(),
+                visual_parameter_buffer: self.visual_parameters.buffer(),
+                visual_parameter_offset: VisualParameterTable::<D>::offset(slot_index),
+                visual_parameter_binding_revision: self.visual_parameters.binding_revision(),
+                visual_property_offsets: visual_attributes.offsets,
+                visual_attribute_layouts: visual_attributes.layouts,
+                visual_property_binding_revision: self.visual_properties.binding_revision(),
+                visual_property_revisions,
+                visual_time_seconds: scene.presentation_time_seconds(),
+                visual_time_revision: scene.presentation_revision(),
                 atoms: &mut self.atom_scratch,
                 bonds: &mut self.bond_scratch,
                 compaction: &mut self.compaction_scratch,
                 ribbon: &mut self.ribbon_scratch,
             })?;
         }
-        self.release_upload_scratch();
-        changed |= self.sync_volume_slots(device, queue, scene)?;
-        changed |= self.sync_mesh_slots(device, queue, scene)?;
-        changed |= self.sync_segmentation_slots(device, queue, scene)?;
         Ok(changed)
     }
 
@@ -366,26 +411,6 @@ impl<D: Device> GpuScene<D> {
             self.cull_binding_revision = self.cull_binding_revision.wrapping_add(1);
         }
         Ok(())
-    }
-
-    fn reconcile_structures(&mut self, scene: &Scene) {
-        let revision = scene.structure_revision();
-        if self.structure_revision == Some(revision) {
-            return;
-        }
-        let mut old = std::mem::take(&mut self.structures);
-        for (structure_id, (handle, _)) in scene.structures().enumerate() {
-            let structure_id = u32::try_from(structure_id).map_or(u32::MAX, |value| value);
-            if let Some(index) = old.iter().position(|gpu| gpu.handle == handle) {
-                let mut structure = old.swap_remove(index);
-                structure.set_structure_id(structure_id);
-                self.structures.push(structure);
-            } else {
-                self.structures
-                    .push(GpuStructure::new(handle, structure_id));
-            }
-        }
-        self.structure_revision = Some(revision);
     }
 
     fn reconcile_slots(&mut self, scene: &Scene) {
@@ -444,54 +469,6 @@ impl<D: Device> GpuScene<D> {
         self.representation_revision = Some(revision);
         self.slot_structure_revision = Some(scene.structure_revision());
     }
-
-    fn reconcile_volume_slots(&mut self, scene: &Scene) {
-        let revision = (scene.volume_revision(), scene.representation_revision());
-        if self.volume_slot_revision == Some(revision) {
-            return;
-        }
-        self.representation_scratch.clear();
-        self.representation_scratch.extend(
-            scene
-                .representations()
-                .filter(|(_, representation)| {
-                    representation.visible && representation.volume_handle().is_some()
-                })
-                .map(|(handle, representation)| (representation.order, handle)),
-        );
-        self.representation_scratch.sort_unstable();
-        self.volume_handle_scratch.clear();
-        self.volume_handle_scratch.extend(
-            scene
-                .representations()
-                .filter(|(_, representation)| representation.visible)
-                .filter_map(|(_, representation)| {
-                    representation
-                        .volume_handle()
-                        .or_else(|| representation.surface_scalar.map(|overlay| overlay.field))
-                }),
-        );
-        self.volume_handle_scratch.sort_unstable();
-        self.volume_handle_scratch.dedup();
-        let mut old_resources = std::mem::take(&mut self.volume_resources);
-        for handle in &self.volume_handle_scratch {
-            if let Some(index) = old_resources
-                .iter()
-                .position(|resource| resource.handle == *handle)
-            {
-                self.volume_resources.push(old_resources.swap_remove(index));
-            } else {
-                self.volume_resources.push(GpuVolumeResource::new(*handle));
-            }
-        }
-        let mut old = std::mem::take(&mut self.volume_slots);
-        for (_, handle) in &self.representation_scratch {
-            if let Some(index) = old.iter().position(|slot| slot.representation == *handle) {
-                self.volume_slots.push(old.swap_remove(index));
-            } else {
-                self.volume_slots.push(GpuVolumeSlot::new(*handle));
-            }
-        }
-        self.volume_slot_revision = Some(revision);
-    }
 }
+
+include!("sync/volume_reconcile.rs");

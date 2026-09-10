@@ -3,14 +3,27 @@
 //! Byte-identical to the shader's frame uniforms; uploading it is the only
 //! per-frame write a camera-only change performs.
 
-use pdviewx_core::{
-    ClipSet, DensityVolume, MAX_CLIP_PLANES, Material, Representation, SurfaceKind,
-};
+use pdviewx_core::{ClipSet, MAX_CLIP_PLANES, Material, Representation, ScalarVolume, SurfaceKind};
 use pdviewx_gpu::{Device, Queue};
 use pdviewx_math::{Aabb, Camera, Mat4, Projection, Vec3};
 
+use super::probe_offsets::PROBE_SAMPLE_COUNT;
+
 pub(super) const SURFACE_GRID_MAX_DIMENSION: u32 = 192;
 const SURFACE_GRID_TARGET_SPACING: f32 = 0.25;
+const SURFACE_GRID_REALTIME_SPACING: f32 = 0.5;
+/// Bounded hybrid traversal budget for a persistent grid.
+///
+/// Each iteration crosses at least one cell and empty-space distances skip
+/// farther. Capping the rare near-surface miss at the grid's longest axis
+/// prevents grazing fragments from dominating frame time.
+fn march_steps(dimensions: [u32; 3]) -> u32 {
+    dimensions
+        .iter()
+        .copied()
+        .fold(2, u32::max)
+        .min(SURFACE_GRID_MAX_DIMENSION)
+}
 
 /// Per-structure placement, shared by every representation of that structure.
 #[repr(C)]
@@ -22,23 +35,25 @@ pub struct ModelUniforms {
     pub world_to_model: Mat4,
     /// Previous world-from-model transform for object motion.
     pub previous_model_to_world: Mat4,
-    /// Deterministic structure slot written to the picking gbuffer.
-    pub structure_id: u32,
-    padding: [u32; 3],
+    /// Resident page per `EntityKind`, followed by alignment padding.
+    pub pick_pages: [[u32; 4]; 3],
 }
 
 impl ModelUniforms {
     pub(super) fn new(
         model_to_world: Mat4,
         previous_model_to_world: Mat4,
-        structure_id: u32,
+        pick_pages: [u32; 9],
     ) -> Self {
+        let mut aligned_pages = [[u32::MAX; 4]; 3];
+        for (index, page) in pick_pages.into_iter().enumerate() {
+            aligned_pages[index / 4][index % 4] = page;
+        }
         Self {
             model_to_world,
             world_to_model: model_to_world.inverse(),
             previous_model_to_world,
-            structure_id,
-            padding: [0; 3],
+            pick_pages: aligned_pages,
         }
     }
 }
@@ -67,11 +82,13 @@ pub struct FrameUniforms {
     pub temporal: [f32; 4],
     /// Silhouette, cavity and depth-cue strengths followed by focus distance.
     pub illustration: [f32; 4],
+    /// Non-photorealistic lane: cel-shading band count in x, spare in yzw.
+    pub npr: [f32; 4],
     /// Focus distance, aperture scale, maximum blur radius and blade count.
     pub optics: [f32; 4],
     /// Shutter fraction and maximum motion-blur radius in pixels.
     pub motion_blur: [f32; 4],
-    /// Projection kind in x: 0 perspective, 1 orthographic.
+    /// Projection kind in x and lateral sphere/frustum factors in yz.
     pub projection_kind: [f32; 4],
     /// Light-view transform used by the scene-fit shadow pass.
     pub shadow_view: Mat4,
@@ -98,6 +115,7 @@ pub(crate) struct TemporalFrame {
     pub(crate) quality: bool,
     pub(crate) publication: bool,
     pub(crate) illustration: [f32; 4],
+    pub(crate) npr: [f32; 4],
     pub(crate) optics: [f32; 4],
     pub(crate) motion_blur: [f32; 4],
     pub(crate) atmosphere: [[f32; 4]; 6],
@@ -152,21 +170,32 @@ impl FrameUniforms {
                 ),
             ],
             illustration: temporal.illustration,
+            npr: temporal.npr,
             optics: temporal.optics,
             motion_blur: temporal.motion_blur,
-            projection_kind: [
-                match camera.projection {
-                    Projection::Perspective { .. } => 0.0,
-                    Projection::Orthographic { .. } => 1.0,
-                },
-                0.0,
-                0.0,
-                0.0,
-            ],
+            projection_kind: projection_parameters(camera.projection, proj),
             atmosphere: temporal.atmosphere,
             lighting: temporal.lighting,
         }
     }
+}
+
+fn projection_parameters(projection: Projection, matrix: Mat4) -> [f32; 4] {
+    let orthographic = matches!(projection, Projection::Orthographic { .. });
+    let factor = |scale: f32| {
+        let scale = scale.abs();
+        if orthographic {
+            scale
+        } else {
+            scale.hypot(1.0)
+        }
+    };
+    [
+        if orthographic { 1.0 } else { 0.0 },
+        factor(matrix.x_axis.x),
+        factor(matrix.y_axis.y),
+        0.0,
+    ]
 }
 
 /// Per-representation parameters consumed by procedural shaders.
@@ -204,13 +233,32 @@ pub(super) struct RepresentationUniforms {
 }
 
 impl RepresentationUniforms {
+    #[cfg(test)]
     pub(super) fn new(
         representation: &Representation,
         bounds: Aabb,
-        overlay_volume: Option<&DensityVolume>,
+        overlay_volume: Option<&ScalarVolume>,
+    ) -> Self {
+        Self::for_quality(representation, bounds, overlay_volume, true)
+    }
+
+    pub(super) fn for_quality(
+        representation: &Representation,
+        bounds: Aabb,
+        overlay_volume: Option<&ScalarVolume>,
+        quality: bool,
     ) -> Self {
         let gaussian = representation.params.surface_kind == SurfaceKind::Gaussian;
         let sigma = representation.params.gaussian_sigma.max(0.05);
+        let isolevel = if gaussian {
+            if representation.params.isolevel > 0.0 {
+                representation.params.isolevel.max(0.001)
+            } else {
+                0.5
+            }
+        } else {
+            representation.params.isolevel
+        };
         let probe = if representation.params.surface_kind == SurfaceKind::VanDerWaals {
             0.0
         } else if gaussian {
@@ -222,7 +270,12 @@ impl RepresentationUniforms {
         let maximum = bounds.max + Vec3::splat(probe);
         let extent = maximum - minimum;
         let max_divisions = dimension_f32(SURFACE_GRID_MAX_DIMENSION.saturating_sub(1));
-        let cell = (extent.max_element() / max_divisions).max(SURFACE_GRID_TARGET_SPACING);
+        let target_spacing = if quality {
+            SURFACE_GRID_TARGET_SPACING
+        } else {
+            SURFACE_GRID_REALTIME_SPACING
+        };
+        let cell = (extent.max_element() / max_divisions).max(target_spacing);
         let dimensions = [
             axis_cells(extent.x, cell),
             axis_cells(extent.y, cell),
@@ -231,18 +284,13 @@ impl RepresentationUniforms {
         let total = dimensions.iter().copied().fold(1u32, u32::saturating_mul);
         let overlay = overlay_uniforms(representation, overlay_volume);
         Self {
-            surface: [
-                probe,
-                representation.params.isolevel,
-                if gaussian { sigma } else { 0.02 },
-                0.02,
-            ],
+            surface: [probe, isolevel, if gaussian { sigma } else { 0.02 }, 0.02],
             grid_min: [minimum.x, minimum.y, minimum.z, 0.0],
             grid_cell: [cell, cell, cell, 0.0],
             options: [
                 representation.params.surface_kind as u32,
-                24,
-                32,
+                march_steps(dimensions),
+                u32::from(PROBE_SAMPLE_COUNT),
                 representation.params.surface_style as u32,
             ],
             grid_size: [dimensions[0], dimensions[1], dimensions[2], total],
@@ -250,7 +298,13 @@ impl RepresentationUniforms {
                 representation.params.point_size_pixels.max(1.0),
                 representation.params.surface_pattern_spacing.max(0.05),
                 representation.params.surface_pattern_width_pixels.max(0.25),
-                if representation.kind == pdviewx_core::RepresentationKind::Lines {
+                if representation.kind == pdviewx_core::RepresentationKind::Surface {
+                    if gaussian {
+                        0.0
+                    } else {
+                        representation.params.radius_scale.max(0.0)
+                    }
+                } else if representation.kind == pdviewx_core::RepresentationKind::Lines {
                     representation.params.line_width_pixels.max(0.5)
                 } else {
                     0.0
@@ -273,9 +327,11 @@ pub(super) fn write_representation_uniforms<D: Device>(
     buffer: &D::Buffer,
     representation: &Representation,
     bounds: Aabb,
-    overlay_volume: Option<&DensityVolume>,
+    overlay_volume: Option<&ScalarVolume>,
+    quality: bool,
 ) {
-    let value = RepresentationUniforms::new(representation, bounds, overlay_volume);
+    let value =
+        RepresentationUniforms::for_quality(representation, bounds, overlay_volume, quality);
     queue.write_buffer(buffer, 0, bytemuck::bytes_of(&value));
 }
 
@@ -289,7 +345,7 @@ struct OverlayUniforms {
 
 fn overlay_uniforms(
     representation: &Representation,
-    volume: Option<&DensityVolume>,
+    volume: Option<&ScalarVolume>,
 ) -> OverlayUniforms {
     let (Some(style), Some(volume)) = (representation.surface_scalar, volume) else {
         return OverlayUniforms {
@@ -344,6 +400,8 @@ pub(super) struct ClipUniforms {
     pub(super) planes: [[f32; 4]; MAX_CLIP_PLANES],
     pub(super) meta: [u32; 4],
     pub(super) material: [f32; 4],
+    pub(super) tube_mapping: [f32; 4],
+    pub(super) tube: [f32; 4],
 }
 
 impl ClipUniforms {
@@ -352,6 +410,8 @@ impl ClipUniforms {
             planes: clip_planes(clipping),
             meta: clip_meta(clipping),
             material: material_uniforms(material),
+            tube_mapping: [0.0; 4],
+            tube: [0.0; 4],
         }
     }
 
@@ -366,11 +426,30 @@ impl ClipUniforms {
     }
 
     pub(super) fn new(representation: &Representation) -> Self {
-        Self {
+        let mut value = Self {
             planes: clip_planes(&representation.clipping),
             meta: clip_meta(&representation.clipping),
             material: material_uniforms(representation.material),
+            tube_mapping: [0.0; 4],
+            tube: [
+                representation.params.tube_radius.abs().max(1.0e-6),
+                0.0,
+                0.0,
+                0.0,
+            ],
+        };
+        if matches!(
+            representation.kind,
+            pdviewx_core::RepresentationKind::Trace | pdviewx_core::RepresentationKind::Tube
+        ) && let Some((domain, radii)) = representation
+            .params
+            .tube_radius_mapping
+            .b_factor_parameters()
+        {
+            value.meta[3] = 1;
+            value.tube_mapping = [domain[0], domain[1], radii[0], radii[1]];
         }
+        value
     }
 }
 
