@@ -29,13 +29,10 @@ pub struct InteractionDescription {
     /// Optional normalized line-strength value.
     pub normalized_strength: Option<f32>,
     /// Optional deterministic presentation phase speed in pixels per frame.
-    #[serde(default)]
     pub phase_speed_pixels_per_frame: f32,
     /// Caller-computed age for optional presentation persistence decay.
-    #[serde(default)]
     pub persistence_age_frames: u32,
     /// Presentation half-life in frames; zero disables visual decay.
-    #[serde(default)]
     pub persistence_half_life_frames: f32,
     /// Source computation or dataset identifier.
     pub provenance: String,
