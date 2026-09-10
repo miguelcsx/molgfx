@@ -1,12 +1,12 @@
 use super::*;
 use pdviewx_core::{
-    DensityVolume, Representation, RepresentationKind, Scene, VolumeRendering, VolumeStyle,
+    Representation, RepresentationKind, ScalarVolume, Scene, VolumeRendering, VolumeStyle,
 };
 use std::sync::Arc;
 
 #[test]
 fn isosurface_mode_and_level_are_packed_independently_of_the_grid() {
-    let volume = match DensityVolume::new(
+    let volume = match ScalarVolume::new(
         [2, 2, 2],
         Mat4::IDENTITY,
         Arc::from([0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0]),
@@ -38,7 +38,7 @@ fn isosurface_mode_and_level_are_packed_independently_of_the_grid() {
 
 #[test]
 fn participating_medium_is_an_explicit_volume_algorithm() {
-    let volume = match DensityVolume::new([2, 2, 2], Mat4::IDENTITY, Arc::from([0.5; 8])) {
+    let volume = match ScalarVolume::new([2, 2, 2], Mat4::IDENTITY, Arc::from([0.5; 8])) {
         Ok(volume) => volume,
         Err(error) => panic!("medium volume builds: {error}"),
     };
@@ -61,7 +61,7 @@ fn participating_medium_is_an_explicit_volume_algorithm() {
 
 #[test]
 fn liquid_surface_mode_keeps_the_caller_grid_and_selects_the_surface_branch() {
-    let volume = match DensityVolume::new([2, 2, 2], Mat4::IDENTITY, Arc::from([0.5; 8])) {
+    let volume = match ScalarVolume::new([2, 2, 2], Mat4::IDENTITY, Arc::from([0.5; 8])) {
         Ok(volume) => volume,
         Err(error) => panic!("liquid volume builds: {error}"),
     };
@@ -87,7 +87,7 @@ fn liquid_surface_mode_keeps_the_caller_grid_and_selects_the_surface_branch() {
 
 #[test]
 fn arbitrary_slice_plane_is_packed_in_world_space() {
-    let volume = match DensityVolume::new([2, 2, 2], Mat4::IDENTITY, Arc::from([0.5; 8])) {
+    let volume = match ScalarVolume::new([2, 2, 2], Mat4::IDENTITY, Arc::from([0.5; 8])) {
         Ok(volume) => volume,
         Err(error) => panic!("slice volume builds: {error}"),
     };
@@ -121,7 +121,7 @@ fn arbitrary_slice_plane_is_packed_in_world_space() {
 
 #[test]
 fn cropped_volume_bounds_are_packed_as_a_half_open_region() {
-    let volume = match DensityVolume::new([8, 9, 10], Mat4::IDENTITY, Arc::from([0.5; 720])) {
+    let volume = match ScalarVolume::new([8, 9, 10], Mat4::IDENTITY, Arc::from([0.5; 720])) {
         Ok(volume) => volume,
         Err(error) => panic!("crop volume builds: {error}"),
     };
