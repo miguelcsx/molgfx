@@ -172,24 +172,6 @@ impl Material {
         if !self.opacity.is_finite() {
             return u8::MAX;
         }
-        let target = self.opacity.clamp(0.0, 1.0) * 255.0;
-        let mut low = 0u16;
-        let mut high = u16::from(u8::MAX);
-        while low < high {
-            let middle = (low + high).div_ceil(2);
-            if f32::from(middle) <= target {
-                low = middle;
-            } else {
-                high = middle - 1;
-            }
-        }
-        let lower = low;
-        let upper = (low + 1).min(u16::from(u8::MAX));
-        let selected = if target - f32::from(lower) < f32::from(upper) - target {
-            lower
-        } else {
-            upper
-        };
-        u8::try_from(selected).map_or(u8::MAX, |value| value)
+        pdviewx_math::unorm8(self.opacity)
     }
 }

@@ -2,8 +2,9 @@
 
 use super::{ColorScheme, Material, Representation, RepresentationKind, RepresentationParams};
 use crate::{
-    ClipSet, PropertyAppearance, RepresentationTarget, SegmentationStyle, SurfaceKind,
-    SurfaceScalarOverlay, SurfaceStyle, VolumeStyle,
+    ClipSet, CoreError, PropertyAppearance, RepresentationTarget, SegmentationStyle,
+    SurfaceComponentPolicy, SurfaceKind, SurfaceScalarOverlay, SurfaceStyle, TubeRadiusMapping,
+    VisualStyle, VolumeStyle,
 };
 
 /// A reusable, target-independent representation recipe.
@@ -23,6 +24,7 @@ pub struct RepresentationConfig {
     surface_scalar: Option<SurfaceScalarOverlay>,
     visible: bool,
     order: u16,
+    visual: Option<VisualStyle>,
 }
 
 impl RepresentationConfig {
@@ -41,6 +43,7 @@ impl RepresentationConfig {
             surface_scalar: None,
             visible: true,
             order: 0,
+            visual: None,
         }
     }
 
@@ -85,6 +88,52 @@ impl RepresentationConfig {
         self
     }
 
+    /// Uses one constant radius for a trace or tube spline.
+    ///
+    /// # Errors
+    ///
+    /// The radius must be finite and strictly positive, and this operation is
+    /// only meaningful for [`RepresentationKind::Trace`] and
+    /// [`RepresentationKind::Tube`].
+    pub fn tube_radius(mut self, radius: f32) -> Result<Self, CoreError> {
+        self.validate_tube_kind()?;
+        if !radius.is_finite() || radius <= 0.0 {
+            return Err(CoreError::InvalidProperty {
+                reason: "tube radius must be finite and strictly positive",
+            });
+        }
+        self.params.tube_radius = radius;
+        self.params.tube_radius_mapping = TubeRadiusMapping::Constant;
+        Ok(self)
+    }
+
+    /// Maps backbone B factors to a variable-radius putty tube on the GPU.
+    ///
+    /// The source values remain attached to guide atoms; changing this mapping
+    /// does not rebuild spline geometry or copy the coordinate column.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed validation error for a non-tube representation or an
+    /// invalid domain/radius pair.
+    pub fn putty_b_factor(mut self, domain: [f32; 2], radii: [f32; 2]) -> Result<Self, CoreError> {
+        self.validate_tube_kind()?;
+        self.params.tube_radius_mapping = TubeRadiusMapping::b_factor(domain, radii)?;
+        Ok(self)
+    }
+
+    fn validate_tube_kind(&self) -> Result<(), CoreError> {
+        if matches!(
+            self.kind,
+            RepresentationKind::Trace | RepresentationKind::Tube
+        ) {
+            return Ok(());
+        }
+        Err(CoreError::InvalidProperty {
+            reason: "tube radius controls require a trace or tube representation",
+        })
+    }
+
     /// Sets the scalar level for molecular or volume isosurfaces.
     #[must_use]
     pub const fn isolevel(mut self, level: f32) -> Self {
@@ -98,6 +147,27 @@ impl RepresentationConfig {
         self.params.surface_kind = kind;
         self.params.surface_style = style;
         self
+    }
+
+    /// Filters small disconnected components from the sampled surface field.
+    ///
+    /// The policy is evaluated on GPU-resident working-set voxels. It does not
+    /// enumerate the logical dataset or materialize a triangle surface.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed property error when applied to a non-surface recipe.
+    pub fn hide_small_disconnected_components(
+        mut self,
+        policy: SurfaceComponentPolicy,
+    ) -> Result<Self, CoreError> {
+        if self.kind != RepresentationKind::Surface {
+            return Err(CoreError::InvalidProperty {
+                reason: "surface component filtering requires a surface representation",
+            });
+        }
+        self.params.surface_components = policy;
+        Ok(self)
     }
 
     /// Applies reversible scalar-to-opacity and softness encoding.
@@ -135,6 +205,17 @@ impl RepresentationConfig {
         self
     }
 
+    /// Applies one safe declarative visual program.
+    #[must_use]
+    pub fn visual(mut self, visual: VisualStyle) -> Self {
+        self.visual = Some(visual);
+        self
+    }
+
+    pub(crate) fn visual_style(&self) -> Option<&VisualStyle> {
+        self.visual.as_ref()
+    }
+
     pub(crate) fn bind(self, target: RepresentationTarget) -> Representation {
         let mut representation = Representation::new(target, self.kind);
         representation.color = self.color;
@@ -147,6 +228,7 @@ impl RepresentationConfig {
         representation.surface_scalar = self.surface_scalar;
         representation.visible = self.visible;
         representation.order = self.order;
+        representation.visual = self.visual;
         representation
     }
 }
@@ -200,6 +282,16 @@ impl Representation {
         RepresentationKind::Tube.into()
     }
 
+    /// B-factor-driven variable-radius tube with validated endpoint radii.
+    ///
+    /// # Errors
+    ///
+    /// The domain must increase and radii must be finite, positive and
+    /// distinct.
+    pub fn putty(domain: [f32; 2], radii: [f32; 2]) -> Result<RepresentationConfig, CoreError> {
+        Self::tube().putty_b_factor(domain, radii)
+    }
+
     /// Molecular implicit surface.
     #[must_use]
     pub fn surface() -> RepresentationConfig {
@@ -230,7 +322,7 @@ impl Representation {
         RepresentationKind::Twister.into()
     }
 
-    /// Filled nucleotide or carbohydrate rings.
+    /// Pucker-coloured ring bipyramids.
     #[must_use]
     pub fn paper_chain() -> RepresentationConfig {
         RepresentationKind::PaperChain.into()
