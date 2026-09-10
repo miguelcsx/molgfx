@@ -11,6 +11,8 @@ struct ShadowSphereVsOut {
 
     // xyz = light-space center, w = radius².
     @location(1) @interpolate(flat, first) center_radius_sq: vec4f,
+    @location(2) @interpolate(flat, first) color: vec4f,
+    @location(3) @interpolate(flat, first) entity_id: u32,
 }
 
 @vertex
@@ -47,6 +49,8 @@ fn vs_shadow_sphere(
             center,
             radius * radius,
         ),
+        atom_visual_color(atom.entity_id, atom.color),
+        atom.entity_id,
     );
 }
 
@@ -97,11 +101,35 @@ fn fs_shadow_sphere(
         discard;
     }
 
-    return shadow_depth(
-        vec3f(
-            in.light_xy,
-            hit_z,
-        )
+    if VISUAL_PROGRAM_ENABLED {
+        let light_position = vec3f(in.light_xy, hit_z);
+        let world_position = shadow_world_position(light_position);
+        let light_normal = normalize(light_position - in.center_radius_sq.xyz);
+        let world_normal = normalize(
+            frame.shadow_inv_view[0].xyz * light_normal.x
+                + frame.shadow_inv_view[1].xyz * light_normal.y
+                + frame.shadow_inv_view[2].xyz * light_normal.z
+        );
+        let visual = visual_fragment(
+            in.entity_id,
+            in.color,
+            visual_local_position(world_position),
+            world_position,
+            world_normal,
+        );
+        if !visual.visible || visual.color.a <= 0.0 {
+            discard;
+        }
+    }
+
+    return stable_entity_depth(
+        shadow_depth(
+            vec3f(
+                in.light_xy,
+                hit_z,
+            )
+        ),
+        in.entity_id,
     );
 }
 
@@ -117,6 +145,9 @@ struct ShadowBondVsOut {
     @location(1) @interpolate(flat, first) endpoint_a: vec3f,
     @location(2) @interpolate(flat, first) endpoint_b: vec3f,
     @location(3) @interpolate(flat, first) radius: f32,
+    @location(4) @interpolate(flat, first) atom_entities: vec2u,
+    @location(5) @interpolate(flat, first) color_a: vec4f,
+    @location(6) @interpolate(flat, first) color_b: vec4f,
 }
 
 @vertex
@@ -145,6 +176,9 @@ fn vs_shadow_bond(
 
     let radius =
         abs(bond.radius);
+
+    let atom_a = atoms[bond.atom_a];
+    let atom_b = atoms[bond.atom_b];
 
     // Construct the bounding rectangle directly in light-view units.
     // No project -> NDC -> inverse-project round trip is required.
@@ -184,6 +218,9 @@ fn vs_shadow_bond(
         endpoint_a,
         endpoint_b,
         radius,
+        vec2u(atom_a.entity_id, atom_b.entity_id),
+        atom_visual_color(atom_a.entity_id, atom_a.color),
+        atom_visual_color(atom_b.entity_id, atom_b.color),
     );
 }
 
@@ -207,6 +244,36 @@ fn fs_shadow_bond(
 
     if t <= 0.0 {
         discard;
+    }
+
+    if VISUAL_PROGRAM_ENABLED {
+        let light_position = vec3f(in.light_xy, -t);
+        let axis = in.endpoint_b - in.endpoint_a;
+        let along = clamp(
+            dot(light_position - in.endpoint_a, axis) / max(dot(axis, axis), 1.0e-8),
+            0.0,
+            1.0,
+        );
+        let nearest = in.endpoint_a + axis * along;
+        let light_normal = normalize(light_position - nearest);
+        let world_position = shadow_world_position(light_position);
+        let world_normal = normalize(
+            frame.shadow_inv_view[0].xyz * light_normal.x
+                + frame.shadow_inv_view[1].xyz * light_normal.y
+                + frame.shadow_inv_view[2].xyz * light_normal.z
+        );
+        let entity_id = select(in.atom_entities.x, in.atom_entities.y, along >= 0.5);
+        let base_color = mix(in.color_a, in.color_b, along);
+        let visual = visual_fragment(
+            entity_id,
+            base_color,
+            visual_local_position(world_position),
+            world_position,
+            world_normal,
+        );
+        if !visual.visible || visual.color.a <= 0.0 {
+            discard;
+        }
     }
 
     // No hit reconstruction / matrix transform needed:

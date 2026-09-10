@@ -15,6 +15,7 @@ struct ShadowPrimitiveVsOut {
     @location(3) @interpolate(flat, first) size: vec3f,
     @location(4) @interpolate(flat, first) inverse_primary: vec4f,
     @location(5) @interpolate(flat, first) inverse_cross: vec4f,
+    @location(6) @interpolate(flat, first) shape: u32,
 }
 
 @vertex
@@ -66,6 +67,8 @@ fn vs_shadow_primitive(
     out.inverse_cross =
         vec4f(0.0);
 
+    out.shape = 0u;
+
     // Only vertices 0 and 3 provide flat data for the independent triangles.
     if shadow_flat_source(vertex) {
         out.world_center =
@@ -81,15 +84,32 @@ fn vs_shadow_primitive(
                 shadow_primitives[instance]
                     .inverse_cross;
         } else {
-            out.size =
+            out.size = shadow_primitive_size(
                 shadow_primitives[instance]
-                    .size_opacity.xyz;
+                    .size_opacity.xyz
+            );
 
             if SHADOW_PRIMITIVE_KIND !=
                 SHADOW_KIND_PARTICLE_SPHERE {
                 out.orientation =
                     shadow_primitives[instance]
                         .orientation;
+            }
+
+            if SHADOW_PRIMITIVE_KIND ==
+                SHADOW_KIND_POLYGON_PENTAGON ||
+                SHADOW_PRIMITIVE_KIND ==
+                SHADOW_KIND_POLYGON_HEXAGON {
+                out.shape =
+                    shadow_primitives[instance]
+                        .metadata.w;
+            }
+
+            if SHADOW_PRIMITIVE_KIND ==
+                SHADOW_KIND_PARTICLE_SUPERQUADRIC {
+                out.inverse_primary =
+                    shadow_primitives[instance]
+                        .inverse_primary;
             }
         }
     }
@@ -249,6 +269,10 @@ fn shadow_local_ray(
     );
 }
 
+//!include "include/shadow/polygon.wgsl"
+//!include "include/shadow/planar_proxy.wgsl"
+//!include "include/shadow/superquadric.wgsl"
+
 fn shadow_box_t(
     in: ShadowPrimitiveVsOut,
     origin: vec3f,
@@ -390,6 +414,46 @@ fn shadow_primitive_t(
 
         case SHADOW_KIND_PARTICLE_SPHEROCYLINDER: {
             return shadow_particle_spherocylinder_t(
+                in,
+                origin,
+                direction,
+            );
+        }
+
+        case SHADOW_KIND_POLYGON_PENTAGON: {
+            return shadow_polygon_t(
+                in,
+                origin,
+                direction,
+            );
+        }
+
+        case SHADOW_KIND_POLYGON_HEXAGON: {
+            return shadow_polygon_t(
+                in,
+                origin,
+                direction,
+            );
+        }
+
+        case SHADOW_KIND_PARTICLE_CIRCLE: {
+            return shadow_particle_cylinder_t(
+                in,
+                origin,
+                direction,
+            );
+        }
+
+        case SHADOW_KIND_PARTICLE_SQUARE: {
+            return shadow_box_t(
+                in,
+                origin,
+                direction,
+            );
+        }
+
+        case SHADOW_KIND_PARTICLE_SUPERQUADRIC: {
+            return shadow_superquadric_t(
                 in,
                 origin,
                 direction,
