@@ -1,7 +1,9 @@
 //! Higher-level semantic scene compositions.
 
-pub(crate) mod difference;
-pub(crate) mod ensemble;
+pub(crate) mod generic;
 
-pub use difference::{AtomCorrespondence, DifferenceScene, DifferenceStyle, DifferenceView};
-pub use ensemble::{EnsembleScene, EnsembleStyle, EnsembleView, ProbabilityCloudView};
+pub use generic::{
+    CompositionError, DifferenceCompositionStyle, DifferenceLayer, EnsembleCompositionStyle,
+    EnsembleLayer, FocusCompositionStyle, FocusLayer, GenericCompositionScene,
+    GenericCompositionView,
+};
