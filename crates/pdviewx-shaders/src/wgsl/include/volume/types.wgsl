@@ -43,8 +43,7 @@ struct VolumeUniforms {
 
 @group(2) @binding(0) var density_texture: texture_3d<f32>;
 @group(2) @binding(1) var<uniform> volume: VolumeUniforms;
-@group(2) @binding(2) var empty_space_minimum_texture: texture_3d<f32>;
-@group(2) @binding(3) var empty_space_maximum_texture: texture_3d<f32>;
+@group(2) @binding(2) var empty_space_bounds_texture: texture_3d<f32>;
 
 struct VolumeVsOut {
     @builtin(position) position: vec4f,
