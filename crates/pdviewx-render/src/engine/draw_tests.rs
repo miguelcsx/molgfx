@@ -296,7 +296,7 @@ fn structure_scoped_selection_creates_no_draw_for_equal_rows_elsewhere() {
 }
 
 #[test]
-fn primitives_share_one_analytic_table_and_transparency_route() {
+fn heterogeneous_primitives_use_exact_shadow_ranges_and_transparency_route() {
     let source = structure();
     let mut scene = match Scene::from_structure(&source) {
         Ok(scene) => scene,
@@ -377,21 +377,20 @@ fn primitives_share_one_analytic_table_and_transparency_route() {
     assert!(engine.scene_gpu.has_transparent_primitives());
     assert!(engine.scene_gpu.has_translucency());
 
-    // Shadows draw the whole shape-sorted table once, indirectly.
+    // Primitive shadows no longer reinterpret the whole heterogeneous table
+    // through one ellipsoid pipeline or allocate indirect arguments.
     let Ok(indirect) = engine.device.log.indirect_draws.lock() else {
         panic!("log lock")
     };
     assert_eq!(
         indirect.len(),
-        1,
-        "the primitive shadow route draws the shared table once"
+        0,
+        "heterogeneous primitive shadows use direct class ranges"
     );
 
-    // The gbuffer and transparency passes specialize per shape, so each of the
-    // four primitives — opaque ellipsoid, opaque polygon, translucent box and
-    // translucent particle — is one direct instanced draw of the impostor
-    // quad. No other geometry in this scene expands to six vertices.
-    assert_primitive_draws_cover_every_row(&engine, 4);
+    // Opaque ellipsoid and polygon rows appear once in the shadow pass and once
+    // in the gbuffer. Translucent box and Gaussian rows appear only in OIT.
+    assert_primitive_draws_cover_expected_rows(&engine);
 
     let Ok(dispatches) = engine.device.log.dispatches.lock() else {
         panic!("log lock")
@@ -405,7 +404,7 @@ fn primitives_share_one_analytic_table_and_transparency_route() {
 
 /// Asserts every packed primitive is drawn exactly once by a specialized
 /// six-vertex impostor draw, and that the sorted classes tile the table rows.
-fn assert_primitive_draws_cover_every_row(engine: &Engine<MockDevice>, rows: u32) {
+fn assert_primitive_draws_cover_expected_rows(engine: &Engine<MockDevice>) {
     let Ok(direct) = engine.device.log.draws.lock() else {
         panic!("log lock")
     };
@@ -414,17 +413,12 @@ fn assert_primitive_draws_cover_every_row(engine: &Engine<MockDevice>, rows: u32
         .filter(|(vertices, _)| *vertices == (0..6))
         .map(|(_, instances)| instances.clone())
         .collect::<Vec<_>>();
-    assert_eq!(
-        instances.len(),
-        rows as usize,
-        "each primitive class is drawn once by its specialized pipeline"
-    );
-    instances.sort_by_key(|range| range.start);
-    let covered = instances.iter().cloned().flatten().collect::<Vec<_>>();
+    let mut covered = instances.drain(..).flatten().collect::<Vec<_>>();
+    covered.sort_unstable();
     assert_eq!(
         covered,
-        (0..rows).collect::<Vec<_>>(),
-        "the sorted classes cover every table row exactly once"
+        vec![0, 0, 1, 1, 2, 3],
+        "opaque rows cast once and all rows remain visible exactly once"
     );
 }
 
