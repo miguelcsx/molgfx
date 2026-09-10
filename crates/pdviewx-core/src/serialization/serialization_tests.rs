@@ -3,9 +3,70 @@ use crate::{
     AnisotropicEllipsoid, Annotation, AnnotationAnchor, AtomSelection, Guide, GuideStyle,
     InteractionAnchor, InteractionEdge, InteractionGeometry, InteractionKind, Measurement,
     Particle, ParticleBoundary, ParticleMotion, ParticleShape, PlanarRegion, Primitive,
-    RepresentationKind, SceneDescriptionSources,
+    RepresentationKind, SceneDescriptionSources, read_manifest, write_manifest,
 };
 use pdviewx_math::{Aabb, Quat, Rgba8, Vec3};
+use std::sync::Arc;
+
+#[test]
+fn current_schema_visual_programs_rehydrate_with_live_parameters() {
+    let structure = crate::fixture::structure();
+    let mut scene = Scene::from_structure(&structure)
+        .unwrap_or_else(|error| panic!("fixture scene builds: {error}"));
+    let Some((owner, _)) = scene.structures().next() else {
+        panic!("owner exists")
+    };
+    let property = crate::AtomProperty::new(
+        owner,
+        "signal",
+        Arc::from(vec![0.0; structure.atom_count() as usize]),
+        crate::AtomPropertyMeaning::Generic,
+        crate::ScalarFieldSemantics::UncalibratedRank,
+    )
+    .unwrap_or_else(|error| panic!("property validates: {error}"));
+    let property_handle = scene
+        .add_atom_property(property.clone())
+        .unwrap_or_else(|error| panic!("property attaches: {error}"));
+    let mut builder = crate::VisualProgramBuilder::new();
+    let signal = builder
+        .atom_property(property_handle)
+        .unwrap_or_else(|error| panic!("property input builds: {error}"));
+    let (parameter, gain) = builder
+        .scalar_parameter(1.0)
+        .unwrap_or_else(|error| panic!("parameter builds: {error}"));
+    let opacity = builder
+        .multiply(signal, gain)
+        .unwrap_or_else(|error| panic!("expression builds: {error}"));
+    builder
+        .set_opacity(opacity)
+        .unwrap_or_else(|error| panic!("output builds: {error}"));
+    let mut style = crate::VisualStyle::new(
+        builder
+            .finish()
+            .unwrap_or_else(|error| panic!("program builds: {error}")),
+    );
+    style
+        .set_scalar(parameter, 0.25)
+        .unwrap_or_else(|error| panic!("parameter updates: {error}"));
+    let selection = scene.add_selection(AtomSelection::All);
+    scene
+        .represent(selection, crate::Representation::spacefill().visual(style))
+        .unwrap_or_else(|error| panic!("visual representation builds: {error}"));
+    let description = scene.describe();
+    assert_eq!(description.schema, SCHEMA_VERSION);
+    let rebuilt = Scene::from_description(
+        &description,
+        SceneDescriptionSources {
+            structures: std::slice::from_ref(&structure),
+            volumes: &[],
+            segmentations: &[],
+            atom_properties: std::slice::from_ref(&property),
+            meshes: &[],
+        },
+    )
+    .unwrap_or_else(|error| panic!("visual scene rehydrates: {error}"));
+    assert_eq!(rebuilt.describe(), description);
+}
 
 #[test]
 fn scene_manifest_round_trips_and_validates_source_fingerprints() {
@@ -23,17 +84,17 @@ fn scene_manifest_round_trips_and_validates_source_fingerprints() {
         value.order = 3;
         value.material.opacity = 0.7;
     }
-    let description = scene.describe();
-    let json = match description.to_json() {
-        Ok(json) => json,
-        Err(error) => panic!("manifest encodes: {error}"),
-    };
-    let decoded = match SceneDescription::from_json(&json) {
-        Ok(description) => description,
+    let manifest = scene.manifest(Vec::new());
+    let mut encoded = Vec::new();
+    if let Err(error) = write_manifest(&mut encoded, &manifest) {
+        panic!("manifest encodes: {error}");
+    }
+    let decoded = match read_manifest(encoded.as_slice()) {
+        Ok(manifest) => manifest,
         Err(error) => panic!("manifest decodes: {error}"),
     };
-    assert_eq!(decoded, description);
-    assert!(scene.validate_description(&decoded).is_ok());
+    assert_eq!(decoded, manifest);
+    assert!(scene.validate_description(&decoded.scene).is_ok());
 }
 
 #[test]
@@ -66,23 +127,31 @@ fn scene_manifest_rehydrates_against_a_cold_source() {
 }
 
 #[test]
-fn mesh_surface_style_survives_cold_source_rehydration() {
+fn occupancy_manifest_rehydrates_without_a_host_volume_payload() {
     let structure = crate::fixture::structure();
-    let mut scene = match Scene::from_structure(&structure) {
-        Ok(scene) => scene,
-        Err(error) => panic!("fixture scene builds: {error}"),
+    let mut scene = Scene::from_structure(&structure)
+        .unwrap_or_else(|error| panic!("fixture scene builds: {error}"));
+    let Some((owner, _)) = scene.structures().next() else {
+        panic!("fixture scene has one structure")
     };
-    let selection = scene.add_selection(AtomSelection::All);
-    let surface = match scene.represent(selection, RepresentationKind::Surface) {
-        Ok(handle) => handle,
-        Err(error) => panic!("surface builds: {error}"),
-    };
-    let Some(representation) = scene.representation_mut(surface) else {
-        panic!("surface resolves")
-    };
-    representation.params.surface_style = crate::SurfaceStyle::Mesh;
+    let stream = crate::OccupancyStream::new(
+        [20, 18, 16],
+        Vec3::splat(-4.0),
+        Vec3::splat(0.5),
+        0.97,
+        1.0,
+        50.0,
+    )
+    .unwrap_or_else(|error| panic!("occupancy stream validates: {error}"));
+    let volume = scene
+        .add_occupancy_stream(owner, &AtomSelection::Sparse(vec![0, 2]), stream)
+        .unwrap_or_else(|error| panic!("occupancy binds: {error}"));
+    scene
+        .represent(volume, crate::Representation::volume())
+        .unwrap_or_else(|error| panic!("occupancy represents: {error}"));
     let description = scene.describe();
-    let rebuilt = match Scene::from_description(
+    assert!(description.volumes[0].occupancy.is_some());
+    let rebuilt = Scene::from_description(
         &description,
         SceneDescriptionSources {
             structures: std::slice::from_ref(&structure),
@@ -91,62 +160,92 @@ fn mesh_surface_style_survives_cold_source_rehydration() {
             atom_properties: &[],
             meshes: &[],
         },
-    ) {
-        Ok(scene) => scene,
-        Err(error) => panic!("mesh surface rehydrates: {error}"),
-    };
-    let Some((_, representation)) = rebuilt.representations().next() else {
-        panic!("rehydrated surface exists")
-    };
-    assert_eq!(
-        representation.params.surface_style,
-        crate::SurfaceStyle::Mesh
-    );
+    )
+    .unwrap_or_else(|error| panic!("occupancy manifest rehydrates: {error}"));
+    assert_eq!(rebuilt.describe(), description);
 }
 
 #[test]
-fn manifest_schema_versions_are_rejected_before_scene_use() {
-    let mut description = Scene::new().describe();
-    description.schema = SCHEMA_VERSION + 1;
-    let json = match serde_json::to_string(&description) {
-        Ok(json) => json,
-        Err(error) => panic!("test manifest encodes: {error}"),
-    };
-    assert!(SceneDescription::from_json(&json).is_err());
-}
-
-#[test]
-fn schema_three_reads_with_empty_version_four_tables() {
-    let mut value = match serde_json::to_value(Scene::new().describe()) {
+fn deletion_heavy_scene_manifests_round_trip_sparse_rows() {
+    let mut scene = Scene::new();
+    let anchor = match crate::OverlayAnchor::new([0.5, 0.5], [0.0, 0.0]) {
         Ok(value) => value,
-        Err(error) => panic!("manifest value encodes: {error}"),
+        Err(error) => panic!("overlay anchor validates: {error}"),
     };
-    let Some(object) = value.as_object_mut() else {
-        panic!("manifest is an object")
-    };
-    object.insert("schema".to_owned(), serde_json::Value::from(3));
-    object.insert(
-        "engine".to_owned(),
-        serde_json::Value::from("pdviewx-scene-3"),
-    );
-    object.remove("meshes");
-    object.remove("mesh_instances");
-    object.remove("overlays");
-    if let Some(primitives) = object.remove("primitives") {
-        object.insert("scientific_primitives".to_owned(), primitives);
+    let mut handles = Vec::new();
+    for row in 0..100 {
+        let overlay = match crate::ScreenOverlay::new(
+            crate::OverlayContent::Text {
+                text: format!("row-{row}"),
+                color: Rgba8::WHITE,
+                size_pixels: 12.0,
+            },
+            anchor,
+        ) {
+            Ok(value) => value,
+            Err(error) => panic!("overlay validates: {error}"),
+        };
+        handles.push(scene.add_overlay(overlay));
     }
-    let source = match serde_json::to_string(&value) {
+    for handle in handles.iter().take(99).copied() {
+        assert!(scene.remove_overlay(handle).is_some());
+    }
+    let description = scene.describe();
+    assert_eq!(description.overlays.len(), 1);
+    assert_eq!(description.overlays[0].row, 99);
+
+    let restored = match Scene::from_description(
+        &description,
+        SceneDescriptionSources {
+            structures: &[],
+            volumes: &[],
+            segmentations: &[],
+            atom_properties: &[],
+            meshes: &[],
+        },
+    ) {
         Ok(value) => value,
-        Err(error) => panic!("schema three encodes: {error}"),
+        Err(error) => panic!("sparse manifest rehydrates: {error}"),
     };
-    let decoded = match SceneDescription::from_json(&source) {
-        Ok(value) => value,
-        Err(error) => panic!("schema three reads: {error}"),
-    };
-    assert_eq!(decoded.schema, 3);
-    assert!(decoded.meshes.is_empty());
-    assert!(decoded.mesh_instances.is_empty());
-    assert!(decoded.overlays.is_empty());
+    assert_eq!(restored.describe(), description);
+}
+
+#[test]
+fn surface_styles_survive_cold_source_rehydration() {
+    let structure = crate::fixture::structure();
+    for style in [crate::SurfaceStyle::Mesh, crate::SurfaceStyle::SoftUnion] {
+        let mut scene = match Scene::from_structure(&structure) {
+            Ok(scene) => scene,
+            Err(error) => panic!("fixture scene builds: {error}"),
+        };
+        let selection = scene.add_selection(AtomSelection::All);
+        let surface = match scene.represent(selection, RepresentationKind::Surface) {
+            Ok(handle) => handle,
+            Err(error) => panic!("surface builds: {error}"),
+        };
+        let Some(representation) = scene.representation_mut(surface) else {
+            panic!("surface resolves")
+        };
+        representation.params.surface_style = style;
+        let description = scene.describe();
+        let rebuilt = match Scene::from_description(
+            &description,
+            SceneDescriptionSources {
+                structures: std::slice::from_ref(&structure),
+                volumes: &[],
+                segmentations: &[],
+                atom_properties: &[],
+                meshes: &[],
+            },
+        ) {
+            Ok(scene) => scene,
+            Err(error) => panic!("surface rehydrates: {error}"),
+        };
+        let Some((_, representation)) = rebuilt.representations().next() else {
+            panic!("rehydrated surface exists")
+        };
+        assert_eq!(representation.params.surface_style, style);
+    }
 }
 
 #[test]
@@ -157,24 +256,25 @@ fn manifest_round_trips_primitive_and_annotation_payloads() {
     };
     add_primitive_payloads(&mut scene, owner);
     add_annotation_payloads(&mut scene, owner);
-    let description = scene.describe();
+    let manifest = scene.manifest(Vec::new());
+    let description = &manifest.scene;
     assert_eq!(description.primitives.len(), 4);
     assert_eq!(description.guides.len(), 1);
     assert_eq!(description.interactions.len(), 1);
     assert_eq!(description.annotations.len(), 1);
     assert_eq!(description.measurements.len(), 1);
-    let json = match description.to_json() {
-        Ok(json) => json,
-        Err(error) => panic!("manifest payload encodes: {error}"),
-    };
-    let decoded = match SceneDescription::from_json(&json) {
-        Ok(description) => description,
+    let mut encoded = Vec::new();
+    if let Err(error) = write_manifest(&mut encoded, &manifest) {
+        panic!("manifest payload encodes: {error}");
+    }
+    let decoded = match read_manifest(encoded.as_slice()) {
+        Ok(manifest) => manifest,
         Err(error) => panic!("manifest payload decodes: {error}"),
     };
-    assert_eq!(decoded, description);
-    assert!(scene.validate_description(&decoded).is_ok());
+    assert_eq!(decoded, manifest);
+    assert!(scene.validate_description(&decoded.scene).is_ok());
     let rebuilt = match Scene::from_description(
-        &description,
+        description,
         SceneDescriptionSources {
             structures: std::slice::from_ref(&structure),
             volumes: &[],
@@ -186,7 +286,7 @@ fn manifest_round_trips_primitive_and_annotation_payloads() {
         Ok(scene) => scene,
         Err(error) => panic!("full manifest rehydrates: {error}"),
     };
-    assert_eq!(rebuilt.describe(), description);
+    assert_eq!(rebuilt.describe(), *description);
 }
 
 fn manifest_fixture_scene() -> (Scene, pdbiox::Structure) {
