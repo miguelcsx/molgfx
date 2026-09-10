@@ -81,7 +81,7 @@ struct PrimitiveFsOut {
     @location(0) albedo_material: vec4f,
     @location(1) normal_roughness: vec4f,
     @location(2) entity_id: u32,
-    @location(3) structure_id: u32,
+    @location(3) resident_page: u32,
     @location(4) motion: vec2f,
     @builtin(frag_depth) depth: f32,
 }
