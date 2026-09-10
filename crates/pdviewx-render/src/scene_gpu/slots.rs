@@ -2,20 +2,22 @@
 
 mod bindings;
 mod draws;
-
-use super::buffers::{
-    count, ensure_indices, upload_grow, write_args, write_counts, write_draw_args,
-};
+mod records;
+mod state;
+use super::quality_acceleration::QualityAcceleration;
 use super::ribbon_slot::{RibbonSlot, RibbonSync};
-use super::slot_types::{
-    RecordState, RecordUpload, RibbonState, SlotKey, SlotPlan, SlotShading, SlotSync, SlotSynced,
-};
+use super::slot_types::{SlotKey, SlotPlan, SlotShading, SlotSync, SlotSynced};
 use super::surface_slot::{SurfaceSlot, SurfaceSync};
-use super::uniforms::{RepresentationUniforms, write_representation_uniforms};
+use super::sync::selection_bounds::SelectionBoundsCache;
+use super::uniforms::write_representation_uniforms;
+use super::visual::{VisualBase, VisualSlot, VisualSync};
 use crate::error::RenderError;
-use pdviewx_core::{RepresentationKind, SurfaceKind};
-use pdviewx_gpu::{BufferDesc, BufferUsage, Device};
+use bindings::{CullBinding, RepresentationBinding};
+use pdviewx_core::RepresentationKind;
+use pdviewx_gpu::Device;
+use state::{is_spline, shading, synced_state};
 
+const FAST_POINT_INDEX_LIMIT: u32 = 1 << 24;
 #[derive(Debug)]
 pub(super) struct GpuSlot<D: Device> {
     pub(super) key: SlotKey,
@@ -29,7 +31,10 @@ pub(super) struct GpuSlot<D: Device> {
     representation_uniforms: Option<D::Buffer>,
     surface: SurfaceSlot<D>,
     group2: Option<D::BindGroup>,
-    cull_group: Option<D::BindGroup>,
+    quality_group: Option<D::BindGroup>,
+    atom_cull_group: Option<D::BindGroup>,
+    bond_cull_group: Option<D::BindGroup>,
+    visual_cull_group: Option<D::BindGroup>,
     visible_atoms: Option<D::Buffer>,
     visible_bonds: Option<D::Buffer>,
     counts: Option<D::Buffer>,
@@ -40,11 +45,14 @@ pub(super) struct GpuSlot<D: Device> {
     compaction_capacity: u64,
     visible_atoms_capacity: u64,
     visible_bonds_capacity: u64,
+    selection_bounds: SelectionBoundsCache,
     synced: Option<SlotSynced>,
     translucent: bool,
     kind: RepresentationKind,
     shading: SlotShading,
+    quality_acceleration: QualityAcceleration<D>,
     ribbon: RibbonSlot<D>,
+    visual: VisualSlot<D>,
 }
 impl<D: Device> GpuSlot<D> {
     pub(super) fn new(plan: SlotPlan) -> Self {
@@ -60,7 +68,10 @@ impl<D: Device> GpuSlot<D> {
             representation_uniforms: None,
             surface: SurfaceSlot::new(),
             group2: None,
-            cull_group: None,
+            quality_group: None,
+            atom_cull_group: None,
+            bond_cull_group: None,
+            visual_cull_group: None,
             visible_atoms: None,
             visible_bonds: None,
             counts: None,
@@ -71,53 +82,31 @@ impl<D: Device> GpuSlot<D> {
             compaction_capacity: 0,
             visible_atoms_capacity: 0,
             visible_bonds_capacity: 0,
+            selection_bounds: SelectionBoundsCache::new(),
             synced: None,
             translucent: false,
             shading: SlotShading::default(),
+            quality_acceleration: QualityAcceleration::new(),
             kind: RepresentationKind::Spacefill,
             ribbon: RibbonSlot::new(),
+            visual: VisualSlot::new(),
         }
     }
 
     pub(super) fn sync(&mut self, mut input: SlotSync<'_, D>) -> Result<bool, RenderError> {
-        let table = &input.placed.atoms;
-        let current = SlotSynced {
-            representation: input.representation_revision,
-            records: RecordState::new(input.representation),
-            ribbon: RibbonState::new(input.representation),
-            color: table.color().revision().get(),
-            flags: table.flags().revision().get(),
-            semantic: table.semantic().revision().get(),
-            properties: input.property_revisions,
-            secondary_structure: input.placed.secondary_structure.revision().get(),
-            structure_binding: input.structure_gpu.binding_revision,
-            coordinates: [
-                input.placed.atoms.coords().generation(),
-                input.placed.trajectory_revision(),
-            ],
-            spatial_bounds: [
-                input.placed.atoms.coords().generation(),
-                input.placed.trajectory_pair_revision(),
-            ],
-            overlay_binding: input.overlay_binding_revision,
-            cull_binding: input.cull_binding_revision,
-        };
+        let current = synced_state(&input);
         if self.synced == Some(current) {
             return Ok(false);
         }
+        let selection_bounds =
+            self.selection_bounds
+                .resolve(input.placed, input.representation, input.selection)?;
         self.translucent = input.representation.is_translucent();
         self.kind = input.representation.kind;
-        self.shading = SlotShading {
-            wire: input.representation.kind == RepresentationKind::Lines,
-            clipped: !input.representation.clipping.planes().is_empty(),
-            surface_grid: matches!(
-                input.representation.params.surface_kind,
-                SurfaceKind::SolventExcluded | SurfaceKind::Gaussian
-            ),
-        };
+        self.shading = shading(input.representation);
         let representation_changed = self
             .synced
-            .is_none_or(|old| old.representation != current.representation);
+            .is_none_or(|old| old.presentation != current.presentation);
         let records_changed = self.synced.is_none_or(|old| {
             old.records != current.records
                 || old.color != current.color
@@ -125,64 +114,213 @@ impl<D: Device> GpuSlot<D> {
                 || old.semantic != current.semantic
                 || old.properties != current.properties
         });
-        if is_spline(input.representation.kind) {
-            self.sync_cartoon(&mut input, &current, representation_changed)?;
+        let topology_changed = self
+            .synced
+            .is_none_or(|old| old.bond_topology != current.bond_topology);
+        let spatial_bounds_changed = self
+            .synced
+            .is_none_or(|old| old.spatial_bounds != current.spatial_bounds);
+        let placement_changed = self
+            .synced
+            .is_none_or(|old| old.placement_transform != current.placement_transform);
+        let ribbon_binding_changed = self.sync_drawable_resources(
+            &mut input,
+            &current,
+            selection_bounds,
+            representation_changed,
+            records_changed,
+            topology_changed,
+        )?;
+        if spatial_bounds_changed && !records_changed && !topology_changed && !is_spline(self.kind)
+        {
+            self.quality_acceleration.sync_coordinates(
+                input.device,
+                input.queue,
+                input.placed,
+                input.atoms,
+                input.bonds,
+                input.ray_query_layout,
+            )?;
+            self.bind_representation(&input);
+        }
+        if placement_changed && !spatial_bounds_changed {
+            self.quality_acceleration
+                .sync_placement(input.device, input.placed);
+        }
+        if self.cull_binding_changed(&current) {
+            self.bind_cull_input(&input);
+        }
+        let visual_changed = self.sync_visual(&input)?;
+        self.refresh_visual_bindings(&input, &current, ribbon_binding_changed, visual_changed);
+        self.sync_uniforms(&input, &current, selection_bounds, representation_changed);
+        self.synced = Some(current);
+        Ok(true)
+    }
+
+    fn sync_drawable_resources(
+        &mut self,
+        input: &mut SlotSync<'_, D>,
+        current: &SlotSynced,
+        selection_bounds: pdviewx_math::Aabb,
+        representation_changed: bool,
+        records_changed: bool,
+        topology_changed: bool,
+    ) -> Result<bool, RenderError> {
+        let binding_changed = if is_spline(input.representation.kind) {
+            self.sync_cartoon(input, current, representation_changed, selection_bounds)?
         } else if records_changed {
             self.ribbon.clear();
-            self.upload_records(&mut input.records())?;
+            self.upload_records(&mut input.records(selection_bounds))?;
+            false
+        } else if topology_changed {
+            self.upload_bonds(&mut input.records(selection_bounds))?;
+            false
         } else if self.kind == RepresentationKind::Surface
             && (representation_changed
                 || self.synced.is_none_or(|old| {
-                    old.coordinates != current.coordinates
+                    old.quality != current.quality
+                        || old.coordinates != current.coordinates
                         || old.overlay_binding != current.overlay_binding
                 }))
         {
             let coordinates_changed = self
                 .synced
                 .is_none_or(|old| old.coordinates != current.coordinates);
-            self.sync_surface_resources(&input, coordinates_changed)?;
-            self.bind(
-                input.device,
-                input.layout,
-                input.structure_gpu,
-                input.surface_field_fallback,
-                input.surface_provenance_fallback,
-                input.overlay_view,
-            );
+            let quality_changed = self.synced.is_none_or(|old| old.quality != current.quality);
+            self.sync_surface_resources(
+                input,
+                selection_bounds,
+                coordinates_changed || quality_changed,
+            )?;
+            self.bind_representation(input);
+            false
         } else if self.group2.is_none()
             || self.synced.is_none_or(|old| {
                 old.structure_binding != current.structure_binding
                     || old.overlay_binding != current.overlay_binding
+                    || old.visual_program_binding != current.visual_program_binding
+                    || old.visual_parameter_binding != current.visual_parameter_binding
+                    || old.visual_property_binding != current.visual_property_binding
             })
         {
-            self.bind(
-                input.device,
-                input.layout,
-                input.structure_gpu,
-                input.surface_field_fallback,
-                input.surface_provenance_fallback,
-                input.overlay_view,
-            );
+            self.bind_representation(input);
+            false
+        } else {
+            false
+        };
+        Ok(binding_changed)
+    }
+
+    fn refresh_visual_bindings(
+        &mut self,
+        input: &SlotSync<'_, D>,
+        current: &SlotSynced,
+        ribbon_binding_changed: bool,
+        visual_changed: bool,
+    ) {
+        if is_spline(self.kind) {
+            let visual_binding_changed = self.synced.is_none_or(|old| {
+                old.visual_program_binding != current.visual_program_binding
+                    || old.visual_parameter_binding != current.visual_parameter_binding
+                    || old.visual_property_binding != current.visual_property_binding
+            });
+            if ribbon_binding_changed || visual_changed || visual_binding_changed {
+                self.bind_ribbon(input);
+            }
+        } else if visual_changed {
+            self.bind_representation(input);
+            self.bind_cull_input(input);
         }
-        if self.cull_binding_changed(&current) {
-            self.bind_cull(
-                input.device,
-                input.cull_layout,
-                input.structure_gpu,
-                input.frame,
-                input.cull_tiles,
-            );
-        }
-        self.sync_uniforms(&input, &current, representation_changed);
-        self.synced = Some(current);
-        Ok(true)
+    }
+
+    fn bind_representation(&mut self, input: &SlotSync<'_, D>) {
+        self.bind(&RepresentationBinding {
+            device: input.device,
+            layout: input.layout,
+            quality_layout: input.quality_layout,
+            structure: input.structure_gpu,
+            asset_arena: input.asset_arena,
+            surface_field_fallback: input.surface_field_fallback,
+            surface_normal_fallback: input.surface_normal_fallback,
+            overlay: input.overlay_view,
+            visual_programs: input.visual_program_buffer,
+            visual_parameters: input.visual_parameter_buffer,
+            visual_properties: input.visual_property_buffer,
+        });
+    }
+
+    fn bind_cull_input(&mut self, input: &SlotSync<'_, D>) {
+        self.bind_cull(&CullBinding {
+            device: input.device,
+            atom_layout: input.atom_cull_layout,
+            bond_layout: input.bond_cull_layout,
+            visual_layout: input.visual_cull_layout,
+            structure: input.structure_gpu,
+            asset_arena: input.asset_arena,
+            frame: input.frame,
+            tiles: input.cull_tiles,
+            visual_programs: input.visual_program_buffer,
+            visual_parameters: input.visual_parameter_buffer,
+            visual_properties: input.visual_property_buffer,
+        });
+    }
+
+    fn bind_ribbon(&mut self, input: &SlotSync<'_, D>) {
+        let (Some(instructions), Some(parameters), Some(properties)) = (
+            input.visual_program_buffer,
+            input.visual_parameter_buffer,
+            input.visual_property_buffer,
+        ) else {
+            return;
+        };
+        let visual = self
+            .visual
+            .cull_entries(instructions, parameters, properties);
+        self.ribbon.bind(
+            input.device,
+            input.ribbon_layout,
+            input.structure_gpu,
+            input.asset_arena,
+            visual,
+        );
+    }
+
+    fn sync_visual(&mut self, input: &SlotSync<'_, D>) -> Result<bool, RenderError> {
+        let Some(parameter_buffer) = input.visual_parameter_buffer else {
+            return Err(pdviewx_gpu::GpuError::LimitExceeded {
+                resource: "visual parameter arena",
+                limit: 0,
+            }
+            .into());
+        };
+        self.visual.sync(&VisualSync {
+            device: input.device,
+            queue: input.queue,
+            style: input.representation.visual.as_ref(),
+            program_offset: input.visual_program_offset,
+            parameter_buffer,
+            parameter_offset: input.visual_parameter_offset,
+            parameters_preloaded: false,
+            property_offsets: input.visual_property_offsets,
+            attribute_layouts: input.visual_attribute_layouts,
+            property_end_offsets: [0; 4],
+            property_alphas: [0.0; 4],
+            time_seconds: input.visual_time_seconds,
+            entity_count: self.atom_count as usize,
+            result_count: input.placed.atoms.len() as usize,
+            base: VisualBase::representation(input.representation),
+        })
     }
 
     fn cull_binding_changed(&self, current: &SlotSynced) -> bool {
-        self.cull_group.is_none()
+        self.atom_cull_group.is_none()
+            || self.bond_cull_group.is_none()
+            || self.visual_cull_group.is_none()
             || self.synced.is_some_and(|old| {
                 old.structure_binding != current.structure_binding
-                    || old.cull_binding != current.cull_binding
+                    || old.visual_program_binding != current.visual_program_binding
+                    || old.visual_parameter_binding != current.visual_parameter_binding
+                    || old.visual_property_binding != current.visual_property_binding
             })
     }
 
@@ -191,24 +329,35 @@ impl<D: Device> GpuSlot<D> {
         input: &mut SlotSync<'_, D>,
         current: &SlotSynced,
         representation_changed: bool,
-    ) -> Result<(), RenderError> {
-        self.atom_count = 0;
-        self.bond_count = 0;
+        selection_bounds: pdviewx_math::Aabb,
+    ) -> Result<bool, RenderError> {
+        let visual_records_changed = input.representation.visual.is_some()
+            && self.synced.is_none_or(|old| {
+                old.records != current.records
+                    || old.color != current.color
+                    || old.flags != current.flags
+                    || old.semantic != current.semantic
+                    || old.visual_program != current.visual_program
+            });
+        if visual_records_changed {
+            self.upload_records(&mut input.records(selection_bounds))?;
+            self.bond_count = 0;
+        } else if input.representation.visual.is_none() {
+            self.atom_count = 0;
+            self.bond_count = 0;
+        }
         let geometry_changed = self.synced.is_none_or(|old| {
             old.ribbon != current.ribbon
                 || old.color != current.color
                 || old.flags != current.flags
                 || old.semantic != current.semantic
                 || old.properties != current.properties
-                || old.coordinates != current.coordinates
                 || old.secondary_structure != current.secondary_structure
         });
         if geometry_changed {
             self.ribbon.sync(&mut RibbonSync {
                 device: input.device,
                 queue: input.queue,
-                layout: input.ribbon_layout,
-                structure: input.structure_gpu,
                 placed: input.placed,
                 representation: input.representation,
                 selection: input.selection,
@@ -225,21 +374,22 @@ impl<D: Device> GpuSlot<D> {
                 .synced
                 .is_none_or(|old| old.structure_binding != current.structure_binding)
             {
-                self.ribbon
-                    .bind(input.device, input.ribbon_layout, input.structure_gpu);
+                return Ok(true);
             }
         }
-        Ok(())
+        Ok(geometry_changed || visual_records_changed)
     }
 
     fn sync_uniforms(
         &self,
         input: &SlotSync<'_, D>,
         current: &SlotSynced,
+        selection_bounds: pdviewx_math::Aabb,
         representation_changed: bool,
     ) {
         let resource_changed = self.synced.is_none_or(|old| {
-            old.spatial_bounds != current.spatial_bounds
+            old.quality != current.quality
+                || old.spatial_bounds != current.spatial_bounds
                 || old.structure_binding != current.structure_binding
                 || old.overlay_binding != current.overlay_binding
         });
@@ -251,162 +401,17 @@ impl<D: Device> GpuSlot<D> {
                 input.queue,
                 uniforms,
                 input.representation,
-                input.selection_bounds,
+                selection_bounds,
                 input.overlay_volume,
+                input.quality,
             );
         }
-    }
-
-    /// Fills the instance scratch for one representation kind.
-    fn pack_instances(input: &mut RecordUpload<'_, D>) {
-        // Beads aggregate a residue into one sphere, so they take the residue
-        // packer and carry no bonds; every other atom-bearing kind packs per
-        // atom and keeps its connectivity.
-        if input.representation.kind == RepresentationKind::Beads {
-            pdviewx_geometry::pack_residue_beads(
-                &input.placed.atoms,
-                &input.placed.hierarchy,
-                input.placed.secondary_structure.values(),
-                input.color_property,
-                input.representation,
-                input.selection,
-                input.atoms,
-            );
-            pdviewx_geometry::build_compaction_map(
-                input.atoms,
-                input.placed.atoms.len(),
-                input.compaction,
-            );
-            input.bonds.clear();
-        } else {
-            pdviewx_geometry::pack_atoms_with_properties(
-                &input.placed.atoms,
-                &input.placed.hierarchy,
-                input.placed.secondary_structure.values(),
-                pdviewx_geometry::PropertyColumns {
-                    color: input.color_property,
-                    appearance: input.appearance_property,
-                },
-                input.representation,
-                input.selection,
-                input.atoms,
-            );
-            pdviewx_geometry::build_compaction_map(
-                input.atoms,
-                input.placed.atoms.len(),
-                input.compaction,
-            );
-            pdviewx_geometry::pack_bonds(
-                &input.placed.structure,
-                input.representation,
-                input.compaction,
-                input.bonds,
-            );
-        }
-    }
-
-    fn upload_records(&mut self, input: &mut RecordUpload<'_, D>) -> Result<(), RenderError> {
-        Self::pack_instances(input);
-        self.atom_count = count(input.atoms.len());
-        self.bond_count = count(input.bonds.len());
-        upload_grow(
-            input.device,
-            input.queue,
-            "atom instances",
-            input.atoms,
-            &mut self.atoms,
-            &mut self.atoms_capacity,
-        )?;
-        upload_grow(
-            input.device,
-            input.queue,
-            "bond instances",
-            input.bonds,
-            &mut self.bonds,
-            &mut self.bonds_capacity,
-        )?;
-        upload_grow(
-            input.device,
-            input.queue,
-            "source-to-compacted atom indices",
-            input.compaction,
-            &mut self.compaction,
-            &mut self.compaction_capacity,
-        )?;
-        if self.representation_uniforms.is_none() {
-            self.representation_uniforms = Some(input.device.create_buffer(&BufferDesc {
-                label: "representation uniforms",
-                size: std::mem::size_of::<RepresentationUniforms>() as u64,
-                usage: BufferUsage::UNIFORM.union(BufferUsage::COPY_DST),
-            })?);
-        }
-        self.sync_surface_resources_from_upload(input)?;
-        ensure_indices(
-            input.device,
-            "visible atom indices",
-            self.atom_count.saturating_mul(2),
-            &mut self.visible_atoms,
-            &mut self.visible_atoms_capacity,
-        )?;
-        ensure_indices(
-            input.device,
-            "visible bond indices",
-            self.bond_count,
-            &mut self.visible_bonds,
-            &mut self.visible_bonds_capacity,
-        )?;
-        self.write_args(input.device, input.queue)?;
-        write_counts(
-            input.device,
-            input.queue,
-            self.atom_count,
-            self.bond_count,
-            if self.atom_count < 131_072 {
-                0
-            } else if self.kind == RepresentationKind::Points
-                && self.bond_count == 0
-                && self.atom_count < 1_048_575
-            {
-                2
-            } else {
-                1
-            },
-            &mut self.counts,
-        )?;
-        self.bind(
-            input.device,
-            input.layout,
-            input.structure_gpu,
-            input.surface_field_fallback,
-            input.surface_provenance_fallback,
-            input.overlay_view,
-        );
-        self.bind_cull(
-            input.device,
-            input.cull_layout,
-            input.structure_gpu,
-            input.frame,
-            input.cull_tiles,
-        );
-        Ok(())
-    }
-
-    fn write_args(&mut self, device: &D, queue: &D::Queue) -> Result<(), RenderError> {
-        write_args(device, queue, "atom draw arguments", &mut self.atom_args)?;
-        write_args(device, queue, "bond draw arguments", &mut self.bond_args)?;
-        write_draw_args(
-            device,
-            queue,
-            "surface draw arguments",
-            6,
-            u32::from(self.kind == RepresentationKind::Surface && self.atom_count > 0),
-            &mut self.surface_args,
-        )
     }
 
     fn sync_surface_resources(
         &mut self,
         input: &SlotSync<'_, D>,
+        selection_bounds: pdviewx_math::Aabb,
         force_generate: bool,
     ) -> Result<(), RenderError> {
         let (Some(atoms), Some(compaction), Some(uniforms)) =
@@ -420,54 +425,19 @@ impl<D: Device> GpuSlot<D> {
             output_layout: input.surface_field_output_layout,
             input_layout: input.surface_field_input_layout,
             erosion_layout: input.surface_field_erosion_layout,
+            normal_layout: input.surface_field_normal_layout,
+            component_layout: input.surface_component_layout,
             structure: input.structure_gpu,
+            asset_arena: input.asset_arena,
             representation: input.representation,
             atoms,
             compaction,
             uniforms,
             atom_count: self.atom_count,
-            selection_bounds: input.selection_bounds,
+            selection_bounds,
             force_generate,
+            quality: input.quality,
             overlay_volume: input.overlay_volume,
         })
     }
-
-    fn sync_surface_resources_from_upload(
-        &mut self,
-        input: &RecordUpload<'_, D>,
-    ) -> Result<(), RenderError> {
-        let (Some(atoms), Some(compaction), Some(uniforms)) =
-            (&self.atoms, &self.compaction, &self.representation_uniforms)
-        else {
-            return Ok(());
-        };
-        self.surface.sync(&SurfaceSync {
-            device: input.device,
-            queue: input.queue,
-            output_layout: input.surface_field_output_layout,
-            input_layout: input.surface_field_input_layout,
-            erosion_layout: input.surface_field_erosion_layout,
-            structure: input.structure_gpu,
-            representation: input.representation,
-            atoms,
-            compaction,
-            uniforms,
-            atom_count: self.atom_count,
-            selection_bounds: input.selection_bounds,
-            force_generate: true,
-            overlay_volume: input.overlay_volume,
-        })
-    }
-}
-
-const fn is_spline(kind: RepresentationKind) -> bool {
-    matches!(
-        kind,
-        RepresentationKind::Cartoon
-            | RepresentationKind::Trace
-            | RepresentationKind::Tube
-            | RepresentationKind::Rocket
-            | RepresentationKind::Twister
-            | RepresentationKind::PaperChain
-    )
 }
