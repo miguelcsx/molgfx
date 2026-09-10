@@ -317,7 +317,7 @@ impl Select {
     /// Returns [`CoreError::InvalidSelection`] when bounds are non-finite or
     /// inverted.
     pub fn in_box(min: Vec3, max: Vec3) -> Result<Self, CoreError> {
-        if !min.is_finite() || !max.is_finite() || (min.cmpgt(max)).any() {
+        if !min.is_finite() || !max.is_finite() || min.x > max.x || min.y > max.y || min.z > max.z {
             return Err(invalid("box bounds must be finite and ordered"));
         }
         Ok(Self(SelectExpr::InBox { min, max }))
