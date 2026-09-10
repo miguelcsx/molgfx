@@ -68,7 +68,7 @@ struct SphereFsOut {
     @location(0) albedo_material: vec4f,
     @location(1) normal_roughness: vec4f,
     @location(2) entity_id: u32,
-    @location(3) structure_id: u32,
+    @location(3) resident_page: u32,
     @location(4) motion: vec2f,
     @builtin(frag_depth) depth: f32,
 }
@@ -127,11 +127,19 @@ fn sphere_geometry(
             world_center,
         );
 
-    let half_size =
-        sphere_quad_half_size(
-            dot(center, center),
-            atom.radius,
-        );
+    var radius = atom.radius;
+    if visual_counts.visual_enabled != 0u {
+        radius *= atom_visual_geometry(atom.entity_id).z * 4.0;
+    }
+    var half_size = vec2f(radius);
+
+    if frame.projection_kind.x < 0.5 {
+        half_size =
+            sphere_quad_half_extent(
+                center,
+                radius,
+            );
+    }
 
     let view_position =
         center +
@@ -149,7 +157,7 @@ fn sphere_geometry(
 
         vec4f(
             center,
-            atom.radius,
+            radius,
         ),
 
         world_center,
@@ -190,10 +198,17 @@ fn sphere_vertex_output(
 fn sphere_flat_material(
     atom: AtomRecord,
 ) -> vec4f {
+    let response = atom_visual_response(atom.entity_id);
+    let material = vec4f(
+        response.x,
+        response.y,
+        representation.material.z,
+        response.z,
+    );
     return vec4f(
         varied_roughness(
             atom.entity_id,
-            representation.material.x,
+            material.x,
         ),
 
         varied_roughness(
@@ -202,9 +217,9 @@ fn sphere_flat_material(
         ),
 
         material_payload(
-            representation.material,
+            material,
         ),
 
-        1.0 / atom.radius,
+        1.0 / max(atom.radius * atom_visual_geometry(atom.entity_id).z * 4.0, 1.0e-6),
     );
 }

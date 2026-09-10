@@ -15,10 +15,26 @@ fn sphere_opaque_output(
             surface.hit,
         );
 
+    let visual =
+        visual_fragment(
+            in.entity_id,
+            vec4f(material.albedo_material.rgb, in.color.a),
+            visual_local_position(world_hit),
+            world_hit,
+            visual_world_normal(surface.normal),
+        );
+
+    if !visual.visible {
+        discard;
+    }
+
     var out: SphereFsOut;
 
     out.albedo_material =
-        material.albedo_material;
+        vec4f(
+            visual.color.rgb + visual.emission,
+            visual_gbuffer_payload(visual),
+        );
 
     out.normal_roughness =
         vec4f(
@@ -28,14 +44,14 @@ fn sphere_opaque_output(
                     surface.normal,
                 ),
             ),
-            material.roughness,
+            visual.roughness,
         );
 
     out.entity_id =
-        in.entity_id;
+        pick_local_row(in.entity_id);
 
-    out.structure_id =
-        model.structure_id;
+    out.resident_page =
+        model_pick_page(in.entity_id);
 
     out.motion =
         screen_motion(
@@ -45,8 +61,11 @@ fn sphere_opaque_output(
         );
 
     out.depth =
-        sphere_view_depth(
-            surface.hit,
+        stable_entity_depth(
+            sphere_view_depth(
+                surface.hit,
+            ),
+            in.entity_id,
         );
 
     return out;
@@ -54,6 +73,7 @@ fn sphere_opaque_output(
 
 /// Computes transparent edge coverage from quadratic data already produced
 /// during intersection.
+@diagnostic(off, derivative_uniformity)
 fn sphere_transparent_coverage(
     surface: SphereSurface,
     radius: f32,
@@ -94,11 +114,29 @@ fn sphere_transparent_output(
     surface: SphereSurface,
     material: SphereMaterial,
 ) -> OitOutput {
+    let world_hit =
+        sphere_world_position(
+            surface.hit,
+        );
+
+    let visual =
+        visual_fragment(
+            in.entity_id,
+            vec4f(material.albedo_material.rgb, in.color.a),
+            visual_local_position(world_hit),
+            world_hit,
+            visual_world_normal(surface.normal),
+        );
+
+    if !visual.visible {
+        discard;
+    }
+
     let coverage =
         sphere_transparent_coverage(
             surface,
             in.center_radius.w,
-            in.previous_softness.w,
+            max(in.previous_softness.w, visual.softness_pixels),
         );
 
     if coverage <= 0.0 {
@@ -112,19 +150,19 @@ fn sphere_transparent_output(
 
     let lit =
         shade_molecule(
-            material.albedo_material.rgb,
+            visual.color.rgb,
             surface.normal,
-            material.roughness,
-            material.albedo_material.a,
+            visual.roughness,
+            visual_material_payload(visual),
             surface.hit,
             oit_occlusion(
                 in.position,
             ),
-        );
+        ) + visual.emission;
 
     return weighted_transparency(
         lit,
-        in.color.a * coverage,
+        visual.color.a * coverage,
         depth,
     );
 }
