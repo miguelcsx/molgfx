@@ -15,189 +15,10 @@
 @group(1) @binding(3) var history_sampler: sampler;
 @group(1) @binding(4) var motion_vectors: texture_2d<f32>;
 
-const LUMA_WEIGHTS: vec3f =
-    vec3f(0.2126, 0.7152, 0.0722);
-
-const CHROMA_FULL_WEIGHT_SQ: f32 =
-    0.10 * 0.10;
-
-const CHROMA_REJECT_SQ: f32 =
-    0.28 * 0.28;
-
-struct TemporalCross {
-    fallback: vec3f,
-    minimum: vec3f,
-    maximum: vec3f,
-}
-
-struct ColorBounds {
-    minimum: vec3f,
-    maximum: vec3f,
-}
-
-fn luma(color: vec3f) -> f32 {
-    return dot(
-        color,
-        LUMA_WEIGHTS,
-    );
-}
-
-fn load_current(
-    pixel: vec2i,
-    dimensions: vec2i,
-) -> vec3f {
-    return textureLoad(
-        current_hdr,
-        clamp(
-            pixel,
-            vec2i(0),
-            dimensions - 1,
-        ),
-        0,
-    ).rgb;
-}
-
-/// Loads the four cardinal neighbors once for both fallback and clamp bounds.
-fn temporal_cross(
-    pixel: vec2i,
-    dimensions: vec2i,
-    center: vec3f,
-) -> TemporalCross {
-    let north =
-        load_current(
-            pixel + vec2i(0, -1),
-            dimensions,
-        );
-
-    let south =
-        load_current(
-            pixel + vec2i(0, 1),
-            dimensions,
-        );
-
-    let west =
-        load_current(
-            pixel + vec2i(-1, 0),
-            dimensions,
-        );
-
-    let east =
-        load_current(
-            pixel + vec2i(1, 0),
-            dimensions,
-        );
-
-    let horizontal =
-        abs(
-            luma(west) -
-            luma(east)
-        );
-
-    let vertical =
-        abs(
-            luma(north) -
-            luma(south)
-        );
-
-    let edge =
-        max(
-            horizontal,
-            vertical,
-        );
-
-    var fallback =
-        center;
-
-    if edge >= 0.025 {
-        let pair =
-            select(
-                (north + south) * 0.5,
-                (west + east) * 0.5,
-                vertical > horizontal,
-            );
-
-        fallback =
-            mix(
-                center,
-                pair,
-                min(
-                    edge * 0.18,
-                    0.16,
-                ),
-            );
-    }
-
-    return TemporalCross(
-        fallback,
-
-        min(
-            center,
-            min(
-                min(north, south),
-                min(west, east),
-            ),
-        ),
-
-        max(
-            center,
-            max(
-                max(north, south),
-                max(west, east),
-            ),
-        ),
-    );
-}
-
-/// Adds only the four missing diagonal texels to the 3x3 clamp bounds.
-fn temporal_neighborhood_bounds(
-    pixel: vec2i,
-    dimensions: vec2i,
-    cross: TemporalCross,
-) -> ColorBounds {
-    let northwest =
-        load_current(
-            pixel + vec2i(-1, -1),
-            dimensions,
-        );
-
-    let northeast =
-        load_current(
-            pixel + vec2i(1, -1),
-            dimensions,
-        );
-
-    let southwest =
-        load_current(
-            pixel + vec2i(-1, 1),
-            dimensions,
-        );
-
-    let southeast =
-        load_current(
-            pixel + vec2i(1, 1),
-            dimensions,
-        );
-
-    return ColorBounds(
-        min(
-            cross.minimum,
-            min(
-                min(northwest, northeast),
-                min(southwest, southeast),
-            ),
-        ),
-
-        max(
-            cross.maximum,
-            max(
-                max(northwest, northeast),
-                max(southwest, southeast),
-            ),
-        ),
-    );
-}
+//!include "include/post/temporal_sampling.wgsl"
 
 @fragment
+@diagnostic(off, derivative_uniformity)
 fn fs_temporal_resolve(
     in: FullscreenOut,
 ) -> @location(0) vec4f {
@@ -316,10 +137,41 @@ fn fs_temporal_resolve(
             abs(dpdy(expected_depth)),
         );
 
+    // Under reversed-Z a larger stored depth is a nearer surface. A filtered
+    // background lookup turns subpixel motion into a continuous trail instead
+    // of preserving a chain of discrete former silhouettes. Its carried depth
+    // decays with colour, so the existing HDR ping-pong retains a bounded tail
+    // without an age texture.
+    // Foreground keeps the nearest-depth rejection below, so filtering cannot
+    // pull an occluded surface through a current one.
+    let disocclusion = frame.npr.y;
+    if disocclusion > 0.0 && depth <= depth_tolerance {
+        let history_soft =
+            textureSampleLevel(
+                history_hdr_depth,
+                history_sampler,
+                previous_uv,
+                0.0,
+            );
+        if history_soft.a > expected_depth + depth_tolerance {
+            let ghost =
+                min(
+                    disocclusion * DISOCCLUSION_TRAIL_STRENGTH,
+                    0.85,
+                );
+            return vec4f(
+                mix(cross.fallback, history_soft.rgb, ghost),
+                history_soft.a * ghost,
+            );
+        }
+    }
+
     if abs(
         history_nearest.a -
         expected_depth
     ) > depth_tolerance {
+        // Remaining depth disagreement is a true rejection. Any current
+        // foreground reaches this path and immediately overwrites old history.
         return vec4f(
             cross.fallback,
             depth,
@@ -448,12 +300,39 @@ fn fs_temporal_resolve(
         luminance_weight *
         chroma_weight;
 
-    return vec4f(
+    let resolved =
         mix(
             cross.fallback,
             clamped_history,
             history_weight,
-        ),
+        );
+
+    // Ghosting trails: where accepted history overlaps this fragment (a
+    // flexible loop whipping across itself), retain the un-clamped history in
+    // proportion to on-screen speed so mobile regions smear while rigid ones
+    // stay crisp. Disabled at zero persistence, so ordinary TAA is unchanged.
+    // ponytail: no disocclusion trail behind fast rigid bodies; that needs a
+    // separate depth-independent accumulation buffer.
+    let persistence = frame.npr.y;
+    if persistence > 0.0 && depth > 0.0 {
+        let speed =
+            length(
+                textureLoad(motion_vectors, pixel, 0).xy *
+                vec2f(dimensions),
+            );
+        let trail =
+            min(
+                persistence * smoothstep(0.5, 6.0, speed),
+                0.92,
+            );
+        return vec4f(
+            mix(resolved, history, trail),
+            depth,
+        );
+    }
+
+    return vec4f(
+        resolved,
         depth,
     );
 }
