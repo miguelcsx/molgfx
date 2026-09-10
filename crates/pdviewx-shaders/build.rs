@@ -120,7 +120,7 @@ fn validate_and_compile_spirv(name: &str, source: &str) -> Result<Vec<u32>, Stri
     };
     let mut validator = naga::valid::Validator::new(
         naga::valid::ValidationFlags::all(),
-        naga::valid::Capabilities::CLIP_DISTANCES,
+        naga::valid::Capabilities::CLIP_DISTANCES | naga::valid::Capabilities::RAY_QUERY,
     );
     let info = validator.validate(&module).map_err(|error| {
         format!(
