@@ -5,18 +5,7 @@
 mod tests;
 
 /// Persistent biological detail buffers, finest to coarsest.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]
-pub enum LodLevel {
-    /// Analytic atom and bond primitives.
-    #[default]
-    Atom,
-    /// One aggregate per residue.
-    Residue,
-    /// Secondary-structure ribbons.
-    SecondaryStructure,
-    /// Domain-scale blobs.
-    Domain,
-}
+pub type LodLevel = pdviewx_core::ResidencyDetail;
 
 /// Deterministic projected-error thresholds with transition hysteresis.
 #[derive(Clone, Copy, PartialEq, Debug)]
