@@ -10,4 +10,6 @@ mod backend;
 
 pub(crate) use backend::{convert, device, encoder, queue, surface};
 
-pub use backend::{WgpuCommandEncoder, WgpuDevice, WgpuQueue, WgpuSurface};
+pub use backend::{
+    WgpuBuffer, WgpuCommandEncoder, WgpuDevice, WgpuQueue, WgpuSurface, WgpuTexture,
+};
