@@ -1,5 +1,5 @@
 use super::{realtime_nodes, realtime_resources};
-use crate::graph::PassKind;
+use crate::graph::{PassKind, SizeClass, plan_aliases, schedule};
 use crate::passes::{SEGMENT_LABEL_RESOURCE, SEGMENT_VOLUME_RESOURCE};
 use crate::testing::MockDevice;
 use pdviewx_gpu::{TextureFormat, TextureUsage};
@@ -56,4 +56,33 @@ fn screen_overlays_are_composed_after_tonemapping() {
         nodes[overlay].writes.as_slice(),
         &[crate::graph::ResourceId::SWAPCHAIN]
     );
+}
+
+#[test]
+fn cinematic_full_resolution_hdr_targets_need_only_five_physical_textures() {
+    let resources = realtime_resources();
+    let nodes = realtime_nodes::<MockDevice>(true, true, true);
+    let order = match schedule(&nodes) {
+        Ok(value) => value,
+        Err(error) => panic!("cinematic graph schedules: {error}"),
+    };
+    let plan = plan_aliases(&resources, &nodes, &order);
+    let hdr_targets = resources
+        .iter()
+        .enumerate()
+        .filter(|(_, resource)| {
+            resource.format == TextureFormat::Rgba16Float
+                && resource.size == SizeClass::Full
+                && resource.usage.contains(TextureUsage::COPY_SRC)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(hdr_targets.len(), 7);
+    let mut slots = hdr_targets
+        .iter()
+        .map(|(row, _)| plan.slot[*row])
+        .collect::<Vec<_>>();
+    slots.sort_unstable();
+    slots.dedup();
+
+    assert_eq!(slots.len(), 5);
 }

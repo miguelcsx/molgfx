@@ -174,7 +174,7 @@ fn presentation_nodes<D: Device>(
     if bloom {
         nodes.extend(bloom_nodes(depth_of_field, motion_blur));
     }
-    nodes.push(tonemap_node(depth_of_field, motion_blur));
+    nodes.push(tonemap_node(depth_of_field, motion_blur, bloom));
     nodes.push(PassNode {
         name: "screen overlays",
         reads: smallvec![],
@@ -225,9 +225,11 @@ fn bloom_nodes<D: Device>(depth_of_field: bool, motion_blur: bool) -> [PassNode<
     ]
 }
 
-fn tonemap_node<D: Device>(depth_of_field: bool, motion_blur: bool) -> PassNode<D> {
+fn tonemap_node<D: Device>(depth_of_field: bool, motion_blur: bool, bloom: bool) -> PassNode<D> {
     let mut reads = presentation_input(depth_of_field, motion_blur);
-    reads.push(BLOOM_C_RESOURCE);
+    if bloom {
+        reads.push(BLOOM_C_RESOURCE);
+    }
     PassNode {
         name: "HDR tonemap",
         reads,
@@ -262,6 +264,7 @@ fn point_node<D: Device>(gbuffer: smallvec::SmallVec<[graph::ResourceId; 4]>) ->
 
 pub(super) fn realtime_resources() -> Vec<ResourceDesc> {
     let sampled_target = TextureUsage::RENDER_ATTACHMENT.union(TextureUsage::TEXTURE_BINDING);
+    let readback_target = sampled_target.union(TextureUsage::COPY_SRC);
     let mut resources = vec![
         resource("frame depth", TextureFormat::Depth32Float, sampled_target),
         resource(
@@ -289,38 +292,43 @@ pub(super) fn realtime_resources() -> Vec<ResourceDesc> {
             TextureFormat::Rgba8Unorm,
             sampled_target,
         ),
-        resource("HDR lighting", TextureFormat::Rgba16Float, sampled_target),
-        resource(
+        resource("HDR lighting", TextureFormat::Rgba16Float, readback_target),
+        persistent_resource(
             "temporal history A",
             TextureFormat::Rgba16Float,
-            sampled_target,
+            readback_target,
         ),
-        resource(
+        persistent_resource(
             "temporal history B",
             TextureFormat::Rgba16Float,
-            sampled_target,
+            readback_target,
         ),
         resource(
             "transparent color accumulation",
             TextureFormat::Rgba16Float,
-            sampled_target,
+            readback_target,
         ),
         resource(
             "transparent revealage",
             TextureFormat::R8Unorm,
             sampled_target,
         ),
-        resource("composited HDR", TextureFormat::Rgba16Float, sampled_target),
+        resource(
+            "composited HDR",
+            TextureFormat::Rgba16Float,
+            readback_target,
+        ),
         ResourceDesc {
             label: "depth-of-field tile classification",
             format: TextureFormat::R8Unorm,
             size: SizeClass::Tiles16,
             usage: sampled_target,
+            persistent: false,
         },
         resource(
             "depth-of-field resolved HDR",
             TextureFormat::Rgba16Float,
-            sampled_target,
+            readback_target,
         ),
         resource(
             "opaque screen-space motion",
@@ -339,18 +347,21 @@ fn presentation_resources(sampled_target: TextureUsage) -> [ResourceDesc; 8] {
             format: TextureFormat::Rgba16Float,
             size: SizeClass::Quarter,
             usage: sampled_target,
+            persistent: false,
         },
         ResourceDesc {
             label: "bloom pong",
             format: TextureFormat::Rgba16Float,
             size: SizeClass::Quarter,
             usage: sampled_target,
+            persistent: false,
         },
         ResourceDesc {
             label: "bloom resolved",
             format: TextureFormat::Rgba16Float,
             size: SizeClass::Quarter,
             usage: sampled_target,
+            persistent: false,
         },
         // Declaration order is the resource identity: every `ResourceId` is an
         // index into this list, so new entries append and never insert.
@@ -374,11 +385,12 @@ fn presentation_resources(sampled_target: TextureUsage) -> [ResourceDesc; 8] {
             format: TextureFormat::Depth32Float,
             size: SizeClass::Shadow,
             usage: TextureUsage::RENDER_ATTACHMENT.union(TextureUsage::TEXTURE_BINDING),
+            persistent: false,
         },
         resource(
             "camera-shutter motion-blurred HDR",
             TextureFormat::Rgba16Float,
-            sampled_target,
+            sampled_target.union(TextureUsage::COPY_SRC),
         ),
     ]
 }
@@ -389,5 +401,20 @@ const fn resource(label: &'static str, format: TextureFormat, usage: TextureUsag
         format,
         size: SizeClass::Full,
         usage,
+        persistent: false,
+    }
+}
+
+const fn persistent_resource(
+    label: &'static str,
+    format: TextureFormat,
+    usage: TextureUsage,
+) -> ResourceDesc {
+    ResourceDesc {
+        label,
+        format,
+        size: SizeClass::Full,
+        usage,
+        persistent: true,
     }
 }
