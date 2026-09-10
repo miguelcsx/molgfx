@@ -4,6 +4,31 @@
 // each carrying its own, so the deferred and forward paths cannot drift
 // apart in appearance.
 
+// Display-referred colour bytes decoded to the scene-linear space the lighting
+// works in.
+//
+// Every palette in the engine is authored as sRGB bytes — a CPK colour, a chain
+// colour, a property ramp — and the presentation pass encodes back to sRGB at
+// the end. Without this decode the two never meet: mid grey goes in at 128 and
+// comes out near 188, so every surface is lifted and washed and diffuse shading
+// loses most of its contrast.
+//
+// This is the exact piecewise transfer function rather than the usual cubic fit,
+// because it is not the only place the engine crosses this boundary: the
+// backdrop colours are decoded on the CPU in `engine::backdrop`, and two
+// different curves would mean a backdrop and a surface given the same colour
+// resolve to different values. One transfer function, defined once, in both
+// languages.
+fn srgb_to_linear(color: vec3f) -> vec3f {
+    let clamped = clamp(color, vec3f(0.0), vec3f(1.0));
+    return clamped * (
+        clamped * (
+            clamped * 0.305306011 + 0.682171111
+        ) + 0.012522878
+    );
+}
+
+@diagnostic(off, derivative_uniformity)
 fn shade_surface(
     albedo: vec3f,
     normal: vec3f,
@@ -15,7 +40,7 @@ fn shade_surface(
 ) -> vec3f {
     let material =
         lighting_material(
-            albedo,
+            srgb_to_linear(albedo),
             material_payload_value,
         );
 
