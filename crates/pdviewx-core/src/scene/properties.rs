@@ -59,6 +59,57 @@ impl Scene {
         Ok(())
     }
 
+    /// Frame-synced update of one scalar column from its two bracketing rows.
+    ///
+    /// This is the scalar analogue of the two-frame trajectory seam: the scene
+    /// never stores a whole time series. A caller with a per-frame table (RMSF,
+    /// interaction energy, per-residue affinity) passes only the two rows that
+    /// bracket the current time plus the same interpolation fraction used for
+    /// coordinates, and the column is replaced in place under the same handle,
+    /// name, meaning and legend — so bound representations recolour frame by
+    /// frame without rebinding or a second upload path. `NaN` in either row is
+    /// a missing value and yields `NaN`, matching the column's missing-value
+    /// contract.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::StaleHandle`] for an unknown handle,
+    /// [`CoreError::InvalidProperty`] for a non-finite `alpha` outside `[0, 1]`,
+    /// unequal row lengths, or a fully missing result, and propagates the
+    /// length check against the owning structure.
+    pub fn interpolate_atom_property(
+        &mut self,
+        handle: AtomPropertyHandle,
+        start: &[f32],
+        end: &[f32],
+        alpha: f32,
+    ) -> Result<(), CoreError> {
+        if !alpha.is_finite() || !(0.0..=1.0).contains(&alpha) {
+            return Err(CoreError::InvalidProperty {
+                reason: "property interpolation fraction must be finite in [0, 1]",
+            });
+        }
+        if start.len() != end.len() {
+            return Err(CoreError::InvalidProperty {
+                reason: "property frame rows must have equal length",
+            });
+        }
+        let existing = self.atom_property(handle).ok_or(CoreError::StaleHandle)?;
+        if start.len() != existing.values().len() {
+            return Err(CoreError::InvalidProperty {
+                reason: "property frame length must match its owning structure",
+            });
+        }
+        let stored = self
+            .properties
+            .get_mut(handle.0)
+            .ok_or(CoreError::StaleHandle)?;
+        stored.value.interpolate_values(start, end, alpha)?;
+        self.property_revision = self.property_revision.wrapping_add(1);
+        stored.revision = self.property_revision;
+        Ok(())
+    }
+
     /// Removes one property and invalidates its handle.
     pub fn remove_atom_property(&mut self, handle: AtomPropertyHandle) -> Option<AtomProperty> {
         let removed = self.properties.remove(handle.0).map(|stored| stored.value);
