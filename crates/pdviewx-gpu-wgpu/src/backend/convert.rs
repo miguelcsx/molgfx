@@ -27,6 +27,7 @@ pub fn buffer_usage(usage: BufferUsage) -> wgpu::BufferUsages {
             BufferUsage::QUERY_RESOLVE,
             wgpu::BufferUsages::QUERY_RESOLVE,
         ),
+        (BufferUsage::BLAS_INPUT, wgpu::BufferUsages::BLAS_INPUT),
     ];
     for (ours, theirs) in pairs {
         if usage.contains(ours) {
@@ -65,11 +66,13 @@ pub fn texture_usage(usage: TextureUsage) -> wgpu::TextureUsages {
 pub fn texture_format(format: TextureFormat) -> wgpu::TextureFormat {
     match format {
         TextureFormat::Rgba8Unorm => wgpu::TextureFormat::Rgba8Unorm,
+        TextureFormat::Rgba8Snorm => wgpu::TextureFormat::Rgba8Snorm,
         TextureFormat::Rgba8UnormSrgb => wgpu::TextureFormat::Rgba8UnormSrgb,
         TextureFormat::Bgra8Unorm => wgpu::TextureFormat::Bgra8Unorm,
         TextureFormat::Bgra8UnormSrgb => wgpu::TextureFormat::Bgra8UnormSrgb,
         TextureFormat::Rgba16Float => wgpu::TextureFormat::Rgba16Float,
         TextureFormat::Rg16Float => wgpu::TextureFormat::Rg16Float,
+        TextureFormat::Rg32Float => wgpu::TextureFormat::Rg32Float,
         TextureFormat::R8Unorm => wgpu::TextureFormat::R8Unorm,
         TextureFormat::R32Uint => wgpu::TextureFormat::R32Uint,
         TextureFormat::R32Float => wgpu::TextureFormat::R32Float,

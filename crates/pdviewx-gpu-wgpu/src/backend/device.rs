@@ -4,62 +4,32 @@ use crate::convert;
 use crate::surface::WgpuSurface;
 use pdviewx_gpu::{
     BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc, BufferDesc, Capabilities,
-    ComputePipelineDesc, DeviceDesc, GpuError, Opened, PowerPreference, RenderPipelineDesc,
-    SamplerDesc, ShaderModuleDesc, TextureDesc, TextureViewDesc, WindowTarget,
+    ComputePipelineDesc, DeviceDesc, GpuError, Opened, RenderPipelineDesc, SamplerDesc,
+    ShaderModuleDesc, TextureDesc, TextureViewDesc, WindowTarget,
 };
 use std::future::Future;
+use std::sync::Arc;
+
+use super::device_errors::DeviceErrors;
+use super::resource::{ResourceLedger, WgpuBuffer, WgpuTexture, texture_bytes};
+
+#[path = "device/adapter.rs"]
+mod adapter;
+use adapter::{opposite_power, request_adapter, wgpu_power};
+
+#[cfg(test)]
+use super::device_caps::REQUIRED_STORAGE_BUFFERS_PER_STAGE;
 
 /// The wgpu implementation of the device abstraction.
 #[derive(Debug)]
 pub struct WgpuDevice {
     pub(crate) device: wgpu::Device,
-    capabilities: Capabilities,
+    pub(super) capabilities: Capabilities,
+    pub(crate) resources: Arc<ResourceLedger>,
+    pub(super) errors: Arc<DeviceErrors>,
 }
 
 impl WgpuDevice {
-    fn probe_capabilities(features: wgpu::Features, limits: &wgpu::Limits) -> Capabilities {
-        let mut flags = pdviewx_gpu::CapabilityFlags::empty();
-        let feature_map = [
-            (
-                wgpu::Features::EXPERIMENTAL_RAY_QUERY,
-                pdviewx_gpu::CapabilityFlags::HARDWARE_RAY_TRACING,
-            ),
-            (
-                wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING,
-                pdviewx_gpu::CapabilityFlags::BINDLESS,
-            ),
-            (
-                wgpu::Features::TIMESTAMP_QUERY,
-                pdviewx_gpu::CapabilityFlags::TIMESTAMP_QUERIES,
-            ),
-            (
-                wgpu::Features::SUBGROUP,
-                pdviewx_gpu::CapabilityFlags::SUBGROUP_OPS,
-            ),
-        ];
-        for (feature, capability) in feature_map {
-            if features.contains(feature) {
-                flags |= capability;
-            }
-        }
-        Capabilities {
-            flags,
-            max_storage_buffer_bytes: limits.max_storage_buffer_binding_size,
-            max_texture_dim: limits.max_texture_dimension_2d,
-            max_texture_dim_3d: limits.max_texture_dimension_3d,
-        }
-    }
-
-    fn required_limits(supported: &wgpu::Limits) -> wgpu::Limits {
-        wgpu::Limits {
-            max_storage_buffer_binding_size: supported.max_storage_buffer_binding_size,
-            max_buffer_size: supported.max_buffer_size,
-            ..wgpu::Limits::default()
-                .using_resolution(supported.clone())
-                .using_alignment(supported.clone())
-        }
-    }
-
     fn validate_buffer(desc: &BufferDesc, limits: &wgpu::Limits) -> Result<(), GpuError> {
         let mut limit = limits.max_buffer_size;
         if desc.usage.contains(pdviewx_gpu::BufferUsage::STORAGE) {
@@ -73,42 +43,11 @@ impl WgpuDevice {
         }
         Ok(())
     }
-
-    /// Runs a closure under a pushed validation error scope, turning any
-    /// captured error into a typed shader/pipeline failure.
-    #[cfg(not(target_arch = "wasm32"))]
-    fn validated<T>(&self, label: &'static str, create: impl FnOnce() -> T) -> Result<T, GpuError> {
-        let scope = self.device.push_error_scope(wgpu::ErrorFilter::Validation);
-        let value = create();
-        let error: Option<wgpu::Error> = pollster::block_on(scope.pop());
-        match error {
-            None => Ok(value),
-            Some(e) => Err(GpuError::ShaderCompile {
-                label: label.to_owned(),
-                detail: e.to_string(),
-            }),
-        }
-    }
-
-    /// Browser pipeline construction itself is synchronous, while error-scope
-    /// resolution is asynchronous. Every composed WGSL unit is validated at
-    /// build time; runtime device failures are reported by the browser device.
-    #[cfg(target_arch = "wasm32")]
-    fn validated<T>(
-        &self,
-        _label: &'static str,
-        create: impl FnOnce() -> T,
-    ) -> Result<T, GpuError> {
-        if self.capabilities.max_storage_buffer_bytes == 0 {
-            return Err(GpuError::NoAdapter);
-        }
-        Ok(create())
-    }
 }
 
 impl pdviewx_gpu::Device for WgpuDevice {
-    type Buffer = wgpu::Buffer;
-    type Texture = wgpu::Texture;
+    type Buffer = WgpuBuffer;
+    type Texture = WgpuTexture;
     type TextureView = wgpu::TextureView;
     type Sampler = wgpu::Sampler;
     type ShaderModule = wgpu::ShaderModule;
@@ -116,6 +55,8 @@ impl pdviewx_gpu::Device for WgpuDevice {
     type BindGroup = wgpu::BindGroup;
     type Pipeline = crate::encoder::WgpuPipeline;
     type QuerySet = wgpu::QuerySet;
+    type Blas = wgpu::Blas;
+    type Tlas = wgpu::Tlas;
     type CommandEncoder = crate::encoder::WgpuCommandEncoder;
     type Queue = crate::queue::WgpuQueue;
     type Surface = WgpuSurface;
@@ -143,9 +84,11 @@ impl pdviewx_gpu::Device for WgpuDevice {
             let surface = match window {
                 Some(window) => {
                     let target = wgpu::SurfaceTarget::Window(Box::new(window));
-                    let surface = instance
-                        .create_surface(target)
-                        .map_err(|_| GpuError::NoAdapter)?;
+                    let surface = instance.create_surface(target).map_err(|error| {
+                        GpuError::SurfaceCreation {
+                            detail: error.to_string(),
+                        }
+                    })?;
                     Some(surface)
                 }
                 None => None,
@@ -155,41 +98,60 @@ impl pdviewx_gpu::Device for WgpuDevice {
                 Some(canvas) => Some(
                     instance
                         .create_surface(wgpu::SurfaceTarget::Canvas(canvas))
-                        .map_err(|_| GpuError::NoAdapter)?,
+                        .map_err(|error| GpuError::SurfaceCreation {
+                            detail: error.to_string(),
+                        })?,
                 ),
                 None => None,
             };
 
-            let adapter = instance
-                .request_adapter(&wgpu::RequestAdapterOptions {
-                    power_preference: match power {
-                        PowerPreference::HighPerformance => wgpu::PowerPreference::HighPerformance,
-                        PowerPreference::LowPower => wgpu::PowerPreference::LowPower,
-                    },
-                    compatible_surface: surface.as_ref(),
-                    force_fallback_adapter: false,
-                    apply_limit_buckets: false,
-                })
-                .await
-                .map_err(|_| GpuError::NoAdapter)?;
+            let requested_power = wgpu_power(power);
+            let requested =
+                request_adapter(&instance, surface.as_ref(), requested_power, false).await;
+            let adapter = match requested {
+                Ok(adapter) => adapter,
+                Err(primary) => {
+                    let fallback_power = opposite_power(requested_power);
+                    match request_adapter(&instance, surface.as_ref(), fallback_power, false).await {
+                        Ok(adapter) => adapter,
+                        Err(fallback) => request_adapter(
+                            &instance,
+                            surface.as_ref(),
+                            wgpu::PowerPreference::LowPower,
+                            true,
+                        )
+                        .await
+                        .map_err(|software| GpuError::NoAdapter {
+                            detail: format!(
+                                "requested {requested_power:?}: {primary}; fallback {fallback_power:?}: {fallback}; software fallback: {software}"
+                            ),
+                        })?,
+                    }
+                }
+            };
 
             let features = adapter.features();
             let supported_limits = adapter.limits();
-            let mut required_features = wgpu::Features::empty();
-            if features.contains(wgpu::Features::TIMESTAMP_QUERY) {
-                required_features |= wgpu::Features::TIMESTAMP_QUERY;
-            }
+            Self::validate_required_limits(&supported_limits)?;
+            let required_features = Self::negotiated_features(features);
+            let ray_query = required_features.contains(wgpu::Features::EXPERIMENTAL_RAY_QUERY);
 
             let (device, queue) = adapter
                 .request_device(&wgpu::DeviceDescriptor {
                     label: Some("pdviewx"),
                     required_features,
-                    required_limits: Self::required_limits(&supported_limits),
+                    required_limits: Self::required_limits(&supported_limits, ray_query),
                     ..Default::default()
                 })
                 .await
-                .map_err(|_| GpuError::NoAdapter)?;
-            let capabilities = Self::probe_capabilities(features, &device.limits());
+                .map_err(|error| GpuError::DeviceRequest {
+                    detail: error.to_string(),
+                })?;
+            // Capabilities describe the opened device, not merely features the
+            // adapter could expose if requested. Reporting adapter-only ray
+            // queries or subgroups would let callers select an unusable path.
+            let capabilities = Self::probe_capabilities(device.features(), &device.limits());
+            let errors = DeviceErrors::attach(&device);
 
             let surface = surface.map(|surface| {
                 let mut surface = WgpuSurface::new(surface, &adapter, &device);
@@ -201,8 +163,14 @@ impl pdviewx_gpu::Device for WgpuDevice {
                 device: Self {
                     device,
                     capabilities,
+                    resources: Arc::new(ResourceLedger::new(desc.resource_memory_limit_bytes)),
+                    errors,
                 },
-                queue: crate::queue::WgpuQueue { queue },
+                queue: crate::queue::WgpuQueue {
+                    queue,
+                    next_fence: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
+                    completed_fence: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+                },
                 surface,
             })
         }
@@ -216,18 +184,22 @@ impl pdviewx_gpu::Device for WgpuDevice {
         pollster::block_on(<Self as pdviewx_gpu::Device>::open_async(desc, window))
     }
 
-    fn create_buffer(&self, desc: &BufferDesc) -> Result<wgpu::Buffer, GpuError> {
+    fn create_buffer(&self, desc: &BufferDesc) -> Result<WgpuBuffer, GpuError> {
         Self::validate_buffer(desc, &self.device.limits())?;
-        Ok(self.device.create_buffer(&wgpu::BufferDescriptor {
+        self.resources.reserve_buffer(desc.size, desc.label)?;
+        let raw = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(desc.label),
             size: desc.size,
             usage: convert::buffer_usage(desc.usage),
             mapped_at_creation: false,
-        }))
+        });
+        Ok(WgpuBuffer::new(raw, desc.size, Arc::clone(&self.resources)))
     }
 
-    fn create_texture(&self, desc: &TextureDesc) -> Result<wgpu::Texture, GpuError> {
-        Ok(self.device.create_texture(&wgpu::TextureDescriptor {
+    fn create_texture(&self, desc: &TextureDesc) -> Result<WgpuTexture, GpuError> {
+        let bytes = texture_bytes(desc)?;
+        self.resources.reserve_texture(bytes, desc.label)?;
+        let raw = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some(desc.label),
             size: wgpu::Extent3d {
                 width: desc.width.max(1),
@@ -240,15 +212,18 @@ impl pdviewx_gpu::Device for WgpuDevice {
             format: convert::texture_format(desc.format),
             usage: convert::texture_usage(desc.usage),
             view_formats: &[],
-        }))
+        });
+        Ok(WgpuTexture::new(raw, bytes, Arc::clone(&self.resources)))
     }
 
     fn create_texture_view(
         &self,
-        texture: &wgpu::Texture,
+        texture: &WgpuTexture,
         _desc: &TextureViewDesc,
     ) -> wgpu::TextureView {
-        texture.create_view(&wgpu::TextureViewDescriptor::default())
+        texture
+            .raw
+            .create_view(&wgpu::TextureViewDescriptor::default())
     }
 
     fn create_sampler(&self, desc: &SamplerDesc) -> wgpu::Sampler {
@@ -300,7 +275,7 @@ impl pdviewx_gpu::Device for WgpuDevice {
             .map(|e| match e {
                 BindGroupEntry::Buffer { binding, buffer } => wgpu::BindGroupEntry {
                     binding: *binding,
-                    resource: buffer.as_entire_binding(),
+                    resource: buffer.raw.as_entire_binding(),
                 },
                 BindGroupEntry::BufferRange {
                     binding,
@@ -310,7 +285,7 @@ impl pdviewx_gpu::Device for WgpuDevice {
                 } => wgpu::BindGroupEntry {
                     binding: *binding,
                     resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer,
+                        buffer: &buffer.raw,
                         offset: *offset,
                         size: std::num::NonZeroU64::new(*size),
                     }),
@@ -447,6 +422,49 @@ impl pdviewx_gpu::Device for WgpuDevice {
 
     fn capabilities(&self) -> &Capabilities {
         &self.capabilities
+    }
+
+    fn check_errors(&self) -> Result<(), GpuError> {
+        self.errors.check()
+    }
+
+    fn resource_memory(&self) -> pdviewx_gpu::ResourceMemory {
+        self.resources.usage()
+    }
+
+    fn ray_query_limits(&self) -> Result<pdviewx_gpu::RayQueryLimits, GpuError> {
+        self.ray_query_limits_impl()
+    }
+
+    fn create_blas(&self, desc: &pdviewx_gpu::BlasDesc<'_>) -> Result<Self::Blas, GpuError> {
+        self.create_blas_impl(desc)
+    }
+
+    fn create_tlas(&self, desc: &pdviewx_gpu::TlasDesc) -> Result<Self::Tlas, GpuError> {
+        self.create_tlas_impl(desc)
+    }
+
+    fn set_tlas_instance(
+        &self,
+        tlas: &mut Self::Tlas,
+        index: u32,
+        instance: Option<pdviewx_gpu::TlasInstance<'_, Self>>,
+    ) -> Result<(), GpuError> {
+        self.set_tlas_instance_impl(tlas, index, instance)
+    }
+
+    fn create_ray_query_bind_group_layout(
+        &self,
+        desc: &pdviewx_gpu::RayQueryBindGroupLayoutDesc<'_>,
+    ) -> Result<Self::BindGroupLayout, GpuError> {
+        self.create_ray_query_bind_group_layout_impl(desc)
+    }
+
+    fn create_ray_query_bind_group(
+        &self,
+        desc: &pdviewx_gpu::RayQueryBindGroupDesc<'_, Self>,
+    ) -> Result<Self::BindGroup, GpuError> {
+        self.create_ray_query_bind_group_impl(desc)
     }
 }
 

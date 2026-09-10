@@ -27,8 +27,16 @@ fn depth_format_round_trips_and_reports_itself_as_depth() {
 #[test]
 fn compact_motion_format_maps_to_two_half_float_channels() {
     assert_eq!(
+        texture_format(TextureFormat::Rgba8Snorm),
+        wgpu::TextureFormat::Rgba8Snorm
+    );
+    assert_eq!(
         texture_format(TextureFormat::Rg16Float),
         wgpu::TextureFormat::Rg16Float
+    );
+    assert_eq!(
+        texture_format(TextureFormat::Rg32Float),
+        wgpu::TextureFormat::Rg32Float
     );
     assert_eq!(surface_format_back(wgpu::TextureFormat::Rg16Float), None);
 }

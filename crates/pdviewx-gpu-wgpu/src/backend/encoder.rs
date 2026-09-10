@@ -1,9 +1,17 @@
 //! Command recording over wgpu.
 
+use super::resource::{WgpuBuffer, WgpuTexture};
 use crate::convert;
 use crate::device::WgpuDevice;
-use pdviewx_gpu::{ColorAttachment, ComputePassDesc, DepthAttachment, RenderPassDesc};
+use pdviewx_gpu::{
+    BlasBuildDesc, BlasGeometries, ColorAttachment, ComputePassDesc, DepthAttachment, GpuError,
+    RenderPassDesc,
+};
 use std::ops::Range;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "encoder_tests.rs"]
+mod tests;
 
 /// One pipeline type covering both kinds; the abstraction sets whichever
 /// matches the open pass.
@@ -29,21 +37,23 @@ impl pdviewx_gpu::CommandEncoder<WgpuDevice> for WgpuCommandEncoder {
         &'e mut self,
         desc: &RenderPassDesc<'_, WgpuDevice>,
     ) -> WgpuRenderPass<'e> {
-        let colors: Vec<Option<wgpu::RenderPassColorAttachment<'_>>> = desc
-            .colors
-            .iter()
-            .map(|ColorAttachment { view, load }| {
-                Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    depth_slice: None,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: convert::color_load(*load),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })
-            })
-            .collect();
+        // Every portable pass fits WebGPU's eight color attachments. Keep
+        // descriptor conversion on the stack instead of allocating per pass.
+        let inline: [_; 8] =
+            std::array::from_fn(|index| desc.colors.get(index).map(color_attachment));
+        let overflow;
+        let colors = if let Some(colors) = inline.get(..desc.colors.len()) {
+            colors
+        } else {
+            // Preserve the HAL descriptor for a future higher-limit device;
+            // never truncate attachments or add a panic at this boundary.
+            overflow = desc
+                .colors
+                .iter()
+                .map(|color| Some(color_attachment(color)))
+                .collect::<Vec<_>>();
+            &overflow
+        };
         let depth = desc.depth.as_ref().map(
             |DepthAttachment {
                  view,
@@ -74,7 +84,7 @@ impl pdviewx_gpu::CommandEncoder<WgpuDevice> for WgpuCommandEncoder {
         WgpuRenderPass {
             pass: self.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some(desc.label),
-                color_attachments: &colors,
+                color_attachments: colors,
                 depth_stencil_attachment: depth,
                 timestamp_writes,
                 occlusion_query_set: None,
@@ -106,27 +116,27 @@ impl pdviewx_gpu::CommandEncoder<WgpuDevice> for WgpuCommandEncoder {
 
     fn copy_buffer_to_buffer(
         &mut self,
-        src: &wgpu::Buffer,
+        src: &WgpuBuffer,
         src_offset: u64,
-        dst: &wgpu::Buffer,
+        dst: &WgpuBuffer,
         dst_offset: u64,
         size: u64,
     ) {
         self.encoder
-            .copy_buffer_to_buffer(src, src_offset, dst, dst_offset, size);
+            .copy_buffer_to_buffer(&src.raw, src_offset, &dst.raw, dst_offset, size);
     }
 
     fn copy_texture_to_buffer(
         &mut self,
-        src: &wgpu::Texture,
+        src: &WgpuTexture,
         origin: (u32, u32),
         size: (u32, u32),
         bytes_per_row: u32,
-        dst: &wgpu::Buffer,
+        dst: &WgpuBuffer,
     ) {
         self.encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
-                texture: src,
+                texture: &src.raw,
                 mip_level: 0,
                 origin: wgpu::Origin3d {
                     x: origin.0,
@@ -136,7 +146,7 @@ impl pdviewx_gpu::CommandEncoder<WgpuDevice> for WgpuCommandEncoder {
                 aspect: wgpu::TextureAspect::All,
             },
             wgpu::TexelCopyBufferInfo {
-                buffer: dst,
+                buffer: &dst.raw,
                 layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(bytes_per_row),
@@ -155,10 +165,94 @@ impl pdviewx_gpu::CommandEncoder<WgpuDevice> for WgpuCommandEncoder {
         &mut self,
         queries: &wgpu::QuerySet,
         range: Range<u32>,
-        dst: &wgpu::Buffer,
+        dst: &WgpuBuffer,
         offset: u64,
     ) {
-        self.encoder.resolve_query_set(queries, range, dst, offset);
+        self.encoder
+            .resolve_query_set(queries, range, &dst.raw, offset);
+    }
+
+    fn build_blas(&mut self, desc: &BlasBuildDesc<'_, WgpuDevice>) -> Result<(), GpuError> {
+        match desc.geometries {
+            BlasGeometries::Triangles(geometries) => {
+                let sizes: Vec<_> = geometries
+                    .iter()
+                    .map(|geometry| wgpu::BlasTriangleGeometrySizeDescriptor {
+                        vertex_format: wgpu::VertexFormat::Float32x3,
+                        vertex_count: geometry.size.vertex_count,
+                        index_format: geometry
+                            .size
+                            .indices
+                            .map(|indices| super::ray_query::index_format(indices.0)),
+                        index_count: geometry.size.indices.map(|indices| indices.1),
+                        flags: super::ray_query::geometry_flags(geometry.size.flags),
+                    })
+                    .collect();
+                let geometry = geometries
+                    .iter()
+                    .zip(&sizes)
+                    .map(|(geometry, size)| wgpu::BlasTriangleGeometry {
+                        size,
+                        vertex_buffer: &geometry.vertex_buffer.raw,
+                        first_vertex: geometry.first_vertex,
+                        vertex_stride: geometry.vertex_stride,
+                        index_buffer: geometry.indices.map(|indices| &indices.0.raw),
+                        first_index: geometry.indices.map(|indices| indices.1),
+                        transform_buffer: None,
+                        transform_buffer_offset: None,
+                    })
+                    .collect();
+                let entry = wgpu::BlasBuildEntry {
+                    blas: desc.blas,
+                    geometry: wgpu::BlasGeometries::TriangleGeometries(geometry),
+                };
+                self.encoder.build_acceleration_structures([&entry], []);
+            }
+            BlasGeometries::Aabbs(geometries) => {
+                let sizes: Vec<_> = geometries
+                    .iter()
+                    .map(|geometry| wgpu::BlasAABBGeometrySizeDescriptor {
+                        primitive_count: geometry.size.primitive_count,
+                        flags: super::ray_query::geometry_flags(geometry.size.flags),
+                    })
+                    .collect();
+                let geometry = geometries
+                    .iter()
+                    .zip(&sizes)
+                    .map(|(geometry, size)| wgpu::BlasAabbGeometry {
+                        size,
+                        stride: geometry.stride,
+                        aabb_buffer: &geometry.buffer.raw,
+                        primitive_offset: geometry.offset,
+                    })
+                    .collect();
+                let entry = wgpu::BlasBuildEntry {
+                    blas: desc.blas,
+                    geometry: wgpu::BlasGeometries::AabbGeometries(geometry),
+                };
+                self.encoder.build_acceleration_structures([&entry], []);
+            }
+        }
+        Ok(())
+    }
+
+    fn build_tlas(&mut self, tlas: &wgpu::Tlas) -> Result<(), GpuError> {
+        self.encoder.build_acceleration_structures([], [tlas]);
+        Ok(())
+    }
+}
+
+fn color_attachment<'a>(
+    ColorAttachment { view, load }: &ColorAttachment<'a, WgpuDevice>,
+) -> wgpu::RenderPassColorAttachment<'a> {
+    wgpu::RenderPassColorAttachment {
+        view,
+        depth_slice: None,
+        resolve_target: None,
+        ops: wgpu::Operations {
+            load: convert::color_load(*load),
+            store: wgpu::StoreOp::Store,
+        },
     }
 }
 
@@ -183,8 +277,8 @@ impl pdviewx_gpu::RenderPassEncoder<WgpuDevice> for WgpuRenderPass<'_> {
         self.pass.draw(vertices, instances);
     }
 
-    fn draw_indirect(&mut self, args: &wgpu::Buffer, offset: u64) {
-        self.pass.draw_indirect(args, offset);
+    fn draw_indirect(&mut self, args: &WgpuBuffer, offset: u64) {
+        self.pass.draw_indirect(&args.raw, offset);
     }
 }
 
