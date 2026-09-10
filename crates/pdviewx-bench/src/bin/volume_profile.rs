@@ -1,10 +1,13 @@
-//! Whole-graph direct-volume benchmark using a deterministic scalar grid.
+//! Whole-graph volume benchmark using a deterministic scalar grid.
+//!
+//! Usage: `volume_profile [direct|isosurface|medium|slice|liquid] [output.png]`
 
 use pdviewx::{
-    Camera, DensityVolume, Engine, EngineConfig, Image, ImageConfig, Representation, Rgba8, Scene,
-    Vec3, VolumeStyle, VolumeTransferFunction, VolumeTransferPoint,
+    Camera, ClipPlane, Engine, EngineConfig, Image, ImageConfig, Representation, Rgba8,
+    ScalarVolume, Scene, Vec3, VolumeSlice, VolumeStyle, VolumeTransferFunction,
+    VolumeTransferPoint,
 };
-use pdviewx_bench::{FrameSample, summarize};
+use pdviewx_bench::{CumulativeTelemetry, FrameSample, summarize};
 use std::error::Error;
 use std::fs::File;
 use std::path::Path;
@@ -16,24 +19,29 @@ const MEASURED_FRAMES: usize = 120;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
-    let isosurface = arguments.first().is_some_and(|value| value == "isosurface");
+    let algorithm = arguments.first().map_or("direct", String::as_str);
     let mut scene = Scene::new();
     let volume = scene.add_volume(synthetic_density()?);
-    let representation = if isosurface {
-        scene.represent(
-            volume,
-            Representation::volume().volume_style(VolumeStyle::isosurface()),
-        )?
-    } else {
-        scene.represent(volume, Representation::volume())?
+    let volume_style = match algorithm {
+        "direct" => VolumeStyle::default(),
+        "isosurface" => VolumeStyle::isosurface(),
+        "medium" => VolumeStyle::medium(),
+        "slice" => VolumeStyle::slice(VolumeSlice::new(ClipPlane::from_point_normal(
+            Vec3::ZERO,
+            Vec3::Z,
+        )?)),
+        "liquid" => VolumeStyle::liquid_surface(),
+        name => return Err(format!("unknown volume algorithm {name}").into()),
     };
+    let representation =
+        scene.represent(volume, Representation::volume().volume_style(volume_style))?;
     let Some(style) = scene.representation_mut(representation) else {
         return Err("new volume representation became stale".into());
     };
-    style.volume.opacity_scale = 1.35;
-    style.volume.step_scale = 0.45;
+    style.volume.opacity_scale = if algorithm == "medium" { 0.60 } else { 1.35 };
+    style.volume.step_scale = if algorithm == "medium" { 0.65 } else { 0.45 };
     style.volume.transfer = transfer()?;
-    if isosurface {
+    if algorithm == "isosurface" {
         style.params.isolevel = 0.38;
     }
     let config = ImageConfig {
@@ -45,18 +53,35 @@ fn main() -> Result<(), Box<dyn Error>> {
     for _ in 0..WARMUP_FRAMES {
         engine.profile_frame(&scene, &camera, config)?;
     }
+    let counters = engine.residency_counters();
+    let mut previous = CumulativeTelemetry {
+        allocation_events: counters.allocation_events,
+        upload_bytes: counters.upload_bytes,
+        resident_bytes: counters.resident_bytes,
+        stall_events: counters.stall_events,
+    };
     let mut samples = Vec::with_capacity(MEASURED_FRAMES);
     for _ in 0..MEASURED_FRAMES {
         let timing = engine.profile_frame(&scene, &camera, config)?;
-        samples.push(FrameSample {
-            gpu_ns: timing.gpu_ns,
-            cpu_ns: timing.cpu_ns,
-            frame_ns: timing.frame_ns,
-            ..FrameSample::default()
-        });
+        let counters = timing.residency_counters();
+        let current = CumulativeTelemetry {
+            allocation_events: counters.allocation_events,
+            upload_bytes: counters.upload_bytes,
+            resident_bytes: counters.resident_bytes,
+            stall_events: counters.stall_events,
+        };
+        samples.push(FrameSample::measured(
+            timing.gpu_ns,
+            timing.cpu_ns,
+            timing.frame_ns,
+            previous,
+            current,
+        )?);
+        previous = current;
     }
     let summary = summarize(&samples, &mut Vec::with_capacity(samples.len()))?;
     println!("grid={GRID}x{GRID}x{GRID}");
+    println!("algorithm={algorithm}");
     println!("frames={MEASURED_FRAMES}");
     println!("gpu_median_ns={}", summary.gpu_median_ns);
     println!("gpu_p99_ns={}", summary.gpu_p99_ns);
@@ -66,6 +91,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("frame_p99_fps={:.2}", fps(summary.frame_p99_ns));
     println!("gpu_median_fps={:.2}", fps(summary.gpu_median_ns));
     println!("gpu_p99_fps={:.2}", fps(summary.gpu_p99_ns));
+    println!("max_allocation_events={}", summary.max_allocations);
+    println!("max_upload_bytes={}", summary.max_upload_bytes);
+    println!("peak_resident_bytes={}", summary.peak_resident_bytes);
+    println!("max_stall_events={}", summary.max_stall_events);
     if let Some(path) = arguments.get(1) {
         let image = engine.render_image(&scene, &camera, config)?;
         write_png(path, &image)?;
@@ -91,7 +120,7 @@ fn transfer() -> Result<VolumeTransferFunction, pdviewx::CoreError> {
     ])
 }
 
-fn synthetic_density() -> Result<DensityVolume, pdviewx::CoreError> {
+fn synthetic_density() -> Result<ScalarVolume, pdviewx::CoreError> {
     let mut values = Vec::with_capacity(usize::from(GRID).pow(3));
     let center = (f32::from(GRID) - 1.0) * 0.5;
     for z in 0..GRID {
@@ -127,7 +156,7 @@ fn synthetic_density() -> Result<DensityVolume, pdviewx::CoreError> {
         }
     }
     let spacing = Vec3::splat(0.22);
-    DensityVolume::from_spacing(
+    ScalarVolume::from_spacing(
         [u32::from(GRID); 3],
         Vec3::splat(-center * spacing.x),
         spacing,
@@ -143,6 +172,5 @@ fn fps(nanoseconds: u64) -> f64 {
     if nanoseconds == 0 {
         return f64::INFINITY;
     }
-    let bounded = u32::try_from(nanoseconds).map_or(u32::MAX, |value| value);
-    1_000_000_000.0 / f64::from(bounded)
+    1.0 / std::time::Duration::from_nanos(nanoseconds).as_secs_f64()
 }

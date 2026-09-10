@@ -1,12 +1,14 @@
 //! Whole-graph headless GPU benchmark using the production facade.
 
 use pdviewx::{
-    AtomSelection, Camera, Engine, EngineConfig, ImageConfig, RenderMode, RenderProfile,
+    AtomSelection, Camera, Engine, EngineConfig, Image, ImageConfig, RenderMode, RenderProfile,
     RepresentationKind, Scene, SurfaceKind, SurfaceStyle,
 };
-use pdviewx_bench::{FrameSample, summarize};
+use pdviewx_bench::{CumulativeTelemetry, FrameSample, FrameSummary, summarize};
 use std::error::Error;
+use std::fs::File;
 use std::io;
+use std::path::Path;
 
 const WARMUP_FRAMES: usize = 20;
 const DEFAULT_MEASURED_FRAMES: usize = 120;
@@ -16,53 +18,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     let Some(path) = arguments.first() else {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "usage: frame_profile STRUCTURE [representation] [frames] [opacity] [realtime|quality] [width] [height] [inspection|illustrative|cinematic]",
+            "usage: frame_profile STRUCTURE [representation] [frames] [opacity] [realtime|cinematic] [width] [height] [inspection|illustrative|cinematic] [output.png]",
         )
         .into());
     };
-    let structure = pdbiox::read(path).map_err(|diagnostics| {
-        io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("structure diagnostics: {diagnostics:?}"),
-        )
-    })?;
-    let mut scene = Scene::from_structure(&structure)?;
-    let selection = scene.add_selection(AtomSelection::All);
     let requested = arguments.get(1).map(String::as_str);
-    let represented = scene.represent(selection, representation(requested))?;
-    if matches!(
-        requested,
-        Some("vdw-surface" | "sas" | "ses" | "ses-contour" | "ses-dots")
-    ) {
-        let Some(representation) = scene.representation_mut(represented) else {
-            return Err(io::Error::other("new representation became stale").into());
-        };
-        representation.params.surface_kind = match requested {
-            Some("vdw-surface") => SurfaceKind::VanDerWaals,
-            Some("sas") => SurfaceKind::SolventAccessible,
-            _ => SurfaceKind::SolventExcluded,
-        };
-        representation.params.surface_style = match requested {
-            Some("ses-contour") => SurfaceStyle::Contour,
-            Some("ses-dots") => SurfaceStyle::Dots,
-            _ => SurfaceStyle::Solid,
-        };
-    }
-    if let Some(opacity) = arguments.get(3) {
-        let opacity = parse_opacity(opacity)?;
-        let Some(representation) = scene.representation_mut(represented) else {
-            return Err(io::Error::other("new representation became stale").into());
-        };
-        representation.material.opacity = opacity;
-    }
+    let mut scene = load_scene(path, requested)?;
+    configure_representation(&mut scene, requested, arguments.get(3))?;
     let config = ImageConfig {
         width: parse_dimension(arguments.get(5), 1024)?,
         height: parse_dimension(arguments.get(6), 768)?,
     };
-    let camera = Camera::framing_aabb(&scene.world_aabb(), 4.0 / 3.0);
+    let camera = Camera::framing_aabb(&scene.world_aabb(), aspect_ratio(config));
     let measured_frames = parse_frames(arguments.get(2))?;
     let mode = match arguments.get(4).map(String::as_str) {
-        Some("quality") => RenderMode::Quality,
+        Some("cinematic") => RenderMode::Cinematic,
         _ => RenderMode::Realtime,
     };
     let profile_name = arguments.get(7).map(String::as_str);
@@ -82,32 +52,188 @@ fn main() -> Result<(), Box<dyn Error>> {
     for _ in 0..WARMUP_FRAMES {
         engine.profile_frame(&scene, &camera, config)?;
     }
+    let mut previous = telemetry(&engine);
     let mut samples = Vec::with_capacity(measured_frames);
     for _ in 0..measured_frames {
         let timing = engine.profile_frame(&scene, &camera, config)?;
-        samples.push(FrameSample {
-            gpu_ns: timing.gpu_ns,
-            cpu_ns: timing.cpu_ns,
-            frame_ns: timing.frame_ns,
-            ..FrameSample::default()
-        });
+        let current = timing_telemetry(&timing);
+        samples.push(FrameSample::measured(
+            timing.gpu_ns,
+            timing.cpu_ns,
+            timing.frame_ns,
+            previous,
+            current,
+        )?);
+        previous = current;
     }
     let summary = summarize(&samples, &mut Vec::with_capacity(samples.len()))?;
-    println!("atoms={atom_count}");
-    println!("frames={measured_frames}");
     let profile_label = match profile_name {
         Some(name) => name,
         None => "inspection",
     };
-    println!("profile={profile_label}");
+    print_frame_summary(atom_count, measured_frames, profile_label, summary);
+    let batch_summary = measure_batches(&mut engine, &scene, &camera, config, measured_frames)?;
+    print_batch_summary(batch_summary);
+    if let Some(path) = arguments.get(8) {
+        let image = engine.render_image(&scene, &camera, config)?;
+        write_png(path, &image)?;
+        println!("visual={path}");
+    }
+    Ok(())
+}
+
+fn print_frame_summary(atoms: u64, frames: usize, profile: &str, summary: FrameSummary) {
+    println!("atoms={atoms}");
+    println!("frames={frames}");
+    println!("profile={profile}");
     println!("gpu_median_ns={}", summary.gpu_median_ns);
+    println!("gpu_p95_ns={}", summary.gpu_p95_ns);
     println!("gpu_p99_ns={}", summary.gpu_p99_ns);
     println!("cpu_median_ns={}", summary.cpu_median_ns);
+    println!("cpu_p95_ns={}", summary.cpu_p95_ns);
+    println!("cpu_p99_ns={}", summary.cpu_p99_ns);
     println!("frame_median_ns={}", summary.frame_median_ns);
+    println!("frame_p95_ns={}", summary.frame_p95_ns);
     println!("frame_p99_ns={}", summary.frame_p99_ns);
     println!("frame_p99_fps={:.2}", fps(summary.frame_p99_ns));
     println!("gpu_median_fps={:.2}", fps(summary.gpu_median_ns));
+    println!("gpu_p95_fps={:.2}", fps(summary.gpu_p95_ns));
     println!("gpu_p99_fps={:.2}", fps(summary.gpu_p99_ns));
+    println!("max_allocation_events={}", summary.max_allocations);
+    println!("max_upload_bytes={}", summary.max_upload_bytes);
+    println!("peak_resident_bytes={}", summary.peak_resident_bytes);
+    println!("max_stall_events={}", summary.max_stall_events);
+}
+
+fn measure_batches(
+    engine: &mut Engine,
+    scene: &Scene,
+    camera: &Camera,
+    config: ImageConfig,
+    measured_frames: usize,
+) -> Result<FrameSummary, Box<dyn Error>> {
+    let Some(batch_size) = std::num::NonZeroU32::new(8) else {
+        return Err(io::Error::other("invalid zero batch size").into());
+    };
+    let batch_count = measured_frames.div_ceil(8);
+    let mut batches = Vec::with_capacity(batch_count);
+    let mut previous = telemetry(engine);
+    for _ in 0..batch_count {
+        let timing = engine.profile_frame_batch(scene, camera, config, batch_size)?;
+        let current = timing_telemetry(&timing);
+        batches.push(FrameSample::measured(
+            timing.gpu_ns,
+            timing.cpu_ns,
+            timing.frame_ns,
+            previous,
+            current,
+        )?);
+        previous = current;
+    }
+    Ok(summarize(&batches, &mut Vec::with_capacity(batches.len()))?)
+}
+
+fn print_batch_summary(summary: FrameSummary) {
+    println!("batch8_cpu_median_ns={}", summary.cpu_median_ns);
+    println!("batch8_cpu_p95_ns={}", summary.cpu_p95_ns);
+    println!("batch8_cpu_p99_ns={}", summary.cpu_p99_ns);
+    println!("batch8_frame_median_ns={}", summary.frame_median_ns);
+    println!("batch8_frame_p95_ns={}", summary.frame_p95_ns);
+    println!("batch8_frame_p99_ns={}", summary.frame_p99_ns);
+    println!("batch8_frame_p99_fps={:.2}", fps(summary.frame_p99_ns));
+}
+
+fn telemetry(engine: &Engine) -> CumulativeTelemetry {
+    let value = engine.residency_counters();
+    CumulativeTelemetry {
+        allocation_events: value.allocation_events,
+        upload_bytes: value.upload_bytes,
+        resident_bytes: value.resident_bytes,
+        stall_events: value.stall_events,
+    }
+}
+
+fn timing_telemetry(timing: &pdviewx::FrameTiming) -> CumulativeTelemetry {
+    let value = timing.residency_counters();
+    CumulativeTelemetry {
+        allocation_events: value.allocation_events,
+        upload_bytes: value.upload_bytes,
+        resident_bytes: value.resident_bytes,
+        stall_events: value.stall_events,
+    }
+}
+
+fn aspect_ratio(config: ImageConfig) -> f32 {
+    let Some(width) = num_traits::cast::<u32, f32>(config.width) else {
+        return 0.0;
+    };
+    let Some(height) = num_traits::cast::<u32, f32>(config.height) else {
+        return 0.0;
+    };
+    width / height
+}
+
+fn load_scene(path: &str, requested: Option<&str>) -> Result<Scene, Box<dyn Error>> {
+    let compact_input = matches!(requested, None | Some("spacefill" | "points"));
+    let options = pdbiox::ReadOptions::new()
+        .mode(pdbiox::ParseMode::Recover)
+        .only_first_model(true)
+        .only_atomic_coords(compact_input);
+    let (structure, diagnostics) =
+        pdbiox::read_with_options(path, &options).map_err(|diagnostics| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("structure diagnostics: {diagnostics:?}"),
+            )
+        })?;
+    if !diagnostics.is_empty() {
+        eprintln!("structure recovered with diagnostics: {diagnostics:?}");
+    }
+    Ok(Scene::from_structure(&structure)?)
+}
+
+fn configure_representation(
+    scene: &mut Scene,
+    requested: Option<&str>,
+    opacity: Option<&String>,
+) -> Result<(), Box<dyn Error>> {
+    let selection = scene.add_selection(AtomSelection::All);
+    let represented = scene.represent(selection, representation(requested))?;
+    let Some(value) = scene.representation_mut(represented) else {
+        return Err(io::Error::other("new representation became stale").into());
+    };
+    if matches!(
+        requested,
+        Some(
+            "vdw-surface"
+                | "sas"
+                | "sas-soft"
+                | "ses"
+                | "ses-contour"
+                | "ses-dots"
+                | "ses-mesh"
+                | "ses-filled-contour"
+                | "gaussian-surface",
+        )
+    ) {
+        value.params.surface_kind = match requested {
+            Some("vdw-surface") => SurfaceKind::VanDerWaals,
+            Some("sas" | "sas-soft") => SurfaceKind::SolventAccessible,
+            Some("gaussian-surface") => SurfaceKind::Gaussian,
+            _ => SurfaceKind::SolventExcluded,
+        };
+        value.params.surface_style = match requested {
+            Some("ses-contour") => SurfaceStyle::Contour,
+            Some("ses-dots") => SurfaceStyle::Dots,
+            Some("ses-mesh") => SurfaceStyle::Mesh,
+            Some("ses-filled-contour") => SurfaceStyle::FilledContour,
+            Some("sas-soft") => SurfaceStyle::SoftUnion,
+            _ => SurfaceStyle::Solid,
+        };
+    }
+    if let Some(opacity) = opacity {
+        value.material.opacity = parse_opacity(opacity)?;
+    }
     Ok(())
 }
 
@@ -132,9 +258,10 @@ fn representation(value: Option<&str>) -> RepresentationKind {
         Some("licorice") => RepresentationKind::Licorice,
         Some("lines") => RepresentationKind::Lines,
         Some("points") => RepresentationKind::Points,
-        Some("vdw-surface" | "sas" | "ses" | "ses-contour" | "ses-dots") => {
-            RepresentationKind::Surface
-        }
+        Some(
+            "vdw-surface" | "sas" | "sas-soft" | "ses" | "ses-contour" | "ses-dots" | "ses-mesh"
+            | "ses-filled-contour" | "gaussian-surface",
+        ) => RepresentationKind::Surface,
         _ => RepresentationKind::Spacefill,
     }
 }
@@ -197,6 +324,17 @@ fn fps(nanoseconds: u64) -> f64 {
     if nanoseconds == 0 {
         return f64::INFINITY;
     }
-    let bounded = u32::try_from(nanoseconds).map_or(u32::MAX, |value| value);
-    1_000_000_000.0 / f64::from(bounded)
+    1.0 / std::time::Duration::from_nanos(nanoseconds).as_secs_f64()
+}
+
+fn write_png(path: impl AsRef<Path>, image: &Image) -> Result<(), Box<dyn Error>> {
+    let path = path.as_ref();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut encoder = png::Encoder::new(File::create(path)?, image.width, image.height);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder.write_header()?.write_image_data(&image.pixels)?;
+    Ok(())
 }
