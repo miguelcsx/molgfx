@@ -1,0 +1,323 @@
+//! Contiguous batch adapters for generic paged engine residency.
+
+use super::engine::PyEngine;
+use crate::core::PyAnalyticTemplate;
+use crate::error::{render, value};
+use crate::math::{PyMat4, PyRgba8};
+use crate::semantic::{PyDatasetCatalog, PyResidencyRequest, PyResidencyTicket};
+use numpy::{PyReadonlyArray2, PyUntypedArrayMethods};
+use pyo3::prelude::*;
+use std::sync::Arc;
+
+#[pyclass(name = "PointChunkPlacement", frozen, from_py_object)]
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PyPointChunkPlacement(pdviewx::PointChunkPlacement);
+
+#[pymethods]
+impl PyPointChunkPlacement {
+    #[new]
+    fn new(
+        id: u64,
+        ticket: PyResidencyTicket,
+        model_to_world: PyMat4,
+        diameter_pixels: f32,
+        color: PyRgba8,
+    ) -> PyResult<Self> {
+        pdviewx::PointChunkPlacement::new(
+            pdviewx::ChunkPlacementId::new(id),
+            ticket.0,
+            model_to_world.0,
+            diameter_pixels,
+            color.0,
+        )
+        .map(Self)
+        .map_err(|error| value(error.to_string()))
+    }
+
+    #[getter]
+    fn id(&self) -> u64 {
+        self.0.id().get()
+    }
+
+    #[getter]
+    fn ticket(&self) -> PyResidencyTicket {
+        PyResidencyTicket(self.0.ticket())
+    }
+
+    #[getter]
+    fn model_to_world(&self) -> PyMat4 {
+        PyMat4(self.0.model_to_world())
+    }
+
+    #[getter]
+    fn diameter_pixels(&self) -> f32 {
+        self.0.diameter_pixels()
+    }
+
+    #[getter]
+    fn color(&self) -> PyRgba8 {
+        PyRgba8(self.0.color())
+    }
+}
+
+#[pyclass(name = "InstanceChunkPlacement", frozen, from_py_object)]
+#[derive(Clone, Debug)]
+pub(crate) struct PyInstanceChunkPlacement(pdviewx::InstanceChunkPlacement);
+
+#[pymethods]
+impl PyInstanceChunkPlacement {
+    #[new]
+    fn new(
+        id: u64,
+        ticket: PyResidencyTicket,
+        template: &PyAnalyticTemplate,
+        color: PyRgba8,
+    ) -> Self {
+        Self(pdviewx::InstanceChunkPlacement::new(
+            pdviewx::ChunkPlacementId::new(id),
+            ticket.0,
+            template.native(),
+            color.0,
+        ))
+    }
+
+    #[getter]
+    fn id(&self) -> u64 {
+        self.0.id().get()
+    }
+
+    #[getter]
+    fn ticket(&self) -> PyResidencyTicket {
+        PyResidencyTicket(self.0.ticket())
+    }
+
+    #[getter]
+    fn color(&self) -> PyRgba8 {
+        PyRgba8(self.0.color())
+    }
+}
+
+#[pyclass(name = "ChunkPlacementStatus", frozen, eq, eq_int, from_py_object)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PyChunkPlacementStatus {
+    Missing,
+    NotResident,
+    Resident,
+}
+
+impl From<pdviewx::ChunkPlacementStatus> for PyChunkPlacementStatus {
+    fn from(value: pdviewx::ChunkPlacementStatus) -> Self {
+        match value {
+            pdviewx::ChunkPlacementStatus::Missing => Self::Missing,
+            pdviewx::ChunkPlacementStatus::NotResident => Self::NotResident,
+            pdviewx::ChunkPlacementStatus::Resident => Self::Resident,
+        }
+    }
+}
+
+#[pyclass(name = "ResidentGenericChunk", frozen, skip_from_py_object)]
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PyResidentGenericChunk(pdviewx::ResidentGenericChunk);
+
+#[pymethods]
+impl PyResidentGenericChunk {
+    #[getter]
+    fn ticket(&self) -> PyResidencyTicket {
+        PyResidencyTicket(self.0.ticket)
+    }
+
+    #[getter]
+    fn byte_offset(&self) -> u64 {
+        self.0.byte_offset
+    }
+
+    #[getter]
+    fn byte_len(&self) -> u64 {
+        self.0.byte_len
+    }
+
+    #[getter]
+    fn local_rows(&self) -> u32 {
+        self.0.local_rows
+    }
+
+    #[getter]
+    fn stride(&self) -> u32 {
+        self.0.stride
+    }
+}
+
+#[pymethods]
+impl PyEngine {
+    /// Requests chunk generations in one Python crossing.
+    fn request_chunks(
+        &mut self,
+        requests: Vec<PyResidencyRequest>,
+    ) -> PyResult<Vec<PyResidencyTicket>> {
+        let mut tickets = Vec::with_capacity(requests.len());
+        for request in requests {
+            let ticket = render(
+                self.inner
+                    .request_chunk_into(request.0, &mut self.residency_output)
+                    .map_err(pdviewx::RenderError::from),
+            )?;
+            tickets.push(PyResidencyTicket(ticket));
+        }
+        Ok(tickets)
+    }
+
+    /// Copies one C-contiguous `(rows, 3)` float32 array into shared Rust storage.
+    fn deliver_point_chunk(
+        &mut self,
+        catalog: &PyDatasetCatalog,
+        ticket: PyResidencyTicket,
+        positions: PyReadonlyArray2<'_, f32>,
+    ) -> PyResult<()> {
+        let shape = positions.shape();
+        if shape.len() != 2 || shape[1] != 3 {
+            return Err(value("point positions must have shape (rows, 3)"));
+        }
+        let values = positions
+            .as_slice()
+            .map_err(|_| value("point positions must be C-contiguous float32"))?;
+        let rows: &[[f32; 3]] = bytemuck::cast_slice(values);
+        let payload = pdviewx::PointChunkPayload::new(Arc::from(rows))
+            .map_err(|error| value(error.to_string()))?;
+        let data = pdviewx::ChunkData::new(
+            &catalog.0,
+            ticket.0.key.chunk,
+            pdviewx::ChunkPayload::PointBatch(payload),
+        )
+        .map_err(|error| value(error.to_string()))?;
+        render(
+            self.inner
+                .deliver_chunk_into(ticket.0, data, &mut self.residency_output)
+                .map_err(pdviewx::RenderError::from),
+        )
+    }
+
+    /// Validates one C-contiguous `(rows, 8)` rigid-transform array in Rust.
+    fn deliver_instance_chunk(
+        &mut self,
+        catalog: &PyDatasetCatalog,
+        ticket: PyResidencyTicket,
+        transforms: PyReadonlyArray2<'_, f32>,
+    ) -> PyResult<()> {
+        let shape = transforms.shape();
+        if shape.len() != 2 || shape[1] != 8 {
+            return Err(value("instance transforms must have shape (rows, 8)"));
+        }
+        let values = transforms
+            .as_slice()
+            .map_err(|_| value("instance transforms must be C-contiguous float32"))?;
+        let mut instances = Vec::with_capacity(shape[0]);
+        for row in values.chunks_exact(8) {
+            instances.push(
+                pdviewx::RigidInstance::new(
+                    pdviewx::Vec3::new(row[0], row[1], row[2]),
+                    pdviewx::Quat::from_array([row[4], row[5], row[6], row[7]]),
+                    row[3],
+                )
+                .map_err(|error| value(error.to_string()))?,
+            );
+        }
+        let payload = pdviewx::InstanceChunkPayload::new(Arc::from(instances))
+            .map_err(|error| value(error.to_string()))?;
+        let data = pdviewx::ChunkData::new(
+            &catalog.0,
+            ticket.0.key.chunk,
+            pdviewx::ChunkPayload::InstanceBatch(payload),
+        )
+        .map_err(|error| value(error.to_string()))?;
+        render(
+            self.inner
+                .deliver_chunk_into(ticket.0, data, &mut self.residency_output)
+                .map_err(pdviewx::RenderError::from),
+        )
+    }
+
+    /// Stages multiple already-delivered chunks without per-row Python calls.
+    fn upload_chunks(&mut self, tickets: Vec<PyResidencyTicket>) -> PyResult<()> {
+        for ticket in tickets {
+            render(
+                self.inner
+                    .upload_chunk_into(ticket.0, &mut self.residency_output)
+                    .map_err(pdviewx::RenderError::from),
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Publishes only backend-signalled uploads.
+    fn poll_chunk_uploads(&mut self) -> PyResult<()> {
+        render(
+            self.inner
+                .poll_chunk_uploads_into(&mut self.residency_output)
+                .map_err(pdviewx::RenderError::from),
+        )
+    }
+
+    /// Replaces all point-chunk placements in one bounded operation.
+    fn set_point_chunk_placements(
+        &mut self,
+        placements: Vec<PyPointChunkPlacement>,
+    ) -> PyResult<()> {
+        if placements.len() > self.point_placements.capacity() {
+            return Err(value(
+                "point placement count exceeds engine residency capacity",
+            ));
+        }
+        self.point_placements.clear();
+        self.point_placements
+            .extend(placements.into_iter().map(|value| value.0));
+        render(
+            self.inner
+                .set_point_chunk_placements(&self.point_placements)
+                .map_err(pdviewx::RenderError::from),
+        )
+    }
+
+    fn point_chunk_placement_status(&self, id: u64) -> PyChunkPlacementStatus {
+        self.inner
+            .point_chunk_placement_status(pdviewx::ChunkPlacementId::new(id))
+            .into()
+    }
+
+    fn set_instance_chunk_placements(
+        &mut self,
+        placements: Vec<PyInstanceChunkPlacement>,
+    ) -> PyResult<()> {
+        if placements.len() > self.instance_placements.capacity() {
+            return Err(value(
+                "instance placement count exceeds engine residency capacity",
+            ));
+        }
+        self.instance_placements.clear();
+        self.instance_placements
+            .extend(placements.into_iter().map(|value| value.0));
+        render(
+            self.inner
+                .set_instance_chunk_placements(&self.instance_placements)
+                .map_err(pdviewx::RenderError::from),
+        )
+    }
+
+    fn instance_chunk_placement_status(&self, id: u64) -> PyChunkPlacementStatus {
+        self.inner
+            .instance_chunk_placement_status(pdviewx::ChunkPlacementId::new(id))
+            .into()
+    }
+
+    fn resident_generic_chunk(&self, ticket: PyResidencyTicket) -> Option<PyResidentGenericChunk> {
+        self.inner
+            .resident_generic_chunk(ticket.0)
+            .map(PyResidentGenericChunk)
+    }
+}
+
+pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_class::<PyPointChunkPlacement>()?;
+    module.add_class::<PyInstanceChunkPlacement>()?;
+    module.add_class::<PyChunkPlacementStatus>()?;
+    module.add_class::<PyResidentGenericChunk>()
+}
