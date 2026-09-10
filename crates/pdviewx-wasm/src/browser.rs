@@ -1,11 +1,22 @@
 //! JavaScript marshalling only; rendering and selection remain in Rust.
 
-use pdviewx::{
-    Camera, ColorScheme, Engine, EngineConfig, FrameOutcome, Representation, RepresentationConfig,
-    Rgba8, Scene,
+pub use crate::browser_camera::WebCamera;
+pub use crate::browser_controls::{
+    WebCameraController, WebCameraControllerKind, WebNavigationKey, WebPointerButton,
 };
+pub use crate::browser_engine::WebEngine;
+pub use crate::browser_frame::{WebFrameReport, WebFrameTiming};
+pub use crate::browser_presentation::{
+    WebClipCap, WebClipPlane, WebClipSet, WebMaterial, WebMaterialModel,
+};
+pub use crate::browser_types::{
+    WebCapabilities, WebEngineConfig, WebLifecycleState, WebPick, WebPickKind, WebPowerPreference,
+    WebProfile, WebRenderMode, WebResolutionPolicy,
+};
+use pdviewx::{Camera, ColorScheme, Representation, RepresentationConfig, Rgba8, Scene};
 use wasm_bindgen::prelude::*;
-use web_sys::HtmlCanvasElement;
+
+use crate::browser_secondary::parse_structure;
 
 /// Every molecular representation accepted by the portable renderer.
 #[wasm_bindgen]
@@ -43,7 +54,7 @@ pub enum WebRepresentationKind {
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct WebRepresentation {
-    inner: RepresentationConfig,
+    pub(crate) inner: RepresentationConfig,
 }
 
 #[wasm_bindgen]
@@ -111,6 +122,58 @@ impl WebRepresentation {
         }
     }
 
+    /// Returns a recipe coloured by molecular chain.
+    #[must_use]
+    #[wasm_bindgen(js_name = colorByChain)]
+    pub fn color_by_chain(self) -> Self {
+        Self {
+            inner: self.inner.color(ColorScheme::ByChain),
+        }
+    }
+
+    /// Returns a recipe coloured by deposited secondary-structure class.
+    #[must_use]
+    #[wasm_bindgen(js_name = colorBySecondaryStructure)]
+    pub fn color_by_secondary_structure(self) -> Self {
+        Self {
+            inner: self.inner.color(ColorScheme::BySecondaryStructure),
+        }
+    }
+
+    /// Returns a recipe coloured by the conventional element palette.
+    #[must_use]
+    #[wasm_bindgen(js_name = colorByElement)]
+    pub fn color_by_element(self) -> Self {
+        Self {
+            inner: self.inner.color(ColorScheme::ByElement),
+        }
+    }
+
+    /// Returns a recipe coloured by stable source residue row.
+    #[must_use]
+    #[wasm_bindgen(js_name = colorByResidue)]
+    pub fn color_by_residue(self) -> Self {
+        Self {
+            inner: self.inner.color(ColorScheme::ByResidue),
+        }
+    }
+
+    /// Applies one typed material to the whole batched representation.
+    #[must_use]
+    pub fn material(self, material: &WebMaterial) -> Self {
+        Self {
+            inner: self.inner.material(material.inner),
+        }
+    }
+
+    /// Applies fixed-capacity world-space clipping without rebuilding source geometry.
+    #[must_use]
+    pub fn clipping(self, clipping: &WebClipSet) -> Self {
+        Self {
+            inner: self.inner.clipping(clipping.inner),
+        }
+    }
+
     /// Returns a recipe with scaled atomic radii.
     #[must_use]
     #[wasm_bindgen(js_name = radiusScale)]
@@ -135,23 +198,40 @@ impl WebRepresentation {
 #[derive(Debug)]
 pub struct WebScene {
     sources: Vec<pdbiox::Structure>,
-    inner: Scene,
+    pub(crate) inner: Scene,
 }
 
 #[wasm_bindgen]
 impl WebScene {
-    /// Parses caller-supplied structure bytes through `pdbiox` and creates a scene.
+    /// Creates an empty scene for generic points, instances and relations.
+    #[must_use]
+    pub fn empty() -> Self {
+        Self {
+            sources: Vec::new(),
+            inner: Scene::new(),
+        }
+    }
+
+    /// Copies caller-supplied bytes once, parses through `pdbiox`, and creates a scene.
     ///
     /// # Errors
     ///
     /// Returns a JavaScript error when parsing or scene construction fails.
-    #[wasm_bindgen(js_name = fromBytes)]
-    pub fn from_bytes(bytes: Vec<u8>, name: Option<String>) -> Result<WebScene, JsValue> {
-        let structure = parse_structure(bytes, name)?;
-        let inner = Scene::from_structure(&structure)
+    #[wasm_bindgen(js_name = copyFromBytes)]
+    pub fn copy_from_bytes(bytes: Vec<u8>, name: Option<String>) -> Result<WebScene, JsValue> {
+        let parsed = parse_structure(bytes, name)
+            .map_err(|diagnostics| js_error("structure parse failed", &diagnostics))?;
+        let mut inner = Scene::new();
+        let handle = inner
+            .add_structure(&parsed.structure)
             .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        if !parsed.secondary_structure.is_empty() {
+            inner
+                .apply_secondary_structure(handle, &parsed.secondary_structure)
+                .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        }
         Ok(Self {
-            sources: vec![structure],
+            sources: vec![parsed.structure],
             inner,
         })
     }
@@ -163,12 +243,18 @@ impl WebScene {
     /// Returns a JavaScript error when parsing or scene construction fails.
     #[wasm_bindgen(js_name = addStructure)]
     pub fn add_structure(&mut self, bytes: Vec<u8>, name: Option<String>) -> Result<u32, JsValue> {
-        let structure = parse_structure(bytes, name)?;
+        let parsed = parse_structure(bytes, name)
+            .map_err(|diagnostics| js_error("structure parse failed", &diagnostics))?;
         let handle = self
             .inner
-            .add_structure(&structure)
+            .add_structure(&parsed.structure)
             .map_err(|error| JsValue::from_str(&error.to_string()))?;
-        self.sources.push(structure);
+        if !parsed.secondary_structure.is_empty() {
+            self.inner
+                .apply_secondary_structure(handle, &parsed.secondary_structure)
+                .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        }
+        self.sources.push(parsed.structure);
         Ok(handle.row())
     }
 
@@ -197,67 +283,6 @@ impl WebScene {
     }
 }
 
-/// Browser camera value passed directly to the native renderer.
-#[wasm_bindgen]
-#[derive(Clone, Copy, Debug)]
-pub struct WebCamera {
-    inner: Camera,
-}
-
-/// WebGPU engine bound to a host-owned canvas.
-#[wasm_bindgen]
-#[derive(Debug)]
-pub struct WebEngine {
-    inner: Engine,
-}
-
-#[wasm_bindgen]
-impl WebEngine {
-    /// Opens WebGPU asynchronously against the supplied canvas.
-    ///
-    /// # Errors
-    ///
-    /// Returns a JavaScript error when WebGPU is unavailable or setup fails.
-    pub async fn create(canvas: HtmlCanvasElement) -> Result<WebEngine, JsValue> {
-        let width = canvas.width().max(1);
-        let height = canvas.height().max(1);
-        let config = EngineConfig {
-            width,
-            height,
-            ..EngineConfig::default()
-        };
-        let inner = Engine::new_async(&config, Some(canvas))
-            .await
-            .map_err(|error| JsValue::from_str(&error.to_string()))?;
-        Ok(Self { inner })
-    }
-
-    /// Resizes persistent presentation state; zero dimensions clamp to one.
-    pub fn resize(&mut self, width: u32, height: u32) {
-        self.inner.resize(width.max(1), height.max(1));
-    }
-
-    /// Renders one frame and reports whether it reached presentation.
-    ///
-    /// # Errors
-    ///
-    /// Returns a JavaScript error on an unrecoverable GPU failure.
-    pub fn render(&mut self, scene: &WebScene, camera: &WebCamera) -> Result<bool, JsValue> {
-        self.inner
-            .render(&scene.inner, &camera.inner)
-            .map(|outcome| outcome == FrameOutcome::Presented)
-            .map_err(|error| JsValue::from_str(&error.to_string()))
-    }
-}
-
 fn js_error(prefix: &str, diagnostics: &[pdbiox::Diagnostic]) -> JsValue {
     JsValue::from_str(&format!("{prefix}: {diagnostics:?}"))
-}
-
-fn parse_structure(bytes: Vec<u8>, name: Option<String>) -> Result<pdbiox::Structure, JsValue> {
-    let options = pdbiox::ReadOptions::new();
-    let name = name.map(String::into_boxed_str);
-    pdbiox::read_bytes(bytes, name.as_deref(), &options)
-        .map(|parsed| parsed.0)
-        .map_err(|diagnostics| js_error("structure parse failed", &diagnostics))
 }
