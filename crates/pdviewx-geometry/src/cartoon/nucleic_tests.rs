@@ -54,7 +54,8 @@ fn a_planar_base_emits_a_slab_lying_in_the_ring_plane() {
         0.5,
         &mut vertices,
         &mut indices,
-    );
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
 
     assert!(!vertices.is_empty(), "a nucleotide emits geometry");
     assert_eq!(indices.len() % 3, 0, "geometry is triangulated");
@@ -127,7 +128,8 @@ fn residues_without_a_base_ring_emit_nothing() {
         0.5,
         &mut vertices,
         &mut indices,
-    );
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
     assert!(
         vertices.is_empty() && indices.is_empty(),
         "a protein fixture carries no nucleotide slabs"
