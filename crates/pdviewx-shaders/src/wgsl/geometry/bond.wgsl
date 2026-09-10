@@ -16,6 +16,7 @@
 //!include "include/oit_input.wgsl"
 //!include "include/representation.wgsl"
 //!include "include/motion.wgsl"
+//!include "include/visual/fragment.wgsl"
 //!include "include/bond/types.wgsl"
 //!include "include/bond/line.wgsl"
 //!include "include/bond/capsule.wgsl"

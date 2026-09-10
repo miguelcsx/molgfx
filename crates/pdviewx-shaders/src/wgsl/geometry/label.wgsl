@@ -147,9 +147,9 @@ fn fs_label_glyph(
         transparency.revealage;
 
     out.entity_id =
-        in.metadata.x;
+        in.metadata.x & 0x0fffffffu;
 
-    out.structure_id =
+    out.resident_page =
         in.metadata.y;
 
     return out;
@@ -318,9 +318,9 @@ fn fs_label_guide(
         transparency.revealage;
 
     out.entity_id =
-        in.ids.x;
+        in.ids.x & 0x0fffffffu;
 
-    out.structure_id =
+    out.resident_page =
         in.ids.y;
 
     out.depth =
@@ -428,9 +428,9 @@ fn fs_label_marker(
         transparency.revealage;
 
     out.entity_id =
-        in.metadata.x;
+        in.metadata.x & 0x0fffffffu;
 
-    out.structure_id =
+    out.resident_page =
         in.metadata.y;
 
     return out;
