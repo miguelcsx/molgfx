@@ -1,29 +1,50 @@
 //! Opens the adapter, validates pipelines and optionally renders a structure to PNG.
 //!
-//! Usage: `cargo run --example headless_smoke -- structure.cif output.png [representation|layered] [width] [height] [opacity] [camera-distance-scale] [realtime|quality] [inspection|illustrative|cinematic]`
+//! Usage: `cargo run --example headless_smoke -- structure.cif output.png [representation|layered|glycan|glycan-closeup] [width] [height] [opacity] [camera-distance-scale] [realtime|cinematic] [inspection|illustrative|cinematic]`
 
 use pdviewx::{
-    AtomSelection, BoundingSphere, Camera, ClipCap, ClipPlane, ClipSet, Engine, EngineConfig,
-    Image, ImageConfig, RenderMode, RenderProfile, RepresentationKind, Scene, SurfaceKind,
-    SurfaceStyle, Vec3,
+    AtomSelection, BondTopologyFrame, BondTopologySegment, BoundingSphere, Camera, ClipCap,
+    ClipPlane, ClipSet, ColorScheme, Engine, EngineConfig, GuideStyle, IllustrationStyle, Image,
+    ImageConfig, PlaybackMode, PresentationEffect, RenderMode, RenderProfile, RepresentationKind,
+    ScalarFieldSemantics, Scene, StructureHandle, SurfaceKind, SurfaceStyle, TimeWarp, Timeline,
+    TopologyBond, TrajectoryFrame, TrajectorySegment, Vec3,
 };
 use std::error::Error;
 use std::fs::File;
 use std::io;
 use std::path::Path;
+use std::sync::Arc;
 
 #[path = "common/mod.rs"]
 mod common;
+#[path = "common/glycan.rs"]
+mod glycan;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
     let mode = match arguments.get(7).map(String::as_str) {
-        Some("quality") => RenderMode::Quality,
+        Some("cinematic") => RenderMode::Cinematic,
         _ => RenderMode::Realtime,
     };
     let profile = match arguments.get(8).map(String::as_str) {
         Some("illustrative") => RenderProfile::illustrative(),
         Some("cinematic") => RenderProfile::cinematic(),
+        Some("blueprint") => RenderProfile::inspection().with_effect(
+            PresentationEffect::Illustration(IllustrationStyle {
+                silhouette_strength: 0.9,
+                cavity_strength: 0.3,
+                depth_cue_strength: 0.0,
+                posterize_levels: 4.0,
+                motion_persistence: 0.0,
+                outline_width: 3.0,
+            }),
+        ),
+        Some("trails") => RenderProfile::inspection().with_effect(
+            PresentationEffect::Illustration(IllustrationStyle {
+                motion_persistence: 0.9,
+                ..IllustrationStyle::default()
+            }),
+        ),
         _ => RenderProfile::inspection(),
     };
     let mut engine = Engine::new(
@@ -35,7 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         None,
     )?;
     println!("pdviewx adapter capabilities: {:?}", engine.capabilities());
-    let (scene, camera, config) = match arguments.first() {
+    let (mut scene, camera, config) = match arguments.first() {
         Some(path) => molecular_scene(
             path,
             arguments.get(2).map(String::as_str),
@@ -46,6 +67,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
         None => empty_scene(),
     };
+    configure_motion(&arguments, &mut scene, &mut engine, &camera, config)?;
     let image = engine.render_image(&scene, &camera, config)?;
     println!("off-screen RGBA bytes: {}", image.pixels.len());
     println!(
@@ -57,6 +79,155 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("wrote {path}");
     }
     Ok(())
+}
+
+fn configure_motion(
+    arguments: &[String],
+    scene: &mut Scene,
+    engine: &mut Engine,
+    camera: &Camera,
+    config: ImageConfig,
+) -> Result<(), Box<dyn Error>> {
+    let handle = scene.structures().next().map(|(handle, _)| handle);
+    if let (Some(argument), Some(handle)) = (arguments.get(9), handle)
+        && let Ok(length) = argument.parse::<f32>()
+    {
+        scene.set_bond_break_length(handle, length)?;
+        println!("bond break length: {length}");
+    }
+    // Trajectory-driven modes reuse one synthesized rotational displacement.
+    match (arguments.get(10).map(String::as_str), handle) {
+        (Some("porcupine"), Some(handle)) => {
+            let count = swirl_trajectory(scene, handle)?;
+            let indices: Vec<u32> = (0..count).step_by(12).collect();
+            let style = GuideStyle {
+                color: pdviewx::Rgba8::opaque(220, 40, 40),
+                width_pixels: 2.6,
+                arrow_pixels: 12.0,
+                ..GuideStyle::default()
+            };
+            let arrows = scene.add_trajectory_vectors(handle, &indices, 3.0, 0.25, style)?;
+            println!("porcupine arrows: {}", arrows.len());
+        }
+        (Some("rmsf"), Some(handle)) => {
+            swirl_trajectory(scene, handle)?;
+            let property = scene.trajectory_displacement_property(
+                handle,
+                "per-frame motion",
+                ScalarFieldSemantics::UncalibratedRank,
+            )?;
+            let property_handle = scene.add_atom_property(property)?;
+            let representation = scene.representations().next().map(|(handle, _)| handle);
+            let color = scene
+                .atom_property(property_handle)
+                .map(|value| ColorScheme::property(property_handle, value));
+            if let (Some(color), Some(representation)) = (color, representation)
+                && let Some(view) = scene.representation_mut(representation)
+            {
+                view.color = color;
+                println!("rmsf coloring applied");
+            }
+        }
+        (Some("reaction"), Some(handle)) => configure_reaction(arguments, scene, handle)?,
+        _ => {}
+    }
+    // Motion trails are temporal: seed the history with a warm-up frame at the
+    // interval start, then advance the trajectory so the final frame carries
+    // real motion for the persistence blend to smear.
+    if arguments.get(8).map(String::as_str) == Some("trails")
+        && let Some(handle) = handle
+    {
+        swirl_trajectory(scene, handle)?;
+        let warp = TimeWarp::new(0.0, 0.0, 1.0, [0.0, 1.0], PlaybackMode::Clamp)?;
+        let mut timeline = Timeline::new();
+        timeline.bind_trajectory(scene, handle, warp)?;
+        for step in 0u8..7 {
+            timeline.apply(scene, f64::from(step) * 0.1)?;
+            let _warm_up = engine.render_image(scene, camera, config)?;
+        }
+        timeline.apply(scene, 0.75)?;
+        println!("motion trails: warmed up 7 frames of continuous motion");
+    }
+    Ok(())
+}
+
+fn configure_reaction(
+    arguments: &[String],
+    scene: &mut Scene,
+    handle: StructureHandle,
+) -> Result<(), Box<dyn Error>> {
+    let (atom_count, mut start) = match scene.structure(handle) {
+        Some(placed) => {
+            let mut bonds = Vec::with_capacity(placed.structure.data().bonds.len());
+            for bond in placed.structure.data().bonds.iter() {
+                let atom_a = u32::try_from(bond.atom_a.as_usize())
+                    .map_err(|_| io::Error::other("bond atom index exceeds u32"))?;
+                let atom_b = u32::try_from(bond.atom_b.as_usize())
+                    .map_err(|_| io::Error::other("bond atom index exceeds u32"))?;
+                bonds.push(TopologyBond::new(
+                    atom_a,
+                    atom_b,
+                    bond.order == pdbiox::BondOrder::Aromatic,
+                )?);
+            }
+            (placed.atoms.len(), bonds)
+        }
+        None => return Ok(()),
+    };
+    start.sort_unstable_by_key(|bond| bond.atoms());
+    start.dedup_by_key(|bond| bond.atoms());
+    let end = start
+        .iter()
+        .copied()
+        .enumerate()
+        .filter_map(|(index, bond)| (index % 4 != 0).then_some(bond))
+        .collect::<Vec<_>>();
+    let start = BondTopologyFrame::new(0, 0.0, atom_count, Arc::from(start), "reaction:start")?;
+    let end = BondTopologyFrame::new(1, 1.0, atom_count, Arc::from(end), "reaction:end")?;
+    scene.set_bond_topology_segment(handle, BondTopologySegment::new(start, end, 0.0)?)?;
+    let sample = match arguments
+        .get(11)
+        .and_then(|value| value.parse::<f64>().ok())
+    {
+        Some(sample) => sample,
+        None => 0.75,
+    }
+    .clamp(0.0, 1.0);
+    let warp = TimeWarp::new(0.0, 0.0, 1.0, [0.0, 1.0], PlaybackMode::Clamp)?;
+    let mut timeline = Timeline::new();
+    timeline.bind_bond_topology(scene, handle, warp)?;
+    timeline.apply(scene, sample)?;
+    println!("dynamic topology sample: {sample:.3}");
+    Ok(())
+}
+
+/// Installs a two-frame rotational displacement about the scene centroid and
+/// returns the atom count, so porcupine and RMSF modes share one motion field.
+fn swirl_trajectory(scene: &mut Scene, handle: StructureHandle) -> Result<u32, Box<dyn Error>> {
+    let bounds = scene.world_aabb();
+    let centroid = (bounds.min + bounds.max) * 0.5;
+    let base: Vec<[f32; 3]> = match scene.structures().next() {
+        Some((_, placed)) => placed.atoms.coords().slice().to_vec(),
+        None => Vec::new(),
+    };
+    let (sin, cos) = 0.18_f32.sin_cos();
+    let end: Vec<[f32; 3]> = base
+        .iter()
+        .map(|point| {
+            let local = Vec3::from_array(*point) - centroid;
+            let rotated = Vec3::new(
+                local.x * cos - local.y * sin,
+                local.x * sin + local.y * cos,
+                local.z,
+            );
+            (rotated + centroid).to_array()
+        })
+        .collect();
+    let count = u32::try_from(base.len()).map_or(0, |value| value);
+    let start = TrajectoryFrame::new(0, 0.0, Arc::from(base), "swirl:start")?;
+    let finish = TrajectoryFrame::new(1, 1.0, Arc::from(end), "swirl:end")?;
+    scene.set_trajectory_segment(handle, TrajectorySegment::new(start, finish, 0.0)?)?;
+    Ok(count)
 }
 
 fn empty_scene() -> (Scene, Camera, ImageConfig) {
@@ -91,6 +262,7 @@ fn resolve_kind(
         Some("tube") => (RepresentationKind::Tube, None, None),
         Some("rocket") => (RepresentationKind::Rocket, None, None),
         Some("twister") => (RepresentationKind::Twister, None, None),
+        Some("paper-chain") => (RepresentationKind::PaperChain, None, None),
         Some("ball-and-stick" | "ball-and-stick-cutaway") => {
             (RepresentationKind::BallAndStick, None, None)
         }
@@ -115,6 +287,11 @@ fn resolve_kind(
             Some(SurfaceKind::SolventAccessible),
             None,
         ),
+        Some("sas-soft") => (
+            RepresentationKind::Surface,
+            Some(SurfaceKind::SolventAccessible),
+            Some(SurfaceStyle::SoftUnion),
+        ),
         Some("ses-contour") => (
             RepresentationKind::Surface,
             Some(SurfaceKind::SolventExcluded),
@@ -124,6 +301,21 @@ fn resolve_kind(
             RepresentationKind::Surface,
             Some(SurfaceKind::SolventExcluded),
             Some(SurfaceStyle::Dots),
+        ),
+        Some("ses-mesh") => (
+            RepresentationKind::Surface,
+            Some(SurfaceKind::SolventExcluded),
+            Some(SurfaceStyle::Mesh),
+        ),
+        Some("ses-filled-contour") => (
+            RepresentationKind::Surface,
+            Some(SurfaceKind::SolventExcluded),
+            Some(SurfaceStyle::FilledContour),
+        ),
+        Some("gaussian-surface") => (
+            RepresentationKind::Surface,
+            Some(SurfaceKind::Gaussian),
+            None,
         ),
         Some("ses" | "surface") => (
             RepresentationKind::Surface,
@@ -164,7 +356,12 @@ fn molecular_scene(
             })
         })
         .transpose()?;
-    if representation == Some("layered") {
+    // Twister and PaperChain describe sugars, and a sugar in isolation is a few
+    // rings floating in space. Drawn over the protein they came off, they read
+    // as what they are, so these two modes compose the scene the pair is for.
+    if matches!(representation, Some("glycan" | "glycan-closeup")) {
+        glycan::compose_glycan_scene(&mut scene, &structure)?;
+    } else if representation == Some("layered") {
         scene.represent(selection, RepresentationKind::Cartoon)?;
         let _ = add_representation(
             &mut scene,
@@ -199,7 +396,10 @@ fn molecular_scene(
         width: u32::from(width),
         height: u32::from(height),
     };
-    let bounds = scene.world_aabb();
+    let bounds = match representation {
+        Some("glycan-closeup") => glycan::sugar_bounds(&structure),
+        _ => scene.world_aabb(),
+    };
     let mut camera = Camera::framing_aabb(&bounds, f32::from(width) / f32::from(height));
     if let Some(scale) = parse_camera_scale(camera_distance_scale)? {
         camera.eye = camera.target + (camera.eye - camera.target) * scale;

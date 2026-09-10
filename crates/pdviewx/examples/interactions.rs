@@ -1,14 +1,15 @@
-//! Renders deterministic caller-supplied interaction glyphs and profiles them.
+//! Renders deterministic caller-supplied generic relations and profiles them.
 
 use pdviewx::{
-    AtomSelection, Camera, Engine, EngineConfig, EntityKind, EntityRef, ImageConfig,
-    InteractionAnchor, InteractionDirection, InteractionEdge, InteractionGeometry,
-    InteractionHandle, InteractionKind, RepresentationKind, Scene, Vec3,
+    AtomSelection, Camera, Engine, EngineConfig, ImageConfig, Relation, RelationBatch,
+    RelationBatchHandle, RelationPattern, RelationStyle, RepresentationKind, RowDomain,
+    RowEntityRef, Scene, SourceNamespace, SourceRows, SpatialAnchor,
 };
 use std::error::Error;
 use std::fs::File;
 use std::io;
 use std::path::Path;
+use std::sync::Arc;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
@@ -52,89 +53,55 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn add_interactions(scene: &mut Scene) -> Result<Vec<InteractionHandle>, Box<dyn Error>> {
-    let (owner, positions) = {
+fn add_interactions(scene: &mut Scene) -> Result<Vec<RelationBatchHandle>, Box<dyn Error>> {
+    let owner = {
         let Some((owner, placed)) = scene.structures().next() else {
             return Err(io::Error::other("fixture structure is absent").into());
         };
-        let coordinates = placed.atoms.coords().slice();
-        if coordinates.len() < 10 {
+        if placed.atoms.coords().slice().len() < 10 {
             return Err(io::Error::other("interaction fixture needs at least ten atoms").into());
         }
-        let positions = coordinates[..10]
-            .iter()
-            .copied()
-            .map(Vec3::from_array)
-            .collect::<Vec<_>>();
-        (owner, positions)
+        owner
     };
     let pairs = [(0, 5), (2, 9), (4, 8), (1, 7), (3, 6)];
-    let kinds = [
-        InteractionKind::HydrogenBond,
-        InteractionKind::SaltBridge,
-        InteractionKind::PiStacking,
-        InteractionKind::Hydrophobic,
-        InteractionKind::MetalCoordination,
-    ];
-    let mut edges = Vec::with_capacity(kinds.len());
-    for (ordinal, ((start, end), kind)) in pairs.into_iter().zip(kinds).enumerate() {
-        let start_position = positions[start];
-        let end_position = positions[end];
+    let domain = RowDomain::Atoms(owner);
+    let mut relations = Vec::with_capacity(pairs.len());
+    for (start, end) in pairs {
         let start_index =
             u32::try_from(start).map_err(|_| io::Error::other("atom index overflow"))?;
         let end_index = u32::try_from(end).map_err(|_| io::Error::other("atom index overflow"))?;
-        let start = anchor(owner, start_index, start_position)?;
-        let end = anchor(owner, end_index, end_position)?;
-        let geometry = InteractionGeometry::new(start_position.distance(end_position), None)?;
-        let direction = if ordinal % 2 == 0 {
-            InteractionDirection::Forward
-        } else {
-            InteractionDirection::Undirected
-        };
-        let ordinal = u16::try_from(ordinal)
-            .map(f32::from)
-            .map_err(|_| io::Error::other("interaction ordinal overflow"))?;
-        let edge = InteractionEdge::new(
-            owner,
-            start,
-            end,
-            kind,
-            geometry,
-            "pdviewx deterministic interaction fixture",
-        )?
-        .with_direction(direction)
-        .with_occupancy(0.55 + ordinal * 0.1)?
-        .with_normalized_strength(0.25 + ordinal * 0.15)?;
-        edges.push(scene.add_interaction(edge)?);
+        relations.push(Relation {
+            start: SpatialAnchor::entity(RowEntityRef::new(domain, start_index))?,
+            end: SpatialAnchor::entity(RowEntityRef::new(domain, end_index))?,
+        });
     }
-    Ok(edges)
-}
-
-fn anchor(
-    structure: pdviewx::StructureHandle,
-    index: u32,
-    position: Vec3,
-) -> Result<InteractionAnchor, pdviewx::CoreError> {
-    InteractionAnchor::entity(
-        position,
-        EntityRef {
-            structure,
-            kind: EntityKind::Atom,
-            index,
+    let row_count =
+        u32::try_from(relations.len()).map_err(|_| io::Error::other("relation count overflow"))?;
+    let rows = SourceRows::ordered(SourceNamespace(0x696e_7465_7261_6374), row_count);
+    let batch = RelationBatch::new(
+        Arc::from(relations),
+        rows,
+        RelationStyle {
+            width_pixels: 1.8,
+            color: pdviewx::Rgba8::opaque(96, 165, 250),
+            opacity: 0.9,
+            pattern: RelationPattern::Dashed,
+            endpoint_insets_pixels: [0.0; 2],
+            depth_behind_anchors: false,
         },
-    )
+    )?;
+    Ok(vec![scene.add_relation_batch(batch)?])
 }
 
 fn set_visible(
     scene: &mut Scene,
-    handles: &[InteractionHandle],
+    handles: &[RelationBatchHandle],
     visible: bool,
-) -> Result<(), io::Error> {
+) -> Result<(), Box<dyn Error>> {
     for &handle in handles {
-        scene
-            .interaction_mut(handle)
-            .ok_or_else(|| io::Error::other("interaction became stale"))?
-            .set_visible(visible);
+        if !scene.set_domain_visible(RowDomain::Relations(handle), visible)? {
+            return Err(io::Error::other("relation became stale").into());
+        }
     }
     Ok(())
 }

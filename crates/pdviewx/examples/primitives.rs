@@ -7,11 +7,11 @@
 //! for VMD `FieldLines` and OVITO particle/vector/line objects.
 
 use pdviewx::{
-    AnisotropicEllipsoid, Camera, CarbohydrateShape, CarbohydrateSymbol, Engine, EngineConfig,
-    GuideCap, GuideStyle, Image, ImageConfig, InteractionPattern, Particle, ParticleBoundary,
-    ParticleMotion, ParticleShape, PlanarRegion, Primitive, Rgba8, Scene, Vec3,
+    Aabb, AnisotropicEllipsoid, Camera, CarbohydrateShape, CarbohydrateSymbol, Engine,
+    EngineConfig, GuideCap, GuideStyle, Image, ImageConfig, Particle, ParticleBoundary,
+    ParticleMotion, ParticleShape, PlanarRegion, Primitive, Quat, RelationPattern, Rgba8, Scene,
+    Vec3,
 };
-use pdviewx_math::Quat;
 use std::error::Error;
 use std::fs::File;
 use std::io;
@@ -61,8 +61,12 @@ fn add_particle_batch(
     center: Vec3,
     scale: f32,
 ) -> Result<(), Box<dyn Error>> {
-    let y = center.y + scale * 1.15;
+    let row_center = center + Vec3::new(0.0, scale * 1.15, 0.0);
     let spacing = scale * 0.72;
+    let motion_bounds = Aabb::new(
+        row_center + Vec3::new(-scale * 1.55, -scale * 0.35, -scale * 0.5),
+        row_center + Vec3::new(scale * 1.55, scale * 0.35, scale * 0.5),
+    );
     let shapes = [
         (ParticleShape::Sphere, Vec3::splat(scale * 0.24)),
         (
@@ -79,7 +83,7 @@ fn add_particle_batch(
         ),
         (
             ParticleShape::Gaussian,
-            Vec3::new(scale * 0.56, scale * 0.42, scale * 0.32),
+            Vec3::new(scale * 0.9, scale * 0.68, scale * 0.52),
         ),
     ];
     let colors = [
@@ -87,7 +91,7 @@ fn add_particle_batch(
         Rgba8::opaque(251, 191, 36),
         Rgba8::opaque(244, 114, 182),
         Rgba8::opaque(74, 222, 128),
-        Rgba8::opaque(167, 139, 250),
+        Rgba8::opaque(124, 58, 237),
     ];
     let offsets = [-2.0, -1.0, 0.0, 1.0, 2.0];
     let mut particles = Vec::with_capacity(shapes.len());
@@ -96,7 +100,7 @@ fn add_particle_batch(
             Some(
                 ParticleMotion::new(
                     Vec3::new(0.18, 0.0, 0.0),
-                    scene.world_aabb(),
+                    motion_bounds,
                     0.016,
                     23,
                     ParticleBoundary::Wrap,
@@ -108,13 +112,13 @@ fn add_particle_batch(
         };
         let particle = Particle::new(
             owner,
-            center + Vec3::new(offset * spacing, y, 0.0),
+            row_center + Vec3::new(offset * spacing, 0.0, 0.0),
             Quat::from_rotation_z(offset * 0.12),
             size,
             shape,
             color,
             if shape == ParticleShape::Gaussian {
-                0.72
+                0.98
             } else {
                 0.96
             },
@@ -188,10 +192,10 @@ fn add_streamline(
         })
         .collect::<Vec<_>>();
     let style = GuideStyle {
-        color: Rgba8::opaque(226, 232, 240),
-        pattern: InteractionPattern::Dashes,
-        width_pixels: 2.4,
-        opacity: 0.92,
+        color: Rgba8::opaque(37, 99, 235),
+        pattern: RelationPattern::Dashed,
+        width_pixels: 3.2,
+        opacity: 0.98,
         cap: GuideCap::Arrow,
         ..GuideStyle::default()
     };

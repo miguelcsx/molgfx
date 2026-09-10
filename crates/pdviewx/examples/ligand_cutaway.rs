@@ -4,9 +4,10 @@
 
 use pdviewx::{
     Aabb, AtomSelection, BoundingSphere, Camera, ClipPlane, ClipSet, ColorScheme, Engine,
-    EngineConfig, FocusScene, FocusStyle, FocusSurfaceExtent, Image, ImageConfig, RenderProfile,
-    RepresentationKind, Rgba8, Scene, SurfaceStyle, Vec3,
+    EngineConfig, Image, ImageConfig, RenderProfile, RepresentationKind, Rgba8, Scene,
+    SurfaceStyle, Vec3,
 };
+use pdviewx_recipes::{FocusScene, FocusStyle, FocusSurfaceExtent};
 use std::error::Error;
 use std::fs::File;
 use std::io;
@@ -33,14 +34,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             format!("structure diagnostics: {diagnostics:?}"),
         )
     })?;
-    let structure = pdbiox::infer_bonds(&parsed, pdbiox::BondInference::default())
-        .map_err(|diagnostic| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("bond inference diagnostic: {diagnostic:?}"),
-            )
-        })?
-        .structure;
+    let structure = pdbiox::infer_bonds(
+        &parsed,
+        pdbiox::BondInference::default(),
+        &pdbiox::ExecutionContext::default(),
+    )
+    .map_err(|diagnostic| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("bond inference diagnostic: {diagnostic:?}"),
+        )
+    })?
+    .structure;
     let LigandSelections {
         ligand,
         ligand_points,

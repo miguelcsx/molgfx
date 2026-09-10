@@ -135,8 +135,8 @@ fn profile_materials(
         set_materials(scene, handles, mode)?;
         let timing = engine.profile_frame(scene, camera, IMAGE)?;
         match mode {
-            MaterialMode::Molecular => molecular.push(timing),
-            MaterialMode::Principled => principled.push(timing),
+            MaterialMode::Molecular => molecular.push(&timing),
+            MaterialMode::Principled => principled.push(&timing),
             MaterialMode::Comparison => {}
         }
     }
@@ -165,7 +165,7 @@ impl TimingSamples {
         }
     }
 
-    fn push(&mut self, timing: pdviewx::FrameTiming) {
+    fn push(&mut self, timing: &pdviewx::FrameTiming) {
         self.gpu.push(timing.gpu_ns);
         self.cpu.push(timing.cpu_ns);
     }
