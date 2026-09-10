@@ -16,13 +16,13 @@ pub(super) fn record_spheres<D: Device, P: RenderPassEncoder<D>>(
 ) {
     let mut bound = None;
     for (group, args, shading) in scene.atom_draws(true) {
-        if bound != Some(shading.clipped) {
-            pass.set_pipeline(if shading.clipped {
-                &passes.oit.sphere_clipped
+        if bound != Some(shading) {
+            pass.set_pipeline(if shading.clipped() {
+                passes.oit.sphere_clipped.get(shading)
             } else {
-                &passes.oit.sphere
+                passes.oit.sphere.get(shading)
             });
-            bound = Some(shading.clipped);
+            bound = Some(shading);
         }
         pass.set_bind_group(2, group, &[]);
         pass.draw_indirect(args, 0);
@@ -38,13 +38,13 @@ pub(super) fn record_surfaces<D: Device, P: RenderPassEncoder<D>>(
 ) {
     let mut bound = None;
     for (group, args, shading) in scene.surface_draws(true) {
-        if bound != Some(shading.surface_grid) {
-            pass.set_pipeline(if shading.surface_grid {
-                &passes.oit.grid_surface
+        if bound != Some(shading) {
+            pass.set_pipeline(if shading.surface_grid() {
+                passes.oit.grid_surface.get(shading)
             } else {
-                &passes.oit.union_surface
+                passes.oit.union_surface.get(shading)
             });
-            bound = Some(shading.surface_grid);
+            bound = Some(shading);
         }
         pass.set_bind_group(2, group, &[]);
         pass.draw_indirect(args, 0);
@@ -58,18 +58,27 @@ pub(super) fn record_primitives<D: Device, P: RenderPassEncoder<D>>(
     scene: &GpuScene<D>,
     pass: &mut P,
 ) {
-    let Some((table, runs)) = scene.primitive_groups() else {
-        return;
-    };
-    pass.set_bind_group(2, table, &[]);
-    for run in runs.iter().filter(|run| run.translucent) {
-        let Some(pipeline) = passes.oit.primitive.pipeline(run) else {
-            continue;
-        };
-        pass.set_pipeline(pipeline);
-        pass.draw(
-            0..crate::passes::primitive_pipelines::PRIMITIVE_QUAD_VERTICES,
-            run.first..run.first + run.len,
-        );
+    if let Some((table, runs)) = scene.primitive_groups() {
+        pass.set_bind_group(2, table, &[]);
+        for run in runs.iter().filter(|run| run.translucent) {
+            let Some(pipeline) = passes.oit.primitive.pipeline(run) else {
+                continue;
+            };
+            pass.set_pipeline(pipeline);
+            pass.draw(
+                0..crate::passes::primitive_pipelines::PRIMITIVE_QUAD_VERTICES,
+                run.first..run.first + run.len,
+            );
+        }
+    }
+    if let Some((table, args, runs)) = scene.ligand_pose_draws() {
+        pass.set_bind_group(2, table, &[]);
+        for run in runs.iter().filter(|run| run.translucent) {
+            let Some(pipeline) = passes.oit.ligand_pose.pipeline(run) else {
+                continue;
+            };
+            pass.set_pipeline(pipeline);
+            pass.draw_indirect(args, run.args_offset);
+        }
     }
 }
