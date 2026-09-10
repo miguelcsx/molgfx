@@ -93,10 +93,17 @@ impl<D: Device> DepthOfFieldPass<D> {
     }
 
     pub fn classify(ctx: &mut PassContext<'_, D>) {
+        let Some(effect) = &ctx.passes.depth_of_field else {
+            return;
+        };
         let Some(target) = ctx.resources.view(DOF_TILE_RESOURCE) else {
             return;
         };
-        let Some(FrameBindings { dof_classify, .. }) = ctx.bindings else {
+        let Some(FrameBindings {
+            dof_classify: Some(dof_classify),
+            ..
+        }) = ctx.bindings
+        else {
             return;
         };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
@@ -108,17 +115,20 @@ impl<D: Device> DepthOfFieldPass<D> {
             depth: None,
             timestamps: ctx.timestamps,
         });
-        pass.set_pipeline(&ctx.passes.depth_of_field.classify_pipeline);
+        pass.set_pipeline(&effect.classify_pipeline);
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         pass.set_bind_group(1, dof_classify, &[]);
         pass.draw(0..3, 0..1);
     }
 
     pub fn resolve(ctx: &mut PassContext<'_, D>) {
+        let Some(effect) = &ctx.passes.depth_of_field else {
+            return;
+        };
         let Some(target) = ctx.resources.view(DOF_RESOURCE) else {
             return;
         };
-        let Some(FrameBindings { dof, .. }) = ctx.bindings else {
+        let Some(FrameBindings { dof: Some(dof), .. }) = ctx.bindings else {
             return;
         };
         let Some(bindings) = dof.get(ctx.temporal_write) else {
@@ -133,7 +143,7 @@ impl<D: Device> DepthOfFieldPass<D> {
             depth: None,
             timestamps: ctx.timestamps,
         });
-        pass.set_pipeline(&ctx.passes.depth_of_field.resolve_pipeline);
+        pass.set_pipeline(&effect.resolve_pipeline);
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         pass.set_bind_group(2, bindings, &[]);
         pass.draw(0..3, 0..1);

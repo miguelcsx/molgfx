@@ -66,24 +66,21 @@ impl<D: Device> MotionBlurPass<D> {
     }
 
     pub fn record(ctx: &mut PassContext<'_, D>) {
+        let Some(effect) = &ctx.passes.motion_blur else {
+            return;
+        };
         let Some(target) = ctx.resources.view(MOTION_BLUR_RESOURCE) else {
             return;
         };
         let Some(FrameBindings {
-            motion_blur_history,
-            motion_blur_dof,
+            motion_blur: Some(motion_blur),
             ..
         }) = ctx.bindings
         else {
             return;
         };
-        let source = if ctx.depth_of_field {
-            motion_blur_dof
-        } else {
-            let Some(source) = motion_blur_history.get(ctx.temporal_write) else {
-                return;
-            };
-            source
+        let Some(source) = motion_blur.get(ctx.temporal_write) else {
+            return;
         };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
             label: "camera-shutter motion blur",
@@ -94,7 +91,7 @@ impl<D: Device> MotionBlurPass<D> {
             depth: None,
             timestamps: ctx.timestamps,
         });
-        pass.set_pipeline(&ctx.passes.motion_blur.pipeline);
+        pass.set_pipeline(&effect.pipeline);
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         pass.set_bind_group(1, source, &[]);
         pass.draw(0..3, 0..1);
