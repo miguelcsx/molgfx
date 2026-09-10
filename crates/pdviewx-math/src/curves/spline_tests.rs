@@ -1,6 +1,33 @@
 use super::*;
 
 #[test]
+fn fixed_step_sampling_matches_the_gpu_kernel_contract() {
+    // A collinear trace stays on the axis with unit tangents along it, and the
+    // sample count follows the (steps + 1) + (segments - 1) * steps layout the
+    // GPU kernel maps its linear invocation index onto.
+    let points = [
+        Vec3::ZERO,
+        Vec3::X,
+        Vec3::new(2.0, 0.0, 0.0),
+        Vec3::new(3.0, 0.0, 0.0),
+    ];
+    let mut samples = Vec::new();
+    sample_catmull_rom_fixed(&points, 2, &mut samples);
+    let segments = points.len() - 1;
+    assert_eq!(samples.len(), (2 + 1) + (segments - 1) * 2);
+    for sample in &samples {
+        assert!(sample.position.y.abs() < 1e-5 && sample.position.z.abs() < 1e-5);
+        assert!((sample.tangent - Vec3::X).length() < 1e-5);
+    }
+    // The midpoint of the interior segment 1 sits exactly halfway between its
+    // evenly spaced control points, matching the shared uniform basis.
+    let mid = samples
+        .iter()
+        .find(|s| s.segment == 1 && (s.parameter - 0.5).abs() < 1e-6);
+    assert!(mid.is_some_and(|s| (s.position.x - 1.5).abs() < 1e-5));
+}
+
+#[test]
 fn sampling_hits_trace_endpoints_exactly() {
     let points = [Vec3::ZERO, Vec3::X, Vec3::new(2.0, 1.0, 0.0)];
     let mut samples = Vec::new();

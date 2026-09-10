@@ -47,6 +47,7 @@ pub fn parallel_transport(samples: &[CurveSample], out: &mut Vec<TransportFrame>
     }
 }
 
+#[inline]
 fn frame(tangent: Vec3, normal_hint: Vec3) -> TransportFrame {
     let normal = normalized(normal_hint - tangent * normal_hint.dot(tangent), Vec3::X);
     let binormal = normalized(tangent.cross(normal), Vec3::Y);
@@ -57,6 +58,7 @@ fn frame(tangent: Vec3, normal_hint: Vec3) -> TransportFrame {
     }
 }
 
+#[inline]
 fn normalized(value: Vec3, fallback: Vec3) -> Vec3 {
     match value.try_normalize() {
         Some(unit) => unit,
@@ -64,6 +66,7 @@ fn normalized(value: Vec3, fallback: Vec3) -> Vec3 {
     }
 }
 
+#[inline]
 fn least_aligned_axis(tangent: Vec3) -> Vec3 {
     let absolute = tangent.abs();
     if absolute.x <= absolute.y && absolute.x <= absolute.z {
