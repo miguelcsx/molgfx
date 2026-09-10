@@ -1,5 +1,9 @@
 //! Public, process-independent records used by scene manifests.
 
+use super::generic_description::{
+    AttributeDescription, DomainVisualDescription, InstanceBatchDescription, PointBatchDescription,
+    RelationBatchDescription,
+};
 use serde::{Deserialize, Serialize};
 
 #[path = "display_descriptions.rs"]
@@ -33,16 +37,24 @@ pub struct SceneDescription {
     /// Resident categorical volume identities.
     pub segmentations: Vec<VolumeDescription>,
     /// Caller mesh fingerprints and presentation state.
-    #[serde(default)]
     pub meshes: Vec<MeshDescription>,
     /// Transform-only occurrences of shared meshes.
-    #[serde(default)]
     pub mesh_instances: Vec<MeshInstanceDescription>,
     /// Caller-authored analytic primitive payloads.
-    #[serde(default, alias = "scientific_primitives")]
     pub primitives: Vec<PrimitiveDescription>,
+    /// Compact reusable-topology ligand candidate batches.
+    pub ligand_pose_batches: Vec<super::LigandPoseBatchDescription>,
+    /// Generic 12-byte point batches with external payloads.
+    pub point_batches: Vec<PointBatchDescription>,
+    /// Shared-template 32-byte rigid-instance batches.
+    pub instance_batches: Vec<InstanceBatchDescription>,
+    /// Generic typed attribute columns.
+    pub attributes: Vec<AttributeDescription>,
+    /// Generic spatial relation batches.
+    pub relation_batches: Vec<RelationBatchDescription>,
+    /// Declarative visual programs attached to generic domains.
+    pub domain_visuals: Vec<DomainVisualDescription>,
     /// Depth-independent screen overlays.
-    #[serde(default)]
     pub overlays: Vec<OverlayDescription>,
     /// Caller-authored analytic guide payloads.
     pub guides: Vec<GuideDescription>,
@@ -55,9 +67,6 @@ pub struct SceneDescription {
     /// Quick counts for dense or caller-owned tables.
     pub tables: TableCounts,
 }
-
-/// Alias used by applications that store the description as a figure manifest.
-pub type SceneManifest = SceneDescription;
 
 /// One caller mesh source and its scene-owned presentation state.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -131,6 +140,8 @@ pub struct StructureDescription {
     pub row: u32,
     /// Generation of the placed-structure handle.
     pub generation: u32,
+    /// Caller-owned global dataset identity.
+    pub dataset_id: u64,
     /// `pdbiox` entry id, when the source carries one.
     pub source_id: Option<String>,
     /// Source title, when available.
@@ -201,6 +212,8 @@ pub struct RepresentationDescription {
     pub material: MaterialDescription,
     /// Numeric geometry knobs in the same stable order as `RepresentationParams`.
     pub params: [f32; 15],
+    /// Sampled-field connected-component threshold.
+    pub surface_components: SurfaceComponentDescription,
     /// Clipping state.
     pub clipping: ClipDescription,
     /// Optional reversible variable-radius tube mapping.
@@ -213,6 +226,67 @@ pub struct RepresentationDescription {
     pub segmentation: SegmentationStyleDescription,
     /// Optional scalar field sampled over a molecular surface.
     pub surface_scalar: Option<SurfaceScalarDescription>,
+    /// Optional safe typed visual program and its current parameter block.
+    pub visual: Option<VisualStyleDescription>,
+}
+
+/// Serializable sampled-surface connected-component policy.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[serde(tag = "measure", content = "minimum", rename_all = "snake_case")]
+pub enum SurfaceComponentDescription {
+    /// Keep every component.
+    Disabled,
+    /// Minimum exposed-face area in square Angstrom.
+    Area(f64),
+    /// Minimum occupied volume in cubic Angstrom.
+    Volume(f64),
+    /// Minimum occupied voxel count.
+    Voxels(u64),
+}
+
+/// Serialized safe visual program and its current parameter block.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct VisualStyleDescription {
+    /// Fixed-width validated instruction stream.
+    pub instructions: Vec<VisualInstructionDescription>,
+    /// Output-channel code and result register.
+    pub outputs: Vec<[u8; 2]>,
+    /// Referenced atom-property identities in descriptor order.
+    pub properties: Vec<ObjectIdentity>,
+    /// Referenced schema-8 typed attributes in descriptor order.
+    pub attributes: Vec<VisualAttributeDescription>,
+    /// Parameter value-kind codes.
+    pub parameter_kinds: Vec<u8>,
+    /// Default parameter values used by the immutable program.
+    pub parameter_defaults: Vec<[f32; 4]>,
+    /// Current mutable style parameter values.
+    pub parameters: Vec<[f32; 4]>,
+    /// Conservative local displacement bound.
+    pub maximum_displacement: f32,
+}
+
+/// One typed visual attribute handle and expected physical layout.
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct VisualAttributeDescription {
+    /// Stable attribute slot identity.
+    pub identity: ObjectIdentity,
+    /// `scalar`, `category`, `vector` or `color`.
+    pub kind: String,
+}
+
+/// One fixed-width visual instruction.
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
+pub struct VisualInstructionDescription {
+    /// Portable opcode.
+    pub opcode: u32,
+    /// Typed value-kind code.
+    pub kind: u8,
+    /// Source registers.
+    pub operands: [u8; 3],
+    /// Literal payload or input index.
+    pub data: [f32; 4],
+    /// Earliest evaluation-stage code.
+    pub stage: u8,
 }
 
 /// Stable description of a colour source and optional scalar ramp.
@@ -267,6 +341,25 @@ pub struct VolumeDescription {
     pub voxel_to_world: [f32; 16],
     /// FNV-1a fingerprint over caller-owned samples or labels.
     pub content_hash: u64,
+    /// GPU-resident temporal occupancy source, when this is not a static grid.
+    pub occupancy: Option<OccupancyDescription>,
+}
+
+/// Persistent declaration for a GPU-resident temporal occupancy field.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct OccupancyDescription {
+    /// Structure providing the sampled coordinate rows.
+    pub structure: ObjectIdentity,
+    /// Sorted structure-local atom rows deposited per sample.
+    pub atom_rows: Vec<u32>,
+    /// Column-major voxel-to-model transform.
+    pub voxel_to_model: [f32; 16],
+    /// Multiplicative history decay.
+    pub decay: f32,
+    /// Mass deposited by each selected atom.
+    pub deposit: f32,
+    /// Saturation ceiling.
+    pub maximum: f32,
 }
 
 /// One caller-owned atom property column and its mismatch fingerprint.
@@ -281,7 +374,7 @@ pub struct AtomPropertyDescription {
     /// Caller-defined property name.
     pub name: String,
     /// Number of source atom values, including missing values.
-    pub length: u32,
+    pub length: u64,
     /// Finite display domain.
     pub finite_domain: [f32; 2],
     /// Stable primitive meaning name.
