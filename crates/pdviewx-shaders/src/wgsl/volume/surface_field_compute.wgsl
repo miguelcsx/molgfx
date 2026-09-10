@@ -10,10 +10,6 @@
 var output_field:
     texture_storage_3d<r32float, write>;
 
-@group(1) @binding(1)
-var output_provenance:
-    texture_storage_3d<r32uint, write>;
-
 fn surface_field_point(
     coordinate: vec3u,
 ) -> vec3f {
@@ -41,16 +37,6 @@ fn store_surface_sample(
         ),
     );
 
-    textureStore(
-        output_provenance,
-        vec3i(coordinate),
-        vec4u(
-            sample.compact_index,
-            0u,
-            0u,
-            0u,
-        ),
-    );
 }
 
 @compute @workgroup_size(4, 4, 4)

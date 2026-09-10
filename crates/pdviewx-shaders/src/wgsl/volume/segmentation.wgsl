@@ -11,6 +11,7 @@
 //!include "include/material_lighting.wgsl"
 //!include "include/oit_input.wgsl"
 //!include "include/segmentation/types.wgsl"
+//!include "include/segmentation/sparse.wgsl"
 //!include "include/segmentation/ray.wgsl"
 //!include "include/segmentation/label.wgsl"
 //!include "include/segmentation/shade.wgsl"

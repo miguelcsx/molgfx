@@ -15,6 +15,7 @@
 //!include "include/material_lighting.wgsl"
 //!include "include/oit_input.wgsl"
 //!include "include/volume/types.wgsl"
+//!include "include/volume/sparse.wgsl"
 //!include "include/volume/ray.wgsl"
 //!include "include/volume/density.wgsl"
 //!include "include/volume/transfer.wgsl"

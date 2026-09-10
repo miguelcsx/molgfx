@@ -1,17 +1,10 @@
 // Erodes the probe-inflated field into the rolling-probe SES.
 //
 // Erosion offsets are caller-precomputed and already scaled by probe radius.
-// Candidate provenance is loaded only when its distance actually wins.
-//
 // Dispatch is native 3D: one invocation per grid voxel.
 
 //!include "include/atom.wgsl"
 //!include "include/surface_field.wgsl"
-
-struct InflatedSample {
-    distance: f32,
-    provenance_coordinate: vec3u,
-}
 
 @group(1) @binding(0)
 var inflated_field: texture_3d<f32>;
@@ -20,23 +13,16 @@ var inflated_field: texture_3d<f32>;
 var output_field:
     texture_storage_3d<r32float, write>;
 
-@group(1) @binding(2)
-var inflated_provenance: texture_3d<u32>;
-
-@group(1) @binding(3)
-var output_provenance:
-    texture_storage_3d<r32uint, write>;
-
 // xyz = precomputed direction * representation.surface.x.
-@group(1) @binding(4)
+@group(1) @binding(2)
 var<storage, read>
 erosion_offsets: array<vec4f>;
 
-/// Trilinear field sample without an unconditional provenance fetch.
+/// Trilinear sample of the probe-inflated field.
 fn sample_inflated(
     point: vec3f,
     inverse_cell: vec3f,
-) -> InflatedSample {
+) -> f32 {
     let size =
         representation.grid_size.xyz;
 
@@ -159,28 +145,18 @@ fn sample_inflated(
             fraction.x,
         );
 
-    return InflatedSample(
+    return mix(
         mix(
-            mix(
-                c00,
-                c10,
-                fraction.y,
-            ),
-            mix(
-                c01,
-                c11,
-                fraction.y,
-            ),
-            fraction.z,
+            c00,
+            c10,
+            fraction.y,
         ),
-
-        min(
-            vec3u(
-                coordinate +
-                vec3f(0.5)
-            ),
-            size - vec3u(1u),
+        mix(
+            c01,
+            c11,
+            fraction.y,
         ),
+        fraction.z,
     );
 }
 
@@ -215,13 +191,6 @@ fn cs_surface_field_erode(
             0,
         ).x;
 
-    var provenance =
-        textureLoad(
-            inflated_provenance,
-            texel,
-            0,
-        ).x;
-
     let sample_count =
         min(
             representation.options.z,
@@ -242,22 +211,12 @@ fn cs_surface_field_erode(
                 inverse_cell,
             );
 
-        if sample.distance <= field {
+        if sample <= field {
             continue;
         }
 
         field =
-            sample.distance;
-
-        // Provenance is fetched only for a winning candidate.
-        provenance =
-            textureLoad(
-                inflated_provenance,
-                vec3i(
-                    sample.provenance_coordinate
-                ),
-                0,
-            ).x;
+            sample;
     }
 
     textureStore(
@@ -268,17 +227,6 @@ fn cs_surface_field_erode(
             0.0,
             0.0,
             0.0,
-        ),
-    );
-
-    textureStore(
-        output_provenance,
-        texel,
-        vec4u(
-            provenance,
-            0u,
-            0u,
-            0u,
         ),
     );
 }
