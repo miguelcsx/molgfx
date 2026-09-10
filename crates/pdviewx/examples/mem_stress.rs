@@ -6,9 +6,9 @@
 //! Usage: `cargo run --release --example mem_stress --features semantic -- [frames] [structure.cif] [LIGAND]`
 
 use pdviewx::{
-    AtomSelection, BoundingSphere, Camera, Engine, EngineConfig, FocusScene, ImageConfig, Scene,
-    Vec3,
+    AtomSelection, BoundingSphere, Camera, Engine, EngineConfig, ImageConfig, Scene, Vec3,
 };
+use pdviewx_recipes::FocusScene;
 use std::process::Command;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -23,9 +23,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ligand_name = args.get(2).map_or("HEM", String::as_str);
 
     let parsed = pdbiox::read(path).map_err(|d| format!("could not read {path}: {d:?}"))?;
-    let structure = pdbiox::infer_bonds(&parsed, pdbiox::BondInference::default())
-        .map_err(|d| format!("bond inference failed: {d:?}"))?
-        .structure;
+    let structure = pdbiox::infer_bonds(
+        &parsed,
+        pdbiox::BondInference::default(),
+        &pdbiox::ExecutionContext::default(),
+    )
+    .map_err(|d| format!("bond inference failed: {d:?}"))?
+    .structure;
 
     let Some(residue) = structure
         .data()

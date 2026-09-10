@@ -1,5 +1,5 @@
-//! Million-item stress over the molecular atom path: columnar source data,
-//! compute culling and one indirect analytic-sphere draw.
+//! Million-item stress over the generic 12-byte point path or the molecular
+//! atom path: columnar source data, compute culling and one indirect draw.
 //!
 //! Usage: `cargo run --release --example million_particles --
 //! [count] [output.png] [profile-frames] [memory] [spacefill|points]`
@@ -11,8 +11,9 @@ use pdbiox::{
     ResidueIndex, Structure, StructureData,
 };
 use pdviewx::{
-    Camera, ColorScheme, Engine, EngineConfig, Image, ImageConfig, Material, Representation, Rgba8,
-    Scene, Select, Vec3,
+    Camera, ColorScheme, Engine, EngineConfig, Image, ImageConfig, Material, PointBatch,
+    PointGlyph, PointStyle, Representation, Rgba8, Scene, Select, SourceNamespace, SourceRows,
+    Vec3,
 };
 use std::error::Error;
 use std::fs::File;
@@ -44,28 +45,40 @@ fn main() -> Result<(), Box<dyn Error>> {
     let side = cube_side(count);
     let spacing = 0.18_f32;
     let extent = small_f32(side.saturating_sub(1)) * spacing * 0.5;
-    let structure = synthetic_atoms(count, count_u32, side, spacing, extent)?;
-    report_memory(memory, "structure");
-
-    let mut scene = Scene::from_structure(&structure)?;
-    report_memory(memory, "scene");
-    let material = Material {
-        roughness: 0.42,
-        specular: 0.24,
-        ..Material::default()
-    };
-    let representation = if points {
-        Representation::points()
+    let scene = if points {
+        let positions = synthetic_positions(count, side, spacing, extent);
+        report_memory(memory, "point-source");
+        let mut scene = Scene::new();
+        let batch = PointBatch::new(
+            positions.into(),
+            SourceRows::ordered(SourceNamespace(0x504f_494e_5453), count_u32),
+            PointGlyph::Disc,
+            PointStyle {
+                radius: spacing * 0.31,
+                color: Rgba8::opaque(52, 156, 219),
+            },
+        )?;
+        let _handle = scene.add_point_batch(batch);
+        scene
     } else {
-        Representation::spacefill()
+        let structure = synthetic_atoms(count, count_u32, side, spacing, extent)?;
+        report_memory(memory, "structure");
+        let mut scene = Scene::from_structure(&structure)?;
+        let material = Material {
+            roughness: 0.42,
+            specular: 0.24,
+            ..Material::default()
+        };
+        scene.represent(
+            Select::all(),
+            Representation::spacefill()
+                .color(ColorScheme::Uniform(Rgba8::opaque(52, 156, 219)))
+                .radius_scale(spacing * 0.31 / 1.70)
+                .material(material),
+        )?;
+        scene
     };
-    scene.represent(
-        Select::all(),
-        representation
-            .color(ColorScheme::Uniform(Rgba8::opaque(52, 156, 219)))
-            .radius_scale(spacing * 0.31 / 1.70)
-            .material(material),
-    )?;
+    report_memory(memory, "scene");
 
     let bounds = pdviewx::Aabb::new(
         Vec3::splat(-extent - spacing),
@@ -84,6 +97,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         profile(&mut engine, &scene, &camera, frames)?;
     }
     Ok(())
+}
+
+fn synthetic_positions(count: usize, side: usize, spacing: f32, extent: f32) -> Vec<[f32; 3]> {
+    (0..count)
+        .map(|index| {
+            let (x, y, z) = grid(index, side);
+            [
+                small_f32(x).mul_add(spacing, -extent),
+                small_f32(y).mul_add(spacing, -extent),
+                small_f32(z).mul_add(spacing, -extent),
+            ]
+        })
+        .collect()
 }
 
 fn report_memory(enabled: bool, stage: &str) {
