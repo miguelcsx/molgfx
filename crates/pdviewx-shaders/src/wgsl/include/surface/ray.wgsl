@@ -5,14 +5,33 @@
 // inverting a matrix per pixel. Clip planes are evaluated in model space,
 // where they are static, rather than transformed per fragment.
 
+/// Returns the finite support around the BVH's atom-centre bounds.
+fn surface_node_padding(node: BvhNode) -> f32 {
+    if representation.options.x ==
+        SURFACE_KIND_GAUSSIAN {
+        return representation.surface.x;
+    }
+
+    let soft_union_padding = select(
+        0.0,
+        0.5,
+        representation.options.w == 5u,
+    );
+
+    return node.max_radius.w *
+        representation.visual.w +
+        representation.surface.x +
+        abs(representation.surface.y) +
+        soft_union_padding;
+}
+
 /// Computes the conservative projected molecular bounds.
 fn surface_bounds() -> SurfaceBounds {
     let root = bvh_nodes[0];
 
     let padding =
         vec3f(
-            representation.surface.x +
-            abs(representation.surface.y)
+            surface_node_padding(root)
         );
 
     let lower =

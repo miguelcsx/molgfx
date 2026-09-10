@@ -8,11 +8,8 @@
 const SURFACE_INFINITY: f32 = 1.0e20;
 const SURFACE_RAY_EPSILON: f32 = 1.0e-7;
 const SURFACE_NORMAL_EPSILON_SQ: f32 = 1.0e-10;
-const SURFACE_MARCH_SAFETY: f32 = 0.9;
 
 const SURFACE_CAP_TINT: vec3f = vec3f(0.68, 0.76, 0.82);
-const SURFACE_CAP_ROUGHNESS: f32 = 0.82;
-const SURFACE_CAP_MATERIAL: f32 = 0.05;
 
 struct SurfaceHit {
     local_position: vec3f,
@@ -61,16 +58,12 @@ struct GridCorners {
 struct SurfaceFrame {
     world_position: vec3f,
     view_position: vec3f,
+    world_normal: vec3f,
     view_normal: vec3f,
 }
 
-struct SurfaceMaterial {
-    roughness: f32,
-    material: f32,
-}
-
 @group(2) @binding(10) var surface_grid: texture_3d<f32>;
-@group(2) @binding(11) var surface_provenance: texture_3d<u32>;
+@group(2) @binding(11) var surface_normals: texture_3d<f32>;
 
 fn surface_miss() -> SurfaceHit {
     return SurfaceHit(
