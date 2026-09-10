@@ -2,18 +2,18 @@
 
 //!include "include/records.wgsl"
 //!include "include/frame_record.wgsl"
+//!include "include/visual/program_types.wgsl"
 
 const ENTITY_ID_MASK: u32 = 0x1FFFFFFFu;
 const VISIBLE_FLAG: u32 = 0x00010000u;
-const MIN_DISTANCE: f32 = 1e-4;
 const TILE_SIZE: u32 = 8u;
 const MAX_LOD_RADIUS_PIXELS: f32 = 8.0;
 const TILE_BITS: u32 = 18u;
 const TILE_MASK: u32 = (1u << TILE_BITS) - 1u;
 const DEPTH_LEVELS: f32 = 16383.0;
-const POINT_INDEX_BITS: u32 = 20u;
-const POINT_INDEX_MASK: u32 = (1u << POINT_INDEX_BITS) - 1u;
-const POINT_DEPTH_LEVELS: f32 = 4094.0;
+const POINT_INDEX_BITS_SMALL: u32 = 20u;
+const POINT_INDEX_BITS_MEDIUM: u32 = 22u;
+const POINT_INDEX_BITS_LARGE: u32 = 24u;
 
 struct DrawArgs {
     vertex_count: u32,
@@ -27,6 +27,12 @@ struct CullCounts {
     bonds: u32,
     lod_enabled: u32,
     padding_b: u32,
+    bond_break_length: f32,
+    visual_enabled: u32,
+    atom_bvh_nodes: u32,
+    atom_bvh_indices: u32,
+    bond_bvh_nodes: u32,
+    bond_bvh_indices: u32,
 }
 
 struct AtomProjection {
@@ -47,6 +53,8 @@ struct AtomProjection {
 @group(0) @binding(8) var<uniform> model_to_world: mat4x4f;
 @group(0) @binding(9) var<storage, read> coordinates: array<f32>;
 @group(0) @binding(10) var<storage, read_write> tile_depth: array<atomic<u32>>;
+@group(0) @binding(14) var<storage, read_write> visual_results: array<u32>;
+@group(0) @binding(15) var<uniform> visual_config: VisualConfig;
 
 var<workgroup> visible_count: atomic<u32>;
 var<workgroup> output_base: u32;
@@ -54,16 +62,31 @@ var<workgroup> output_base: u32;
 /// Resolves the streamed position for an atom.
 fn resolved_position(entity_id: u32) -> vec3f {
     let base = (entity_id & ENTITY_ID_MASK) * 3u;
-    return vec3f(coordinates[base], coordinates[base + 1u], coordinates[base + 2u]);
+    let position = vec3f(coordinates[base], coordinates[base + 1u], coordinates[base + 2u]);
+    if counts.visual_enabled == 0u {
+        return position;
+    }
+    return position + visual_result_offset(entity_id & ENTITY_ID_MASK);
 }
 
 /// Performs the expensive geometric visibility test once per atom.
 fn project_atom(index: u32) -> AtomProjection {
     let atom = input_atoms[index];
-    let radius = atom.radius;
+    var radius = atom.radius;
 
     if (atom.element_flags & VISIBLE_FLAG) == 0u || radius <= 0.0 {
         return AtomProjection(0u, 0u, 0u, 0u);
+    }
+    let geometry = visual_result_word(
+        atom.entity_id & ENTITY_ID_MASK,
+        VISUAL_RESULT_GEOMETRY,
+        pack4x8unorm(visual_config.uniform_geometry),
+    );
+    if counts.visual_enabled != 0u && (geometry & 0xffu) == 0u {
+        return AtomProjection(0u, 0u, 0u, 0u);
+    }
+    if counts.visual_enabled != 0u {
+        radius *= f32((geometry >> 16u) & 0xffu) / 64.0;
     }
 
     let local = resolved_position(atom.entity_id);
@@ -101,15 +124,7 @@ fn project_atom(index: u32) -> AtomProjection {
         return AtomProjection(1u, tile, depth, u32(tile_count < TILE_MASK));
     }
 
-    let view_z =
-        frame.view[0].z * world.x
-        + frame.view[1].z * world.y
-        + frame.view[2].z * world.z
-        + frame.view[3].z;
-
-    let distance = max(-view_z, MIN_DISTANCE);
-    let projected_radius = radius * w / distance;
-    let extent = abs(vec2f(frame.proj[0][0], frame.proj[1][1])) * projected_radius;
+    let extent = frame.projection_kind.yz * radius;
 
     if !all(abs(clip.xy) <= vec2f(w, w) + extent) {
         return AtomProjection(0u, 0u, 0u, 0u);
@@ -134,11 +149,36 @@ fn project_atom(index: u32) -> AtomProjection {
     return AtomProjection(1u, tile, depth, lod);
 }
 
+/// Reports whether a bond is stretched past the covalent break length.
+///
+/// The endpoints are compared in model space, where the break length is
+/// expressed; a non-positive length disables breaking so static scenes draw
+/// every bond exactly as before.
+fn bond_over_break_length(bond: BondRecord) -> bool {
+    if counts.bond_break_length <= 0.0 {
+        return false;
+    }
+    let position_a = resolved_position(input_atoms[bond.atom_a].entity_id);
+    let position_b = resolved_position(input_atoms[bond.atom_b].entity_id);
+    return distance(position_a, position_b) > counts.bond_break_length;
+}
+
 fn is_visible(index: u32) -> bool {
     let atom = input_atoms[index];
-    let radius = atom.radius;
+    var radius = atom.radius;
     if (atom.element_flags & VISIBLE_FLAG) == 0u || radius <= 0.0 {
         return false;
+    }
+    let geometry = visual_result_word(
+        atom.entity_id & ENTITY_ID_MASK,
+        VISUAL_RESULT_GEOMETRY,
+        pack4x8unorm(visual_config.uniform_geometry),
+    );
+    if counts.visual_enabled != 0u && (geometry & 0xffu) == 0u {
+        return false;
+    }
+    if counts.visual_enabled != 0u {
+        radius *= f32((geometry >> 16u) & 0xffu) / 64.0;
     }
     let local = resolved_position(atom.entity_id);
     let world =
@@ -151,14 +191,7 @@ fn is_visible(index: u32) -> bool {
     if w <= 0.0 || clip.z < 0.0 || clip.z > w {
         return false;
     }
-    let view_z =
-        frame.view[0].z * world.x
-        + frame.view[1].z * world.y
-        + frame.view[2].z * world.z
-        + frame.view[3].z;
-    let distance = max(-view_z, MIN_DISTANCE);
-    let projected_radius = radius * w / distance;
-    let extent = abs(vec2f(frame.proj[0][0], frame.proj[1][1])) * projected_radius;
+    let extent = frame.projection_kind.yz * radius;
     return all(abs(clip.xy) <= vec2f(w, w) + extent);
 }
 
@@ -193,26 +226,46 @@ fn reset_cull() {
     atomicStore(&bond_args.instance_count, 0u);
 }
 
+fn point_index_bits() -> u32 {
+    if counts.atoms <= (1u << POINT_INDEX_BITS_SMALL) {
+        return POINT_INDEX_BITS_SMALL;
+    }
+    if counts.atoms <= (1u << POINT_INDEX_BITS_MEDIUM) {
+        return POINT_INDEX_BITS_MEDIUM;
+    }
+    return POINT_INDEX_BITS_LARGE;
+}
+
 @compute @workgroup_size(64)
-fn reset_tiles(@builtin(global_invocation_id) id: vec3u) {
+fn reset_tiles(
+    @builtin(global_invocation_id) id: vec3u,
+    @builtin(num_workgroups) groups: vec3u,
+) {
+    let index = id.x + id.y * groups.x * 64u;
     let tile_count = u32(ceil(frame.viewport.x / f32(TILE_SIZE)))
         * u32(ceil(frame.viewport.y / f32(TILE_SIZE)));
-    if id.x < tile_count {
-        atomicStore(&tile_depth[id.x], 0u);
+    if index < tile_count {
+        atomicStore(&tile_depth[index], 0u);
     }
 }
 
 @compute @workgroup_size(64)
-fn bin_atoms(@builtin(global_invocation_id) id: vec3u) {
-    var index = id.x;
-    if counts.lod_enabled == 2u {
+fn bin_atoms(
+    @builtin(global_invocation_id) id: vec3u,
+    @builtin(num_workgroups) groups: vec3u,
+) {
+    let linear_index = id.x + id.y * groups.x * 64u;
+    var index = linear_index;
+    let tile_count = u32(ceil(frame.viewport.x / f32(TILE_SIZE)))
+        * u32(ceil(frame.viewport.y / f32(TILE_SIZE)));
+    if counts.lod_enabled == 2u && tile_count < TILE_MASK {
         let candidates = (counts.atoms + counts.padding_b - 1u) / counts.padding_b;
-        var hash = id.x;
+        var hash = linear_index;
         hash ^= hash >> 16u;
         hash *= 0x7feb352du;
         hash ^= hash >> 15u;
-        let sampled = id.x + (hash % counts.padding_b) * candidates;
-        index = select(id.x, sampled, sampled < counts.atoms);
+        let sampled = linear_index + (hash % counts.padding_b) * candidates;
+        index = select(linear_index, sampled, sampled < counts.atoms);
     }
     if index >= counts.atoms {
         return;
@@ -227,10 +280,13 @@ fn bin_atoms(@builtin(global_invocation_id) id: vec3u) {
         return;
     }
     if counts.lod_enabled == 2u {
+        let index_bits = point_index_bits();
+        let index_mask = (1u << index_bits) - 1u;
+        let depth_levels = f32((1u << (32u - index_bits)) - 2u);
         let depth = 1u + u32(round(
-            f32(projected.depth) / DEPTH_LEVELS * POINT_DEPTH_LEVELS
+            f32(projected.depth) / DEPTH_LEVELS * depth_levels
         ));
-        let candidate = (depth << POINT_INDEX_BITS) | (POINT_INDEX_MASK - index);
+        let candidate = (depth << index_bits) | (index_mask - index);
         atomicMax(&tile_depth[projected.tile], candidate);
         return;
     }
@@ -243,17 +299,21 @@ fn bin_atoms(@builtin(global_invocation_id) id: vec3u) {
 fn compact_tiles(
     @builtin(global_invocation_id) id: vec3u,
     @builtin(local_invocation_index) local_index: u32,
+    @builtin(num_workgroups) groups: vec3u,
 ) {
+    let index = id.x + id.y * groups.x * 64u;
     let tile_count = u32(ceil(frame.viewport.x / f32(TILE_SIZE)))
         * u32(ceil(frame.viewport.y / f32(TILE_SIZE)));
     var winner = 0u;
-    if id.x < tile_count {
-        winner = atomicLoad(&tile_depth[id.x]);
+    if index < tile_count {
+        winner = atomicLoad(&tile_depth[index]);
     }
     let keep = winner != 0u;
     let compact = compact_slot(local_index, keep, true);
     if keep {
-        output_atoms[compact] = POINT_INDEX_MASK - (winner & POINT_INDEX_MASK);
+        let index_bits = point_index_bits();
+        let index_mask = (1u << index_bits) - 1u;
+        output_atoms[compact] = index_mask - (winner & index_mask);
     }
 }
 
@@ -261,8 +321,9 @@ fn compact_tiles(
 fn cull_atoms(
     @builtin(global_invocation_id) id: vec3u,
     @builtin(local_invocation_index) local_index: u32,
+    @builtin(num_workgroups) groups: vec3u,
 ) {
-    let index = id.x;
+    let index = id.x + id.y * groups.x * 64u;
     var keep = false;
 
     if index < counts.atoms {
@@ -293,8 +354,9 @@ fn cull_atoms(
 fn cull_bonds(
     @builtin(global_invocation_id) id: vec3u,
     @builtin(local_invocation_index) local_index: u32,
+    @builtin(num_workgroups) groups: vec3u,
 ) {
-    let index = id.x;
+    let index = id.x + id.y * groups.x * 64u;
     var keep = false;
 
     if index < counts.bonds {
@@ -303,6 +365,9 @@ fn cull_bonds(
 
         if output_atoms[counts.atoms + atom_a] != 0u {
             keep = output_atoms[counts.atoms + bond.atom_b] != 0u;
+        }
+        if keep && bond_over_break_length(bond) {
+            keep = false;
         }
     }
 
@@ -320,11 +385,14 @@ fn cull_bonds(
 @compute @workgroup_size(64)
 fn cull_bonds_direct(
     @builtin(global_invocation_id) id: vec3u,
+    @builtin(num_workgroups) groups: vec3u,
 ) {
-    let index = id.x;
+    let index = id.x + id.y * groups.x * 64u;
     if index < counts.bonds {
         let bond = input_bonds[index];
-        let keep = is_visible(bond.atom_a) && is_visible(bond.atom_b);
+        let keep = is_visible(bond.atom_a)
+            && is_visible(bond.atom_b)
+            && !bond_over_break_length(bond);
         output_bonds[index] = select(0xffffffffu, index, keep);
     }
     if index == 0u {
