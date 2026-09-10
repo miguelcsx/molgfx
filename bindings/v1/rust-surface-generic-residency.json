@@ -1,0 +1,796 @@
+{
+  "symbols": [
+    {
+      "rust": "BondChunkPlacement",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "BondChunkPlacement belongs to the pending Python engine streaming adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "BondChunkPlacement is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "BondChunkPlacement is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "ChunkData",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ChunkData belongs to the pending contiguous Python payload-delivery adapter."
+      },
+      "typescript": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "ChunkData belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      },
+      "wasm": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "ChunkData belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      }
+    },
+    {
+      "rust": "ChunkPayload",
+      "kind": "enum",
+      "ownership": "rust-owned",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ChunkPayload belongs to the pending contiguous Python payload-delivery adapter."
+      },
+      "typescript": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "ChunkPayload belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      },
+      "wasm": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "ChunkPayload belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      }
+    },
+    {
+      "rust": "ChunkPlacementError",
+      "kind": "error",
+      "ownership": "unavailable",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ChunkPlacementError is routed by the pending Python engine streaming adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkPlacementError is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkPlacementError is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "ChunkPlacementId",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ChunkPlacementId belongs to the pending Python engine streaming adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkPlacementId is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkPlacementId is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "ChunkPlacementStatus",
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "state": "direct",
+        "symbols": [
+          "ChunkPlacementStatus"
+        ],
+        "evidence": [
+          "crates/pdviewx-py/src/render/chunk_streaming.rs"
+        ]
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkPlacementStatus is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkPlacementStatus is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "ChunkRepresentation",
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ChunkRepresentation belongs to the pending Python engine streaming adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkRepresentation is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkRepresentation is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "ChunkResidencyError",
+      "kind": "error",
+      "ownership": "unavailable",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ChunkResidencyError is routed by the pending Python engine streaming adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkResidencyError is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkResidencyError is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "ChunkResidencyMetrics",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ChunkResidencyMetrics belongs to the pending Python engine streaming adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkResidencyMetrics is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkResidencyMetrics is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "HostWorkingSet",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "HostWorkingSet is owned by Engine and exposed through the pending Python streaming adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "docs/20-bindings.md:151",
+        "gap": "HostWorkingSet is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "docs/20-bindings.md:151",
+        "gap": "HostWorkingSet is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "HostWorkingSetError",
+      "kind": "error",
+      "ownership": "unavailable",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "HostWorkingSetError is routed by the pending Python engine streaming adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "docs/20-bindings.md:151",
+        "gap": "HostWorkingSetError is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "docs/20-bindings.md:151",
+        "gap": "HostWorkingSetError is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "PointChunkPlacement",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "direct",
+        "symbols": [
+          "PointChunkPlacement"
+        ],
+        "evidence": [
+          "crates/pdviewx-py/src/render/chunk_streaming.rs"
+        ]
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "PointChunkPlacement is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "PointChunkPlacement is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "InstanceChunkPlacement",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "state": "direct",
+        "symbols": [
+          "InstanceChunkPlacement"
+        ],
+        "evidence": [
+          "crates/pdviewx-py/src/render/chunk_streaming.rs"
+        ]
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "InstanceChunkPlacement is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "InstanceChunkPlacement is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "ResidencyConfig",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ResidencyConfig is currently configured through EngineConfig defaults in Python."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ResidencyConfig is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ResidencyConfig is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "ResidencyDetail",
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ResidencyDetail is fixed by current Python request adapters and lacks direct exposure."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ResidencyDetail is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ResidencyDetail is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "ResidentStructureChunk",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ResidentStructureChunk belongs to the pending Python engine streaming adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "docs/20-bindings.md:151",
+        "gap": "ResidentStructureChunk is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "docs/20-bindings.md:151",
+        "gap": "ResidentStructureChunk is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "ResidentTrajectoryChunk",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ResidentTrajectoryChunk belongs to the pending Python engine streaming adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "docs/20-bindings.md:151",
+        "gap": "ResidentTrajectoryChunk is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "docs/20-bindings.md:151",
+        "gap": "ResidentTrajectoryChunk is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "StructureChunkPlacement",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "StructureChunkPlacement belongs to the pending Python engine streaming adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "StructureChunkPlacement is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "StructureChunkPlacement is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "ChunkDomainKind",
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ChunkDomainKind belongs to the pending contiguous Python paged-visual adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkDomainKind is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkDomainKind is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "ChunkDomainRef",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ChunkDomainRef belongs to the pending contiguous Python paged-visual adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkDomainRef is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkDomainRef is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "AttributeChunkWindow",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "AttributeChunkWindow is internal derived residency state and is not a source delivery payload."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-render/src/engine/chunk_placement/windows.rs",
+        "gap": "AttributeChunkWindow is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-render/src/engine/chunk_placement/windows.rs",
+        "gap": "AttributeChunkWindow is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "AttributeDescriptor",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "AttributeDescriptor metadata is currently accepted through the Rust facade while Python batch insertion accepts a compact name only."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-core/src/representation/attribute.rs",
+        "gap": "AttributeDescriptor is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-core/src/representation/attribute.rs",
+        "gap": "AttributeDescriptor is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "InstanceChunkWindow",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "InstanceChunkWindow is internal derived residency state and is not a source delivery payload."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-render/src/engine/chunk_placement/windows.rs",
+        "gap": "InstanceChunkWindow is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-render/src/engine/chunk_placement/windows.rs",
+        "gap": "InstanceChunkWindow is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "PointFramePair",
+      "kind": "type",
+      "ownership": "borrowed-call",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "PointFramePair is a borrowed scene inspection tuple; Timeline provides the stable Python mutation boundary."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-core/src/scene/generic_timeline.rs",
+        "gap": "PointFramePair is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-core/src/scene/generic_timeline.rs",
+        "gap": "PointFramePair is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "RelationChunkPlacement",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "RelationChunkPlacement is internal resolved GPU placement state rather than caller source data."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-render/src/engine/chunk_placement/relations.rs",
+        "gap": "RelationChunkPlacement is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-render/src/engine/chunk_placement/relations.rs",
+        "gap": "RelationChunkPlacement is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "AttributeChunkPayload",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "AttributeChunkPayload is delivered through the Rust residency provider contract; a contiguous Python delivery adapter is not implemented yet."
+      },
+      "typescript": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "AttributeChunkPayload belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      },
+      "wasm": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "AttributeChunkPayload belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      }
+    },
+    {
+      "rust": "ChunkEntityRef",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ChunkEntityRef is currently constructed inside Rust relation payload providers."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkEntityRef is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkEntityRef is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "ChunkSpatialKind",
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "ChunkSpatialKind belongs to the pending Python relation-payload adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkSpatialKind is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "ChunkSpatialKind is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "InstanceChunkPayload",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "state": "typed-adapter",
+        "symbols": [
+          "Engine"
+        ],
+        "evidence": [
+          "crates/pdviewx-py/src/render/chunk_streaming.rs"
+        ],
+        "bindings": {
+          "Engine": [
+            "deliver_instance_chunk"
+          ]
+        }
+      },
+      "typescript": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "InstanceChunkPayload belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      },
+      "wasm": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "InstanceChunkPayload belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      }
+    },
+    {
+      "rust": "PagedRelation",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "PagedRelation belongs to the pending contiguous Python relation-payload adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "PagedRelation is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "PagedRelation is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "PagedSpatialAnchor",
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "PagedSpatialAnchor belongs to the pending contiguous Python relation-payload adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "PagedSpatialAnchor is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "PagedSpatialAnchor is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "PointChunkPayload",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "state": "typed-adapter",
+        "symbols": [
+          "Engine"
+        ],
+        "evidence": [
+          "crates/pdviewx-py/src/render/chunk_streaming.rs"
+        ],
+        "bindings": {
+          "Engine": [
+            "deliver_point_chunk"
+          ]
+        }
+      },
+      "typescript": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "PointChunkPayload belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      },
+      "wasm": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "PointChunkPayload belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      }
+    },
+    {
+      "rust": "RelationChunkPayload",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "RelationChunkPayload is delivered through the Rust residency provider contract; a contiguous Python delivery adapter is not implemented yet."
+      },
+      "typescript": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "RelationChunkPayload belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      },
+      "wasm": {
+        "state": "provider-owned",
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "RelationChunkPayload belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer."
+      }
+    },
+    {
+      "rust": "ResidentGenericChunk",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "direct",
+        "symbols": [
+          "ResidentGenericChunk"
+        ],
+        "evidence": [
+          "crates/pdviewx-py/src/render/chunk_streaming.rs"
+        ]
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "docs/20-bindings.md:151",
+        "gap": "ResidentGenericChunk is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "docs/20-bindings.md:151",
+        "gap": "ResidentGenericChunk is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "TemplatePartChunkRef",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "excluded",
+        "symbols": [],
+        "reason": "TemplatePartChunkRef belongs to the pending contiguous Python relation-payload adapter."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "TemplatePartChunkRef is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "gap": "TemplatePartChunkRef is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    }
+  ]
+}
