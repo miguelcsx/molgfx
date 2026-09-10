@@ -1,0 +1,800 @@
+{
+  "symbols": [
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/dataset.rs",
+          "crates/pdviewx-py/src/semantic/dataset.rs",
+          "crates/pdviewx-py/src/semantic/dataset.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "ChunkFootprint"
+        ]
+      },
+      "rust": "ChunkFootprint",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "name": "WebChunkFootprint",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "name": "WebChunkFootprint",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/dataset.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "ChunkId"
+        ]
+      },
+      "rust": "ChunkId",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "name": "WebChunkId",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "name": "WebChunkId",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "ChunkKey"
+        ]
+      },
+      "rust": "ChunkKey",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ChunkKey is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ChunkKey is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs",
+          "crates/pdviewx-py/src/semantic/streaming.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "ChunkRequest"
+        ]
+      },
+      "rust": "ChunkRequest",
+      "typescript": {
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "ChunkRequest belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer.",
+        "state": "provider-owned"
+      },
+      "wasm": {
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "ChunkRequest belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer.",
+        "state": "provider-owned"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/dataset.rs",
+          "crates/pdviewx-py/src/semantic/dataset.rs",
+          "crates/pdviewx-py/src/semantic/dataset.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "ChunkSpan"
+        ]
+      },
+      "rust": "ChunkSpan",
+      "typescript": {
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "ChunkSpan belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer.",
+        "state": "provider-owned"
+      },
+      "wasm": {
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "ChunkSpan belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer.",
+        "state": "provider-owned"
+      }
+    },
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "ClipCap"
+        ]
+      },
+      "rust": "ClipCap",
+      "typescript": {
+        "adapters": {
+          "WebClipCap": [
+            "Open",
+            "Solid"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_presentation.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "tests/browser/smoke.js"
+        ]
+      },
+      "wasm": {
+        "adapters": {
+          "WebClipCap": [
+            "Open",
+            "Solid"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_presentation.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "tests/browser/smoke.js"
+        ]
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "ClipPlane"
+        ]
+      },
+      "rust": "ClipPlane",
+      "typescript": {
+        "adapters": {
+          "WebClipPlane": [
+            "fromPointNormal",
+            "reversed",
+            "signedDistance",
+            "normalX",
+            "normalY",
+            "normalZ",
+            "offset"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_presentation.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "tests/browser/smoke.js"
+        ]
+      },
+      "wasm": {
+        "adapters": {
+          "WebClipPlane": [
+            "fromPointNormal",
+            "reversed",
+            "signedDistance",
+            "normalX",
+            "normalY",
+            "normalZ",
+            "offset"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_presentation.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "tests/browser/smoke.js"
+        ]
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "ClipSet"
+        ]
+      },
+      "rust": "ClipSet",
+      "typescript": {
+        "adapters": {
+          "WebClipSet": [
+            "constructor",
+            "slab",
+            "addPlane",
+            "setCap",
+            "contains",
+            "planeCount",
+            "cap"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_presentation.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "tests/browser/smoke.js"
+        ]
+      },
+      "wasm": {
+        "adapters": {
+          "WebClipSet": [
+            "constructor",
+            "slab",
+            "addPlane",
+            "setCap",
+            "contains",
+            "planeCount",
+            "cap"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_presentation.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "tests/browser/smoke.js"
+        ]
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/visual.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "ColorExpr"
+        ]
+      },
+      "rust": "ColorExpr",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ColorExpr is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ColorExpr is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/visual.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "ColorParameter"
+        ]
+      },
+      "rust": "ColorParameter",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ColorParameter is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ColorParameter is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "ColorScheme"
+        ]
+      },
+      "rust": "ColorScheme",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ColorScheme is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ColorScheme is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "bindings": {
+          "Scene": [
+            "copy_manifest_json"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/scene.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ]
+      },
+      "rust": "ContentAddress",
+      "typescript": {
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "ContentAddress belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer.",
+        "state": "provider-owned"
+      },
+      "wasm": {
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "ContentAddress belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer.",
+        "state": "provider-owned"
+      }
+    },
+    {
+      "kind": "error",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/error.rs",
+          "crates/pdviewx-py/src/error.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "CoreError"
+        ]
+      },
+      "rust": "CoreError",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "CoreError is part of the renderer-owned typed error contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "CoreError is part of the renderer-owned typed error contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "CrystalCell"
+        ]
+      },
+      "rust": "CrystalCell",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "CrystalCell is part of the renderer-owned typed geometry contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "CrystalCell is part of the renderer-owned typed geometry contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/dataset.rs",
+          "crates/pdviewx-py/src/semantic/dataset.rs",
+          "crates/pdviewx-py/src/semantic/dataset.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "DatasetCatalog"
+        ]
+      },
+      "rust": "DatasetCatalog",
+      "typescript": {
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "DatasetCatalog belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer.",
+        "state": "provider-owned"
+      },
+      "wasm": {
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "DatasetCatalog belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer.",
+        "state": "provider-owned"
+      }
+    },
+    {
+      "kind": "error",
+      "ownership": "copied-value",
+      "python": {
+        "error_route": "CoreError",
+        "evidence": [
+          "crates/pdviewx-py/src/error.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "CoreError"
+        ]
+      },
+      "rust": "DatasetError",
+      "typescript": {
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "DatasetError belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer.",
+        "state": "provider-owned"
+      },
+      "wasm": {
+        "evidence": "docs/20-bindings.md:151",
+        "reason": "DatasetError belongs to the caller/provider data-delivery boundary; the Web SDK keeps fetching, decoded payload storage and provider state outside the renderer.",
+        "state": "provider-owned"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/dataset.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "DatasetId"
+        ]
+      },
+      "rust": "DatasetId",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "name": "WebDatasetId",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/generated_out_of_core.rs",
+        "name": "WebDatasetId",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/volumes.rs",
+          "crates/pdviewx-py/src/volumes.rs",
+          "crates/pdviewx-py/src/volumes.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "ScalarVolume"
+        ]
+      },
+      "rust": "ScalarVolume",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ScalarVolume is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "ScalarVolume is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/profile/effects.rs",
+          "crates/pdviewx-py/src/render/profile/effects.rs",
+          "crates/pdviewx-py/src/render/profile/effects.rs",
+          "crates/pdviewx-py/src/render/profile/effects.rs",
+          "crates/pdviewx-py/src/render/profile/effects.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "DepthOfField"
+        ]
+      },
+      "rust": "DepthOfField",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "DepthOfField is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "DepthOfField is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/residency.rs",
+          "crates/pdviewx-py/src/semantic/residency.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "DeviceLossReport"
+        ]
+      },
+      "rust": "DeviceLossReport",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "DeviceLossReport is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "DeviceLossReport is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/profile/display.rs",
+          "crates/pdviewx-py/src/render/profile/display.rs",
+          "crates/pdviewx-py/src/render/profile/display.rs",
+          "crates/pdviewx-py/src/render/profile/display.rs",
+          "crates/pdviewx-py/src/render/profile/display.rs",
+          "crates/pdviewx-py/src/render/profile/display.rs",
+          "crates/pdviewx-py/src/render/profile/display.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "DisplayGamut"
+        ]
+      },
+      "rust": "DisplayGamut",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "DisplayGamut is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "DisplayGamut is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/profile/display.rs",
+          "crates/pdviewx-py/src/render/profile/display.rs",
+          "crates/pdviewx-py/src/render/profile/display.rs",
+          "crates/pdviewx-py/src/render/profile/display.rs",
+          "crates/pdviewx-py/src/render/profile/display.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "DisplayTransform"
+        ]
+      },
+      "rust": "DisplayTransform",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "DisplayTransform is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "DisplayTransform is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/profile/effects.rs",
+          "crates/pdviewx-py/src/render/profile/effects.rs",
+          "crates/pdviewx-py/src/render/profile/effects.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "EffectLayer"
+        ]
+      },
+      "rust": "EffectLayer",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "EffectLayer is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "EffectLayer is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/engine.rs",
+          "crates/pdviewx-py/src/render/engine.rs",
+          "crates/pdviewx-py/src/render/engine.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "Engine"
+        ]
+      },
+      "rust": "Engine",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/browser.rs",
+        "name": "WebEngine",
+        "state": "direct"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/browser.rs",
+        "name": "WebEngine",
+        "state": "direct"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/config.rs",
+          "crates/pdviewx-py/src/render/config.rs",
+          "crates/pdviewx-py/src/render/config.rs",
+          "crates/pdviewx-py/src/render/config.rs",
+          "crates/pdviewx-py/src/render/config.rs",
+          "crates/pdviewx-py/src/render/engine.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "EngineConfig"
+        ]
+      },
+      "rust": "EngineConfig",
+      "typescript": {
+        "adapters": {
+          "WebEngineConfig": [
+            "constructor",
+            "setTargetFps",
+            "setTotalMemoryBytes",
+            "setPowerPreference",
+            "setProfile",
+            "setMode",
+            "totalMemoryBytes",
+            "targetFps"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_types.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "tests/browser/smoke.js"
+        ]
+      },
+      "wasm": {
+        "adapters": {
+          "WebEngineConfig": [
+            "constructor",
+            "setTargetFps",
+            "setTotalMemoryBytes",
+            "setPowerPreference",
+            "setProfile",
+            "setMode",
+            "totalMemoryBytes",
+            "targetFps"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_types.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "tests/browser/smoke.js"
+        ]
+      }
+    }
+  ]
+}
