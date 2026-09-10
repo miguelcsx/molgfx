@@ -92,24 +92,11 @@ impl<D: Device> TonemapPass<D> {
         let Some(target) = ctx.resources.view(ResourceId::SWAPCHAIN) else {
             return;
         };
-        let Some(FrameBindings {
-            tonemap_history,
-            tonemap_dof,
-            tonemap_motion_blur,
-            ..
-        }) = ctx.bindings
-        else {
+        let Some(FrameBindings { tonemap, .. }) = ctx.bindings else {
             return;
         };
-        let bindings = if ctx.motion_blur {
-            tonemap_motion_blur
-        } else if ctx.depth_of_field {
-            tonemap_dof
-        } else {
-            let Some(bindings) = tonemap_history.get(ctx.temporal_write) else {
-                return;
-            };
-            bindings
+        let Some(bindings) = tonemap.get(ctx.temporal_write) else {
+            return;
         };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
             label: "HDR tonemap",
