@@ -9,6 +9,13 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CoreError {
+    /// A disconnected-surface component policy is malformed.
+    #[error(transparent)]
+    SurfaceComponentPolicy(#[from] crate::SurfaceComponentPolicyError),
+    /// A spatial hierarchy exceeded the compact GPU index layout.
+    #[error(transparent)]
+    SpatialIndex(#[from] pdviewx_math::BvhBuildError),
+
     /// The source structure failed to parse.
     #[error("structure could not be read: {summary}")]
     StructureRead {
@@ -65,6 +72,20 @@ pub enum CoreError {
         reason: &'static str,
     },
 
+    /// A typed attribute column or its target domain is malformed.
+    #[error("invalid attribute column: {reason}")]
+    InvalidAttribute {
+        /// Stable human-readable validation reason.
+        reason: &'static str,
+    },
+
+    /// A generic point, instance or relation batch is malformed.
+    #[error("invalid generic batch: {reason}")]
+    InvalidBatch {
+        /// Stable human-readable validation reason.
+        reason: &'static str,
+    },
+
     /// A caller-authored annotation or measurement is malformed.
     #[error("invalid annotation or measurement: {reason}")]
     InvalidAnnotation {
@@ -113,6 +134,18 @@ pub enum CoreError {
         /// Stable validation reason.
         reason: &'static str,
     },
+    /// A timeline mapping, track or sample time is malformed.
+    #[error("invalid timeline: {reason}")]
+    InvalidTimeline {
+        /// Stable validation reason.
+        reason: &'static str,
+    },
+    /// A visual program is malformed or incompatible with its drawable.
+    #[error("invalid visual program: {summary}")]
+    InvalidVisual {
+        /// Stable caller-actionable diagnostic.
+        summary: String,
+    },
     /// A representation was applied to an empty or invalid selection.
     #[error("representation applied to an empty selection")]
     EmptySelection,
@@ -129,11 +162,21 @@ pub enum CoreError {
     },
 }
 
+impl From<crate::VisualError> for CoreError {
+    fn from(error: crate::VisualError) -> Self {
+        Self::InvalidVisual {
+            summary: error.to_string(),
+        }
+    }
+}
+
 impl CoreError {
     /// The stable registry code for this condition.
     #[must_use]
     pub fn code(&self) -> &'static str {
         match self {
+            Self::SurfaceComponentPolicy(_) => "PDVIEWX-E0052",
+            Self::SpatialIndex(_) => "PDVIEWX-E0051",
             Self::StructureRead { .. } => "PDVIEWX-E0030",
             Self::AbsentAnnotation { .. } => "PDVIEWX-E0031",
             Self::InvalidVolume { .. } => "PDVIEWX-E0032",
@@ -142,6 +185,8 @@ impl CoreError {
             Self::InvalidInteraction { .. } => "PDVIEWX-E0035",
             Self::InvalidTrajectory { .. } => "PDVIEWX-E0036",
             Self::InvalidProperty { .. } => "PDVIEWX-E0037",
+            Self::InvalidAttribute { .. } => "PDVIEWX-E0053",
+            Self::InvalidBatch { .. } => "PDVIEWX-E0054",
             Self::InvalidAnnotation { .. } => "PDVIEWX-E0038",
             Self::InvalidEnsemble { .. } => "PDVIEWX-E0039",
             Self::InvalidMesh { .. } => "PDVIEWX-E0047",
@@ -153,6 +198,8 @@ impl CoreError {
             Self::InvalidSceneDescription { .. } => "PDVIEWX-E0045",
             Self::InvalidPrimitive { .. } => "PDVIEWX-E0046",
             Self::InvalidOverlay { .. } => "PDVIEWX-E0048",
+            Self::InvalidTimeline { .. } => "PDVIEWX-E0049",
+            Self::InvalidVisual { .. } => "PDVIEWX-E0050",
         }
     }
 }
