@@ -53,8 +53,8 @@ impl PyVec3 {
         self.0.z
     }
 
-    #[allow(clippy::wrong_self_convention)]
-    fn to_tuple(&self) -> (f32, f32, f32) {
+    #[pyo3(name = "to_tuple")]
+    fn tuple(&self) -> (f32, f32, f32) {
         (self.0.x, self.0.y, self.0.z)
     }
 
@@ -119,8 +119,8 @@ impl PyMat4 {
         Self(pdviewx::Mat4::IDENTITY)
     }
 
-    #[allow(clippy::wrong_self_convention)]
-    fn to_list(&self) -> Vec<f32> {
+    #[pyo3(name = "to_list")]
+    fn list(&self) -> Vec<f32> {
         self.0.to_cols_array().to_vec()
     }
 
@@ -177,8 +177,8 @@ impl PyRgba8 {
         self.0.a
     }
 
-    #[allow(clippy::wrong_self_convention)]
-    fn to_f32(&self) -> [f32; 4] {
+    #[pyo3(name = "to_f32")]
+    fn f32_components(&self) -> [f32; 4] {
         self.0.to_f32()
     }
 }
