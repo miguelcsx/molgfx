@@ -8,21 +8,18 @@
 fn label_at(
     coordinate: vec3f,
 ) -> u32 {
-    return textureLoad(
-        label_texture,
+    return segment_label_texel(
         vec3i(
             round(coordinate)
-        ),
-        0,
-    ).x;
+        )
+    );
 }
 
 /// Bounded variant used only for finite-difference normals.
 fn label_at_clamped(
     coordinate: vec3f,
 ) -> u32 {
-    return textureLoad(
-        label_texture,
+    return segment_label_texel(
         vec3i(
             clamp(
                 round(coordinate),
@@ -32,9 +29,8 @@ fn label_at_clamped(
                     vec3u(1u)
                 ),
             )
-        ),
-        0,
-    ).x;
+        )
+    );
 }
 
 fn hash_label(label: u32) -> u32 {
