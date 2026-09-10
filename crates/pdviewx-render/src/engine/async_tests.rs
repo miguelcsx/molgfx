@@ -45,5 +45,6 @@ fn asynchronous_pick_resolves_the_same_integer_entity() {
     let super::PickEntity::Structure(entity) = pick.entity else {
         panic!("molecular pick resolves to a structure entity")
     };
-    assert_eq!(entity.index, 0);
+    assert_eq!(entity.kind(), pdviewx_core::EntityKind::Atom);
+    assert_eq!(entity.row(), pdviewx_core::LogicalRow::new(0));
 }

@@ -344,12 +344,20 @@ pub(crate) fn linear_rgb(color: Rgba8) -> [f32; 3] {
     ]
 }
 
+/// One display-referred channel decoded to scene-linear.
+///
+/// This is the cubic fit, not the exact piecewise transfer function, because it
+/// is not the only place the engine crosses this boundary: `srgb_to_linear` in
+/// `include/material/shade.wgsl` decodes every surface albedo the same way, and
+/// two different curves would mean a backdrop and a surface given the same
+/// colour resolve to different values. The fit is within about half of one
+/// 8-bit step of the real curve — finer than the quantization of the bytes it
+/// decodes — and the exact form measured 20% of frame time on the shader side,
+/// where it runs per fragment. One transfer function, defined the same way in
+/// both languages.
 fn srgb_to_linear(channel: f32) -> f32 {
-    if channel <= 0.04045 {
-        channel / 12.92
-    } else {
-        ((channel + 0.055) / 1.055).powf(2.4)
-    }
+    let clamped = channel.clamp(0.0, 1.0);
+    clamped * (clamped * (clamped * 0.305_306_01 + 0.682_171_1) + 0.012_522_878)
 }
 
 fn unit(value: f32) -> f32 {
