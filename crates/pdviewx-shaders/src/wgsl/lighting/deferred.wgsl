@@ -87,8 +87,15 @@ fn fs_lighting(
         visibility = direct_visibility(position, shading_frame.normal, occlusion.g);
     }
 
-    let lit =
-        shade_ribbon(
+    let emission_enabled = albedo_material.a >= 8.0;
+    let material_payload_value = select(
+        albedo_material.a,
+        albedo_material.a - 8.0,
+        emission_enabled,
+    );
+    var lit = albedo_material.rgb;
+    if !emission_enabled {
+        lit = shade_ribbon(
             albedo_material.rgb,
             shading_frame.normal,
             shading_frame.tangent,
@@ -97,13 +104,14 @@ fn fs_lighting(
                 0.05,
                 0.9,
             ),
-            albedo_material.a,
+            material_payload_value,
             position,
             vec2f(
                 occlusion.r,
                 visibility,
             ),
         );
+    }
 
     return vec4f(
         apply_illustration(

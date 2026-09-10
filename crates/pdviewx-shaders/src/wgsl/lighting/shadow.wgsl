@@ -20,10 +20,13 @@
 // stages under include/shadow/ and none carries another's intersection code.
 
 //!include "include/camera.wgsl"
+//!include "include/depth_tie.wgsl"
 //!include "include/atom.wgsl"
 //!include "include/quad.wgsl"
 //!include "include/intersect.wgsl"
+//!include "include/material_lighting.wgsl"
+//!include "include/representation.wgsl"
 //!include "include/shadow/types.wgsl"
+//!include "include/visual/fragment.wgsl"
 //!include "include/shadow/molecular.wgsl"
 //!include "include/shadow/primitive.wgsl"
-
