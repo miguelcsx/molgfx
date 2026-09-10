@@ -43,19 +43,22 @@ fn bench_bvh(c: &mut Criterion) {
         group.throughput(Throughput::Elements(n as u64));
 
         group.bench_function(format!("build_{n}"), |b| {
-            b.iter(|| black_box(Bvh::build(black_box(&bounds))));
+            b.iter(|| black_box(built_bvh(black_box(&bounds))));
         });
 
         // The allocation-free trajectory path: storage and scratch are reused.
         group.bench_function(format!("rebuild_{n}"), |b| {
-            let mut bvh = Bvh::build(&bounds);
+            let mut bvh = built_bvh(&bounds);
             let mut scratch = BvhBuildScratch::default();
-            b.iter(|| bvh.rebuild(black_box(&bounds), &mut scratch));
+            b.iter(|| match bvh.rebuild(black_box(&bounds), &mut scratch) {
+                Ok(()) => black_box(()),
+                Err(error) => panic!("{error}"),
+            });
         });
 
         // Radius-3 sphere queries at every point, reusing traversal scratch.
         group.bench_function(format!("sphere_candidates_{n}"), |b| {
-            let bvh = Bvh::build(&bounds);
+            let bvh = built_bvh(&bounds);
             let (mut traversal, mut out) = (Vec::new(), Vec::new());
             b.iter(|| {
                 let mut hits = 0usize;
@@ -67,6 +70,13 @@ fn bench_bvh(c: &mut Criterion) {
             });
         });
         group.finish();
+    }
+}
+
+fn built_bvh(bounds: &[Aabb]) -> Bvh {
+    match Bvh::build(bounds) {
+        Ok(hierarchy) => hierarchy,
+        Err(error) => panic!("{error}"),
     }
 }
 
