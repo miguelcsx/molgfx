@@ -1,6 +1,10 @@
 use super::*;
 use std::collections::BTreeSet;
 
+fn build(bounds: &[Aabb]) -> Bvh {
+    Bvh::build(bounds).unwrap_or_else(|error| panic!("{error}"))
+}
+
 fn box_at(center: Vec3, radius: f32) -> Aabb {
     Aabb::new(center - Vec3::splat(radius), center + Vec3::splat(radius))
 }
@@ -13,7 +17,7 @@ fn a_gpu_node_is_exactly_two_aligned_vec4_records() {
 
 #[test]
 fn node_radius_bounds_every_primitive_below_it() {
-    let hierarchy = Bvh::build(&[
+    let hierarchy = build(&[
         box_at(Vec3::ZERO, 0.5),
         box_at(Vec3::new(4.0, 0.0, 0.0), 2.0),
         box_at(Vec3::new(-4.0, 0.0, 0.0), 1.0),
@@ -26,10 +30,10 @@ fn node_radius_bounds_every_primitive_below_it() {
 
 #[test]
 fn an_empty_or_invalid_input_builds_an_empty_hierarchy() {
-    assert_eq!(Bvh::build(&[]), Bvh::default());
-    assert_eq!(Bvh::build(&[Aabb::EMPTY]), Bvh::default());
+    assert_eq!(build(&[]), Bvh::default());
+    assert_eq!(build(&[Aabb::EMPTY]), Bvh::default());
     let invalid = Aabb::new(Vec3::splat(f32::NAN), Vec3::ONE);
-    assert_eq!(Bvh::build(&[invalid]), Bvh::default());
+    assert_eq!(build(&[invalid]), Bvh::default());
 }
 
 #[test]
@@ -37,7 +41,7 @@ fn every_valid_primitive_appears_in_exactly_one_leaf() {
     let bounds = (0u16..97)
         .map(|index| box_at(Vec3::new(f32::from(index), f32::from(index % 7), 0.0), 0.4))
         .collect::<Vec<_>>();
-    let hierarchy = Bvh::build(&bounds);
+    let hierarchy = build(&bounds);
     let actual = hierarchy
         .primitive_indices
         .iter()
@@ -51,8 +55,8 @@ fn every_valid_primitive_appears_in_exactly_one_leaf() {
 #[test]
 fn construction_is_byte_deterministic_for_equal_centroids() {
     let bounds = vec![box_at(Vec3::ZERO, 1.0); 19];
-    let first = Bvh::build(&bounds);
-    let second = Bvh::build(&bounds);
+    let first = build(&bounds);
+    let second = build(&bounds);
     assert_eq!(first, second);
     assert_eq!(first.primitive_indices, (0..19).collect::<Vec<_>>());
 }
@@ -64,13 +68,17 @@ fn rebuilding_after_warmup_reuses_every_construction_allocation() {
         .collect::<Vec<_>>();
     let mut hierarchy = Bvh::default();
     let mut scratch = BvhBuildScratch::default();
-    hierarchy.rebuild(&bounds, &mut scratch);
+    hierarchy
+        .rebuild(&bounds, &mut scratch)
+        .unwrap_or_else(|error| panic!("{error}"));
     let capacities = (
         hierarchy.nodes.capacity(),
         hierarchy.primitive_indices.capacity(),
         scratch.entries.capacity(),
     );
-    hierarchy.rebuild(&bounds, &mut scratch);
+    hierarchy
+        .rebuild(&bounds, &mut scratch)
+        .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(
         (
             hierarchy.nodes.capacity(),
@@ -82,11 +90,65 @@ fn rebuilding_after_warmup_reuses_every_construction_allocation() {
 }
 
 #[test]
+fn refit_preserves_topology_and_updates_queries_without_allocating() {
+    let mut bounds = (0u16..64)
+        .map(|index| box_at(Vec3::new(f32::from(index), 0.0, 0.0), 0.25))
+        .collect::<Vec<_>>();
+    let mut hierarchy = build(&bounds);
+    let topology = (
+        hierarchy.primitive_indices.clone(),
+        hierarchy.escape.clone(),
+    );
+    let capacities = (
+        hierarchy.nodes.capacity(),
+        hierarchy.primitive_indices.capacity(),
+    );
+    bounds[31] = box_at(Vec3::new(200.0, 0.0, 0.0), 0.5);
+
+    hierarchy
+        .refit(&bounds)
+        .unwrap_or_else(|error| panic!("{error}"));
+
+    assert_eq!(
+        (
+            hierarchy.primitive_indices.clone(),
+            hierarchy.escape.clone()
+        ),
+        topology
+    );
+    assert_eq!(
+        (
+            hierarchy.nodes.capacity(),
+            hierarchy.primitive_indices.capacity()
+        ),
+        capacities
+    );
+    let mut traversal = Vec::new();
+    let mut candidates = Vec::new();
+    hierarchy.sphere_candidates(
+        Vec3::new(200.0, 0.0, 0.0),
+        1.0,
+        &mut traversal,
+        &mut candidates,
+    );
+    assert!(candidates.contains(&31));
+}
+
+#[test]
+fn refit_rejects_missing_or_invalid_source_bounds() {
+    let mut hierarchy = build(&[box_at(Vec3::ZERO, 1.0)]);
+    let missing = hierarchy.refit(&[]);
+    assert!(matches!(missing, Err(error) if error.resource() == "BVH source primitive"));
+    let invalid = hierarchy.refit(&[Aabb::EMPTY]);
+    assert!(matches!(invalid, Err(error) if error.resource() == "BVH source bounds"));
+}
+
+#[test]
 fn every_branch_contains_both_children() {
     let bounds = (0u16..31)
         .map(|index| box_at(Vec3::new(f32::from(index), f32::from(index % 3), 1.0), 0.5))
         .collect::<Vec<_>>();
-    let hierarchy = Bvh::build(&bounds);
+    let hierarchy = build(&bounds);
     for node in &hierarchy.nodes {
         let Some((left, right)) = node.children() else {
             continue;
@@ -111,7 +173,7 @@ fn ray_candidates_match_brute_force_leaf_bounds() {
         box_at(Vec3::new(-4.0, 0.0, -2.0), 0.5),
         box_at(Vec3::new(0.0, 4.0, -2.0), 0.5),
     ];
-    let hierarchy = Bvh::build(&bounds);
+    let hierarchy = build(&bounds);
     let origin = Vec3::new(0.0, 0.0, 4.0);
     let direction = Vec3::new(0.0, 0.0, -1.0);
     let mut traversal = Vec::new();
@@ -137,7 +199,7 @@ fn sphere_candidates_prune_distant_subtrees_and_reuse_storage() {
     let bounds = (0u16..96)
         .map(|index| box_at(Vec3::new(f32::from(index), 0.0, 0.0), 0.25))
         .collect::<Vec<_>>();
-    let hierarchy = Bvh::build(&bounds);
+    let hierarchy = build(&bounds);
     let mut traversal = Vec::new();
     let mut candidates = Vec::new();
     hierarchy.sphere_candidates(
@@ -166,7 +228,7 @@ fn aabb_candidates_prune_distant_subtrees_and_reuse_storage() {
     let bounds = (0u16..96)
         .map(|index| box_at(Vec3::new(f32::from(index), 0.0, 0.0), 0.25))
         .collect::<Vec<_>>();
-    let hierarchy = Bvh::build(&bounds);
+    let hierarchy = build(&bounds);
     let mut traversal = Vec::new();
     let mut candidates = Vec::new();
     hierarchy.aabb_candidates(
@@ -192,8 +254,12 @@ fn aabb_candidates_prune_distant_subtrees_and_reuse_storage() {
 }
 
 fn assert_contains(parent: Aabb, child: Aabb) {
-    assert!(parent.min.cmple(child.min).all());
-    assert!(parent.max.cmpge(child.max).all());
+    assert!(
+        parent.min.x <= child.min.x && parent.min.y <= child.min.y && parent.min.z <= child.min.z
+    );
+    assert!(
+        parent.max.x >= child.max.x && parent.max.y >= child.max.y && parent.max.z >= child.max.z
+    );
 }
 
 #[test]
@@ -201,7 +267,7 @@ fn a_stackless_escape_walk_reaches_every_primitive_exactly_once() {
     let bounds = (0..97i16)
         .map(|index| box_at(Vec3::new(f32::from(index), 0.0, 0.0), 0.4))
         .collect::<Vec<_>>();
-    let hierarchy = Bvh::build(&bounds);
+    let hierarchy = build(&bounds);
     assert_eq!(hierarchy.escape.len(), hierarchy.nodes.len());
 
     // Mirrors the shader walk: descend on a hit, follow the link otherwise.
@@ -235,7 +301,7 @@ fn skipping_the_root_subtree_ends_a_stackless_walk() {
     let bounds = (0..40i16)
         .map(|index| box_at(Vec3::new(0.0, f32::from(index), 0.0), 0.4))
         .collect::<Vec<_>>();
-    let hierarchy = Bvh::build(&bounds);
+    let hierarchy = build(&bounds);
     assert_eq!(hierarchy.escape.first(), Some(&Bvh::ESCAPE_END));
 }
 
@@ -246,9 +312,43 @@ fn rebuilding_retains_the_escape_column_allocation() {
         .collect::<Vec<_>>();
     let mut scratch = BvhBuildScratch::default();
     let mut hierarchy = Bvh::default();
-    hierarchy.rebuild(&bounds, &mut scratch);
+    hierarchy
+        .rebuild(&bounds, &mut scratch)
+        .unwrap_or_else(|error| panic!("{error}"));
     let capacity = hierarchy.escape.capacity();
-    hierarchy.rebuild(&bounds, &mut scratch);
+    hierarchy
+        .rebuild(&bounds, &mut scratch)
+        .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(hierarchy.escape.capacity(), capacity);
     assert_eq!(hierarchy.escape.len(), hierarchy.nodes.len());
+}
+
+#[test]
+fn gpu_bvh_indices_reject_values_above_each_encoded_limit() {
+    let above_node_mask =
+        usize::try_from(u64::from(INDEX_MASK) + 1).unwrap_or_else(|error| panic!("{error}"));
+    let error = checked_u32("test node", above_node_mask, INDEX_MASK)
+        .expect_err("an unencodable node must fail");
+    assert_eq!(error.index(), u64::from(INDEX_MASK) + 1);
+    assert_eq!(error.maximum(), INDEX_MASK);
+
+    if let Ok(above_u32) = usize::try_from(u64::from(u32::MAX) + 1) {
+        let error = checked_u32("test source", above_u32, u32::MAX)
+            .expect_err("a source row wider than u32 must fail");
+        assert_eq!(error.index(), u64::from(u32::MAX) + 1);
+        assert_eq!(error.maximum(), u32::MAX);
+    }
+}
+
+#[test]
+fn node_metadata_preserves_valid_boundary_values_without_masking() {
+    let leaf = BvhNode::leaf(Aabb::default(), INDEX_MASK - 7, 7, 0.0);
+    assert_eq!(leaf.primitive_range(), Some((INDEX_MASK - 7)..INDEX_MASK));
+
+    let branch = BvhNode::branch(Aabb::default(), MAX_BRANCH_LEFT, 0.0);
+    assert_eq!(branch.children(), Some((MAX_BRANCH_LEFT, INDEX_MASK)));
+
+    let above_left =
+        usize::try_from(u64::from(MAX_BRANCH_LEFT) + 1).unwrap_or_else(|error| panic!("{error}"));
+    assert!(checked_u32("left", above_left, MAX_BRANCH_LEFT).is_err());
 }
