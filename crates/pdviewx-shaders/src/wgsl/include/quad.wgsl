@@ -29,30 +29,25 @@ fn quad_corner(index: u32) -> vec2f {
     );
 }
 
-/// Returns the conservative view-space sphere impostor half-size.
+/// Returns exact axis-aligned view-plane extents of a projected sphere.
 ///
-/// Takes squared center distance so callers can use dot(center, center)
-/// instead of paying for length(center).
-fn sphere_quad_half_size(
-    center_distance_sq: f32,
+/// A perspective sphere silhouette is shifted away from the projection axis.
+/// A symmetric bound derived only from center distance clips that shifted
+/// silhouette for off-axis atoms, exposing the proxy quad as flat cuts. These
+/// tangent-cone extrema include both the shift and the per-axis span.
+fn sphere_quad_half_extent(
+    center: vec3f,
     radius: f32,
-) -> f32 {
-    let radius_sq =
-        radius * radius;
-
-    let ratio_sq =
-        clamp(
-            radius_sq /
-                max(
-                    center_distance_sq,
-                    SPHERE_MIN_DISTANCE_SQ,
-                ),
-            0.0,
-            SPHERE_MAX_RATIO_SQ,
-        );
-
-    return radius *
-        inverseSqrt(
-            1.0 - ratio_sq
-        );
+) -> vec2f {
+    let depth = max(-center.z, SPHERE_MIN_DISTANCE_SQ);
+    let depth_sq = depth * depth;
+    let radius_sq = min(radius * radius, depth_sq * SPHERE_MAX_RATIO_SQ);
+    let denominator = max(depth_sq - radius_sq, SPHERE_MIN_DISTANCE_SQ);
+    let lateral_root = sqrt(max(
+        center.xy * center.xy + vec2f(denominator),
+        vec2f(0.0),
+    ));
+    let shift = abs(center.xy) * radius_sq / denominator;
+    let span = depth * sqrt(radius_sq) * lateral_root / denominator;
+    return shift + span;
 }
