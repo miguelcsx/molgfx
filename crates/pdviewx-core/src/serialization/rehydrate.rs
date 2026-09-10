@@ -1,18 +1,28 @@
 //! Cold-source scene reconstruction from a stable manifest.
 
+#[path = "rehydrate_generic.rs"]
+mod generic;
 #[path = "rehydrate_payload.rs"]
 mod payload;
 #[path = "rehydrate_render.rs"]
 mod render;
+#[path = "rehydrate_rows.rs"]
+mod rows;
+#[path = "rehydrate_structures.rs"]
+mod structures;
+#[path = "rehydrate_volumes.rs"]
+mod volumes;
 
 use super::types::{
     AtomPropertyDescription, MeshDescription, MeshInstanceDescription, ObjectIdentity,
-    OverlayDescription, ScalarSemanticsDescription, SelectionDescription, StructureDescription,
-    VolumeDescription,
+    OverlayDescription, ScalarSemanticsDescription, SelectionDescription, VolumeDescription,
 };
-use super::{SceneDescription, SceneDescriptionSources, manifest::SCHEMA_VERSION};
+use super::{
+    GenericSceneDescriptionSources, SceneDescription, SceneDescriptionSources,
+    manifest::SCHEMA_VERSION,
+};
 use crate::handle::{RawHandle, StructureHandle};
-use crate::scene::{Scene, StoredAtomProperty, StoredSegmentation, StoredSelection, StoredVolume};
+use crate::scene::{Scene, StoredAtomProperty, StoredSegmentation, StoredSelection};
 use crate::{AtomProperty, AtomPropertyMeaning, AtomSelection, CoreError, ScalarFieldSemantics};
 use roaring::RoaringBitmap;
 
@@ -32,19 +42,52 @@ impl Scene {
         description: &SceneDescription,
         sources: SceneDescriptionSources<'_>,
     ) -> Result<Self, CoreError> {
+        Self::from_description_with_generic(
+            description,
+            sources,
+            GenericSceneDescriptionSources::default(),
+        )
+    }
+
+    /// Rebuilds schema-8 generic row tables from caller-retained immutable
+    /// payloads in addition to the structure and volume sources.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::InvalidSceneDescription`] when counts, hashes,
+    /// domains, handles or visual programs disagree.
+    pub fn from_description_with_generic(
+        description: &SceneDescription,
+        sources: SceneDescriptionSources<'_>,
+        generic_sources: GenericSceneDescriptionSources<'_>,
+    ) -> Result<Self, CoreError> {
         validate_header(description)?;
-        if sources.structures.len() < description.structures.len()
-            || sources.volumes.len() != description.volumes.len()
+        if sources.volumes.len()
+            != description
+                .volumes
+                .iter()
+                .filter(|volume| volume.occupancy.is_none())
+                .count()
             || sources.segmentations.len() != description.segmentations.len()
             || sources.atom_properties.len() != description.atom_properties.len()
             || sources.meshes.len() != description.meshes.len()
+            || generic_sources.point_batches.len() != description.point_batches.len()
+            || generic_sources.instance_batches.len() != description.instance_batches.len()
+            || generic_sources.attributes.len() != description.attributes.len()
+            || generic_sources.relation_batches.len() != description.relation_batches.len()
         {
             return invalid("caller sources do not match manifest table counts");
         }
         let mut scene = Scene::new();
+        rows::prepare(&mut scene, description)?;
         let structures =
-            rehydrate_structures(&mut scene, &description.structures, sources.structures)?;
-        rehydrate_volumes(&mut scene, &description.volumes, sources.volumes)?;
+            structures::rehydrate(&mut scene, &description.structures, sources.structures)?;
+        volumes::rehydrate(
+            &mut scene,
+            &description.volumes,
+            sources.volumes,
+            &structures,
+        )?;
         rehydrate_segmentations(
             &mut scene,
             &description.segmentations,
@@ -61,6 +104,13 @@ impl Scene {
         rehydrate_mesh_instances(&mut scene, &description.mesh_instances)?;
         render::rehydrate_representations(&mut scene, &description.representations)?;
         payload::rehydrate_primitives(&mut scene, &description.primitives)?;
+        super::ligand_pose_description::rehydrate(
+            &mut scene,
+            &description.ligand_pose_batches,
+            &structures,
+            description.tables.ligand_pose_batches,
+        )?;
+        generic::rehydrate(&mut scene, description, generic_sources)?;
         payload::rehydrate_guides(&mut scene, &description.guides)?;
         payload::rehydrate_interactions(&mut scene, &description.interactions)?;
         payload::rehydrate_labels(
@@ -75,10 +125,10 @@ impl Scene {
 }
 
 fn validate_header(description: &SceneDescription) -> Result<(), CoreError> {
-    if !matches!(description.schema, 3 | SCHEMA_VERSION) {
+    if description.schema != SCHEMA_VERSION {
         return invalid("unsupported scene schema");
     }
-    if description.engine != format!("pdviewx-scene-{}", description.schema) {
+    if description.engine != format!("pdviewx-scene-{SCHEMA_VERSION}") {
         return invalid("scene engine format does not match the schema");
     }
     Ok(())
@@ -168,93 +218,6 @@ fn rehydrate_overlays(
     Ok(())
 }
 
-fn rehydrate_structures(
-    scene: &mut Scene,
-    descriptions: &[StructureDescription],
-    sources: &[pdbiox::Structure],
-) -> Result<Vec<StructureHandle>, CoreError> {
-    let mut used = vec![false; sources.len()];
-    let mut handles = Vec::with_capacity(descriptions.len());
-    for description in descriptions {
-        let mut candidate = None;
-        for (index, source) in sources.iter().enumerate() {
-            if used[index] {
-                continue;
-            }
-            let Some(mut placed) = crate::PlacedStructure::new(source) else {
-                continue;
-            };
-            if !structure_matches(description, &placed) {
-                continue;
-            }
-            if !pdviewx_math::Mat4::from_cols_array(&description.model_to_world).is_finite() {
-                return invalid("structure placement contains a non-finite value");
-            }
-            placed.model_to_world =
-                pdviewx_math::Mat4::from_cols_array(&description.model_to_world);
-            placed.secondary_structure = crate::Column::new(parse_secondary(
-                &description.secondary_structure,
-                placed.hierarchy.residue_count(),
-            )?);
-            candidate = Some((index, placed));
-            break;
-        }
-        let Some((index, placed)) = candidate else {
-            return invalid("no supplied structure matches a manifest fingerprint");
-        };
-        used[index] = true;
-        let raw = raw(description.row, description.generation);
-        let handle = StructureHandle(raw);
-        insert(
-            scene.structures.insert_at(raw, placed),
-            "structure identity collision",
-        )?;
-        handles.push(handle);
-    }
-    Ok(handles)
-}
-
-fn structure_matches(description: &StructureDescription, placed: &crate::PlacedStructure) -> bool {
-    let entry = &placed.structure.data().entry;
-    entry.id.as_deref() == description.source_id.as_deref()
-        && entry.title.as_deref() == description.title.as_deref()
-        && entry.method.as_deref() == description.method.as_deref()
-        && same_option_bits(entry.resolution, description.resolution)
-        && placed.atoms.len() == description.atom_count
-        && coordinate_hash(placed) == description.coordinate_hash
-}
-
-fn rehydrate_volumes(
-    scene: &mut Scene,
-    descriptions: &[VolumeDescription],
-    sources: &[crate::DensityVolume],
-) -> Result<(), CoreError> {
-    for (description, value) in descriptions.iter().zip(sources) {
-        if value.dimensions() != description.dimensions
-            || !same_array_bits(value.range(), description.range)
-            || !same_array_bits(
-                value.voxel_to_world().to_cols_array(),
-                description.voxel_to_world,
-            )
-            || value_hash(value.values()) != description.content_hash
-        {
-            return invalid("supplied scalar volume does not match its manifest");
-        }
-        let raw = raw(description.row, description.generation);
-        insert(
-            scene.volumes.insert_at(
-                raw,
-                StoredVolume {
-                    value: value.clone(),
-                    revision: 0,
-                },
-            ),
-            "volume identity collision",
-        )?;
-    }
-    Ok(())
-}
-
 fn rehydrate_segmentations(
     scene: &mut Scene,
     descriptions: &[VolumeDescription],
@@ -305,7 +268,7 @@ fn rehydrate_properties(
         let value = AtomProperty::new(
             owner,
             std::sync::Arc::from(source.name()),
-            std::sync::Arc::clone(source.shared_values()),
+            std::sync::Arc::from(source.values()),
             source.meaning(),
             source.semantics().clone(),
         )?;
@@ -362,25 +325,6 @@ fn rehydrate_selections(
     Ok(())
 }
 
-fn parse_secondary(
-    values: &[String],
-    expected: usize,
-) -> Result<Vec<crate::SecondaryStructure>, CoreError> {
-    if values.len() != expected {
-        return invalid("secondary-structure column length differs from the source");
-    }
-    values
-        .iter()
-        .map(|value| match value.as_str() {
-            "coil" => Ok(crate::SecondaryStructure::Coil),
-            "helix" => Ok(crate::SecondaryStructure::Helix),
-            "strand" => Ok(crate::SecondaryStructure::Strand),
-            "turn" => Ok(crate::SecondaryStructure::Turn),
-            _ => invalid("unknown secondary-structure label"),
-        })
-        .collect()
-}
-
 pub(crate) fn resolve_structure(
     structures: &[StructureHandle],
     identity: ObjectIdentity,
@@ -423,29 +367,17 @@ pub(crate) fn insert(result: Option<()>, summary: &'static str) -> Result<(), Co
     Ok(())
 }
 
-fn length_matches(length: usize, expected: u32) -> bool {
-    usize::try_from(expected).ok() == Some(length)
+fn length_matches(length: usize, expected: u64) -> bool {
+    u64::try_from(length).ok() == Some(expected)
 }
 
-fn same_option_bits(left: Option<f32>, right: Option<f32>) -> bool {
-    match (left, right) {
-        (Some(left), Some(right)) => left.to_bits() == right.to_bits(),
-        (None, None) => true,
-        _ => false,
-    }
-}
-
-fn same_array_bits<const N: usize>(left: [f32; N], right: [f32; N]) -> bool {
+pub(super) fn same_array_bits<const N: usize>(left: [f32; N], right: [f32; N]) -> bool {
     left.into_iter()
         .zip(right)
         .all(|(left, right)| left.to_bits() == right.to_bits())
 }
 
-fn coordinate_hash(placed: &crate::PlacedStructure) -> u64 {
-    super::manifest::coordinate_hash(placed)
-}
-
-fn value_hash(values: &[f32]) -> u64 {
+pub(super) fn value_hash(values: &[f32]) -> u64 {
     super::records::value_hash(values)
 }
 

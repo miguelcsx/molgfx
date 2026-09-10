@@ -11,9 +11,8 @@ use crate::serialization::types::{
 use crate::{
     AnisotropicEllipsoid, Annotation, AnnotationAnchor, CarbohydrateShape, CarbohydrateSymbol,
     EntityKind, EntityRef, Guide, GuideCap, GuideStyle, InteractionAnchor, InteractionDirection,
-    InteractionEdge, InteractionGeometry, InteractionKind, InteractionPattern, MarkerShape,
-    MarkerStyle, Measurement, Particle, ParticleBoundary, ParticleMotion, ParticleShape,
-    PlanarRegion, Primitive,
+    InteractionEdge, InteractionGeometry, InteractionKind, MarkerShape, MarkerStyle, Measurement,
+    Particle, ParticleBoundary, ParticleMotion, ParticleShape, PlanarRegion, Primitive,
 };
 use pdviewx_math::{Aabb, Quat, Rgba8, Vec3};
 
@@ -176,25 +175,48 @@ pub(crate) fn rehydrate_labels(
     annotations: &[AnnotationDescription],
     measurements: &[MeasurementDescription],
 ) -> Result<(), crate::CoreError> {
-    for description in annotations {
-        let value = parse_annotation(scene, description)?;
-        insert(
-            scene.labels.insert_at(
-                super::raw(description.row, description.generation),
-                LabelObject::Annotation(value),
-            ),
-            "annotation identity collision",
-        )?;
-    }
-    for description in measurements {
-        let value = parse_measurement(scene, description)?;
-        insert(
-            scene.labels.insert_at(
-                super::raw(description.row, description.generation),
-                LabelObject::Measurement(value),
-            ),
-            "measurement identity collision",
-        )?;
+    let mut annotation_index = 0usize;
+    let mut measurement_index = 0usize;
+    while annotation_index < annotations.len() || measurement_index < measurements.len() {
+        let annotation_row = annotations
+            .get(annotation_index)
+            .map(|description| description.row);
+        let measurement_row = measurements
+            .get(measurement_index)
+            .map(|description| description.row);
+        let take_annotation = match (annotation_row, measurement_row) {
+            (Some(annotation), Some(measurement)) => annotation <= measurement,
+            (Some(_), None) => true,
+            (None, Some(_)) => false,
+            (None, None) => break,
+        };
+        if take_annotation {
+            let description = annotations
+                .get(annotation_index)
+                .ok_or_else(|| invalid_value("annotation table ended unexpectedly"))?;
+            let value = parse_annotation(scene, description)?;
+            insert(
+                scene.labels.insert_at(
+                    super::raw(description.row, description.generation),
+                    LabelObject::Annotation(value),
+                ),
+                "annotation identity collision",
+            )?;
+            annotation_index = annotation_index.saturating_add(1);
+        } else {
+            let description = measurements
+                .get(measurement_index)
+                .ok_or_else(|| invalid_value("measurement table ended unexpectedly"))?;
+            let value = parse_measurement(scene, description)?;
+            insert(
+                scene.labels.insert_at(
+                    super::raw(description.row, description.generation),
+                    LabelObject::Measurement(value),
+                ),
+                "measurement identity collision",
+            )?;
+            measurement_index = measurement_index.saturating_add(1);
+        }
     }
     Ok(())
 }
@@ -258,7 +280,7 @@ fn parse_particle_motion(
 fn parse_guide_style(value: &types::GuideStyleDescription) -> Result<GuideStyle, crate::CoreError> {
     Ok(GuideStyle {
         color: rgba(value.color),
-        pattern: parse_pattern(&value.pattern)?,
+        pattern: parse_relation_pattern(&value.pattern)?,
         width_pixels: value.width_pixels,
         opacity: value.opacity,
         period_pixels: value.period_pixels,
@@ -268,13 +290,13 @@ fn parse_guide_style(value: &types::GuideStyleDescription) -> Result<GuideStyle,
     })
 }
 
-fn parse_pattern(value: &str) -> Result<InteractionPattern, crate::CoreError> {
+fn parse_relation_pattern(value: &str) -> Result<crate::RelationPattern, crate::CoreError> {
     match value {
-        "solid" => Ok(InteractionPattern::Solid),
-        "dashes" => Ok(InteractionPattern::Dashes),
-        "dots" => Ok(InteractionPattern::Dots),
-        "spring" => Ok(InteractionPattern::Spring),
-        _ => invalid("unknown guide pattern"),
+        "solid" => Ok(crate::RelationPattern::Solid),
+        "dashes" => Ok(crate::RelationPattern::Dashed),
+        "dots" => Ok(crate::RelationPattern::Dotted),
+        "spring" => Ok(crate::RelationPattern::Spring),
+        _ => invalid("unknown relation pattern"),
     }
 }
 
@@ -309,6 +331,9 @@ fn parse_entity(scene: &Scene, value: &EntityDescription) -> Result<EntityRef, c
         "label" => EntityKind::Label,
         "primitive" => EntityKind::Primitive,
         "mesh" => EntityKind::Mesh,
+        "ligand_pose_batch" => EntityKind::LigandPoseBatch,
+        "guide" => EntityKind::Guide,
+        "dynamic_bond" => EntityKind::DynamicBond,
         _ => return invalid("unknown entity provenance kind"),
     };
     Ok(EntityRef {

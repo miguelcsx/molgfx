@@ -6,14 +6,15 @@ use crate::scene::StoredRepresentation;
 use crate::serialization::types::{self, TargetDescription};
 use crate::serialization::types::{
     ColorDescription, MaterialDescription, RepresentationDescription, SegmentationStyleDescription,
-    SurfaceScalarDescription, VolumeStyleDescription,
+    SurfaceScalarDescription, VisualStyleDescription, VolumeStyleDescription,
 };
 use crate::{
-    ClipCap, ClipPlane, ClipSet, ColorScheme, Material, MaterialModel, PropertyAppearance,
-    Representation, RepresentationKind, RepresentationParams, RepresentationTarget, ScalarContours,
-    ScalarRamp, SegmentStyle, SegmentStyleTable, SurfaceKind, SurfaceScalarOverlay, SurfaceStyle,
-    TubeRadiusMapping, VolumeRegion, VolumeRendering, VolumeSlice, VolumeStyle,
-    VolumeTransferFunction, VolumeTransferPoint,
+    AttributeKind, ClipCap, ClipPlane, ClipSet, ColorScheme, Material, MaterialModel,
+    PropertyAppearance, Representation, RepresentationKind, RepresentationParams,
+    RepresentationTarget, RowDomain, ScalarContours, ScalarRamp, SegmentStyle, SegmentStyleTable,
+    SurfaceKind, SurfaceScalarOverlay, SurfaceStyle, TubeRadiusMapping, VisualAttributeRef,
+    VisualCompatibility, VisualOutput, VisualProgram, VisualStyle, VolumeRegion, VolumeRendering,
+    VolumeSlice, VolumeStyle, VolumeTransferFunction, VolumeTransferPoint,
 };
 use pdviewx_math::{Rgba8, Vec3};
 
@@ -30,6 +31,8 @@ pub(crate) fn rehydrate_representations(
         value.order = description.order;
         value.params = representation_params(description.params)?;
         value.params.tube_radius_mapping = parse_tube_mapping(description.tube_radius_mapping)?;
+        value.params.surface_components =
+            parse_surface_components(&description.surface_components)?;
         value.color = parse_color(scene, &description.color)?;
         value.material = parse_material(&description.material)?;
         value.clipping = parse_clip(&description.clipping)?;
@@ -45,6 +48,11 @@ pub(crate) fn rehydrate_representations(
             .as_ref()
             .map(|surface| parse_surface_scalar(scene, surface))
             .transpose()?;
+        value.visual = description
+            .visual
+            .as_ref()
+            .map(|visual| parse_visual(scene, visual, kind))
+            .transpose()?;
         validate_regions(scene, target, &value)?;
         let raw = super::raw(description.row, description.generation);
         insert(
@@ -55,6 +63,142 @@ pub(crate) fn rehydrate_representations(
         )?;
     }
     Ok(())
+}
+
+fn parse_visual(
+    scene: &Scene,
+    value: &VisualStyleDescription,
+    kind: RepresentationKind,
+) -> Result<VisualStyle, CoreError> {
+    if !value.attributes.is_empty() {
+        return invalid("representation visual cannot reference generic row attributes");
+    }
+    parse_visual_with_compatibility(
+        scene,
+        value,
+        VisualCompatibility::for_representation(kind),
+        None,
+    )
+}
+
+pub(super) fn parse_domain_visual(
+    scene: &Scene,
+    value: &VisualStyleDescription,
+    domain: RowDomain,
+) -> Result<VisualStyle, CoreError> {
+    if !value.properties.is_empty() {
+        return invalid("generic domain visual cannot reference legacy atom properties");
+    }
+    let compatibility = match domain {
+        RowDomain::Points(_) => VisualCompatibility::POINTS,
+        RowDomain::Instances(_) | RowDomain::TemplateParts(_) => VisualCompatibility::INSTANCES,
+        RowDomain::Relations(_) => VisualCompatibility::RELATIONS,
+        RowDomain::Atoms(_) => VisualCompatibility::DEFORMABLE,
+    };
+    parse_visual_with_compatibility(scene, value, compatibility, Some(domain))
+}
+
+fn parse_visual_with_compatibility(
+    scene: &Scene,
+    value: &VisualStyleDescription,
+    compatibility: VisualCompatibility,
+    domain: Option<RowDomain>,
+) -> Result<VisualStyle, CoreError> {
+    let instructions = value
+        .instructions
+        .iter()
+        .map(|instruction| {
+            crate::representation::visual::Instruction::from_serialized(
+                instruction.opcode,
+                instruction.kind,
+                instruction.operands,
+                instruction.data,
+                instruction.stage,
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| visual_error(&error))?;
+    let outputs = value
+        .outputs
+        .iter()
+        .map(|[output, register]| {
+            VisualOutput::from_code(*output)
+                .map(|output| (output, *register))
+                .ok_or_else(|| invalid_value("visual program contains an unknown output"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let properties = value
+        .properties
+        .iter()
+        .map(|identity| {
+            let raw = resolve_raw(*identity);
+            resolve_existing(scene.properties.get(raw))?;
+            Ok(crate::AtomPropertyHandle(raw))
+        })
+        .collect::<Result<Vec<_>, CoreError>>()?;
+    let attributes = if let Some(domain) = domain {
+        value
+            .attributes
+            .iter()
+            .map(|description| {
+                let raw = resolve_raw(description.identity);
+                let handle = crate::AttributeHandle(raw);
+                let attribute = scene.attribute(handle).ok_or_else(|| {
+                    invalid_value("visual program references a stale generic attribute")
+                })?;
+                let kind = parse_attribute_kind(&description.kind)?;
+                if attribute.domain() != domain || attribute.kind() != kind {
+                    return invalid("visual attribute does not match its recorded domain or kind");
+                }
+                Ok(VisualAttributeRef::Attribute { handle, kind })
+            })
+            .collect::<Result<Vec<_>, CoreError>>()?
+    } else {
+        properties
+            .iter()
+            .copied()
+            .map(VisualAttributeRef::LegacyScalar)
+            .collect()
+    };
+    let parameter_kinds = value
+        .parameter_kinds
+        .iter()
+        .map(|kind| {
+            crate::representation::visual::ValueKind::from_code(*kind)
+                .ok_or_else(|| invalid_value("visual program contains an unknown value kind"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let program = VisualProgram::from_serialized_attributes(
+        instructions,
+        &outputs,
+        attributes,
+        properties,
+        parameter_kinds,
+        value.parameter_defaults.clone(),
+        value.maximum_displacement,
+    )
+    .map_err(|error| visual_error(&error))?;
+    program
+        .validate_compatibility(compatibility)
+        .map_err(|error| visual_error(&error))?;
+    VisualStyle::from_parameters(program, value.parameters.clone())
+        .map_err(|error| visual_error(&error))
+}
+
+fn parse_attribute_kind(value: &str) -> Result<AttributeKind, CoreError> {
+    match value {
+        "scalar" => Ok(AttributeKind::Scalar),
+        "category" => Ok(AttributeKind::Category),
+        "vector" => Ok(AttributeKind::Vector),
+        "color" => Ok(AttributeKind::Color),
+        _ => invalid("visual program references an unknown attribute kind"),
+    }
+}
+
+fn visual_error(error: &crate::VisualError) -> CoreError {
+    CoreError::InvalidSceneDescription {
+        summary: error.to_string(),
+    }
 }
 
 fn parse_target(
@@ -97,6 +241,7 @@ fn representation_params(values: [f32; 15]) -> Result<RepresentationParams, crat
         isolevel: values[4],
         surface_kind: parse_surface_kind(values[5])?,
         surface_style: parse_surface_style(values[6])?,
+        surface_components: crate::SurfaceComponentPolicy::default(),
         surface_pattern_spacing: values[7],
         surface_pattern_width_pixels: values[8],
         ribbon_width: values[9],
@@ -104,6 +249,24 @@ fn representation_params(values: [f32; 15]) -> Result<RepresentationParams, crat
         tube_radius_mapping: TubeRadiusMapping::Constant,
         point_size_pixels: values[11],
         line_width_pixels: values[12],
+    })
+}
+
+fn parse_surface_components(
+    value: &crate::serialization::SurfaceComponentDescription,
+) -> Result<crate::SurfaceComponentPolicy, crate::CoreError> {
+    use crate::serialization::SurfaceComponentDescription;
+    Ok(match value {
+        SurfaceComponentDescription::Disabled => crate::SurfaceComponentPolicy::keep_all(),
+        SurfaceComponentDescription::Area(minimum) => {
+            crate::SurfaceComponentPolicy::minimum_area(*minimum)?
+        }
+        SurfaceComponentDescription::Volume(minimum) => {
+            crate::SurfaceComponentPolicy::minimum_volume(*minimum)?
+        }
+        SurfaceComponentDescription::Voxels(minimum) => {
+            crate::SurfaceComponentPolicy::minimum_voxels(*minimum)?
+        }
     })
 }
 
@@ -124,6 +287,7 @@ fn parse_surface_style(value: f32) -> Result<SurfaceStyle, crate::CoreError> {
         value if value == 2.0f32.to_bits() => Ok(SurfaceStyle::Dots),
         value if value == 3.0f32.to_bits() => Ok(SurfaceStyle::FilledContour),
         value if value == 4.0f32.to_bits() => Ok(SurfaceStyle::Mesh),
+        value if value == 5.0f32.to_bits() => Ok(SurfaceStyle::SoftUnion),
         _ => invalid("unknown surface presentation style"),
     }
 }
@@ -311,74 +475,4 @@ fn positive_finite(value: f32, label: &'static str) -> Result<f32, crate::CoreEr
     }
 }
 
-fn parse_appearance(
-    scene: &Scene,
-    value: &types::PropertyAppearanceDescription,
-) -> Result<PropertyAppearance, crate::CoreError> {
-    let raw = resolve_raw(value.property);
-    resolve_existing(scene.properties.get(raw))?;
-    PropertyAppearance::new(
-        crate::AtomPropertyHandle(raw),
-        value.domain,
-        value.opacity,
-        value.softness_pixels,
-        crate::PropertyAppearanceSample {
-            opacity: value.missing[0],
-            softness_pixels: value.missing[1],
-        },
-    )
-}
-
-fn parse_surface_scalar(
-    scene: &Scene,
-    value: &SurfaceScalarDescription,
-) -> Result<SurfaceScalarOverlay, crate::CoreError> {
-    let raw = resolve_raw(value.field);
-    resolve_existing(scene.volumes.get(raw))?;
-    let ramp = ScalarRamp::new(
-        value.ramp_values.map(f32::from_bits),
-        value.ramp_colors.map(rgba),
-    )?;
-    let mut overlay = SurfaceScalarOverlay::new(crate::VolumeHandle(raw), ramp);
-    overlay.contours = value
-        .contours
-        .map(|values| ScalarContours::new(values[0], values[1]))
-        .transpose()?;
-    if !value.sample_offset_angstrom.is_finite() {
-        return invalid("surface scalar offset is not finite");
-    }
-    overlay.sample_offset_angstrom = value.sample_offset_angstrom;
-    Ok(overlay)
-}
-
-fn validate_regions(
-    scene: &Scene,
-    target: RepresentationTarget,
-    value: &Representation,
-) -> Result<(), crate::CoreError> {
-    if let Some(region) = value.volume.region {
-        let RepresentationTarget::Volume(handle) = target else {
-            return invalid("volume region is attached to a non-volume target");
-        };
-        let volume = scene.volume(handle).ok_or(CoreError::StaleHandle)?;
-        validate_region(region, volume.dimensions())?;
-    }
-    if let Some(region) = value.segmentation.region {
-        let RepresentationTarget::SegmentedVolume(handle) = target else {
-            return invalid("segmentation region is attached to a non-segmentation target");
-        };
-        let volume = scene
-            .segmented_volume(handle)
-            .ok_or(crate::CoreError::StaleHandle)?;
-        validate_region(region, volume.dimensions())?;
-    }
-    Ok(())
-}
-
-fn validate_region(region: VolumeRegion, dimensions: [u32; 3]) -> Result<(), crate::CoreError> {
-    if (0..3).any(|axis| region.maximum()[axis] > dimensions[axis]) {
-        invalid("volume region exceeds its source dimensions")
-    } else {
-        Ok(())
-    }
-}
+include!("rehydrate_render_validation.rs");

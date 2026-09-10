@@ -11,10 +11,3 @@ pub(super) const fn volume_rendering(value: VolumeRendering) -> &'static str {
         VolumeRendering::LiquidSurface => "liquid_surface",
     }
 }
-
-pub(super) fn saturating_u32(value: usize) -> u32 {
-    match u32::try_from(value) {
-        Ok(value) => value,
-        Err(_) => u32::MAX,
-    }
-}
