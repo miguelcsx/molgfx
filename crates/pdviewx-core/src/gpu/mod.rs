@@ -3,6 +3,6 @@
 pub(crate) mod gpu_types;
 
 pub use gpu_types::{
-    AtomFlags, AtomGpu, BondGpu, DrawIndirectArgs, EntityId, EntityKind, EntityRef, InteractionGpu,
-    ParticleMotionGpu, PrimitiveGpu, VolumeSegmentRef,
+    AtomFlags, AtomGpu, BondGpu, DrawIndirectArgs, EntityId, EntityIdError, EntityKind, EntityRef,
+    InteractionGpu, ParticleMotionGpu, PrimitiveGpu, VolumeSegmentRef,
 };
