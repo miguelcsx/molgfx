@@ -1,19 +1,29 @@
 //! The mutable renderable scene and its domain-specific editing operations.
 
-pub(crate) mod ensembles;
+mod attributes;
+mod domain_visuals;
+mod generic_batches;
+mod generic_timeline;
+pub use generic_timeline::{InstanceFramePair, PointFramePair};
 pub(crate) mod guides;
 pub(crate) mod interactions;
 pub(crate) mod labels;
+pub(crate) mod ligand_pose_batches;
 mod mesh_instances;
 mod meshes;
+mod occupancy;
 mod overlays;
+mod presentation;
 pub(crate) mod primitives;
 pub(crate) mod properties;
 pub(crate) mod query;
 mod representation_input;
+mod rows;
 pub(crate) mod segmentation;
 pub(crate) mod selection;
 pub(crate) mod state;
+mod timeline;
+pub(crate) mod topology;
 pub(crate) mod trajectory;
 
 #[cfg(test)]
@@ -23,8 +33,13 @@ mod overlay_instance_tests;
 #[path = "primitive_tests.rs"]
 mod primitive_tests;
 
+pub use branch_graph::{TrajectoryBranch, TrajectoryStateGraph};
 pub use representation_input::RepresentationInput;
+pub use rows::{RowDomain, RowEntityRef, SourceNamespace, SourceRows, TemplatePartPick};
 pub use state::Scene;
 pub(crate) use state::{
-    StoredAtomProperty, StoredRepresentation, StoredSegmentation, StoredSelection, StoredVolume,
+    BoundOccupancy, StoredAtomProperty, StoredAttribute, StoredRepresentation, StoredSegmentation,
+    StoredSelection, StoredVolume, TemporalAttribute, TemporalInstances, TemporalPoints,
 };
+pub use timeline::{PlaybackMode, TimeWarp, Timeline};
+mod branch_graph;
