@@ -1,7 +1,10 @@
 //! Byte-exact direct-volume representation parameters.
 
 use super::uniforms::{clip_meta, clip_planes, material_uniforms};
-use pdviewx_core::{DensityVolume, MAX_CLIP_PLANES, MAX_VOLUME_TRANSFER_POINTS, Representation};
+use pdviewx_core::{
+    MAX_CLIP_PLANES, MAX_VOLUME_TRANSFER_POINTS, OccupancyStream, PlacedStructure, Representation,
+    ScalarVolume,
+};
 use pdviewx_math::{Mat4, Vec3};
 
 #[cfg(test)]
@@ -29,14 +32,47 @@ pub(super) struct VolumeUniforms {
 }
 
 impl VolumeUniforms {
-    pub(super) fn new(volume: &DensityVolume, representation: &Representation) -> Self {
-        let transform = volume.voxel_to_world();
+    pub(super) fn new(volume: &ScalarVolume, representation: &Representation) -> Self {
+        Self::from_parts(
+            volume.voxel_to_world(),
+            volume.dimensions(),
+            volume.empty_space_dimensions(),
+            volume.range(),
+            representation,
+        )
+    }
+
+    pub(super) fn new_occupancy(
+        stream: &OccupancyStream,
+        placed: &PlacedStructure,
+        representation: &Representation,
+    ) -> Self {
+        let dimensions = stream.dimensions();
+        let empty_space_dimensions = dimensions.map(|dimension| {
+            dimension.saturating_add(ScalarVolume::EMPTY_SPACE_BRICK_SIZE - 1)
+                / ScalarVolume::EMPTY_SPACE_BRICK_SIZE
+        });
+        Self::from_parts(
+            placed.model_to_world * stream.voxel_to_model(),
+            dimensions,
+            empty_space_dimensions,
+            [0.0, stream.maximum()],
+            representation,
+        )
+    }
+
+    fn from_parts(
+        transform: Mat4,
+        dimensions: [u32; 3],
+        empty_space_dimensions: [u32; 3],
+        range: [f32; 2],
+        representation: &Representation,
+    ) -> Self {
         let axes = [
             transform.transform_vector3(Vec3::X).length(),
             transform.transform_vector3(Vec3::Y).length(),
             transform.transform_vector3(Vec3::Z).length(),
         ];
-        let range = volume.range();
         let points = representation.volume.transfer.points();
         let mut transfer_values = [[0.0; 4]; MAX_VOLUME_TRANSFER_POINTS];
         let mut transfer_colors = [[0.0; 4]; MAX_VOLUME_TRANSFER_POINTS];
@@ -49,20 +85,20 @@ impl VolumeUniforms {
         let step = finite_or(representation.volume.step_scale, 0.65).clamp(0.2, 2.0);
         let crop = representation.volume.region;
         let minimum = crop.map_or([0; 3], pdviewx_core::VolumeRegion::minimum);
-        let maximum = crop.map_or(volume.dimensions(), pdviewx_core::VolumeRegion::maximum);
+        let maximum = crop.map_or(dimensions, pdviewx_core::VolumeRegion::maximum);
         Self {
             voxel_to_world: transform,
             world_to_voxel: transform.inverse(),
             dimensions: [
-                volume.dimensions()[0],
-                volume.dimensions()[1],
-                volume.dimensions()[2],
-                DensityVolume::EMPTY_SPACE_BRICK_SIZE,
+                dimensions[0],
+                dimensions[1],
+                dimensions[2],
+                ScalarVolume::EMPTY_SPACE_BRICK_SIZE,
             ],
             empty_space_dimensions: [
-                volume.empty_space_dimensions()[0],
-                volume.empty_space_dimensions()[1],
-                volume.empty_space_dimensions()[2],
+                empty_space_dimensions[0],
+                empty_space_dimensions[1],
+                empty_space_dimensions[2],
                 0,
             ],
             scalar: [
