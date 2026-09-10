@@ -60,9 +60,9 @@ fn primitive_opaque_output(
         );
 
     out.entity_id =
-        in.metadata.x;
+        in.metadata.x & 0x0fffffffu;
 
-    out.structure_id =
+    out.resident_page =
         in.metadata.y;
 
     out.motion =

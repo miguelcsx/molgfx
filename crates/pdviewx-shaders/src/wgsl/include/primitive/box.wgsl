@@ -4,25 +4,6 @@
 // is three interval clips and no matrix inverse. The normal is recovered from
 // which slab produced the entry point rather than from a stored face index.
 
-fn rotate_vector(
-    quaternion: vec4f,
-    value: vec3f,
-) -> vec3f {
-    let twice_cross =
-        2.0 *
-        cross(
-            quaternion.xyz,
-            value,
-        );
-
-    return value
-        + quaternion.w * twice_cross
-        + cross(
-            quaternion.xyz,
-            twice_cross,
-        );
-}
-
 fn ray_axis_interval(
     origin: f32,
     direction: f32,
