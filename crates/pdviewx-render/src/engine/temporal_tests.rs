@@ -70,3 +70,39 @@ fn any_camera_motion_blocks_quality_until_a_stable_frame() {
     moved.target.x = 0.01;
     assert!(state.camera_changed(&moved));
 }
+
+#[test]
+fn caller_scheduling_stops_after_each_mode_reaches_its_sample_budget() {
+    let mut realtime = TemporalState::default();
+    for _ in 0..8 {
+        let _ = realtime.prepare(&camera(), &options(false));
+    }
+    assert!(!realtime.needs_another_frame(false));
+
+    let mut quality = TemporalState::default();
+    for _ in 0..63 {
+        let _ = quality.prepare(&camera(), &options(true));
+    }
+    assert!(quality.needs_another_frame(true));
+    let _ = quality.prepare(&camera(), &options(true));
+    assert!(!quality.needs_another_frame(true));
+}
+
+#[test]
+fn a_small_camera_move_restarts_refinement_without_discarding_reprojectable_history() {
+    let mut state = TemporalState::default();
+    for _ in 0..8 {
+        state.prepare(&camera(), &options(false));
+    }
+    let mut moved = camera();
+    moved.eye.x += 0.01;
+    let first = state.prepare(&moved, &options(false));
+    assert_ne!(first.temporal[0].to_bits(), 0.0_f32.to_bits());
+    assert!(state.needs_another_frame(false));
+    for _ in 0..7 {
+        state.prepare(&moved, &options(false));
+    }
+    assert!(!state.needs_another_frame(false));
+    state.invalidate_convergence();
+    assert!(state.needs_another_frame(false));
+}

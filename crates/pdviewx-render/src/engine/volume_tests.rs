@@ -1,10 +1,114 @@
 use super::tests::{camera, engine};
+use crate::testing::MockDevice;
 use pdviewx_core::{
-    ClipPlane, DensityVolume, Representation, Scene, SegmentStyle, SegmentStyleTable,
-    SegmentationStyle, SegmentedVolume, VolumeSlice, VolumeStyle,
+    AtomSelection, ClipPlane, OccupancyStream, Representation, ScalarVolume, Scene, SegmentStyle,
+    SegmentStyleTable, SegmentationStyle, SegmentedVolume, TrajectoryFrame, TrajectorySegment,
+    VolumeRendering, VolumeSlice, VolumeStyle,
 };
 use pdviewx_math::{Mat4, Rgba8, Vec3};
 use std::sync::Arc;
+
+#[test]
+fn temporal_occupancy_stays_gpu_resident_and_runs_only_for_new_samples() {
+    let source = super::tests::structure();
+    let mut scene = Scene::new();
+    let structure = scene
+        .add_structure(&source)
+        .unwrap_or_else(|error| panic!("fixture structure adds: {error}"));
+    let start = TrajectoryFrame::new(
+        0,
+        0.0,
+        Arc::from([[-2.0, 0.0, 0.0], [0.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
+        "occupancy:start",
+    )
+    .unwrap_or_else(|error| panic!("start frame validates: {error}"));
+    let end = TrajectoryFrame::new(
+        1,
+        1.0,
+        Arc::from([[-1.0, 1.0, 0.0], [0.0, 1.5, 0.0], [1.0, 1.0, 0.0]]),
+        "occupancy:end",
+    )
+    .unwrap_or_else(|error| panic!("end frame validates: {error}"));
+    scene
+        .set_trajectory_segment(
+            structure,
+            TrajectorySegment::new(start, end, 0.25)
+                .unwrap_or_else(|error| panic!("segment validates: {error}")),
+        )
+        .unwrap_or_else(|error| panic!("trajectory binds: {error}"));
+    let stream = OccupancyStream::new(
+        [16; 3],
+        Vec3::splat(-4.0),
+        Vec3::splat(0.5),
+        0.98,
+        1.0,
+        32.0,
+    )
+    .unwrap_or_else(|error| panic!("occupancy validates: {error}"));
+    let volume = scene
+        .add_occupancy_stream(structure, &AtomSelection::All, stream)
+        .unwrap_or_else(|error| panic!("occupancy binds: {error}"));
+    scene
+        .represent(volume, Representation::volume())
+        .unwrap_or_else(|error| panic!("occupancy represents: {error}"));
+
+    let mut engine = engine();
+    engine
+        .render(&scene, &camera())
+        .unwrap_or_else(|error| panic!("initial occupancy renders: {error}"));
+    let after_initial = dispatch_count(&engine);
+    assert!(after_initial >= 5, "trajectory and occupancy compute run");
+    let texture_uploads = engine
+        .device
+        .log
+        .texture_writes
+        .lock()
+        .unwrap_or_else(|error| panic!("texture log lock: {error}"));
+    assert!(
+        texture_uploads.is_empty(),
+        "occupancy has no host voxel upload"
+    );
+    drop(texture_uploads);
+
+    engine
+        .render(&scene, &camera())
+        .unwrap_or_else(|error| panic!("steady occupancy renders: {error}"));
+    let after_steady = dispatch_count(&engine);
+    scene
+        .set_trajectory_time(structure, 0.75)
+        .unwrap_or_else(|error| panic!("trajectory advances: {error}"));
+    engine
+        .render(&scene, &camera())
+        .unwrap_or_else(|error| panic!("advanced occupancy renders: {error}"));
+    let after_advance = dispatch_count(&engine);
+    assert_eq!(
+        after_advance - after_steady,
+        after_steady - after_initial + 5,
+        "one interpolation and four occupancy kernels accompany normal frame work"
+    );
+    let replacement =
+        OccupancyStream::new([8; 3], Vec3::splat(-2.0), Vec3::splat(0.5), 0.95, 1.0, 16.0)
+            .unwrap_or_else(|error| panic!("replacement occupancy validates: {error}"));
+    scene
+        .replace_occupancy_stream(volume, structure, &AtomSelection::Range(0..1), replacement)
+        .unwrap_or_else(|error| panic!("occupancy replaces: {error}"));
+    engine
+        .render(&scene, &camera())
+        .unwrap_or_else(|error| panic!("replacement occupancy renders: {error}"));
+    let after_replace = dispatch_count(&engine);
+    assert_eq!(
+        after_replace - after_advance,
+        after_steady - after_initial + 5,
+        "replacement clears/resolves a fresh grid and refreshes normal visibility state"
+    );
+}
+
+fn dispatch_count(engine: &super::Engine<MockDevice>) -> usize {
+    engine.device.log.dispatches.lock().map_or_else(
+        |error| panic!("dispatch log lock: {error}"),
+        |log| log.len(),
+    )
+}
 
 #[test]
 fn density_volume_uploads_the_callers_values_once_and_draws_through_oit() {
@@ -12,8 +116,7 @@ fn density_volume_uploads_the_callers_values_once_and_draws_through_oit() {
         .map(|index| f32::from(u8::try_from(index).map_or(u8::MAX, |value| value)) / 63.0)
         .collect();
     let source_pointer = values.as_ptr() as usize;
-    let volume = match DensityVolume::from_spacing([4, 4, 4], Vec3::splat(-1.5), Vec3::ONE, values)
-    {
+    let volume = match ScalarVolume::from_spacing([4, 4, 4], Vec3::splat(-1.5), Vec3::ONE, values) {
         Ok(volume) => volume,
         Err(error) => panic!("volume builds: {error}"),
     };
@@ -38,6 +141,18 @@ fn density_volume_uploads_the_callers_values_once_and_draws_through_oit() {
     ) {
         panic!("slice representation applies: {error}")
     }
+    if let Err(error) = scene.represent(
+        volume,
+        Representation::volume().volume_style(VolumeStyle::medium()),
+    ) {
+        panic!("medium representation applies: {error}")
+    }
+    if let Err(error) = scene.represent(
+        volume,
+        Representation::volume().volume_style(VolumeStyle::liquid_surface()),
+    ) {
+        panic!("liquid representation applies: {error}")
+    }
     let mut engine = engine();
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("volume renders: {error}")
@@ -46,11 +161,23 @@ fn density_volume_uploads_the_callers_values_once_and_draws_through_oit() {
         Ok(uploads) => uploads.clone(),
         Err(error) => panic!("log lock: {error}"),
     };
-    assert_eq!(uploads.len(), 3);
+    assert_eq!(uploads.len(), 2);
     assert_eq!(uploads[0], ("caller density volume", 256, source_pointer));
-    assert_eq!(uploads[1].0, "density empty-space minimum");
-    assert_eq!(uploads[2].0, "density empty-space maximum");
-    assert_eq!(engine.scene_gpu.volume_draws().count(), 3);
+    assert_eq!(uploads[1].0, "density empty-space bounds");
+    assert_eq!(
+        engine
+            .scene_gpu
+            .volume_draws()
+            .map(|(rendering, _)| rendering)
+            .collect::<Vec<_>>(),
+        [
+            VolumeRendering::Direct,
+            VolumeRendering::Isosurface,
+            VolumeRendering::Slice,
+            VolumeRendering::Medium,
+            VolumeRendering::LiquidSurface,
+        ]
+    );
     assert!(engine.scene_gpu.has_translucency());
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("unchanged volume renders: {error}")
@@ -58,7 +185,7 @@ fn density_volume_uploads_the_callers_values_once_and_draws_through_oit() {
     let Ok(uploads) = engine.device.log.texture_writes.lock() else {
         panic!("log lock")
     };
-    assert_eq!(uploads.len(), 3, "representations share one resident grid");
+    assert_eq!(uploads.len(), 2, "representations share one resident grid");
 }
 
 #[test]
@@ -69,11 +196,11 @@ fn independent_scalar_channels_keep_distinct_residency_and_styles() {
         first_values.as_ptr() as usize,
         second_values.as_ptr() as usize,
     ];
-    let first = match DensityVolume::new([2, 2, 2], Mat4::IDENTITY, first_values) {
+    let first = match ScalarVolume::new([2, 2, 2], Mat4::IDENTITY, first_values) {
         Ok(volume) => volume,
         Err(error) => panic!("first channel builds: {error}"),
     };
-    let second = match DensityVolume::new([2, 2, 2], Mat4::IDENTITY, second_values) {
+    let second = match ScalarVolume::new([2, 2, 2], Mat4::IDENTITY, second_values) {
         Ok(volume) => volume,
         Err(error) => panic!("second channel builds: {error}"),
     };
@@ -105,7 +232,7 @@ fn independent_scalar_channels_keep_distinct_residency_and_styles() {
         Ok(uploads) => uploads.clone(),
         Err(error) => panic!("upload log lock: {error}"),
     };
-    assert_eq!(uploads.len(), 6);
+    assert_eq!(uploads.len(), 4);
     assert_eq!(
         uploads
             .iter()
@@ -133,7 +260,7 @@ fn categorical_labels_upload_once_share_residency_and_keep_styles_independent() 
             Err(error) => panic!("first styles build: {error}"),
         };
     let second_styles =
-        match SegmentStyleTable::new(&[SegmentStyle::new(2, Rgba8::opaque(30, 80, 220), 0.6)]) {
+        match SegmentStyleTable::new(&[SegmentStyle::new(100, Rgba8::opaque(30, 80, 220), 0.6)]) {
             Ok(styles) => styles,
             Err(error) => panic!("second styles build: {error}"),
         };
@@ -147,6 +274,11 @@ fn categorical_labels_upload_once_share_residency_and_keep_styles_independent() 
     };
     if let Some(representation) = scene.representation_mut(second) {
         representation.segmentation.opacity_scale = 0.4;
+        let plane = match ClipPlane::from_point_normal(Vec3::ZERO, Vec3::Z) {
+            Ok(plane) => plane,
+            Err(error) => panic!("categorical slice plane builds: {error}"),
+        };
+        representation.segmentation.slice = Some(VolumeSlice::new(plane));
     }
     let mut engine = engine();
     if let Err(error) = engine.render(&scene, &camera()) {
@@ -160,7 +292,17 @@ fn categorical_labels_upload_once_share_residency_and_keep_styles_independent() 
         uploads,
         vec![("caller categorical segmentation", 32, pointer)]
     );
-    assert_eq!(engine.scene_gpu.segmentation_draws().count(), 2);
+    assert_eq!(
+        engine
+            .scene_gpu
+            .segmentation_draws()
+            .map(|(key, _)| key)
+            .collect::<Vec<_>>(),
+        [
+            crate::scene_gpu::SegmentationPipelineKey::Direct,
+            crate::scene_gpu::SegmentationPipelineKey::HashSlice,
+        ]
+    );
     assert!(engine.scene_gpu.has_translucency());
 
     if let Some(representation) = scene.representation_mut(first) {
