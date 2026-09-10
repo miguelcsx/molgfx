@@ -40,7 +40,7 @@ pub(super) fn pack_labels<D: Device>(
     structures: &[GpuStructure<D>],
     headers: &mut Vec<LabelHeaderGpu>,
     records: &mut Vec<LabelGpu>,
-) {
+) -> Result<(), pdviewx_core::EntityIdError> {
     headers.clear();
     records.clear();
     let mut sources = scene
@@ -60,32 +60,33 @@ pub(super) fn pack_labels<D: Device>(
             Source::Annotation(_, value) => value.owner(),
             Source::Measurement(_, value) => value.owner(),
         };
-        let Some(structure_id) = structures
+        let Some(pick_page) = structures
             .iter()
             .find(|structure| structure.handle == owner)
-            .map(GpuStructure::structure_id)
+            .map(|structure| structure.pick_page(EntityKind::Label))
         else {
             continue;
         };
         match source {
             Source::Annotation(handle, value) => {
-                pack_annotation(scene, handle, value, structure_id, headers, records);
+                pack_annotation(scene, handle, value, pick_page, headers, records)?;
             }
             Source::Measurement(handle, value) => {
-                pack_measurement(handle, value, structure_id, headers, records);
+                pack_measurement(handle, value, pick_page, headers, records)?;
             }
         }
     }
+    Ok(())
 }
 
 fn pack_annotation(
     scene: &Scene,
     handle: AnnotationHandle,
     value: &Annotation,
-    structure_id: u32,
+    pick_page: u32,
     headers: &mut Vec<LabelHeaderGpu>,
     records: &mut Vec<LabelGpu>,
-) {
+) -> Result<(), pdviewx_core::EntityIdError> {
     let anchor = value
         .anchor()
         .map(pdviewx_core::AnnotationAnchor::position)
@@ -95,9 +96,9 @@ fn pack_annotation(
                 .and_then(|selection| selection_centroid(scene, value.owner(), selection))
         });
     let Some(anchor) = anchor else {
-        return;
+        return Ok(());
     };
-    let entity = EntityId::pack(EntityKind::Label, Scene::annotation_row(handle)).0;
+    let entity = EntityId::pack(EntityKind::Label, u64::from(Scene::annotation_row(handle)))?.0;
     let first = count(records.len());
     match value.kind() {
         AnnotationKind::Marker => records.push(marker_record(
@@ -106,7 +107,7 @@ fn pack_annotation(
             value.marker_style().shape,
             value.marker_style().color,
             entity,
-            structure_id,
+            pick_page,
         )),
         AnnotationKind::Note | AnnotationKind::Region | AnnotationKind::Hypothesis => {
             let color = match value.kind() {
@@ -120,7 +121,7 @@ fn pack_annotation(
                 value.text(),
                 color,
                 entity,
-                structure_id,
+                pick_page,
                 [0.0, 0.0],
             );
             push_header(headers, records.len(), anchor, first, bounds);
@@ -136,28 +137,30 @@ fn pack_annotation(
             [-radius, -radius, radius, radius],
         );
     }
+    Ok(())
 }
 
 fn pack_measurement(
     handle: MeasurementHandle,
     value: &Measurement,
-    structure_id: u32,
+    pick_page: u32,
     headers: &mut Vec<LabelHeaderGpu>,
     records: &mut Vec<LabelGpu>,
-) {
-    let entity = EntityId::pack(EntityKind::Label, Scene::measurement_row(handle)).0;
+) -> Result<(), pdviewx_core::EntityIdError> {
+    let entity = EntityId::pack(EntityKind::Label, u64::from(Scene::measurement_row(handle)))?.0;
     let first = count(records.len());
-    let anchor = measurement_guides(records, value, entity, structure_id);
+    let anchor = measurement_guides(records, value, entity, pick_page);
     let bounds = pack_text(
         records,
         anchor,
         value.label(),
         Rgba8::opaque(183, 232, 239),
         entity,
-        structure_id,
+        pick_page,
         [0.0, -12.0],
     );
     push_header(headers, records.len(), anchor, first, bounds);
+    Ok(())
 }
 
 fn pack_text(
@@ -166,7 +169,7 @@ fn pack_text(
     text: &str,
     color: Rgba8,
     entity: u32,
-    structure_id: u32,
+    pick_page: u32,
     offset: [f32; 2],
 ) -> [f32; 4] {
     let width = GLYPH_ADVANCE * glyph_count_f32(text.chars().count());
@@ -181,7 +184,7 @@ fn pack_text(
             glyph_bits(glyph),
             color,
             entity,
-            structure_id,
+            pick_page,
         ));
     }
     [
