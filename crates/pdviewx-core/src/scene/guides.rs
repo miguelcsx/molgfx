@@ -1,8 +1,8 @@
 //! Guide-table editing kept separate from the central scene lifecycle.
 
 use crate::{
-    CoreError, CrystalCell, Guide, GuideHandle, GuideStyle, PlanarRegion, PolylineKind, Scene,
-    StructureHandle, SymmetryInstance,
+    CoreError, CrystalCell, EntityKind, EntityRef, Guide, GuideHandle, GuideStyle, PlanarRegion,
+    PolylineKind, Scene, StructureHandle, SymmetryInstance,
 };
 
 impl Scene {
@@ -216,6 +216,21 @@ impl Scene {
     #[must_use]
     pub fn guide(&self, handle: GuideHandle) -> Option<&Guide> {
         self.guides.get(handle.0)
+    }
+
+    /// Resolves a picked guide to its stable handle and caller-authored source.
+    ///
+    /// Resolution is `O(1)` and rejects a row owned by a different structure.
+    #[must_use]
+    pub fn guide_for_entity(&self, entity: EntityRef) -> Option<(GuideHandle, &Guide)> {
+        if entity.kind != EntityKind::Guide {
+            return None;
+        }
+        let (handle, guide) = self.guides.get_index(entity.index)?;
+        if guide.owner() != entity.structure {
+            return None;
+        }
+        Some((GuideHandle(handle), guide))
     }
 
     /// Mutable resolution; bumps the guide revision because any field edit can
