@@ -93,14 +93,14 @@ struct LabelOutput {
     @location(0) accumulation: vec4f,
     @location(1) revealage: f32,
     @location(2) entity_id: u32,
-    @location(3) structure_id: u32,
+    @location(3) resident_page: u32,
 }
 
 struct GuideOutput {
     @location(0) accumulation: vec4f,
     @location(1) revealage: f32,
     @location(2) entity_id: u32,
-    @location(3) structure_id: u32,
+    @location(3) resident_page: u32,
     @builtin(frag_depth) depth: f32,
 }
 
