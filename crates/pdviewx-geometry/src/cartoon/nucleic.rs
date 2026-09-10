@@ -48,13 +48,17 @@ struct RoundEdgeStyle {
 ///
 /// `thickness` is the full slab depth in Ångström. Residues without a ring or
 /// without positioned atoms are skipped rather than approximated.
+///
+/// # Errors
+///
+/// Returns [`crate::PackingError`] when a source atom row cannot be encoded.
 pub fn append_base_slabs(
     structure: &pdbiox::Structure,
     selection: &AtomSelection,
     thickness: f32,
     vertices: &mut Vec<RibbonVertex>,
     indices: &mut Vec<u32>,
-) {
+) -> Result<(), crate::PackingError> {
     let half_thickness = (thickness.max(0.02)) * 0.5;
     for chain in structure.data().chains() {
         for residue in chain.residues() {
@@ -76,7 +80,7 @@ pub fn append_base_slabs(
             if ring.len() < MIN_RING_ATOMS {
                 continue;
             }
-            let entity_id = EntityId::pack(EntityKind::Atom, sugar.index().get()).0;
+            let entity_id = EntityId::pack(EntityKind::Atom, u64::from(sugar.index().get()))?;
             let glycosidic = GLYCOSIDIC_ATOMS
                 .iter()
                 .find_map(|name| residue.atom(name).and_then(pdbiox::AtomRef::position))
@@ -86,12 +90,13 @@ pub fn append_base_slabs(
                 sugar_position,
                 glycosidic,
                 half_thickness,
-                entity_id,
+                entity_id.0,
                 vertices,
                 indices,
             );
         }
     }
+    Ok(())
 }
 
 /// Appends true ring-footprint prisms with rounded boundary tubes.
@@ -99,6 +104,10 @@ pub fn append_base_slabs(
 /// Atom order follows the stable purine/pyrimidine topology rather than a
 /// convex bounding rectangle. The caller's property colouring is applied by
 /// the ribbon recolouring step after this geometry is appended.
+///
+/// # Errors
+///
+/// Returns [`crate::PackingError`] when a source atom row cannot be encoded.
 pub fn append_base_polygons(
     structure: &pdbiox::Structure,
     selection: &AtomSelection,
@@ -106,7 +115,7 @@ pub fn append_base_polygons(
     outline_radius: f32,
     vertices: &mut Vec<RibbonVertex>,
     indices: &mut Vec<u32>,
-) {
+) -> Result<(), crate::PackingError> {
     let half_thickness = thickness.max(0.02) * 0.5;
     for chain in structure.data().chains() {
         for residue in chain.residues() {
@@ -136,18 +145,19 @@ pub fn append_base_polygons(
             if ring.len() < MIN_RING_ATOMS {
                 continue;
             }
-            let entity_id = EntityId::pack(EntityKind::Atom, sugar.index().get()).0;
+            let entity_id = EntityId::pack(EntityKind::Atom, u64::from(sugar.index().get()))?;
             emit_polygon(
                 &ring,
                 sugar_position,
                 half_thickness,
                 outline_radius.max(0.01),
-                entity_id,
+                entity_id.0,
                 vertices,
                 indices,
             );
         }
     }
+    Ok(())
 }
 
 fn emit_polygon(
@@ -221,11 +231,10 @@ fn emit_polygon(
             indices,
         );
     }
-    let attachment = ring.iter().copied().min_by(|left, right| {
+    if let Some(attachment) = ring.iter().copied().min_by(|left, right| {
         left.distance_squared(sugar)
             .total_cmp(&right.distance_squared(sugar))
-    });
-    if let Some(attachment) = attachment {
+    }) {
         let span = attachment - sugar;
         if let Some(direction) = span.try_normalize() {
             push_box(
