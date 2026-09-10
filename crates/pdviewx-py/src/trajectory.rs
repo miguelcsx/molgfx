@@ -1,9 +1,51 @@
 //! Python adapters for topology-stable trajectory interpolation.
 
+use crate::core::{PyScene, PyStructureHandle};
 use crate::error::core;
-use crate::math::{PyAabb, PyVec3};
+use crate::math::PyAabb;
+use numpy::ndarray::Array2;
+use numpy::{IntoPyArray, PyArray2, PyArrayMethods, PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use std::sync::Arc;
+
+#[pyclass(name = "TrajectoryChunkWindow", frozen, from_py_object)]
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PyTrajectoryChunkWindow(pub(crate) pdviewx::TrajectoryChunkWindow);
+
+#[pymethods]
+impl PyTrajectoryChunkWindow {
+    #[new]
+    fn new(
+        structure: crate::semantic::PyResidencyTicket,
+        start: crate::semantic::PyResidencyTicket,
+        end: crate::semantic::PyResidencyTicket,
+        interpolation: f32,
+    ) -> PyResult<Self> {
+        pdviewx::TrajectoryChunkWindow::new(structure.0, start.0, end.0, interpolation)
+            .map(Self)
+            .map_err(|error| crate::error::value(error.to_string()))
+    }
+
+    #[getter]
+    fn structure(&self) -> crate::semantic::PyResidencyTicket {
+        crate::semantic::PyResidencyTicket(self.0.structure)
+    }
+
+    #[getter]
+    fn start(&self) -> crate::semantic::PyResidencyTicket {
+        crate::semantic::PyResidencyTicket(self.0.start)
+    }
+
+    #[getter]
+    fn end(&self) -> crate::semantic::PyResidencyTicket {
+        crate::semantic::PyResidencyTicket(self.0.end)
+    }
+
+    #[getter]
+    fn interpolation(&self) -> f32 {
+        self.0.interpolation
+    }
+}
 
 #[pyclass(name = "TrajectoryFrame", frozen, from_py_object)]
 #[derive(Clone, Debug)]
@@ -11,17 +53,26 @@ pub(crate) struct PyTrajectoryFrame(pub(crate) pdviewx::TrajectoryFrame);
 
 #[pymethods]
 impl PyTrajectoryFrame {
-    #[new]
-    fn new(
+    /// Copies one explicit C-contiguous `(N, 3)` float32 frame into Rust-owned
+    /// storage. The name makes the ownership transition visible at the callsite.
+    #[staticmethod]
+    fn copy_from_numpy(
         index: u64,
         time_seconds: f32,
-        positions: Vec<PyVec3>,
+        positions: PyReadonlyArray2<'_, f32>,
         provenance: &str,
     ) -> PyResult<Self> {
-        let positions: Vec<[f32; 3]> = positions
-            .into_iter()
-            .map(|position| position.0.to_array())
-            .collect();
+        let shape = positions.shape();
+        if shape.len() != 2 || shape[1] != 3 {
+            return Err(crate::error::value("positions must have shape (N, 3)"));
+        }
+        let values = positions
+            .as_slice()
+            .map_err(|_| crate::error::value("positions must be C-contiguous float32"))?;
+        let positions = values
+            .chunks_exact(3)
+            .map(|row| [row[0], row[1], row[2]])
+            .collect::<Vec<_>>();
         core(pdviewx::TrajectoryFrame::new(
             index,
             time_seconds,
@@ -41,15 +92,19 @@ impl PyTrajectoryFrame {
         self.0.time_seconds()
     }
 
-    #[getter]
-    fn positions(&self) -> Vec<PyVec3> {
-        self.0
+    fn copy_positions_numpy<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f32>>> {
+        let rows = self.0.positions().len();
+        let values = self
+            .0
             .positions()
             .iter()
-            .copied()
-            .map(pdviewx::Vec3::from_array)
-            .map(crate::math::PyVec3)
-            .collect()
+            .flat_map(|position| position.iter().copied())
+            .collect::<Vec<_>>();
+        let array = Array2::from_shape_vec((rows, 3), values)
+            .map_err(|error| crate::error::value(error.to_string()))?;
+        let result = array.into_pyarray(py);
+        result.readwrite().make_nonwriteable();
+        Ok(result)
     }
 
     #[getter]
@@ -116,7 +171,114 @@ impl PyTrajectorySegment {
     }
 }
 
+#[pyclass(name = "TrajectoryBranch", frozen, from_py_object)]
+#[derive(Clone, Debug)]
+pub(crate) struct PyTrajectoryBranch(pdviewx::TrajectoryBranch);
+
+#[pymethods]
+impl PyTrajectoryBranch {
+    #[new]
+    #[pyo3(signature = (from_state, to_state, event, probability=1.0))]
+    fn new(from_state: u32, to_state: u32, event: String, probability: f32) -> PyResult<Self> {
+        core(pdviewx::TrajectoryBranch::new(
+            from_state,
+            to_state,
+            event,
+            probability,
+        ))
+        .map(Self)
+    }
+
+    #[getter]
+    #[pyo3(name = "from_state")]
+    fn state_from(&self) -> u32 {
+        self.0.from()
+    }
+
+    #[getter]
+    fn to_state(&self) -> u32 {
+        self.0.to()
+    }
+
+    #[getter]
+    fn event(&self) -> &str {
+        self.0.event()
+    }
+
+    #[getter]
+    fn probability(&self) -> f32 {
+        self.0.probability()
+    }
+}
+
+#[pyclass(name = "TrajectoryStateGraph")]
+#[derive(Debug)]
+pub(crate) struct PyTrajectoryStateGraph(pdviewx::TrajectoryStateGraph);
+
+#[pymethods]
+impl PyTrajectoryStateGraph {
+    #[new]
+    fn new(states: Vec<u32>, branches: Vec<PyTrajectoryBranch>, initial: u32) -> PyResult<Self> {
+        core(pdviewx::TrajectoryStateGraph::new(
+            states,
+            branches.into_iter().map(|branch| branch.0).collect(),
+            initial,
+        ))
+        .map(Self)
+    }
+
+    fn target(&self, event: &str) -> Option<u32> {
+        self.0.target(event)
+    }
+
+    fn transition(
+        &mut self,
+        mut scene: PyRefMut<'_, PyScene>,
+        structure: PyStructureHandle,
+        event: &str,
+        segment: PyTrajectorySegment,
+    ) -> PyResult<u32> {
+        core(
+            self.0
+                .transition(&mut scene.inner, structure.0, event, segment.0),
+        )
+    }
+
+    fn seek(
+        &mut self,
+        mut scene: PyRefMut<'_, PyScene>,
+        structure: PyStructureHandle,
+        state: u32,
+        segment: PyTrajectorySegment,
+    ) -> PyResult<()> {
+        core(self.0.seek(&mut scene.inner, structure.0, state, segment.0))
+    }
+
+    #[getter]
+    fn active(&self) -> u32 {
+        self.0.active()
+    }
+
+    #[getter]
+    fn states(&self) -> Vec<u32> {
+        self.0.states().to_vec()
+    }
+
+    #[getter]
+    fn branches(&self) -> Vec<PyTrajectoryBranch> {
+        self.0
+            .branches()
+            .iter()
+            .cloned()
+            .map(PyTrajectoryBranch)
+            .collect()
+    }
+}
+
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_class::<PyTrajectoryChunkWindow>()?;
     module.add_class::<PyTrajectoryFrame>()?;
-    module.add_class::<PyTrajectorySegment>()
+    module.add_class::<PyTrajectorySegment>()?;
+    module.add_class::<PyTrajectoryBranch>()?;
+    module.add_class::<PyTrajectoryStateGraph>()
 }
