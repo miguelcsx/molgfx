@@ -2,7 +2,7 @@ use super::*;
 use crate::fixture;
 use crate::representation::RepresentationKind;
 use crate::selection::AtomSelection;
-use crate::{DensityVolume, SecondaryStructure};
+use crate::{ScalarVolume, SecondaryStructure};
 use pdviewx_math::Mat4;
 use std::sync::Arc;
 
@@ -31,7 +31,10 @@ fn ordinary_scene_bounds_do_not_materialize_the_spatial_hierarchy() {
     assert!(!placed.spatial_bvh_is_ready());
     assert!(!s.world_aabb().is_empty());
     assert!(!placed.spatial_bvh_is_ready());
-    assert!(!placed.spatial_bvh().nodes.is_empty());
+    let hierarchy = placed
+        .spatial_bvh()
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert!(!hierarchy.nodes.is_empty());
     assert!(placed.spatial_bvh_is_ready());
 }
 
@@ -111,7 +114,7 @@ fn declarative_presets_reuse_canonical_representation_paths() {
 #[test]
 fn signed_isosurface_preset_creates_two_colored_lobes() {
     let mut scene = Scene::new();
-    let volume = match DensityVolume::new(
+    let volume = match ScalarVolume::new(
         [2, 2, 2],
         Mat4::IDENTITY,
         Arc::from([-1.0, -0.5, 0.0, 0.5, 1.0, 0.5, 0.0, -0.5]),
@@ -397,7 +400,7 @@ fn pdbiox_secondary_structure_replaces_the_reversible_residue_column() {
 #[test]
 fn a_density_volume_has_a_dedicated_representation_target_and_world_bound() {
     let mut scene = Scene::new();
-    let Ok(volume) = DensityVolume::new([2, 2, 2], Mat4::IDENTITY, Arc::from([0.0; 8])) else {
+    let Ok(volume) = ScalarVolume::new([2, 2, 2], Mat4::IDENTITY, Arc::from([0.0; 8])) else {
         panic!("volume builds")
     };
     let volume = scene.add_volume(volume);
@@ -415,7 +418,7 @@ fn a_density_volume_has_a_dedicated_representation_target_and_world_bound() {
 #[test]
 fn direct_volume_and_isosurface_share_one_stored_grid() {
     let mut scene = Scene::new();
-    let volume = match DensityVolume::new(
+    let volume = match ScalarVolume::new(
         [2, 2, 2],
         Mat4::IDENTITY,
         Arc::from([0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0]),
@@ -453,7 +456,7 @@ fn direct_volume_and_isosurface_share_one_stored_grid() {
 #[test]
 fn liquid_surface_reuses_one_stored_grid_with_a_distinct_presentation_mode() {
     let mut scene = Scene::new();
-    let volume = match DensityVolume::new([2, 2, 2], Mat4::IDENTITY, Arc::from([0.5; 8])) {
+    let volume = match ScalarVolume::new([2, 2, 2], Mat4::IDENTITY, Arc::from([0.5; 8])) {
         Ok(volume) => volume,
         Err(error) => panic!("liquid volume builds: {error}"),
     };

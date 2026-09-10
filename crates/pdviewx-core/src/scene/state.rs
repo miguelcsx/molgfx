@@ -8,11 +8,12 @@
 
 use crate::SegmentedVolume;
 use crate::atoms::AtomTable;
-use crate::density::DensityVolume;
+use crate::density::ScalarVolume;
 use crate::error::CoreError;
 use crate::handle::{RepresentationHandle, SlotMap, StructureHandle, VolumeHandle};
 use crate::placed::PlacedStructure;
 use crate::representation::{Representation, RepresentationKind, RepresentationTarget};
+use crate::{DatasetId, StructureAsset};
 #[path = "identity.rs"]
 mod identity;
 #[path = "representation_state.rs"]
@@ -21,6 +22,9 @@ mod representation_state;
 mod world_bound;
 use identity::SceneIdentity;
 
+#[cfg(test)]
+#[path = "asset_tests.rs"]
+mod asset_tests;
 #[cfg(test)]
 #[path = "state_tests.rs"]
 mod tests;
@@ -41,8 +45,19 @@ pub struct Scene {
     pub(crate) guides: SlotMap<crate::Guide>,
     pub(crate) labels: SlotMap<crate::annotation::LabelObject>,
     pub(crate) properties: SlotMap<StoredAtomProperty>,
-    pub(crate) ensembles: SlotMap<crate::Ensemble>,
     pub(crate) primitive: SlotMap<crate::Primitive>,
+    pub(crate) ligand_pose_batches: SlotMap<crate::LigandPoseBatch>,
+    pub(crate) point_batches: SlotMap<crate::structure::PointBatch>,
+    pub(crate) instance_batches: SlotMap<crate::structure::InstanceBatch>,
+    pub(crate) relation_batches: SlotMap<crate::representation::RelationBatch>,
+    pub(crate) attributes: SlotMap<StoredAttribute>,
+    pub(crate) domain_visuals:
+        std::collections::BTreeMap<crate::RowDomain, crate::VisualDescriptor>,
+    pub(crate) instance_timeline:
+        std::collections::BTreeMap<crate::InstanceBatchHandle, TemporalInstances>,
+    pub(crate) point_timeline: std::collections::BTreeMap<crate::PointBatchHandle, TemporalPoints>,
+    pub(crate) attribute_timeline:
+        std::collections::BTreeMap<crate::AttributeHandle, TemporalAttribute>,
     /// Bumped whenever structure placement or membership changes.
     structure_revision: u64,
     /// Bumped whenever the representation list or its parameters change;
@@ -51,7 +66,7 @@ pub struct Scene {
     pub(crate) mesh_revision: u64,
     pub(crate) overlay_revision: u64,
     /// Bumped whenever volume membership or content changes.
-    volume_revision: u64,
+    pub(crate) volume_revision: u64,
     /// Bumped whenever categorical-volume membership or content changes.
     pub(crate) segmentation_revision: u64,
     /// Bumped whenever the interaction table or its presentation changes.
@@ -61,14 +76,46 @@ pub struct Scene {
     pub(crate) label_revision: u64,
     /// Bumped whenever a caller property is added, replaced or removed.
     pub(crate) property_revision: u64,
-    /// Bumped whenever weighted ensemble membership changes.
-    pub(crate) ensemble_revision: u64,
     /// Bumped whenever caller-authored analytic primitives change.
     pub(crate) primitive_revision: u64,
+    /// Bumped when generic point, instance or relation membership changes.
+    pub(crate) generic_batch_revision: u64,
+    /// Bumped when typed attribute membership or content changes.
+    pub(crate) attribute_revision: u64,
+    /// Bumped when a generic domain visual or its parameters change.
+    pub(crate) domain_visual_revision: u64,
+    /// Caller-controlled global presentation clock consumed by visual programs.
+    pub(crate) presentation_time_seconds: f32,
+    pub(crate) presentation_revision: u64,
+    pub(crate) generic_timeline_binding_revision: u64,
     pub(crate) spatial_traversal: Vec<u32>,
     pub(crate) spatial_candidates: Vec<u32>,
     pub(crate) spatial_result: roaring::RoaringBitmap,
     pub(crate) selection_cache: Vec<(Box<str>, crate::Select)>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct TemporalInstances {
+    pub(crate) start: std::sync::Arc<[crate::RigidInstance]>,
+    pub(crate) end: std::sync::Arc<[crate::RigidInstance]>,
+    pub(crate) alpha: f32,
+    pub(crate) revision: u64,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct TemporalPoints {
+    pub(crate) start: std::sync::Arc<[[f32; 3]]>,
+    pub(crate) end: std::sync::Arc<[[f32; 3]]>,
+    pub(crate) alpha: f32,
+    pub(crate) revision: u64,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct TemporalAttribute {
+    pub(crate) start: crate::AttributeValues,
+    pub(crate) end: crate::AttributeValues,
+    pub(crate) alpha: f32,
+    pub(crate) revision: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -79,8 +126,47 @@ pub(crate) struct StoredRepresentation {
 
 #[derive(Clone, Debug)]
 pub(crate) struct StoredVolume {
-    pub(crate) value: DensityVolume,
+    pub(crate) value: Option<ScalarVolume>,
+    pub(crate) occupancy: Option<BoundOccupancy>,
     pub(crate) revision: u64,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct BoundOccupancy {
+    pub(crate) stream: crate::OccupancyStream,
+    pub(crate) structure: StructureHandle,
+    pub(crate) atom_rows: std::sync::Arc<[u32]>,
+}
+
+impl StoredVolume {
+    pub(crate) fn range(&self) -> [f32; 2] {
+        self.value.as_ref().map_or_else(
+            || {
+                self.occupancy
+                    .as_ref()
+                    .map_or([0.0, 1.0], |value| [0.0, value.stream.maximum()])
+            },
+            ScalarVolume::range,
+        )
+    }
+
+    pub(crate) fn world_aabb(&self, scene: &Scene) -> pdviewx_math::Aabb {
+        if let Some(value) = &self.value {
+            return value.world_aabb();
+        }
+        let Some(occupancy) = &self.occupancy else {
+            return pdviewx_math::Aabb::EMPTY;
+        };
+        scene.structure(occupancy.structure).map_or_else(
+            || pdviewx_math::Aabb::EMPTY,
+            |placed| {
+                occupancy
+                    .stream
+                    .model_aabb()
+                    .transform(&placed.model_to_world)
+            },
+        )
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -93,6 +179,13 @@ pub(crate) struct StoredSegmentation {
 pub(crate) struct StoredAtomProperty {
     pub(crate) value: crate::AtomProperty,
     pub(crate) revision: u64,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct StoredAttribute {
+    pub(crate) value: crate::representation::AttributeColumn,
+    pub(crate) revision: u64,
+    pub(crate) dirty_rows: std::ops::Range<u32>,
 }
 
 #[derive(Clone, Debug)]
@@ -114,9 +207,17 @@ impl Scene {
     ///
     /// Fails when the structure carries no dense coordinate block to borrow.
     pub fn from_structure(structure: &pdbiox::Structure) -> Result<Self, CoreError> {
+        let asset = StructureAsset::new(DatasetId::LEGACY, structure)
+            .map_err(|error| structure_asset_error(&error))?;
+        Ok(Self::from_asset(&asset))
+    }
+
+    /// Builds a scene containing one placement of a shared structure asset.
+    #[must_use]
+    pub fn from_asset(asset: &StructureAsset) -> Self {
         let mut scene = Self::new();
-        scene.add_structure(structure)?;
-        Ok(scene)
+        scene.add_asset(asset);
+        scene
     }
 
     /// Places a structure into the scene at the identity transform.
@@ -128,11 +229,16 @@ impl Scene {
         &mut self,
         structure: &pdbiox::Structure,
     ) -> Result<StructureHandle, CoreError> {
-        let placed = PlacedStructure::new(structure).ok_or(CoreError::StructureRead {
-            summary: "structure has no dense coordinate block".to_owned(),
-        })?;
+        let asset = StructureAsset::new(DatasetId::LEGACY, structure)
+            .map_err(|error| structure_asset_error(&error))?;
+        Ok(self.add_asset(&asset))
+    }
+
+    /// Places a shared structure asset at the identity transform.
+    pub fn add_asset(&mut self, asset: &StructureAsset) -> StructureHandle {
+        let placed = PlacedStructure::from_asset(asset);
         self.structure_revision = self.structure_revision.wrapping_add(1);
-        Ok(StructureHandle(self.structures.insert(placed)))
+        StructureHandle(self.structures.insert(placed))
     }
 
     /// Removes a placed structure; its handle and dependent representations
@@ -189,22 +295,28 @@ impl Scene {
     /// single-structure scene.
     #[must_use]
     pub fn first_atoms(&self) -> Option<&AtomTable> {
-        self.structures.iter().next().map(|(_, s)| &s.atoms)
+        self.structures
+            .iter()
+            .next()
+            .map(|(_, structure)| structure.atoms.as_ref())
     }
 
     /// Stores an immutable shared density grid.
-    pub fn add_volume(&mut self, volume: DensityVolume) -> VolumeHandle {
+    pub fn add_volume(&mut self, volume: ScalarVolume) -> VolumeHandle {
         self.volume_revision = self.volume_revision.wrapping_add(1);
         VolumeHandle(self.volumes.insert(StoredVolume {
-            value: volume,
+            value: Some(volume),
+            occupancy: None,
             revision: 0,
         }))
     }
 
     /// Resolves a density-grid handle.
     #[must_use]
-    pub fn volume(&self, handle: VolumeHandle) -> Option<&DensityVolume> {
-        self.volumes.get(handle.0).map(|stored| &stored.value)
+    pub fn volume(&self, handle: VolumeHandle) -> Option<&ScalarVolume> {
+        self.volumes
+            .get(handle.0)
+            .and_then(|stored| stored.value.as_ref())
     }
 
     /// Replaces a grid while preserving its stable handle.
@@ -215,25 +327,26 @@ impl Scene {
     pub fn replace_volume(
         &mut self,
         handle: VolumeHandle,
-        volume: DensityVolume,
+        volume: ScalarVolume,
     ) -> Result<(), CoreError> {
         let stored = self
             .volumes
             .get_mut(handle.0)
             .ok_or(CoreError::StaleHandle)?;
-        stored.value = volume;
+        stored.value = Some(volume);
+        stored.occupancy = None;
         stored.revision = stored.revision.wrapping_add(1);
         self.volume_revision = self.volume_revision.wrapping_add(1);
         Ok(())
     }
 
     /// Removes a density grid and invalidates its handle.
-    pub fn remove_volume(&mut self, handle: VolumeHandle) -> Option<DensityVolume> {
-        let removed = self.volumes.remove(handle.0).map(|stored| stored.value);
+    pub fn remove_volume(&mut self, handle: VolumeHandle) -> Option<ScalarVolume> {
+        let removed = self.volumes.remove(handle.0);
         if removed.is_some() {
             self.volume_revision = self.volume_revision.wrapping_add(1);
         }
-        removed
+        removed.and_then(|stored| stored.value)
     }
 
     /// Adds one declarative preset over a compatible selection or volume.
@@ -333,5 +446,11 @@ impl Scene {
         let negative = self.represent(volume, recipe(negative_level, negative_color))?;
         let positive = self.represent(volume, recipe(positive_level, positive_color))?;
         Ok(vec![negative, positive])
+    }
+}
+
+fn structure_asset_error(error: &crate::DatasetError) -> CoreError {
+    CoreError::StructureRead {
+        summary: error.to_string(),
     }
 }
