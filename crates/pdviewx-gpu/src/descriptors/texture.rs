@@ -7,6 +7,8 @@
 pub enum TextureFormat {
     /// 8-bit RGBA, linear.
     Rgba8Unorm,
+    /// Signed normalized 8-bit RGBA; compact generated direction fields.
+    Rgba8Snorm,
     /// 8-bit RGBA, sRGB-encoded.
     Rgba8UnormSrgb,
     /// 8-bit BGRA, linear (a common swapchain format).
@@ -17,6 +19,8 @@ pub enum TextureFormat {
     Rgba16Float,
     /// Two 16-bit float channels; compact screen-space motion vectors.
     Rg16Float,
+    /// Two 32-bit float channels; conservative scalar-volume min/max pairs.
+    Rg32Float,
     /// Single 8-bit channel; ambient-occlusion and masks.
     R8Unorm,
     /// Single 32-bit unsigned integer; the entity-id channel.

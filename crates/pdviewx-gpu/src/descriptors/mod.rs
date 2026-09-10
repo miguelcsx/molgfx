@@ -9,13 +9,15 @@ mod binding;
 mod buffer;
 mod pass;
 mod pipeline;
+mod ray_query;
 mod sampler;
 mod shader;
 mod texture;
 
 pub use binding::{
-    BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType,
-    ShaderStages,
+    AccelerationStructureBinding, AccelerationStructureLayoutEntry, BindGroupDesc, BindGroupEntry,
+    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, RayQueryBindGroupDesc,
+    RayQueryBindGroupLayoutDesc, ShaderStages,
 };
 pub use buffer::{BufferDesc, BufferUsage};
 pub use pass::{
@@ -25,6 +27,12 @@ pub use pass::{
 pub use pipeline::{
     BlendMode, ColorTarget, CompareFunction, ComputePipelineDesc, DepthState, PrimitiveTopology,
     RenderPipelineDesc,
+};
+pub use ray_query::{
+    AabbGeometry, AabbGeometrySize, AccelerationGeometryFlags, AccelerationIndexFormat,
+    AccelerationStructureFlags, AccelerationStructureUpdateMode, BlasBuildDesc, BlasDesc,
+    BlasGeometries, BlasGeometrySizes, TlasDesc, TlasInstance, TriangleGeometry,
+    TriangleGeometrySize,
 };
 pub use sampler::{FilterMode, SamplerDesc};
 pub use shader::ShaderModuleDesc;

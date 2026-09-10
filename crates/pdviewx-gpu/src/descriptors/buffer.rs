@@ -24,6 +24,8 @@ bitflags::bitflags! {
         const MAP_READ = 1 << 7;
         /// Destination for resolved GPU timestamp or occlusion queries.
         const QUERY_RESOLVE = 1 << 8;
+        /// Procedural or triangle input consumed while building a BLAS.
+        const BLAS_INPUT = 1 << 9;
     }
 }
 
