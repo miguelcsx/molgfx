@@ -1,10 +1,10 @@
 //! Renders a deterministic synthetic scalar-density fixture off screen.
 //!
-//! Usage: `cargo run --example volume_smoke --release -- output.png [direct|isosurface|medium|slice|crop] [profile] [mrc-path]`
+//! Usage: `cargo run --example volume_smoke --release -- output.png [direct|isosurface|medium|slice|liquid|crop] [profile] [mrc-path]`
 
 use pdviewx::{
-    AtomSelection, BackdropStyle, Camera, ClipPlane, DensityVolume, EffectLayer, Engine,
-    EngineConfig, ImageConfig, Material, PresentationEffect, RenderProfile, Representation, Rgba8,
+    AtomSelection, BackdropStyle, Camera, ClipPlane, EffectLayer, Engine, EngineConfig,
+    ImageConfig, Material, PresentationEffect, RenderProfile, Representation, Rgba8, ScalarVolume,
     Scene, Vec3, VolumeRegion, VolumeSlice, VolumeStyle, VolumeTransferFunction,
     VolumeTransferPoint,
 };
@@ -26,68 +26,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let should_profile = arguments.get(2).is_some_and(|value| value == "profile");
     let volume = arguments
         .get(3)
-        .map_or_else(|| synthetic_density(), |path| read_mrc(path))?;
-    if let Some(path) = arguments.get(3) {
-        println!("volume source: external MRC {path}");
-    } else {
-        println!("volume source: synthetic");
+        .map_or_else(synthetic_density, |path| read_mrc(path))?;
+    match arguments.get(3).map(String::as_str) {
+        Some(path) => println!("volume source: external MRC {path}"),
+        None => println!("volume source: synthetic"),
     }
     let structure = molecular_fixture()?;
-    let mut scene = Scene::from_structure(&structure)?;
-    let atoms = scene.add_selection(AtomSelection::All);
-    scene.represent(
-        atoms,
-        Representation::ball_and_stick()
-            .radius_scale(0.30)
-            .bond_radius(0.15)
-            .material(Material {
-                roughness: 0.48,
-                specular: 0.28,
-                ..Material::default()
-            })
-            .order(1),
-    )?;
-    let volume = scene.add_volume(volume);
-    let opacity_scale = match algorithm {
-        "medium" => 0.60,
-        "slice" => 6.0,
-        _ => 1.35,
-    };
-    let step_scale = if algorithm == "medium" { 0.65 } else { 0.45 };
-    let opacities = if algorithm == "medium" {
-        [0.0, 0.008, 0.04, 0.18]
-    } else {
-        [0.0, 0.012, 0.09, 0.48]
-    };
-    let transfer = VolumeTransferFunction::new(&[
-        VolumeTransferPoint::new(0.10, pdviewx::Rgba8::opaque(30, 118, 180), opacities[0]),
-        VolumeTransferPoint::new(0.26, pdviewx::Rgba8::opaque(52, 191, 206), opacities[1]),
-        VolumeTransferPoint::new(0.62, pdviewx::Rgba8::opaque(160, 218, 166), opacities[2]),
-        VolumeTransferPoint::new(1.15, pdviewx::Rgba8::opaque(255, 213, 79), opacities[3]),
-    ])?;
-    let volume_style = match algorithm {
-        "direct" => VolumeStyle::default(),
-        "isosurface" => VolumeStyle::isosurface(),
-        "medium" => VolumeStyle::medium(),
-        "slice" => VolumeStyle::slice(VolumeSlice::new(ClipPlane::from_point_normal(
-            Vec3::ZERO,
-            Vec3::Z,
-        )?)),
-        "crop" => VolumeStyle::default().region(VolumeRegion::new(
-            [18, 24, 30],
-            [78, 72, 66],
-            [u32::from(GRID); 3],
-        )?),
-        name => return Err(format!("unknown volume algorithm {name}").into()),
-    };
-    scene.represent(
-        volume,
-        Representation::volume().volume_style(
-            volume_style
-                .sampling(opacity_scale, step_scale)
-                .transfer(transfer),
-        ),
-    )?;
+    let scene = volume_scene(&structure, volume, algorithm)?;
 
     let config = ImageConfig {
         width: 960,
@@ -117,6 +62,70 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     println!("wrote {output}");
     Ok(())
+}
+
+fn volume_scene(
+    structure: &pdbiox::Structure,
+    density: ScalarVolume,
+    algorithm: &str,
+) -> Result<Scene, Box<dyn Error>> {
+    let mut scene = Scene::from_structure(structure)?;
+    let atoms = scene.add_selection(AtomSelection::All);
+    scene.represent(
+        atoms,
+        Representation::ball_and_stick()
+            .radius_scale(0.30)
+            .bond_radius(0.15)
+            .material(Material {
+                roughness: 0.48,
+                specular: 0.28,
+                ..Material::default()
+            })
+            .order(1),
+    )?;
+    let volume = scene.add_volume(density);
+    let opacity_scale = match algorithm {
+        "medium" => 0.60,
+        "slice" => 6.0,
+        _ => 1.35,
+    };
+    let step_scale = if algorithm == "medium" { 0.65 } else { 0.45 };
+    let opacities = if algorithm == "medium" {
+        [0.0, 0.008, 0.04, 0.18]
+    } else {
+        [0.0, 0.012, 0.09, 0.48]
+    };
+    let transfer = VolumeTransferFunction::new(&[
+        VolumeTransferPoint::new(0.10, pdviewx::Rgba8::opaque(30, 118, 180), opacities[0]),
+        VolumeTransferPoint::new(0.26, pdviewx::Rgba8::opaque(52, 191, 206), opacities[1]),
+        VolumeTransferPoint::new(0.62, pdviewx::Rgba8::opaque(160, 218, 166), opacities[2]),
+        VolumeTransferPoint::new(1.15, pdviewx::Rgba8::opaque(255, 213, 79), opacities[3]),
+    ])?;
+    let volume_style = match algorithm {
+        "direct" => VolumeStyle::default(),
+        "isosurface" => VolumeStyle::isosurface(),
+        "medium" => VolumeStyle::medium(),
+        "slice" => VolumeStyle::slice(VolumeSlice::new(ClipPlane::from_point_normal(
+            Vec3::ZERO,
+            Vec3::Z,
+        )?)),
+        "liquid" => VolumeStyle::liquid_surface(),
+        "crop" => VolumeStyle::default().region(VolumeRegion::new(
+            [18, 24, 30],
+            [78, 72, 66],
+            [u32::from(GRID); 3],
+        )?),
+        name => return Err(format!("unknown volume algorithm {name}").into()),
+    };
+    scene.represent(
+        volume,
+        Representation::volume().volume_style(
+            volume_style
+                .sampling(opacity_scale, step_scale)
+                .transfer(transfer),
+        ),
+    )?;
+    Ok(scene)
 }
 
 fn profile_frames(
@@ -158,7 +167,7 @@ fn profile_frames(
     Ok(())
 }
 
-fn synthetic_density() -> Result<DensityVolume, Box<dyn Error>> {
+fn synthetic_density() -> Result<ScalarVolume, Box<dyn Error>> {
     let mut values = Vec::with_capacity(usize::from(GRID).pow(3));
     let center = (f32::from(GRID) - 1.0) * 0.5;
     for z in 0..GRID {
@@ -196,7 +205,7 @@ fn synthetic_density() -> Result<DensityVolume, Box<dyn Error>> {
     let extent = [u32::from(GRID); 3];
     let spacing = Vec3::splat(0.08);
     let origin = Vec3::splat(-center * spacing.x);
-    Ok(DensityVolume::from_spacing(
+    Ok(ScalarVolume::from_spacing(
         extent,
         origin,
         spacing,
@@ -204,7 +213,7 @@ fn synthetic_density() -> Result<DensityVolume, Box<dyn Error>> {
     )?)
 }
 
-fn read_mrc(path: &str) -> Result<DensityVolume, Box<dyn Error>> {
+fn read_mrc(path: &str) -> Result<ScalarVolume, Box<dyn Error>> {
     let bytes = std::fs::read(path)?;
     if bytes.len() < 1024 {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "MRC header is truncated").into());
@@ -294,7 +303,7 @@ fn read_mrc(path: &str) -> Result<DensityVolume, Box<dyn Error>> {
             Ok(f32::from_le_bytes(raw))
         })
         .collect::<Result<Vec<_>, io::Error>>()?;
-    Ok(DensityVolume::from_spacing(
+    Ok(ScalarVolume::from_spacing(
         dimensions,
         origin,
         spacing,
@@ -338,11 +347,13 @@ HETATM 8 O O2 LIG A 1 -1.2 -1.2 0.3\n";
         &pdbiox::ReadOptions::default(),
     )
     .map_err(|diagnostics| format!("medium fixture diagnostics: {diagnostics:?}"))?;
-    Ok(
-        pdbiox::infer_bonds(&parsed, pdbiox::BondInference::default())
-            .map_err(|diagnostic| format!("medium fixture bonds: {diagnostic:?}"))?
-            .structure,
+    Ok(pdbiox::infer_bonds(
+        &parsed,
+        pdbiox::BondInference::default(),
+        &pdbiox::ExecutionContext::default(),
     )
+    .map_err(|diagnostic| format!("medium fixture bonds: {diagnostic:?}"))?
+    .structure)
 }
 
 fn gaussian(point: Vec3, center: Vec3, sigma: Vec3) -> f32 {
