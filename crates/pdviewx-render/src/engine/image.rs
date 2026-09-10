@@ -1,19 +1,29 @@
 //! Off-screen rendering and mapped publication images.
-
-use super::{Engine, MotionBlur, RenderMode, TemporalOptions, fit_shadow};
+use super::{Engine, MotionBlur, RenderMode, TemporalOptions};
 use crate::error::RenderError;
-use crate::graph::{PassContext, ResourceTable, TransientPool, plan_aliases};
-use crate::passes::FrameBindings;
+use crate::graph::{PassContext, ResourceTable};
 use pdviewx_core::Scene;
 use pdviewx_gpu::{
-    BufferDesc, BufferUsage, CommandEncoder as _, Device, Queue as _, TextureDesc, TextureFormat,
-    TextureUsage, TextureViewDesc,
+    BufferDesc, BufferUsage, CommandEncoder as _, Device, FenceValue, Queue as _, TextureDesc,
+    TextureFormat, TextureUsage, TextureViewDesc,
 };
 use pdviewx_math::Camera;
-
-const REALTIME_IMAGE_SAMPLES: u32 = 16;
-const QUALITY_IMAGE_SAMPLES: u32 = 64;
-
+#[path = "image/layout.rs"]
+mod layout;
+pub(super) use layout::ImageLayout;
+pub(super) const REALTIME_IMAGE_SAMPLES: u32 = 16;
+pub(super) const QUALITY_IMAGE_SAMPLES: u32 = 64;
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum ImagePurpose {
+    Publication,
+    #[cfg(not(target_arch = "wasm32"))]
+    SequenceFrame,
+}
+#[derive(Clone, Copy)]
+pub(super) struct ImagePreparation {
+    pub(super) scene_changed: bool,
+    pub(super) rebuild: bool,
+}
 /// Requested off-screen image dimensions.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ImageConfig {
@@ -22,7 +32,6 @@ pub struct ImageConfig {
     /// Output height in pixels.
     pub height: u32,
 }
-
 impl ImageConfig {
     /// Standard 3840×2160 publication output.
     #[must_use]
@@ -113,12 +122,13 @@ impl<D: Device> Engine<D> {
         camera: &Camera,
         config: ImageConfig,
     ) -> Result<Image, RenderError> {
-        let pending = self.render_image_to_buffer(scene, camera, config)?;
+        let pending =
+            self.render_image_to_buffer(scene, camera, config, ImagePurpose::Publication)?;
         let mapped = self
             .queue
             .read_buffer_async(&self.device, &pending.buffer, 0, pending.layout.buffer_size)
             .await?;
-        Ok(pending.resolve(&mapped, self.target_format))
+        pending.resolve(mapped, self.target_format)
     }
 
     /// Renders one deterministic off-screen frame without opening a window.
@@ -134,28 +144,34 @@ impl<D: Device> Engine<D> {
         camera: &Camera,
         config: ImageConfig,
     ) -> Result<Image, RenderError> {
-        let pending = self.render_image_to_buffer(scene, camera, config)?;
+        let pending =
+            self.render_image_to_buffer(scene, camera, config, ImagePurpose::Publication)?;
         let mapped = self.queue.read_buffer_blocking(
             &self.device,
             &pending.buffer,
             0,
             pending.layout.buffer_size,
         )?;
-        Ok(pending.resolve(&mapped, self.target_format))
+        pending.resolve(mapped, self.target_format)
     }
 
-    fn render_image_to_buffer(
+    pub(super) fn render_image_to_buffer(
         &mut self,
         scene: &Scene,
         camera: &Camera,
         config: ImageConfig,
+        purpose: ImagePurpose,
     ) -> Result<PendingImage<D>, RenderError> {
         config.validate(self.device.capabilities().max_texture_dim)?;
-        let layout = ImageLayout::new(config)?;
+        let layout = ImageLayout::new(config, 4)?;
         self.width = config.width;
         self.height = config.height;
-        let reset = self.prepare_image(scene)?;
-        self.temporal.reset();
+        let preparation = self.prepare_image(scene)?;
+        let identity = scene.cache_identity();
+        let scene_reset = self.temporal_scene_identity.replace(identity) != Some(identity);
+        if purpose == ImagePurpose::Publication {
+            self.temporal.reset();
+        }
         let optics = self.resolve_optics(scene, camera)?;
         let texture = self.device.create_texture(&TextureDesc {
             label: "off-screen image",
@@ -174,21 +190,32 @@ impl<D: Device> Engine<D> {
             size: layout.buffer_size,
             usage: BufferUsage::COPY_DST.union(BufferUsage::MAP_READ),
         })?;
-        let samples = match self.mode {
-            RenderMode::Realtime => REALTIME_IMAGE_SAMPLES,
-            RenderMode::Quality => QUALITY_IMAGE_SAMPLES,
+        let samples = match (purpose, self.mode) {
+            #[cfg(not(target_arch = "wasm32"))]
+            (ImagePurpose::SequenceFrame, _) => 1,
+            (ImagePurpose::Publication, RenderMode::Realtime) => REALTIME_IMAGE_SAMPLES,
+            (ImagePurpose::Publication, RenderMode::Cinematic) => QUALITY_IMAGE_SAMPLES,
         };
-        let shadow = fit_shadow(scene, camera, self.resolved_plan.lighting());
+        let shadow = self.shadow_bound.fit(
+            scene,
+            camera,
+            self.resolved_plan.lighting(),
+            preparation.scene_changed || preparation.rebuild,
+        );
+        let mut completion = FenceValue::default();
         for sample in 0..samples {
-            let camera_changed = self.temporal.camera_changed(camera);
-            let quality = self.mode == RenderMode::Quality && !camera_changed;
+            self.scene_gpu.begin_frame();
+            let cinematic = self.mode == RenderMode::Cinematic;
             let uniforms = self.temporal.prepare(
                 camera,
                 &TemporalOptions {
                     extent: [self.width, self.height],
-                    reset: reset && sample == 0,
-                    quality,
-                    publication: true,
+                    reset: (purpose == ImagePurpose::Publication
+                        || scene_reset
+                        || preparation.rebuild)
+                        && sample == 0,
+                    quality: cinematic,
+                    publication: purpose == ImagePurpose::Publication,
                     illustration: self.resolved_plan.illustration(),
                     optics,
                     motion_blur: self
@@ -204,15 +231,11 @@ impl<D: Device> Engine<D> {
                     shadow_view_proj: shadow.view_projection,
                 },
             );
-            self.scene_gpu.write_frame_uniforms(&self.queue, &uniforms);
+            self.scene_gpu
+                .write_frame_uniforms(&self.queue, &uniforms)?;
             let mut encoder = self.device.create_command_encoder();
-            self.scene_gpu
-                .record_particle_motion(&mut encoder, &self.passes.particle_motion);
-            self.scene_gpu
-                .record_trajectories(&mut encoder, &self.passes.trajectory, None);
-            self.scene_gpu
-                .record_surface_fields(&mut encoder, &self.passes.surface_field);
-            self.record_image(&mut encoder, &view, None, quality, false);
+            self.record_image_scene_updates(&mut encoder, cinematic);
+            self.record_image(&mut encoder, &view, None, cinematic, false);
             if sample + 1 == samples {
                 encoder.copy_texture_to_buffer(
                     &texture,
@@ -222,43 +245,91 @@ impl<D: Device> Engine<D> {
                     &readback,
                 );
             }
-            self.queue.submit(encoder);
+            completion = self.submit_image_sample(encoder, sample + 1 == samples);
+        }
+        if purpose == ImagePurpose::Publication {
+            self.temporal_scene_identity = None;
         }
         Ok(PendingImage {
             config,
             layout,
             buffer: readback,
             _texture: texture,
+            completion,
         })
     }
 
-    pub(super) fn prepare_image(&mut self, scene: &Scene) -> Result<bool, RenderError> {
+    fn submit_image_sample(&self, encoder: D::CommandEncoder, final_sample: bool) -> FenceValue {
+        if final_sample {
+            self.queue.submit_tracked(encoder)
+        } else {
+            self.queue.submit(encoder);
+            FenceValue::default()
+        }
+    }
+
+    fn record_image_scene_updates(&mut self, encoder: &mut D::CommandEncoder, quality: bool) {
+        self.passes
+            .cull
+            .record_attribute_timelines(&self.scene_gpu, encoder);
+        self.passes
+            .cull
+            .record_instance_timelines(&self.scene_gpu, encoder);
+        let point_coordinates_changed = self
+            .passes
+            .cull
+            .record_point_timelines(&self.scene_gpu, encoder);
+        self.scene_gpu
+            .record_particle_motion(encoder, &self.passes.particle_motion);
+        let structure_coordinates_changed =
+            self.scene_gpu
+                .record_trajectories(encoder, &self.passes.trajectory, None);
+        let paged_coordinates_changed = self
+            .passes
+            .cull
+            .record_paged_trajectories(&self.scene_gpu, encoder);
+        self.scene_gpu.record_dynamic_relations(
+            encoder,
+            &self.passes.relation_resolve,
+            structure_coordinates_changed || paged_coordinates_changed || point_coordinates_changed,
+        );
+        self.scene_gpu
+            .record_occupancies(encoder, &self.passes.occupancy);
+        self.scene_gpu.record_surface_fields(
+            encoder,
+            &self.passes.surface_field,
+            &self.passes.surface_components,
+        );
+        self.scene_gpu.record_quality_hardware(encoder, quality);
+    }
+
+    pub(super) fn prepare_image(&mut self, scene: &Scene) -> Result<ImagePreparation, RenderError> {
+        self.device.check_errors()?;
+        self.chunk_residency.begin_epoch();
         let scene_changed = self.scene_gpu.sync(
             &self.device,
             &self.queue,
             scene,
-            self.mode == RenderMode::Quality,
+            self.mode == RenderMode::Cinematic,
             [self.width, self.height],
+            self.passes.ambient_occlusion.ray_query_layout(),
+            &mut self.derived_cache,
+            self.derived_frame,
         )?;
-        let rebuild = self
-            .pool
-            .as_ref()
-            .is_none_or(|pool| !pool.matches(self.width, self.height));
-        if rebuild {
-            let plan = plan_aliases(&self.resources, &self.pass_nodes, &self.order);
-            self.pool = Some(TransientPool::build(
-                &self.device,
-                &self.resources,
-                plan,
-                self.width,
-                self.height,
-            )?);
-            self.bindings = self
-                .pool
-                .as_ref()
-                .and_then(|pool| FrameBindings::new(&self.device, pool, &self.passes));
-        }
-        Ok(scene_changed || rebuild)
+        self.chunk_residency.sync_scene(
+            &mut self.scene_gpu,
+            &self.device,
+            &self.queue,
+            &mut self.derived_cache,
+            self.derived_frame,
+        )?;
+        self.derived_frame = self.derived_frame.wrapping_add(1);
+        let rebuild = self.rebuild_pool_if_needed()?;
+        self.device.check_errors()?;
+        Ok(ImagePreparation {
+            scene_changed,
+            rebuild,
+        })
     }
 
     pub(super) fn record_image(
@@ -268,6 +339,18 @@ impl<D: Device> Engine<D> {
         queries: Option<&D::QuerySet>,
         quality: bool,
         timestamps_started: bool,
+    ) {
+        self.record_image_until(encoder, target, queries, quality, timestamps_started, None);
+    }
+
+    pub(super) fn record_image_until(
+        &self,
+        encoder: &mut D::CommandEncoder,
+        target: &D::TextureView,
+        queries: Option<&D::QuerySet>,
+        quality: bool,
+        timestamps_started: bool,
+        stop_after: Option<crate::graph::ResourceId>,
     ) {
         let Some(pool) = &self.pool else {
             return;
@@ -298,70 +381,41 @@ impl<D: Device> Engine<D> {
                     }),
                 temporal_write: self.temporal.write_index(),
                 quality,
-                depth_of_field: self.resolved_plan.depth_of_field().is_some(),
-                motion_blur: self.resolved_plan.motion_blur().is_some(),
                 display_encoding: self.display_encoding(),
             });
+            if stop_after.is_some_and(|resource| node.writes.contains(&resource)) {
+                break;
+            }
         }
     }
 }
 
-struct PendingImage<D: Device> {
+pub(super) struct PendingImage<D: Device> {
     config: ImageConfig,
     layout: ImageLayout,
     buffer: D::Buffer,
     _texture: D::Texture,
+    completion: FenceValue,
 }
 
 impl<D: Device> PendingImage<D> {
-    fn resolve(self, mapped: &[u8], format: TextureFormat) -> Image {
-        Image {
-            width: self.config.width,
-            height: self.config.height,
-            pixels: self.layout.unpack(mapped, format),
-        }
-    }
-}
-
-struct ImageLayout {
-    row: usize,
-    padded_row: u32,
-    buffer_size: u64,
-    height: usize,
-}
-
-impl ImageLayout {
-    fn new(config: ImageConfig) -> Result<Self, RenderError> {
-        let row = config
-            .width
-            .checked_mul(4)
-            .ok_or(RenderError::InvalidImageSize)?;
-        let padded_row = row
-            .checked_add(255)
-            .map(|value| value & !255)
-            .ok_or(RenderError::InvalidImageSize)?;
-        let buffer_size = u64::from(padded_row)
-            .checked_mul(u64::from(config.height))
-            .ok_or(RenderError::InvalidImageSize)?;
-        if config.width == 0 || config.height == 0 {
-            return Err(RenderError::InvalidImageSize);
-        }
-        Ok(Self {
-            row: row as usize,
-            padded_row,
-            buffer_size,
-            height: config.height as usize,
-        })
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) const fn completion(&self) -> FenceValue {
+        self.completion
     }
 
-    fn unpack(&self, mapped: &[u8], format: TextureFormat) -> Vec<u8> {
-        let mut pixels = Vec::with_capacity(self.row * self.height);
-        for source in mapped
-            .chunks_exact(self.padded_row as usize)
-            .take(self.height)
-        {
-            pixels.extend_from_slice(&source[..self.row.min(source.len())]);
-        }
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) fn readback(&self) -> (&D::Buffer, u64) {
+        (&self.buffer, self.layout.buffer_size)
+    }
+
+    pub(super) fn resolve(
+        self,
+        mapped: Vec<u8>,
+        format: TextureFormat,
+    ) -> Result<Image, RenderError> {
+        let _completion = self.completion;
+        let mut pixels = self.layout.unpack(mapped)?;
         if matches!(
             format,
             TextureFormat::Bgra8Unorm | TextureFormat::Bgra8UnormSrgb
@@ -370,48 +424,14 @@ impl ImageLayout {
                 pixel.swap(0, 2);
             }
         }
-        pixels
+        Ok(Image {
+            width: self.config.width,
+            height: self.config.height,
+            pixels,
+        })
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::Image;
-
-    #[test]
-    fn publication_png_round_trips_rgba_pixels() {
-        let image = Image {
-            width: 2,
-            height: 1,
-            pixels: vec![12, 34, 56, 255, 200, 180, 160, 128],
-        };
-        let bytes = match image.png_bytes() {
-            Ok(bytes) => bytes,
-            Err(error) => panic!("PNG encoding succeeds: {error}"),
-        };
-        let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-        let mut reader = match decoder.read_info() {
-            Ok(reader) => reader,
-            Err(error) => panic!("PNG header is readable: {error}"),
-        };
-        let Some(size) = reader.output_buffer_size() else {
-            panic!("PNG decoder reports an output buffer")
-        };
-        let mut pixels = vec![0; size];
-        let output = match reader.next_frame(&mut pixels) {
-            Ok(output) => output,
-            Err(error) => panic!("PNG pixels are readable: {error}"),
-        };
-        assert_eq!(&pixels[..output.buffer_size()], image.pixels.as_slice());
-    }
-
-    #[test]
-    fn malformed_publication_image_is_rejected_before_encoding() {
-        let image = Image {
-            width: 2,
-            height: 1,
-            pixels: vec![0; 3],
-        };
-        assert!(image.png_bytes().is_err());
-    }
-}
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "image_tests.rs"]
+mod tests;
