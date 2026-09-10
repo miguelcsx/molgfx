@@ -1,10 +1,18 @@
-//! Core math types, re-exported from glam, plus the packed color used in
-//! GPU-facing records.
+//! Project-owned math types plus the packed color used in GPU-facing records.
 //!
 //! Everything here is plain data, byte-castable for direct GPU upload.
 
-pub use glam::{Mat3, Mat4, Quat, Vec2, Vec3, Vec4};
 use serde::{Deserialize, Serialize};
+
+mod matrix;
+mod vector;
+
+#[cfg(test)]
+#[path = "types_tests.rs"]
+mod tests;
+
+pub use matrix::{Mat3, Mat4, Quat};
+pub use vector::{Vec2, Vec3, Vec4};
 
 /// A color packed as four 8-bit channels, in memory order red, green, blue,
 /// alpha. Exactly four bytes, so a per-atom color column stays compact and
