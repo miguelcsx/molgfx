@@ -9,6 +9,10 @@ use crate::passes::{
 };
 use pdviewx_gpu::{BindGroupDesc, BindGroupEntry, Device};
 
+#[path = "bindings/presentation.rs"]
+mod presentation;
+use presentation::presentation_bindings;
+
 #[derive(Debug)]
 pub struct FrameBindings<D: Device> {
     pub(crate) ao: D::BindGroup,
@@ -17,18 +21,29 @@ pub struct FrameBindings<D: Device> {
     pub(crate) oit: D::BindGroup,
     pub(crate) oit_composite: D::BindGroup,
     pub(crate) temporal: [[D::BindGroup; 2]; 2],
-    pub(crate) dof_classify: D::BindGroup,
-    pub(crate) dof: [D::BindGroup; 2],
-    pub(crate) tonemap_history: [D::BindGroup; 2],
-    pub(crate) tonemap_dof: D::BindGroup,
-    pub(crate) tonemap_motion_blur: D::BindGroup,
-    pub(crate) bloom_source_history: [D::BindGroup; 2],
-    pub(crate) bloom_source_dof: D::BindGroup,
-    pub(crate) bloom_source_motion_blur: D::BindGroup,
-    pub(crate) bloom_horizontal_source: D::BindGroup,
-    pub(crate) bloom_vertical_source: D::BindGroup,
-    pub(crate) motion_blur_history: [D::BindGroup; 2],
-    pub(crate) motion_blur_dof: D::BindGroup,
+    pub(crate) dof_classify: Option<D::BindGroup>,
+    pub(crate) dof: Option<[D::BindGroup; 2]>,
+    pub(crate) tonemap: PresentationSource<D::BindGroup>,
+    pub(crate) bloom_source: Option<PresentationSource<D::BindGroup>>,
+    pub(crate) bloom_horizontal_source: Option<D::BindGroup>,
+    pub(crate) bloom_vertical_source: Option<D::BindGroup>,
+    pub(crate) motion_blur: Option<PresentationSource<D::BindGroup>>,
+}
+
+/// A stable effect output or one of the alternating temporal histories.
+#[derive(Debug)]
+pub(crate) enum PresentationSource<T> {
+    Effect(T),
+    History([T; 2]),
+}
+
+impl<T> PresentationSource<T> {
+    pub(crate) fn get(&self, temporal_write: usize) -> Option<&T> {
+        match self {
+            Self::Effect(value) => Some(value),
+            Self::History(values) => values.get(temporal_write),
+        }
+    }
 }
 
 impl<D: Device> FrameBindings<D> {
@@ -73,31 +88,25 @@ impl<D: Device> FrameBindings<D> {
                 ),
             ],
         ];
-        let dof_classify = device.create_bind_group(&BindGroupDesc {
-            label: "depth-of-field tile classification input",
-            layout: &passes.depth_of_field.classify_layout,
-            entries: &[BindGroupEntry::Texture {
-                binding: 0,
-                view: views.depth,
-            }],
-        });
-        let dof = [
-            dof_bind_group(
-                device,
-                passes,
-                views.history_a,
-                views.depth,
-                views.dof_tiles,
-            ),
-            dof_bind_group(
-                device,
-                passes,
-                views.history_b,
-                views.depth,
-                views.dof_tiles,
-            ),
-        ];
-        let presentation = presentation_bindings(device, passes, &views);
+        let (dof_classify, dof) = if let Some(tiles) = views.dof_tiles {
+            let pass = passes.depth_of_field.as_ref()?;
+            let classify = device.create_bind_group(&BindGroupDesc {
+                label: "depth-of-field tile classification input",
+                layout: &pass.classify_layout,
+                entries: &[BindGroupEntry::Texture {
+                    binding: 0,
+                    view: views.depth,
+                }],
+            });
+            let resolve = [
+                dof_bind_group(device, pass, views.history_a, views.depth, tiles),
+                dof_bind_group(device, pass, views.history_b, views.depth, tiles),
+            ];
+            (Some(classify), Some(resolve))
+        } else {
+            (None, None)
+        };
+        let presentation = presentation_bindings(device, passes, &views)?;
         Some(Self {
             ao: base.ao,
             ao_denoise: base.ao_denoise,
@@ -107,16 +116,11 @@ impl<D: Device> FrameBindings<D> {
             temporal,
             dof_classify,
             dof,
-            tonemap_history: presentation.tonemap_history,
-            tonemap_dof: presentation.tonemap_dof,
-            tonemap_motion_blur: presentation.tonemap_motion_blur,
-            bloom_source_history: presentation.bloom_source_history,
-            bloom_source_dof: presentation.bloom_source_dof,
-            bloom_source_motion_blur: presentation.bloom_source_motion_blur,
+            tonemap: presentation.tonemap,
+            bloom_source: presentation.bloom_source,
             bloom_horizontal_source: presentation.bloom_horizontal_source,
             bloom_vertical_source: presentation.bloom_vertical_source,
-            motion_blur_history: presentation.motion_blur_history,
-            motion_blur_dof: presentation.motion_blur_dof,
+            motion_blur: presentation.motion_blur,
         })
     }
 }
@@ -133,14 +137,14 @@ struct FrameViews<'a, D: Device> {
     accumulation: &'a D::TextureView,
     revealage: &'a D::TextureView,
     composite: &'a D::TextureView,
-    dof_tiles: &'a D::TextureView,
-    dof_output: &'a D::TextureView,
+    dof_tiles: Option<&'a D::TextureView>,
+    dof_output: Option<&'a D::TextureView>,
     motion: &'a D::TextureView,
-    motion_blur: &'a D::TextureView,
+    motion_blur: Option<&'a D::TextureView>,
     shadow: &'a D::TextureView,
-    bloom_horizontal_source: &'a D::TextureView,
-    bloom_vertical_source: &'a D::TextureView,
-    bloom_resolved: &'a D::TextureView,
+    bloom_horizontal_source: Option<&'a D::TextureView>,
+    bloom_vertical_source: Option<&'a D::TextureView>,
+    bloom_resolved: Option<&'a D::TextureView>,
 }
 
 impl<'a, D: Device> FrameViews<'a, D> {
@@ -157,14 +161,14 @@ impl<'a, D: Device> FrameViews<'a, D> {
             accumulation: pool.view(OIT_ACCUM_RESOURCE)?,
             revealage: pool.view(OIT_REVEAL_RESOURCE)?,
             composite: pool.view(COMPOSITE_RESOURCE)?,
-            dof_tiles: pool.view(DOF_TILE_RESOURCE)?,
-            dof_output: pool.view(DOF_RESOURCE)?,
+            dof_tiles: pool.view(DOF_TILE_RESOURCE),
+            dof_output: pool.view(DOF_RESOURCE),
             motion: pool.view(MOTION_RESOURCE)?,
-            motion_blur: pool.view(MOTION_BLUR_RESOURCE)?,
+            motion_blur: pool.view(MOTION_BLUR_RESOURCE),
             shadow: pool.view(SHADOW_RESOURCE)?,
-            bloom_horizontal_source: pool.view(BLOOM_A_RESOURCE)?,
-            bloom_vertical_source: pool.view(BLOOM_B_RESOURCE)?,
-            bloom_resolved: pool.view(BLOOM_C_RESOURCE)?,
+            bloom_horizontal_source: pool.view(BLOOM_A_RESOURCE),
+            bloom_vertical_source: pool.view(BLOOM_B_RESOURCE),
+            bloom_resolved: pool.view(BLOOM_C_RESOURCE),
         })
     }
 }
@@ -175,47 +179,6 @@ struct BaseBindings<D: Device> {
     lighting: D::BindGroup,
     oit: D::BindGroup,
     oit_composite: D::BindGroup,
-}
-
-struct PresentationBindings<D: Device> {
-    tonemap_history: [D::BindGroup; 2],
-    tonemap_dof: D::BindGroup,
-    tonemap_motion_blur: D::BindGroup,
-    bloom_source_history: [D::BindGroup; 2],
-    bloom_source_dof: D::BindGroup,
-    bloom_source_motion_blur: D::BindGroup,
-    bloom_horizontal_source: D::BindGroup,
-    bloom_vertical_source: D::BindGroup,
-    motion_blur_history: [D::BindGroup; 2],
-    motion_blur_dof: D::BindGroup,
-}
-
-fn presentation_bindings<D: Device>(
-    device: &D,
-    passes: &PassRegistry<D>,
-    views: &FrameViews<'_, D>,
-) -> PresentationBindings<D> {
-    PresentationBindings {
-        tonemap_history: [
-            tonemap_bind_group(device, passes, views.history_a, views),
-            tonemap_bind_group(device, passes, views.history_b, views),
-        ],
-        tonemap_dof: tonemap_bind_group(device, passes, views.dof_output, views),
-        tonemap_motion_blur: tonemap_bind_group(device, passes, views.motion_blur, views),
-        bloom_source_history: [
-            bloom_bind_group(device, passes, views.history_a),
-            bloom_bind_group(device, passes, views.history_b),
-        ],
-        bloom_source_dof: bloom_bind_group(device, passes, views.dof_output),
-        bloom_source_motion_blur: bloom_bind_group(device, passes, views.motion_blur),
-        bloom_horizontal_source: bloom_bind_group(device, passes, views.bloom_horizontal_source),
-        bloom_vertical_source: bloom_bind_group(device, passes, views.bloom_vertical_source),
-        motion_blur_history: [
-            motion_blur_bind_group(device, passes, views.history_a, views.motion),
-            motion_blur_bind_group(device, passes, views.history_b, views.motion),
-        ],
-        motion_blur_dof: motion_blur_bind_group(device, passes, views.dof_output, views.motion),
-    }
 }
 
 fn base_bindings<D: Device>(
@@ -324,14 +287,14 @@ fn base_bindings<D: Device>(
 
 fn dof_bind_group<D: Device>(
     device: &D,
-    passes: &PassRegistry<D>,
+    pass: &crate::passes::DepthOfFieldPass<D>,
     history: &D::TextureView,
     depth: &D::TextureView,
     tiles: &D::TextureView,
 ) -> D::BindGroup {
     device.create_bind_group(&BindGroupDesc {
         label: "depth-of-field gather inputs",
-        layout: &passes.depth_of_field.resolve_layout,
+        layout: &pass.resolve_layout,
         entries: &[
             BindGroupEntry::Texture {
                 binding: 0,
@@ -380,77 +343,6 @@ fn temporal_bind_group<D: Device>(
             BindGroupEntry::Texture {
                 binding: 4,
                 view: motion,
-            },
-        ],
-    })
-}
-
-fn tonemap_bind_group<D: Device>(
-    device: &D,
-    passes: &PassRegistry<D>,
-    resolved: &D::TextureView,
-    views: &FrameViews<'_, D>,
-) -> D::BindGroup {
-    device.create_bind_group(&BindGroupDesc {
-        label: "tonemap temporal frame input",
-        layout: &passes.tonemap.layout,
-        entries: &[
-            BindGroupEntry::Texture {
-                binding: 0,
-                view: resolved,
-            },
-            BindGroupEntry::Texture {
-                binding: 1,
-                view: views.depth,
-            },
-            BindGroupEntry::Texture {
-                binding: 2,
-                view: views.revealage,
-            },
-            BindGroupEntry::Texture {
-                binding: 3,
-                view: views.bloom_resolved,
-            },
-        ],
-    })
-}
-
-fn bloom_bind_group<D: Device>(
-    device: &D,
-    passes: &PassRegistry<D>,
-    source: &D::TextureView,
-) -> D::BindGroup {
-    device.create_bind_group(&BindGroupDesc {
-        label: "bloom stage source",
-        layout: &passes.bloom.layout,
-        entries: &[BindGroupEntry::Texture {
-            binding: 0,
-            view: source,
-        }],
-    })
-}
-
-fn motion_blur_bind_group<D: Device>(
-    device: &D,
-    passes: &PassRegistry<D>,
-    source: &D::TextureView,
-    motion: &D::TextureView,
-) -> D::BindGroup {
-    device.create_bind_group(&BindGroupDesc {
-        label: "motion blur source and vectors",
-        layout: &passes.motion_blur.layout,
-        entries: &[
-            BindGroupEntry::Texture {
-                binding: 0,
-                view: source,
-            },
-            BindGroupEntry::Texture {
-                binding: 1,
-                view: motion,
-            },
-            BindGroupEntry::Sampler {
-                binding: 2,
-                sampler: &passes.temporal.sampler,
             },
         ],
     })

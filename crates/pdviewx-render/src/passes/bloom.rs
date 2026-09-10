@@ -68,36 +68,27 @@ impl<D: Device> BloomPass<D> {
     /// quarter-resolution ping target.
     pub fn bright(ctx: &mut PassContext<'_, D>) {
         let Some(FrameBindings {
-            bloom_source_history,
-            bloom_source_dof,
-            bloom_source_motion_blur,
+            bloom_source: Some(bloom_source),
             ..
         }) = ctx.bindings
         else {
             return;
         };
-        let source = if ctx.motion_blur {
-            bloom_source_motion_blur
-        } else if ctx.depth_of_field {
-            bloom_source_dof
-        } else {
-            let Some(source) = bloom_source_history.get(ctx.temporal_write) else {
-                return;
-            };
-            source
+        let Some(source) = bloom_source.get(ctx.temporal_write) else {
+            return;
         };
         Self::draw(
             ctx,
             BLOOM_A_RESOURCE,
             "bloom bright pass",
-            |passes| &passes.bloom.bright_pipeline,
+            |passes| passes.bloom.as_ref().map(|effect| &effect.bright_pipeline),
             source,
         );
     }
 
     pub fn horizontal(ctx: &mut PassContext<'_, D>) {
         let Some(FrameBindings {
-            bloom_horizontal_source,
+            bloom_horizontal_source: Some(bloom_horizontal_source),
             ..
         }) = ctx.bindings
         else {
@@ -107,14 +98,19 @@ impl<D: Device> BloomPass<D> {
             ctx,
             BLOOM_B_RESOURCE,
             "bloom horizontal blur",
-            |passes| &passes.bloom.horizontal_pipeline,
+            |passes| {
+                passes
+                    .bloom
+                    .as_ref()
+                    .map(|effect| &effect.horizontal_pipeline)
+            },
             bloom_horizontal_source,
         );
     }
 
     pub fn vertical(ctx: &mut PassContext<'_, D>) {
         let Some(FrameBindings {
-            bloom_vertical_source,
+            bloom_vertical_source: Some(bloom_vertical_source),
             ..
         }) = ctx.bindings
         else {
@@ -124,7 +120,12 @@ impl<D: Device> BloomPass<D> {
             ctx,
             BLOOM_C_RESOURCE,
             "bloom vertical blur",
-            |passes| &passes.bloom.vertical_pipeline,
+            |passes| {
+                passes
+                    .bloom
+                    .as_ref()
+                    .map(|effect| &effect.vertical_pipeline)
+            },
             bloom_vertical_source,
         );
     }
@@ -133,13 +134,15 @@ impl<D: Device> BloomPass<D> {
         ctx: &mut PassContext<'_, D>,
         target: crate::graph::ResourceId,
         label: &'static str,
-        pipeline: fn(&crate::passes::PassRegistry<D>) -> &D::Pipeline,
+        pipeline: fn(&crate::passes::PassRegistry<D>) -> Option<&D::Pipeline>,
         source: &D::BindGroup,
     ) {
         let Some(view) = ctx.resources.view(target) else {
             return;
         };
-        let selected = pipeline(ctx.passes);
+        let Some(selected) = pipeline(ctx.passes) else {
+            return;
+        };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
             label,
             colors: &[ColorAttachment {
