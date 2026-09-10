@@ -1,0 +1,302 @@
+{
+  "symbols": [
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "SurfaceKind"
+        ]
+      },
+      "rust": "SurfaceKind",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SurfaceKind is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SurfaceKind is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "SurfaceScalarOverlay"
+        ]
+      },
+      "rust": "SurfaceScalarOverlay",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SurfaceScalarOverlay is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SurfaceScalarOverlay is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/values/color.rs",
+          "crates/pdviewx-py/src/values/color.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "SurfaceStyle"
+        ]
+      },
+      "rust": "SurfaceStyle",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SurfaceStyle is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SurfaceStyle is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/pending_surface/semantic.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "SurfaceZone"
+        ]
+      },
+      "rust": "SurfaceZone",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SurfaceZone is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SurfaceZone is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/pending_surface/semantic.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "SurfaceZoneScene"
+        ]
+      },
+      "rust": "SurfaceZoneScene",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SurfaceZoneScene is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SurfaceZoneScene is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/pending_surface/semantic.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "SurfaceZoneStyle"
+        ]
+      },
+      "rust": "SurfaceZoneStyle",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SurfaceZoneStyle is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SurfaceZoneStyle is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "SymmetryInstance"
+        ]
+      },
+      "rust": "SymmetryInstance",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SymmetryInstance is part of the renderer-owned typed geometry contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SymmetryInstance is part of the renderer-owned typed geometry contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "function",
+      "ownership": "borrowed-call",
+      "python": {
+        "bindings": {
+          "Scene": [
+            "from_manifest_json"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/scene.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ]
+      },
+      "rust": "read_manifest",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "read_manifest is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "read_manifest is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/config.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "SequenceConfig"
+        ]
+      },
+      "rust": "SequenceConfig",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SequenceConfig is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SequenceConfig is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "transferred",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/engine_sequence.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "SequenceFrame"
+        ]
+      },
+      "rust": "SequenceFrame",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SequenceFrame is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SequenceFrame is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/render/engine_sequence.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "SequenceRenderer"
+        ]
+      },
+      "rust": "SequenceRenderer",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SequenceRenderer is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "SequenceRenderer is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    }
+  ]
+}
