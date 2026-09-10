@@ -10,7 +10,7 @@
 use crate::graph::node::{PassNode, ResourceDesc, ResourceId, SizeClass};
 use pdviewx_gpu::{Device, GpuError, TextureDesc};
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "pool_tests.rs"]
 mod tests;
 
@@ -34,7 +34,8 @@ struct Slot {
 /// Pure data, computed without a device, so it is testable directly.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AliasPlan {
-    /// `slot[i]` is the physical slot index of resource `i`.
+    /// `slot[i]` is the physical slot index of resource `i`, or `usize::MAX`
+    /// when no scheduled pass uses the resource.
     pub slot: Vec<usize>,
     /// Number of physical slots.
     pub slots: usize,
@@ -65,31 +66,37 @@ pub fn plan_aliases<D: Device>(
     }
 
     let mut slots: Vec<Slot> = Vec::new();
-    let mut assignment = vec![0usize; n];
+    let mut assignment = vec![usize::MAX; n];
 
     for r in 0..n {
         let Some(desc) = resources.get(r) else {
             continue;
         };
+        if first[r] == usize::MAX {
+            continue;
+        }
         let key = SlotKey {
             format: desc.format,
             size: desc.size,
             usage: desc.usage.bits(),
         };
-        let live = first[r] != usize::MAX;
-        let (lo, hi) = (first[r], last[r]);
-        let found = slots.iter_mut().enumerate().find(|(_, s)| {
-            s.key == key && (!live || s.intervals.iter().all(|&(a, b)| hi < a || lo > b))
-        });
+        let lo = if desc.persistent { 0 } else { first[r] };
+        let hi = if desc.persistent {
+            order.len().saturating_sub(1)
+        } else {
+            last[r]
+        };
+        let found = slots
+            .iter_mut()
+            .enumerate()
+            .find(|(_, s)| s.key == key && s.intervals.iter().all(|&(a, b)| hi < a || lo > b));
         if let Some((index, slot)) = found {
-            if live {
-                slot.intervals.push((lo, hi));
-            }
+            slot.intervals.push((lo, hi));
             assignment[r] = index;
         } else {
             slots.push(Slot {
                 key,
-                intervals: if live { vec![(lo, hi)] } else { Vec::new() },
+                intervals: vec![(lo, hi)],
             });
             assignment[r] = slots.len() - 1;
         }
@@ -128,8 +135,11 @@ impl<D: Device> TransientPool<D> {
         // The first resource mapped to each slot defines its concrete desc.
         let mut slot_desc: Vec<Option<ResourceDesc>> = vec![None; plan.slots];
         for (r, &slot) in plan.slot.iter().enumerate() {
-            if slot_desc[slot].is_none() {
-                slot_desc[slot] = resources.get(r).copied();
+            let Some(desc) = slot_desc.get_mut(slot) else {
+                continue;
+            };
+            if desc.is_none() {
+                *desc = resources.get(r).copied();
             }
         }
         let mut textures = Vec::with_capacity(plan.slots);
