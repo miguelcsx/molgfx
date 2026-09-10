@@ -1,5 +1,5 @@
 use super::*;
-use glam::Vec4;
+use crate::Vec4;
 use proptest::prelude::*;
 
 fn test_camera() -> Camera {

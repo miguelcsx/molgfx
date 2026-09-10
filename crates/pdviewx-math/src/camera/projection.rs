@@ -6,7 +6,7 @@
 //! fixed, so depth precision follows the structure on screen.
 
 use crate::aabb::BoundingSphere;
-use glam::{Mat4, Vec3};
+use crate::{Mat4, Vec3};
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
@@ -61,7 +61,7 @@ impl Projection {
             } => {
                 // The right-handed [0, 1] projection maps near→0, far→1;
                 // swapping the plane arguments reverses the depth range.
-                glam::camera::rh::proj::directx::perspective(fov_y, aspect, far, near)
+                glam::camera::rh::proj::directx::perspective(fov_y, aspect, far, near).into()
             }
             Self::Orthographic {
                 height,
@@ -74,6 +74,7 @@ impl Projection {
                 glam::camera::rh::proj::directx::orthographic(
                     -half_w, half_w, -half_h, half_h, far, near,
                 )
+                .into()
             }
         }
     }

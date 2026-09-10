@@ -1,5 +1,5 @@
 use super::*;
-use glam::Vec4;
+use crate::Vec4;
 
 fn project_depth(projection: &Projection, view_z: f32) -> f32 {
     // View space looks down −Z, so a point at distance d sits at z = −d.
