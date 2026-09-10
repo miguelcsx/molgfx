@@ -11,6 +11,10 @@
 
 use pdviewx_core::{ParticleMotionGpu, PrimitiveGpu};
 
+#[cfg(test)]
+#[path = "primitive_draw_tests.rs"]
+mod tests;
+
 /// The primitive family carried in `PrimitiveGpu.metadata[2]`.
 ///
 /// These match the values the packing writes and the constants the shader
@@ -20,6 +24,8 @@ pub(crate) const FAMILY_ELLIPSOID: u32 = 0;
 pub(crate) const FAMILY_POLYGON: u32 = 1;
 pub(crate) const FAMILY_BOX: u32 = 2;
 pub(crate) const FAMILY_PARTICLE: u32 = 3;
+pub(crate) const POLYGON_PENTAGON: u32 = 5;
+pub(crate) const POLYGON_HEXAGON: u32 = 6;
 
 /// Distinct particle shapes, so a caller can size a per-shape pipeline table.
 pub(crate) const PARTICLE_SHAPES: u32 = 8;
@@ -39,8 +45,9 @@ pub(super) struct PackedPrimitive {
 }
 
 impl PackedPrimitive {
-    pub(super) fn new(record: PrimitiveGpu, motion: ParticleMotionGpu) -> Self {
+    pub(super) fn new(mut record: PrimitiveGpu, motion: ParticleMotionGpu) -> Self {
         let previous = record.center_radius;
+        record.inverse_cross[3] = if motion.metadata[0] == 0 { 0.0 } else { 1.0 };
         let sort_key = sort_key(&record);
         Self {
             record,
@@ -60,8 +67,8 @@ impl PackedPrimitive {
 pub(crate) struct PrimitiveDrawGroup {
     /// The primitive family this run draws.
     pub(crate) family: u32,
-    /// The particle shape, meaningful only when `family == FAMILY_PARTICLE`.
-    pub(crate) particle_shape: u32,
+    /// Particle shape or polygon side class; zero for the other families.
+    pub(crate) shape: u32,
     /// Whether the run is order-independent-transparent geometry.
     pub(crate) translucent: bool,
     /// First instance index into the sorted table.
@@ -75,26 +82,24 @@ pub(crate) struct PrimitiveDrawGroup {
 /// apart by the high bit, since they draw in different passes.
 fn sort_key(record: &PrimitiveGpu) -> u32 {
     let family = record.metadata[2];
-    let shape = record.metadata[3];
-    let class = if family == FAMILY_PARTICLE {
-        FAMILY_PARTICLE * PARTICLE_SHAPES + shape.min(PARTICLE_SHAPES - 1)
-    } else {
-        family * PARTICLE_SHAPES
-    };
+    let shape = draw_shape(family, record.metadata[3]);
+    let class = family * PARTICLE_SHAPES + shape;
     let translucent = u32::from(record.color[3] < 0.999);
     (translucent << 16) | class
 }
 
 /// Sorts `rows` into class order and rewrites the upload columns and the draw
-/// groups from it. `sort_by_key` is stable, so equal keys keep insertion order
-/// and the result is deterministic. All outputs are cleared and refilled,
-/// retaining their capacity for reuse.
+/// groups from it. Auxiliary columns are materialized only when at least one
+/// primitive moves; a fully static table binds one dummy row instead. The sort
+/// is stable, so equal keys keep insertion order and deterministic frames. All
+/// outputs retain their capacity for reuse.
 pub(super) fn regroup(
     rows: &mut [PackedPrimitive],
     records: &mut Vec<PrimitiveGpu>,
     previous: &mut Vec<[f32; 4]>,
     motion: &mut Vec<ParticleMotionGpu>,
     groups: &mut Vec<PrimitiveDrawGroup>,
+    include_auxiliary: bool,
 ) {
     if rows
         .windows(2)
@@ -109,26 +114,43 @@ pub(super) fn regroup(
     for row in rows.iter() {
         let first = u32::try_from(records.len()).map_or(u32::MAX, |value| value);
         records.push(row.record);
-        previous.push(row.previous);
-        motion.push(row.motion);
+        if include_auxiliary {
+            previous.push(row.previous);
+            motion.push(row.motion);
+        }
         let family = row.record.metadata[2];
-        let particle_shape = row.record.metadata[3];
+        let shape = draw_shape(family, row.record.metadata[3]);
         let translucent = row.record.color[3] < 0.999;
         match groups.last_mut() {
             Some(group)
                 if group.family == family
                     && group.translucent == translucent
-                    && (family != FAMILY_PARTICLE || group.particle_shape == particle_shape) =>
+                    && group.shape == shape =>
             {
                 group.len += 1;
             }
             _ => groups.push(PrimitiveDrawGroup {
                 family,
-                particle_shape,
+                shape,
                 translucent,
                 first,
                 len: 1,
             }),
         }
+    }
+}
+
+const fn draw_shape(family: u32, shape: u32) -> u32 {
+    match family {
+        FAMILY_PARTICLE => {
+            if shape < PARTICLE_SHAPES {
+                shape
+            } else {
+                PARTICLE_SHAPES - 1
+            }
+        }
+        FAMILY_POLYGON if shape == 4 || shape == 5 => POLYGON_PENTAGON,
+        FAMILY_POLYGON => POLYGON_HEXAGON,
+        _ => 0,
     }
 }
