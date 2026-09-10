@@ -8,8 +8,8 @@ bitflags::bitflags! {
     /// The boolean capabilities, as one word.
     #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
     pub struct CapabilityFlags: u32 {
-        /// Hardware ray tracing (acceleration-structure traversal).
-        const HARDWARE_RAY_TRACING = 1;
+        /// Hardware acceleration structures and WGSL ray queries.
+        const RAY_QUERY = 1;
         /// Mesh shading pipeline.
         const MESH_SHADERS = 1 << 1;
         /// Unbounded descriptor arrays.
@@ -28,17 +28,41 @@ pub struct Capabilities {
     pub flags: CapabilityFlags,
     /// Largest single storage buffer binding, bytes.
     pub max_storage_buffer_bytes: u64,
+    /// Maximum storage-buffer bindings visible to one shader stage.
+    pub max_storage_buffers_per_shader_stage: u32,
     /// Largest 2-D texture dimension, texels.
     pub max_texture_dim: u32,
     /// Largest 3-D texture dimension, texels.
     pub max_texture_dim_3d: u32,
 }
 
+/// Device ceilings relevant to acceleration-structure allocation.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub struct RayQueryLimits {
+    /// Maximum primitives in one BLAS.
+    pub max_blas_primitives: u32,
+    /// Maximum geometry groups in one BLAS.
+    pub max_blas_geometries: u32,
+    /// Maximum instances in one TLAS.
+    pub max_tlas_instances: u32,
+    /// Maximum acceleration-structure bindings visible to one shader stage.
+    pub max_bindings_per_shader_stage: u32,
+}
+
 impl Capabilities {
-    /// Hardware ray tracing is available.
+    /// Hardware acceleration-structure traversal is available.
+    ///
+    /// This is a resource capability, not evidence that a renderer has wired
+    /// a complete hardware quality path.
     #[must_use]
     pub fn hardware_ray_tracing(&self) -> bool {
-        self.flags.contains(CapabilityFlags::HARDWARE_RAY_TRACING)
+        self.ray_query()
+    }
+
+    /// Hardware acceleration structures and WGSL ray queries are available.
+    #[must_use]
+    pub fn ray_query(&self) -> bool {
+        self.flags.contains(CapabilityFlags::RAY_QUERY)
     }
 
     /// Mesh shading is available.
@@ -65,3 +89,7 @@ impl Capabilities {
         self.flags.contains(CapabilityFlags::SUBGROUP_OPS)
     }
 }
+
+#[cfg(test)]
+#[path = "capabilities_tests.rs"]
+mod tests;
