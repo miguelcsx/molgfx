@@ -31,22 +31,38 @@ pub(super) fn upload_grow<D: Device, T: bytemuck::Pod>(
 ) -> Result<(), RenderError> {
     let bytes = bytemuck::cast_slice(records);
     let needed = bytes.len() as u64;
-    if buffer.is_none() || needed > *capacity {
-        *capacity = grow_capacity(
-            needed,
-            device.capabilities().max_storage_buffer_bytes,
-            label,
-        )?;
-        *buffer = Some(device.create_buffer(&BufferDesc {
-            label,
-            size: *capacity,
-            usage: BufferUsage::STORAGE.union(BufferUsage::COPY_DST),
-        })?);
-    }
+    ensure_upload_buffer(device, label, needed, buffer, capacity)?;
     if let Some(buffer) = buffer {
         queue.write_buffer(buffer, 0, bytes);
     }
     Ok(())
+}
+
+/// Ensures a writable storage buffer without requiring a full staging slice.
+///
+/// This is the streaming counterpart to [`upload_grow`]: callers can reserve
+/// the final table once and fill it through bounded chunks.
+pub(super) fn ensure_upload_buffer<D: Device>(
+    device: &D,
+    label: &'static str,
+    needed: u64,
+    buffer: &mut Option<D::Buffer>,
+    capacity: &mut u64,
+) -> Result<bool, RenderError> {
+    if buffer.is_some() && needed <= *capacity {
+        return Ok(false);
+    }
+    *capacity = grow_capacity(
+        needed,
+        device.capabilities().max_storage_buffer_bytes,
+        label,
+    )?;
+    *buffer = Some(device.create_buffer(&BufferDesc {
+        label,
+        size: *capacity,
+        usage: BufferUsage::STORAGE.union(BufferUsage::COPY_DST),
+    })?);
+    Ok(true)
 }
 
 fn grow_capacity(needed: u64, limit: u64, label: &'static str) -> Result<u64, RenderError> {
@@ -73,12 +89,23 @@ pub(super) fn write_args<D: Device>(
     write_draw_args(device, queue, label, 6, 0, buffer)
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct CullCountInput {
+    pub(super) atoms: u32,
+    pub(super) bonds: u32,
+    pub(super) lod_mode: u32,
+    pub(super) bond_break_length: f32,
+    pub(super) visual_enabled: bool,
+    pub(super) atom_bvh_nodes: u32,
+    pub(super) atom_bvh_indices: u32,
+    pub(super) bond_bvh_nodes: u32,
+    pub(super) bond_bvh_indices: u32,
+}
+
 pub(super) fn write_counts<D: Device>(
     device: &D,
     queue: &D::Queue,
-    atoms: u32,
-    bonds: u32,
-    lod_mode: u32,
+    input: CullCountInput,
     buffer: &mut Option<D::Buffer>,
 ) -> Result<(), RenderError> {
     if buffer.is_none() {
@@ -93,14 +120,20 @@ pub(super) fn write_counts<D: Device>(
             buffer,
             0,
             bytemuck::bytes_of(&CullCounts {
-                atoms,
-                bonds,
-                lod_enabled: lod_mode,
-                padding: if lod_mode == 2 {
-                    atoms.div_ceil(65_536).max(1)
+                atoms: input.atoms,
+                bonds: input.bonds,
+                lod_enabled: input.lod_mode,
+                padding: if input.lod_mode == 2 {
+                    input.atoms.div_ceil(65_536).max(1)
                 } else {
                     1
                 },
+                bond_break_length: input.bond_break_length,
+                visual_enabled: u32::from(input.visual_enabled),
+                atom_bvh_nodes: input.atom_bvh_nodes,
+                atom_bvh_indices: input.atom_bvh_indices,
+                bond_bvh_nodes: input.bond_bvh_nodes,
+                bond_bvh_indices: input.bond_bvh_indices,
             }),
         );
     }
