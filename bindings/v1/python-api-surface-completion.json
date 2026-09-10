@@ -1,0 +1,479 @@
+{
+  "symbols": [
+    {
+      "name": "AnisotropicEllipsoid",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class AnisotropicEllipsoid:\n    def __init__(self, center: Vec3, tensor: tuple[float, float, float, float, float, float]) -> None: ...\n    center: Vec3\n    tensor: tuple[float, float, float, float, float, float]\n    inverse_tensor: tuple[float, float, float, float, float, float] | None\n    bounds: Aabb",
+      "registration": {
+        "adapter": "PyAnisotropicEllipsoid",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/geometry.rs"
+      }
+    },
+    {
+      "name": "AtomSelection",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "member_ownership": {
+        "copy_sparse": "explicit-copy",
+        "copy_rows": "explicit-copy",
+        "count": "borrowed-call",
+        "contains": "borrowed-call",
+        "union": "borrowed-call",
+        "intersect": "borrowed-call",
+        "difference": "borrowed-call"
+      },
+      "declaration": "class AtomSelection:\n    @staticmethod\n    def empty() -> AtomSelection: ...\n    @staticmethod\n    def all() -> AtomSelection: ...\n    @staticmethod\n    def range(start: int, end: int) -> AtomSelection: ...\n    @staticmethod\n    def copy_sparse(rows: Sequence[int]) -> AtomSelection: ...\n    def count(self, table_len: int) -> int: ...\n    def contains(self, row: int) -> bool: ...\n    def union(self, other: AtomSelection, table_len: int) -> AtomSelection: ...\n    def intersect(self, other: AtomSelection, table_len: int) -> AtomSelection: ...\n    def difference(self, other: AtomSelection, table_len: int) -> AtomSelection: ...\n    def copy_rows(self, table_len: int) -> list[int]: ...",
+      "registration": {
+        "adapter": "PyAtomSelection",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/selection.rs"
+      }
+    },
+    {
+      "name": "CarbohydrateShape",
+      "kind": "enum",
+      "ownership": "copied-value",
+      "declaration": "class CarbohydrateShape:\n    Unknown: CarbohydrateShape\n    Glc: CarbohydrateShape\n    Gal: CarbohydrateShape\n    Man: CarbohydrateShape\n    Fuc: CarbohydrateShape\n    Xyl: CarbohydrateShape\n    Neu5Ac: CarbohydrateShape",
+      "registration": {
+        "adapter": "PyCarbohydrateShape",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/geometry.rs"
+      }
+    },
+    {
+      "name": "CarbohydrateSymbol",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class CarbohydrateSymbol:\n    def __init__(self, owner: StructureHandle, center: Vec3, orientation: Quat, size: Vec3, shape: CarbohydrateShape, color: Rgba8) -> None: ...\n    owner: StructureHandle\n    center: Vec3\n    orientation: Quat\n    size: Vec3\n    shape: CarbohydrateShape\n    color: Rgba8\n    visible: bool\n    bounds: Aabb",
+      "registration": {
+        "adapter": "PyCarbohydrateSymbol",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/geometry.rs"
+      }
+    },
+    {
+      "name": "EntityProvenance",
+      "kind": "type",
+      "ownership": "explicit-copy",
+      "member_ownership": {
+        "copy_from_scene": "explicit-copy",
+        "entity": "copied-value",
+        "entry_id": "copied-value",
+        "entry_title": "copied-value",
+        "method": "copied-value",
+        "resolution": "copied-value",
+        "detail": "copied-value",
+        "ownership": "copied-value"
+      },
+      "declaration": "class EntityProvenance:\n    @staticmethod\n    def copy_from_scene(scene: Scene, entity: EntityRef) -> EntityProvenance | None: ...\n    entity: EntityRef\n    entry_id: str | None\n    entry_title: str | None\n    method: str | None\n    resolution: float | None\n    detail: ProvenanceDetail\n    ownership: MemoryOwnership",
+      "registration": {
+        "adapter": "PyEntityProvenance",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/provenance.rs"
+      }
+    },
+    {
+      "name": "FaceVisibility",
+      "kind": "enum",
+      "ownership": "copied-value",
+      "declaration": "class FaceVisibility:\n    DoubleSided: FaceVisibility\n    FrontOnly: FaceVisibility\n    BackOnly: FaceVisibility",
+      "registration": {
+        "adapter": "PyFaceVisibility",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/presentation.rs"
+      }
+    },
+    {
+      "name": "Guide",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "member_ownership": {
+        "owner": "copied-value",
+        "start": "copied-value",
+        "end": "copied-value",
+        "visible": "copied-value",
+        "set_visible": "borrowed-call",
+        "set_style": "borrowed-call"
+      },
+      "declaration": "class Guide:\n    def __init__(self, owner: StructureHandle, start: Vec3, end: Vec3, style: GuideStyle) -> None: ...\n    owner: StructureHandle\n    start: Vec3\n    end: Vec3\n    visible: bool\n    def set_visible(self, visible: bool) -> None: ...\n    def set_style(self, style: GuideStyle) -> None: ...",
+      "registration": {
+        "adapter": "PyGuide",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/geometry.rs"
+      }
+    },
+    {
+      "name": "LodCluster",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class LodCluster:\n    def __init__(self, structure: StructureHandle, level: LodLevel, index: int, center: Vec3, radius: float, importance: float, atom_count: int) -> None: ...\n    key: LodClusterKey\n    center: Vec3\n    radius: float\n    importance: float\n    atom_count: int",
+      "registration": {
+        "adapter": "PyLodCluster",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/semantic.rs"
+      }
+    },
+    {
+      "name": "MappingError",
+      "kind": "error",
+      "ownership": "rust-owned",
+      "declaration": "class MappingError(SemanticError): ...",
+      "registration": {
+        "adapter": "MappingError",
+        "kind": "module-member",
+        "source": "crates/pdviewx-py/src/pending_surface/mapping.rs"
+      }
+    },
+    {
+      "name": "MeshDescription",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class MeshDescription:\n    row: int\n    generation: int\n    content_hash: int\n    face_visibility: str\n    visible: bool",
+      "registration": {
+        "adapter": "PyMeshDescription",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/descriptions.rs"
+      }
+    },
+    {
+      "name": "MeshInstanceDescription",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class MeshInstanceDescription:\n    row: int\n    generation: int\n    transform: tuple[float, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float]\n    visible: bool",
+      "registration": {
+        "adapter": "PyMeshInstanceDescription",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/descriptions.rs"
+      }
+    },
+    {
+      "name": "OverlayDescription",
+      "kind": "type",
+      "ownership": "explicit-copy",
+      "member_ownership": {
+        "copy_from_values": "explicit-copy",
+        "row": "copied-value",
+        "generation": "copied-value",
+        "kind": "copied-value",
+        "visible": "copied-value"
+      },
+      "declaration": "class OverlayDescription:\n    @staticmethod\n    def copy_from_values(row: int, generation: int, kind: str, normalized: tuple[float, float], pixels: tuple[float, float], order: int, text: str, colors: tuple[Rgba8, Rgba8], values: tuple[float, float, float, float], visible: bool = ...) -> OverlayDescription: ...\n    row: int\n    generation: int\n    kind: str\n    visible: bool",
+      "registration": {
+        "adapter": "PyOverlayDescription",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/descriptions.rs"
+      }
+    },
+    {
+      "name": "ParticleBoundary",
+      "kind": "enum",
+      "ownership": "copied-value",
+      "declaration": "class ParticleBoundary:\n    Bounce: ParticleBoundary\n    Wrap: ParticleBoundary",
+      "registration": {
+        "adapter": "PyParticleBoundary",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/particle.rs"
+      }
+    },
+    {
+      "name": "ParticleMotion",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class ParticleMotion:\n    def __init__(self, velocity: Vec3, bounds: Aabb, fixed_timestep: float, seed: int, boundary: ParticleBoundary = ..., respawn_after_steps: int = ...) -> None: ...\n    velocity: Vec3\n    bounds: Aabb\n    fixed_timestep: float\n    seed: int\n    boundary: ParticleBoundary\n    respawn_after_steps: int",
+      "registration": {
+        "adapter": "PyParticleMotion",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/particle.rs"
+      }
+    },
+    {
+      "name": "ParticleMotionDescription",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class ParticleMotionDescription:\n    def __init__(self, motion: ParticleMotion) -> None: ...\n    boundary: ParticleBoundary",
+      "registration": {
+        "adapter": "PyParticleMotionDescription",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/descriptions.rs"
+      }
+    },
+    {
+      "name": "PlanarRegion",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class PlanarRegion:\n    def __init__(self, owner: StructureHandle, center: Vec3, normal: Vec3, tangent: Vec3, size: tuple[float, float]) -> None: ...\n    owner: StructureHandle\n    center: Vec3\n    normal: Vec3\n    tangent: Vec3\n    bitangent: Vec3\n    size: tuple[float, float]",
+      "registration": {
+        "adapter": "PyPlanarRegion",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/geometry.rs"
+      }
+    },
+    {
+      "name": "PrimitiveDescription",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class PrimitiveDescription:\n    row: int\n    generation: int\n    kind: str\n    visible: bool\n    color: tuple[int, int, int, int]\n    center: tuple[float, float, float]",
+      "registration": {
+        "adapter": "PyPrimitiveDescription",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/descriptions.rs"
+      }
+    },
+    {
+      "name": "PropertyLegend",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class PropertyLegend:\n    def __init__(self, title: str, semantics: ScalarFieldSemantics, values: tuple[float, float, float], colors: tuple[Rgba8, Rgba8, Rgba8], missing: Rgba8) -> None: ...\n    title: str\n    semantics: ScalarFieldSemantics\n    values: tuple[float, float, float]\n    colors: tuple[Rgba8, Rgba8, Rgba8]\n    missing: Rgba8",
+      "registration": {
+        "adapter": "PyPropertyLegend",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/presentation.rs"
+      }
+    },
+    {
+      "name": "PropertyMapping",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class PropertyMapping:\n    def __init__(self, domain: tuple[float, float], visual: tuple[float, float]) -> None: ...\n    def map(self, value: float) -> float: ...\n    def unmap(self, value: float) -> float: ...",
+      "registration": {
+        "adapter": "PyPropertyMapping",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/mapping.rs"
+      }
+    },
+    {
+      "name": "ProvenanceDetail",
+      "kind": "enum",
+      "ownership": "copied-value",
+      "declaration": "class ProvenanceDetail:\n    Atom: ProvenanceDetail\n    Bond: ProvenanceDetail\n    DynamicBond: ProvenanceDetail\n    Interaction: ProvenanceDetail\n    Guide: ProvenanceDetail\n    Annotation: ProvenanceDetail\n    Measurement: ProvenanceDetail\n    Primitive: ProvenanceDetail\n    Mesh: ProvenanceDetail\n    Unknown: ProvenanceDetail",
+      "registration": {
+        "adapter": "PyProvenanceDetail",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/provenance.rs"
+      }
+    },
+    {
+      "name": "Quadric",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class Quadric:\n    def __init__(self, coefficients: tuple[float, float, float, float, float, float, float, float, float, float], bounds: Aabb, cells: tuple[int, int, int]) -> None: ...\n    coefficients: tuple[float, float, float, float, float, float, float, float, float, float]\n    bounds: Aabb",
+      "registration": {
+        "adapter": "PyQuadric",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/geometry.rs"
+      }
+    },
+    {
+      "name": "RepresentationConfig",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "declaration": "class RepresentationConfig:\n    def __init__(self, kind: RepresentationKind) -> None: ...\n    kind: RepresentationKind\n    def radius_scale(self, scale: float) -> RepresentationConfig: ...\n    def bond_radius(self, radius: float) -> RepresentationConfig: ...\n    def tube_radius(self, radius: float) -> RepresentationConfig: ...\n    def putty_b_factor(self, domain: tuple[float, float], radii: tuple[float, float]) -> RepresentationConfig: ...\n    def isolevel(self, level: float) -> RepresentationConfig: ...\n    def surface(self, kind: SurfaceKind, style: SurfaceStyle) -> RepresentationConfig: ...",
+      "registration": {
+        "adapter": "PyRepresentationConfig",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/representation.rs"
+      }
+    },
+    {
+      "name": "RepresentationInput",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "declaration": "class RepresentationInput:\n    @staticmethod\n    def stored(selection: SelectionHandle) -> RepresentationInput: ...\n    @staticmethod\n    def query(query: Select) -> RepresentationInput: ...\n    @staticmethod\n    def source(source: str) -> RepresentationInput: ...\n    @staticmethod\n    def volume(volume: VolumeHandle) -> RepresentationInput: ...\n    @staticmethod\n    def segmentation(segmentation: SegmentationHandle) -> RepresentationInput: ...\n    kind: str",
+      "registration": {
+        "adapter": "PyRepresentationInput",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/representation.rs"
+      }
+    },
+    {
+      "name": "RepresentationParams",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class RepresentationParams:\n    def __init__(self, radius_scale: float = ..., bond_radius: float = ..., probe_radius: float = ..., gaussian_sigma: float = ..., isolevel: float = ..., surface_kind: SurfaceKind = ..., surface_style: SurfaceStyle = ..., surface_components: SurfaceComponentPolicy | None = ..., surface_pattern_spacing: float = ..., surface_pattern_width_pixels: float = ..., ribbon_width: float = ..., tube_radius: float = ..., tube_radius_mapping: TubeRadiusMapping | None = ..., point_size_pixels: float = ..., line_width_pixels: float = ...) -> None: ...\n    @staticmethod\n    def default() -> RepresentationParams: ...\n    radius_scale: float\n    bond_radius: float\n    probe_radius: float\n    isolevel: float\n    surface_components: SurfaceComponentPolicy\n    tube_radius: float",
+      "registration": {
+        "adapter": "PyRepresentationParams",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/representation.rs"
+      }
+    },
+    {
+      "name": "ScreenOverlay",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "member_ownership": {
+        "set_anchor": "borrowed-call",
+        "set_order": "borrowed-call",
+        "set_visible": "borrowed-call"
+      },
+      "declaration": "class ScreenOverlay:\n    @staticmethod\n    def text(text: str, anchor: OverlayAnchor, color: Rgba8, size_pixels: float = ...) -> ScreenOverlay: ...\n    @staticmethod\n    def coordinate_tripod(anchor: OverlayAnchor, size_pixels: float, width_pixels: float) -> ScreenOverlay: ...\n    anchor: OverlayAnchor\n    order: int\n    visible: bool\n    def set_anchor(self, anchor: OverlayAnchor) -> None: ...\n    def set_order(self, order: int) -> None: ...\n    def set_visible(self, visible: bool) -> None: ...",
+      "registration": {
+        "adapter": "PyScreenOverlay",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/overlay.rs"
+      }
+    },
+    {
+      "name": "FrameReport",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class FrameReport:\n    status: FrameStatus\n    complete: bool\n    pending_chunks: int\n    streaming_proxy: bool\n    needs_another_frame: bool\n    tracked_chunks: int\n    upload_in_flight_bytes: int\n    derived_cache_gpu_bytes: int\n    derived_cache_peak_gpu_bytes: int",
+      "registration": {
+        "adapter": "PyFrameReport",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/config.rs"
+      }
+    },
+    {
+      "name": "FrameTicket",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class FrameTicket:\n    index: int\n    timestamp: int",
+      "registration": {
+        "adapter": "PyFrameTicket",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/config.rs"
+      }
+    },
+    {
+      "name": "SequenceConfig",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class SequenceConfig:\n    def __init__(self, width: int, height: int, frames_per_second: int, max_in_flight: int = ...) -> None: ...\n    width: int\n    height: int\n    timebase_nanoseconds: int\n    max_in_flight: int",
+      "registration": {
+        "adapter": "PySequenceConfig",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/config.rs"
+      }
+    },
+    {
+      "name": "SequenceFrame",
+      "kind": "type",
+      "ownership": "transferred",
+      "member_ownership": {
+        "ticket": "copied-value",
+        "take_image": "transferred"
+      },
+      "declaration": "class SequenceFrame:\n    ticket: FrameTicket\n    def take_image(self) -> Image: ...",
+      "registration": {
+        "adapter": "PySequenceFrame",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/engine_sequence.rs"
+      }
+    },
+    {
+      "name": "SequenceRenderer",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "member_ownership": {
+        "submit": "borrowed-call",
+        "poll": "transferred",
+        "finish": "transferred",
+        "pending": "copied-value"
+      },
+      "declaration": "class SequenceRenderer:\n    def submit(self, engine: Engine, scene: Scene, camera: Camera, timestamp: int) -> FrameTicket: ...\n    def poll(self, engine: Engine) -> SequenceFrame | None: ...\n    def finish(self, engine: Engine) -> list[SequenceFrame]: ...\n    pending: int",
+      "registration": {
+        "adapter": "PySequenceRenderer",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/render/engine_sequence.rs"
+      }
+    },
+    {
+      "name": "SurfaceComponentPolicy",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class SurfaceComponentPolicy:\n    def __init__(self) -> None: ...\n    @staticmethod\n    def keep_all() -> SurfaceComponentPolicy: ...\n    @staticmethod\n    def minimum_area(area: float) -> SurfaceComponentPolicy: ...\n    @staticmethod\n    def minimum_volume(volume: float) -> SurfaceComponentPolicy: ...\n    @staticmethod\n    def minimum_voxels(voxels: int) -> SurfaceComponentPolicy: ...\n    def with_maximum_components(self, count: int) -> SurfaceComponentPolicy: ...\n    maximum_components: int | None\n    def is_enabled(self) -> bool: ...",
+      "registration": {
+        "adapter": "PySurfaceComponentPolicy",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/presentation.rs"
+      }
+    },
+    {
+      "name": "SurfaceZone",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class SurfaceZone:\n    selection: SelectionHandle\n    representation: RepresentationHandle",
+      "registration": {
+        "adapter": "PySurfaceZone",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/semantic.rs"
+      }
+    },
+    {
+      "name": "SurfaceZoneScene",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "member_ownership": {
+        "surface_zone": "borrowed-call",
+        "surface_zone_with": "borrowed-call",
+        "surface_components": "borrowed-call"
+      },
+      "declaration": "class SurfaceZoneScene:\n    @staticmethod\n    def surface_zone(scene: Scene, surface: SelectionHandle, around: SelectionHandle) -> SurfaceZone: ...\n    @staticmethod\n    def surface_zone_with(scene: Scene, surface: SelectionHandle, around: SelectionHandle, style: SurfaceZoneStyle) -> SurfaceZone: ...\n    @staticmethod\n    def surface_components(scene: Scene, surface: SelectionHandle, minimum_atoms: int) -> SurfaceZone: ...",
+      "registration": {
+        "adapter": "PySurfaceZoneScene",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/semantic.rs"
+      }
+    },
+    {
+      "name": "SurfaceZoneStyle",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class SurfaceZoneStyle:\n    def __init__(self, distance: float = ..., kind: SurfaceKind = ..., presentation: SurfaceStyle = ..., opacity: float = ..., color: Rgba8 | None = ...) -> None: ...\n    @staticmethod\n    def default() -> SurfaceZoneStyle: ...",
+      "registration": {
+        "adapter": "PySurfaceZoneStyle",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/semantic.rs"
+      }
+    },
+    {
+      "name": "VisualInstructionGpu",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class VisualInstructionGpu:\n    def __init__(self, control: tuple[int, int, int, int], data: tuple[float, float, float, float]) -> None: ...\n    control: tuple[int, int, int, int]\n    data: tuple[float, float, float, float]\n    @staticmethod\n    def byte_size() -> int: ...",
+      "registration": {
+        "adapter": "PyVisualInstructionGpu",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/visual.rs"
+      }
+    },
+    {
+      "name": "VolumeRendering",
+      "kind": "enum",
+      "ownership": "copied-value",
+      "declaration": "class VolumeRendering:\n    Direct: VolumeRendering\n    Isosurface: VolumeRendering\n    Medium: VolumeRendering\n    Slice: VolumeRendering\n    LiquidSurface: VolumeRendering",
+      "registration": {
+        "adapter": "PyVolumeRendering",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/volume.rs"
+      }
+    },
+    {
+      "name": "VolumeTransferFunction",
+      "kind": "type",
+      "ownership": "copied-value",
+      "member_ownership": {
+        "copy_points": "explicit-copy"
+      },
+      "declaration": "class VolumeTransferFunction:\n    def __init__(self, points: Sequence[VolumeTransferPoint]) -> None: ...\n    @staticmethod\n    def linear(range: tuple[float, float], low: Rgba8, high: Rgba8) -> VolumeTransferFunction: ...\n    @staticmethod\n    def default() -> VolumeTransferFunction: ...\n    def copy_points(self) -> list[VolumeTransferPoint]: ...",
+      "registration": {
+        "adapter": "PyVolumeTransferFunction",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/volume.rs"
+      }
+    },
+    {
+      "name": "VolumeTransferPoint",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class VolumeTransferPoint:\n    def __init__(self, value: float, color: Rgba8, opacity: float) -> None: ...\n    value: float\n    color: Rgba8\n    opacity: float",
+      "registration": {
+        "adapter": "PyVolumeTransferPoint",
+        "kind": "pyclass",
+        "source": "crates/pdviewx-py/src/pending_surface/volume.rs"
+      }
+    }
+  ]
+}

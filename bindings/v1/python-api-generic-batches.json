@@ -1,0 +1,85 @@
+{
+  "symbols": [
+    {
+      "name": "GenericCompositionView",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "declaration": "class GenericCompositionView:\n    domains: list[RowDomain]\n    normalized_weights: list[float]",
+      "registration": {"adapter": "PyGenericCompositionView", "kind": "pyclass", "source": "crates/pdviewx-py/src/semantic/generic/mod.rs"}
+    },
+    {
+      "name": "DerivedCacheBudget",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class DerivedCacheBudget:\n    def __init__(self, cpu_bytes: int, gpu_bytes: int) -> None: ...\n    @staticmethod\n    def default() -> DerivedCacheBudget: ...\n    cpu_bytes: int\n    gpu_bytes: int",
+      "registration": {"adapter": "PyDerivedCacheBudget", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/config.rs"}
+    },
+    {
+      "name": "AttributeHandle",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class AttributeHandle:\n    row: int\n    generation: int\n    def __repr__(self) -> str: ...",
+      "registration": {"adapter": "PyAttributeHandle", "kind": "pyclass", "source": "crates/pdviewx-py/src/handles.rs"}
+    },
+    {
+      "name": "PointBatchHandle",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class PointBatchHandle:\n    row: int\n    generation: int\n    def __repr__(self) -> str: ...",
+      "registration": {"adapter": "PyPointBatchHandle", "kind": "pyclass", "source": "crates/pdviewx-py/src/handles.rs"}
+    },
+    {
+      "name": "InstanceBatchHandle",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class InstanceBatchHandle:\n    row: int\n    generation: int\n    def __repr__(self) -> str: ...",
+      "registration": {"adapter": "PyInstanceBatchHandle", "kind": "pyclass", "source": "crates/pdviewx-py/src/handles.rs"}
+    },
+    {
+      "name": "RelationBatchHandle",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class RelationBatchHandle:\n    row: int\n    generation: int\n    def __repr__(self) -> str: ...",
+      "registration": {"adapter": "PyRelationBatchHandle", "kind": "pyclass", "source": "crates/pdviewx-py/src/handles.rs"}
+    },
+    {
+      "name": "RowDomain",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class RowDomain:\n    @staticmethod\n    def atoms(handle: StructureHandle) -> RowDomain: ...\n    @staticmethod\n    def points(handle: PointBatchHandle) -> RowDomain: ...\n    @staticmethod\n    def instances(handle: InstanceBatchHandle) -> RowDomain: ...\n    @staticmethod\n    def template_parts(handle: InstanceBatchHandle) -> RowDomain: ...\n    @staticmethod\n    def relations(handle: RelationBatchHandle) -> RowDomain: ...",
+      "registration": {"adapter": "PyRowDomain", "kind": "pyclass", "source": "crates/pdviewx-py/src/generic_batches/mod.rs"}
+    },
+    {
+      "name": "RelationPattern",
+      "kind": "type",
+      "ownership": "copied-value",
+      "declaration": "class RelationPattern:\n    Solid: RelationPattern\n    Dashed: RelationPattern\n    Dotted: RelationPattern\n    Spring: RelationPattern",
+      "registration": {"adapter": "PyRelationPattern", "kind": "pyclass", "source": "crates/pdviewx-py/src/generic_batches/mod.rs"}
+    },
+    {
+      "name": "AnalyticTemplate",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "member_ownership": {"__init__": "explicit-copy", "part_count": "borrowed-call"},
+      "declaration": "class AnalyticTemplate:\n    def __init__(self, namespace: int, spheres: NDArray[np.float32], capsules: NDArray[np.float32]) -> None: ...\n    part_count: int",
+      "registration": {"adapter": "PyAnalyticTemplate", "kind": "pyclass", "source": "crates/pdviewx-py/src/generic_batches/mod.rs"}
+    }
+  ],
+  "extensions": [
+    {
+      "name": "Scene",
+      "ownership": "borrowed-call",
+      "member_ownership": {
+        "add_point_batch_from_numpy": "explicit-copy",
+        "add_instance_batch_from_numpy": "explicit-copy",
+        "add_scalar_attribute_from_numpy": "explicit-copy",
+        "add_category_attribute_from_numpy": "explicit-copy",
+        "add_vector_attribute_from_numpy": "explicit-copy",
+        "add_color_attribute_from_numpy": "explicit-copy",
+        "add_world_relations_from_numpy": "explicit-copy",
+        "add_entity_relations_from_numpy": "explicit-copy"
+      },
+      "declaration": "    def set_domain_visual(self, domain: RowDomain, style: VisualStyle, order: int = ...) -> None: ...\n    def remove_domain_visual(self, domain: RowDomain) -> bool: ...\n    def set_domain_visible(self, domain: RowDomain, visible: bool) -> bool: ...\n    def domain_row_count(self, domain: RowDomain) -> int | None: ...\n    def add_point_batch_from_numpy(self, namespace: int, positions: NDArray[np.float32], radius: float = ..., color: tuple[int, int, int, int] = ..., sphere: bool = ...) -> PointBatchHandle: ...\n    def add_instance_batch_from_numpy(self, template: AnalyticTemplate, namespace: int, translations: NDArray[np.float32], orientations: NDArray[np.float32], scales: NDArray[np.float32], color: tuple[int, int, int, int] = ...) -> InstanceBatchHandle: ...\n    def add_scalar_attribute_from_numpy(self, domain: RowDomain, name: str, values: NDArray[np.float32]) -> AttributeHandle: ...\n    def add_category_attribute_from_numpy(self, domain: RowDomain, name: str, values: NDArray[np.uint32]) -> AttributeHandle: ...\n    def add_vector_attribute_from_numpy(self, domain: RowDomain, name: str, values: NDArray[np.float32]) -> AttributeHandle: ...\n    def add_color_attribute_from_numpy(self, domain: RowDomain, name: str, values: NDArray[np.uint8]) -> AttributeHandle: ...\n    def add_world_relations_from_numpy(self, namespace: int, starts: NDArray[np.float32], ends: NDArray[np.float32], width_pixels: float = ..., color: tuple[int, int, int, int] = ..., opacity: float = ..., pattern: RelationPattern = ..., endpoint_insets_pixels: tuple[float, float] = ..., depth_behind_anchors: bool = ...) -> RelationBatchHandle: ...\n    def add_entity_relations_from_numpy(self, namespace: int, start_domain: RowDomain, start_rows: NDArray[np.uint32], end_domain: RowDomain, end_rows: NDArray[np.uint32], width_pixels: float = ..., color: tuple[int, int, int, int] = ..., opacity: float = ..., pattern: RelationPattern = ..., endpoint_insets_pixels: tuple[float, float] = ..., depth_behind_anchors: bool = ...) -> RelationBatchHandle: ...\n    def compose_focus(self, domain: RowDomain, emphasis: AttributeHandle, context_opacity: float = ..., focus_opacity: float = ..., order: int = ...) -> GenericCompositionView: ...\n    def compose_difference(self, domains: Sequence[RowDomain], deltas: Sequence[AttributeHandle], context_threshold: float, emphasis_threshold: float, ramp: ScalarRamp, context_opacity: float = ..., order: int = ...) -> GenericCompositionView: ...\n    def compose_ensemble(self, domains: Sequence[RowDomain], weights: Sequence[float], colors: Sequence[Rgba8], dominant_opacity: float = ..., alternate_opacity: float = ..., minimum_opacity: float = ..., order: int = ...) -> GenericCompositionView: ..."
+    }
+  ]
+}
