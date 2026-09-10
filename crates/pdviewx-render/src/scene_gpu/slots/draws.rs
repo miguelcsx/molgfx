@@ -1,8 +1,8 @@
 //! Constant-cost draw routing for one persistent representation slot.
 
-use super::GpuSlot;
-use crate::passes::SurfaceFieldPass;
-use crate::scene_gpu::slot_types::{CullDispatch, SlotShading};
+use super::{FAST_POINT_INDEX_LIMIT, GpuSlot};
+use crate::passes::{SurfaceComponentPass, SurfaceFieldPass};
+use crate::scene_gpu::slot_types::{CullDispatch, CullModes, SlotShading};
 use pdviewx_core::RepresentationKind;
 use pdviewx_gpu::Device;
 
@@ -10,14 +10,14 @@ use pdviewx_gpu::Device;
 /// second analytic raster over more instances than this consumes the frame
 /// budget while contributing mostly subpixel shadow detail.
 const REALTIME_SHADOW_INSTANCES: u32 = 131_072;
-
 impl<D: Device> GpuSlot<D> {
     pub(in crate::scene_gpu) fn record_surface_field(
         &mut self,
         encoder: &mut D::CommandEncoder,
         pass: &SurfaceFieldPass<D>,
+        components: &SurfaceComponentPass<D>,
     ) {
-        self.surface.record(encoder, pass);
+        self.surface.record(encoder, pass, components);
     }
 
     pub(in crate::scene_gpu) fn atom_draw(
@@ -25,13 +25,13 @@ impl<D: Device> GpuSlot<D> {
         translucent: bool,
     ) -> Option<(&D::BindGroup, &D::Buffer, SlotShading)> {
         (self.atom_count > 0
-            && matches!(
+            && (matches!(
                 self.kind,
                 RepresentationKind::Spacefill
                     | RepresentationKind::BallAndStick
                     | RepresentationKind::Licorice
                     | RepresentationKind::Beads
-            )
+            ) || self.shading.surface_atoms())
             && self.translucent == translucent)
             .then_some((
                 self.group2.as_ref()?,
@@ -102,6 +102,7 @@ impl<D: Device> GpuSlot<D> {
     ) -> Option<(&D::BindGroup, &D::Buffer, SlotShading)> {
         (self.kind == RepresentationKind::Surface
             && self.atom_count > 0
+            && !self.shading.surface_atoms()
             && self.translucent == translucent)
             .then_some((
                 self.group2.as_ref()?,
@@ -110,7 +111,9 @@ impl<D: Device> GpuSlot<D> {
             ))
     }
 
-    pub(in crate::scene_gpu) fn quality_draw(&self) -> Option<&D::BindGroup> {
+    pub(in crate::scene_gpu) fn quality_draw(
+        &self,
+    ) -> Option<super::super::slot_types::QualityDraw<'_, D>> {
         if self.atom_count == 0 || self.translucent {
             return None;
         }
@@ -118,41 +121,79 @@ impl<D: Device> GpuSlot<D> {
             RepresentationKind::Spacefill
             | RepresentationKind::BallAndStick
             | RepresentationKind::Licorice
-            | RepresentationKind::Surface => self.group2.as_ref(),
+            | RepresentationKind::Surface => Some((
+                self.quality_group.as_ref()?,
+                self.quality_acceleration.hardware_group(),
+                self.shading,
+            )),
             _ => None,
         }
     }
 
+    pub(in crate::scene_gpu) fn record_quality_hardware(
+        &mut self,
+        encoder: &mut D::CommandEncoder,
+    ) {
+        self.quality_acceleration.record_hardware(encoder);
+    }
+
     pub(in crate::scene_gpu) fn cull(
         &self,
-        tile_groups: u32,
+        tile_groups: [u32; 2],
         fast_tile_lod: bool,
     ) -> Option<CullDispatch<'_, D>> {
-        if self.kind == RepresentationKind::Surface
+        if (self.kind == RepresentationKind::Surface
+            && !self.shading.surface_atoms()
+            && !self.visual.has_cull_results()
+            && !self.visual.has_shading_results())
             || (self.atom_count == 0 && self.bond_count == 0)
         {
             return None;
         }
         Some(CullDispatch {
-            group: self.cull_group.as_ref()?,
-            atom_groups: if self.kind == RepresentationKind::Lines {
-                0
+            atom_group: self.atom_cull_group.as_ref()?,
+            bond_group: self.bond_cull_group.as_ref()?,
+            visual_group: self.visual_cull_group.as_ref()?,
+            atom_groups: if self.kind == RepresentationKind::Lines || is_spline_kind(self.kind) {
+                [0, 0]
             } else {
-                self.atom_count.div_ceil(64)
+                super::super::dispatch::workgroups_2d(u64::from(self.atom_count).div_ceil(64))
             },
-            bin_groups: self
-                .atom_count
-                .div_ceil(self.atom_count.div_ceil(65_536).max(1))
+            bin_groups: super::super::dispatch::workgroups_2d(
+                u64::from(
+                    self.atom_count
+                        .div_ceil(self.atom_count.div_ceil(65_536).max(1)),
+                )
                 .div_ceil(64),
+            ),
             tile_groups,
-            lod: self.atom_count >= REALTIME_SHADOW_INSTANCES,
-            fast_points: self.kind == RepresentationKind::Points
-                && self.bond_count == 0
-                && self.atom_count >= REALTIME_SHADOW_INSTANCES
-                && self.atom_count < 1_048_575
-                && fast_tile_lod,
-            bond_groups: self.bond_count.div_ceil(64),
-            direct_bonds: self.kind == RepresentationKind::Lines,
+            modes: CullModes::default()
+                .with_lod(self.atom_count >= REALTIME_SHADOW_INSTANCES)
+                .with_fast_points(
+                    self.kind == RepresentationKind::Points
+                        && self.bond_count == 0
+                        && self.atom_count >= REALTIME_SHADOW_INSTANCES
+                        && self.atom_count < FAST_POINT_INDEX_LIMIT
+                        && fast_tile_lod,
+                )
+                .with_direct_bonds(self.kind == RepresentationKind::Lines)
+                .with_cull_visual(self.visual.has_cull_results())
+                .with_shading_visual(self.visual.has_shading_results())
+                .with_shading_all(
+                    self.kind == RepresentationKind::Lines
+                        || is_spline_kind(self.kind)
+                        || (self.kind == RepresentationKind::Surface
+                            && !self.shading.surface_atoms()),
+                ),
+            bond_groups: super::super::dispatch::workgroups_2d(
+                u64::from(self.bond_count).div_ceil(64),
+            ),
+            visual_groups: super::super::dispatch::workgroups_2d(
+                match u64::try_from(self.visual.entity_count()) {
+                    Ok(count) => count.div_ceil(64),
+                    Err(_) => u64::MAX.div_ceil(64),
+                },
+            ),
         })
     }
 
@@ -165,4 +206,16 @@ impl<D: Device> GpuSlot<D> {
             && self.atom_count >= REALTIME_SHADOW_INSTANCES
             && !self.translucent
     }
+}
+
+const fn is_spline_kind(kind: RepresentationKind) -> bool {
+    matches!(
+        kind,
+        RepresentationKind::Cartoon
+            | RepresentationKind::Trace
+            | RepresentationKind::Tube
+            | RepresentationKind::Rocket
+            | RepresentationKind::Twister
+            | RepresentationKind::PaperChain
+    )
 }
