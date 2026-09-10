@@ -5,12 +5,12 @@ use crate::math::PyMat4;
 use pyo3::prelude::*;
 use std::sync::Arc;
 
-#[pyclass(name = "DensityVolume", frozen, from_py_object)]
+#[pyclass(name = "ScalarVolume", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyDensityVolume(pub(crate) pdviewx::DensityVolume);
+pub(crate) struct PyScalarVolume(pub(crate) pdviewx::ScalarVolume);
 
 #[pymethods]
-impl PyDensityVolume {
+impl PyScalarVolume {
     #[new]
     #[pyo3(signature = (dimensions, values, voxel_to_world=None))]
     fn new(
@@ -19,7 +19,7 @@ impl PyDensityVolume {
         voxel_to_world: Option<PyMat4>,
     ) -> PyResult<Self> {
         let transform = voxel_to_world.map_or(pdviewx::Mat4::IDENTITY, |value| value.0);
-        core(pdviewx::DensityVolume::new(
+        core(pdviewx::ScalarVolume::new(
             [dimensions.0, dimensions.1, dimensions.2],
             transform,
             Arc::from(values.into_boxed_slice()),
@@ -44,6 +44,57 @@ impl PyDensityVolume {
     #[getter]
     fn voxel_to_world(&self) -> PyMat4 {
         PyMat4(self.0.voxel_to_world())
+    }
+}
+
+/// Compact declaration for a GPU-resident temporal occupancy volume.
+#[pyclass(name = "OccupancyStream", frozen, from_py_object)]
+#[derive(Clone, Debug)]
+pub(crate) struct PyOccupancyStream(pub(crate) pdviewx::OccupancyStream);
+
+#[pymethods]
+impl PyOccupancyStream {
+    #[new]
+    #[pyo3(signature = (dimensions, origin, spacing, decay, deposit, maximum))]
+    fn new(
+        dimensions: (u32, u32, u32),
+        origin: (f32, f32, f32),
+        spacing: (f32, f32, f32),
+        decay: f32,
+        deposit: f32,
+        maximum: f32,
+    ) -> PyResult<Self> {
+        core(pdviewx::OccupancyStream::new(
+            [dimensions.0, dimensions.1, dimensions.2],
+            pdviewx::Vec3::new(origin.0, origin.1, origin.2),
+            pdviewx::Vec3::new(spacing.0, spacing.1, spacing.2),
+            decay,
+            deposit,
+            maximum,
+        ))
+        .map(Self)
+    }
+
+    #[getter]
+    fn dimensions(&self) -> (u32, u32, u32) {
+        let value = self.0.dimensions();
+        (value[0], value[1], value[2])
+    }
+    #[getter]
+    fn voxel_to_model(&self) -> PyMat4 {
+        PyMat4(self.0.voxel_to_model())
+    }
+    #[getter]
+    fn decay(&self) -> f32 {
+        self.0.decay()
+    }
+    #[getter]
+    fn deposit(&self) -> f32 {
+        self.0.deposit()
+    }
+    #[getter]
+    fn maximum(&self) -> f32 {
+        self.0.maximum()
     }
 }
 
@@ -163,7 +214,8 @@ impl PyMaterial {
 }
 
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyDensityVolume>()?;
+    module.add_class::<PyScalarVolume>()?;
+    module.add_class::<PyOccupancyStream>()?;
     module.add_class::<PySegmentedVolume>()?;
     module.add_class::<PyMaterialModel>()?;
     module.add_class::<PyMaterial>()
