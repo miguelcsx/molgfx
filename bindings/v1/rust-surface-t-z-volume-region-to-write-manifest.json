@@ -1,0 +1,295 @@
+{
+  "symbols": [
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "bindings": {
+          "VolumeStyle": [
+            "region"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/values/volume.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "VolumeStyle"
+        ]
+      },
+      "rust": "VolumeRegion",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "VolumeRegion is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "VolumeRegion is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "enum",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/pending_surface/volume.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "VolumeRendering"
+        ]
+      },
+      "rust": "VolumeRendering",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "VolumeRendering is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "VolumeRendering is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/handles.rs",
+          "crates/pdviewx-py/src/handles.rs",
+          "crates/pdviewx-py/src/handles.rs",
+          "crates/pdviewx-py/src/handles.rs",
+          "crates/pdviewx-py/src/handles.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "VolumeSegmentRef"
+        ]
+      },
+      "rust": "VolumeSegmentRef",
+      "typescript": {
+        "adapters": {
+          "WebPick": [
+            "volume",
+            "label"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_types.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "tests/browser/smoke.js"
+        ]
+      },
+      "wasm": {
+        "adapters": {
+          "WebPick": [
+            "volume",
+            "label"
+          ]
+        },
+        "evidence": "crates/pdviewx-wasm/src/browser_types.rs",
+        "implemented": true,
+        "state": "typed-adapter",
+        "tests": [
+          "tests/browser/smoke.js"
+        ]
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "bindings": {
+          "VolumeStyle": [
+            "slice"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/values/volume.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "VolumeStyle"
+        ]
+      },
+      "rust": "VolumeSlice",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "VolumeSlice is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "VolumeSlice is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs",
+          "crates/pdviewx-py/src/values/volume.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "VolumeStyle"
+        ]
+      },
+      "rust": "VolumeStyle",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "VolumeStyle is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "VolumeStyle is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/pending_surface/volume.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "VolumeTransferFunction"
+        ]
+      },
+      "rust": "VolumeTransferFunction",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "VolumeTransferFunction is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "VolumeTransferFunction is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "evidence": [
+          "crates/pdviewx-py/src/pending_surface/volume.rs"
+        ],
+        "state": "direct",
+        "symbols": [
+          "VolumeTransferPoint"
+        ]
+      },
+      "rust": "VolumeTransferPoint",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "VolumeTransferPoint is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "VolumeTransferPoint is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "unavailable",
+      "python": {
+        "evidence": [],
+        "reason": "Native window integration is intentionally absent from the headless Python host.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "WindowSource",
+      "typescript": {
+        "evidence": "docs/20-bindings.md:169",
+        "reason": "WindowSource belongs to the host target boundary; the browser supplies its canvas and lifecycle without exposing native window handles.",
+        "state": "host-owned"
+      },
+      "wasm": {
+        "evidence": "docs/20-bindings.md:169",
+        "reason": "WindowSource belongs to the host target boundary; the browser supplies its canvas and lifecycle without exposing native window handles.",
+        "state": "host-owned"
+      }
+    },
+    {
+      "kind": "type",
+      "ownership": "unavailable",
+      "python": {
+        "evidence": [],
+        "reason": "Native window integration is intentionally absent from the headless Python host.",
+        "state": "excluded",
+        "symbols": []
+      },
+      "rust": "WindowTarget",
+      "typescript": {
+        "evidence": "docs/20-bindings.md:169",
+        "reason": "WindowTarget belongs to the host target boundary; the browser supplies its canvas and lifecycle without exposing native window handles.",
+        "state": "host-owned"
+      },
+      "wasm": {
+        "evidence": "docs/20-bindings.md:169",
+        "reason": "WindowTarget belongs to the host target boundary; the browser supplies its canvas and lifecycle without exposing native window handles.",
+        "state": "host-owned"
+      }
+    },
+    {
+      "kind": "function",
+      "ownership": "borrowed-call",
+      "python": {
+        "bindings": {
+          "Scene": [
+            "copy_manifest_json"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/scene.rs"
+        ],
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ]
+      },
+      "rust": "write_manifest",
+      "typescript": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "write_manifest is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      },
+      "wasm": {
+        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "gap": "write_manifest is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
+        "implemented": false,
+        "state": "typed-adapter"
+      }
+    }
+  ]
+}
