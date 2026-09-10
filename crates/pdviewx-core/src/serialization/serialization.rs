@@ -3,57 +3,25 @@
 //! A description is deliberately not a second structure format. It records
 //! the scene-owned composition and hashes the caller-owned coordinates. The
 //! caller must supply the same `pdbiox` structures again before rendering.
+use super::coordinate_hash::coordinate_hash;
 use super::records;
 use super::types::{
-    ClipDescription, ColorDescription, MaterialDescription, RepresentationDescription,
-    SceneDescription, SelectionDescription, SelectionMask, StructureDescription, TableCounts,
-    TargetDescription, VolumeDescription,
+    ClipDescription, ColorDescription, MaterialDescription, OccupancyDescription,
+    RepresentationDescription, SceneDescription, SelectionDescription, SelectionMask,
+    StructureDescription, SurfaceComponentDescription, TableCounts, TargetDescription,
+    VisualInstructionDescription, VisualStyleDescription, VolumeDescription,
 };
 use crate::handle::{RawHandle, StructureHandle};
 use crate::{
     ClipCap, ColorScheme, Material, MaterialModel, RepresentationTarget, Scene, SelectionHandle,
+    VisualOutput, VisualStyle,
 };
 use pdviewx_math::Rgba8;
-pub(crate) const SCHEMA_VERSION: u16 = 4;
+pub(crate) const SCHEMA_VERSION: u16 = 8;
 
 #[cfg(test)]
 #[path = "serialization_tests.rs"]
 mod tests;
-
-impl SceneDescription {
-    /// Encodes this description as stable pretty JSON.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::CoreError::InvalidSceneDescription`] if serialization
-    /// fails.
-    pub fn to_json(&self) -> Result<String, crate::CoreError> {
-        serde_json::to_string_pretty(self).map_err(|error| {
-            crate::CoreError::InvalidSceneDescription {
-                summary: error.to_string(),
-            }
-        })
-    }
-
-    /// Decodes a manifest without touching structure data.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::CoreError::InvalidSceneDescription`] for malformed
-    /// JSON or an unsupported schema version.
-    pub fn from_json(source: &str) -> Result<Self, crate::CoreError> {
-        let description: Self = serde_json::from_str(source).map_err(|error| {
-            crate::CoreError::InvalidSceneDescription {
-                summary: error.to_string(),
-            }
-        })?;
-        matches!(description.schema, 3 | SCHEMA_VERSION)
-            .then_some(description)
-            .ok_or_else(|| crate::CoreError::InvalidSceneDescription {
-                summary: format!("unsupported scene schema; expected 3 or {SCHEMA_VERSION}"),
-            })
-    }
-}
 
 impl Scene {
     /// Captures the scene-owned composition without copying source coordinates.
@@ -61,7 +29,7 @@ impl Scene {
     pub fn describe(&self) -> SceneDescription {
         SceneDescription {
             schema: SCHEMA_VERSION,
-            engine: "pdviewx-scene-4".to_owned(),
+            engine: format!("pdviewx-scene-{SCHEMA_VERSION}"),
             structures: self
                 .structures
                 .iter()
@@ -81,7 +49,7 @@ impl Scene {
             volumes: self
                 .volumes
                 .iter()
-                .map(|(raw, stored)| volume_description(raw, &stored.value))
+                .map(|(raw, stored)| stored_volume_description(self, raw, stored))
                 .collect(),
             segmentations: self
                 .segmentations
@@ -93,36 +61,39 @@ impl Scene {
                     range: [0.0, 0.0],
                     voxel_to_world: stored.value.voxel_to_world().to_cols_array(),
                     content_hash: records::label_hash(stored.value.labels()),
+                    occupancy: None,
                 })
                 .collect(),
             meshes: records::meshes(self),
             mesh_instances: records::mesh_instances(self),
             primitives: records::primitives(self),
+            ligand_pose_batches: super::ligand_pose_description::records(self),
+            point_batches: super::generic_records::point_batches(self),
+            instance_batches: super::generic_records::instance_batches(self),
+            attributes: super::generic_records::attributes(self),
+            relation_batches: super::generic_records::relation_batches(self),
+            domain_visuals: super::generic_records::domain_visuals(self),
             overlays: records::overlays(self),
             guides: records::guides(self),
             interactions: records::interactions(self),
             annotations: records::annotations(self),
             measurements: records::measurements(self),
             tables: TableCounts {
-                interactions: saturating_u32(self.interaction_count()),
-                guides: saturating_u32(self.guides().count()),
-                annotations: saturating_u32(self.annotations().count()),
-                measurements: saturating_u32(self.measurements().count()),
-                atom_properties: saturating_u32(self.atom_properties().count()),
-                mesh_instances: saturating_u32(self.mesh_instances().count()),
-                overlays: saturating_u32(self.overlays().count()),
+                interactions: self.interaction_count() as u64,
+                guides: self.guides().count() as u64,
+                annotations: self.annotations().count() as u64,
+                measurements: self.measurements().count() as u64,
+                atom_properties: self.atom_properties().count() as u64,
+                mesh_instances: self.mesh_instances().count() as u64,
+                overlays: self.overlays().count() as u64,
+                ligand_pose_batches: self.ligand_pose_batches().count() as u64,
+                point_batches: self.point_batches().count() as u64,
+                instance_batches: self.instance_batches().count() as u64,
+                attributes: self.attributes().count() as u64,
+                relation_batches: self.relation_batches().count() as u64,
+                domain_visuals: self.domain_visuals().count() as u64,
             },
         }
-    }
-
-    /// Encodes the current scene description as JSON.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::CoreError::InvalidSceneDescription`] if serialization
-    /// fails.
-    pub fn to_json(&self) -> Result<String, crate::CoreError> {
-        self.describe().to_json()
     }
 
     /// Checks source hashes and all scene-owned composition against a manifest.
@@ -136,22 +107,7 @@ impl Scene {
         description: &SceneDescription,
     ) -> Result<(), crate::CoreError> {
         let current = self.describe();
-        let equivalent = if description.schema == 3 {
-            current.structures == description.structures
-                && current.selections == description.selections
-                && current.atom_properties == description.atom_properties
-                && current.representations == description.representations
-                && current.volumes == description.volumes
-                && current.segmentations == description.segmentations
-                && current.primitives == description.primitives
-                && current.guides == description.guides
-                && current.interactions == description.interactions
-                && current.annotations == description.annotations
-                && current.measurements == description.measurements
-        } else {
-            current == *description
-        };
-        if equivalent {
+        if current == *description {
             Ok(())
         } else {
             Err(crate::CoreError::InvalidSceneDescription {
@@ -169,6 +125,7 @@ fn structure_description(
     StructureDescription {
         row: handle.row(),
         generation: handle.generation(),
+        dataset_id: placed.dataset_id().get(),
         source_id: entry.id.as_deref().map(str::to_owned),
         title: entry.title.as_deref().map(str::to_owned),
         method: entry.method.as_deref().map(str::to_owned),
@@ -254,6 +211,18 @@ fn representation_description(
             f32::from(representation.material.opacity_unorm8()),
             f32::from(representation.order),
         ],
+        surface_components: match params.surface_components.threshold() {
+            crate::SurfaceComponentThreshold::Disabled => SurfaceComponentDescription::Disabled,
+            crate::SurfaceComponentThreshold::Area(minimum) => {
+                SurfaceComponentDescription::Area(minimum)
+            }
+            crate::SurfaceComponentThreshold::Volume(minimum) => {
+                SurfaceComponentDescription::Volume(minimum)
+            }
+            crate::SurfaceComponentThreshold::Voxels(minimum) => {
+                SurfaceComponentDescription::Voxels(minimum)
+            }
+        },
         clipping: clip_description(representation.clipping),
         tube_radius_mapping: params
             .tube_radius_mapping
@@ -267,6 +236,83 @@ fn representation_description(
         surface_scalar: representation
             .surface_scalar
             .map(records::surface_scalar_description),
+        visual: representation.visual.as_ref().map(visual_description),
+    }
+}
+
+pub(super) fn visual_description(style: &VisualStyle) -> VisualStyleDescription {
+    let program = style.program();
+    let outputs = [
+        VisualOutput::BaseColor,
+        VisualOutput::Opacity,
+        VisualOutput::Emission,
+        VisualOutput::Roughness,
+        VisualOutput::Specular,
+        VisualOutput::MaterialStrength,
+        VisualOutput::Visibility,
+        VisualOutput::SilhouetteSoftness,
+        VisualOutput::RadiusScale,
+        VisualOutput::WidthScale,
+        VisualOutput::PositionOffset,
+    ]
+    .into_iter()
+    .filter_map(|output| {
+        program
+            .output_register(output)
+            .map(|register| [output.code(), register])
+    })
+    .collect();
+    VisualStyleDescription {
+        instructions: program
+            .instructions()
+            .iter()
+            .map(|instruction| VisualInstructionDescription {
+                opcode: instruction.opcode(),
+                kind: instruction.kind_code(),
+                operands: instruction.operands(),
+                data: instruction.data(),
+                stage: instruction.stage().code(),
+            })
+            .collect(),
+        outputs,
+        properties: program
+            .properties()
+            .iter()
+            .map(|property| super::types::ObjectIdentity {
+                row: property.row(),
+                generation: property.generation(),
+            })
+            .collect(),
+        attributes: program
+            .attributes()
+            .iter()
+            .filter_map(|reference| {
+                let crate::VisualAttributeRef::Attribute { handle, kind } = *reference else {
+                    return None;
+                };
+                Some(super::types::VisualAttributeDescription {
+                    identity: super::types::ObjectIdentity {
+                        row: handle.row(),
+                        generation: handle.generation(),
+                    },
+                    kind: match kind {
+                        crate::AttributeKind::Scalar => "scalar",
+                        crate::AttributeKind::Category => "category",
+                        crate::AttributeKind::Vector => "vector",
+                        crate::AttributeKind::Color => "color",
+                    }
+                    .into(),
+                })
+            })
+            .collect(),
+        parameter_kinds: program
+            .parameter_kinds()
+            .iter()
+            .map(|kind| kind.code())
+            .collect(),
+        parameter_defaults: program.parameter_defaults().to_vec(),
+        parameters: style.parameters().to_vec(),
+        maximum_displacement: program.maximum_displacement(),
     }
 }
 
@@ -338,7 +384,7 @@ pub(crate) fn clip_description(clipping: crate::ClipSet) -> ClipDescription {
     }
 }
 
-fn volume_description(raw: RawHandle, volume: &crate::DensityVolume) -> VolumeDescription {
+fn volume_description(raw: RawHandle, volume: &crate::ScalarVolume) -> VolumeDescription {
     VolumeDescription {
         row: raw.row(),
         generation: raw.generation(),
@@ -346,6 +392,52 @@ fn volume_description(raw: RawHandle, volume: &crate::DensityVolume) -> VolumeDe
         range: volume.range(),
         voxel_to_world: volume.voxel_to_world().to_cols_array(),
         content_hash: records::value_hash(volume.values()),
+        occupancy: None,
+    }
+}
+
+fn stored_volume_description(
+    scene: &Scene,
+    raw: RawHandle,
+    stored: &crate::scene::StoredVolume,
+) -> VolumeDescription {
+    if let Some(volume) = &stored.value {
+        return volume_description(raw, volume);
+    }
+    let Some(bound) = &stored.occupancy else {
+        return VolumeDescription {
+            row: raw.row(),
+            generation: raw.generation(),
+            dimensions: [2; 3],
+            range: [0.0, 1.0],
+            voxel_to_world: pdviewx_math::Mat4::IDENTITY.to_cols_array(),
+            content_hash: 0,
+            occupancy: None,
+        };
+    };
+    let transform = scene
+        .structure(bound.structure)
+        .map_or(bound.stream.voxel_to_model(), |placed| {
+            placed.model_to_world * bound.stream.voxel_to_model()
+        });
+    VolumeDescription {
+        row: raw.row(),
+        generation: raw.generation(),
+        dimensions: bound.stream.dimensions(),
+        range: [0.0, bound.stream.maximum()],
+        voxel_to_world: transform.to_cols_array(),
+        content_hash: 0,
+        occupancy: Some(OccupancyDescription {
+            structure: crate::serialization::ObjectIdentity {
+                row: bound.structure.row(),
+                generation: bound.structure.generation(),
+            },
+            atom_rows: bound.atom_rows.to_vec(),
+            voxel_to_model: bound.stream.voxel_to_model().to_cols_array(),
+            decay: bound.stream.decay(),
+            deposit: bound.stream.deposit(),
+            maximum: bound.stream.maximum(),
+        }),
     }
 }
 
@@ -369,6 +461,7 @@ fn surface_style_value(style: crate::SurfaceStyle) -> f32 {
         crate::SurfaceStyle::Dots => 2.0,
         crate::SurfaceStyle::FilledContour => 3.0,
         crate::SurfaceStyle::Mesh => 4.0,
+        crate::SurfaceStyle::SoftUnion => 5.0,
     }
 }
 
@@ -378,33 +471,5 @@ fn secondary_name(value: crate::SecondaryStructure) -> &'static str {
         crate::SecondaryStructure::Helix => "helix",
         crate::SecondaryStructure::Strand => "strand",
         crate::SecondaryStructure::Turn => "turn",
-    }
-}
-
-pub(crate) fn coordinate_hash(placed: &crate::PlacedStructure) -> u64 {
-    let mut hash = 14_695_981_039_346_656_037u64;
-    let update = |hash: &mut u64, byte: u8| {
-        *hash ^= u64::from(byte);
-        *hash = hash.wrapping_mul(1_099_511_628_211);
-    };
-    if let Some(id) = placed.structure.data().entry.id.as_deref() {
-        for byte in id.as_bytes() {
-            update(&mut hash, *byte);
-        }
-    }
-    for coordinate in placed.atoms.coords().slice() {
-        for component in coordinate {
-            for byte in component.to_bits().to_le_bytes() {
-                update(&mut hash, byte);
-            }
-        }
-    }
-    hash
-}
-
-fn saturating_u32(value: usize) -> u32 {
-    match u32::try_from(value) {
-        Ok(value) => value,
-        Err(_) => u32::MAX,
     }
 }
