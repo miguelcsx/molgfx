@@ -1,0 +1,266 @@
+{
+  "symbols": [
+    {
+      "rust": "CompositionError",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ],
+        "bindings": {
+          "Scene": [
+            "compose_focus",
+            "compose_difference",
+            "compose_ensemble"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+        ]
+      },
+      "wasm": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs",
+        "gap": "CompositionError is part of the renderer-owned typed error contract, but no Web SDK operation currently carries its complete typed semantics."
+      },
+      "typescript": {
+        "state": "typed-adapter",
+        "implemented": false,
+        "evidence": "typescript/pdviewx.generated.d.ts",
+        "gap": "CompositionError is part of the renderer-owned typed error contract, but no Web SDK operation currently carries its complete typed semantics."
+      }
+    },
+    {
+      "rust": "DifferenceCompositionStyle",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ],
+        "bindings": {
+          "Scene": [
+            "compose_difference"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+        ]
+      },
+      "wasm": {
+        "state": "direct",
+        "name": "WebDifferenceComposition",
+        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+      },
+      "typescript": {
+        "state": "direct",
+        "name": "WebDifferenceComposition",
+        "evidence": "typescript/pdviewx.generated.d.ts"
+      }
+    },
+    {
+      "rust": "DifferenceLayer",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ],
+        "bindings": {
+          "Scene": [
+            "compose_difference"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+        ]
+      },
+      "wasm": {
+        "state": "direct",
+        "name": "WebDifferenceComposition",
+        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+      },
+      "typescript": {
+        "state": "direct",
+        "name": "WebDifferenceComposition",
+        "evidence": "typescript/pdviewx.generated.d.ts"
+      }
+    },
+    {
+      "rust": "EnsembleCompositionStyle",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ],
+        "bindings": {
+          "Scene": [
+            "compose_ensemble"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+        ]
+      },
+      "wasm": {
+        "state": "direct",
+        "name": "WebEnsembleComposition",
+        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+      },
+      "typescript": {
+        "state": "direct",
+        "name": "WebEnsembleComposition",
+        "evidence": "typescript/pdviewx.generated.d.ts"
+      }
+    },
+    {
+      "rust": "EnsembleLayer",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ],
+        "bindings": {
+          "Scene": [
+            "compose_ensemble"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+        ]
+      },
+      "wasm": {
+        "state": "direct",
+        "name": "WebEnsembleComposition",
+        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+      },
+      "typescript": {
+        "state": "direct",
+        "name": "WebEnsembleComposition",
+        "evidence": "typescript/pdviewx.generated.d.ts"
+      }
+    },
+    {
+      "rust": "FocusCompositionStyle",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ],
+        "bindings": {
+          "Scene": [
+            "compose_focus"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+        ]
+      },
+      "wasm": {
+        "state": "direct",
+        "name": "WebScene",
+        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+      },
+      "typescript": {
+        "state": "direct",
+        "name": "WebScene",
+        "evidence": "typescript/pdviewx.generated.d.ts"
+      }
+    },
+    {
+      "rust": "FocusLayer",
+      "kind": "type",
+      "ownership": "copied-value",
+      "python": {
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ],
+        "bindings": {
+          "Scene": [
+            "compose_focus"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+        ]
+      },
+      "wasm": {
+        "state": "direct",
+        "name": "WebScene",
+        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+      },
+      "typescript": {
+        "state": "direct",
+        "name": "WebScene",
+        "evidence": "typescript/pdviewx.generated.d.ts"
+      }
+    },
+    {
+      "rust": "GenericCompositionScene",
+      "kind": "trait",
+      "ownership": "borrowed-call",
+      "python": {
+        "state": "typed-adapter",
+        "symbols": [
+          "Scene"
+        ],
+        "bindings": {
+          "Scene": [
+            "compose_focus",
+            "compose_difference",
+            "compose_ensemble"
+          ]
+        },
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+        ]
+      },
+      "wasm": {
+        "state": "direct",
+        "name": "WebScene",
+        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+      },
+      "typescript": {
+        "state": "direct",
+        "name": "WebScene",
+        "evidence": "typescript/pdviewx.generated.d.ts"
+      }
+    },
+    {
+      "rust": "GenericCompositionView",
+      "kind": "type",
+      "ownership": "rust-owned",
+      "python": {
+        "state": "direct",
+        "symbols": [
+          "GenericCompositionView"
+        ],
+        "evidence": [
+          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+        ]
+      },
+      "wasm": {
+        "state": "direct",
+        "name": "WebGenericCompositionView",
+        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+      },
+      "typescript": {
+        "state": "direct",
+        "name": "WebGenericCompositionView",
+        "evidence": "typescript/pdviewx.generated.d.ts"
+      }
+    }
+  ]
+}
