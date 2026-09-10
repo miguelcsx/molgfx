@@ -4,7 +4,8 @@
 //! associated types), matching how every modern API scopes a pass.
 
 use crate::descriptors::{ComputePassDesc, RenderPassDesc};
-use crate::device::Device;
+use crate::device::{Device, RayQueryDevice};
+use crate::{BlasBuildDesc, GpuError};
 use std::ops::Range;
 
 /// Records passes and copies into one submission.
@@ -55,6 +56,52 @@ pub trait CommandEncoder<D: Device>: Sized {
         dst: &D::Buffer,
         offset: u64,
     );
+
+    /// Records one BLAS build.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capability, validation or backend recording failure.
+    fn build_blas(&mut self, _desc: &BlasBuildDesc<'_, D>) -> Result<(), GpuError> {
+        Err(GpuError::Capability { name: "ray query" })
+    }
+
+    /// Records one TLAS build.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capability, validation or backend recording failure.
+    fn build_tlas(&mut self, _tlas: &D::Tlas) -> Result<(), GpuError> {
+        Err(GpuError::Capability { name: "ray query" })
+    }
+}
+
+/// Command-encoder extension for acceleration-structure builds.
+pub trait RayQueryCommandEncoder<D: RayQueryDevice>: CommandEncoder<D> {
+    /// Records one BLAS build.
+    ///
+    /// # Errors
+    ///
+    /// Returns capability, validation or backend recording failures.
+    fn build_blas(&mut self, desc: &BlasBuildDesc<'_, D>) -> Result<(), GpuError> {
+        CommandEncoder::build_blas(self, desc)
+    }
+
+    /// Records one TLAS build after its referenced BLAS builds.
+    ///
+    /// # Errors
+    ///
+    /// Returns capability, validation or backend recording failures.
+    fn build_tlas(&mut self, tlas: &D::Tlas) -> Result<(), GpuError> {
+        CommandEncoder::build_tlas(self, tlas)
+    }
+}
+
+impl<D, E> RayQueryCommandEncoder<D> for E
+where
+    D: RayQueryDevice,
+    E: CommandEncoder<D>,
+{
 }
 
 /// Records draws inside an open render pass.
