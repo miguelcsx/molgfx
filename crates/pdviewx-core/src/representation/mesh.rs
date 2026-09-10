@@ -16,6 +16,7 @@ use crate::{ClipSet, error::CoreError};
 use pdviewx_math::{Rgba8, Vec3};
 
 use super::material::Material;
+use super::{SurfaceComponentPolicy, SurfaceComponentThreshold};
 
 #[cfg(test)]
 #[path = "mesh_tests.rs"]
@@ -49,15 +50,6 @@ pub enum FaceVisibility {
     FrontOnly,
     /// Only clockwise back faces draw.
     BackOnly,
-}
-
-/// Connected-component filtering applied before a provider mesh enters a scene.
-#[derive(Clone, Copy, PartialEq, Debug, Default)]
-pub struct SurfaceComponentPolicy {
-    /// Components below this area are discarded.
-    pub minimum_area: f64,
-    /// Optional number of largest components retained.
-    pub maximum_components: Option<usize>,
 }
 
 /// One caller-supplied vertex. The layout matches the generated cartoon vertex,
@@ -186,11 +178,27 @@ impl Mesh {
         material: Material,
         policy: SurfaceComponentPolicy,
     ) -> Result<Self, CoreError> {
+        let minimum_area = match policy.threshold() {
+            SurfaceComponentThreshold::Disabled => 0.0,
+            SurfaceComponentThreshold::Area(area) => area,
+            SurfaceComponentThreshold::Volume(_) | SurfaceComponentThreshold::Voxels(_) => {
+                return Err(CoreError::InvalidMesh {
+                    reason: "indexed meshes support area component thresholds only",
+                });
+            }
+        };
+        let maximum_components = policy
+            .maximum_components()
+            .map(usize::try_from)
+            .transpose()
+            .map_err(|_| CoreError::InvalidMesh {
+                reason: "surface component maximum exceeds the host index range",
+            })?;
         let filtered = pdbiox::surface::filter_surface_components(
             surface,
             pdbiox::surface::SurfaceComponentFilter {
-                minimum_area: policy.minimum_area,
-                maximum_components: policy.maximum_components,
+                minimum_area,
+                maximum_components,
             },
         )
         .map_err(|_| CoreError::InvalidMesh {

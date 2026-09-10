@@ -13,7 +13,7 @@
 
 use crate::error::CoreError;
 use crate::handle::StructureHandle;
-use crate::interaction::InteractionPattern;
+use crate::representation::relation::RelationPattern;
 use pdviewx_math::{Rgba8, Vec3};
 
 #[cfg(test)]
@@ -48,8 +48,8 @@ pub enum PolylineKind {
 pub struct GuideStyle {
     /// Line colour.
     pub color: Rgba8,
-    /// Screen-space mark vocabulary, shared with interaction glyphs.
-    pub pattern: InteractionPattern,
+    /// Screen-space mark vocabulary shared with generic relation glyphs.
+    pub pattern: RelationPattern,
     /// Pixel-stable line width.
     pub width_pixels: f32,
     /// Final alpha before weighted transparency.
@@ -68,7 +68,7 @@ impl Default for GuideStyle {
     fn default() -> Self {
         Self {
             color: Rgba8::opaque(226, 232, 240),
-            pattern: InteractionPattern::Solid,
+            pattern: RelationPattern::Solid,
             width_pixels: 1.6,
             opacity: 1.0,
             period_pixels: 8.0,

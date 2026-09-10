@@ -99,9 +99,10 @@ fn provider_surfaces_keep_normals_color_and_component_policy() {
         ],
         vec![SurfaceFace([0, 1, 2]), SurfaceFace([3, 4, 5])],
     );
-    let policy = SurfaceComponentPolicy {
-        minimum_area: 0.1,
-        maximum_components: Some(1),
+    let Ok(policy) = SurfaceComponentPolicy::minimum_area(0.1)
+        .and_then(|policy| policy.with_maximum_components(1))
+    else {
+        panic!("component policy validates")
     };
     let color = Rgba8::opaque(25, 100, 220);
     let Ok(mesh) = Mesh::from_surface(owner(), &surface, color, Material::default(), policy) else {

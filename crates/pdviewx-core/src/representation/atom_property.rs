@@ -36,6 +36,7 @@ pub struct AtomProperty {
     owner: StructureHandle,
     name: Arc<str>,
     values: Arc<[f32]>,
+    interpolated: Vec<f32>,
     meaning: AtomPropertyMeaning,
     semantics: ScalarFieldSemantics,
     finite_domain: [f32; 2],
@@ -74,6 +75,7 @@ impl AtomProperty {
             owner,
             name,
             values,
+            interpolated: Vec::new(),
             meaning,
             semantics,
             finite_domain,
@@ -95,13 +97,71 @@ impl AtomProperty {
     /// Shared values in source atom-row order.
     #[must_use]
     pub fn values(&self) -> &[f32] {
-        &self.values
+        if self.interpolated.is_empty() {
+            &self.values
+        } else {
+            &self.interpolated
+        }
     }
 
-    /// Shared backing allocation, useful to verify zero-copy handoff.
+    /// Original shared backing allocation retained without a copy.
+    ///
+    /// [`Self::values`] returns the active interpolated row after temporal
+    /// updates; this method continues to expose the immutable source row so a
+    /// caller can verify the zero-copy handoff.
     #[must_use]
     pub fn shared_values(&self) -> &Arc<[f32]> {
         &self.values
+    }
+
+    /// Interpolates two topology-aligned rows into reusable owned storage.
+    ///
+    /// The first temporal update reserves one row. Later updates with the same
+    /// topology perform no allocation and cost `O(atoms)` time with `O(atoms)`
+    /// persistent storage.
+    pub(crate) fn interpolate_values(
+        &mut self,
+        start: &[f32],
+        end: &[f32],
+        alpha: f32,
+    ) -> Result<(), CoreError> {
+        if start.iter().chain(end).any(|value| value.is_infinite()) {
+            return Err(invalid(
+                "property frame values may be finite or missing NaN, never infinite",
+            ));
+        }
+        if !start
+            .iter()
+            .zip(end)
+            .any(|(&a, &b)| a.is_finite() && b.is_finite())
+        {
+            return Err(invalid(
+                "property interpolation must contain at least one finite pair",
+            ));
+        }
+        self.interpolated.resize(start.len(), 0.0);
+        for ((output, &a), &b) in self.interpolated.iter_mut().zip(start).zip(end) {
+            *output = if a.is_nan() || b.is_nan() {
+                f32::NAN
+            } else {
+                a.mul_add(1.0 - alpha, b * alpha)
+            };
+        }
+        let Some(domain) = finite_domain(&self.interpolated) else {
+            return Err(invalid(
+                "property interpolation must contain a finite result",
+            ));
+        };
+        self.finite_domain = domain;
+        Ok(())
+    }
+
+    /// Reserves one temporal result row during track setup.
+    pub(crate) fn reserve_interpolation(&mut self) {
+        if self.interpolated.capacity() < self.values.len() {
+            self.interpolated
+                .reserve_exact(self.values.len().saturating_sub(self.interpolated.len()));
+        }
     }
 
     /// Scientific interpretation.
