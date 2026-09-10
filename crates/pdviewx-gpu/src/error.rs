@@ -11,8 +11,25 @@ use thiserror::Error;
 #[non_exhaustive]
 pub enum GpuError {
     /// No adapter satisfied the device request.
-    #[error("no compatible GPU adapter found")]
-    NoAdapter,
+    #[error("no compatible GPU adapter found: {detail}")]
+    NoAdapter {
+        /// Backend selection diagnostics supplied by the active HAL.
+        detail: String,
+    },
+
+    /// A window or canvas could not be converted into a presentation surface.
+    #[error("GPU presentation surface creation failed: {detail}")]
+    SurfaceCreation {
+        /// Backend-reported creation failure.
+        detail: String,
+    },
+
+    /// An adapter was found but opening its logical device failed.
+    #[error("GPU device request failed: {detail}")]
+    DeviceRequest {
+        /// Backend-reported device negotiation failure.
+        detail: String,
+    },
 
     /// The device was lost; recreate and retry.
     #[error("device lost")]
@@ -48,6 +65,13 @@ pub enum GpuError {
         /// available.
         detail: String,
     },
+
+    /// A GPU operation failed validation or exhausted backend resources.
+    #[error("GPU runtime operation failed: {detail}")]
+    Runtime {
+        /// The first backend diagnostic, retained before secondary failures.
+        detail: String,
+    },
 }
 
 impl GpuError {
@@ -55,12 +79,19 @@ impl GpuError {
     #[must_use]
     pub fn code(&self) -> &'static str {
         match self {
-            Self::NoAdapter => "PDVIEWX-E0001",
+            Self::NoAdapter { .. } => "PDVIEWX-E0001",
+            Self::SurfaceCreation { .. } => "PDVIEWX-E0004",
+            Self::DeviceRequest { .. } => "PDVIEWX-E0005",
             Self::DeviceLost => "PDVIEWX-E0002",
             Self::Surface(_) => "PDVIEWX-E0003",
             Self::Capability { .. } => "PDVIEWX-E0010",
             Self::LimitExceeded { .. } => "PDVIEWX-E0011",
             Self::ShaderCompile { .. } => "PDVIEWX-E0060",
+            Self::Runtime { .. } => "PDVIEWX-E0061",
         }
     }
 }
+
+#[cfg(test)]
+#[path = "error_tests.rs"]
+mod tests;
