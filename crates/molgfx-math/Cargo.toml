@@ -1,0 +1,25 @@
+[package]
+name = "molgfx-math"
+description = "glam-based math foundation: cameras, projections, bounds, splines, transport frames."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rayon.workspace = true
+glam.workspace = true
+bytemuck.workspace = true
+serde.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+proptest.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "math"
+harness = false
+
+[lints]
+workspace = true

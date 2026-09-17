@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a disposable, matched image smoke matrix for PyMOL and pdviewx.
+"""Run a disposable, matched image smoke matrix for PyMOL and molgfx.
 
 This is intentionally not a pixel-equivalence test.  It proves that the same
 local structure fixture and representation intent can be rendered by both
@@ -27,9 +27,9 @@ from typing import Any
 class RenderCase:
     name: str
     fixture: str
-    pdviewx_representation: str
+    molgfx_representation: str
     pymol_mode: str
-    pdviewx_mode: str = "realtime"
+    molgfx_mode: str = "realtime"
 
 
 CASES = (
@@ -261,19 +261,19 @@ def structural_comparison(first: dict[str, Any], second: dict[str, Any]) -> dict
     }
 
 
-def render_pdviewx(
+def render_molgfx(
     executable: Path, fixture: Path, output: Path, case: RenderCase, width: int, height: int, root: Path
 ) -> dict[str, Any]:
     command = [
         str(executable),
         str(fixture),
         str(output),
-        case.pdviewx_representation,
+        case.molgfx_representation,
         str(width),
         str(height),
         "1.0",
         "1.0",
-        case.pdviewx_mode,
+        case.molgfx_mode,
         "inspection",
     ]
     environment = os.environ.copy()
@@ -292,7 +292,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--pymol-python", help="disposable Python interpreter containing PyMOL")
-    parser.add_argument("--pdviewx-example", type=Path, help="built headless_smoke example executable")
+    parser.add_argument("--molgfx-example", type=Path, help="built headless_smoke example executable")
     parser.add_argument("--output", type=Path, help="write JSON evidence here")
     parser.add_argument("--width", type=int, default=128)
     parser.add_argument("--height", type=int, default=128)
@@ -316,18 +316,18 @@ def main() -> int:
         else:
             print(encoded)
         return 0 if result["status"] == "passed" else 1
-    if not args.pymol_python or not args.pdviewx_example:
-        raise SystemExit("--pymol-python and --pdviewx-example are required")
+    if not args.pymol_python or not args.molgfx_example:
+        raise SystemExit("--pymol-python and --molgfx-example are required")
     root = args.repo.resolve()
     selected_names = set(args.case or [case.name for case in CASES])
     selected = [case for case in CASES if case.name in selected_names]
-    with tempfile.TemporaryDirectory(prefix="pdviewx-cross-render-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-cross-render-") as directory:
         work = Path(directory)
         records = []
         for case in selected:
             fixture = root / "benchmarks/scenes" / case.fixture
             pymol_image = work / f"pymol-{case.name}.png"
-            pdviewx_image = work / f"pdviewx-{case.name}.png"
+            molgfx_image = work / f"molgfx-{case.name}.png"
             child = [
                 args.pymol_python,
                 str(Path(__file__).resolve()),
@@ -347,20 +347,20 @@ def main() -> int:
                 pymol_result = json.loads(completed.stdout)
             except json.JSONDecodeError:
                 pymol_result = {"status": "failed", "error": completed.stderr[-1000:]}
-            pdviewx_result = render_pdviewx(
-                args.pdviewx_example, fixture, pdviewx_image, case, args.width, args.height, root
+            molgfx_result = render_molgfx(
+                args.molgfx_example, fixture, molgfx_image, case, args.width, args.height, root
             )
             record: dict[str, Any] = {
                 "name": case.name,
                 "fixture": str(fixture.relative_to(root)),
                 "pymol": pymol_result,
-                "pdviewx": pdviewx_result,
+                "molgfx": molgfx_result,
             }
-            if pymol_result.get("status") == "passed" and pdviewx_result.get("status") == "passed":
+            if pymol_result.get("status") == "passed" and molgfx_result.get("status") == "passed":
                 record["pymol"]["image"] = image_summary(pymol_image)
-                record["pdviewx"]["image"] = image_summary(pdviewx_image)
+                record["molgfx"]["image"] = image_summary(molgfx_image)
                 record["structural"] = structural_comparison(
-                    record["pymol"]["image"], record["pdviewx"]["image"]
+                    record["pymol"]["image"], record["molgfx"]["image"]
                 )
                 record["status"] = "passed"
             else:

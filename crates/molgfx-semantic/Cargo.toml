@@ -1,0 +1,19 @@
+[package]
+name = "molgfx-semantic"
+description = "The semantic layer: focus and context, banding, interaction edges, label policy."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+molgfx-core.workspace = true
+molgfx-math.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+pdbiox = { workspace = true, features = ["mmcif"] }
+
+[lints]
+workspace = true

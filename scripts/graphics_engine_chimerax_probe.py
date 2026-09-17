@@ -41,16 +41,16 @@ from pathlib import Path
 from chimerax.core.commands import run
 
 
-output = Path(os.environ["PDVIEWX_CHIMERAX_OUTPUT"])
-structure = Path(os.environ["PDVIEWX_CHIMERAX_STRUCTURE"])
-map_path = Path(os.environ["PDVIEWX_CHIMERAX_MAP"])
+output = Path(os.environ["MOLGFX_CHIMERAX_OUTPUT"])
+structure = Path(os.environ["MOLGFX_CHIMERAX_STRUCTURE"])
+map_path = Path(os.environ["MOLGFX_CHIMERAX_MAP"])
 session_path = output.with_suffix(".cxs")
 image_path = output.with_suffix(".png")
 volume_operation_names = json.loads(
-    os.environ["PDVIEWX_CHIMERAX_VOLUME_OPERATIONS"]
+    os.environ["MOLGFX_CHIMERAX_VOLUME_OPERATIONS"]
 )
-surface_option_names = json.loads(os.environ["PDVIEWX_CHIMERAX_SURFACE_OPTIONS"])
-image_command_names = json.loads(os.environ["PDVIEWX_CHIMERAX_IMAGE_COMMANDS"])
+surface_option_names = json.loads(os.environ["MOLGFX_CHIMERAX_SURFACE_OPTIONS"])
+image_command_names = json.loads(os.environ["MOLGFX_CHIMERAX_IMAGE_COMMANDS"])
 
 
 def model_summary():
@@ -616,7 +616,7 @@ def probe_chimerax(
             **not_run_matrices(f"structure fixture not found: {structure}"),
         }
 
-    with tempfile.TemporaryDirectory(prefix="pdviewx-chimerax-probe-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-chimerax-probe-") as directory:
         root = Path(directory)
         child_script = root / "probe.py"
         child_output = root / "result.json"
@@ -626,16 +626,16 @@ def probe_chimerax(
         environment = os.environ.copy()
         environment.update(
             {
-                "PDVIEWX_CHIMERAX_OUTPUT": str(child_output),
-                "PDVIEWX_CHIMERAX_STRUCTURE": str(structure.resolve()),
-                "PDVIEWX_CHIMERAX_MAP": str(map_path),
-                "PDVIEWX_CHIMERAX_VOLUME_OPERATIONS": json.dumps(
+                "MOLGFX_CHIMERAX_OUTPUT": str(child_output),
+                "MOLGFX_CHIMERAX_STRUCTURE": str(structure.resolve()),
+                "MOLGFX_CHIMERAX_MAP": str(map_path),
+                "MOLGFX_CHIMERAX_VOLUME_OPERATIONS": json.dumps(
                     CHIMERAX_VOLUME_OPERATIONS
                 ),
-                "PDVIEWX_CHIMERAX_SURFACE_OPTIONS": json.dumps(
+                "MOLGFX_CHIMERAX_SURFACE_OPTIONS": json.dumps(
                     CHIMERAX_SURFACE_OPTIONS
                 ),
-                "PDVIEWX_CHIMERAX_IMAGE_COMMANDS": json.dumps(
+                "MOLGFX_CHIMERAX_IMAGE_COMMANDS": json.dumps(
                     CHIMERAX_IMAGE_COMMANDS
                 ),
             }

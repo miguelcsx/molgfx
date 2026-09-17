@@ -144,9 +144,9 @@ addEventListener('load',async()=>{{try{{
 def run_browser(browser: str, node_root: Path, fixture: Path, output: Path) -> dict[str, Any]:
     """Run both pages in one disposable browser session."""
 
-    session = f"pdviewx-web-picking-{os.getpid()}"
+    session = f"molgfx-web-picking-{os.getpid()}"
     result: dict[str, Any] = {"status": "passed", "engines": {}}
-    with tempfile.TemporaryDirectory(prefix="pdviewx-web-picking-pages-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-web-picking-pages-") as directory:
         webroot = Path(directory)
         (webroot / "node_modules").symlink_to(node_root / "node_modules", target_is_directory=True)
         class QuietHandler(SimpleHTTPRequestHandler):
@@ -192,7 +192,7 @@ def main() -> int:
     if not args.browser_use:
         result: dict[str, Any] = {"schema": 1, "status": "unavailable", "error": "browser-use not found"}
     else:
-        with tempfile.TemporaryDirectory(prefix="pdviewx-web-picking-images-") as directory:
+        with tempfile.TemporaryDirectory(prefix="molgfx-web-picking-images-") as directory:
             result = {
                 "schema": 1,
                 "scope": "actual browser canvas picking; no cross-engine pixel equivalence claim",

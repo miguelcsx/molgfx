@@ -11,7 +11,7 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/generic_batches/mod.rs"
+          "crates/molgfx-py/src/generic_batches/mod.rs"
         ],
         "state": "typed-adapter",
         "symbols": [
@@ -20,12 +20,12 @@
       },
       "rust": "RelationStyle",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebScene",
         "state": "direct"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebScene",
         "state": "direct"
       }
@@ -40,7 +40,7 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/generic_batches/mod.rs"
+          "crates/molgfx-py/src/generic_batches/mod.rs"
         ],
         "state": "typed-adapter",
         "symbols": [
@@ -49,12 +49,12 @@
       },
       "rust": "RigidInstance",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebScene",
         "state": "direct"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebScene",
         "state": "direct"
       }
@@ -64,7 +64,7 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/generic_batches/mod.rs"
+          "crates/molgfx-py/src/generic_batches/mod.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -73,12 +73,12 @@
       },
       "rust": "RowDomain",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebRowDomain",
         "state": "direct"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebRowDomain",
         "state": "direct"
       }
@@ -93,13 +93,13 @@
       },
       "rust": "RowDomainDescription",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "RowDomainDescription is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "RowDomainDescription is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -115,7 +115,7 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/generic_batches/mod.rs"
+          "crates/molgfx-py/src/generic_batches/mod.rs"
         ],
         "state": "typed-adapter",
         "symbols": [
@@ -124,12 +124,12 @@
       },
       "rust": "RowEntityRef",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebScene",
         "state": "direct"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebScene",
         "state": "direct"
       }
@@ -150,7 +150,7 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/generic_batches/mod.rs"
+          "crates/molgfx-py/src/generic_batches/mod.rs"
         ],
         "state": "typed-adapter",
         "symbols": [
@@ -160,12 +160,12 @@
       },
       "rust": "SourceNamespace",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebScene",
         "state": "direct"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebScene",
         "state": "direct"
       }
@@ -186,7 +186,7 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/generic_batches/mod.rs"
+          "crates/molgfx-py/src/generic_batches/mod.rs"
         ],
         "state": "typed-adapter",
         "symbols": [
@@ -196,12 +196,12 @@
       },
       "rust": "SourceRows",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebScene",
         "state": "direct"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebScene",
         "state": "direct"
       }
@@ -216,13 +216,13 @@
       },
       "rust": "SourceRowsDescription",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "SourceRowsDescription is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "SourceRowsDescription is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -239,7 +239,7 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/generic_batches/mod.rs"
+          "crates/molgfx-py/src/generic_batches/mod.rs"
         ],
         "state": "typed-adapter",
         "symbols": [
@@ -248,12 +248,12 @@
       },
       "rust": "SpatialAnchor",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebScene",
         "state": "direct"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "name": "WebScene",
         "state": "direct"
       }
@@ -268,13 +268,13 @@
       },
       "rust": "TemplatePartPick",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "TemplatePartPick is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "TemplatePartPick is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -290,13 +290,13 @@
       },
       "rust": "TemplatePartRef",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "TemplatePartRef is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "TemplatePartRef is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -312,13 +312,13 @@
       },
       "rust": "VisualAttributeDescription",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "VisualAttributeDescription is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "VisualAttributeDescription is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -334,13 +334,13 @@
       },
       "rust": "VisualAttributeRef",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "VisualAttributeRef is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "VisualAttributeRef is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -357,7 +357,7 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/generic_batches/mod.rs"
+          "crates/molgfx-py/src/generic_batches/mod.rs"
         ],
         "state": "typed-adapter",
         "symbols": [
@@ -366,13 +366,13 @@
       },
       "rust": "VisualDescriptor",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "VisualDescriptor is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/generic_batches/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_batches/mod.rs",
         "gap": "VisualDescriptor is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"

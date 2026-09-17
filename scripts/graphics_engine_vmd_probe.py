@@ -76,7 +76,7 @@ def feature_records() -> list[dict[str, Any]]:
             "red green blue"
         ),
         "sphere": "graphics $molid sphere {0 0 0} radius 0.5",
-        "text": "graphics $molid text {0 0 0} {pdviewx-audit}",
+        "text": "graphics $molid text {0 0 0} {molgfx-audit}",
     }
     for name in VMD_GRAPHICS_PRIMITIVES:
         add("graphics-primitive", name, primitive_recipes[name])
@@ -166,7 +166,7 @@ def tcl_script(records: list[dict[str, Any]], fixture: Path, output: Path) -> st
         "}",
         "proc emit {family feature status reason} {",
         "    set reason [string map [list \"|\" \"/\" \"\\n\" \" \"] $reason]",
-        "    puts \"PDVIEWX_VMD|$family|$feature|$status|$reason\"",
+        "    puts \"MOLGFX_VMD|$family|$feature|$status|$reason\"",
         "    flush stdout",
         "}",
     ]
@@ -213,7 +213,7 @@ def run_probe(executable: Path, fixture: Path, output: Path, timeout: float) -> 
     records = feature_records()
     if not executable.is_file():
         return unavailable_result(records, executable, f"executable not found: {executable}")
-    with tempfile.TemporaryDirectory(prefix="pdviewx-vmd-probe-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-vmd-probe-") as directory:
         root = Path(directory)
         script = root / "probe.tcl"
         script.write_text(tcl_script(records, fixture, root), encoding="utf-8")
@@ -227,7 +227,7 @@ def run_probe(executable: Path, fixture: Path, output: Path, timeout: float) -> 
         )
     by_key: dict[tuple[str, str], dict[str, Any]] = {}
     for line in completed.stdout.splitlines():
-        if not line.startswith("PDVIEWX_VMD|"):
+        if not line.startswith("MOLGFX_VMD|"):
             continue
         _prefix, family, feature, status, reason = (line.split("|", 4) + [""])[:5]
         by_key[(family, feature)] = {"status": status, "reason": reason}

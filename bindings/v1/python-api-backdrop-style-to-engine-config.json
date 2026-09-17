@@ -58,7 +58,7 @@
       "registration": {
         "adapter": "PyBackdropStyle",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/context.rs"
+        "source": "crates/molgfx-py/src/render/profile/context.rs"
       }
     },
     {
@@ -101,7 +101,7 @@
       "registration": {
         "adapter": "PyBloomStyle",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/effects.rs"
+        "source": "crates/molgfx-py/src/render/profile/effects.rs"
       }
     },
     {
@@ -174,7 +174,7 @@
       "registration": {
         "adapter": "PyDisplayTransform",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/display.rs"
+        "source": "crates/molgfx-py/src/render/profile/display.rs"
       }
     },
     {
@@ -295,7 +295,7 @@
       "registration": {
         "adapter": "PyLightingEnvironment",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/context.rs"
+        "source": "crates/molgfx-py/src/render/profile/context.rs"
       }
     },
     {
@@ -356,7 +356,7 @@
       "registration": {
         "adapter": "PyIllustrationStyle",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/context.rs"
+        "source": "crates/molgfx-py/src/render/profile/context.rs"
       }
     },
     {
@@ -417,7 +417,7 @@
       "registration": {
         "adapter": "PyDepthOfField",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/effects.rs"
+        "source": "crates/molgfx-py/src/render/profile/effects.rs"
       }
     },
     {
@@ -454,7 +454,7 @@
       "registration": {
         "adapter": "PyMotionBlur",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/effects.rs"
+        "source": "crates/molgfx-py/src/render/profile/effects.rs"
       }
     },
     {
@@ -509,7 +509,7 @@
       "registration": {
         "adapter": "PyPresentationEffect",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/effects.rs"
+        "source": "crates/molgfx-py/src/render/profile/effects.rs"
       }
     },
     {
@@ -540,7 +540,7 @@
       "registration": {
         "adapter": "PyEffectLayer",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/effects.rs"
+        "source": "crates/molgfx-py/src/render/profile/effects.rs"
       }
     },
     {
@@ -589,7 +589,7 @@
       "registration": {
         "adapter": "PyRenderProfile",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/composition.rs"
+        "source": "crates/molgfx-py/src/render/profile/composition.rs"
       }
     },
     {
@@ -644,7 +644,7 @@
       "registration": {
         "adapter": "PyResolvedRenderPlan",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/composition.rs"
+        "source": "crates/molgfx-py/src/render/profile/composition.rs"
       }
     },
     {
@@ -693,7 +693,7 @@
       "registration": {
         "adapter": "PyRenderSession",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/session.rs"
+        "source": "crates/molgfx-py/src/render/session.rs"
       }
     },
     {
@@ -730,7 +730,7 @@
       "registration": {
         "adapter": "PyImageConfig",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/config.rs"
+        "source": "crates/molgfx-py/src/render/config.rs"
       }
     },
     {
@@ -791,7 +791,7 @@
       "registration": {
         "adapter": "PyEngineConfig",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/config.rs"
+        "source": "crates/molgfx-py/src/render/config.rs"
       }
     }
   ]

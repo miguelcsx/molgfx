@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the existing headless pdviewx visual examples in a disposable matrix.
+"""Run the existing headless molgfx visual examples in a disposable matrix.
 
 The examples are the native-side counterpart to the optional PyMOL and OVITO
 probes.  They are not golden-image tests: each case records process output,
@@ -273,13 +273,13 @@ def main() -> int:
     if not binary_dir.is_dir():
         raise SystemExit(f"example directory does not exist: {binary_dir}")
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="pdviewx-native-probe-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-native-probe-") as directory:
         output = Path(directory)
         matrix = cases(binary_dir, root, output)
         results = [run_case(case, binary_dir, output, args.backend) for case in matrix]
         result = {
             "schema": 1,
-            "scope": "native pdviewx visual examples; not a golden or cross-engine equivalence test",
+            "scope": "native molgfx visual examples; not a golden or cross-engine equivalence test",
             "binary_dir": str(binary_dir),
             "backend": args.backend,
             "case_count": len(results),

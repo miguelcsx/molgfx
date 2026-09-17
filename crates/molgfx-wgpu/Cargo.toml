@@ -1,0 +1,18 @@
+[package]
+name = "molgfx-wgpu"
+description = "The default GPU backend, implementing the hardware abstraction over wgpu."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+molgfx-gpu.workspace = true
+wgpu.workspace = true
+pollster.workspace = true
+futures-channel.workspace = true
+raw-window-handle.workspace = true
+
+[lints]
+workspace = true

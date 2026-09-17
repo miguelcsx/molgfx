@@ -2485,6 +2485,176 @@ dependencies = [
 ]
 
 [[package]]
+name = "molgfx"
+version = "0.1.0"
+dependencies = [
+ "molgfx-core",
+ "molgfx-gpu",
+ "molgfx-math",
+ "molgfx-recipes",
+ "molgfx-render",
+ "molgfx-semantic",
+ "molgfx-wgpu",
+ "num-traits",
+ "pdbiox",
+ "png",
+ "winit",
+]
+
+[[package]]
+name = "molgfx-bench"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "molgfx",
+ "molgfx-recipes",
+ "num-traits",
+ "pdbiox",
+ "png",
+ "serde",
+ "serde_json",
+ "stats_alloc",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "molgfx-core"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "hashbrown 0.17.1",
+ "molgfx-math",
+ "num-traits",
+ "pdbiox",
+ "proptest",
+ "rayon",
+ "roaring",
+ "serde",
+ "serde_json",
+ "sha2",
+ "smallvec",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "molgfx-geometry"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "molgfx-core",
+ "molgfx-math",
+ "pdbiox",
+ "proptest",
+ "rayon",
+]
+
+[[package]]
+name = "molgfx-gpu"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.13.1",
+ "raw-window-handle",
+ "thiserror 2.0.20",
+ "web-sys",
+]
+
+[[package]]
+name = "molgfx-math"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "criterion",
+ "glam 0.33.3",
+ "proptest",
+ "rayon",
+ "serde",
+]
+
+[[package]]
+name = "molgfx-py"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "molgfx",
+ "numpy",
+ "pdbiox-py",
+ "pyo3",
+]
+
+[[package]]
+name = "molgfx-recipes"
+version = "0.1.0"
+dependencies = [
+ "molgfx-core",
+ "molgfx-math",
+ "molgfx-semantic",
+ "pdbiox",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "molgfx-render"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "hashbrown 0.17.1",
+ "molgfx-core",
+ "molgfx-geometry",
+ "molgfx-gpu",
+ "molgfx-math",
+ "molgfx-semantic",
+ "molgfx-shaders",
+ "pdbiox",
+ "png",
+ "pollster",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "thiserror 2.0.20",
+ "web-time",
+]
+
+[[package]]
+name = "molgfx-semantic"
+version = "0.1.0"
+dependencies = [
+ "molgfx-core",
+ "molgfx-math",
+ "pdbiox",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "molgfx-shaders"
+version = "0.1.0"
+dependencies = [
+ "naga",
+]
+
+[[package]]
+name = "molgfx-wasm"
+version = "0.1.0"
+dependencies = [
+ "js-sys",
+ "molgfx",
+ "pdbiox",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
+name = "molgfx-wgpu"
+version = "0.1.0"
+dependencies = [
+ "futures-channel",
+ "molgfx-gpu",
+ "pollster",
+ "raw-window-handle",
+ "wgpu",
+]
+
+[[package]]
 name = "molly"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3564,176 +3734,6 @@ dependencies = [
  "pdbiox-geom",
  "pdbiox-spatial",
  "thiserror 2.0.20",
-]
-
-[[package]]
-name = "pdviewx"
-version = "0.1.0"
-dependencies = [
- "num-traits",
- "pdbiox",
- "pdviewx-core",
- "pdviewx-gpu",
- "pdviewx-gpu-wgpu",
- "pdviewx-math",
- "pdviewx-recipes",
- "pdviewx-render",
- "pdviewx-semantic",
- "png",
- "winit",
-]
-
-[[package]]
-name = "pdviewx-bench"
-version = "0.1.0"
-dependencies = [
- "criterion",
- "num-traits",
- "pdbiox",
- "pdviewx",
- "pdviewx-recipes",
- "png",
- "serde",
- "serde_json",
- "stats_alloc",
- "thiserror 2.0.20",
-]
-
-[[package]]
-name = "pdviewx-core"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "hashbrown 0.17.1",
- "num-traits",
- "pdbiox",
- "pdviewx-math",
- "proptest",
- "rayon",
- "roaring",
- "serde",
- "serde_json",
- "sha2",
- "smallvec",
- "thiserror 2.0.20",
-]
-
-[[package]]
-name = "pdviewx-geometry"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "pdbiox",
- "pdviewx-core",
- "pdviewx-math",
- "proptest",
- "rayon",
-]
-
-[[package]]
-name = "pdviewx-gpu"
-version = "0.1.0"
-dependencies = [
- "bitflags 2.13.1",
- "raw-window-handle",
- "thiserror 2.0.20",
- "web-sys",
-]
-
-[[package]]
-name = "pdviewx-gpu-wgpu"
-version = "0.1.0"
-dependencies = [
- "futures-channel",
- "pdviewx-gpu",
- "pollster",
- "raw-window-handle",
- "wgpu",
-]
-
-[[package]]
-name = "pdviewx-math"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "criterion",
- "glam 0.33.3",
- "proptest",
- "rayon",
- "serde",
-]
-
-[[package]]
-name = "pdviewx-py"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "numpy",
- "pdbiox-py",
- "pdviewx",
- "pyo3",
-]
-
-[[package]]
-name = "pdviewx-recipes"
-version = "0.1.0"
-dependencies = [
- "pdbiox",
- "pdviewx-core",
- "pdviewx-math",
- "pdviewx-semantic",
- "thiserror 2.0.20",
-]
-
-[[package]]
-name = "pdviewx-render"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "hashbrown 0.17.1",
- "pdbiox",
- "pdviewx-core",
- "pdviewx-geometry",
- "pdviewx-gpu",
- "pdviewx-math",
- "pdviewx-semantic",
- "pdviewx-shaders",
- "png",
- "pollster",
- "serde",
- "serde_json",
- "smallvec",
- "thiserror 2.0.20",
- "web-time",
-]
-
-[[package]]
-name = "pdviewx-semantic"
-version = "0.1.0"
-dependencies = [
- "pdbiox",
- "pdviewx-core",
- "pdviewx-math",
- "thiserror 2.0.20",
-]
-
-[[package]]
-name = "pdviewx-shaders"
-version = "0.1.0"
-dependencies = [
- "naga",
-]
-
-[[package]]
-name = "pdviewx-wasm"
-version = "0.1.0"
-dependencies = [
- "js-sys",
- "pdbiox",
- "pdviewx",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]

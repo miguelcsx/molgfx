@@ -3,7 +3,7 @@
 
 PyMOL uses a disposable PSE file, Mol* uses its native plugin state snapshot,
 NGL records its public stage-parameter envelope and explicitly reports that no
-native scene serializer is present, and pdviewx uses RenderSession against a
+native scene serializer is present, and molgfx uses RenderSession against a
 fresh source parse. Reference runtimes, session files and images stay outside
 the repository.
 """
@@ -95,7 +95,7 @@ addEventListener('load',async()=>{{try{{
  await plugin.builders.structure.representation.addRepresentation(component,{{type:'cartoon',color:'chain-id'}});
  plugin.managers.camera.reset({{durationMs:0}});await wait(1000);
  const manager=plugin.managers.snapshot;
- const snapshot=await manager.getStateSnapshot({{name:'pdviewx parity session',description:'disposable round-trip'}});
+ const snapshot=await manager.getStateSnapshot({{name:'molgfx parity session',description:'disposable round-trip'}});
  const serializedBytes=JSON.stringify(snapshot).length;
  const before=capture();
  const initialBackground=plugin.canvas3d.props.renderer.backgroundColor;
@@ -165,9 +165,9 @@ def close_browser(browser: str, session: str) -> None:
 
 
 def run_browser(browser: str, node_root: Path, fixture: Path, output: Path) -> dict[str, Any]:
-    session = f"pdviewx-session-differential-{os.getpid()}"
+    session = f"molgfx-session-differential-{os.getpid()}"
     result: dict[str, Any] = {"status": "passed", "engines": {}}
-    with tempfile.TemporaryDirectory(prefix="pdviewx-session-pages-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-session-pages-") as directory:
         webroot = Path(directory)
         (webroot / "node_modules").symlink_to(node_root / "node_modules", target_is_directory=True)
 
@@ -278,17 +278,17 @@ def file_evidence(path: Path) -> dict[str, Any]:
     return {"bytes": path.stat().st_size, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 
 
-def run_pdviewx(executable: Path, fixture: Path, output: Path) -> dict[str, Any]:
-    prefix = output / "pdviewx"
+def run_molgfx(executable: Path, fixture: Path, output: Path) -> dict[str, Any]:
+    prefix = output / "molgfx"
     completed = subprocess.run([str(executable), str(fixture), str(prefix)], capture_output=True, text=True, timeout=180, check=False)
     record: dict[str, Any] = {"status": "passed" if completed.returncode == 0 else "failed", "stdout": completed.stdout[-2000:], "stderr": completed.stderr[-1000:]}
     for name in ("scene_equal", "camera_equal", "profile_equal", "image_equal"):
         match = re.search(rf"^{name}=(true|false)$", completed.stdout, re.MULTILINE)
         if match:
             record[name] = match.group(1) == "true"
-    json_path = output / "pdviewx-session.json"
-    before = output / "pdviewx-before.png"
-    after = output / "pdviewx-after.png"
+    json_path = output / "molgfx-session.json"
+    before = output / "molgfx-before.png"
+    after = output / "molgfx-after.png"
     if completed.returncode == 0 and json_path.exists() and before.exists() and after.exists():
         record["sessionFile"] = file_evidence(json_path)
         record["beforeImage"] = image_summary(before)
@@ -301,7 +301,7 @@ def run_pdviewx(executable: Path, fixture: Path, output: Path) -> dict[str, Any]
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--node-root", type=Path, required=True)
-    parser.add_argument("--pdviewx-example", type=Path, required=True)
+    parser.add_argument("--molgfx-example", type=Path, required=True)
     parser.add_argument("--fixture", type=Path, default=Path("benchmarks/scenes/1BNA.cif"))
     parser.add_argument("--pymol-python")
     parser.add_argument("--browser-use", default=shutil.which("browser-use"))
@@ -310,7 +310,7 @@ def main() -> int:
     root = Path(__file__).resolve().parents[1]
     fixture = (root / args.fixture).resolve() if not args.fixture.is_absolute() else args.fixture.resolve()
     result: dict[str, Any] = {"schema": 1, "fixture": str(fixture.relative_to(root)), "scope": "session/state round trips; no cross-engine image equivalence claim"}
-    with tempfile.TemporaryDirectory(prefix="pdviewx-session-differential-images-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-session-differential-images-") as directory:
         output = Path(directory)
         if args.browser_use:
             try:
@@ -320,8 +320,8 @@ def main() -> int:
         else:
             result["browser"] = {"status": "unavailable", "reason": "browser-use executable not found"}
         result["pymol"] = run_pymol(args.pymol_python, fixture, output)
-        result["pdviewx"] = run_pdviewx(args.pdviewx_example.resolve(), fixture, output)
-    statuses = [result["browser"].get("status"), result["pymol"].get("status"), result["pdviewx"].get("status")]
+        result["molgfx"] = run_molgfx(args.molgfx_example.resolve(), fixture, output)
+    statuses = [result["browser"].get("status"), result["pymol"].get("status"), result["molgfx"].get("status")]
     result["status"] = "passed" if all(status == "passed" for status in statuses) else "passed-with-unavailable" if all(status in {"passed", "unavailable", "passed-with-unavailable"} for status in statuses) else "failed"
     encoded = json.dumps(result, indent=2, sort_keys=True) + "\n"
     if args.output:

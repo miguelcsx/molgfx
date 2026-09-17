@@ -3,7 +3,7 @@
 
 The package directory is caller-owned and is never installed into this
 repository. The browser pass is optional because browser-use is a host tool,
-not a pdviewx dependency; when present it exercises the package's own browser
+not a molgfx dependency; when present it exercises the package's own browser
 bundles against the same local PDB fixture.
 """
 
@@ -117,8 +117,8 @@ def audit_from_browser(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def run_browser(browser: str, root: Path) -> dict[str, Any]:
-    session = f"pdviewx-web-probe-{os.getpid()}"
-    with tempfile.TemporaryDirectory(prefix="pdviewx-web-engines-") as directory:
+    session = f"molgfx-web-probe-{os.getpid()}"
+    with tempfile.TemporaryDirectory(prefix="molgfx-web-engines-") as directory:
         webroot = Path(directory)
         (webroot / "node_modules").symlink_to(root / "node_modules", target_is_directory=True)
         (webroot / "ngl-probe.html").write_text(NGL_HTML, encoding="utf-8")

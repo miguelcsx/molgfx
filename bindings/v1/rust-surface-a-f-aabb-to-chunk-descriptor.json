@@ -5,10 +5,10 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/math.rs",
-          "crates/pdviewx-py/src/math.rs",
-          "crates/pdviewx-py/src/math.rs",
-          "crates/pdviewx-py/src/math.rs"
+          "crates/molgfx-py/src/math.rs",
+          "crates/molgfx-py/src/math.rs",
+          "crates/molgfx-py/src/math.rs",
+          "crates/molgfx-py/src/math.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -17,13 +17,13 @@
       },
       "rust": "Aabb",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "Aabb is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "Aabb is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -34,7 +34,7 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/pending_surface/geometry.rs"
+          "crates/molgfx-py/src/pending_surface/geometry.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -43,13 +43,13 @@
       },
       "rust": "AnisotropicEllipsoid",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "AnisotropicEllipsoid is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "AnisotropicEllipsoid is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -60,12 +60,12 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs"
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -74,13 +74,13 @@
       },
       "rust": "Annotation",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "Annotation is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "Annotation is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -91,11 +91,11 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs"
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -104,13 +104,13 @@
       },
       "rust": "AnnotationAnchor",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "AnnotationAnchor is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "AnnotationAnchor is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -121,7 +121,7 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/annotations.rs"
+          "crates/molgfx-py/src/annotations.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -130,13 +130,13 @@
       },
       "rust": "AnnotationHandle",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "AnnotationHandle is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "AnnotationHandle is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -147,13 +147,13 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs",
-          "crates/pdviewx-py/src/annotations.rs"
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs",
+          "crates/molgfx-py/src/annotations.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -162,13 +162,13 @@
       },
       "rust": "AnnotationKind",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "AnnotationKind is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "AnnotationKind is part of the renderer-owned annotation and provenance contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -179,7 +179,7 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/controls.rs"
+          "crates/molgfx-py/src/controls.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -199,7 +199,7 @@
             "kind"
           ]
         },
-        "evidence": "crates/pdviewx-wasm/src/browser_controls.rs",
+        "evidence": "crates/molgfx-wasm/src/browser_controls.rs",
         "implemented": true,
         "state": "typed-adapter",
         "tests": [
@@ -218,7 +218,7 @@
             "kind"
           ]
         },
-        "evidence": "crates/pdviewx-wasm/src/browser_controls.rs",
+        "evidence": "crates/molgfx-wasm/src/browser_controls.rs",
         "implemented": true,
         "state": "typed-adapter",
         "tests": [
@@ -231,7 +231,7 @@
       "ownership": "rust-owned",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/pending_surface/selection.rs"
+          "crates/molgfx-py/src/pending_surface/selection.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -240,13 +240,13 @@
       },
       "rust": "AtomSelection",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "AtomSelection is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "AtomSelection is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -257,13 +257,13 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/profile/context.rs",
-          "crates/pdviewx-py/src/render/profile/context.rs",
-          "crates/pdviewx-py/src/render/profile/context.rs",
-          "crates/pdviewx-py/src/render/profile/context.rs",
-          "crates/pdviewx-py/src/render/profile/context.rs",
-          "crates/pdviewx-py/src/render/profile/context.rs",
-          "crates/pdviewx-py/src/render/profile/context.rs"
+          "crates/molgfx-py/src/render/profile/context.rs",
+          "crates/molgfx-py/src/render/profile/context.rs",
+          "crates/molgfx-py/src/render/profile/context.rs",
+          "crates/molgfx-py/src/render/profile/context.rs",
+          "crates/molgfx-py/src/render/profile/context.rs",
+          "crates/molgfx-py/src/render/profile/context.rs",
+          "crates/molgfx-py/src/render/profile/context.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -272,13 +272,13 @@
       },
       "rust": "BackdropStyle",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BackdropStyle is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BackdropStyle is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -289,10 +289,10 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/profile/effects.rs",
-          "crates/pdviewx-py/src/render/profile/effects.rs",
-          "crates/pdviewx-py/src/render/profile/effects.rs",
-          "crates/pdviewx-py/src/render/profile/effects.rs"
+          "crates/molgfx-py/src/render/profile/effects.rs",
+          "crates/molgfx-py/src/render/profile/effects.rs",
+          "crates/molgfx-py/src/render/profile/effects.rs",
+          "crates/molgfx-py/src/render/profile/effects.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -301,13 +301,13 @@
       },
       "rust": "BloomStyle",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BloomStyle is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BloomStyle is part of the renderer-owned presentation contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -318,9 +318,9 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/topology.rs",
-          "crates/pdviewx-py/src/topology.rs",
-          "crates/pdviewx-py/src/topology.rs"
+          "crates/molgfx-py/src/topology.rs",
+          "crates/molgfx-py/src/topology.rs",
+          "crates/molgfx-py/src/topology.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -329,13 +329,13 @@
       },
       "rust": "BondTopologyFrame",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BondTopologyFrame is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BondTopologyFrame is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -346,9 +346,9 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/topology.rs",
-          "crates/pdviewx-py/src/topology.rs",
-          "crates/pdviewx-py/src/topology.rs"
+          "crates/molgfx-py/src/topology.rs",
+          "crates/molgfx-py/src/topology.rs",
+          "crates/molgfx-py/src/topology.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -357,13 +357,13 @@
       },
       "rust": "BondTopologySegment",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BondTopologySegment is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BondTopologySegment is part of the renderer-owned surface and volume contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -374,7 +374,7 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/visual.rs"
+          "crates/molgfx-py/src/visual.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -383,13 +383,13 @@
       },
       "rust": "BoolExpr",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BoolExpr is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BoolExpr is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -400,9 +400,9 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/math.rs",
-          "crates/pdviewx-py/src/math.rs",
-          "crates/pdviewx-py/src/math.rs"
+          "crates/molgfx-py/src/math.rs",
+          "crates/molgfx-py/src/math.rs",
+          "crates/molgfx-py/src/math.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -411,13 +411,13 @@
       },
       "rust": "BoundingSphere",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BoundingSphere is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BoundingSphere is part of the renderer-owned public renderer contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -428,8 +428,8 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/controls.rs",
-          "crates/pdviewx-py/src/controls.rs"
+          "crates/molgfx-py/src/controls.rs",
+          "crates/molgfx-py/src/controls.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -445,7 +445,7 @@
             "Middle"
           ]
         },
-        "evidence": "crates/pdviewx-wasm/src/browser_controls.rs",
+        "evidence": "crates/molgfx-wasm/src/browser_controls.rs",
         "implemented": true,
         "state": "typed-adapter",
         "tests": [
@@ -460,7 +460,7 @@
             "Middle"
           ]
         },
-        "evidence": "crates/pdviewx-wasm/src/browser_controls.rs",
+        "evidence": "crates/molgfx-wasm/src/browser_controls.rs",
         "implemented": true,
         "state": "typed-adapter",
         "tests": [
@@ -473,12 +473,12 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/math.rs",
-          "crates/pdviewx-py/src/math.rs",
-          "crates/pdviewx-py/src/math.rs",
-          "crates/pdviewx-py/src/math.rs",
-          "crates/pdviewx-py/src/math.rs",
-          "crates/pdviewx-py/src/math.rs"
+          "crates/molgfx-py/src/math.rs",
+          "crates/molgfx-py/src/math.rs",
+          "crates/molgfx-py/src/math.rs",
+          "crates/molgfx-py/src/math.rs",
+          "crates/molgfx-py/src/math.rs",
+          "crates/molgfx-py/src/math.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -487,12 +487,12 @@
       },
       "rust": "Camera",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/browser.rs",
+        "evidence": "crates/molgfx-wasm/src/browser.rs",
         "name": "WebCamera",
         "state": "direct"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/browser.rs",
+        "evidence": "crates/molgfx-wasm/src/browser.rs",
         "name": "WebCamera",
         "state": "direct"
       }
@@ -502,10 +502,10 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/timeline.rs",
-          "crates/pdviewx-py/src/timeline.rs",
-          "crates/pdviewx-py/src/timeline.rs",
-          "crates/pdviewx-py/src/timeline.rs"
+          "crates/molgfx-py/src/timeline.rs",
+          "crates/molgfx-py/src/timeline.rs",
+          "crates/molgfx-py/src/timeline.rs",
+          "crates/molgfx-py/src/timeline.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -514,13 +514,13 @@
       },
       "rust": "CameraBookmark",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "CameraBookmark is part of the renderer-owned camera contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "CameraBookmark is part of the renderer-owned camera contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -531,8 +531,8 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/timeline.rs",
-          "crates/pdviewx-py/src/timeline.rs"
+          "crates/molgfx-py/src/timeline.rs",
+          "crates/molgfx-py/src/timeline.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -541,13 +541,13 @@
       },
       "rust": "CameraEasing",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "CameraEasing is part of the renderer-owned camera contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "CameraEasing is part of the renderer-owned camera contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -558,9 +558,9 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/timeline.rs",
-          "crates/pdviewx-py/src/timeline.rs",
-          "crates/pdviewx-py/src/timeline.rs"
+          "crates/molgfx-py/src/timeline.rs",
+          "crates/molgfx-py/src/timeline.rs",
+          "crates/molgfx-py/src/timeline.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -569,13 +569,13 @@
       },
       "rust": "CameraKeyframe",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "CameraKeyframe is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "CameraKeyframe is part of the renderer-owned dynamic scene contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -586,9 +586,9 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/timeline.rs",
-          "crates/pdviewx-py/src/timeline.rs",
-          "crates/pdviewx-py/src/timeline.rs"
+          "crates/molgfx-py/src/timeline.rs",
+          "crates/molgfx-py/src/timeline.rs",
+          "crates/molgfx-py/src/timeline.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -597,13 +597,13 @@
       },
       "rust": "CameraPath",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "CameraPath is part of the renderer-owned camera contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "CameraPath is part of the renderer-owned camera contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -614,9 +614,9 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/config.rs",
-          "crates/pdviewx-py/src/render/config.rs",
-          "crates/pdviewx-py/src/render/config.rs"
+          "crates/molgfx-py/src/render/config.rs",
+          "crates/molgfx-py/src/render/config.rs",
+          "crates/molgfx-py/src/render/config.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -636,7 +636,7 @@
             "rayQueries"
           ]
         },
-        "evidence": "crates/pdviewx-wasm/src/browser_types.rs",
+        "evidence": "crates/molgfx-wasm/src/browser_types.rs",
         "implemented": true,
         "state": "typed-adapter",
         "tests": [
@@ -655,7 +655,7 @@
             "rayQueries"
           ]
         },
-        "evidence": "crates/pdviewx-wasm/src/browser_types.rs",
+        "evidence": "crates/molgfx-wasm/src/browser_types.rs",
         "implemented": true,
         "state": "typed-adapter",
         "tests": [
@@ -668,7 +668,7 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/pending_surface/geometry.rs"
+          "crates/molgfx-py/src/pending_surface/geometry.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -677,13 +677,13 @@
       },
       "rust": "CarbohydrateShape",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "CarbohydrateShape is part of the renderer-owned typed geometry contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "CarbohydrateShape is part of the renderer-owned typed geometry contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -694,7 +694,7 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/pending_surface/geometry.rs"
+          "crates/molgfx-py/src/pending_surface/geometry.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -703,13 +703,13 @@
       },
       "rust": "CarbohydrateSymbol",
       "typescript": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "CarbohydrateSymbol is part of the renderer-owned typed geometry contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
       },
       "wasm": {
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "CarbohydrateSymbol is part of the renderer-owned typed geometry contract, but no Web SDK operation currently carries its complete typed semantics.",
         "implemented": false,
         "state": "typed-adapter"
@@ -725,7 +725,7 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/semantic/dataset.rs"
+          "crates/molgfx-py/src/semantic/dataset.rs"
         ],
         "state": "typed-adapter",
         "symbols": [
@@ -754,7 +754,7 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/semantic/dataset.rs"
+          "crates/molgfx-py/src/semantic/dataset.rs"
         ],
         "state": "typed-adapter",
         "symbols": [
@@ -778,9 +778,9 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/semantic/dataset.rs",
-          "crates/pdviewx-py/src/semantic/dataset.rs",
-          "crates/pdviewx-py/src/semantic/dataset.rs"
+          "crates/molgfx-py/src/semantic/dataset.rs",
+          "crates/molgfx-py/src/semantic/dataset.rs",
+          "crates/molgfx-py/src/semantic/dataset.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -804,9 +804,9 @@
       "ownership": "copied-value",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/semantic/dataset.rs",
-          "crates/pdviewx-py/src/semantic/dataset.rs",
-          "crates/pdviewx-py/src/semantic/dataset.rs"
+          "crates/molgfx-py/src/semantic/dataset.rs",
+          "crates/molgfx-py/src/semantic/dataset.rs",
+          "crates/molgfx-py/src/semantic/dataset.rs"
         ],
         "state": "direct",
         "symbols": [

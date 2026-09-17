@@ -5,49 +5,49 @@
       "kind": "type",
       "name": "BrickId",
       "ownership": "copied-value",
-      "registration": {"adapter": "PyBrickId", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/brick.rs"}
+      "registration": {"adapter": "PyBrickId", "kind": "pyclass", "source": "crates/molgfx-py/src/render/brick.rs"}
     },
     {
       "declaration": "class BrickAddress:\n    def __init__(self, origin: tuple[int, int, int], mip: int) -> None: ...\n    origin: tuple[int, int, int]\n    mip: int",
       "kind": "type",
       "name": "BrickAddress",
       "ownership": "copied-value",
-      "registration": {"adapter": "PyBrickAddress", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/brick.rs"}
+      "registration": {"adapter": "PyBrickAddress", "kind": "pyclass", "source": "crates/molgfx-py/src/render/brick.rs"}
     },
     {
       "declaration": "class DirtyGeneration:\n    def __init__(self, value: int) -> None: ...\n    value: int\n    def next(self) -> DirtyGeneration: ...",
       "kind": "type",
       "name": "DirtyGeneration",
       "ownership": "copied-value",
-      "registration": {"adapter": "PyDirtyGeneration", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/brick.rs"}
+      "registration": {"adapter": "PyDirtyGeneration", "kind": "pyclass", "source": "crates/molgfx-py/src/render/brick.rs"}
     },
     {
       "declaration": "class BrickValueRange:\n    @staticmethod\n    def scalar(min: float, max: float) -> BrickValueRange: ...\n    @staticmethod\n    def segmentation(min: int, max: int) -> BrickValueRange: ...\n    @staticmethod\n    def occupancy(has_empty: bool, has_occupied: bool) -> BrickValueRange: ...\n    kind: str",
       "kind": "type",
       "name": "BrickValueRange",
       "ownership": "copied-value",
-      "registration": {"adapter": "PyBrickValueRange", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/brick.rs"}
+      "registration": {"adapter": "PyBrickValueRange", "kind": "pyclass", "source": "crates/molgfx-py/src/render/brick.rs"}
     },
     {
       "declaration": "class BrickShape:\n    def __init__(self, stored: tuple[int, int, int], halo: int) -> None: ...\n    stored: tuple[int, int, int]\n    interior: tuple[int, int, int]\n    halo: int\n    voxel_count: int",
       "kind": "type",
       "name": "BrickShape",
       "ownership": "copied-value",
-      "registration": {"adapter": "PyBrickShape", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/brick.rs"}
+      "registration": {"adapter": "PyBrickShape", "kind": "pyclass", "source": "crates/molgfx-py/src/render/brick.rs"}
     },
     {
       "declaration": "class BrickMetadata:\n    def __init__(self, id: BrickId, address: BrickAddress, shape: BrickShape, value_range: BrickValueRange, generation: DirtyGeneration) -> None: ...\n    id: BrickId\n    address: BrickAddress\n    shape: BrickShape\n    value_range: BrickValueRange\n    generation: DirtyGeneration",
       "kind": "type",
       "name": "BrickMetadata",
       "ownership": "copied-value",
-      "registration": {"adapter": "PyBrickMetadata", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/brick.rs"}
+      "registration": {"adapter": "PyBrickMetadata", "kind": "pyclass", "source": "crates/molgfx-py/src/render/brick.rs"}
     },
     {
       "declaration": "class BrickDescriptor:\n    def __init__(self, chunk: ChunkId, metadata: BrickMetadata) -> None: ...\n    chunk: ChunkId\n    metadata: BrickMetadata",
       "kind": "type",
       "name": "BrickDescriptor",
       "ownership": "copied-value",
-      "registration": {"adapter": "PyBrickDescriptor", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/brick.rs"}
+      "registration": {"adapter": "PyBrickDescriptor", "kind": "pyclass", "source": "crates/molgfx-py/src/render/brick.rs"}
     },
     {
       "declaration": "class BrickCatalog:\n    @staticmethod\n    def from_descriptors(dataset_id: DatasetId, logical_extent: tuple[int, int, int], voxel_bytes: int, descriptors: Sequence[BrickDescriptor]) -> BrickCatalog: ...\n    dataset_id: DatasetId\n    logical_extent: tuple[int, int, int]\n    descriptor_count: int\n    def copy_descriptors(self) -> list[BrickDescriptor]: ...\n    def logical_bytes(self) -> int: ...",
@@ -55,42 +55,42 @@
       "member_ownership": {"copy_descriptors": "explicit-copy"},
       "name": "BrickCatalog",
       "ownership": "rust-owned",
-      "registration": {"adapter": "PyBrickCatalog", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/brick.rs"}
+      "registration": {"adapter": "PyBrickCatalog", "kind": "pyclass", "source": "crates/molgfx-py/src/render/brick.rs"}
     },
     {
       "declaration": "class UploadRingConfig:\n    def __init__(self, capacity_bytes: int, ticket_capacity: int, epoch_budget_bytes: int, in_flight_budget_bytes: int, alignment: int) -> None: ...\n    capacity_bytes: int\n    ticket_capacity: int\n    epoch_budget_bytes: int\n    in_flight_budget_bytes: int\n    alignment: int",
       "kind": "type",
       "name": "UploadRingConfig",
       "ownership": "copied-value",
-      "registration": {"adapter": "PyUploadRingConfig", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/brick_atlas.rs"}
+      "registration": {"adapter": "PyUploadRingConfig", "kind": "pyclass", "source": "crates/molgfx-py/src/render/brick_atlas.rs"}
     },
     {
       "declaration": "class BrickAtlasKind:\n    Scalar: BrickAtlasKind\n    Segmentation: BrickAtlasKind\n    Occupancy: BrickAtlasKind\n    Surface: BrickAtlasKind",
       "kind": "type",
       "name": "BrickAtlasKind",
       "ownership": "copied-value",
-      "registration": {"adapter": "PyBrickAtlasKind", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/brick_atlas.rs"}
+      "registration": {"adapter": "PyBrickAtlasKind", "kind": "pyclass", "source": "crates/molgfx-py/src/render/brick_atlas.rs"}
     },
     {
       "declaration": "class BrickAtlasConfig:\n    def __init__(self, stored_shape: tuple[int, int, int], resident_capacity: int, uploads: UploadRingConfig, kind: BrickAtlasKind) -> None: ...\n    stored_shape: tuple[int, int, int]\n    resident_capacity: int\n    uploads: UploadRingConfig\n    kind: BrickAtlasKind",
       "kind": "type",
       "name": "BrickAtlasConfig",
       "ownership": "copied-value",
-      "registration": {"adapter": "PyBrickAtlasConfig", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/brick_atlas.rs"}
+      "registration": {"adapter": "PyBrickAtlasConfig", "kind": "pyclass", "source": "crates/molgfx-py/src/render/brick_atlas.rs"}
     },
     {
       "declaration": "class FenceValue:\n    value: int\n    def __int__(self) -> int: ...",
       "kind": "type",
       "name": "FenceValue",
       "ownership": "copied-value",
-      "registration": {"adapter": "PyFenceValue", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/brick_atlas.rs"}
+      "registration": {"adapter": "PyFenceValue", "kind": "pyclass", "source": "crates/molgfx-py/src/render/brick_atlas.rs"}
     },
     {
       "declaration": "class BrickAtlasMetrics:\n    atlas_bytes: int\n    page_table_bytes: int\n    resident_pages: int\n    pending_uploads: int\n    pending_evictions: int\n    stale_completions: int\n    page_table_writes: int",
       "kind": "type",
       "name": "BrickAtlasMetrics",
       "ownership": "copied-value",
-      "registration": {"adapter": "PyBrickAtlasMetrics", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/brick_atlas.rs"}
+      "registration": {"adapter": "PyBrickAtlasMetrics", "kind": "pyclass", "source": "crates/molgfx-py/src/render/brick_atlas.rs"}
     }
   ]
 }

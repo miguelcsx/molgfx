@@ -8,7 +8,7 @@
       "registration": {
         "adapter": "PyAnisotropicEllipsoid",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/geometry.rs"
+        "source": "crates/molgfx-py/src/pending_surface/geometry.rs"
       }
     },
     {
@@ -28,7 +28,7 @@
       "registration": {
         "adapter": "PyAtomSelection",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/selection.rs"
+        "source": "crates/molgfx-py/src/pending_surface/selection.rs"
       }
     },
     {
@@ -39,7 +39,7 @@
       "registration": {
         "adapter": "PyCarbohydrateShape",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/geometry.rs"
+        "source": "crates/molgfx-py/src/pending_surface/geometry.rs"
       }
     },
     {
@@ -50,7 +50,7 @@
       "registration": {
         "adapter": "PyCarbohydrateSymbol",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/geometry.rs"
+        "source": "crates/molgfx-py/src/pending_surface/geometry.rs"
       }
     },
     {
@@ -71,7 +71,7 @@
       "registration": {
         "adapter": "PyEntityProvenance",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/provenance.rs"
+        "source": "crates/molgfx-py/src/pending_surface/provenance.rs"
       }
     },
     {
@@ -82,7 +82,7 @@
       "registration": {
         "adapter": "PyFaceVisibility",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/presentation.rs"
+        "source": "crates/molgfx-py/src/pending_surface/presentation.rs"
       }
     },
     {
@@ -101,7 +101,7 @@
       "registration": {
         "adapter": "PyGuide",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/geometry.rs"
+        "source": "crates/molgfx-py/src/pending_surface/geometry.rs"
       }
     },
     {
@@ -112,7 +112,7 @@
       "registration": {
         "adapter": "PyLodCluster",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/semantic.rs"
+        "source": "crates/molgfx-py/src/pending_surface/semantic.rs"
       }
     },
     {
@@ -123,7 +123,7 @@
       "registration": {
         "adapter": "MappingError",
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/pending_surface/mapping.rs"
+        "source": "crates/molgfx-py/src/pending_surface/mapping.rs"
       }
     },
     {
@@ -134,7 +134,7 @@
       "registration": {
         "adapter": "PyMeshDescription",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/descriptions.rs"
+        "source": "crates/molgfx-py/src/pending_surface/descriptions.rs"
       }
     },
     {
@@ -145,7 +145,7 @@
       "registration": {
         "adapter": "PyMeshInstanceDescription",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/descriptions.rs"
+        "source": "crates/molgfx-py/src/pending_surface/descriptions.rs"
       }
     },
     {
@@ -163,7 +163,7 @@
       "registration": {
         "adapter": "PyOverlayDescription",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/descriptions.rs"
+        "source": "crates/molgfx-py/src/pending_surface/descriptions.rs"
       }
     },
     {
@@ -174,7 +174,7 @@
       "registration": {
         "adapter": "PyParticleBoundary",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/particle.rs"
+        "source": "crates/molgfx-py/src/pending_surface/particle.rs"
       }
     },
     {
@@ -185,7 +185,7 @@
       "registration": {
         "adapter": "PyParticleMotion",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/particle.rs"
+        "source": "crates/molgfx-py/src/pending_surface/particle.rs"
       }
     },
     {
@@ -196,7 +196,7 @@
       "registration": {
         "adapter": "PyParticleMotionDescription",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/descriptions.rs"
+        "source": "crates/molgfx-py/src/pending_surface/descriptions.rs"
       }
     },
     {
@@ -207,7 +207,7 @@
       "registration": {
         "adapter": "PyPlanarRegion",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/geometry.rs"
+        "source": "crates/molgfx-py/src/pending_surface/geometry.rs"
       }
     },
     {
@@ -218,7 +218,7 @@
       "registration": {
         "adapter": "PyPrimitiveDescription",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/descriptions.rs"
+        "source": "crates/molgfx-py/src/pending_surface/descriptions.rs"
       }
     },
     {
@@ -229,7 +229,7 @@
       "registration": {
         "adapter": "PyPropertyLegend",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/presentation.rs"
+        "source": "crates/molgfx-py/src/pending_surface/presentation.rs"
       }
     },
     {
@@ -240,7 +240,7 @@
       "registration": {
         "adapter": "PyPropertyMapping",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/mapping.rs"
+        "source": "crates/molgfx-py/src/pending_surface/mapping.rs"
       }
     },
     {
@@ -251,7 +251,7 @@
       "registration": {
         "adapter": "PyProvenanceDetail",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/provenance.rs"
+        "source": "crates/molgfx-py/src/pending_surface/provenance.rs"
       }
     },
     {
@@ -262,7 +262,7 @@
       "registration": {
         "adapter": "PyQuadric",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/geometry.rs"
+        "source": "crates/molgfx-py/src/pending_surface/geometry.rs"
       }
     },
     {
@@ -273,7 +273,7 @@
       "registration": {
         "adapter": "PyRepresentationConfig",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/representation.rs"
+        "source": "crates/molgfx-py/src/pending_surface/representation.rs"
       }
     },
     {
@@ -284,7 +284,7 @@
       "registration": {
         "adapter": "PyRepresentationInput",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/representation.rs"
+        "source": "crates/molgfx-py/src/pending_surface/representation.rs"
       }
     },
     {
@@ -295,7 +295,7 @@
       "registration": {
         "adapter": "PyRepresentationParams",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/representation.rs"
+        "source": "crates/molgfx-py/src/pending_surface/representation.rs"
       }
     },
     {
@@ -311,7 +311,7 @@
       "registration": {
         "adapter": "PyScreenOverlay",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/overlay.rs"
+        "source": "crates/molgfx-py/src/pending_surface/overlay.rs"
       }
     },
     {
@@ -322,7 +322,7 @@
       "registration": {
         "adapter": "PyFrameReport",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/config.rs"
+        "source": "crates/molgfx-py/src/render/config.rs"
       }
     },
     {
@@ -333,7 +333,7 @@
       "registration": {
         "adapter": "PyFrameTicket",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/config.rs"
+        "source": "crates/molgfx-py/src/render/config.rs"
       }
     },
     {
@@ -344,7 +344,7 @@
       "registration": {
         "adapter": "PySequenceConfig",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/config.rs"
+        "source": "crates/molgfx-py/src/render/config.rs"
       }
     },
     {
@@ -359,7 +359,7 @@
       "registration": {
         "adapter": "PySequenceFrame",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/engine_sequence.rs"
+        "source": "crates/molgfx-py/src/render/engine_sequence.rs"
       }
     },
     {
@@ -376,7 +376,7 @@
       "registration": {
         "adapter": "PySequenceRenderer",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/engine_sequence.rs"
+        "source": "crates/molgfx-py/src/render/engine_sequence.rs"
       }
     },
     {
@@ -387,7 +387,7 @@
       "registration": {
         "adapter": "PySurfaceComponentPolicy",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/presentation.rs"
+        "source": "crates/molgfx-py/src/pending_surface/presentation.rs"
       }
     },
     {
@@ -398,7 +398,7 @@
       "registration": {
         "adapter": "PySurfaceZone",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/semantic.rs"
+        "source": "crates/molgfx-py/src/pending_surface/semantic.rs"
       }
     },
     {
@@ -414,7 +414,7 @@
       "registration": {
         "adapter": "PySurfaceZoneScene",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/semantic.rs"
+        "source": "crates/molgfx-py/src/pending_surface/semantic.rs"
       }
     },
     {
@@ -425,7 +425,7 @@
       "registration": {
         "adapter": "PySurfaceZoneStyle",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/semantic.rs"
+        "source": "crates/molgfx-py/src/pending_surface/semantic.rs"
       }
     },
     {
@@ -436,7 +436,7 @@
       "registration": {
         "adapter": "PyVisualInstructionGpu",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/visual.rs"
+        "source": "crates/molgfx-py/src/pending_surface/visual.rs"
       }
     },
     {
@@ -447,7 +447,7 @@
       "registration": {
         "adapter": "PyVolumeRendering",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/volume.rs"
+        "source": "crates/molgfx-py/src/pending_surface/volume.rs"
       }
     },
     {
@@ -461,7 +461,7 @@
       "registration": {
         "adapter": "PyVolumeTransferFunction",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/volume.rs"
+        "source": "crates/molgfx-py/src/pending_surface/volume.rs"
       }
     },
     {
@@ -472,7 +472,7 @@
       "registration": {
         "adapter": "PyVolumeTransferPoint",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/pending_surface/volume.rs"
+        "source": "crates/molgfx-py/src/pending_surface/volume.rs"
       }
     }
   ]

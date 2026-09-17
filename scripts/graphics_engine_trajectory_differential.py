@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise one two-frame structure through NGL, Mol* and pdviewx.
+"""Exercise one two-frame structure through NGL, Mol* and molgfx.
 
 The PDB fixture and all PNGs are disposable.  The probe records frame counts,
 the actual frame mutation API and conservative image diagnostics; it does not
@@ -212,9 +212,9 @@ def frame_change(first: Path, second: Path) -> dict[str, Any]:
 
 
 def run_browsers(browser: str, node_root: Path, fixture: Path, output: Path) -> dict[str, Any]:
-    session = f"pdviewx-trajectory-differential-{os.getpid()}"
+    session = f"molgfx-trajectory-differential-{os.getpid()}"
     result: dict[str, Any] = {"status": "passed", "engines": {"ngl": {}, "molstar": {}}}
-    with tempfile.TemporaryDirectory(prefix="pdviewx-trajectory-browser-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-trajectory-browser-") as directory:
         webroot = Path(directory); (webroot / "node_modules").symlink_to(node_root / "node_modules", target_is_directory=True)
         (webroot / "trajectory.pdb").write_text(fixture.read_text(encoding="utf-8"), encoding="utf-8")
 
@@ -245,8 +245,8 @@ def run_browsers(browser: str, node_root: Path, fixture: Path, output: Path) -> 
     return result
 
 
-def run_pdviewx(executable: Path, start: Path, end: Path, root: Path, output: Path) -> dict[str, Any]:
-    prefix = output / "pdviewx-trajectory"
+def run_molgfx(executable: Path, start: Path, end: Path, root: Path, output: Path) -> dict[str, Any]:
+    prefix = output / "molgfx-trajectory"
     completed = subprocess.run([str(executable), str(start), str(end), str(prefix)], cwd=root, capture_output=True, text=True, env={**os.environ, "WGPU_BACKEND": os.environ.get("WGPU_BACKEND", "metal")}, timeout=120)
     paths = {label: Path(f"{prefix}-{label}.png") for label in ("start", "mid", "end")}
     passed = completed.returncode == 0 and all(path.exists() for path in paths.values())
@@ -259,19 +259,19 @@ def run_pdviewx(executable: Path, start: Path, end: Path, root: Path, output: Pa
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--node-root", type=Path, required=True, help="disposable npm --prefix directory")
-    parser.add_argument("--pdviewx-example", type=Path, required=True, help="built trajectory example executable")
+    parser.add_argument("--molgfx-example", type=Path, required=True, help="built trajectory example executable")
     parser.add_argument("--browser-use", default=shutil.which("browser-use"))
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(); root = args.repo.resolve()
-    with tempfile.TemporaryDirectory(prefix="pdviewx-trajectory-differential-images-") as image_directory, tempfile.TemporaryDirectory(prefix="pdviewx-trajectory-differential-fixture-") as fixture_directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-trajectory-differential-images-") as image_directory, tempfile.TemporaryDirectory(prefix="molgfx-trajectory-differential-fixture-") as fixture_directory:
         fixture = write_fixture(Path(fixture_directory))
         if not args.browser_use:
             result: dict[str, Any] = {"schema": 1, "status": "unavailable", "error": "browser-use executable not found"}
         else:
             result = {"schema": 1, "scope": "shared two-frame state/render diagnostics, not pixel/movie equivalence", "fixture": {"format": "PDB multi-model plus separate endpoints", "sha256": fixture["sha256"], "atom_count": fixture["atom_count"]}, **run_browsers(args.browser_use, args.node_root.resolve(), fixture["multi_model"], Path(image_directory))}
-            result["pdviewx"] = run_pdviewx(args.pdviewx_example.resolve(), fixture["start"], fixture["end"], root, Path(image_directory))
-            if result["pdviewx"].get("status") != "passed":
+            result["molgfx"] = run_molgfx(args.molgfx_example.resolve(), fixture["start"], fixture["end"], root, Path(image_directory))
+            if result["molgfx"].get("status") != "passed":
                 result["status"] = "passed-with-failures"
         encoded = json.dumps(result, indent=2, sort_keys=True) + "\n"
         if args.output:

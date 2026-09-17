@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Smoke-test the hosted Protein Imager in a disposable browser session.
 
-The site is an application around NGL, not a local pdviewx dependency. This
+The site is an application around NGL, not a local molgfx dependency. This
 probe records the site's real input/representation controls, emits one
 UI/example observation for every static feature record, loads every public
 example project, captures one non-empty canvas screenshot, and removes the
@@ -273,8 +273,8 @@ def feature_observations(result: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def run_probe(browser: str, url: str, skip_examples: bool, timeout: float) -> dict[str, Any]:
-    session = f"pdviewx-protein-imager-{os.getpid()}"
-    with tempfile.TemporaryDirectory(prefix="pdviewx-protein-imager-") as directory:
+    session = f"molgfx-protein-imager-{os.getpid()}"
+    with tempfile.TemporaryDirectory(prefix="molgfx-protein-imager-") as directory:
         screenshot = Path(directory) / "protein-imager.png"
         try:
             browser_call(browser, session, ["open", url], timeout=timeout)

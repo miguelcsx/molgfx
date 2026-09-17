@@ -276,7 +276,7 @@ def trajectory_format_envelope(pdbiox: Any) -> dict[str, Any]:
     }
     round_trips: dict[str, Any] = {}
     failures: list[str] = []
-    with tempfile.TemporaryDirectory(prefix="pdviewx-pdbiox-trajectory-formats-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-pdbiox-trajectory-formats-") as directory:
         root = Path(directory)
         for name, (factory_name, format_name) in writer_factories.items():
             factory = getattr(write_options_type, factory_name, None)
@@ -439,7 +439,7 @@ def volume_format_envelope(pdbiox: Any) -> dict[str, Any]:
         "mrc-mode0",
     )
     results: dict[str, Any] = {}
-    with tempfile.TemporaryDirectory(prefix="pdviewx-pdbiox-volume-formats-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-pdbiox-volume-formats-") as directory:
         root = Path(directory)
         paths = {
             "mrc": root / "fixture.mrc",
@@ -578,7 +578,7 @@ def render_input_envelope(pdbiox: Any, structure: Any) -> dict[str, Any]:
         0.5,
     )
     mesh = ses.indexed_mesh()
-    with tempfile.TemporaryDirectory(prefix="pdviewx-pdbiox-provider-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-pdbiox-provider-") as directory:
         obj_path = Path(directory) / "surface.obj"
         pdbiox.surface.write_obj(str(obj_path), mesh)
         obj_bytes = obj_path.stat().st_size

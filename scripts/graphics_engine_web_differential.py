@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture one shared scene per representation through NGL, Mol* and pdviewx.
+"""Capture one shared scene per representation through NGL, Mol* and molgfx.
 
 NGL and Mol* are browser runtimes, so the reference images are captured from
 their actual WebGL canvas rather than from a DOM screenshot.  The npm tree,
@@ -25,7 +25,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from graphics_engine_cross_render import RenderCase, image_summary, render_pdviewx, structural_comparison
+from graphics_engine_cross_render import RenderCase, image_summary, render_molgfx, structural_comparison
 
 
 @dataclass(frozen=True)
@@ -34,8 +34,8 @@ class WebCase:
     fixture: str
     ngl: str | None
     molstar: str | None
-    pdviewx: str | None
-    pdviewx_mode: str = "realtime"
+    molgfx: str | None
+    molgfx_mode: str = "realtime"
 
 
 CASES = (
@@ -203,9 +203,9 @@ def close_browser(executable: str, session: str) -> None:
 
 
 def run_browser_cases(browser: str, node_root: Path, root: Path, selected: list[WebCase], output: Path) -> dict[str, Any]:
-    session = f"pdviewx-web-differential-{os.getpid()}"
+    session = f"molgfx-web-differential-{os.getpid()}"
     result: dict[str, Any] = {"status": "passed", "engines": {"ngl": [], "molstar": []}}
-    with tempfile.TemporaryDirectory(prefix="pdviewx-web-differential-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-web-differential-") as directory:
         webroot = Path(directory)
         (webroot / "node_modules").symlink_to(node_root / "node_modules", target_is_directory=True)
 
@@ -241,18 +241,18 @@ def run_browser_cases(browser: str, node_root: Path, root: Path, selected: list[
     return result
 
 
-def add_pdviewx_results(result: dict[str, Any], executable: Path, root: Path, selected: list[WebCase], output: Path) -> None:
+def add_molgfx_results(result: dict[str, Any], executable: Path, root: Path, selected: list[WebCase], output: Path) -> None:
     for case in selected:
-        if case.pdviewx is None:
+        if case.molgfx is None:
             continue
         fixture = root / "benchmarks/scenes" / case.fixture
-        render_case = RenderCase(case.name, case.fixture, case.pdviewx, "", case.pdviewx_mode)
-        image_path = output / f"pdviewx-{case.name}.png"
-        pdviewx = render_pdviewx(executable, fixture, image_path, render_case, 256, 256, root)
-        record: dict[str, Any] = {"name": case.name, "fixture": case.fixture, "representation": case.pdviewx, "render": pdviewx}
-        if pdviewx.get("status") == "passed":
+        render_case = RenderCase(case.name, case.fixture, case.molgfx, "", case.molgfx_mode)
+        image_path = output / f"molgfx-{case.name}.png"
+        molgfx = render_molgfx(executable, fixture, image_path, render_case, 256, 256, root)
+        record: dict[str, Any] = {"name": case.name, "fixture": case.fixture, "representation": case.molgfx, "render": molgfx}
+        if molgfx.get("status") == "passed":
             record["image"] = image_summary(image_path)
-        result.setdefault("pdviewx", []).append(record)
+        result.setdefault("molgfx", []).append(record)
         for engine in ("ngl", "molstar"):
             reference = next((item for item in result["engines"][engine] if item["name"] == case.name), None)
             if reference and "image" in reference and "image" in record:
@@ -262,7 +262,7 @@ def add_pdviewx_results(result: dict[str, Any], executable: Path, root: Path, se
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--node-root", type=Path, required=True, help="disposable npm --prefix directory")
-    parser.add_argument("--pdviewx-example", type=Path)
+    parser.add_argument("--molgfx-example", type=Path)
     parser.add_argument("--browser-use", default=shutil.which("browser-use"))
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--case", action="append", choices=[case.name for case in CASES])
@@ -270,15 +270,15 @@ def main() -> int:
     args = parser.parse_args()
     root = args.repo.resolve()
     selected = [case for case in CASES if not args.case or case.name in set(args.case)]
-    with tempfile.TemporaryDirectory(prefix="pdviewx-web-differential-images-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-web-differential-images-") as directory:
         image_dir = Path(directory)
         if not args.browser_use:
             result: dict[str, Any] = {"schema": 1, "status": "unavailable", "error": "browser-use executable not found"}
         else:
             try:
                 result = {"schema": 1, "scope": "canvas image diagnostics, not pixel/scientific equivalence", **run_browser_cases(args.browser_use, args.node_root.resolve(), root, selected, image_dir)}
-                if args.pdviewx_example:
-                    add_pdviewx_results(result, args.pdviewx_example.resolve(), root, selected, image_dir)
+                if args.molgfx_example:
+                    add_molgfx_results(result, args.molgfx_example.resolve(), root, selected, image_dir)
             except (OSError, RuntimeError, json.JSONDecodeError, ValueError) as error:
                 result = {"schema": 1, "status": "unavailable", "error": f"{type(error).__name__}: {error}"}
         encoded = json.dumps(result, indent=2, sort_keys=True) + "\n"

@@ -16,19 +16,19 @@ step "cargo test --workspace --all-features"
 cargo test --workspace --all-features || fail=1
 
 step "browser WebGPU facade and JavaScript binding cross-build"
-cargo check -p pdviewx -p pdviewx-wasm --target wasm32-unknown-unknown --lib --all-features || fail=1
+cargo check -p molgfx -p molgfx-wasm --target wasm32-unknown-unknown --lib --all-features || fail=1
 
 step "fresh Python wheel facade and stub audit"
 maturin build --release --out target/wheels || fail=1
-wheel=$(find target/wheels -maxdepth 1 -name 'pdviewx-*.whl' -print | head -n 1)
+wheel=$(find target/wheels -maxdepth 1 -name 'molgfx-*.whl' -print | head -n 1)
 if [ -n "$wheel" ]; then
   PYTHONDONTWRITEBYTECODE=1 python3 scripts/python-binding-audit.py "$wheel" || fail=1
 else
-  echo "fresh pdviewx wheel not found"; fail=1
+  echo "fresh molgfx wheel not found"; fail=1
 fi
 
 step "golden-image corpus (binding on the reference adapter, advisory elsewhere)"
-cargo run --release --example golden -p pdviewx --features semantic || fail=1
+cargo run --release --example golden -p molgfx --features semantic || fail=1
 
 step "doc checks"
 ./scripts/check-docs.sh || fail=1

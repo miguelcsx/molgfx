@@ -1,0 +1,29 @@
+[package]
+name = "molgfx-core"
+description = "The semantic scene graph: columnar tables, GPU record layouts, the borrowed coordinate seam."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rayon.workspace = true
+molgfx-math.workspace = true
+pdbiox = { workspace = true, features = ["surface"] }
+bytemuck.workspace = true
+smallvec.workspace = true
+hashbrown.workspace = true
+num-traits.workspace = true
+thiserror.workspace = true
+roaring.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+proptest.workspace = true
+pdbiox = { workspace = true, features = ["mmcif"] }
+
+[lints]
+workspace = true

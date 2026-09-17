@@ -76,7 +76,7 @@
       "registration": {
         "adapter": "PyVisualEvaluation",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/visual.rs"
+        "source": "crates/molgfx-py/src/visual.rs"
       }
     },
     {
@@ -149,7 +149,7 @@
       "registration": {
         "adapter": "PyVisualProgram",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/visual.rs"
+        "source": "crates/molgfx-py/src/visual.rs"
       }
     },
     {
@@ -204,7 +204,7 @@
       "registration": {
         "adapter": "PyVisualStyle",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/visual.rs"
+        "source": "crates/molgfx-py/src/visual.rs"
       }
     },
     {
@@ -565,7 +565,7 @@
       "registration": {
         "adapter": "PyVisualProgramBuilder",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/visual.rs"
+        "source": "crates/molgfx-py/src/visual.rs"
       }
     },
     {
@@ -576,7 +576,7 @@
       "ownership": "borrowed-call",
       "registration": {
         "kind": "python-helper",
-        "source": "python/pdviewx/visual.py"
+        "source": "python/molgfx/visual.py"
       }
     },
     {
@@ -607,7 +607,7 @@
       "registration": {
         "adapter": "PyScalarContours",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/color.rs"
+        "source": "crates/molgfx-py/src/values/color.rs"
       }
     },
     {
@@ -644,7 +644,7 @@
       "registration": {
         "adapter": "PySurfaceScalarOverlay",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/color.rs"
+        "source": "crates/molgfx-py/src/values/color.rs"
       }
     },
     {
@@ -656,7 +656,7 @@
       "registration": {
         "adapter": "PyClipCap",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/volume.rs"
+        "source": "crates/molgfx-py/src/values/volume.rs"
       }
     },
     {
@@ -699,7 +699,7 @@
       "registration": {
         "adapter": "PyClipPlane",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/volume.rs"
+        "source": "crates/molgfx-py/src/values/volume.rs"
       }
     },
     {
@@ -748,7 +748,7 @@
       "registration": {
         "adapter": "PyClipSet",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/volume.rs"
+        "source": "crates/molgfx-py/src/values/volume.rs"
       }
     },
     {
@@ -785,7 +785,7 @@
       "registration": {
         "adapter": "PySegmentStyle",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/volume.rs"
+        "source": "crates/molgfx-py/src/values/volume.rs"
       }
     },
     {
@@ -822,7 +822,7 @@
       "registration": {
         "adapter": "PySegmentStyleTable",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/volume.rs"
+        "source": "crates/molgfx-py/src/values/volume.rs"
       }
     }
   ]

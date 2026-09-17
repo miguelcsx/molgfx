@@ -82,7 +82,7 @@
       "registration": {
         "adapter": "PyPayloadKind",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/dataset.rs"
+        "source": "crates/molgfx-py/src/semantic/dataset.rs"
       }
     },
     {
@@ -131,7 +131,7 @@
       "registration": {
         "adapter": "PyChunkSpan",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/dataset.rs"
+        "source": "crates/molgfx-py/src/semantic/dataset.rs"
       }
     },
     {
@@ -162,7 +162,7 @@
       "registration": {
         "adapter": "PyChunkBounds",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/dataset.rs"
+        "source": "crates/molgfx-py/src/semantic/dataset.rs"
       }
     },
     {
@@ -223,7 +223,7 @@
       "registration": {
         "adapter": "PyChunkDescriptor",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/dataset.rs"
+        "source": "crates/molgfx-py/src/semantic/dataset.rs"
       }
     },
     {
@@ -284,7 +284,7 @@
       "registration": {
         "adapter": "PyDatasetCatalog",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/dataset.rs"
+        "source": "crates/molgfx-py/src/semantic/dataset.rs"
       }
     },
     {
@@ -339,7 +339,7 @@
       "registration": {
         "adapter": "PyResidencyBudget",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     },
     {
@@ -382,7 +382,7 @@
       "registration": {
         "adapter": "PyResidencyUsage",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     },
     {
@@ -407,7 +407,7 @@
       "registration": {
         "adapter": "PyResidencyClass",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     },
     {
@@ -450,7 +450,7 @@
       "registration": {
         "adapter": "PyResidencyPhase",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     },
     {
@@ -481,7 +481,7 @@
       "registration": {
         "adapter": "PyResidencyFailure",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     },
     {
@@ -518,7 +518,7 @@
       "registration": {
         "adapter": "PyResidencyKey",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     },
     {
@@ -543,7 +543,7 @@
       "registration": {
         "adapter": "PyResidencyTicket",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     },
     {
@@ -586,7 +586,7 @@
       "registration": {
         "adapter": "PyResidencyRequest",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     },
     {
@@ -617,7 +617,7 @@
       "registration": {
         "adapter": "PyResidencySnapshot",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     },
     {
@@ -642,7 +642,7 @@
       "registration": {
         "adapter": "PyResidencyEviction",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     },
     {
@@ -673,7 +673,7 @@
       "registration": {
         "adapter": "PyStaleCompletion",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     },
     {
@@ -698,7 +698,7 @@
       "registration": {
         "adapter": "PyDeviceLossReport",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     },
     {
@@ -747,7 +747,7 @@
       "registration": {
         "adapter": "PyResidencyOutput",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     },
     {
@@ -832,7 +832,7 @@
       "registration": {
         "adapter": "PyResidencyMachine",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/residency.rs"
+        "source": "crates/molgfx-py/src/semantic/residency.rs"
       }
     }
   ]
