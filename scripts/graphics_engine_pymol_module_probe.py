@@ -220,15 +220,15 @@ def module_callable_mapping(name: str) -> tuple[str, str, str]:
     """Assign every module-only callable an explicit owner and status."""
 
     if name in MODULE_GRAPHICS_EXACT or name.startswith(("get_volume", "load_cgo")):
-        return "graphics-or-scene", "partial", "pdviewx-render-or-downstream-exporter"
+        return "graphics-or-scene", "partial", "molgfx-render-or-downstream-exporter"
     if name in MODULE_ANALYSIS_EXACT:
         return "provider-or-analysis", "provider-or-caller", "pdbiox-or-caller"
     if name in MODULE_SCRIPTING_NAMES or name.startswith(MODULE_APP_PREFIXES):
         return "application-or-scripting", "out-of-scope", "application-shell"
     if name.startswith(MODULE_ANIMATION_PREFIXES):
-        return "animation-scene", "partial", "pdviewx-trajectory-or-caller-exporter"
+        return "animation-scene", "partial", "molgfx-trajectory-or-caller-exporter"
     if name.startswith(MODULE_SCENE_PREFIXES):
-        return "scene-state", "partial", "pdviewx-core-or-caller"
+        return "scene-state", "partial", "molgfx-core-or-caller"
     if name.startswith(MODULE_PROVIDER_PREFIXES):
         return "provider-or-caller", "provider-or-caller", "pdbiox-or-caller"
     if re.search(r"(bond|coord|model|object|selection|assembly|chem|map|density|surface|mesh|phipsi|measure|pair|align|fit|rms|sasa|symmetr|state)", name, re.IGNORECASE):

@@ -3,7 +3,7 @@
 
 The PyMOL, pdbiox, OVITO and native ChimeraX probes are optional and run in
 caller-selected disposable runtimes. The default process only inventories the
-pdviewx checkout and can delegate the optional probes to disposable Python
+molgfx checkout and can delegate the optional probes to disposable Python
 environments or application executables with the corresponding options.
 """
 
@@ -24,7 +24,7 @@ from graphics_engine_taxonomy import (
     NON_RENDERING_FAMILIES,
     classify_command,
     command_execution_evidence,
-    pdviewx_mapping,
+    molgfx_mapping,
 )
 from graphics_engine_pymol_cgo_probe import cgo_opcode_matrix
 from graphics_engine_pymol_probes import extended_pymol_probes
@@ -142,7 +142,7 @@ def probe_pymol() -> dict[str, Any]:
             "reference": REFERENCE_URLS["pymol"],
         }
 
-    with tempfile.TemporaryDirectory(prefix="pdviewx-pymol-probe-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-pymol-probe-") as directory:
         root = Path(directory)
         stdout = io.StringIO()
         stderr = io.StringIO()
@@ -277,7 +277,7 @@ def probe_pymol() -> dict[str, Any]:
                     "name": name,
                     "family": family,
                     "execution_evidence": command_execution_evidence(name),
-                    "pdviewx": pdviewx_mapping(name, family),
+                    "molgfx": molgfx_mapping(name, family),
                     "scope": "non-rendering-owner"
                     if family in NON_RENDERING_FAMILIES
                     else "graphics-or-scene-owner",
@@ -298,7 +298,7 @@ def probe_pymol() -> dict[str, Any]:
     for command in command_inventory:
         family = command["family"]
         family_counts[family] = family_counts.get(family, 0) + 1
-        status = command["pdviewx"]["status"]
+        status = command["molgfx"]["status"]
         mapping_counts[status] = mapping_counts.get(status, 0) + 1
         evidence = command["execution_evidence"]
         execution_counts[evidence] = execution_counts.get(evidence, 0) + 1
@@ -313,7 +313,7 @@ def probe_pymol() -> dict[str, Any]:
         "failed_probes": failed_probes,
         "command_family_counts": dict(sorted(family_counts.items())),
         "command_execution_evidence_counts": dict(sorted(execution_counts.items())),
-        "pdviewx_mapping_counts": dict(sorted(mapping_counts.items())),
+        "molgfx_mapping_counts": dict(sorted(mapping_counts.items())),
         "unclassified_commands": [
             command["name"] for command in command_inventory if command["family"] == "review-needed"
         ],
@@ -334,14 +334,14 @@ def relative_path(path: Path, root: Path) -> str:
         return str(path)
 
 
-def probe_pdviewx(root: Path) -> dict[str, Any]:
+def probe_molgfx(root: Path) -> dict[str, Any]:
     """Inventory the Rust facade and its existing test evidence."""
 
-    facade = root / "crates/pdviewx/src/lib.rs"
+    facade = root / "crates/molgfx/src/lib.rs"
     source = facade.read_text(encoding="utf-8") if facade.is_file() else ""
     rust_files = list((root / "crates").rglob("*.rs"))
     test_files = [path for path in rust_files if path.name.endswith("_tests.rs")]
-    core_source = root / "crates/pdviewx-core/src"
+    core_source = root / "crates/molgfx-core/src"
     core_text = "\n".join(path.read_text(encoding="utf-8") for path in core_source.rglob("*.rs"))
     signals = {
         "scene-and-pdbiox-coordinate-seam": "Scene" in source and "pdbiox" in core_text,
@@ -350,13 +350,13 @@ def probe_pdviewx(root: Path) -> dict[str, Any]:
         "camera-and-clipping": "Camera" in source and "ClipSet" in source,
         "picking-and-annotations": "PickEntity" in source and "Annotation" in source,
         "headless-image-engine": "Engine" in source and "Image" in source,
-        "python-binding": (root / "crates/pdviewx-py").exists()
-        or (root / "python/pdviewx").exists(),
+        "python-binding": (root / "crates/molgfx-py").exists()
+        or (root / "python/molgfx").exists(),
     }
     test_text = "\n".join(path.read_text(encoding="utf-8") for path in test_files)
     return {
         "status": "passed" if facade.is_file() else "failed",
-        "scope": "Rust facade and source/test evidence; no pdviewx Python binding exists",
+        "scope": "Rust facade and source/test evidence; no molgfx Python binding exists",
         "facade": relative_path(facade, root),
         "signals": signals,
         "rust_source_file_count": len(rust_files),
@@ -369,7 +369,7 @@ def probe_pdviewx(root: Path) -> dict[str, Any]:
 def run_child(probe: str, python: str, root: Path) -> dict[str, Any]:
     """Run one probe in a caller-selected interpreter."""
 
-    with tempfile.TemporaryDirectory(prefix="pdviewx-parity-child-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-parity-child-") as directory:
         output = Path(directory) / "result.json"
         command = [
             python,
@@ -399,7 +399,7 @@ def run_child(probe: str, python: str, root: Path) -> dict[str, Any]:
 def run_chimerax_disposable(executable: Path, root: Path) -> dict[str, Any]:
     """Run native ChimeraX with all child artifacts outside the checkout."""
 
-    with tempfile.TemporaryDirectory(prefix="pdviewx-parity-chimerax-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-parity-chimerax-") as directory:
         output = Path(directory) / "result.json"
         return probe_chimerax(
             executable,
@@ -412,7 +412,7 @@ def unavailable_chimerax(root: Path) -> dict[str, Any]:
     """Return the full per-feature not-run matrix when no bundle is supplied."""
 
     return run_chimerax_disposable(
-        root / "target/pdviewx-chimerax-not-installed/ChimeraX", root
+        root / "target/molgfx-chimerax-not-installed/ChimeraX", root
     )
 
 
@@ -420,7 +420,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--probe",
-        choices=("all", "facade", "pymol", "pdbiox", "ovito", "chimerax", "pdviewx"),
+        choices=("all", "facade", "pymol", "pdbiox", "ovito", "chimerax", "molgfx"),
         default="all",
     )
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
@@ -449,14 +449,14 @@ def main() -> int:
             if args.chimerax_executable
             else unavailable_chimerax(root)
         )
-    elif args.probe == "pdviewx":
-        result = probe_pdviewx(root)
+    elif args.probe == "molgfx":
+        result = probe_molgfx(root)
     else:
         result = {
             "schema": 1,
             "reference_urls": REFERENCE_URLS,
             "facade": audit_facade(root),
-            "pdviewx": probe_pdviewx(root),
+            "molgfx": probe_molgfx(root),
             "pymol": run_child("pymol", args.pymol_python, root)
             if args.pymol_python
             else probe_pymol(),

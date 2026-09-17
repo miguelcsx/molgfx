@@ -5,56 +5,56 @@
       "kind": "type",
       "ownership": "rust-owned",
       "declaration": "class GenericCompositionView:\n    domains: list[RowDomain]\n    normalized_weights: list[float]",
-      "registration": {"adapter": "PyGenericCompositionView", "kind": "pyclass", "source": "crates/pdviewx-py/src/semantic/generic/mod.rs"}
+      "registration": {"adapter": "PyGenericCompositionView", "kind": "pyclass", "source": "crates/molgfx-py/src/semantic/generic/mod.rs"}
     },
     {
       "name": "DerivedCacheBudget",
       "kind": "type",
       "ownership": "copied-value",
       "declaration": "class DerivedCacheBudget:\n    def __init__(self, cpu_bytes: int, gpu_bytes: int) -> None: ...\n    @staticmethod\n    def default() -> DerivedCacheBudget: ...\n    cpu_bytes: int\n    gpu_bytes: int",
-      "registration": {"adapter": "PyDerivedCacheBudget", "kind": "pyclass", "source": "crates/pdviewx-py/src/render/config.rs"}
+      "registration": {"adapter": "PyDerivedCacheBudget", "kind": "pyclass", "source": "crates/molgfx-py/src/render/config.rs"}
     },
     {
       "name": "AttributeHandle",
       "kind": "type",
       "ownership": "copied-value",
       "declaration": "class AttributeHandle:\n    row: int\n    generation: int\n    def __repr__(self) -> str: ...",
-      "registration": {"adapter": "PyAttributeHandle", "kind": "pyclass", "source": "crates/pdviewx-py/src/handles.rs"}
+      "registration": {"adapter": "PyAttributeHandle", "kind": "pyclass", "source": "crates/molgfx-py/src/handles.rs"}
     },
     {
       "name": "PointBatchHandle",
       "kind": "type",
       "ownership": "copied-value",
       "declaration": "class PointBatchHandle:\n    row: int\n    generation: int\n    def __repr__(self) -> str: ...",
-      "registration": {"adapter": "PyPointBatchHandle", "kind": "pyclass", "source": "crates/pdviewx-py/src/handles.rs"}
+      "registration": {"adapter": "PyPointBatchHandle", "kind": "pyclass", "source": "crates/molgfx-py/src/handles.rs"}
     },
     {
       "name": "InstanceBatchHandle",
       "kind": "type",
       "ownership": "copied-value",
       "declaration": "class InstanceBatchHandle:\n    row: int\n    generation: int\n    def __repr__(self) -> str: ...",
-      "registration": {"adapter": "PyInstanceBatchHandle", "kind": "pyclass", "source": "crates/pdviewx-py/src/handles.rs"}
+      "registration": {"adapter": "PyInstanceBatchHandle", "kind": "pyclass", "source": "crates/molgfx-py/src/handles.rs"}
     },
     {
       "name": "RelationBatchHandle",
       "kind": "type",
       "ownership": "copied-value",
       "declaration": "class RelationBatchHandle:\n    row: int\n    generation: int\n    def __repr__(self) -> str: ...",
-      "registration": {"adapter": "PyRelationBatchHandle", "kind": "pyclass", "source": "crates/pdviewx-py/src/handles.rs"}
+      "registration": {"adapter": "PyRelationBatchHandle", "kind": "pyclass", "source": "crates/molgfx-py/src/handles.rs"}
     },
     {
       "name": "RowDomain",
       "kind": "type",
       "ownership": "copied-value",
       "declaration": "class RowDomain:\n    @staticmethod\n    def atoms(handle: StructureHandle) -> RowDomain: ...\n    @staticmethod\n    def points(handle: PointBatchHandle) -> RowDomain: ...\n    @staticmethod\n    def instances(handle: InstanceBatchHandle) -> RowDomain: ...\n    @staticmethod\n    def template_parts(handle: InstanceBatchHandle) -> RowDomain: ...\n    @staticmethod\n    def relations(handle: RelationBatchHandle) -> RowDomain: ...",
-      "registration": {"adapter": "PyRowDomain", "kind": "pyclass", "source": "crates/pdviewx-py/src/generic_batches/mod.rs"}
+      "registration": {"adapter": "PyRowDomain", "kind": "pyclass", "source": "crates/molgfx-py/src/generic_batches/mod.rs"}
     },
     {
       "name": "RelationPattern",
       "kind": "type",
       "ownership": "copied-value",
       "declaration": "class RelationPattern:\n    Solid: RelationPattern\n    Dashed: RelationPattern\n    Dotted: RelationPattern\n    Spring: RelationPattern",
-      "registration": {"adapter": "PyRelationPattern", "kind": "pyclass", "source": "crates/pdviewx-py/src/generic_batches/mod.rs"}
+      "registration": {"adapter": "PyRelationPattern", "kind": "pyclass", "source": "crates/molgfx-py/src/generic_batches/mod.rs"}
     },
     {
       "name": "AnalyticTemplate",
@@ -62,7 +62,7 @@
       "ownership": "rust-owned",
       "member_ownership": {"__init__": "explicit-copy", "part_count": "borrowed-call"},
       "declaration": "class AnalyticTemplate:\n    def __init__(self, namespace: int, spheres: NDArray[np.float32], capsules: NDArray[np.float32]) -> None: ...\n    part_count: int",
-      "registration": {"adapter": "PyAnalyticTemplate", "kind": "pyclass", "source": "crates/pdviewx-py/src/generic_batches/mod.rs"}
+      "registration": {"adapter": "PyAnalyticTemplate", "kind": "pyclass", "source": "crates/molgfx-py/src/generic_batches/mod.rs"}
     }
   ],
   "extensions": [

@@ -1,0 +1,71 @@
+[package]
+name = "molgfx"
+description = "Facade crate: feature-gated re-exports of the public engine surface."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+# The public facade exposes every stable molgfx-owned subsystem by default.
+# Consumers that need a smaller dependency graph can still opt out explicitly.
+default = ["semantic"]
+# The interactive raster path over the default backend.
+realtime = ["dep:molgfx-render", "dep:molgfx-wgpu"]
+# The semantic layer: focus, banding, interactions.
+semantic = ["realtime", "dep:molgfx-semantic"]
+
+[dependencies]
+molgfx-math.workspace = true
+molgfx-core.workspace = true
+molgfx-gpu.workspace = true
+molgfx-render = { workspace = true, optional = true }
+molgfx-wgpu = { workspace = true, optional = true }
+molgfx-semantic = { workspace = true, optional = true }
+num-traits.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+molgfx-recipes.workspace = true
+winit.workspace = true
+pdbiox = { workspace = true, features = ["mmcif", "bcif", "pdb", "chem", "spatial"] }
+png.workspace = true
+
+[lints]
+workspace = true
+
+[[example]]
+name = "pocket"
+required-features = ["realtime"]
+
+[[example]]
+name = "ligand_cutaway"
+required-features = ["semantic"]
+
+[[example]]
+name = "focus_cutaway"
+required-features = ["semantic"]
+
+[[example]]
+name = "mem_stress"
+required-features = ["semantic"]
+
+[[example]]
+name = "docking_swarm"
+required-features = ["semantic"]
+
+[[example]]
+name = "million_particles"
+required-features = ["realtime"]
+
+[[example]]
+name = "showcase"
+required-features = ["semantic"]
+
+[[example]]
+name = "unit_cell"
+required-features = ["semantic"]
+
+[[example]]
+name = "cinematic_4k"
+required-features = ["semantic"]

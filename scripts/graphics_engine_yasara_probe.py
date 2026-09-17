@@ -4,7 +4,7 @@
 YASARA's full manual and native executable are not present in this checkout.
 The vendor feature-list snapshot is therefore treated as source evidence, not
 as successful renderer execution.  The report retains every unique parsed
-command, the repeated raw source row, its pdviewx owner/status decision, and an
+command, the repeated raw source row, its molgfx owner/status decision, and an
 explicit native ``not-run`` boundary.
 """
 

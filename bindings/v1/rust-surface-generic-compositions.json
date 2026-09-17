@@ -17,19 +17,19 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+          "crates/molgfx-py/src/semantic/generic/mod.rs"
         ]
       },
       "wasm": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs",
+        "evidence": "crates/molgfx-wasm/src/generic_compositions/mod.rs",
         "gap": "CompositionError is part of the renderer-owned typed error contract, but no Web SDK operation currently carries its complete typed semantics."
       },
       "typescript": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "typescript/pdviewx.generated.d.ts",
+        "evidence": "typescript/molgfx.generated.d.ts",
         "gap": "CompositionError is part of the renderer-owned typed error contract, but no Web SDK operation currently carries its complete typed semantics."
       }
     },
@@ -48,18 +48,18 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+          "crates/molgfx-py/src/semantic/generic/mod.rs"
         ]
       },
       "wasm": {
         "state": "direct",
         "name": "WebDifferenceComposition",
-        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+        "evidence": "crates/molgfx-wasm/src/generic_compositions/mod.rs"
       },
       "typescript": {
         "state": "direct",
         "name": "WebDifferenceComposition",
-        "evidence": "typescript/pdviewx.generated.d.ts"
+        "evidence": "typescript/molgfx.generated.d.ts"
       }
     },
     {
@@ -77,18 +77,18 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+          "crates/molgfx-py/src/semantic/generic/mod.rs"
         ]
       },
       "wasm": {
         "state": "direct",
         "name": "WebDifferenceComposition",
-        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+        "evidence": "crates/molgfx-wasm/src/generic_compositions/mod.rs"
       },
       "typescript": {
         "state": "direct",
         "name": "WebDifferenceComposition",
-        "evidence": "typescript/pdviewx.generated.d.ts"
+        "evidence": "typescript/molgfx.generated.d.ts"
       }
     },
     {
@@ -106,18 +106,18 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+          "crates/molgfx-py/src/semantic/generic/mod.rs"
         ]
       },
       "wasm": {
         "state": "direct",
         "name": "WebEnsembleComposition",
-        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+        "evidence": "crates/molgfx-wasm/src/generic_compositions/mod.rs"
       },
       "typescript": {
         "state": "direct",
         "name": "WebEnsembleComposition",
-        "evidence": "typescript/pdviewx.generated.d.ts"
+        "evidence": "typescript/molgfx.generated.d.ts"
       }
     },
     {
@@ -135,18 +135,18 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+          "crates/molgfx-py/src/semantic/generic/mod.rs"
         ]
       },
       "wasm": {
         "state": "direct",
         "name": "WebEnsembleComposition",
-        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+        "evidence": "crates/molgfx-wasm/src/generic_compositions/mod.rs"
       },
       "typescript": {
         "state": "direct",
         "name": "WebEnsembleComposition",
-        "evidence": "typescript/pdviewx.generated.d.ts"
+        "evidence": "typescript/molgfx.generated.d.ts"
       }
     },
     {
@@ -164,18 +164,18 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+          "crates/molgfx-py/src/semantic/generic/mod.rs"
         ]
       },
       "wasm": {
         "state": "direct",
         "name": "WebScene",
-        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+        "evidence": "crates/molgfx-wasm/src/generic_compositions/mod.rs"
       },
       "typescript": {
         "state": "direct",
         "name": "WebScene",
-        "evidence": "typescript/pdviewx.generated.d.ts"
+        "evidence": "typescript/molgfx.generated.d.ts"
       }
     },
     {
@@ -193,18 +193,18 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+          "crates/molgfx-py/src/semantic/generic/mod.rs"
         ]
       },
       "wasm": {
         "state": "direct",
         "name": "WebScene",
-        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+        "evidence": "crates/molgfx-wasm/src/generic_compositions/mod.rs"
       },
       "typescript": {
         "state": "direct",
         "name": "WebScene",
-        "evidence": "typescript/pdviewx.generated.d.ts"
+        "evidence": "typescript/molgfx.generated.d.ts"
       }
     },
     {
@@ -224,18 +224,18 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+          "crates/molgfx-py/src/semantic/generic/mod.rs"
         ]
       },
       "wasm": {
         "state": "direct",
         "name": "WebScene",
-        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+        "evidence": "crates/molgfx-wasm/src/generic_compositions/mod.rs"
       },
       "typescript": {
         "state": "direct",
         "name": "WebScene",
-        "evidence": "typescript/pdviewx.generated.d.ts"
+        "evidence": "typescript/molgfx.generated.d.ts"
       }
     },
     {
@@ -248,18 +248,18 @@
           "GenericCompositionView"
         ],
         "evidence": [
-          "crates/pdviewx-py/src/semantic/generic/mod.rs"
+          "crates/molgfx-py/src/semantic/generic/mod.rs"
         ]
       },
       "wasm": {
         "state": "direct",
         "name": "WebGenericCompositionView",
-        "evidence": "crates/pdviewx-wasm/src/generic_compositions/mod.rs"
+        "evidence": "crates/molgfx-wasm/src/generic_compositions/mod.rs"
       },
       "typescript": {
         "state": "direct",
         "name": "WebGenericCompositionView",
-        "evidence": "typescript/pdviewx.generated.d.ts"
+        "evidence": "typescript/molgfx.generated.d.ts"
       }
     }
   ]

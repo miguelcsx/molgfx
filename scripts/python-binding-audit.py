@@ -36,15 +36,15 @@ def declarations(stub: Path) -> set[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("wheel", type=Path)
-    parser.add_argument("--stub", type=Path, default=Path("python/pdviewx/__init__.pyi"))
+    parser.add_argument("--stub", type=Path, default=Path("python/molgfx/__init__.pyi"))
     arguments = parser.parse_args()
     failures: list[str] = []
-    with tempfile.TemporaryDirectory(prefix="pdviewx-wheel-audit-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-wheel-audit-") as directory:
         with zipfile.ZipFile(arguments.wheel) as archive:
             archive.extractall(directory)
         sys.path.insert(0, directory)
-        package = importlib.import_module("pdviewx")
-        native = importlib.import_module("pdviewx._native")
+        package = importlib.import_module("molgfx")
+        native = importlib.import_module("molgfx._native")
         exported = set(package.__all__)
         native_public = {name for name in dir(native) if not name.startswith("_")}
         missing = native_public - exported

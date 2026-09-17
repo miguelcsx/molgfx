@@ -1,5 +1,5 @@
 {
-  "$schema": "https://pdviewx.dev/schemas/bindings/v1.json",
+  "$schema": "https://molgfx.dev/schemas/bindings/v1.json",
   "fragments": [
     "v1/python-api-memory-ownership-to-visual-inputs.json",
     "v1/python-api-visual-evaluation-to-segment-style-table.json",
@@ -35,9 +35,9 @@
   ],
   "python": {
     "helper_exports": {
-      "visual": "pdviewx.visual"
+      "visual": "molgfx.visual"
     },
-    "native_module": "pdviewx._native",
+    "native_module": "molgfx._native",
     "registration_modules": [
       "error",
       "math",

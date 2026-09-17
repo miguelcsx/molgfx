@@ -1,0 +1,102 @@
+//! Owned projection of borrowed scene provenance.
+
+use crate::core::{PyEntityRef, PyScene};
+use crate::memory::PyMemoryOwnership;
+use pyo3::prelude::*;
+
+#[pyclass(name = "ProvenanceDetail", frozen, eq, eq_int, from_py_object)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PyProvenanceDetail {
+    Atom,
+    Bond,
+    DynamicBond,
+    Interaction,
+    Guide,
+    Annotation,
+    Measurement,
+    Primitive,
+    Mesh,
+    Unknown,
+}
+
+fn detail(value: molgfx::ProvenanceDetail<'_>) -> PyProvenanceDetail {
+    match value {
+        molgfx::ProvenanceDetail::Atom(_) => PyProvenanceDetail::Atom,
+        molgfx::ProvenanceDetail::Bond(_) => PyProvenanceDetail::Bond,
+        molgfx::ProvenanceDetail::DynamicBond(_) => PyProvenanceDetail::DynamicBond,
+        molgfx::ProvenanceDetail::Interaction(_) => PyProvenanceDetail::Interaction,
+        molgfx::ProvenanceDetail::Guide(_) => PyProvenanceDetail::Guide,
+        molgfx::ProvenanceDetail::Annotation(_) => PyProvenanceDetail::Annotation,
+        molgfx::ProvenanceDetail::Measurement(_) => PyProvenanceDetail::Measurement,
+        molgfx::ProvenanceDetail::Primitive(_) => PyProvenanceDetail::Primitive,
+        molgfx::ProvenanceDetail::Mesh(_) => PyProvenanceDetail::Mesh,
+        _ => PyProvenanceDetail::Unknown,
+    }
+}
+
+#[pyclass(name = "EntityProvenance", frozen, from_py_object)]
+#[derive(Clone, Debug)]
+pub(crate) struct PyEntityProvenance {
+    entity: PyEntityRef,
+    entry_id: Option<String>,
+    entry_title: Option<String>,
+    method: Option<String>,
+    resolution: Option<f32>,
+    detail: PyProvenanceDetail,
+}
+
+impl From<molgfx::EntityProvenance<'_>> for PyEntityProvenance {
+    fn from(value: molgfx::EntityProvenance<'_>) -> Self {
+        Self {
+            entity: value.entity.into(),
+            entry_id: value.entry.id.as_deref().map(str::to_owned),
+            entry_title: value.entry.title.as_deref().map(str::to_owned),
+            method: value.entry.method.as_deref().map(str::to_owned),
+            resolution: value.entry.resolution,
+            detail: detail(value.detail),
+        }
+    }
+}
+
+#[pymethods]
+impl PyEntityProvenance {
+    #[staticmethod]
+    fn copy_from_scene(scene: PyRef<'_, PyScene>, entity: PyEntityRef) -> Option<Self> {
+        scene.inner.provenance(entity.0).map(Into::into)
+    }
+
+    #[getter]
+    fn entity(&self) -> PyEntityRef {
+        self.entity
+    }
+
+    #[getter]
+    fn entry_id(&self) -> Option<String> {
+        self.entry_id.clone()
+    }
+
+    #[getter]
+    fn entry_title(&self) -> Option<String> {
+        self.entry_title.clone()
+    }
+
+    #[getter]
+    fn method(&self) -> Option<String> {
+        self.method.clone()
+    }
+
+    #[getter]
+    fn resolution(&self) -> Option<f32> {
+        self.resolution
+    }
+
+    #[getter]
+    fn detail(&self) -> PyProvenanceDetail {
+        self.detail
+    }
+
+    #[getter]
+    fn ownership(&self) -> PyMemoryOwnership {
+        PyMemoryOwnership::Copied
+    }
+}

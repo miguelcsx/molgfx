@@ -102,7 +102,7 @@ def probe_ovito(
         }
 
     try:
-        with tempfile.TemporaryDirectory(prefix="pdviewx-ovito-probe-") as directory:
+        with tempfile.TemporaryDirectory(prefix="molgfx-ovito-probe-") as directory:
             work = Path(directory)
             input_path = work / "probe.xyz"
             input_path.write_text(MULTIFRAME_XYZ, encoding="utf-8")

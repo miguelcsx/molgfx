@@ -6,7 +6,7 @@
       "rust": "BrickAddress",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/brick.rs"
+          "crates/molgfx-py/src/render/brick.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -16,13 +16,13 @@
       "typescript": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickAddress is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       },
       "wasm": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickAddress is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       }
     },
@@ -32,7 +32,7 @@
       "rust": "BrickAtlasConfig",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/brick_atlas.rs"
+          "crates/molgfx-py/src/render/brick_atlas.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -42,13 +42,13 @@
       "typescript": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickAtlasConfig is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       },
       "wasm": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickAtlasConfig is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       }
     },
@@ -59,8 +59,8 @@
       "python": {
         "error_route": "RenderError",
         "evidence": [
-          "crates/pdviewx-py/src/error.rs",
-          "crates/pdviewx-py/src/render/brick_atlas.rs"
+          "crates/molgfx-py/src/error.rs",
+          "crates/molgfx-py/src/render/brick_atlas.rs"
         ],
         "state": "typed-adapter",
         "symbols": [
@@ -70,13 +70,13 @@
       "typescript": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickAtlasError is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       },
       "wasm": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickAtlasError is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       }
     },
@@ -86,7 +86,7 @@
       "rust": "BrickAtlasKind",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/brick_atlas.rs"
+          "crates/molgfx-py/src/render/brick_atlas.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -96,13 +96,13 @@
       "typescript": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickAtlasKind is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       },
       "wasm": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickAtlasKind is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       }
     },
@@ -112,7 +112,7 @@
       "rust": "BrickAtlasMetrics",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/brick_atlas.rs"
+          "crates/molgfx-py/src/render/brick_atlas.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -122,13 +122,13 @@
       "typescript": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickAtlasMetrics is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       },
       "wasm": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickAtlasMetrics is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       }
     },
@@ -143,8 +143,8 @@
           ]
         },
         "evidence": [
-          "crates/pdviewx-py/src/render/brick_atlas.rs",
-          "crates/pdviewx-py/src/render/engine.rs"
+          "crates/molgfx-py/src/render/brick_atlas.rs",
+          "crates/molgfx-py/src/render/engine.rs"
         ],
         "state": "typed-adapter",
         "symbols": [
@@ -154,13 +154,13 @@
       "typescript": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickAtlasUpload is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       },
       "wasm": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickAtlasUpload is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       }
     },
@@ -170,7 +170,7 @@
       "rust": "BrickCatalog",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/brick.rs"
+          "crates/molgfx-py/src/render/brick.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -194,7 +194,7 @@
       "rust": "BrickDescriptor",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/brick.rs"
+          "crates/molgfx-py/src/render/brick.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -218,7 +218,7 @@
       "rust": "BrickId",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/brick.rs"
+          "crates/molgfx-py/src/render/brick.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -228,13 +228,13 @@
       "typescript": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickId is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       },
       "wasm": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickId is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       }
     },
@@ -244,7 +244,7 @@
       "rust": "BrickMetadata",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/brick.rs"
+          "crates/molgfx-py/src/render/brick.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -268,7 +268,7 @@
       "rust": "BrickShape",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/brick.rs"
+          "crates/molgfx-py/src/render/brick.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -278,13 +278,13 @@
       "typescript": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickShape is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       },
       "wasm": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "BrickShape is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       }
     },
@@ -294,7 +294,7 @@
       "rust": "BrickValueRange",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/brick.rs"
+          "crates/molgfx-py/src/render/brick.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -318,7 +318,7 @@
       "rust": "DirtyGeneration",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/brick.rs"
+          "crates/molgfx-py/src/render/brick.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -342,7 +342,7 @@
       "rust": "FenceValue",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/brick_atlas.rs"
+          "crates/molgfx-py/src/render/brick_atlas.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -366,7 +366,7 @@
       "rust": "UploadRingConfig",
       "python": {
         "evidence": [
-          "crates/pdviewx-py/src/render/brick_atlas.rs"
+          "crates/molgfx-py/src/render/brick_atlas.rs"
         ],
         "state": "direct",
         "symbols": [
@@ -376,13 +376,13 @@
       "typescript": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "UploadRingConfig is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       },
       "wasm": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/lib.rs",
+        "evidence": "crates/molgfx-wasm/src/lib.rs",
         "gap": "UploadRingConfig is part of the renderer-owned streaming and residency contract, but no Web SDK operation currently carries its complete typed semantics."
       }
     }

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Exercise a shared disposable MRC map through NGL, Mol* and pdviewx.
+"""Exercise a shared disposable MRC map through NGL, Mol* and molgfx.
 
 The map is synthetic but encoded as a real little-endian MRC MODE 2 file. NGL
-and Mol* consume that file in a browser; pdviewx consumes the same file through
+and Mol* consume that file in a browser; molgfx consumes the same file through
 the extended volume_smoke example. Images are structural diagnostics, not a
 claim of pixel or scientific equivalence because the engines use different
 transfer, camera and volume algorithms.
@@ -35,7 +35,7 @@ class VolumeCase:
     name: str
     ngl: str | None
     molstar: str | None
-    pdviewx: str | None
+    molgfx: str | None
 
 
 CASES = (
@@ -232,9 +232,9 @@ def close_browser(executable: str, session: str) -> None:
 
 
 def run_browser_cases(browser: str, node_root: Path, selected: list[VolumeCase], output: Path) -> dict[str, Any]:
-    session = f"pdviewx-volume-differential-{os.getpid()}"
+    session = f"molgfx-volume-differential-{os.getpid()}"
     result: dict[str, Any] = {"status": "passed", "engines": {"ngl": [], "molstar": []}}
-    with tempfile.TemporaryDirectory(prefix="pdviewx-volume-differential-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-volume-differential-") as directory:
         webroot = Path(directory)
         (webroot / "node_modules").symlink_to(node_root / "node_modules", target_is_directory=True)
         write_mrc(webroot / "fixture.mrc")
@@ -274,13 +274,13 @@ def run_browser_cases(browser: str, node_root: Path, selected: list[VolumeCase],
     return result
 
 
-def add_pdviewx_results(result: dict[str, Any], executable: Path, mrc: Path, root: Path, selected: list[VolumeCase], output: Path) -> None:
+def add_molgfx_results(result: dict[str, Any], executable: Path, mrc: Path, root: Path, selected: list[VolumeCase], output: Path) -> None:
     for case in selected:
-        if case.pdviewx is None:
+        if case.molgfx is None:
             continue
-        image_path = output / f"pdviewx-{case.name}.png"
+        image_path = output / f"molgfx-{case.name}.png"
         completed = subprocess.run(
-            [str(executable), str(image_path), case.pdviewx, "probe", str(mrc)],
+            [str(executable), str(image_path), case.molgfx, "probe", str(mrc)],
             capture_output=True,
             text=True,
             cwd=root,
@@ -291,7 +291,7 @@ def add_pdviewx_results(result: dict[str, Any], executable: Path, mrc: Path, roo
         render_passed = completed.returncode == 0 and uses_external_map and image_path.exists()
         record: dict[str, Any] = {
             "name": case.name,
-            "representation": case.pdviewx,
+            "representation": case.molgfx,
             "render": {
                 "status": "passed" if render_passed else "failed",
                 "returncode": completed.returncode,
@@ -304,7 +304,7 @@ def add_pdviewx_results(result: dict[str, Any], executable: Path, mrc: Path, roo
             record["image"] = image_summary(image_path)
         else:
             result["status"] = "passed-with-failures"
-        result.setdefault("pdviewx", []).append(record)
+        result.setdefault("molgfx", []).append(record)
         for engine in ("ngl", "molstar"):
             reference = next((item for item in result["engines"][engine] if item["name"] == case.name), None)
             if reference and "image" in reference and "image" in record:
@@ -314,7 +314,7 @@ def add_pdviewx_results(result: dict[str, Any], executable: Path, mrc: Path, roo
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--node-root", type=Path, required=True, help="disposable npm --prefix directory")
-    parser.add_argument("--pdviewx-example", type=Path, required=True)
+    parser.add_argument("--molgfx-example", type=Path, required=True)
     parser.add_argument("--browser-use", default=shutil.which("browser-use"))
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--case", action="append", choices=[case.name for case in CASES])
@@ -322,16 +322,16 @@ def main() -> int:
     args = parser.parse_args()
     root = args.repo.resolve()
     selected = [case for case in CASES if not args.case or case.name in set(args.case)]
-    with tempfile.TemporaryDirectory(prefix="pdviewx-volume-differential-images-") as directory:
+    with tempfile.TemporaryDirectory(prefix="molgfx-volume-differential-images-") as directory:
         image_dir = Path(directory)
-        with tempfile.TemporaryDirectory(prefix="pdviewx-volume-differential-map-") as map_directory:
+        with tempfile.TemporaryDirectory(prefix="molgfx-volume-differential-map-") as map_directory:
             mrc = Path(map_directory) / "fixture.mrc"
             write_mrc(mrc)
             if not args.browser_use:
                 result: dict[str, Any] = {"schema": 1, "status": "unavailable", "error": "browser-use executable not found"}
             else:
                 result = {"schema": 1, "scope": "shared MRC volume diagnostics, not pixel/scientific equivalence", "fixture": {"format": "MRC MODE 2", "dimensions": [64, 64, 64], "sha256": sha256(mrc)}, **run_browser_cases(args.browser_use, args.node_root.resolve(), selected, image_dir)}
-                add_pdviewx_results(result, args.pdviewx_example.resolve(), mrc, root, selected, image_dir)
+                add_molgfx_results(result, args.molgfx_example.resolve(), mrc, root, selected, image_dir)
         encoded = json.dumps(result, indent=2, sort_keys=True) + "\n"
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)

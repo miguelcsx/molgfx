@@ -46,7 +46,7 @@
       "registration": {
         "adapter": "PyProvenance",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/provenance.rs"
+        "source": "crates/molgfx-py/src/provenance.rs"
       }
     },
     {
@@ -95,7 +95,7 @@
       "registration": {
         "adapter": "PyColorScheme",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/color.rs"
+        "source": "crates/molgfx-py/src/values/color.rs"
       }
     },
     {
@@ -132,7 +132,7 @@
       "registration": {
         "adapter": "PySurfaceKind",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/color.rs"
+        "source": "crates/molgfx-py/src/values/color.rs"
       }
     },
     {
@@ -181,7 +181,7 @@
       "registration": {
         "adapter": "PySurfaceStyle",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/color.rs"
+        "source": "crates/molgfx-py/src/values/color.rs"
       }
     },
     {
@@ -218,7 +218,7 @@
       "registration": {
         "adapter": "PyAnnotationAnchor",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/annotations.rs"
+        "source": "crates/molgfx-py/src/annotations.rs"
       }
     },
     {
@@ -249,7 +249,7 @@
       "registration": {
         "adapter": "PyMarkerShape",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/annotations.rs"
+        "source": "crates/molgfx-py/src/annotations.rs"
       }
     },
     {
@@ -286,7 +286,7 @@
       "registration": {
         "adapter": "PyMarkerStyle",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/annotations.rs"
+        "source": "crates/molgfx-py/src/annotations.rs"
       }
     },
     {
@@ -323,7 +323,7 @@
       "registration": {
         "adapter": "PyAnnotationKind",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/annotations.rs"
+        "source": "crates/molgfx-py/src/annotations.rs"
       }
     },
     {
@@ -414,7 +414,7 @@
       "registration": {
         "adapter": "PyAnnotation",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/annotations.rs"
+        "source": "crates/molgfx-py/src/annotations.rs"
       }
     },
     {
@@ -445,7 +445,7 @@
       "registration": {
         "adapter": "PyMeasurementKind",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/annotations.rs"
+        "source": "crates/molgfx-py/src/annotations.rs"
       }
     },
     {
@@ -530,7 +530,7 @@
       "registration": {
         "adapter": "PyMeasurement",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/annotations.rs"
+        "source": "crates/molgfx-py/src/annotations.rs"
       }
     },
     {
@@ -567,7 +567,7 @@
       "registration": {
         "adapter": "PyLodLevel",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+        "source": "crates/molgfx-py/src/semantic/streaming.rs"
       }
     },
     {
@@ -598,7 +598,7 @@
       "registration": {
         "adapter": "PyLodPolicy",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+        "source": "crates/molgfx-py/src/semantic/streaming.rs"
       }
     },
     {
@@ -629,7 +629,7 @@
       "registration": {
         "adapter": "PyLodClusterKey",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+        "source": "crates/molgfx-py/src/semantic/streaming.rs"
       }
     },
     {
@@ -672,7 +672,7 @@
       "registration": {
         "adapter": "PyLodFrame",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+        "source": "crates/molgfx-py/src/semantic/streaming.rs"
       }
     },
     {
@@ -703,7 +703,7 @@
       "registration": {
         "adapter": "PyLodIndex",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+        "source": "crates/molgfx-py/src/semantic/streaming.rs"
       }
     },
     {
@@ -776,7 +776,7 @@
       "registration": {
         "adapter": "PyLodScene",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+        "source": "crates/molgfx-py/src/semantic/streaming.rs"
       }
     },
     {
@@ -813,7 +813,7 @@
       "registration": {
         "adapter": "PyStreamingBudget",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+        "source": "crates/molgfx-py/src/semantic/streaming.rs"
       }
     }
   ]

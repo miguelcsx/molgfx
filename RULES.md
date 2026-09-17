@@ -53,7 +53,7 @@ resource declarations are four responsibilities, not one file.
 
 **In practice.** `foo.rs` becomes `foo/` with `mod.rs` plus one file per
 responsibility. A WGSL file counts too: split a growing shader into shared
-includes in `pdviewx-shaders` rather than one thousand-line source.
+includes in `molgfx-shaders` rather than one thousand-line source.
 
 ---
 
@@ -147,7 +147,7 @@ Only `mod` declarations, `pub use` re-exports, and the module docstring. A
 
 **Why.** It makes the shape of a crate readable in one file, and it means moving
 an item between modules never touches the file that publishes it. The facade
-crate `pdviewx` takes this furthest: it is re-exports and feature gates only.
+crate `molgfx` takes this furthest: it is re-exports and feature gates only.
 
 ---
 
@@ -205,7 +205,7 @@ are permitted `unsafe`, and only for their stated reason:
 - **`bytemuck` POD casts** — reinterpreting a packed `#[repr(C)]` vertex/atom
   struct as bytes for GPU upload. Use the `bytemuck` derives, never a hand-rolled
   `transmute`.
-- **`pdviewx-gpu-vulkan`** — the Vulkan FFI surface. Every `unsafe` block there
+- **`molgfx-gpu-vulkan`** — the Vulkan FFI surface. Every `unsafe` block there
   carries a comment stating the invariant the caller upholds (handle validity,
   lifetime, synchronisation).
 
@@ -246,7 +246,7 @@ shader body — probe radii, cutoffs and sample counts arrive as named uniforms 
 **Why.** A shader is the hottest code in the program and the least visible in a
 stack trace. The same readability and single-source rules that keep Rust
 maintainable keep WGSL debuggable; a shared intersection routine in
-`pdviewx-shaders` is included by both the realtime and quality paths so the two
+`molgfx-shaders` is included by both the realtime and quality paths so the two
 never drift.
 
 ---
@@ -263,5 +263,5 @@ cargo test --workspace
 
 grep -rn "unwrap" crates/ | grep -v "_tests.rs"          # must be empty
 find crates -name "*.rs" | xargs wc -l | awk '$1>500'    # must be empty
-grep -rn "unsafe" crates/ | grep -v "pdviewx-gpu-vulkan" | grep -v "bytemuck"  # audit surface
+grep -rn "unsafe" crates/ | grep -v "molgfx-gpu-vulkan" | grep -v "bytemuck"  # audit surface
 ```

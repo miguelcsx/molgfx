@@ -40,7 +40,7 @@
       "registration": {
         "adapter": "PyProjection",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/math.rs"
+        "source": "crates/molgfx-py/src/math.rs"
       }
     },
     {
@@ -113,7 +113,7 @@
       "registration": {
         "adapter": "PyCamera",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/math.rs"
+        "source": "crates/molgfx-py/src/math.rs"
       }
     },
     {
@@ -144,7 +144,7 @@
       "registration": {
         "adapter": "PyButton",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/controls.rs"
+        "source": "crates/molgfx-py/src/controls.rs"
       }
     },
     {
@@ -193,7 +193,7 @@
       "registration": {
         "adapter": "PyKey",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/controls.rs"
+        "source": "crates/molgfx-py/src/controls.rs"
       }
     },
     {
@@ -236,7 +236,7 @@
       "registration": {
         "adapter": "PyInputEvent",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/controls.rs"
+        "source": "crates/molgfx-py/src/controls.rs"
       }
     },
     {
@@ -254,7 +254,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/controls.rs"
+        "source": "crates/molgfx-py/src/controls.rs"
       }
     },
     {
@@ -272,7 +272,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/controls.rs"
+        "source": "crates/molgfx-py/src/controls.rs"
       }
     },
     {
@@ -296,7 +296,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/controls.rs"
+        "source": "crates/molgfx-py/src/controls.rs"
       }
     },
     {
@@ -321,7 +321,7 @@
       "registration": {
         "adapter": "PyCameraEasing",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/timeline.rs"
+        "source": "crates/molgfx-py/src/timeline.rs"
       }
     },
     {
@@ -352,7 +352,7 @@
       "registration": {
         "adapter": "PyCameraKeyframe",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/timeline.rs"
+        "source": "crates/molgfx-py/src/timeline.rs"
       }
     },
     {
@@ -389,7 +389,7 @@
       "registration": {
         "adapter": "PyCameraPath",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/timeline.rs"
+        "source": "crates/molgfx-py/src/timeline.rs"
       }
     },
     {
@@ -444,7 +444,7 @@
       "registration": {
         "adapter": "PyCameraBookmark",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/timeline.rs"
+        "source": "crates/molgfx-py/src/timeline.rs"
       }
     },
     {
@@ -487,7 +487,7 @@
       "registration": {
         "adapter": "PyPropertyComparison",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/selection.rs"
+        "source": "crates/molgfx-py/src/selection.rs"
       }
     },
     {
@@ -524,7 +524,7 @@
       "registration": {
         "adapter": "PySecondaryStructure",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/selection.rs"
+        "source": "crates/molgfx-py/src/selection.rs"
       }
     },
     {
@@ -735,7 +735,7 @@
       "registration": {
         "adapter": "PySelect",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/selection.rs"
+        "source": "crates/molgfx-py/src/selection.rs"
       }
     },
     {
@@ -746,7 +746,7 @@
       "ownership": "borrowed-call",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/python_module.rs"
+        "source": "crates/molgfx-py/src/python_module.rs"
       }
     }
   ]

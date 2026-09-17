@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare disposable volume-file formats across browser engines and pdviewx.
+"""Compare disposable volume-file formats across browser engines and molgfx.
 
 The fixtures are intentionally small and synthetic.  A successful load proves
 that the engine accepted the format and reached a rendered volume component; it
@@ -94,7 +94,7 @@ def cube_values(size: int = 16) -> list[float]:
 def write_cube(path: Path, size: int = 16) -> None:
     values = cube_values(size)
     lines = [
-        "PDVIEWX VOLUME FORMAT PROBE",
+        "MOLGFX VOLUME FORMAT PROBE",
         "synthetic scalar field",
         f"1 0.0 0.0 0.0",
         f"{size} 0.5 0.0 0.0",
@@ -144,7 +144,7 @@ def write_dx(path: Path, size: int = 16) -> None:
     lines.extend(
         [
             'attribute "dep" string "positions"',
-            'object "pdviewx-volume" class field',
+            'object "molgfx-volume" class field',
             'component "positions" value 1',
             'component "connections" value 2',
             'component "data" value 3',
@@ -285,7 +285,7 @@ def capture_data_url(browser: str, session: str, output: Path) -> dict[str, Any]
 def run_browser_cases(
     browser: str, node_root: Path, directory: Path
 ) -> dict[str, list[dict[str, Any]]]:
-    session = f"pdviewx-volume-formats-{os.getpid()}"
+    session = f"molgfx-volume-formats-{os.getpid()}"
     results: dict[str, list[dict[str, Any]]] = {"ngl": [], "molstar": []}
     webroot = directory / "web"
     webroot.mkdir()
@@ -333,10 +333,10 @@ def run_browser_cases(
     return results
 
 
-def run_pdviewx(executable: Path, directory: Path) -> list[dict[str, Any]]:
+def run_molgfx(executable: Path, directory: Path) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for case in CASES:
-        output = directory / f"pdviewx-{case.name}.png"
+        output = directory / f"molgfx-{case.name}.png"
         completed = subprocess.run(
             [
                 str(executable),
@@ -367,14 +367,14 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--browser-use", default="browser-use")
     parser.add_argument("--node-root", type=Path, required=True)
-    parser.add_argument("--pdviewx-example", type=Path)
+    parser.add_argument("--molgfx-example", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    with tempfile.TemporaryDirectory(prefix="pdviewx-volume-formats-") as directory_name:
+    with tempfile.TemporaryDirectory(prefix="molgfx-volume-formats-") as directory_name:
         directory = Path(directory_name)
         fixtures = write_fixtures(directory)
         result: dict[str, Any] = {
@@ -389,8 +389,8 @@ def main() -> int:
         result["browser"] = run_browser_cases(
             args.browser_use, args.node_root.resolve(), directory
         )
-        if args.pdviewx_example:
-            result["pdviewx"] = run_pdviewx(args.pdviewx_example.resolve(), directory)
+        if args.molgfx_example:
+            result["molgfx"] = run_molgfx(args.molgfx_example.resolve(), directory)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return 0

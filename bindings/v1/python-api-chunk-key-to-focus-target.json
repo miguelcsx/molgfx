@@ -28,7 +28,7 @@
       "registration": {
         "adapter": "PyChunkKey",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+        "source": "crates/molgfx-py/src/semantic/streaming.rs"
       }
     },
     {
@@ -59,7 +59,7 @@
       "registration": {
         "adapter": "PyChunkRequest",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+        "source": "crates/molgfx-py/src/semantic/streaming.rs"
       }
     },
     {
@@ -96,7 +96,7 @@
       "registration": {
         "adapter": "PyStreamPlan",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+        "source": "crates/molgfx-py/src/semantic/streaming.rs"
       }
     },
     {
@@ -127,7 +127,7 @@
       "registration": {
         "adapter": "PyStreamPlanner",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/streaming.rs"
+        "source": "crates/molgfx-py/src/semantic/streaming.rs"
       }
     },
     {
@@ -158,7 +158,7 @@
       "registration": {
         "adapter": "PyPlaybackMode",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/timeline.rs"
+        "source": "crates/molgfx-py/src/timeline.rs"
       }
     },
     {
@@ -195,7 +195,7 @@
       "registration": {
         "adapter": "PyTimeWarp",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/timeline.rs"
+        "source": "crates/molgfx-py/src/timeline.rs"
       }
     },
     {
@@ -280,7 +280,7 @@
       "registration": {
         "adapter": "PyTimeline",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/timeline.rs"
+        "source": "crates/molgfx-py/src/timeline.rs"
       }
     },
     {
@@ -599,7 +599,7 @@
       "registration": {
         "adapter": "PyScene",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/scene.rs"
+        "source": "crates/molgfx-py/src/scene.rs"
       }
     },
     {
@@ -624,7 +624,7 @@
       "registration": {
         "adapter": "PyRenderMode",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/config.rs"
+        "source": "crates/molgfx-py/src/render/config.rs"
       }
     },
     {
@@ -649,7 +649,7 @@
       "registration": {
         "adapter": "PyPowerPreference",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/config.rs"
+        "source": "crates/molgfx-py/src/render/config.rs"
       }
     },
     {
@@ -674,7 +674,7 @@
       "registration": {
         "adapter": "PyFrameStatus",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/config.rs"
+        "source": "crates/molgfx-py/src/render/config.rs"
       }
     },
     {
@@ -705,7 +705,7 @@
       "registration": {
         "adapter": "PyFrameTiming",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/engine.rs"
+        "source": "crates/molgfx-py/src/render/engine.rs"
       }
     },
     {
@@ -730,7 +730,7 @@
       "registration": {
         "adapter": "PyToneMapping",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/display.rs"
+        "source": "crates/molgfx-py/src/render/profile/display.rs"
       }
     },
     {
@@ -761,7 +761,7 @@
       "registration": {
         "adapter": "PyDisplayGamut",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/display.rs"
+        "source": "crates/molgfx-py/src/render/profile/display.rs"
       }
     },
     {
@@ -798,7 +798,7 @@
       "registration": {
         "adapter": "PyTransferFunction",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/display.rs"
+        "source": "crates/molgfx-py/src/render/profile/display.rs"
       }
     },
     {
@@ -841,7 +841,7 @@
       "registration": {
         "adapter": "PyFocusTarget",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/profile/focus.rs"
+        "source": "crates/molgfx-py/src/render/profile/focus.rs"
       }
     }
   ]

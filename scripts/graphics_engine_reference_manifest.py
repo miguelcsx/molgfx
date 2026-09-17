@@ -82,10 +82,10 @@ PYMOL_CGO_DISPOSITIONS = {
     "COLOR": ("β", "typed material and per-vertex color"),
     "CONE": ("β", "caller cone geometry through validated indexed meshes"),
     "CUSTOM_CYLINDER": ("β", "analytic cylinder and per-vertex mesh color paths"),
-    "CYLINDER": ("β", "pdviewx analytic capsule/cylinder particle path"),
+    "CYLINDER": ("β", "molgfx analytic capsule/cylinder particle path"),
     "DISABLE": ("β", "typed object visibility state"),
     "DOTWIDTH": ("β", "typed point and guide width"),
-    "ELLIPSOID": ("β", "pdviewx analytic anisotropic ellipsoid"),
+    "ELLIPSOID": ("β", "molgfx analytic anisotropic ellipsoid"),
     "ENABLE": ("β", "typed object visibility state"),
     "END": ("β", "typed mesh and polyline constructors replace stream delimiters"),
     "FONT": ("β", "SDF label font policy"),
@@ -100,10 +100,10 @@ PYMOL_CGO_DISPOSITIONS = {
     "NORMAL": ("β", "normal-bearing indexed mesh vertices"),
     "NULL": ("out-of-scope", "typed APIs require no stream null sentinel"),
     "PICK_COLOR": ("β", "typed mesh identity in the GPU picking attachment"),
-    "POINTS": ("β", "pdviewx analytic point/particle path"),
+    "POINTS": ("β", "molgfx analytic point/particle path"),
     "QUADRIC": ("β", "bounded quadratic zero-set lowered to the resident indexed-mesh path"),
     "SAUSAGE": ("β", "analytic spherocylinder particle path"),
-    "SPHERE": ("β", "pdviewx analytic sphere particle"),
+    "SPHERE": ("β", "molgfx analytic sphere particle"),
     "STOP": ("out-of-scope", "typed APIs require no stream stop sentinel"),
     "TRIANGLE": ("β", "validated indexed triangle mesh"),
     "TRIANGLES": ("β", "typed triangle topology constructor"),
@@ -251,51 +251,51 @@ def coverage_records(
 
 
 VMD_DISPOSITIONS = {
-    "Lines": ("β", "pdviewx bond wires and points"),
-    "Bonds": ("β", "pdviewx analytic bond capsules"),
+    "Lines": ("β", "molgfx bond wires and points"),
+    "Bonds": ("β", "molgfx analytic bond capsules"),
     "DynamicBonds": ("provider", "pdbiox infer_bonds is applied per caller-selected frame"),
     "HBonds": ("β", "caller interaction edges"),
-    "Points": ("β", "pdviewx point representation"),
-    "VDW": ("β", "pdviewx analytic atom spheres"),
-    "CPK": ("β", "pdviewx declarative CPK preset"),
-    "Licorice": ("β", "pdviewx declarative Licorice preset"),
-    "Polyhedra": ("β", "pdviewx deterministic coordination-shell hull"),
-    "Trace": ("β", "pdviewx backbone spline"),
-    "Tube": ("β", "pdviewx spline tube"),
-    "Ribbons": ("β", "pdviewx spline ribbon"),
-    "NewRibbons": ("β", "pdviewx smooth ribbon path"),
-    "Cartoon": ("β", "pdviewx secondary-structure cross-sections"),
-    "NewCartoon": ("β", "pdviewx smooth cartoon path"),
-    "PaperChain": ("β", "pdviewx ring polygons, rounded outlines and caller pucker colors"),
-    "Twister": ("β", "pdviewx branched glycosidic-tree ribbon"),
-    "QuickSurf": ("β", "pdviewx atom-centred Gaussian field"),
-    "MSMS": ("provider", "exact MSMS generation is upstream; pdviewx consumes indexed SES meshes"),
-    "Surf": ("provider", "exact SURF generation is upstream; pdviewx consumes indexed SES meshes"),
-    "VolumeSlice": ("β", "pdviewx transformed volume slice"),
-    "Isosurface": ("β", "pdviewx volume hit path"),
-    "FieldLines": ("β", "pdbiox vector-field integration plus pdviewx guide bundles"),
+    "Points": ("β", "molgfx point representation"),
+    "VDW": ("β", "molgfx analytic atom spheres"),
+    "CPK": ("β", "molgfx declarative CPK preset"),
+    "Licorice": ("β", "molgfx declarative Licorice preset"),
+    "Polyhedra": ("β", "molgfx deterministic coordination-shell hull"),
+    "Trace": ("β", "molgfx backbone spline"),
+    "Tube": ("β", "molgfx spline tube"),
+    "Ribbons": ("β", "molgfx spline ribbon"),
+    "NewRibbons": ("β", "molgfx smooth ribbon path"),
+    "Cartoon": ("β", "molgfx secondary-structure cross-sections"),
+    "NewCartoon": ("β", "molgfx smooth cartoon path"),
+    "PaperChain": ("β", "molgfx ring polygons, rounded outlines and caller pucker colors"),
+    "Twister": ("β", "molgfx branched glycosidic-tree ribbon"),
+    "QuickSurf": ("β", "molgfx atom-centred Gaussian field"),
+    "MSMS": ("provider", "exact MSMS generation is upstream; molgfx consumes indexed SES meshes"),
+    "Surf": ("provider", "exact SURF generation is upstream; molgfx consumes indexed SES meshes"),
+    "VolumeSlice": ("β", "molgfx transformed volume slice"),
+    "Isosurface": ("β", "molgfx volume hit path"),
+    "FieldLines": ("β", "pdbiox vector-field integration plus molgfx guide bundles"),
     "Orbital": ("β", "caller signed scalar field rendered as two isosurface lobes"),
-    "Beads": ("β", "pdviewx per-residue sphere representation"),
-    "Dotted": ("β", "pdviewx procedural surface dots"),
-    "Solvent": ("β", "pdviewx SAS/SES boundary paths"),
+    "Beads": ("β", "molgfx per-residue sphere representation"),
+    "Dotted": ("β", "molgfx procedural surface dots"),
+    "Solvent": ("β", "molgfx SAS/SES boundary paths"),
 }
 
 VMD_PRIMITIVE_DISPOSITIONS = {
-    "point": ("β", "pdviewx point/particle path"),
-    "line": ("β", "pdviewx guide and bond path"),
-    "cylinder": ("β", "pdviewx analytic capsule path"),
+    "point": ("β", "molgfx point/particle path"),
+    "line": ("β", "molgfx guide and bond path"),
+    "cylinder": ("β", "molgfx analytic capsule path"),
     "cone": ("β", "caller cone lowered to validated triangle mesh"),
     "triangle": ("β", "validated caller triangle mesh"),
     "trinorm": ("β", "normal-bearing caller triangle mesh"),
     "tricolor": ("β", "per-vertex-color caller triangle mesh"),
-    "sphere": ("β", "pdviewx analytic sphere particle"),
-    "text": ("β", "pdviewx world-space SDF label"),
+    "sphere": ("β", "molgfx analytic sphere particle"),
+    "text": ("β", "molgfx world-space SDF label"),
 }
 VMD_GRAPHICS_COMMAND_DISPOSITIONS = {
     **VMD_PRIMITIVE_DISPOSITIONS,
-    "color": ("β", "pdviewx typed color/material state"),
-    "materials": ("β", "pdviewx typed material state"),
-    "material": ("β", "pdviewx typed material state"),
+    "color": ("β", "molgfx typed color/material state"),
+    "materials": ("β", "molgfx typed material state"),
+    "material": ("β", "molgfx typed material state"),
     "delete": ("out-of-scope", "caller scene/object lifecycle"),
     "list": ("out-of-scope", "application introspection"),
     "replace": ("out-of-scope", "application graphics-object editing"),
@@ -303,14 +303,14 @@ VMD_GRAPHICS_COMMAND_DISPOSITIONS = {
     "info": ("out-of-scope", "application introspection"),
 }
 VMD_CONTROL_DISPOSITIONS = {
-    "colors": ("β", "pdviewx color state"),
-    "materials": ("β", "pdviewx material state"),
-    "ambient/diffuse/specular/reflection": ("β", "pdviewx lighting/material profile"),
-    "opacity": ("β", "pdviewx alpha/OIT path"),
-    "clipping": ("β", "pdviewx clip set"),
-    "depth cueing": ("β", "pdviewx depth-cue profile"),
+    "colors": ("β", "molgfx color state"),
+    "materials": ("β", "molgfx material state"),
+    "ambient/diffuse/specular/reflection": ("β", "molgfx lighting/material profile"),
+    "opacity": ("β", "molgfx alpha/OIT path"),
+    "clipping": ("β", "molgfx clip set"),
+    "depth cueing": ("β", "molgfx depth-cue profile"),
     "antialiasing": ("β", "wgpu multisample/quality path"),
-    "backface culling": ("β", "pdviewx FaceVisibility state"),
+    "backface culling": ("β", "molgfx FaceVisibility state"),
     "stereo": ("out-of-scope", "host display integration"),
 }
 VMD_STEREO_DISPOSITIONS = {name: ("out-of-scope", "host display integration") for name in VMD_STEREO_MODES}
@@ -320,27 +320,27 @@ VMD_RENDERER_DISPOSITIONS = {
     "external renderers": ("out-of-scope", "caller-owned renderer adapter"),
 }
 VMD_TRAJECTORY_DISPOSITIONS = {
-    "multi-frame drawing": ("β", "pdviewx topology-stable trajectory"),
+    "multi-frame drawing": ("β", "molgfx topology-stable trajectory"),
     "trajectory smoothing": ("β", "pdbiox bounded linear/Catmull-Rom interpolation"),
-    "unit-cell display": ("β", "pdviewx crystallographic scene state"),
+    "unit-cell display": ("β", "molgfx crystallographic scene state"),
     "atom/bond/angle/dihedral/spring labels": ("β", "typed guides including spring pattern"),
     "graphics primitives": ("β", "typed analytic primitives and arbitrary indexed meshes"),
-    "image and movie output": ("out-of-scope", "pdviewx returns frames; codecs stay caller-owned"),
+    "image and movie output": ("out-of-scope", "molgfx returns frames; codecs stay caller-owned"),
 }
 
 
 def chimerax_command_disposition(name: str) -> tuple[str, str]:
     if name in {"2dlabels", "key", "scalebar"}:
-        return ("β", "pdviewx post-tonemap typed screen overlays")
+        return ("β", "molgfx post-tonemap typed screen overlays")
     if name == "graphics":
-        return ("β", "pdviewx typed primitives and indexed meshes")
+        return ("β", "molgfx typed primitives and indexed meshes")
     if name in {"align", "matchmaker", "mmaker"}:
         return ("out-of-scope", "caller/provider structure comparison")
     if name == "preset":
         return ("out-of-scope", "application preset workflow")
     if name in {"save", "scenes"}:
-        return ("β", "pdviewx versioned scene manifests and render sessions")
-    return ("β", "pdviewx typed scene/render state")
+        return ("β", "molgfx versioned scene manifests and render sessions")
+    return ("β", "molgfx typed scene/render state")
 
 
 def chimerax_surface_disposition(name: str) -> tuple[str, str]:
@@ -350,53 +350,53 @@ def chimerax_surface_disposition(name: str) -> tuple[str, str]:
         return ("β", "mutable mesh slots with revision-driven resident GPU updates")
     if name == "sharpBoundaries":
         return ("β", "caller normals and indexed boundaries are preserved")
-    return ("β", "pdviewx surface field, component, clipping and render state")
+    return ("β", "molgfx surface field, component, clipping and render state")
 
 
 OVITO_DISPOSITIONS = {
-    **{name: ("β", "pdviewx molecular semantic equivalent") for name in ("Particles", "Bonds", "SimulationCell", "Lines", "VoxelGrid")},
-    "SurfaceMesh": ("β", "pdviewx validated caller mesh"),
-    "TriangleMesh": ("β", "pdviewx validated caller triangle mesh"),
-    "Vectors": ("β", "pdbiox vector grids lower to pdviewx streamline guide bundles"),
+    **{name: ("β", "molgfx molecular semantic equivalent") for name in ("Particles", "Bonds", "SimulationCell", "Lines", "VoxelGrid")},
+    "SurfaceMesh": ("β", "molgfx validated caller mesh"),
+    "TriangleMesh": ("β", "molgfx validated caller triangle mesh"),
+    "Vectors": ("β", "pdbiox vector grids lower to molgfx streamline guide bundles"),
     "DislocationNetwork": ("provider", "caller/provider crystal-defect topology"),
     "DataTable": ("out-of-scope", "caller analysis/data pipeline"),
     "Pipeline": ("out-of-scope", "caller-owned generic data pipeline"),
     "StaticSource": ("out-of-scope", "caller-owned generic data pipeline"),
     "CreateBondsModifier": ("provider", "caller/provider topology construction"),
-    "ColorCodingModifier": ("β", "pdviewx property/color mapping"),
+    "ColorCodingModifier": ("β", "molgfx property/color mapping"),
     "CalculateDisplacementsModifier": ("provider", "caller/provider trajectory analysis"),
     "ComputePropertyModifier": ("provider", "caller/provider derived properties"),
     "DislocationAnalysisModifier": ("provider", "caller/provider crystal-defect analysis"),
-    "ParticlesVis": ("β", "pdviewx analytic particles"),
-    "BondsVis": ("β", "pdviewx analytic bonds"),
+    "ParticlesVis": ("β", "molgfx analytic particles"),
+    "BondsVis": ("β", "molgfx analytic bonds"),
     "DislocationVis": ("β", "typed polyline and tube styling for caller defect networks"),
-    "SimulationCellVis": ("β", "pdviewx crystallographic cell state"),
-    "SurfaceMeshVis": ("β", "pdviewx persistent caller mesh slot"),
-    "TriangleMeshVis": ("β", "pdviewx persistent caller mesh slot"),
-    "LinesVis": ("β", "pdviewx guides and lines"),
-    "VectorVis": ("β", "pdviewx batched streamline guide styling"),
-    "VoxelGridVis": ("β", "pdviewx density/segmentation volume"),
-    "TextLabelOverlay": ("β", "pdviewx typed text screen overlay"),
-    "CoordinateTripodOverlay": ("β", "pdviewx coordinate tripod overlay"),
-    "ColorLegendOverlay": ("β", "pdviewx color legend overlay"),
+    "SimulationCellVis": ("β", "molgfx crystallographic cell state"),
+    "SurfaceMeshVis": ("β", "molgfx persistent caller mesh slot"),
+    "TriangleMeshVis": ("β", "molgfx persistent caller mesh slot"),
+    "LinesVis": ("β", "molgfx guides and lines"),
+    "VectorVis": ("β", "molgfx batched streamline guide styling"),
+    "VoxelGridVis": ("β", "molgfx density/segmentation volume"),
+    "TextLabelOverlay": ("β", "molgfx typed text screen overlay"),
+    "CoordinateTripodOverlay": ("β", "molgfx coordinate tripod overlay"),
+    "ColorLegendOverlay": ("β", "molgfx color legend overlay"),
     "PythonViewportOverlay": ("out-of-scope", "host scripting/overlay integration"),
-    "Viewport": ("β", "pdviewx off-screen render target"),
-    "ViewportOverlay": ("β", "pdviewx post-tonemap overlay table"),
+    "Viewport": ("β", "molgfx off-screen render target"),
+    "ViewportOverlay": ("β", "molgfx post-tonemap overlay table"),
     "ViewportOverlayInterface": ("out-of-scope", "host scripting/overlay integration"),
-    "sphere": ("β", "pdviewx analytic sphere particles"),
-    "ellipsoid": ("β", "pdviewx anisotropic ellipsoid particles"),
-    "superquadric": ("β", "pdviewx bounded analytic superquadric particle"),
-    "box": ("β", "pdviewx analytic box particles"),
-    "circle": ("β", "pdviewx billboard circle particle"),
-    "square": ("β", "pdviewx billboard square particle"),
-    "cylinder": ("β", "pdviewx analytic cylinder particles"),
-    "spherocylinder": ("β", "pdviewx analytic spherocylinder particles"),
-    "mesh": ("β", "pdviewx validated caller mesh"),
+    "sphere": ("β", "molgfx analytic sphere particles"),
+    "ellipsoid": ("β", "molgfx anisotropic ellipsoid particles"),
+    "superquadric": ("β", "molgfx bounded analytic superquadric particle"),
+    "box": ("β", "molgfx analytic box particles"),
+    "circle": ("β", "molgfx billboard circle particle"),
+    "square": ("β", "molgfx billboard square particle"),
+    "cylinder": ("β", "molgfx analytic cylinder particles"),
+    "spherocylinder": ("β", "molgfx analytic spherocylinder particles"),
+    "mesh": ("β", "molgfx validated caller mesh"),
     "OpenGLRenderer": ("out-of-scope", "backend selection is not a renderer capability contract"),
     "TachyonRenderer": ("out-of-scope", "caller-owned external renderer adapter"),
     "OSPRayRenderer": ("out-of-scope", "caller-owned external renderer adapter"),
     "AnariRenderer": ("out-of-scope", "caller-owned external renderer adapter"),
-    "PNG": ("β", "pdviewx image output"),
+    "PNG": ("β", "molgfx image output"),
     "JPEG": ("out-of-scope", "caller-owned image encoder"),
     "TIFF": ("out-of-scope", "caller-owned image encoder"),
     "MP4": ("out-of-scope", "caller-owned movie encoder"),
@@ -417,7 +417,7 @@ def yasara_command_disposition(section: str, name: str, description: str) -> tup
     if section in {"View", "Effects"} or any(token in text for token in visual_tokens):
         if any(token in text for token in ("pov", "obj", "mpg", "movie", "plugin", "macro")):
             return ("out-of-scope", "downstream exporter or application workflow")
-        return ("β", "typed pdviewx scene/render state; exact YASARA response unverified")
+        return ("β", "typed molgfx scene/render state; exact YASARA response unverified")
     if section in {"Analyze", "Simulation"}:
         return ("provider", "caller/provider analysis or simulation")
     return ("out-of-scope", "caller/provider or application workflow")
@@ -446,7 +446,7 @@ def build_feature_coverage(yasara: dict[str, Any]) -> list[dict[str, str]]:
             name: (
                 "out-of-scope" if name == "Volume Operations (Map Editing)" else "β",
                 "caller/provider map editing" if name == "Volume Operations (Map Editing)"
-                else "pdviewx volume input/display state",
+                else "molgfx volume input/display state",
             )
             for name in CHIMERAX_VOLUME_GROUPS
         }),
@@ -455,12 +455,12 @@ def build_feature_coverage(yasara: dict[str, Any]) -> list[dict[str, str]]:
             name: chimerax_surface_disposition(name) for name in CHIMERAX_SURFACE_OPTIONS
         }),
         ("ChimeraX", "movie", CHIMERAX_MOVIE_ACTIONS, {
-            name: ("β", "pdviewx image configuration") if name in {"size", "transparentBackground"}
+            name: ("β", "molgfx image configuration") if name in {"size", "transparentBackground"}
             else ("out-of-scope", "caller-owned movie timeline/encoder")
             for name in CHIMERAX_MOVIE_ACTIONS
         }),
         ("ChimeraX", "movie-record-option", CHIMERAX_MOVIE_RECORD_OPTIONS, {
-            name: ("β", "pdviewx image configuration") if name in {"size", "transparentBackground"}
+            name: ("β", "molgfx image configuration") if name in {"size", "transparentBackground"}
             else ("out-of-scope", "caller-owned movie timeline/encoder")
             for name in CHIMERAX_MOVIE_RECORD_OPTIONS
         }),
@@ -470,23 +470,23 @@ def build_feature_coverage(yasara: dict[str, Any]) -> list[dict[str, str]]:
         }),
         ("Protein Imager", "format", PROTEIN_FORMATS, {name: ("provider", "caller/provider input adapter") for name in PROTEIN_FORMATS}),
         ("Protein Imager", "representation", PROTEIN_REPRESENTATIONS, {
-            "Sphere": ("β", "pdviewx analytic particles"), "Stick": ("β", "pdviewx analytic bonds"),
-            "Surface": ("β", "pdviewx surface field"), "Mesh": ("β", "pdviewx typed mesh instances"),
-            "Simplify": ("provider", "caller/provider mesh reduction"), "Filter by distance": ("β", "pdviewx selection/spatial query"),
-            "Cartoon": ("β", "pdviewx cartoon geometry"), "Tube": ("β", "pdviewx spline tube"),
-            "Label": ("β", "pdviewx world-space labels"),
+            "Sphere": ("β", "molgfx analytic particles"), "Stick": ("β", "molgfx analytic bonds"),
+            "Surface": ("β", "molgfx surface field"), "Mesh": ("β", "molgfx typed mesh instances"),
+            "Simplify": ("provider", "caller/provider mesh reduction"), "Filter by distance": ("β", "molgfx selection/spatial query"),
+            "Cartoon": ("β", "molgfx cartoon geometry"), "Tube": ("β", "molgfx spline tube"),
+            "Label": ("β", "molgfx world-space labels"),
         }),
-        ("Protein Imager", "coloring", PROTEIN_COLORS, {name: ("β", "pdviewx typed material/property color") for name in PROTEIN_COLORS}),
-        ("Protein Imager", "view-control", PROTEIN_VIEW_CONTROLS, {name: ("β", "pdviewx camera/material/profile state") for name in PROTEIN_VIEW_CONTROLS}),
-        ("Protein Imager", "selection", PROTEIN_SELECTION, {name: ("β", "pdviewx selection/picking; provider hierarchy") for name in PROTEIN_SELECTION}),
+        ("Protein Imager", "coloring", PROTEIN_COLORS, {name: ("β", "molgfx typed material/property color") for name in PROTEIN_COLORS}),
+        ("Protein Imager", "view-control", PROTEIN_VIEW_CONTROLS, {name: ("β", "molgfx camera/material/profile state") for name in PROTEIN_VIEW_CONTROLS}),
+        ("Protein Imager", "selection", PROTEIN_SELECTION, {name: ("β", "molgfx selection/picking; provider hierarchy") for name in PROTEIN_SELECTION}),
         ("Protein Imager", "scene-control", PROTEIN_SCENE_CONTROLS, {
-            "distance labels/connectors": ("β", "pdviewx measurements/guides"),
-            "rock/spin animation": ("β", "pdviewx camera/trajectory host"),
+            "distance labels/connectors": ("β", "molgfx measurements/guides"),
+            "rock/spin animation": ("β", "molgfx camera/trajectory host"),
             "membrane bilayer": ("provider", "caller/provider domain geometry composed as meshes or particles"),
-            "structure switching": ("β", "pdviewx multi-structure scene"),
+            "structure switching": ("β", "molgfx multi-structure scene"),
             "superimposition": ("provider", "caller/provider alignment"),
             "biological assembly": ("provider", "pdbiox assembly instances"),
-            "center/hide/delete": ("β", "pdviewx scene state/camera"),
+            "center/hide/delete": ("β", "molgfx scene state/camera"),
         }),
         ("Protein Imager", "export", PROTEIN_EXPORTS, {
             "local/server .3dpi projects": ("out-of-scope", "host-owned project format and service"),

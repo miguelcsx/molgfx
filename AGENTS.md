@@ -1,4 +1,4 @@
-# AGENTS.md — pdviewx
+# AGENTS.md — molgfx
 
 A semantic, GPU-native molecular rendering engine in Rust, delivered as a
 library. It renders a structure — parsed by `pdbiox` — into an interactive scene
@@ -25,7 +25,7 @@ are changing when you need the contract, and don't preload the rest.
 ```bash
 cargo build --workspace                      # build everything
 cargo test  --workspace                      # all tests
-cargo test  -p pdviewx-core                  # one crate
+cargo test  -p molgfx-core                  # one crate
 cargo run   --example pocket --release       # drive the engine in a window
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
@@ -38,23 +38,23 @@ little to compile or run yet — the command is still the right one.
 ## Crates
 
 Dependencies point inward (a crate uses lower layers only). `#![forbid(unsafe_code)]`
-everywhere except `pdviewx-gpu-vulkan` and `bytemuck` casts.
+everywhere except `molgfx-gpu-vulkan` and `bytemuck` casts.
 
 | Crate | Does |
 |---|---|
-| `pdviewx-math` | glam-based math: splines, parallel-transport frames, camera, AABB/BVH |
-| `pdviewx-core` | The scene graph (columnar), `AtomGpu`/`BondGpu` packing, the zero-copy `pdbiox` coordinate seam |
-| `pdviewx-gpu` | The backend-agnostic HAL (device/buffer/pass traits); no backend code |
-| `pdviewx-gpu-wgpu` | Default wgpu backend |
-| `pdviewx-gpu-vulkan` | β Vulkan/RTX backend (audited `unsafe`) |
-| `pdviewx-shaders` | Shared WGSL (impostor intersection, lighting); SPIR-V via naga |
-| `pdviewx-geometry` | GPU geometry: impostor packing, ribbons, surfaces, BVH build |
-| `pdviewx-render` | Render graph; realtime + quality modes |
-| `pdviewx-semantic` | The semantic layer: focus+context, materials, LOD, interactions |
-| `pdviewx` | Facade: feature-gated re-exports, no logic |
-| `pdviewx-bench` | Benchmark harness |
+| `molgfx-math` | glam-based math: splines, parallel-transport frames, camera, AABB/BVH |
+| `molgfx-core` | The scene graph (columnar), `AtomGpu`/`BondGpu` packing, the zero-copy `pdbiox` coordinate seam |
+| `molgfx-gpu` | The backend-agnostic HAL (device/buffer/pass traits); no backend code |
+| `molgfx-gpu-wgpu` | Default wgpu backend |
+| `molgfx-gpu-vulkan` | β Vulkan/RTX backend (audited `unsafe`) |
+| `molgfx-shaders` | Shared WGSL (impostor intersection, lighting); SPIR-V via naga |
+| `molgfx-geometry` | GPU geometry: impostor packing, ribbons, surfaces, BVH build |
+| `molgfx-render` | Render graph; realtime + quality modes |
+| `molgfx-semantic` | The semantic layer: focus+context, materials, LOD, interactions |
+| `molgfx` | Facade: feature-gated re-exports, no logic |
+| `molgfx-bench` | Benchmark harness |
 
-Callers import from `pdviewx` only. Backends are chosen by capability, never named
+Callers import from `molgfx` only. Backends are chosen by capability, never named
 in the public API.
 
 ## Project-specific gotchas
@@ -70,10 +70,10 @@ Things an agent would get wrong without being told (full rules in `RULES.md`):
 - **No meshes for atoms/bonds.** Don't tessellate a sphere or cylinder — draw an
   analytic impostor quad and intersect it in the fragment shader.
 - **One WGSL source.** Don't fork a shader per backend — author it once in
-  `pdviewx-shaders`; the Vulkan backend compiles the same WGSL to SPIR-V.
+  `molgfx-shaders`; the Vulkan backend compiles the same WGSL to SPIR-V.
 - **Errors are values.** Don't `unwrap`/`expect` outside tests, and don't panic on
   device loss or surface loss — return the typed error and let the caller recover.
-- **`unsafe` lives in two places only** — `pdviewx-gpu-vulkan` and `bytemuck`
+- **`unsafe` lives in two places only** — `molgfx-gpu-vulkan` and `bytemuck`
   casts. Anywhere else is a bug.
 
 ## Verification
@@ -86,7 +86,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 grep -rn "unwrap" crates/ | grep -v "_tests.rs"          # must be empty
 find crates -name "*.rs" | xargs wc -l | awk '$1>500'    # must be empty (file cap)
-grep -rn "unsafe" crates/ | grep -v "pdviewx-gpu-vulkan" | grep -v "bytemuck"  # audit surface
+grep -rn "unsafe" crates/ | grep -v "molgfx-gpu-vulkan" | grep -v "bytemuck"  # audit surface
 ```
 
 ## Commit scopes

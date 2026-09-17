@@ -33,7 +33,7 @@
       "registration": {
         "adapter": "PyMemoryOwnership",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/memory.rs"
+        "source": "crates/molgfx-py/src/memory.rs"
       }
     },
     {
@@ -58,7 +58,7 @@
       "registration": {
         "adapter": "PyMemoryTransferExclusion",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/memory.rs"
+        "source": "crates/molgfx-py/src/memory.rs"
       }
     },
     {
@@ -89,7 +89,7 @@
       "registration": {
         "adapter": "PyOverlayAnchor",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/overlay_authoring.rs"
+        "source": "crates/molgfx-py/src/overlay_authoring.rs"
       }
     },
     {
@@ -126,7 +126,7 @@
       "registration": {
         "adapter": "PyValidationKind",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/validation_markers.rs"
+        "source": "crates/molgfx-py/src/validation_markers.rs"
       }
     },
     {
@@ -151,7 +151,7 @@
       "registration": {
         "adapter": "PyValidationMarker",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/validation_markers.rs"
+        "source": "crates/molgfx-py/src/validation_markers.rs"
       }
     },
     {
@@ -224,7 +224,7 @@
       "registration": {
         "adapter": "PyVec3",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/math.rs"
+        "source": "crates/molgfx-py/src/math.rs"
       }
     },
     {
@@ -273,7 +273,7 @@
       "registration": {
         "adapter": "PyQuat",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/math.rs"
+        "source": "crates/molgfx-py/src/math.rs"
       }
     },
     {
@@ -310,7 +310,7 @@
       "registration": {
         "adapter": "PyMat4",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/math.rs"
+        "source": "crates/molgfx-py/src/math.rs"
       }
     },
     {
@@ -371,7 +371,7 @@
       "registration": {
         "adapter": "PyRgba8",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/math.rs"
+        "source": "crates/molgfx-py/src/math.rs"
       }
     },
     {
@@ -402,7 +402,7 @@
       "registration": {
         "adapter": "PyScalarFieldSemantics",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/color.rs"
+        "source": "crates/molgfx-py/src/values/color.rs"
       }
     },
     {
@@ -451,7 +451,7 @@
       "registration": {
         "adapter": "PyScalarRamp",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/color.rs"
+        "source": "crates/molgfx-py/src/values/color.rs"
       }
     },
     {
@@ -462,7 +462,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/visual.rs"
+        "source": "crates/molgfx-py/src/visual.rs"
       }
     },
     {
@@ -473,7 +473,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/visual.rs"
+        "source": "crates/molgfx-py/src/visual.rs"
       }
     },
     {
@@ -484,7 +484,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/visual.rs"
+        "source": "crates/molgfx-py/src/visual.rs"
       }
     },
     {
@@ -495,7 +495,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/visual.rs"
+        "source": "crates/molgfx-py/src/visual.rs"
       }
     },
     {
@@ -506,7 +506,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/visual.rs"
+        "source": "crates/molgfx-py/src/visual.rs"
       }
     },
     {
@@ -517,7 +517,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/visual.rs"
+        "source": "crates/molgfx-py/src/visual.rs"
       }
     },
     {
@@ -528,7 +528,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/visual.rs"
+        "source": "crates/molgfx-py/src/visual.rs"
       }
     },
     {
@@ -539,7 +539,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/visual_register.rs"
+        "source": "crates/molgfx-py/src/visual_register.rs"
       }
     },
     {
@@ -550,7 +550,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/visual_register.rs"
+        "source": "crates/molgfx-py/src/visual_register.rs"
       }
     },
     {
@@ -561,7 +561,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/visual_register.rs"
+        "source": "crates/molgfx-py/src/visual_register.rs"
       }
     },
     {
@@ -572,7 +572,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/visual_register.rs"
+        "source": "crates/molgfx-py/src/visual_register.rs"
       }
     },
     {
@@ -583,7 +583,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/visual_register.rs"
+        "source": "crates/molgfx-py/src/visual_register.rs"
       }
     },
     {
@@ -662,7 +662,7 @@
       "registration": {
         "adapter": "PyVisualOutput",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/visual_enums.rs"
+        "source": "crates/molgfx-py/src/visual_enums.rs"
       }
     },
     {
@@ -693,7 +693,7 @@
       "registration": {
         "adapter": "PyVisualStage",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/visual_enums.rs"
+        "source": "crates/molgfx-py/src/visual_enums.rs"
       }
     },
     {
@@ -754,7 +754,7 @@
       "registration": {
         "adapter": "PyVisualCompatibility",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/visual_compatibility.rs"
+        "source": "crates/molgfx-py/src/visual_compatibility.rs"
       }
     },
     {
@@ -773,7 +773,7 @@
       "registration": {
         "adapter": "PyVisualInputs",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/visual.rs"
+        "source": "crates/molgfx-py/src/visual.rs"
       }
     }
   ]

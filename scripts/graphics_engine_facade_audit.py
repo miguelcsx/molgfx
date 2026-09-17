@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit the graphics capability contract at the public ``pdviewx`` facade.
+"""Audit the graphics capability contract at the public ``molgfx`` facade.
 
 This is a source/API audit, not a language benchmark.  It checks that the
 public types needed by the reference-engine capability families are actually
@@ -34,7 +34,7 @@ CAPABILITY_ANCHORS: tuple[dict[str, Any], ...] = (
             "SurfaceKind",
             "Material",
         ],
-        "evidence": ["crates/pdviewx-core/src/representation", "scripts/graphics_engine_native_probe.py"],
+        "evidence": ["crates/molgfx-core/src/representation", "scripts/graphics_engine_native_probe.py"],
     },
     {
         "id": "backbone-and-special-structure",
@@ -45,7 +45,7 @@ CAPABILITY_ANCHORS: tuple[dict[str, Any], ...] = (
             "CarbohydrateSymbol",
             "AnisotropicEllipsoid",
         ],
-        "evidence": ["crates/pdviewx-geometry/src/cartoon", "crates/pdviewx-core/src/structure"],
+        "evidence": ["crates/molgfx-geometry/src/cartoon", "crates/molgfx-core/src/structure"],
     },
     {
         "id": "surface-and-volume-rendering",
@@ -59,7 +59,7 @@ CAPABILITY_ANCHORS: tuple[dict[str, Any], ...] = (
             "SurfaceScalarOverlay",
             "SegmentedVolume",
         ],
-        "evidence": ["crates/pdviewx-core/src/structure/density.rs", "crates/pdviewx-render/src/engine/volume_tests.rs"],
+        "evidence": ["crates/molgfx-core/src/structure/density.rs", "crates/molgfx-render/src/engine/volume_tests.rs"],
     },
     {
         "id": "camera-clipping-and-optics",
@@ -74,7 +74,7 @@ CAPABILITY_ANCHORS: tuple[dict[str, Any], ...] = (
             "DisplayTransform",
             "DepthOfField",
         ],
-        "evidence": ["crates/pdviewx-render/src/engine", "crates/pdviewx-core/src/selection/clipping.rs"],
+        "evidence": ["crates/molgfx-render/src/engine", "crates/molgfx-core/src/selection/clipping.rs"],
     },
     {
         "id": "labels-measurements-and-interactions",
@@ -88,7 +88,7 @@ CAPABILITY_ANCHORS: tuple[dict[str, Any], ...] = (
             "Pick",
             "PickEntity",
         ],
-        "evidence": ["crates/pdviewx-core/src/representation/annotation.rs", "crates/pdviewx-render/src/engine/picking.rs"],
+        "evidence": ["crates/molgfx-core/src/representation/annotation.rs", "crates/molgfx-render/src/engine/picking.rs"],
     },
     {
         "id": "trajectory-ensembles-and-primitives",
@@ -108,7 +108,7 @@ CAPABILITY_ANCHORS: tuple[dict[str, Any], ...] = (
             "OverlayHandle",
             "OverlayContent",
         ],
-        "evidence": ["crates/pdviewx-core/src/structure/trajectory.rs", "crates/pdviewx-render/src/passes"],
+        "evidence": ["crates/molgfx-core/src/structure/trajectory.rs", "crates/molgfx-render/src/passes"],
     },
     {
         "id": "semantic-focus-and-comparison",
@@ -120,7 +120,7 @@ CAPABILITY_ANCHORS: tuple[dict[str, Any], ...] = (
             "LodPolicy",
             "StreamPlanner",
         ],
-        "evidence": ["crates/pdviewx-semantic/src", "docs/PARITY.md"],
+        "evidence": ["crates/molgfx-semantic/src", "docs/PARITY.md"],
     },
     {
         "id": "scene-session-and-image-output",
@@ -137,13 +137,13 @@ CAPABILITY_ANCHORS: tuple[dict[str, Any], ...] = (
             "FrameOutcome",
             "RenderError",
         ],
-        "evidence": ["crates/pdviewx-core/src/serialization", "crates/pdviewx-render/src/engine"],
+        "evidence": ["crates/molgfx-core/src/serialization", "crates/molgfx-render/src/engine"],
     },
     {
         "id": "host-target-and-capability-seam",
         "references": ["VMD", "ChimeraX", "OVITO", "Protein Imager"],
         "symbols": ["Capabilities", "WindowSource", "WindowTarget", "Engine"],
-        "evidence": ["crates/pdviewx/src/lib.rs", "crates/pdviewx-gpu/src/device.rs"],
+        "evidence": ["crates/molgfx/src/lib.rs", "crates/molgfx-gpu/src/device.rs"],
     },
 )
 
@@ -211,7 +211,7 @@ def public_facade_symbols(path: Path) -> set[str]:
 
 
 def audit(repo: Path) -> dict[str, Any]:
-    facade_path = repo / "crates/pdviewx/src/lib.rs"
+    facade_path = repo / "crates/molgfx/src/lib.rs"
     symbols = public_facade_symbols(facade_path)
     anchors = []
     for capability in CAPABILITY_ANCHORS:
@@ -230,7 +230,7 @@ def audit(repo: Path) -> dict[str, Any]:
     negative = []
     for capability in NEGATIVE_CAPABILITIES:
         if capability["id"] == "python-binding":
-            present = (repo / "crates/pdviewx-py").exists() or (repo / "python/pdviewx").exists()
+            present = (repo / "crates/molgfx-py").exists() or (repo / "python/molgfx").exists()
             negative.append({**capability, "status": "present-unexpectedly" if present else capability["status"]})
         else:
             negative.append({**capability, "status": capability["status"]})
@@ -241,7 +241,7 @@ def audit(repo: Path) -> dict[str, Any]:
     return {
         "schema": 1,
         "status": "passed" if not missing_anchor_symbols else "failed",
-        "scope": "public pdviewx graphics capability facade; pdbiox remains provider-only",
+        "scope": "public molgfx graphics capability facade; pdbiox remains provider-only",
         "facade": str(facade_path),
         "facade_symbol_count": len(symbols),
         "facade_symbols": sorted(symbols),

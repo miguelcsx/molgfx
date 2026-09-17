@@ -24,7 +24,7 @@ from typing import Any
 from graphics_engine_taxonomy import (
     NON_RENDERING_FAMILIES,
     classify_command,
-    pdviewx_mapping,
+    molgfx_mapping,
 )
 from graphics_engine_volume_differential import write_mrc
 
@@ -304,12 +304,12 @@ def required_parameters(function: Any) -> list[inspect.Parameter] | None:
 
 def attempt_command(cmd: Any, name: str, root: Path) -> dict[str, Any]:
     family = classify_command(name)
-    mapping = pdviewx_mapping(name, family)
+    mapping = molgfx_mapping(name, family)
     record: dict[str, Any] = {
         "name": name,
         "family": family,
         "scope": "non-rendering-owner" if family in NON_RENDERING_FAMILIES else "graphics-or-scene-owner",
-        "pdviewx": mapping,
+        "molgfx": mapping,
         "function": getattr(cmd.keyword[name][0], "__name__", "unknown"),
     }
     if name in SKIP_REASONS:
@@ -400,7 +400,7 @@ def main() -> int:
         result = {"status": "unavailable", "error": compact_error(error)}
     else:
         pymol.finish_launching(["pymol", "-cq"])
-        with tempfile.TemporaryDirectory(prefix="pdviewx-pymol-command-audit-") as directory:
+        with tempfile.TemporaryDirectory(prefix="molgfx-pymol-command-audit-") as directory:
             root = Path(directory)
             records = [
                 attempt_command(cmd, name, root)

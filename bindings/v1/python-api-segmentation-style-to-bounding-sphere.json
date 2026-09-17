@@ -40,7 +40,7 @@
       "registration": {
         "adapter": "PySegmentationStyle",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/volume.rs"
+        "source": "crates/molgfx-py/src/values/volume.rs"
       }
     },
     {
@@ -95,7 +95,7 @@
       "registration": {
         "adapter": "PyVolumeStyle",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/volume.rs"
+        "source": "crates/molgfx-py/src/values/volume.rs"
       }
     },
     {
@@ -132,7 +132,7 @@
       "registration": {
         "adapter": "PyTubeRadiusMapping",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/volume.rs"
+        "source": "crates/molgfx-py/src/values/volume.rs"
       }
     },
     {
@@ -175,7 +175,7 @@
       "registration": {
         "adapter": "PyCrystalCell",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/volume.rs"
+        "source": "crates/molgfx-py/src/values/volume.rs"
       }
     },
     {
@@ -236,7 +236,7 @@
       "registration": {
         "adapter": "PyParticleShape",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/authoring.rs"
+        "source": "crates/molgfx-py/src/authoring.rs"
       }
     },
     {
@@ -273,7 +273,7 @@
       "registration": {
         "adapter": "PyMeshTopology",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/authoring.rs"
+        "source": "crates/molgfx-py/src/authoring.rs"
       }
     },
     {
@@ -304,7 +304,7 @@
       "registration": {
         "adapter": "PyGuideCap",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/authoring.rs"
+        "source": "crates/molgfx-py/src/authoring.rs"
       }
     },
     {
@@ -323,7 +323,7 @@
       "registration": {
         "adapter": "PyGuideStyle",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/authoring.rs"
+        "source": "crates/molgfx-py/src/authoring.rs"
       }
     },
     {
@@ -354,7 +354,7 @@
       "registration": {
         "adapter": "PySymmetryInstance",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/values/volume.rs"
+        "source": "crates/molgfx-py/src/values/volume.rs"
       }
     },
     {
@@ -397,7 +397,7 @@
       "registration": {
         "adapter": "PyTrajectoryChunkWindow",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/trajectory.rs"
+        "source": "crates/molgfx-py/src/trajectory.rs"
       }
     },
     {
@@ -446,7 +446,7 @@
       "registration": {
         "adapter": "PyTrajectoryFrame",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/trajectory.rs"
+        "source": "crates/molgfx-py/src/trajectory.rs"
       }
     },
     {
@@ -507,7 +507,7 @@
       "registration": {
         "adapter": "PyTrajectorySegment",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/trajectory.rs"
+        "source": "crates/molgfx-py/src/trajectory.rs"
       }
     },
     {
@@ -550,7 +550,7 @@
       "registration": {
         "adapter": "PyTrajectoryBranch",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/trajectory.rs"
+        "source": "crates/molgfx-py/src/trajectory.rs"
       }
     },
     {
@@ -605,7 +605,7 @@
       "registration": {
         "adapter": "PyTrajectoryStateGraph",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/trajectory.rs"
+        "source": "crates/molgfx-py/src/trajectory.rs"
       }
     },
     {
@@ -636,7 +636,7 @@
       "registration": {
         "adapter": "PyTopologyBond",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/topology.rs"
+        "source": "crates/molgfx-py/src/topology.rs"
       }
     },
     {
@@ -685,7 +685,7 @@
       "registration": {
         "adapter": "PyBondTopologyFrame",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/topology.rs"
+        "source": "crates/molgfx-py/src/topology.rs"
       }
     },
     {
@@ -740,7 +740,7 @@
       "registration": {
         "adapter": "PyBondTopologySegment",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/topology.rs"
+        "source": "crates/molgfx-py/src/topology.rs"
       }
     },
     {
@@ -795,7 +795,7 @@
       "registration": {
         "adapter": "PyAabb",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/math.rs"
+        "source": "crates/molgfx-py/src/math.rs"
       }
     },
     {
@@ -826,7 +826,7 @@
       "registration": {
         "adapter": "PyBoundingSphere",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/math.rs"
+        "source": "crates/molgfx-py/src/math.rs"
       }
     }
   ]

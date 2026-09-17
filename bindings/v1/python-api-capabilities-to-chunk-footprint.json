@@ -58,7 +58,7 @@
       "registration": {
         "adapter": "PyCapabilities",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/config.rs"
+        "source": "crates/molgfx-py/src/render/config.rs"
       }
     },
     {
@@ -119,7 +119,7 @@
       "registration": {
         "adapter": "PyImage",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/engine.rs"
+        "source": "crates/molgfx-py/src/render/engine.rs"
       }
     },
     {
@@ -168,7 +168,7 @@
       "registration": {
         "adapter": "PyHdrImage",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/engine.rs"
+        "source": "crates/molgfx-py/src/render/engine.rs"
       }
     },
     {
@@ -355,7 +355,7 @@
       "registration": {
         "adapter": "PyEngine",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/engine.rs"
+        "source": "crates/molgfx-py/src/render/engine.rs"
       }
     },
     {
@@ -404,7 +404,7 @@
       "registration": {
         "adapter": "PyPointChunkPlacement",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/chunk_streaming.rs"
+        "source": "crates/molgfx-py/src/render/chunk_streaming.rs"
       }
     },
     {
@@ -441,7 +441,7 @@
       "registration": {
         "adapter": "PyInstanceChunkPlacement",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/chunk_streaming.rs"
+        "source": "crates/molgfx-py/src/render/chunk_streaming.rs"
       }
     },
     {
@@ -472,7 +472,7 @@
       "registration": {
         "adapter": "PyChunkPlacementStatus",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/chunk_streaming.rs"
+        "source": "crates/molgfx-py/src/render/chunk_streaming.rs"
       }
     },
     {
@@ -515,7 +515,7 @@
       "registration": {
         "adapter": "PyResidentGenericChunk",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/chunk_streaming.rs"
+        "source": "crates/molgfx-py/src/render/chunk_streaming.rs"
       }
     },
     {
@@ -546,7 +546,7 @@
       "registration": {
         "adapter": "PyPickEntity",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/engine.rs"
+        "source": "crates/molgfx-py/src/render/engine.rs"
       }
     },
     {
@@ -583,7 +583,7 @@
       "registration": {
         "adapter": "PyGlobalPickIdentity",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/engine.rs"
+        "source": "crates/molgfx-py/src/render/engine.rs"
       }
     },
     {
@@ -608,73 +608,73 @@
       "registration": {
         "adapter": "PyPick",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/render/engine.rs"
+        "source": "crates/molgfx-py/src/render/engine.rs"
       }
     },
     {
-      "declaration": "class PdviewxError(Exception): ...",
+      "declaration": "class MolgfxError(Exception): ...",
       "kind": "error",
       "members": [],
-      "name": "PdviewxError",
+      "name": "MolgfxError",
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/error.rs"
+        "source": "crates/molgfx-py/src/error.rs"
       }
     },
     {
-      "declaration": "class CoreError(PdviewxError): ...",
+      "declaration": "class CoreError(MolgfxError): ...",
       "kind": "error",
       "members": [],
       "name": "CoreError",
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/error.rs"
+        "source": "crates/molgfx-py/src/error.rs"
       }
     },
     {
-      "declaration": "class GpuError(PdviewxError): ...",
+      "declaration": "class GpuError(MolgfxError): ...",
       "kind": "error",
       "members": [],
       "name": "GpuError",
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/error.rs"
+        "source": "crates/molgfx-py/src/error.rs"
       }
     },
     {
-      "declaration": "class SemanticError(PdviewxError): ...",
+      "declaration": "class SemanticError(MolgfxError): ...",
       "kind": "error",
       "members": [],
       "name": "SemanticError",
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/error.rs"
+        "source": "crates/molgfx-py/src/error.rs"
       }
     },
     {
-      "declaration": "class RenderError(PdviewxError): ...",
+      "declaration": "class RenderError(MolgfxError): ...",
       "kind": "error",
       "members": [],
       "name": "RenderError",
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/error.rs"
+        "source": "crates/molgfx-py/src/error.rs"
       }
     },
     {
-      "declaration": "class VisualError(PdviewxError): ...",
+      "declaration": "class VisualError(MolgfxError): ...",
       "kind": "error",
       "members": [],
       "name": "VisualError",
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/error.rs"
+        "source": "crates/molgfx-py/src/error.rs"
       }
     },
     {
@@ -704,7 +704,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/semantic/dataset.rs"
+        "source": "crates/molgfx-py/src/semantic/dataset.rs"
       }
     },
     {
@@ -734,7 +734,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/semantic/dataset.rs"
+        "source": "crates/molgfx-py/src/semantic/dataset.rs"
       }
     },
     {
@@ -764,7 +764,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/semantic/dataset.rs"
+        "source": "crates/molgfx-py/src/semantic/dataset.rs"
       }
     },
     {
@@ -794,7 +794,7 @@
       "ownership": "copied-value",
       "registration": {
         "kind": "module-member",
-        "source": "crates/pdviewx-py/src/semantic/dataset.rs"
+        "source": "crates/molgfx-py/src/semantic/dataset.rs"
       }
     },
     {
@@ -843,7 +843,7 @@
       "registration": {
         "adapter": "PyChunkFootprint",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/semantic/dataset.rs"
+        "source": "crates/molgfx-py/src/semantic/dataset.rs"
       }
     }
   ]

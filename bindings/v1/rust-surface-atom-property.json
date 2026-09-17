@@ -10,19 +10,19 @@
           "AtomProperty"
         ],
         "evidence": [
-          "crates/pdviewx-py/src/atom_property.rs"
+          "crates/molgfx-py/src/atom_property.rs"
         ]
       },
       "typescript": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/browser.rs",
+        "evidence": "crates/molgfx-wasm/src/browser.rs",
         "gap": "AtomProperty is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics."
       },
       "wasm": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/browser.rs",
+        "evidence": "crates/molgfx-wasm/src/browser.rs",
         "gap": "AtomProperty is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics."
       }
     },
@@ -36,19 +36,19 @@
           "AtomPropertyHandle"
         ],
         "evidence": [
-          "crates/pdviewx-py/src/handles.rs"
+          "crates/molgfx-py/src/handles.rs"
         ]
       },
       "typescript": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/browser.rs",
+        "evidence": "crates/molgfx-wasm/src/browser.rs",
         "gap": "AtomPropertyHandle is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics."
       },
       "wasm": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/browser.rs",
+        "evidence": "crates/molgfx-wasm/src/browser.rs",
         "gap": "AtomPropertyHandle is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics."
       }
     },
@@ -62,19 +62,19 @@
           "AtomPropertyMeaning"
         ],
         "evidence": [
-          "crates/pdviewx-py/src/atom_property.rs"
+          "crates/molgfx-py/src/atom_property.rs"
         ]
       },
       "typescript": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/browser.rs",
+        "evidence": "crates/molgfx-wasm/src/browser.rs",
         "gap": "AtomPropertyMeaning is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics."
       },
       "wasm": {
         "state": "typed-adapter",
         "implemented": false,
-        "evidence": "crates/pdviewx-wasm/src/browser.rs",
+        "evidence": "crates/molgfx-wasm/src/browser.rs",
         "gap": "AtomPropertyMeaning is part of the renderer-owned selection and property contract, but no Web SDK operation currently carries its complete typed semantics."
       }
     }

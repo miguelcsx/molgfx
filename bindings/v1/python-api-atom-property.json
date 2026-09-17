@@ -8,7 +8,7 @@
       "registration": {
         "adapter": "PyAtomPropertyHandle",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/handles.rs"
+        "source": "crates/molgfx-py/src/handles.rs"
       }
     },
     {
@@ -19,7 +19,7 @@
       "registration": {
         "adapter": "PyAtomPropertyMeaning",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/atom_property.rs"
+        "source": "crates/molgfx-py/src/atom_property.rs"
       }
     },
     {
@@ -35,7 +35,7 @@
       "registration": {
         "adapter": "PyAtomProperty",
         "kind": "pyclass",
-        "source": "crates/pdviewx-py/src/atom_property.rs"
+        "source": "crates/molgfx-py/src/atom_property.rs"
       }
     }
   ],

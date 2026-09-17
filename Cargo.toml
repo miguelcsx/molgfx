@@ -2,28 +2,28 @@
 members = ["crates/*"]
 resolver = "3"
 
-[workspace.metadata.pdviewx.wasm]
+[workspace.metadata.molgfx.wasm]
 portable-crates = [
-    "pdviewx-math",
-    "pdviewx-core",
-    "pdviewx-gpu",
-    "pdviewx-gpu-wgpu",
-    "pdviewx-shaders",
-    "pdviewx-geometry",
-    "pdviewx-render",
-    "pdviewx-semantic",
-    "pdviewx",
-    "pdviewx-wasm",
+    "molgfx-math",
+    "molgfx-core",
+    "molgfx-gpu",
+    "molgfx-wgpu",
+    "molgfx-shaders",
+    "molgfx-geometry",
+    "molgfx-render",
+    "molgfx-semantic",
+    "molgfx",
+    "molgfx-wasm",
 ]
 portable-test-crates = [
-    "pdviewx-gpu",
-    "pdviewx-gpu-wgpu",
-    "pdviewx-shaders",
-    "pdviewx-wasm",
+    "molgfx-gpu",
+    "molgfx-wgpu",
+    "molgfx-shaders",
+    "molgfx-wasm",
 ]
-native-only-crates = ["pdviewx-bench", "pdviewx-py"]
+native-only-crates = ["molgfx-bench", "molgfx-py"]
 native-only-targets = [
-    "pdviewx examples",
+    "molgfx examples",
     "criterion benches",
     "blocking-device integration tests",
     "parser/provider fixture tests",
@@ -35,20 +35,20 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.92"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/miguelcsx/pdviewx"
+repository = "https://github.com/miguelcsx/molgfx"
 
 [workspace.dependencies]
 # Internal crates (layered; a crate depends only on lower layers).
-pdviewx = { version = "0.1.0", path = "crates/pdviewx" }
-pdviewx-math = { version = "0.1.0", path = "crates/pdviewx-math" }
-pdviewx-core = { version = "0.1.0", path = "crates/pdviewx-core" }
-pdviewx-gpu = { version = "0.1.0", path = "crates/pdviewx-gpu" }
-pdviewx-gpu-wgpu = { version = "0.1.0", path = "crates/pdviewx-gpu-wgpu" }
-pdviewx-shaders = { version = "0.1.0", path = "crates/pdviewx-shaders" }
-pdviewx-geometry = { version = "0.1.0", path = "crates/pdviewx-geometry" }
-pdviewx-render = { version = "0.1.0", path = "crates/pdviewx-render" }
-pdviewx-semantic = { version = "0.1.0", path = "crates/pdviewx-semantic" }
-pdviewx-recipes = { version = "0.1.0", path = "crates/pdviewx-recipes" }
+molgfx = { version = "0.1.0", path = "crates/molgfx" }
+molgfx-math = { version = "0.1.0", path = "crates/molgfx-math" }
+molgfx-core = { version = "0.1.0", path = "crates/molgfx-core" }
+molgfx-gpu = { version = "0.1.0", path = "crates/molgfx-gpu" }
+molgfx-wgpu = { version = "0.1.0", path = "crates/molgfx-wgpu" }
+molgfx-shaders = { version = "0.1.0", path = "crates/molgfx-shaders" }
+molgfx-geometry = { version = "0.1.0", path = "crates/molgfx-geometry" }
+molgfx-render = { version = "0.1.0", path = "crates/molgfx-render" }
+molgfx-semantic = { version = "0.1.0", path = "crates/molgfx-semantic" }
+molgfx-recipes = { version = "0.1.0", path = "crates/molgfx-recipes" }
 
 # The structural model and every detection the engine consumes.
 # Pin the coordinated provider revision so builds never depend on a mutable

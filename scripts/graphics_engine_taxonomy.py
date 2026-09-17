@@ -132,7 +132,7 @@ NON_RENDERING_FAMILIES = frozenset(
 )
 
 
-EXACT_PDVIEWX_STATUS = {
+EXACT_MOLGFX_STATUS = {
     "missing": _names("callout cgo ellipsoids spheroid movie.produce capture draw"),
     "partial": _names(
         "mpng movie.load movie.nutate movie.pause movie.rock movie.roll movie.screw "
@@ -142,15 +142,15 @@ EXACT_PDVIEWX_STATUS = {
 }
 
 # These commands have a more specific boundary than their broad family would
-# imply. A command-level status describes the closest pdviewx capability; it is
-# not a claim that pdviewx exposes a PyMOL-compatible command API.
+# imply. A command-level status describes the closest molgfx capability; it is
+# not a claim that molgfx exposes a PyMOL-compatible command API.
 COMMAND_STATUS_OVERRIDES = {
-    "callout": ("partial", "pdviewx-annotations-and-guides"),
-    "capture": ("partial", "pdviewx-image-output"),
-    "draw": ("partial", "pdviewx-image-output"),
+    "callout": ("partial", "molgfx-annotations-and-guides"),
+    "capture": ("partial", "molgfx-image-output"),
+    "draw": ("partial", "molgfx-image-output"),
     "movie.produce": ("missing", "caller-owned-movie-timeline-and-encoder"),
-    "ellipsoids": ("partial", "pdviewx-analytic-anisotropic-ellipsoid; exact-command-preset-missing"),
-    "spheroid": ("partial", "pdviewx-scientific-ellipsoid; exact-preset-missing"),
+    "ellipsoids": ("partial", "molgfx-analytic-anisotropic-ellipsoid; exact-command-preset-missing"),
+    "spheroid": ("partial", "molgfx-scientific-ellipsoid; exact-preset-missing"),
     "assign_stereo": ("provider-or-caller", "pdbiox-or-chemistry-provider"),
     "get_renderer": ("out-of-scope", "host-backend-query"),
     "stereo": ("out-of-scope", "host-display-integration"),
@@ -165,12 +165,12 @@ COMMAND_STATUS_OVERRIDES = {
     "matrix_copy": ("provider-or-caller", "caller-or-provider-coordinate-editing"),
     "matrix_reset": ("provider-or-caller", "caller-or-provider-coordinate-editing"),
     "matrix_transfer": ("provider-or-caller", "caller-or-provider-coordinate-editing"),
-    "gradient": ("partial", "pdviewx-backdrop-profile; exact-gradient-policy-missing"),
-    "color_deep": ("partial", "pdviewx-material-depth-policy"),
-    "desaturate": ("partial", "pdviewx-display-transform; exact-command-policy-missing"),
+    "gradient": ("partial", "molgfx-backdrop-profile; exact-gradient-policy-missing"),
+    "color_deep": ("partial", "molgfx-material-depth-policy"),
+    "desaturate": ("partial", "molgfx-display-transform; exact-command-policy-missing"),
     "set_geometry": ("partial", "caller-authored-geometry; no-general-CGO-buffer"),
     "set_key": ("out-of-scope", "application-keyboard-binding"),
-    "viewport": ("partial", "pdviewx-image-configuration"),
+    "viewport": ("partial", "molgfx-image-configuration"),
 }
 
 
@@ -190,18 +190,18 @@ def command_execution_evidence(name: str) -> str:
     return "executed" if name in EXECUTED_COMMANDS else "documented-only"
 
 
-def pdviewx_mapping(name: str, family: str) -> dict[str, str]:
-    """Map a reference command to pdviewx ownership and evidence status."""
+def molgfx_mapping(name: str, family: str) -> dict[str, str]:
+    """Map a reference command to molgfx ownership and evidence status."""
 
     if name in COMMAND_STATUS_OVERRIDES:
         status, owner = COMMAND_STATUS_OVERRIDES[name]
         return {"status": status, "owner": owner}
-    if name in EXACT_PDVIEWX_STATUS["missing"]:
-        return {"status": "missing", "owner": "pdviewx-or-downstream-exporter"}
-    if name in EXACT_PDVIEWX_STATUS["partial"]:
-        return {"status": "partial", "owner": "pdviewx-or-downstream-exporter"}
+    if name in EXACT_MOLGFX_STATUS["missing"]:
+        return {"status": "missing", "owner": "molgfx-or-downstream-exporter"}
+    if name in EXACT_MOLGFX_STATUS["partial"]:
+        return {"status": "partial", "owner": "molgfx-or-downstream-exporter"}
     if family == "selection" or family == "query":
-        return {"status": "beta", "owner": "pdviewx-selection"}
+        return {"status": "beta", "owner": "molgfx-selection"}
     if family == "analysis":
         return {"status": "provider", "owner": "pdbiox-or-caller"}
     if family in {"io", "editing"}:
@@ -209,16 +209,16 @@ def pdviewx_mapping(name: str, family: str) -> dict[str, str]:
     if family in {"scripting", "application", "ui", "utility"}:
         return {"status": "out-of-scope", "owner": "application-shell"}
     if family == "animation":
-        return {"status": "partial", "owner": "pdviewx-trajectory-or-exporter"}
+        return {"status": "partial", "owner": "molgfx-trajectory-or-exporter"}
     if family == "export":
-        return {"status": "partial", "owner": "pdviewx-or-downstream-exporter"}
+        return {"status": "partial", "owner": "molgfx-or-downstream-exporter"}
     if family == "scene":
-        return {"status": "partial", "owner": "pdviewx-core"}
+        return {"status": "partial", "owner": "molgfx-core"}
     if family == "crystallography":
-        return {"status": "partial", "owner": "pdbiox-provider-and-pdviewx"}
+        return {"status": "partial", "owner": "pdbiox-provider-and-molgfx"}
     if family == "volume":
-        return {"status": "beta", "owner": "pdviewx-volume"}
-    return {"status": "beta", "owner": "pdviewx-render"}
+        return {"status": "beta", "owner": "molgfx-volume"}
+    return {"status": "beta", "owner": "molgfx-render"}
 
 
 def classify_command(name: str) -> str:

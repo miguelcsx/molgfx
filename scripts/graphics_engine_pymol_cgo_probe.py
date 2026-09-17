@@ -254,7 +254,7 @@ def cgo_opcode_matrix(cmd: Any, root: Path) -> dict[str, Any]:
             "opcode": opcode,
             "numeric": float(getattr(cgo, opcode)),
             "role": CGO_ROLES[opcode],
-            "pdviewx": {"status": PYMOL_CGO_DISPOSITIONS[opcode][0], "reason": PYMOL_CGO_DISPOSITIONS[opcode][1]},
+            "molgfx": {"status": PYMOL_CGO_DISPOSITIONS[opcode][0], "reason": PYMOL_CGO_DISPOSITIONS[opcode][1]},
         }
         try:
             stream, fixture = _stream_for(opcode, cgo)
