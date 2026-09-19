@@ -28,7 +28,7 @@ fn march_steps(dimensions: [u32; 3]) -> u32 {
 /// Per-structure placement, shared by every representation of that structure.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct ModelUniforms {
+pub(crate) struct ModelUniforms {
     /// World-from-model transform.
     pub model_to_world: Mat4,
     /// Model-from-world transform for local-space hierarchy traversal.
@@ -61,7 +61,7 @@ impl ModelUniforms {
 /// The per-frame camera block, laid out exactly as the shader declares it.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct FrameUniforms {
+pub(crate) struct FrameUniforms {
     /// View-from-world.
     pub view: Mat4,
     /// World-from-view, used by fullscreen analytic ray generation.
@@ -125,7 +125,7 @@ pub(crate) struct TemporalFrame {
 impl FrameUniforms {
     /// Builds the block for one frame.
     #[must_use]
-    pub fn new(camera: &Camera, width: u32, height: u32, temporal: &TemporalFrame) -> Self {
+    pub(crate) fn new(camera: &Camera, width: u32, height: u32, temporal: &TemporalFrame) -> Self {
         let view = camera.view();
         let base_proj = camera.projection.matrix();
         // Viewport dimensions fit in 16 bits on every supported device, so

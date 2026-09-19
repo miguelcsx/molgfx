@@ -6,9 +6,7 @@ use crate::engine::{
     ChunkPlacementId, Engine, InstanceChunkPlacement, PointChunkPlacement, RelationChunkPlacement,
 };
 use crate::testing::MockDevice;
-use molgfx_core::{
-    AnalyticSphere, AnalyticTemplate, ResidencyOutput, SourceNamespace, SourceRows,
-};
+use molgfx_core::{AnalyticSphere, AnalyticTemplate, ResidencyOutput, SourceNamespace, SourceRows};
 use molgfx_math::{Mat4, Rgba8};
 use std::sync::Arc;
 

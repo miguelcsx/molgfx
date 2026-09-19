@@ -18,12 +18,12 @@ use super::structure::GpuStructure;
 use super::uniforms::ModelUniforms;
 use super::visual::VisualCullEntries;
 use crate::error::RenderError;
-use paged_visual::{PagedRelationVisualArenas, PagedRelationVisualState};
 use molgfx_core::{
     ChunkId, DatasetId, EntityKind, InteractionGpu, RelationBatchHandle, RowDomain, Scene,
 };
 use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue as _};
 use molgfx_math::Mat4;
+use paged_visual::{PagedRelationVisualArenas, PagedRelationVisualState};
 use std::collections::BTreeMap;
 
 const RESOLVER_ALIGNMENT_ROWS: usize = 4;

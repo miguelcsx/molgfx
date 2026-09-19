@@ -16,7 +16,7 @@ use molgfx_gpu::{
 
 /// Pipelines and the shared single-source layout for the three bloom stages.
 #[derive(Debug)]
-pub struct BloomPass<D: Device> {
+pub(crate) struct BloomPass<D: Device> {
     bright_pipeline: D::Pipeline,
     horizontal_pipeline: D::Pipeline,
     vertical_pipeline: D::Pipeline,
@@ -24,7 +24,7 @@ pub struct BloomPass<D: Device> {
 }
 
 impl<D: Device> BloomPass<D> {
-    pub fn new(device: &D, group0: &D::BindGroupLayout) -> Result<Self, RenderError> {
+    pub(crate) fn new(device: &D, group0: &D::BindGroupLayout) -> Result<Self, RenderError> {
         let layout = device.create_bind_group_layout(&BindGroupLayoutDesc {
             label: "group1: bloom source",
             entries: &[BindGroupLayoutEntry {
@@ -66,7 +66,7 @@ impl<D: Device> BloomPass<D> {
 
     /// Extracts the above-threshold energy of the resolved frame into the
     /// quarter-resolution ping target.
-    pub fn bright(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn bright(ctx: &mut PassContext<'_, D>) {
         let Some(FrameBindings {
             bloom_source: Some(bloom_source),
             ..
@@ -86,7 +86,7 @@ impl<D: Device> BloomPass<D> {
         );
     }
 
-    pub fn horizontal(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn horizontal(ctx: &mut PassContext<'_, D>) {
         let Some(FrameBindings {
             bloom_horizontal_source: Some(bloom_horizontal_source),
             ..
@@ -108,7 +108,7 @@ impl<D: Device> BloomPass<D> {
         );
     }
 
-    pub fn vertical(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn vertical(ctx: &mut PassContext<'_, D>) {
         let Some(FrameBindings {
             bloom_vertical_source: Some(bloom_vertical_source),
             ..

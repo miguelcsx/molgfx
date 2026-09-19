@@ -11,15 +11,15 @@ use std::ops::Range;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 /// One buffer-range binding observed by the mock backend.
-pub type MockBufferBinding = (&'static str, u32, u32, u64, u64);
+pub(crate) type MockBufferBinding = (&'static str, u32, u32, u64, u64);
 /// Per-stage storage usage carried by a mock bind-group layout.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct MockBindGroupLayout {
+pub(crate) struct MockBindGroupLayout {
     storage_counts: [u32; 3],
 }
 /// Everything the mock observed, shared across handles.
 #[derive(Debug)]
-pub struct MockLog {
+pub(crate) struct MockLog {
     /// Physical buffers created as (id, label, byte size).
     pub buffers: Mutex<Vec<(u32, &'static str, u64)>>,
     /// (buffer id, offset, byte length, source pointer) per write.
@@ -104,7 +104,7 @@ impl Default for MockLog {
 }
 /// The mock device.
 #[derive(Debug, Clone)]
-pub struct MockDevice {
+pub(crate) struct MockDevice {
     /// The shared observation log.
     pub log: Arc<MockLog>,
     capabilities: Capabilities,
@@ -185,7 +185,7 @@ impl MockDevice {
 
 /// A mock buffer, identified for the log.
 #[derive(Debug)]
-pub struct MockBuffer {
+pub(crate) struct MockBuffer {
     /// Unique id, referenced by the log.
     pub id: u32,
     /// Creation label used by deterministic readback fixtures.
@@ -194,46 +194,46 @@ pub struct MockBuffer {
 
 /// A mock timestamp query set.
 #[derive(Debug)]
-pub struct MockQuerySet;
+pub(crate) struct MockQuerySet;
 
 /// Mock bottom-level acceleration structure.
 #[derive(Debug)]
-pub struct MockBlas;
+pub(crate) struct MockBlas;
 
 /// Mock top-level acceleration structure.
 #[derive(Debug)]
-pub struct MockTlas {
+pub(crate) struct MockTlas {
     instances: Vec<bool>,
 }
 
 /// A mock texture; carries its creation label.
 #[derive(Debug)]
-pub struct MockTexture(pub &'static str);
+pub(crate) struct MockTexture(pub &'static str);
 /// A mock texture view; carries the source label.
 #[derive(Debug, PartialEq, Eq)]
-pub struct MockView(pub &'static str);
+pub(crate) struct MockView(pub &'static str);
 
 /// The mock encoder: forwards everything to the log.
 #[derive(Debug)]
-pub struct MockEncoder {
+pub(crate) struct MockEncoder {
     log: Arc<MockLog>,
 }
 
 /// A mock pass; render and compute share it.
 #[derive(Debug)]
-pub struct MockPass<'e> {
+pub(crate) struct MockPass<'e> {
     log: &'e Arc<MockLog>,
 }
 
 /// The mock queue.
 #[derive(Debug)]
-pub struct MockQueue {
+pub(crate) struct MockQueue {
     log: Arc<MockLog>,
 }
 
 /// A mock surface with scripted acquire results.
 #[derive(Debug)]
-pub struct MockSurface {
+pub(crate) struct MockSurface {
     /// Pre-programmed outcomes, consumed front to back; empty = success.
     pub script: Vec<Result<(), SurfaceError>>,
     config: SurfaceConfig,
@@ -243,7 +243,7 @@ pub struct MockSurface {
 
 /// A mock acquired frame.
 #[derive(Debug)]
-pub struct MockFrame {
+pub(crate) struct MockFrame {
     view: MockView,
 }
 
@@ -314,6 +314,9 @@ impl molgfx_gpu::Queue<MockDevice> for MockQueue {
         ))
     }
 
+    // The trait declares `fn read_buffer_async(..) -> impl Future`, so the
+    // `async` keyword is the signature, not a suspension point.
+    #[allow(clippy::unused_async_trait_impl)]
     async fn read_buffer_async(
         &self,
         _device: &MockDevice,

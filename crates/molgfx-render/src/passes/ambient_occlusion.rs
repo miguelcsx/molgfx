@@ -16,7 +16,7 @@ use molgfx_gpu::{
 mod tests;
 
 #[derive(Debug)]
-pub struct AmbientOcclusionPass<D: Device> {
+pub(crate) struct AmbientOcclusionPass<D: Device> {
     realtime: D::Pipeline,
     quality: VisualPipelineSet<D>,
     hardware: Option<HardwareQualityPipelines<D>>,
@@ -30,7 +30,7 @@ struct HardwareQualityPipelines<D: Device> {
 }
 
 impl<D: Device> AmbientOcclusionPass<D> {
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         group0: &D::BindGroupLayout,
         group2: &D::BindGroupLayout,
@@ -106,7 +106,7 @@ impl<D: Device> AmbientOcclusionPass<D> {
         self.hardware.as_ref().map(|hardware| &hardware.layout)
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.is_massive_points_only() {
             return;
         }

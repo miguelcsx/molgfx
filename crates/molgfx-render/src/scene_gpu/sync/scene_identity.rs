@@ -8,14 +8,14 @@ use crate::{RenderError, ResidencyMetrics, ResidencyState};
 use molgfx_gpu::{Device, FenceValue, Queue};
 
 impl<D: Device> GpuScene<D> {
-    pub fn begin_frame(&mut self) {
+    pub(crate) fn begin_frame(&mut self) {
         self.residency.begin_frame();
         for atlas in &mut self.brick_atlases {
             atlas.begin_frame();
         }
     }
 
-    pub fn write_frame_uniforms(
+    pub(crate) fn write_frame_uniforms(
         &mut self,
         queue: &D::Queue,
         uniforms: &FrameUniforms,
@@ -77,7 +77,7 @@ impl<D: Device> GpuScene<D> {
         Ok(())
     }
 
-    pub fn residency_metrics(&self) -> ResidencyMetrics {
+    pub(crate) fn residency_metrics(&self) -> ResidencyMetrics {
         let mut metrics = self.residency.metrics();
         metrics.machine = self.residency_machine.metrics();
         metrics.machine.resident_resources = metrics

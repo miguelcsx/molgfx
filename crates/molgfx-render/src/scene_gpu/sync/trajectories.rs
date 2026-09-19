@@ -6,7 +6,7 @@ use molgfx_gpu::{CommandEncoder, ComputePassDesc, Device};
 
 impl<D: Device> GpuScene<D> {
     /// Records dirty coordinate interpolation into the frame encoder.
-    pub fn record_trajectories(
+    pub(crate) fn record_trajectories(
         &mut self,
         encoder: &mut D::CommandEncoder,
         trajectory: &TrajectoryPass<D>,

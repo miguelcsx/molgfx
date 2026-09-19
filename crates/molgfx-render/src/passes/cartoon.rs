@@ -14,12 +14,12 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub struct CartoonPass<D: Device> {
+pub(crate) struct CartoonPass<D: Device> {
     pipeline: VisualPipelineSet<D>,
 }
 
 impl<D: Device> CartoonPass<D> {
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         group0: &D::BindGroupLayout,
         group2: &D::BindGroupLayout,
@@ -54,7 +54,7 @@ impl<D: Device> CartoonPass<D> {
         Ok(Self { pipeline })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let (Some(albedo), Some(normal), Some(entity), Some(structure), Some(motion), Some(depth)) = (
             ctx.resources.view(ALBEDO_RESOURCE),
             ctx.resources.view(NORMAL_RESOURCE),

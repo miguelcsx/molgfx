@@ -51,10 +51,12 @@ fn frame_reset_retains_every_backing_allocation() {
             panic!("frame upload fits")
         };
         assert!(workspace.uploads_mut().commit(reservation.ticket()).is_ok());
-        assert!(workspace
-            .uploads_mut()
-            .submit(reservation.ticket(), FenceValue(u64::from(frame)))
-            .is_ok());
+        assert!(
+            workspace
+                .uploads_mut()
+                .submit(reservation.ticket(), FenceValue(u64::from(frame)))
+                .is_ok()
+        );
         assert_eq!(
             workspace
                 .uploads_mut()

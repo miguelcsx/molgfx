@@ -6,18 +6,18 @@ use smallvec::SmallVec;
 
 /// Identifies a declared transient resource within one graph.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct ResourceId(pub u32);
+pub(crate) struct ResourceId(pub u32);
 
 impl ResourceId {
     /// The presentation target. Not a transient: it is acquired from the
     /// surface (or supplied as an off-screen target), never pooled.
-    pub const SWAPCHAIN: Self = Self(u32::MAX);
+    pub(crate) const SWAPCHAIN: Self = Self(u32::MAX);
 }
 
 /// How a transient texture is sized relative to the frame. Reduced-resolution
 /// and fixed-size classes arrive with the passes that need them.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum SizeClass {
+pub(crate) enum SizeClass {
     /// The frame's full resolution.
     Full,
     /// One texel classifies each 16×16 full-resolution tile.
@@ -31,7 +31,7 @@ pub enum SizeClass {
 
 /// A declared transient texture: described here, allocated from the pool.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct ResourceDesc {
+pub(crate) struct ResourceDesc {
     /// Debug label.
     pub label: &'static str,
     /// Texel format.
@@ -47,7 +47,7 @@ pub struct ResourceDesc {
 /// Whether a pass records draws or dispatches. The compute kind arrives
 /// with the cull pass.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum PassKind {
+pub(crate) enum PassKind {
     /// A render pass.
     Graphics,
     /// Compute dispatch.
@@ -58,7 +58,7 @@ pub enum PassKind {
 /// record function is a plain function pointer — pass state (pipelines,
 /// bind groups) lives in the registry the context exposes, so recording
 /// stays free of captures and dynamic dispatch.
-pub struct PassNode<D: Device> {
+pub(crate) struct PassNode<D: Device> {
     /// Stable name; doubles as the debug label.
     pub name: &'static str,
     /// Resources read.

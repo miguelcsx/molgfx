@@ -115,7 +115,7 @@ fn camera() -> Camera {
     }
 }
 
-fn structure() -> pdbiox::Structure {
+fn structure() -> molframe::Structure {
     let cif = "\
 data_focus
 loop_
@@ -139,10 +139,10 @@ _atom_site.pdbx_PDB_model_num
 ATOM 1 C C1 . LIG A 1 1 0.0 0.0 0.0 1.00 10.0 1 A 1
 ATOM 2 C C2 . LIG A 1 1 0.0 0.0 4.0 1.00 10.0 1 A 1
 ";
-    match pdbiox::read_bytes(
+    match molframe::read_bytes(
         cif.as_bytes().to_vec(),
         Some("focus.cif"),
-        &pdbiox::ReadOptions::new(),
+        &molframe::ReadOptions::new(),
     ) {
         Ok((structure, _)) => structure,
         Err(diagnostics) => panic!("fixture parses: {diagnostics:?}"),

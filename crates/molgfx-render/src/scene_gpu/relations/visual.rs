@@ -5,8 +5,8 @@ use super::super::visual::{VisualBase, VisualCullEntries, VisualSlot, VisualSync
 use crate::engine::chunk_draw_plan::{ResidentAttributeColumn, ResidentRelationChunkPlacement};
 use crate::error::RenderError;
 use molgfx_core::{
-    ChunkOccurrenceId, ChunkVisualDescriptor, VisualInstructionGpu, VisualProgram, VisualStyle,
-    MAX_VISUAL_PARAMETERS,
+    ChunkOccurrenceId, ChunkVisualDescriptor, MAX_VISUAL_PARAMETERS, VisualInstructionGpu,
+    VisualProgram, VisualStyle,
 };
 use molgfx_gpu::Device;
 use std::sync::Arc;

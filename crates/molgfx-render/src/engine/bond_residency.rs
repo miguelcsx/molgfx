@@ -11,9 +11,7 @@ use crate::residency::LazyUploadRing;
 use crate::{RenderError, ResidencyConfig};
 use hashbrown::HashMap;
 use molgfx_core::{ChunkPayload, ChunkSpan, LogicalRow, ResidencyTicket};
-use molgfx_gpu::{
-    ArenaAllocation, BufferDesc, BufferUsage, Device, FenceValue, PagedArena, Queue,
-};
+use molgfx_gpu::{ArenaAllocation, BufferDesc, BufferUsage, Device, FenceValue, PagedArena, Queue};
 use support::{depends_on, endpoints_resident, resolve_endpoint, validate_bond_placements};
 
 #[derive(Clone, Debug)]
@@ -146,7 +144,7 @@ impl<D: Device> BondGpuResidency<D> {
             .map_err(|_| super::ChunkResidencyError::SizeOverflow)?;
         for local in 0..rows {
             let record = bonds
-                .record(pdbiox::LocalRow::new(local))
+                .record(molframe::LocalRow::new(local))
                 .map_err(|_| super::ChunkResidencyError::ProviderBondRecord { local_row: local })?;
             self.scratch.push(PagedBondGpu {
                 coordinate_a: resolve_endpoint(

@@ -15,7 +15,7 @@ use molgfx_gpu::{
 
 /// The fixed shadow-map pipelines for analytic atoms and bonds.
 #[derive(Debug)]
-pub struct ShadowPass<D: Device> {
+pub(crate) struct ShadowPass<D: Device> {
     sphere: VisualPipelineSet<D>,
     bond: VisualPipelineSet<D>,
     ribbon: VisualPipelineSet<D>,
@@ -29,7 +29,7 @@ impl<D: Device> ShadowPass<D> {
     /// # Errors
     ///
     /// Returns a shader or pipeline construction error.
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         group0: &D::BindGroupLayout,
         group2: &D::BindGroupLayout,
@@ -103,7 +103,7 @@ impl<D: Device> ShadowPass<D> {
     }
 
     /// Records one depth pass over the GPU-cull-selected opaque streams.
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.is_massive_points_only() {
             return;
         }

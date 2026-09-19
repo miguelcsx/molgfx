@@ -6,8 +6,8 @@
 
 mod page_table;
 mod scene;
-pub mod types;
-pub mod upload;
+pub(crate) mod types;
+pub(crate) mod upload;
 
 #[cfg(test)]
 #[path = "brick_atlas_tests.rs"]

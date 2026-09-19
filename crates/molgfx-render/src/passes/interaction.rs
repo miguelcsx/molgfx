@@ -12,12 +12,12 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub struct InteractionPass<D: Device> {
+pub(crate) struct InteractionPass<D: Device> {
     pipeline: D::Pipeline,
 }
 
 impl<D: Device> InteractionPass<D> {
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         frame: &D::BindGroupLayout,
         interactions: &D::BindGroupLayout,
@@ -61,7 +61,7 @@ impl<D: Device> InteractionPass<D> {
         Ok(Self { pipeline })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let Some((interaction_group, args)) = ctx.scene.interaction_draw() else {
             return;
         };

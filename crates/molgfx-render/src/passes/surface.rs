@@ -18,7 +18,7 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub struct SurfacePass<D: Device> {
+pub(crate) struct SurfacePass<D: Device> {
     /// Analytic union of atom spheres: van der Waals and solvent-accessible.
     union_surface: VisualPipelineSet<D>,
     /// Ray march through the persistent field: solvent-excluded and Gaussian.
@@ -26,7 +26,7 @@ pub struct SurfacePass<D: Device> {
 }
 
 impl<D: Device> SurfacePass<D> {
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         group0: &D::BindGroupLayout,
         group2: &D::BindGroupLayout,
@@ -68,7 +68,7 @@ impl<D: Device> SurfacePass<D> {
         })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let (Some(albedo), Some(normal), Some(entity), Some(structure), Some(motion), Some(depth)) = (
             ctx.resources.view(ALBEDO_RESOURCE),
             ctx.resources.view(NORMAL_RESOURCE),

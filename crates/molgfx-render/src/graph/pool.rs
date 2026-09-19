@@ -33,7 +33,7 @@ struct Slot {
 /// The aliasing plan: which physical slot each declared resource uses.
 /// Pure data, computed without a device, so it is testable directly.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct AliasPlan {
+pub(crate) struct AliasPlan {
     /// `slot[i]` is the physical slot index of resource `i`, or `usize::MAX`
     /// when no scheduled pass uses the resource.
     pub slot: Vec<usize>,
@@ -43,7 +43,7 @@ pub struct AliasPlan {
 
 /// Computes lifetimes from the schedule and greedily assigns compatible,
 /// non-overlapping resources to shared slots.
-pub fn plan_aliases<D: Device>(
+pub(crate) fn plan_aliases<D: Device>(
     resources: &[ResourceDesc],
     passes: &[PassNode<D>],
     order: &[usize],
@@ -111,7 +111,7 @@ pub fn plan_aliases<D: Device>(
 /// The physical textures backing a plan at one frame size. Rebuilt only
 /// when the frame size or the graph changes.
 #[derive(Debug)]
-pub struct TransientPool<D: Device> {
+pub(crate) struct TransientPool<D: Device> {
     plan: AliasPlan,
     /// One (texture, view) per physical slot, in slot order.
     textures: Vec<(D::Texture, D::TextureView)>,
@@ -125,7 +125,7 @@ impl<D: Device> TransientPool<D> {
     /// # Errors
     ///
     /// Texture creation exceeded device limits.
-    pub fn build(
+    pub(crate) fn build(
         device: &D,
         resources: &[ResourceDesc],
         plan: AliasPlan,
@@ -172,19 +172,19 @@ impl<D: Device> TransientPool<D> {
     }
 
     /// The view backing a declared resource.
-    pub fn view(&self, id: ResourceId) -> Option<&D::TextureView> {
+    pub(crate) fn view(&self, id: ResourceId) -> Option<&D::TextureView> {
         let slot = *self.plan.slot.get(id.0 as usize)?;
         self.textures.get(slot).map(|(_, view)| view)
     }
 
     /// The physical texture backing a declared resource.
-    pub fn texture(&self, id: ResourceId) -> Option<&D::Texture> {
+    pub(crate) fn texture(&self, id: ResourceId) -> Option<&D::Texture> {
         let slot = *self.plan.slot.get(id.0 as usize)?;
         self.textures.get(slot).map(|(texture, _)| texture)
     }
 
     /// Whether this pool matches the given frame size.
-    pub fn matches(&self, width: u32, height: u32) -> bool {
+    pub(crate) fn matches(&self, width: u32, height: u32) -> bool {
         self.width == width && self.height == height
     }
 }

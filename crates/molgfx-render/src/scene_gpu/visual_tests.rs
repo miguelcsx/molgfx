@@ -1,4 +1,4 @@
-use super::{result_word_count, styled_config, VisualBase, VisualConfigInput, VisualFallback};
+use super::{VisualBase, VisualConfigInput, VisualFallback, result_word_count, styled_config};
 use crate::testing::MockDevice;
 use molgfx_core::{
     AtomSelection, Representation, RepresentationKind, RepresentationTarget, Scene,

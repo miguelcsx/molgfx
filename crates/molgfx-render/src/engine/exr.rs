@@ -93,7 +93,7 @@ fn write_header(output: &mut Vec<u8>, max_x: i32, max_y: i32) {
 
 fn write_channels(output: &mut Vec<u8>) {
     write_attribute_header(output, "channels", "chlist", 73);
-    for name in [b'A', b'B', b'G', b'R'] {
+    for &name in b"ABGR" {
         output.extend_from_slice(&[name, 0]);
         write_i32(output, 1);
         output.extend_from_slice(&[0, 0, 0, 0]);

@@ -7,7 +7,7 @@ mod spatial_anchors;
 #[path = "generic/upload.rs"]
 mod upload;
 
-use super::{ticket_key, ChunkGpuResidency};
+use super::{ChunkGpuResidency, ticket_key};
 use crate::engine::chunk_draw_plan::{
     ChunkClusterGpu, ResidentChunkRange, ResidentInstanceChunkPlacement,
 };

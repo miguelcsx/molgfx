@@ -26,7 +26,7 @@ fn labelled_scene() -> Scene {
                     anchor(Vec3::new(1.0, 0.0, 0.0)),
                 ],
                 2.0,
-                "test:pdbiox",
+                "test:molframe",
             )
             .unwrap_or_else(|error| panic!("{error}")),
         )

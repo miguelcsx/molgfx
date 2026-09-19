@@ -140,23 +140,23 @@ fn buffer_exists(engine: &Engine<MockDevice>, label: &'static str) -> bool {
 }
 
 pub(super) fn fixture(dataset: u64, chunk: u64, priority: i32) -> Fixture {
-    let structure = match pdbiox::read_bytes(
+    let structure = match molframe::read_bytes(
         CIF.as_bytes().to_vec(),
         Some("chunk.cif"),
-        &pdbiox::ReadOptions::new(),
+        &molframe::ReadOptions::new(),
     ) {
         Ok((value, _)) => value,
         Err(error) => panic!("fixture must parse: {error:?}"),
     };
-    let provider = match pdbiox::StructureChunkProvider::new(
-        pdbiox::DatasetId::new(dataset),
-        pdbiox::ChunkId::new(chunk),
+    let provider = match molframe::StructureChunkProvider::new(
+        molframe::DatasetId::new(dataset),
+        molframe::ChunkId::new(chunk),
         structure,
     ) {
         Ok(value) => value,
         Err(error) => panic!("provider must initialize: {error}"),
     };
-    let source = match provider.chunk(pdbiox::ChunkId::new(chunk)) {
+    let source = match provider.chunk(molframe::ChunkId::new(chunk)) {
         Ok(value) => value,
         Err(error) => panic!("provider chunk must exist: {error}"),
     };
@@ -190,24 +190,24 @@ pub(super) fn frame_fixture(dataset: u64, chunk: u64, priority: i32, offset: f32
     let source_text = CIF
         .replace("1.0 2.0 3.0", &format!("{} 2.0 3.0", 1.0 + offset))
         .replace("4.0 5.0 6.0", &format!("{} 5.0 6.0", 4.0 + offset));
-    let structure = match pdbiox::read_bytes(
+    let structure = match molframe::read_bytes(
         source_text.into_bytes(),
         Some("frame.cif"),
-        &pdbiox::ReadOptions::new(),
+        &molframe::ReadOptions::new(),
     ) {
         Ok((value, _)) => value,
         Err(error) => panic!("frame fixture must parse: {error:?}"),
     };
-    let provider = match pdbiox::FrameChunkProvider::new(
-        pdbiox::DatasetId::new(dataset),
-        pdbiox::ChunkId::new(chunk),
+    let provider = match molframe::FrameChunkProvider::new(
+        molframe::DatasetId::new(dataset),
+        molframe::ChunkId::new(chunk),
         structure,
-        pdbiox::ModelIndex::new(0),
+        molframe::ModelIndex::new(0),
     ) {
         Ok(value) => value,
         Err(error) => panic!("frame provider must initialize: {error}"),
     };
-    let source = match provider.chunk(pdbiox::ChunkId::new(chunk)) {
+    let source = match provider.chunk(molframe::ChunkId::new(chunk)) {
         Ok(value) => value,
         Err(error) => panic!("frame chunk must exist: {error}"),
     };

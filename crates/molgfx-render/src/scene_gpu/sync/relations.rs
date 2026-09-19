@@ -6,7 +6,7 @@ use molgfx_gpu::{CommandEncoder, ComputePassDesc, ComputePassEncoder as _, Devic
 
 impl<D: Device> GpuScene<D> {
     /// Resolves only dirty homogeneous anchor streams into the shared glyph table.
-    pub fn record_dynamic_relations(
+    pub(crate) fn record_dynamic_relations(
         &mut self,
         encoder: &mut D::CommandEncoder,
         resolver: &RelationResolvePass<D>,

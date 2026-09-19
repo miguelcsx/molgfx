@@ -78,17 +78,23 @@ fn sequence_frames_preserve_history_while_publication_stills_reset_it() {
         width: 32,
         height: 24,
     };
-    assert!(engine
-        .render_image_to_buffer(&scene, &camera(), config, ImagePurpose::SequenceFrame)
-        .is_ok());
+    assert!(
+        engine
+            .render_image_to_buffer(&scene, &camera(), config, ImagePurpose::SequenceFrame)
+            .is_ok()
+    );
     assert_eq!(engine.temporal.write_index(), 0);
     assert_eq!(engine.temporal_scene_identity, Some(scene.cache_identity()));
-    assert!(engine
-        .render_image_to_buffer(&scene, &camera(), config, ImagePurpose::SequenceFrame)
-        .is_ok());
+    assert!(
+        engine
+            .render_image_to_buffer(&scene, &camera(), config, ImagePurpose::SequenceFrame)
+            .is_ok()
+    );
     assert_eq!(engine.temporal.write_index(), 1);
-    assert!(engine
-        .render_image_to_buffer(&scene, &camera(), config, ImagePurpose::Publication)
-        .is_ok());
+    assert!(
+        engine
+            .render_image_to_buffer(&scene, &camera(), config, ImagePurpose::Publication)
+            .is_ok()
+    );
     assert_eq!(engine.temporal_scene_identity, None);
 }

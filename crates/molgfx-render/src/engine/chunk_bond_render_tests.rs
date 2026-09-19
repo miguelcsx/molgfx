@@ -1,4 +1,4 @@
-use super::chunk_residency_tests::{complete, engine, request_and_deliver, upload, Fixture};
+use super::chunk_residency_tests::{Fixture, complete, engine, request_and_deliver, upload};
 use super::{
     BondChunkPlacement, ChunkPlacementId, ChunkPlacementStatus, ChunkRepresentation, Engine,
     StructureChunkPlacement,
@@ -154,12 +154,12 @@ fn bond_placement_capacity_is_bounded_by_the_working_set() {
 
 fn fixtures() -> (Fixture, Fixture, Fixture) {
     let structure = bonded_structure();
-    let atom_provider = pdbiox::DatasetDescriptor::source_defined(
-        pdbiox::DatasetId::new(ATOM_DATASET),
-        pdbiox::PayloadKind::Structure,
+    let atom_provider = molframe::DatasetDescriptor::source_defined(
+        molframe::DatasetId::new(ATOM_DATASET),
+        molframe::PayloadKind::Structure,
         ATOM_START + 4,
         2,
-        pdbiox::ChunkId::new(1_001),
+        molframe::ChunkId::new(1_001),
         2,
     )
     .unwrap_or_else(|error| panic!("atom provider descriptor: {error}"));
@@ -167,27 +167,27 @@ fn fixtures() -> (Fixture, Fixture, Fixture) {
     let first = structure_fixture(&atom_bridge, structure.clone(), 0, 1_001, ATOM_START);
     let second = structure_fixture(&atom_bridge, structure.clone(), 1, 1_002, ATOM_START + 2);
 
-    let bond_descriptor = pdbiox::ChunkDescriptor::new(
-        pdbiox::DatasetId::new(BOND_DATASET),
-        pdbiox::ChunkId::new(2_001),
-        pdbiox::LogicalRow::new(u64::from(u32::MAX) + 9_000),
+    let bond_descriptor = molframe::ChunkDescriptor::new(
+        molframe::DatasetId::new(BOND_DATASET),
+        molframe::ChunkId::new(2_001),
+        molframe::LogicalRow::new(u64::from(u32::MAX) + 9_000),
         2,
     )
     .unwrap_or_else(|error| panic!("bond descriptor: {error}"));
-    let bond = pdbiox::BondChunk::shared(
+    let bond = molframe::BondChunk::shared(
         bond_descriptor,
         structure,
         0..2,
-        pdbiox::DatasetId::new(ATOM_DATASET),
-        pdbiox::LogicalRow::new(ATOM_START),
+        molframe::DatasetId::new(ATOM_DATASET),
+        molframe::LogicalRow::new(ATOM_START),
     )
     .unwrap_or_else(|error| panic!("bond chunk: {error}"));
-    let bond_provider = pdbiox::DatasetDescriptor::source_defined(
-        pdbiox::DatasetId::new(BOND_DATASET),
-        pdbiox::PayloadKind::BondTopology,
+    let bond_provider = molframe::DatasetDescriptor::source_defined(
+        molframe::DatasetId::new(BOND_DATASET),
+        molframe::PayloadKind::BondTopology,
         u64::from(u32::MAX) + 9_002,
         1,
-        pdbiox::ChunkId::new(2_001),
+        molframe::ChunkId::new(2_001),
         2,
     )
     .unwrap_or_else(|error| panic!("bond provider descriptor: {error}"));
@@ -210,19 +210,19 @@ fn fixtures() -> (Fixture, Fixture, Fixture) {
 
 fn structure_fixture(
     bridge: &molgfx_core::ProviderDatasetBridge,
-    structure: pdbiox::Structure,
+    structure: molframe::Structure,
     storage: usize,
     chunk: u64,
     start: u64,
 ) -> Fixture {
-    let descriptor = pdbiox::ChunkDescriptor::new(
-        pdbiox::DatasetId::new(ATOM_DATASET),
-        pdbiox::ChunkId::new(chunk),
-        pdbiox::LogicalRow::new(start),
+    let descriptor = molframe::ChunkDescriptor::new(
+        molframe::DatasetId::new(ATOM_DATASET),
+        molframe::ChunkId::new(chunk),
+        molframe::LogicalRow::new(start),
         2,
     )
     .unwrap_or_else(|error| panic!("structure descriptor: {error}"));
-    let source = pdbiox::StructureChunk::shared(descriptor, structure, storage)
+    let source = molframe::StructureChunk::shared(descriptor, structure, storage)
         .unwrap_or_else(|error| panic!("structure chunk: {error}"));
     let pointer = source.positions().as_ptr() as usize;
     let bytes = bytemuck::cast_slice(source.positions()).to_vec();
@@ -290,38 +290,38 @@ fn licorice(ticket: molgfx_core::ResidencyTicket, id: u64) -> BondChunkPlacement
     .unwrap_or_else(|error| panic!("licorice placement: {error}"))
 }
 
-fn bonded_structure() -> pdbiox::Structure {
-    let mut atoms = pdbiox::ChunkBuilder::with_target(2);
+fn bonded_structure() -> molframe::Structure {
+    let mut atoms = molframe::ChunkBuilder::with_target(2);
     for (atom, position) in (0..4u32).zip([0.0_f32, 1.0, 2.0, 3.0]) {
-        atoms.push(pdbiox::AtomRecord {
+        atoms.push(molframe::AtomRecord {
             position: Some([position, 0.0, 0.0]),
-            element: pdbiox::Element::CARBON,
-            atom_name: pdbiox::SymbolId::from_raw(0),
+            element: molframe::Element::CARBON,
+            atom_name: molframe::SymbolId::from_raw(0),
             auth_atom_name: absent(),
             alternate_component_id: absent(),
-            alt_id: pdbiox::AltId::BLANK,
-            residue: pdbiox::ResidueIndex::new(atom),
-            occupancy: (1.0, pdbiox::Presence::Present),
-            b_factor: (10.0, pdbiox::Presence::Present),
-            formal_charge: (0, pdbiox::Presence::Inapplicable),
+            alt_id: molframe::AltId::BLANK,
+            residue: molframe::ResidueIndex::new(atom),
+            occupancy: (1.0, molframe::Presence::Present),
+            b_factor: (10.0, molframe::Presence::Present),
+            formal_charge: (0, molframe::Presence::Inapplicable),
             atom_site_id: atom,
         });
     }
     let (chunks, coordinates) = atoms.finish();
-    let mut bonds = pdbiox::BondTableBuilder::new();
+    let mut bonds = molframe::BondTableBuilder::new();
     for (a, b) in [(1, 2), (0, 1)] {
-        bonds.push(pdbiox::BondRecord {
-            atom_a: pdbiox::AtomIndex::new(a),
-            atom_b: pdbiox::AtomIndex::new(b),
-            order: pdbiox::BondOrder::Single,
-            provenance: pdbiox::BondProvenance::File,
+        bonds.push(molframe::BondRecord {
+            atom_a: molframe::AtomIndex::new(a),
+            atom_b: molframe::AtomIndex::new(b),
+            order: molframe::BondOrder::Single,
+            provenance: molframe::BondProvenance::File,
         });
     }
-    let mut data = pdbiox::StructureData::empty();
+    let mut data = molframe::StructureData::empty();
     data.chunks = Arc::new(chunks);
-    data.coords = pdbiox::CoordinateStore::Single(coordinates);
+    data.coords = molframe::CoordinateStore::Single(coordinates);
     data.bonds = bonds.finish();
-    pdbiox::Structure::new(data)
+    molframe::Structure::new(data)
 }
 
 fn buffer_id(engine: &Engine<MockDevice>, label: &'static str) -> u32 {

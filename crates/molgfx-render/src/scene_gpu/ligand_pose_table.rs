@@ -5,13 +5,13 @@
 //! changed scene uses bounded staging; stable frames issue grouped indirect
 //! draws without uploads or allocations.
 
-use super::ligand_pose_plan::{plan_pose_batches, BatchPlan, PosePlanScratch};
-use super::ligand_pose_sampling::{realtime_shadow_instances, PoseBatchSample};
+use super::ligand_pose_plan::{BatchPlan, PosePlanScratch, plan_pose_batches};
+use super::ligand_pose_sampling::{PoseBatchSample, realtime_shadow_instances};
 use super::ligand_pose_types::{
-    append_draw, checked_bytes, checked_count, LigandPoseDrawGroup, PoseBatchGpu, PoseBondGpu,
-    PoseDrawRange, PoseStyleGpu, PoseTableStats, PoseTransformGpu, POSE_CAPSULE, POSE_SPHERE,
+    LigandPoseDrawGroup, POSE_CAPSULE, POSE_SPHERE, PoseBatchGpu, PoseBondGpu, PoseDrawRange,
+    PoseStyleGpu, PoseTableStats, PoseTransformGpu, append_draw, checked_bytes, checked_count,
 };
-use super::ligand_pose_upload::{upload_batch_tables, PoseTableBuffers, PoseTableScratch};
+use super::ligand_pose_upload::{PoseTableBuffers, PoseTableScratch, upload_batch_tables};
 use super::primitive_packing::placement_revision;
 use super::structure::GpuStructure;
 use crate::error::RenderError;

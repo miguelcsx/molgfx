@@ -50,7 +50,7 @@ fn engine_creation_keeps_every_registered_layout_within_the_portable_storage_lim
         }
     }
 }
-pub(super) fn structure() -> pdbiox::Structure {
+pub(super) fn structure() -> molframe::Structure {
     let cif = "\
 data_test
 loop_
@@ -88,10 +88,10 @@ _struct_conn.ptnr2_label_atom_id
 _struct_conn.pdbx_value_order
 1 covale A 1 GLY N A 1 GLY CA SING
 ";
-    match pdbiox::read_bytes(
+    match molframe::read_bytes(
         cif.as_bytes().to_vec(),
         Some("render-test.cif"),
-        &pdbiox::ReadOptions::new(),
+        &molframe::ReadOptions::new(),
     ) {
         Ok((structure, _)) => structure,
         Err(diagnostics) => panic!("fixture parses: {diagnostics:?}"),

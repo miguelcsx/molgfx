@@ -2,10 +2,10 @@
 
 use crate::error::RenderError;
 use crate::graph::PassContext;
-use crate::passes::visual_pipelines::{constants, VisualPipelineSet};
+use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
 use crate::passes::{
-    gbuffer_targets, ALBEDO_RESOURCE, DEPTH_RESOURCE, ENTITY_RESOURCE, MOTION_RESOURCE,
-    NORMAL_RESOURCE, STRUCTURE_RESOURCE,
+    ALBEDO_RESOURCE, DEPTH_RESOURCE, ENTITY_RESOURCE, MOTION_RESOURCE, NORMAL_RESOURCE,
+    STRUCTURE_RESOURCE, gbuffer_targets,
 };
 use molgfx_gpu::{
     ColorAttachment, CommandEncoder as _, CompareFunction, DepthAttachment, DepthLoadOp,
@@ -14,14 +14,14 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub struct PointPass<D: Device> {
+pub(crate) struct PointPass<D: Device> {
     pipeline: VisualPipelineSet<D>,
     paged_pipeline: D::Pipeline,
     generic_pipeline: VisualPipelineSet<D>,
 }
 
 impl<D: Device> PointPass<D> {
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         group0: &D::BindGroupLayout,
         group2: &D::BindGroupLayout,
@@ -111,7 +111,7 @@ impl<D: Device> PointPass<D> {
         })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let (Some(albedo), Some(normal), Some(entity), Some(structure), Some(motion), Some(depth)) = (
             ctx.resources.view(ALBEDO_RESOURCE),
             ctx.resources.view(NORMAL_RESOURCE),

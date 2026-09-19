@@ -1,5 +1,5 @@
-use super::tests::{camera, engine, structure};
 use super::Engine;
+use super::tests::{camera, engine, structure};
 use crate::testing::MockDevice;
 use molgfx_core::{
     AnisotropicEllipsoid, AtomSelection, CarbohydrateShape, CarbohydrateSymbol, Material, Mesh,
@@ -9,7 +9,7 @@ use molgfx_core::{
 };
 use molgfx_math::{Aabb, Mat4, Quat, Rgba8, Vec3};
 
-fn polymer_structure() -> pdbiox::Structure {
+fn polymer_structure() -> molframe::Structure {
     let cif = "\
 data_polymer
 loop_
@@ -43,10 +43,10 @@ ATOM  10 N N   . GLY A 1 4 11.400 1.200 0.000 1.00 10.0 4 A 1
 ATOM  11 C CA  . GLY A 1 4 12.600 1.200 0.000 1.00 10.0 4 A 1
 ATOM  12 C C   . GLY A 1 4 13.800 1.200 0.000 1.00 10.0 4 A 1
 ";
-    match pdbiox::read_bytes(
+    match molframe::read_bytes(
         cif.as_bytes().to_vec(),
         Some("polymer-render-test.cif"),
-        &pdbiox::ReadOptions::new(),
+        &molframe::ReadOptions::new(),
     ) {
         Ok((structure, _)) => structure,
         Err(diagnostics) => panic!("polymer fixture parses: {diagnostics:?}"),

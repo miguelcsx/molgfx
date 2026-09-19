@@ -9,7 +9,7 @@ use crate::passes::ligand_pose_pipelines::LigandPosePipelineSet;
 use crate::passes::primitive_pipelines::PrimitivePipelineSet;
 use crate::passes::visual_pipelines::VisualPipelineSet;
 use crate::passes::{
-    FrameBindings, DEPTH_RESOURCE, OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE, SEGMENT_LABEL_RESOURCE,
+    DEPTH_RESOURCE, FrameBindings, OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE, SEGMENT_LABEL_RESOURCE,
     SEGMENT_VOLUME_RESOURCE,
 };
 use crate::scene_gpu::{GENERIC_INSTANCE_CAPSULE, GENERIC_INSTANCE_SPHERE};
@@ -20,7 +20,7 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub struct OitPass<D: Device> {
+pub(crate) struct OitPass<D: Device> {
     sphere: VisualPipelineSet<D>,
     sphere_clipped: VisualPipelineSet<D>,
     point: VisualPipelineSet<D>,
@@ -40,7 +40,7 @@ pub struct OitPass<D: Device> {
 }
 
 impl<D: Device> OitPass<D> {
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         group0: &D::BindGroupLayout,
         group2: &D::BindGroupLayout,
@@ -151,7 +151,7 @@ impl<D: Device> OitPass<D> {
         })
     }
 
-    pub fn clear(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn clear(ctx: &mut PassContext<'_, D>) {
         if !ctx.scene.has_translucency() {
             return;
         }
@@ -178,19 +178,19 @@ impl<D: Device> OitPass<D> {
         });
     }
 
-    pub fn spheres(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn spheres(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.atom_draws(true).next().is_some() {
             record(ctx, Primitive::Spheres);
         }
     }
 
-    pub fn bonds(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn bonds(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.bond_draws(true).next().is_some() {
             record(ctx, Primitive::Bonds);
         }
     }
 
-    pub fn points(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn points(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.point_draws(true).next().is_some()
             || ctx.scene.generic_point_draws(true).next().is_some()
         {
@@ -198,7 +198,7 @@ impl<D: Device> OitPass<D> {
         }
     }
 
-    pub fn cartoons(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn cartoons(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.cartoon_draws(true).next().is_some()
             || ctx.scene.mesh_draws(true).next().is_some()
         {
@@ -206,25 +206,25 @@ impl<D: Device> OitPass<D> {
         }
     }
 
-    pub fn surfaces(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn surfaces(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.surface_draws(true).next().is_some() {
             record(ctx, Primitive::Surfaces);
         }
     }
 
-    pub fn primitive(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn primitive(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.has_transparent_primitives() {
             record(ctx, Primitive::Analytic);
         }
     }
 
-    pub fn volumes(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn volumes(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.volume_draws().next().is_some() {
             record(ctx, Primitive::Volumes);
         }
     }
 
-    pub fn segmentations(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn segmentations(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.segmentation_draws().next().is_none() {
             return;
         }
@@ -397,10 +397,10 @@ fn record<D: Device>(ctx: &mut PassContext<'_, D>, primitive: Primitive) {
 mod pipelines;
 mod record;
 
-use pipelines::{generic_instance_pipelines, sphere_pipelines, surface_pipelines};
 use pipelines::{
-    primitive_pipelines, segmentation_pipelines, visual_pipeline, volume_pipelines, OitPipelineDesc,
+    OitPipelineDesc, primitive_pipelines, segmentation_pipelines, visual_pipeline, volume_pipelines,
 };
+use pipelines::{generic_instance_pipelines, sphere_pipelines, surface_pipelines};
 use record::{record_primitives, record_spheres, record_surfaces};
 
 fn record_generic_points<D: Device, P: molgfx_gpu::RenderPassEncoder<D>>(

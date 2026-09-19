@@ -187,12 +187,12 @@ fn conflicting_content_for_one_dataset_is_a_typed_error() {
     ));
 }
 
-fn edited_structure(source: &pdbiox::Structure, offset: f32) -> pdbiox::Structure {
-    let mut editor = match source.edit_coordinates(&pdbiox::ExecutionContext::default()) {
+fn edited_structure(source: &molframe::Structure, offset: f32) -> molframe::Structure {
+    let mut editor = match source.edit_coordinates(&molframe::ExecutionContext::default()) {
         Ok(editor) => editor,
         Err(error) => panic!("coordinate edit is admitted: {error}"),
     };
-    let Some(coordinates) = editor.positions_mut(pdbiox::ModelIndex::new(0)) else {
+    let Some(coordinates) = editor.positions_mut(molframe::ModelIndex::new(0)) else {
         panic!("fixture coordinates are mutable")
     };
     let Some(position) = coordinates.first_mut() else {

@@ -1,6 +1,6 @@
 //! Constant-cost draw routing for one persistent representation slot.
 
-use super::{GpuSlot, FAST_POINT_INDEX_LIMIT};
+use super::{FAST_POINT_INDEX_LIMIT, GpuSlot};
 use crate::passes::{SurfaceComponentPass, SurfaceFieldPass};
 use crate::scene_gpu::slot_types::{CullDispatch, CullModes, SlotShading};
 use molgfx_core::RepresentationKind;

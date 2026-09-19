@@ -4,10 +4,10 @@
 //! translucent index columns. Upload follows those indices, so it never
 //! rescans the complete source once per opacity class.
 
-use super::ligand_pose_sampling::{select_pose_batches, PoseBatchSample};
+use super::ligand_pose_sampling::{PoseBatchSample, select_pose_batches};
 use super::ligand_pose_types::{
-    batch_entity, checked_add, checked_count, classify_poses, mix_pose_key, PoseBatchGpu,
-    POSE_HASH_OFFSET,
+    POSE_HASH_OFFSET, PoseBatchGpu, batch_entity, checked_add, checked_count, classify_poses,
+    mix_pose_key,
 };
 use super::structure::GpuStructure;
 use crate::error::RenderError;
