@@ -1,4 +1,4 @@
-# The structural-model dependency lives in a private repository; fetch with
-# the git CLI so its credential helpers apply.
+# The structural-model dependency lives in a repository the cargo credential
+# helpers cannot reach alone; fetch with the git CLI so they apply.
 [net]
 git-fetch-with-cli = true

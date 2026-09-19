@@ -32,7 +32,7 @@ native-only-targets = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.92"
+rust-version = "1.98.1"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/miguelcsx/molgfx"
 
@@ -49,11 +49,13 @@ molgfx-render = { version = "0.1.0", path = "crates/molgfx-render" }
 molgfx-semantic = { version = "0.1.0", path = "crates/molgfx-semantic" }
 
 # The structural model and every detection the engine consumes.
-# Pin the coordinated provider revision so builds never depend on a mutable
-# sibling checkout.
-pdbiox = { git = "ssh://git@github.com/miguelcsx/pdbiox.git", rev = "27900eb8d93bfe8d8fd3eb2d643e00b77c0e28e1", default-features = false, features = ["mmcif", "bcif", "pdb"] }
+# Pinned to the published revision carrying the `molframe-*` package names.
+molframe = { git = "https://github.com/miguelcsx/molframe", rev = "e6f68d581da8739dd71d3e43df804c4f80b3d08e", default-features = false, features = ["mmcif", "bcif", "pdb"] }
+# The provider's Python bridge names its library target `_native`, so the
+# dependency is renamed back to the package name for `molframe_py::` to resolve.
+molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "e6f68d581da8739dd71d3e43df804c4f80b3d08e" }
 
-# Python ABI shared by the thin binding crate and the sibling pdbiox bridge.
+# Python ABI shared by the thin binding crate and the sibling molframe bridge.
 pyo3 = "0.29"
 numpy = "0.29"
 
@@ -89,14 +91,24 @@ sha2 = "0.10"
 [workspace.lints.rust]
 missing_docs = "warn"
 missing_debug_implementations = "warn"
+# A `pub` inside a private module is not reachable from outside the crate, so it
+# documents nothing and reads as if it were part of the API. Every crate here
+# declares its modules privately and re-exports what it means to publish, so this
+# lint only ever fires on a new item that was not meant to be public.
+unreachable_pub = "warn"
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
-# The no-unwrap rule includes unwrap_or and unwrap_or_default; these two lints
-# would rewrite the compliant `match`/`let..else` forms back into unwrap_or
-# calls, so they stay allowed. Do not "fix" these allows.
+# The no-unwrap rule includes unwrap_or and unwrap_or_default; these lints would
+# rewrite the compliant `match`/`let..else` forms back into unwrap_or calls, so
+# they stay allowed. Do not "fix" these allows.
 manual_unwrap_or = "allow"
 manual_unwrap_or_default = "allow"
+map_or_identity = "allow"
+# Every site is a SIMD block whose width is a literal in the function, so
+# `as_chunks` would need the const argument spelled out at each of them for a
+# bound the compiler already elides behind the length check.
+chunks_exact_to_as_chunks = "allow"
 
 [profile.release]
 lto = "fat"
