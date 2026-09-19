@@ -4,13 +4,13 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "VisualInstructionGpu", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyVisualInstructionGpu(pub(crate) molgfx::VisualInstructionGpu);
+pub(crate) struct PyVisualInstructionGpu(pub(crate) molgfx::core::VisualInstructionGpu);
 
 #[pymethods]
 impl PyVisualInstructionGpu {
     #[new]
     fn new(control: [u32; 4], data: [f32; 4]) -> Self {
-        Self(molgfx::VisualInstructionGpu { control, data })
+        Self(molgfx::core::VisualInstructionGpu { control, data })
     }
 
     #[getter]
@@ -25,6 +25,6 @@ impl PyVisualInstructionGpu {
 
     #[staticmethod]
     fn byte_size() -> usize {
-        std::mem::size_of::<molgfx::VisualInstructionGpu>()
+        std::mem::size_of::<molgfx::core::VisualInstructionGpu>()
     }
 }

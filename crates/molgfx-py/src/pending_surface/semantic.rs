@@ -11,7 +11,7 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "LodCluster", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyLodCluster(pub(crate) molgfx::LodCluster);
+pub(crate) struct PyLodCluster(pub(crate) molgfx::semantic::LodCluster);
 
 #[pymethods]
 impl PyLodCluster {
@@ -25,8 +25,8 @@ impl PyLodCluster {
         importance: f32,
         atom_count: u32,
     ) -> Self {
-        Self(molgfx::LodCluster {
-            key: molgfx::LodClusterKey {
+        Self(molgfx::semantic::LodCluster {
+            key: molgfx::semantic::LodClusterKey {
                 structure: structure.0,
                 level: level.into(),
                 index,
@@ -66,7 +66,7 @@ impl PyLodCluster {
 
 #[pyclass(name = "SurfaceZone", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PySurfaceZone(pub(crate) molgfx::SurfaceZone);
+pub(crate) struct PySurfaceZone(pub(crate) molgfx::semantic::SurfaceZone);
 
 #[pymethods]
 impl PySurfaceZone {
@@ -83,7 +83,7 @@ impl PySurfaceZone {
 
 #[pyclass(name = "SurfaceZoneStyle", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PySurfaceZoneStyle(pub(crate) molgfx::SurfaceZoneStyle);
+pub(crate) struct PySurfaceZoneStyle(pub(crate) molgfx::semantic::SurfaceZoneStyle);
 
 #[pymethods]
 impl PySurfaceZoneStyle {
@@ -96,8 +96,8 @@ impl PySurfaceZoneStyle {
         opacity: f32,
         color: Option<PyRgba8>,
     ) -> Self {
-        let default = molgfx::SurfaceZoneStyle::default();
-        Self(molgfx::SurfaceZoneStyle {
+        let default = molgfx::semantic::SurfaceZoneStyle::default();
+        Self(molgfx::semantic::SurfaceZoneStyle {
             distance,
             kind: kind.into(),
             presentation: presentation.into(),
@@ -108,7 +108,7 @@ impl PySurfaceZoneStyle {
 
     #[staticmethod]
     fn default() -> Self {
-        Self(molgfx::SurfaceZoneStyle::default())
+        Self(molgfx::semantic::SurfaceZoneStyle::default())
     }
 }
 
@@ -124,7 +124,7 @@ impl PySurfaceZoneScene {
         surface: PySelectionHandle,
         around: PySelectionHandle,
     ) -> PyResult<PySurfaceZone> {
-        core(molgfx::SurfaceZoneScene::surface_zone(
+        core(molgfx::semantic::SurfaceZoneScene::surface_zone(
             &mut scene.inner,
             surface.0,
             around.0,
@@ -139,7 +139,7 @@ impl PySurfaceZoneScene {
         around: PySelectionHandle,
         style: PySurfaceZoneStyle,
     ) -> PyResult<PySurfaceZone> {
-        core(molgfx::SurfaceZoneScene::surface_zone_with(
+        core(molgfx::semantic::SurfaceZoneScene::surface_zone_with(
             &mut scene.inner,
             surface.0,
             around.0,
@@ -154,7 +154,7 @@ impl PySurfaceZoneScene {
         surface: PySelectionHandle,
         minimum_atoms: u32,
     ) -> PyResult<PySurfaceZone> {
-        core(molgfx::SurfaceZoneScene::surface_components(
+        core(molgfx::semantic::SurfaceZoneScene::surface_components(
             &mut scene.inner,
             surface.0,
             minimum_atoms,

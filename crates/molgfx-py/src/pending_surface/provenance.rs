@@ -19,17 +19,17 @@ pub(crate) enum PyProvenanceDetail {
     Unknown,
 }
 
-fn detail(value: molgfx::ProvenanceDetail<'_>) -> PyProvenanceDetail {
+fn detail(value: molgfx::core::ProvenanceDetail<'_>) -> PyProvenanceDetail {
     match value {
-        molgfx::ProvenanceDetail::Atom(_) => PyProvenanceDetail::Atom,
-        molgfx::ProvenanceDetail::Bond(_) => PyProvenanceDetail::Bond,
-        molgfx::ProvenanceDetail::DynamicBond(_) => PyProvenanceDetail::DynamicBond,
-        molgfx::ProvenanceDetail::Interaction(_) => PyProvenanceDetail::Interaction,
-        molgfx::ProvenanceDetail::Guide(_) => PyProvenanceDetail::Guide,
-        molgfx::ProvenanceDetail::Annotation(_) => PyProvenanceDetail::Annotation,
-        molgfx::ProvenanceDetail::Measurement(_) => PyProvenanceDetail::Measurement,
-        molgfx::ProvenanceDetail::Primitive(_) => PyProvenanceDetail::Primitive,
-        molgfx::ProvenanceDetail::Mesh(_) => PyProvenanceDetail::Mesh,
+        molgfx::core::ProvenanceDetail::Atom(_) => PyProvenanceDetail::Atom,
+        molgfx::core::ProvenanceDetail::Bond(_) => PyProvenanceDetail::Bond,
+        molgfx::core::ProvenanceDetail::DynamicBond(_) => PyProvenanceDetail::DynamicBond,
+        molgfx::core::ProvenanceDetail::Interaction(_) => PyProvenanceDetail::Interaction,
+        molgfx::core::ProvenanceDetail::Guide(_) => PyProvenanceDetail::Guide,
+        molgfx::core::ProvenanceDetail::Annotation(_) => PyProvenanceDetail::Annotation,
+        molgfx::core::ProvenanceDetail::Measurement(_) => PyProvenanceDetail::Measurement,
+        molgfx::core::ProvenanceDetail::Primitive(_) => PyProvenanceDetail::Primitive,
+        molgfx::core::ProvenanceDetail::Mesh(_) => PyProvenanceDetail::Mesh,
         _ => PyProvenanceDetail::Unknown,
     }
 }
@@ -45,8 +45,8 @@ pub(crate) struct PyEntityProvenance {
     detail: PyProvenanceDetail,
 }
 
-impl From<molgfx::EntityProvenance<'_>> for PyEntityProvenance {
-    fn from(value: molgfx::EntityProvenance<'_>) -> Self {
+impl From<molgfx::core::EntityProvenance<'_>> for PyEntityProvenance {
+    fn from(value: molgfx::core::EntityProvenance<'_>) -> Self {
         Self {
             entity: value.entity.into(),
             entry_id: value.entry.id.as_deref().map(str::to_owned),
