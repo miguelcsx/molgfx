@@ -8,7 +8,7 @@ macro_rules! web_handle {
         #[wasm_bindgen]
         #[derive(Clone, Copy, Debug)]
         pub struct $name {
-            pub(crate) inner: molgfx::$native,
+            pub(crate) inner: molgfx::core::$native,
         }
 
         #[wasm_bindgen]
@@ -39,7 +39,7 @@ web_handle!(WebRelationBatchHandle, RelationBatchHandle);
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug)]
 pub struct WebRowDomain {
-    pub(crate) inner: molgfx::RowDomain,
+    pub(crate) inner: molgfx::core::RowDomain,
 }
 
 #[wasm_bindgen]
@@ -49,7 +49,7 @@ impl WebRowDomain {
     #[wasm_bindgen(js_name = points)]
     pub fn points(handle: &WebPointBatchHandle) -> Self {
         Self {
-            inner: molgfx::RowDomain::Points(handle.inner),
+            inner: molgfx::core::RowDomain::Points(handle.inner),
         }
     }
 
@@ -58,7 +58,7 @@ impl WebRowDomain {
     #[wasm_bindgen(js_name = instances)]
     pub fn instances(handle: &WebInstanceBatchHandle) -> Self {
         Self {
-            inner: molgfx::RowDomain::Instances(handle.inner),
+            inner: molgfx::core::RowDomain::Instances(handle.inner),
         }
     }
 
@@ -67,7 +67,7 @@ impl WebRowDomain {
     #[wasm_bindgen(js_name = templateParts)]
     pub fn template_parts(handle: &WebInstanceBatchHandle) -> Self {
         Self {
-            inner: molgfx::RowDomain::TemplateParts(handle.inner),
+            inner: molgfx::core::RowDomain::TemplateParts(handle.inner),
         }
     }
 
@@ -76,7 +76,7 @@ impl WebRowDomain {
     #[wasm_bindgen(js_name = relations)]
     pub fn relations(handle: &WebRelationBatchHandle) -> Self {
         Self {
-            inner: molgfx::RowDomain::Relations(handle.inner),
+            inner: molgfx::core::RowDomain::Relations(handle.inner),
         }
     }
 }

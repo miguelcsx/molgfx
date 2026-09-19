@@ -1,6 +1,9 @@
 //! Thin material and world-space clipping recipes for browser representations.
 
-use molgfx::{ClipCap, ClipPlane, ClipSet, Material, MaterialModel, Vec3};
+use molgfx::{
+    core::{ClipCap, ClipPlane, ClipSet, Material, MaterialModel},
+    math::Vec3,
+};
 use wasm_bindgen::prelude::*;
 
 /// Tagged lighting response selected per representation.
@@ -284,7 +287,7 @@ impl WebClipSet {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn core_error(error: molgfx::CoreError) -> JsValue {
+fn core_error(error: molgfx::core::CoreError) -> JsValue {
     let value = js_sys::Error::new(&error.to_string());
     value.set_name(error.code());
     value.into()

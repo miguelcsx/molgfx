@@ -1,6 +1,6 @@
 //! Reusable browser frame reports and explicit profiling snapshots.
 
-use molgfx::{FrameCompleteness, FrameReport, FrameStatus, FrameTiming};
+use molgfx::render::{FrameCompleteness, FrameReport, FrameStatus, FrameTiming};
 use wasm_bindgen::prelude::*;
 
 /// Allocation-stable summary filled by `WebEngine.renderInto`.
@@ -138,7 +138,7 @@ impl WebFrameReport {
         self.needs_another_frame = report.needs_another_frame;
         self.streaming_proxy = report
             .degradation
-            .contains(molgfx::FrameDegradation::STREAMING_PROXY);
+            .contains(molgfx::render::FrameDegradation::STREAMING_PROXY);
         self.adaptive_resolution = extent.scale < 1.0;
         self.tracked_chunks = match u32::try_from(report.metrics.tracked_chunks) {
             Ok(value) => value,

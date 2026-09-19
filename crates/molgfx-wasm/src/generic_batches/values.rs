@@ -2,10 +2,13 @@
 
 use wasm_bindgen::prelude::*;
 
-pub(super) fn ordered_rows(namespace: u64, count: usize) -> Result<molgfx::SourceRows, JsValue> {
+pub(super) fn ordered_rows(
+    namespace: u64,
+    count: usize,
+) -> Result<molgfx::core::SourceRows, JsValue> {
     let count = u32::try_from(count).map_err(|_| js_value("row count exceeds u32"))?;
-    Ok(molgfx::SourceRows::ordered(
-        molgfx::SourceNamespace(namespace),
+    Ok(molgfx::core::SourceRows::ordered(
+        molgfx::core::SourceNamespace(namespace),
         count,
     ))
 }
@@ -21,16 +24,16 @@ pub(crate) fn vec3_rows(name: &str, values: Vec<f32>) -> Result<Vec<[f32; 3]>, J
         .collect())
 }
 
-pub(super) fn rgba8(values: &[u8]) -> Result<molgfx::Rgba8, JsValue> {
+pub(super) fn rgba8(values: &[u8]) -> Result<molgfx::math::Rgba8, JsValue> {
     if let [red, green, blue, alpha] = values {
-        Ok(molgfx::Rgba8::new(*red, *green, *blue, *alpha))
+        Ok(molgfx::math::Rgba8::new(*red, *green, *blue, *alpha))
     } else {
         Err(js_value("rgba must contain exactly four bytes"))
     }
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub(crate) fn core_error(error: molgfx::CoreError) -> JsValue {
+pub(crate) fn core_error(error: molgfx::core::CoreError) -> JsValue {
     js_value(&error.to_string())
 }
 

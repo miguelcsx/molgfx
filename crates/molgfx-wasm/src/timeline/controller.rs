@@ -1,9 +1,9 @@
 //! Allocation-free timeline controller after batch tracks are bound.
 
-use super::{transforms::rigid_rows, WebTimeWarp, WebTimelineTrackHandle};
+use super::{WebTimeWarp, WebTimelineTrackHandle, transforms::rigid_rows};
 use crate::browser::WebScene;
 use crate::generic_batches::{
-    core_error, vec3_rows, WebAttributeHandle, WebInstanceBatchHandle, WebPointBatchHandle,
+    WebAttributeHandle, WebInstanceBatchHandle, WebPointBatchHandle, core_error, vec3_rows,
 };
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
@@ -12,7 +12,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 #[derive(Debug)]
 pub struct WebTimeline {
-    inner: molgfx::Timeline,
+    inner: molgfx::core::Timeline,
 }
 
 #[wasm_bindgen]
@@ -22,7 +22,7 @@ impl WebTimeline {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         Self {
-            inner: molgfx::Timeline::new(),
+            inner: molgfx::core::Timeline::new(),
         }
     }
 
@@ -105,8 +105,8 @@ impl WebTimeline {
         self.bind_attribute(
             scene,
             attribute,
-            molgfx::AttributeValues::Scalar(Arc::from(start)),
-            molgfx::AttributeValues::Scalar(Arc::from(end)),
+            molgfx::core::AttributeValues::Scalar(Arc::from(start)),
+            molgfx::core::AttributeValues::Scalar(Arc::from(end)),
             warp,
         )
     }
@@ -129,8 +129,8 @@ impl WebTimeline {
         self.bind_attribute(
             scene,
             attribute,
-            molgfx::AttributeValues::Vector(Arc::from(vec3_rows("start", start)?)),
-            molgfx::AttributeValues::Vector(Arc::from(vec3_rows("end", end)?)),
+            molgfx::core::AttributeValues::Vector(Arc::from(vec3_rows("start", start)?)),
+            molgfx::core::AttributeValues::Vector(Arc::from(vec3_rows("end", end)?)),
             warp,
         )
     }
@@ -162,8 +162,8 @@ impl WebTimeline {
         &mut self,
         scene: &mut WebScene,
         attribute: &WebAttributeHandle,
-        start: molgfx::AttributeValues,
-        end: molgfx::AttributeValues,
+        start: molgfx::core::AttributeValues,
+        end: molgfx::core::AttributeValues,
         warp: &WebTimeWarp,
     ) -> Result<WebTimelineTrackHandle, JsValue> {
         self.inner

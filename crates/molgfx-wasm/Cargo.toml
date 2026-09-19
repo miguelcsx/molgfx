@@ -13,7 +13,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 js-sys.workspace = true
 molgfx.workspace = true
-pdbiox = { workspace = true, features = ["mmcif", "bcif", "pdb", "chem", "spatial"] }
+molframe = { workspace = true, features = ["mmcif", "bcif", "pdb", "chem", "spatial"] }
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 web-sys.workspace = true

@@ -1,7 +1,9 @@
 //! Fixed-size JavaScript values for browser configuration and frame telemetry.
 
 use molgfx::{
-    Capabilities, EntityKind, Pick, PickEntity, PowerPreference, RenderMode, RenderProfile,
+    core::EntityKind,
+    gpu::{Capabilities, PowerPreference},
+    render::{Pick, PickEntity, RenderMode, RenderProfile},
 };
 use wasm_bindgen::prelude::*;
 

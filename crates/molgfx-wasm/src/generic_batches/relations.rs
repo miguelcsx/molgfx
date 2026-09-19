@@ -1,8 +1,8 @@
 //! Homogeneous world and entity relation insertion.
 
 use super::{
-    values::{core_error, js_value, ordered_rows, rgba8, vec3_rows},
     WebRelationBatchHandle, WebRowDomain,
+    values::{core_error, js_value, ordered_rows, rgba8, vec3_rows},
 };
 use crate::browser::WebScene;
 use std::sync::Arc;
@@ -45,10 +45,10 @@ impl WebScene {
         }
         let mut relations = Vec::with_capacity(starts.len());
         for (start, end) in starts.into_iter().zip(ends) {
-            relations.push(molgfx::Relation {
-                start: molgfx::SpatialAnchor::world(molgfx::Vec3::from_array(start))
+            relations.push(molgfx::core::Relation {
+                start: molgfx::core::SpatialAnchor::world(molgfx::math::Vec3::from_array(start))
                     .map_err(core_error)?,
-                end: molgfx::SpatialAnchor::world(molgfx::Vec3::from_array(end))
+                end: molgfx::core::SpatialAnchor::world(molgfx::math::Vec3::from_array(end))
                     .map_err(core_error)?,
             });
         }
@@ -92,13 +92,13 @@ impl WebScene {
         }
         let mut relations = Vec::with_capacity(start_rows.len());
         for (start, end) in start_rows.into_iter().zip(end_rows) {
-            relations.push(molgfx::Relation {
-                start: molgfx::SpatialAnchor::entity(molgfx::RowEntityRef::new(
+            relations.push(molgfx::core::Relation {
+                start: molgfx::core::SpatialAnchor::entity(molgfx::core::RowEntityRef::new(
                     start_domain.inner,
                     start,
                 ))
                 .map_err(core_error)?,
-                end: molgfx::SpatialAnchor::entity(molgfx::RowEntityRef::new(
+                end: molgfx::core::SpatialAnchor::entity(molgfx::core::RowEntityRef::new(
                     end_domain.inner,
                     end,
                 ))
@@ -123,18 +123,18 @@ impl WebScene {
 fn insert_relations(
     scene: &mut WebScene,
     namespace: u64,
-    relations: Vec<molgfx::Relation>,
+    relations: Vec<molgfx::core::Relation>,
     style: RelationStyleInput<'_>,
 ) -> Result<WebRelationBatchHandle, JsValue> {
     let rows = ordered_rows(namespace, relations.len())?;
-    let batch = molgfx::RelationBatch::new(
+    let batch = molgfx::core::RelationBatch::new(
         Arc::from(relations),
         rows,
-        molgfx::RelationStyle {
+        molgfx::core::RelationStyle {
             width_pixels: style.width_pixels,
             color: rgba8(style.rgba)?,
             opacity: style.opacity,
-            pattern: molgfx::RelationPattern::Solid,
+            pattern: molgfx::core::RelationPattern::Solid,
             endpoint_insets_pixels: style.endpoint_insets_pixels,
             depth_behind_anchors: style.depth_behind_anchors,
         },

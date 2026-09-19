@@ -15,7 +15,7 @@ pub enum WebPlaybackMode {
     PingPong,
 }
 
-impl From<WebPlaybackMode> for molgfx::PlaybackMode {
+impl From<WebPlaybackMode> for molgfx::core::PlaybackMode {
     fn from(value: WebPlaybackMode) -> Self {
         match value {
             WebPlaybackMode::Clamp => Self::Clamp,
@@ -29,7 +29,7 @@ impl From<WebPlaybackMode> for molgfx::PlaybackMode {
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug)]
 pub struct WebTimeWarp {
-    pub(super) inner: molgfx::TimeWarp,
+    pub(super) inner: molgfx::core::TimeWarp,
 }
 
 #[wasm_bindgen]
@@ -48,7 +48,7 @@ impl WebTimeWarp {
         range_end: f64,
         playback: WebPlaybackMode,
     ) -> Result<WebTimeWarp, JsValue> {
-        molgfx::TimeWarp::new(
+        molgfx::core::TimeWarp::new(
             global_origin,
             local_origin,
             rate,
@@ -70,7 +70,7 @@ impl WebTimeWarp {
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug)]
 pub struct WebTimelineTrackHandle {
-    pub(super) inner: molgfx::TimelineTrackHandle,
+    pub(super) inner: molgfx::core::TimelineTrackHandle,
 }
 
 #[wasm_bindgen]

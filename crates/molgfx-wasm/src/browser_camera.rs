@@ -1,6 +1,9 @@
 //! Thin JavaScript camera value and abstract camera operations.
 
-use molgfx::{Button, Camera, InputEvent, OrbitController, Projection, Vec3};
+use molgfx::{
+    core::{Button, InputEvent, OrbitController},
+    math::{Camera, Projection, Vec3},
+};
 use wasm_bindgen::prelude::*;
 
 use crate::browser::WebScene;

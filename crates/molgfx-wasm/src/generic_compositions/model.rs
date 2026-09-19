@@ -6,11 +6,11 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct WebGenericCompositionView {
-    inner: molgfx::GenericCompositionView,
+    inner: molgfx::semantic::GenericCompositionView,
 }
 
-impl From<molgfx::GenericCompositionView> for WebGenericCompositionView {
-    fn from(inner: molgfx::GenericCompositionView) -> Self {
+impl From<molgfx::semantic::GenericCompositionView> for WebGenericCompositionView {
+    fn from(inner: molgfx::semantic::GenericCompositionView) -> Self {
         Self { inner }
     }
 }
