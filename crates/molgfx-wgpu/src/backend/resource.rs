@@ -1,8 +1,8 @@
 //! Accounted wgpu buffers and textures.
 
 use molgfx_gpu::{GpuError, ResourceMemory, TextureDesc};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Debug)]
 pub(crate) struct ResourceLedger {
