@@ -23,7 +23,6 @@ portable-test-crates = [
 ]
 native-only-crates = ["molgfx-bench", "molgfx-py"]
 native-only-targets = [
-    "molgfx examples",
     "criterion benches",
     "blocking-device integration tests",
     "parser/provider fixture tests",
@@ -48,7 +47,6 @@ molgfx-shaders = { version = "0.1.0", path = "crates/molgfx-shaders" }
 molgfx-geometry = { version = "0.1.0", path = "crates/molgfx-geometry" }
 molgfx-render = { version = "0.1.0", path = "crates/molgfx-render" }
 molgfx-semantic = { version = "0.1.0", path = "crates/molgfx-semantic" }
-molgfx-recipes = { version = "0.1.0", path = "crates/molgfx-recipes" }
 
 # The structural model and every detection the engine consumes.
 # Pin the coordinated provider revision so builds never depend on a mutable
