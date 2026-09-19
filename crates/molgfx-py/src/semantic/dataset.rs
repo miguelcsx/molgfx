@@ -8,16 +8,16 @@ use pyo3::prelude::*;
 mod tests;
 
 macro_rules! id_type {
-    ($rust:ident, $python:literal, $native:ident, $value:ty) => {
+    ($rust:ident, $python:literal, $module:ident, $native:ident, $value:ty) => {
         #[pyclass(name = $python, frozen, eq, from_py_object)]
         #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-        pub(crate) struct $rust(pub(crate) molgfx::$native);
+        pub(crate) struct $rust(pub(crate) molgfx::$module::$native);
 
         #[pymethods]
         impl $rust {
             #[new]
             fn new(value: $value) -> Self {
-                Self(molgfx::$native::new(value))
+                Self(molgfx::$module::$native::new(value))
             }
 
             #[getter]
@@ -36,21 +36,21 @@ macro_rules! id_type {
     };
 }
 
-id_type!(PyDatasetId, "DatasetId", DatasetId, u64);
-id_type!(PyChunkId, "ChunkId", ChunkId, u64);
-id_type!(PyLogicalRow, "LogicalRow", LogicalRow, u64);
-id_type!(PyLocalRow, "LocalRow", LocalRow, u32);
+id_type!(PyDatasetId, "DatasetId", semantic, DatasetId, u64);
+id_type!(PyChunkId, "ChunkId", semantic, ChunkId, u64);
+id_type!(PyLogicalRow, "LogicalRow", semantic, LogicalRow, u64);
+id_type!(PyLocalRow, "LocalRow", core, LocalRow, u32);
 
 #[pyclass(name = "ChunkFootprint", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyChunkFootprint(pub(crate) molgfx::ChunkFootprint);
+pub(crate) struct PyChunkFootprint(pub(crate) molgfx::semantic::ChunkFootprint);
 
 #[pymethods]
 impl PyChunkFootprint {
     #[new]
     #[pyo3(signature = (source_bytes=0, host_bytes=0, staging_bytes=0, gpu_bytes=0))]
     fn new(source_bytes: u64, host_bytes: u64, staging_bytes: u64, gpu_bytes: u64) -> Self {
-        Self(molgfx::ChunkFootprint::new(
+        Self(molgfx::semantic::ChunkFootprint::new(
             source_bytes,
             host_bytes,
             staging_bytes,
@@ -100,7 +100,7 @@ pub(crate) enum PyPayloadKind {
     Attribute,
 }
 
-impl From<PyPayloadKind> for molgfx::PayloadKind {
+impl From<PyPayloadKind> for molgfx::core::PayloadKind {
     fn from(value: PyPayloadKind) -> Self {
         match value {
             PyPayloadKind::Structure => Self::Structure,
@@ -119,34 +119,34 @@ impl From<PyPayloadKind> for molgfx::PayloadKind {
     }
 }
 
-impl From<molgfx::PayloadKind> for PyPayloadKind {
-    fn from(value: molgfx::PayloadKind) -> Self {
+impl From<molgfx::core::PayloadKind> for PyPayloadKind {
+    fn from(value: molgfx::core::PayloadKind) -> Self {
         match value {
-            molgfx::PayloadKind::Structure => Self::Structure,
-            molgfx::PayloadKind::BondTopology => Self::BondTopology,
-            molgfx::PayloadKind::ScalarProperty => Self::ScalarProperty,
-            molgfx::PayloadKind::Trajectory => Self::Trajectory,
-            molgfx::PayloadKind::VolumeBrick => Self::VolumeBrick,
-            molgfx::PayloadKind::LabelBrick => Self::LabelBrick,
-            molgfx::PayloadKind::Mesh => Self::Mesh,
-            molgfx::PayloadKind::Proxy => Self::Proxy,
-            molgfx::PayloadKind::PointBatch => Self::PointBatch,
-            molgfx::PayloadKind::InstanceBatch => Self::InstanceBatch,
-            molgfx::PayloadKind::RelationBatch => Self::RelationBatch,
-            molgfx::PayloadKind::Attribute => Self::Attribute,
+            molgfx::core::PayloadKind::Structure => Self::Structure,
+            molgfx::core::PayloadKind::BondTopology => Self::BondTopology,
+            molgfx::core::PayloadKind::ScalarProperty => Self::ScalarProperty,
+            molgfx::core::PayloadKind::Trajectory => Self::Trajectory,
+            molgfx::core::PayloadKind::VolumeBrick => Self::VolumeBrick,
+            molgfx::core::PayloadKind::LabelBrick => Self::LabelBrick,
+            molgfx::core::PayloadKind::Mesh => Self::Mesh,
+            molgfx::core::PayloadKind::Proxy => Self::Proxy,
+            molgfx::core::PayloadKind::PointBatch => Self::PointBatch,
+            molgfx::core::PayloadKind::InstanceBatch => Self::InstanceBatch,
+            molgfx::core::PayloadKind::RelationBatch => Self::RelationBatch,
+            molgfx::core::PayloadKind::Attribute => Self::Attribute,
         }
     }
 }
 
 #[pyclass(name = "ChunkSpan", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyChunkSpan(pub(crate) molgfx::ChunkSpan);
+pub(crate) struct PyChunkSpan(pub(crate) molgfx::core::ChunkSpan);
 
 #[pymethods]
 impl PyChunkSpan {
     #[new]
     fn new(first: PyLogicalRow, row_count: u32) -> PyResult<Self> {
-        dataset(molgfx::ChunkSpan::new(first.0, row_count)).map(Self)
+        dataset(molgfx::core::ChunkSpan::new(first.0, row_count)).map(Self)
     }
 
     #[getter]
@@ -175,13 +175,13 @@ impl PyChunkSpan {
 
 #[pyclass(name = "ChunkBounds", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyChunkBounds(pub(crate) molgfx::ChunkBounds);
+pub(crate) struct PyChunkBounds(pub(crate) molgfx::core::ChunkBounds);
 
 #[pymethods]
 impl PyChunkBounds {
     #[new]
     fn new(min: [f32; 3], max: [f32; 3]) -> PyResult<Self> {
-        dataset(molgfx::ChunkBounds::new(min, max)).map(Self)
+        dataset(molgfx::core::ChunkBounds::new(min, max)).map(Self)
     }
 
     #[getter]
@@ -197,7 +197,7 @@ impl PyChunkBounds {
 
 #[pyclass(name = "ChunkDescriptor", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyChunkDescriptor(pub(crate) molgfx::ChunkDescriptor);
+pub(crate) struct PyChunkDescriptor(pub(crate) molgfx::core::ChunkDescriptor);
 
 #[pymethods]
 impl PyChunkDescriptor {
@@ -211,7 +211,7 @@ impl PyChunkDescriptor {
         payload_kind: PyPayloadKind,
         footprint: PyChunkFootprint,
     ) -> Self {
-        Self(molgfx::ChunkDescriptor {
+        Self(molgfx::core::ChunkDescriptor {
             id: id.0,
             parent: parent.map(|value| value.0),
             level,
@@ -260,7 +260,7 @@ impl PyChunkDescriptor {
 
 #[pyclass(name = "DatasetCatalog", frozen, skip_from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyDatasetCatalog(pub(crate) molgfx::DatasetCatalog);
+pub(crate) struct PyDatasetCatalog(pub(crate) molgfx::core::DatasetCatalog);
 
 #[pymethods]
 impl PyDatasetCatalog {
@@ -270,7 +270,7 @@ impl PyDatasetCatalog {
         descriptors: Vec<PyChunkDescriptor>,
     ) -> PyResult<Self> {
         let descriptors = descriptors.into_iter().map(|value| value.0).collect();
-        dataset(molgfx::DatasetCatalog::new(dataset_id.0, descriptors)).map(Self)
+        dataset(molgfx::core::DatasetCatalog::new(dataset_id.0, descriptors)).map(Self)
     }
 
     #[getter]
