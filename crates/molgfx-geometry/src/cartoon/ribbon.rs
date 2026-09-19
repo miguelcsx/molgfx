@@ -159,7 +159,7 @@ impl RibbonMesh {
     /// Returns [`crate::PackingError`] when a guide atom row cannot be encoded.
     pub fn generate_structure(
         &mut self,
-        structure: &pdbiox::Structure,
+        structure: &molframe::Structure,
         selection: &molgfx_core::AtomSelection,
         secondary: &[SecondaryStructure],
         max_gap: f32,
@@ -199,7 +199,7 @@ impl RibbonMesh {
     /// one instead of stitching two arms into a false continuous chain.
     pub fn generate_glycan(
         &mut self,
-        structure: &pdbiox::Structure,
+        structure: &molframe::Structure,
         selection: &molgfx_core::AtomSelection,
         params: RibbonParams,
     ) {

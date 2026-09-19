@@ -1,3 +1,7 @@
+// The index-to-float casts below build fixture coordinates from a loop
+// counter whose range is a fixed literal in this file; nothing truncates.
+#![allow(clippy::cast_possible_truncation)]
+
 use super::*;
 use molgfx_core::{
     AtomProperty, AtomPropertyMeaning, ColorScheme, PropertyAppearance, RepresentationKind,
@@ -20,7 +24,7 @@ fn scene_table() -> (Scene, molgfx_core::RepresentationHandle) {
     (scene, rep)
 }
 
-pub(crate) fn fixture_structure() -> pdbiox::Structure {
+pub(crate) fn fixture_structure() -> molframe::Structure {
     let cif = "\
 data_test
 loop_
@@ -59,8 +63,8 @@ _struct_conn.pdbx_value_order
 1 covale A 1 GLY N A 1 GLY CA SING
 2 covale A 1 GLY CA A 1 GLY O AROM
 ";
-    let options = pdbiox::ReadOptions::new();
-    match pdbiox::read_bytes(cif.as_bytes().to_vec(), Some("t.cif"), &options) {
+    let options = molframe::ReadOptions::new();
+    match molframe::read_bytes(cif.as_bytes().to_vec(), Some("t.cif"), &options) {
         Ok((structure, _)) => structure,
         Err(diagnostics) => panic!("fixture parses: {diagnostics:?}"),
     }
@@ -78,9 +82,12 @@ fn packing_all_atoms_produces_one_record_per_atom_in_order() {
     let mut out = Vec::new();
     pack_atoms(table, rep, &AtomSelection::All, &mut out).unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(out.len(), 3);
-    // Records preserve atom order; positions come straight from the column.
+    // Records preserve atom order and name their source row; the shader gathers
+    // the position from the coordinate column through that identity.
+    assert_eq!(out[1].entity_id.unpack(), Some((EntityKind::Atom, 1)));
     let expected = [1.5f32, 0.0, 0.0];
-    for (got, want) in out[1].position.iter().zip(expected) {
+    let position = table.coords().slice().get(1).copied().unwrap_or_default();
+    for (got, want) in position.iter().zip(expected) {
         assert!((got - want).abs() < f32::EPSILON);
     }
     // Spacefill draws full van der Waals radii.
@@ -408,19 +415,47 @@ fn a_bead_encloses_its_residue_and_keeps_one_sphere_per_residue() {
     };
     assert_eq!(beads.len(), distinct, "one bead per residue");
 
-    // Every atom of a residue must fall inside its bead.
+    // Each bead answers for its own residue: it names the residue's first atom,
+    // and its radius must enclose every one of that residue's atoms, measured
+    // from the centroid the test recomputes off the coordinate column.
     let coords = placed.atoms.coords().slice();
     let radii = placed.atoms.radius().values();
-    for (index, position) in coords.iter().enumerate() {
-        let Some(residue) = residues.get(index) else {
-            continue;
+    for bead in &beads {
+        let Some((kind, first)) = bead.entity_id.unpack() else {
+            panic!("bead names a source row");
         };
-        let point = molgfx_math::Vec3::from_array(*position);
-        let extent = radii.get(index).copied().unwrap_or_default();
-        let covered = beads.iter().any(|bead| {
-            let centre = molgfx_math::Vec3::from_array(bead.position);
-            centre.distance(point) + extent <= bead.radius + 1.0e-3
-        });
-        assert!(covered, "residue {residue} atom {index} lies inside a bead");
+        assert_eq!(kind, EntityKind::Atom);
+        let Some(residue) = residues.get(first as usize) else {
+            panic!("bead source row is a real atom");
+        };
+        let members: Vec<usize> = residues
+            .iter()
+            .enumerate()
+            .filter(|(_, candidate)| candidate == &residue)
+            .map(|(index, _)| index)
+            .collect();
+        let (sum, count) =
+            members
+                .iter()
+                .fold((molgfx_math::Vec3::ZERO, 0.0f32), |(sum, count), member| {
+                    let point = coords
+                        .get(*member)
+                        .map_or(molgfx_math::Vec3::ZERO, |value| {
+                            molgfx_math::Vec3::from_array(*value)
+                        });
+                    (sum + point, count + 1.0)
+                });
+        let centre = sum / count.max(1.0);
+        for member in members {
+            let Some(point) = coords.get(member).copied() else {
+                continue;
+            };
+            let point = molgfx_math::Vec3::from_array(point);
+            let extent = radii.get(member).copied().unwrap_or_default();
+            assert!(
+                centre.distance(point) + extent <= bead.radius + 1.0e-3,
+                "residue {residue} atom {member} lies inside its bead"
+            );
+        }
     }
 }

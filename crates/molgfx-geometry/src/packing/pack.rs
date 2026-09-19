@@ -1,9 +1,7 @@
 //! Instance-record packing.
 //!
-//! Packs the scene's columnar per-atom state into contiguous GPU instance
-//! records, applying the representation's radius scaling. One `O(selected)`
-//! pass into a caller-owned scratch vector, so the steady-state path
-//! allocates nothing: the scratch grows once and is reused.
+//! Packs columnar per-atom state into contiguous GPU instance records in one
+//! `O(selected)` pass into a reused caller-owned scratch vector.
 
 use super::PackingError;
 use molgfx_core::{
@@ -12,15 +10,19 @@ use molgfx_core::{
     SurfaceStyle,
 };
 use molgfx_math::{Rgba8, Vec3};
+use rayon::prelude::*;
 
+#[cfg(test)]
+#[path = "pack_parallel_tests.rs"]
+pub(super) mod parallel_tests;
 #[cfg(test)]
 #[path = "pack_tests.rs"]
 pub(super) mod tests;
 
 /// Packs the selected atoms of one table into instance records, appending
 /// to `out` (cleared first). Radius scaling comes from the representation;
-/// positions are duplicated into the record for backends that cannot bind
-/// the borrowed coordinate column, and gathered from that column otherwise.
+/// positions stay in the table's coordinate column, which the shader gathers
+/// through the record's `entity_id`.
 ///
 /// # Errors
 ///
@@ -125,38 +127,22 @@ fn pack_atoms_inner(
     let semantics = table.semantic().values();
     let residues = table.residue().values();
     let scale = representation.params.radius_scale.max(0.0);
-    let surface_inflation = if representation.kind == RepresentationKind::Surface
-        && representation.params.surface_kind == SurfaceKind::SolventAccessible
-        && representation.params.surface_style == SurfaceStyle::Solid
-    {
-        representation.params.probe_radius.max(0.0)
-    } else {
-        0.0
-    };
+    let surface_inflation = surface_inflation_of(representation);
 
-    let mut packing_error = None;
-    selection.for_each(table.len(), |index| {
-        if packing_error.is_some() {
-            return;
-        }
+    // Both branches compute each record through the same pure closure, so the
+    // parallel output is the serial output by construction; the deterministic
+    // contract is pinned by `a_parallel_pack_matches_the_serial_pack`.
+    let pack_one = |index: u32| -> Result<Option<AtomGpu>, PackingError> {
         let i = index as usize;
-        let (
-            Some(position),
-            Some(radius),
-            Some(color),
-            Some(element),
-            Some(flag),
-            Some(semantic),
-        ) = (
+        let (Some(_), Some(radius), Some(color), Some(element), Some(flag), Some(semantic)) = (
             coords.get(i),
             radii.get(i),
             colors.get(i),
             elements.get(i),
             flags.get(i),
             semantics.get(i),
-        )
-        else {
-            return;
+        ) else {
+            return Ok(None);
         };
         let mut color = representation_color(
             representation.color,
@@ -167,23 +153,13 @@ fn pack_atoms_inner(
             i,
         );
         color.a = representation.material.opacity_unorm8();
-        let appearance = atom_appearance(
-            representation.appearance,
-            appearance_property,
-            i,
-        );
+        let appearance = atom_appearance(representation.appearance, appearance_property, i);
         if let Some((appearance_opacity, _)) = appearance {
             color.a = multiply_unorm8(color.a, appearance_opacity);
         }
-        let entity_id = match EntityId::pack(EntityKind::Atom, u64::from(index)) {
-            Ok(entity_id) => entity_id,
-            Err(error) => {
-                packing_error = Some(error.into());
-                return;
-            }
-        };
-        out.push(AtomGpu {
-            position: *position,
+        let entity_id =
+            EntityId::pack(EntityKind::Atom, u64::from(index)).map_err(PackingError::from)?;
+        Ok(Some(AtomGpu {
             radius: if representation.kind == RepresentationKind::Licorice {
                 representation.params.bond_radius
             } else {
@@ -196,14 +172,65 @@ fn pack_atoms_inner(
             semantic: appearance.map_or(*semantic, |(_, softness)| {
                 pack_softness(*semantic, softness)
             }),
+        }))
+    };
+
+    if selection.count(table.len()) < MIN_PARALLEL_ATOMS {
+        let mut packing_error = None;
+        selection.for_each(table.len(), |index| {
+            if packing_error.is_some() {
+                return;
+            }
+            match pack_one(index) {
+                Ok(Some(record)) => out.push(record),
+                Ok(None) => {}
+                Err(error) => packing_error = Some(error),
+            }
         });
-    });
-    match packing_error {
-        Some(error) => {
-            out.clear();
-            Err(error)
+        match packing_error {
+            Some(error) => {
+                out.clear();
+                Err(error)
+            }
+            None => Ok(()),
         }
-        None => Ok(()),
+    } else {
+        // The selected indices in ascending order; the parallel pack writes
+        // them back in the same order, which the compacted layout assumes.
+        let Ok(count) = usize::try_from(selection.count(table.len())) else {
+            return Ok(());
+        };
+        let mut indices = Vec::with_capacity(count);
+        selection.for_each(table.len(), |index| indices.push(index));
+        let packed = indices
+            .par_iter()
+            .with_min_len(PARALLEL_BLOCK)
+            .filter_map(|&index| pack_one(index).transpose())
+            .collect::<Result<Vec<_>, _>>()?;
+        out.extend(packed);
+        Ok(())
+    }
+}
+
+/// Selected rows below which packing stays on the calling thread.
+///
+/// The threshold keeps a ligand from paying for a thread pool; `par_extend`'s
+/// order preservation plus the shared per-row closure keep the parallel result
+/// byte-identical to the serial one.
+const MIN_PARALLEL_ATOMS: u64 = 8192;
+
+/// Elements per parallel chunk, sized so scheduling overhead disappears
+/// against the per-atom work.
+const PARALLEL_BLOCK: usize = 8192;
+
+fn surface_inflation_of(representation: &Representation) -> f32 {
+    if representation.kind == RepresentationKind::Surface
+        && representation.params.surface_kind == SurfaceKind::SolventAccessible
+        && representation.params.surface_style == SurfaceStyle::Solid
+    {
+        representation.params.probe_radius.max(0.0)
+    } else {
+        0.0
     }
 }
 
@@ -431,7 +458,6 @@ pub fn pack_residue_beads(
             index: u64::MAX,
         })?;
         out.push(AtomGpu {
-            position: centre.to_array(),
             radius: radius * scale,
             color,
             element: elements.get(first).copied().map_or(0, |value| value),

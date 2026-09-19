@@ -71,7 +71,7 @@ pub struct TraceRange {
 ///
 /// Returns [`crate::PackingError`] when a guide atom row cannot be encoded.
 pub fn extract_polymer_traces(
-    structure: &pdbiox::Structure,
+    structure: &molframe::Structure,
     selection: &molgfx_core::AtomSelection,
     secondary: &[SecondaryStructure],
     max_gap: f32,

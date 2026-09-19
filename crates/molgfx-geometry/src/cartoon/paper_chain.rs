@@ -30,7 +30,7 @@ const PURINE_FIVE: [&str; 5] = ["C4", "C5", "N7", "C8", "N9"];
 ///
 /// Returns [`crate::PackingError`] when a ring atom row cannot be encoded.
 pub fn append_paper_chain(
-    structure: &pdbiox::Structure,
+    structure: &molframe::Structure,
     selection: &AtomSelection,
     height: f32,
     opacity: u8,
@@ -85,7 +85,7 @@ pub fn append_paper_chain(
 }
 
 fn append_named_ring(
-    residue: pdbiox::ResidueRef<'_>,
+    residue: molframe::ResidueRef<'_>,
     names: &[&str],
     selection: &AtomSelection,
     height: f32,
