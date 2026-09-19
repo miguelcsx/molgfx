@@ -6,31 +6,31 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "VolumeStyle", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyVolumeStyle(pub(crate) molgfx::VolumeStyle);
+pub(crate) struct PyVolumeStyle(pub(crate) molgfx::core::VolumeStyle);
 
 #[pymethods]
 impl PyVolumeStyle {
     #[staticmethod]
     fn direct() -> Self {
-        Self(molgfx::VolumeStyle::default())
+        Self(molgfx::core::VolumeStyle::default())
     }
     #[staticmethod]
     fn isosurface() -> Self {
-        Self(molgfx::VolumeStyle::isosurface())
+        Self(molgfx::core::VolumeStyle::isosurface())
     }
     #[staticmethod]
     fn medium() -> Self {
-        Self(molgfx::VolumeStyle::medium())
+        Self(molgfx::core::VolumeStyle::medium())
     }
     #[staticmethod]
     fn liquid_surface() -> Self {
-        Self(molgfx::VolumeStyle::liquid_surface())
+        Self(molgfx::core::VolumeStyle::liquid_surface())
     }
     #[staticmethod]
     fn slice(plane: PyClipPlane) -> Self {
-        Self(molgfx::VolumeStyle::slice(molgfx::VolumeSlice::new(
-            plane.0,
-        )))
+        Self(molgfx::core::VolumeStyle::slice(
+            molgfx::core::VolumeSlice::new(plane.0),
+        ))
     }
     fn region(
         &self,
@@ -38,7 +38,7 @@ impl PyVolumeStyle {
         maximum: (u32, u32, u32),
         dimensions: (u32, u32, u32),
     ) -> PyResult<Self> {
-        core(molgfx::VolumeRegion::new(
+        core(molgfx::core::VolumeRegion::new(
             [minimum.0, minimum.1, minimum.2],
             [maximum.0, maximum.1, maximum.2],
             [dimensions.0, dimensions.1, dimensions.2],
@@ -57,7 +57,7 @@ pub(crate) enum PyClipCap {
     Solid,
 }
 
-impl From<PyClipCap> for molgfx::ClipCap {
+impl From<PyClipCap> for molgfx::core::ClipCap {
     fn from(value: PyClipCap) -> Self {
         match value {
             PyClipCap::Open => Self::Open,
@@ -68,13 +68,16 @@ impl From<PyClipCap> for molgfx::ClipCap {
 
 #[pyclass(name = "ClipPlane", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyClipPlane(pub(crate) molgfx::ClipPlane);
+pub(crate) struct PyClipPlane(pub(crate) molgfx::core::ClipPlane);
 
 #[pymethods]
 impl PyClipPlane {
     #[staticmethod]
     fn from_point_normal(point: PyVec3, normal: PyVec3) -> PyResult<Self> {
-        core(molgfx::ClipPlane::from_point_normal(point.0, normal.0)).map(Self)
+        core(molgfx::core::ClipPlane::from_point_normal(
+            point.0, normal.0,
+        ))
+        .map(Self)
     }
     #[getter]
     fn normal(&self) -> PyVec3 {
@@ -94,18 +97,18 @@ impl PyClipPlane {
 
 #[pyclass(name = "ClipSet", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyClipSet(pub(crate) molgfx::ClipSet);
+pub(crate) struct PyClipSet(pub(crate) molgfx::core::ClipSet);
 
 #[pymethods]
 impl PyClipSet {
     #[new]
     fn new(planes: Vec<PyClipPlane>) -> PyResult<Self> {
         let planes = planes.into_iter().map(|plane| plane.0).collect::<Vec<_>>();
-        core(molgfx::ClipSet::new(&planes)).map(Self)
+        core(molgfx::core::ClipSet::new(&planes)).map(Self)
     }
     #[staticmethod]
     fn slab(center: PyVec3, normal: PyVec3, thickness: f32) -> PyResult<Self> {
-        core(molgfx::ClipSet::slab(center.0, normal.0, thickness)).map(Self)
+        core(molgfx::core::ClipSet::slab(center.0, normal.0, thickness)).map(Self)
     }
     fn with_cap(&self, cap: PyClipCap) -> Self {
         Self(self.0.with_cap(cap.into()))
@@ -113,8 +116,8 @@ impl PyClipSet {
     #[getter]
     fn cap(&self) -> PyClipCap {
         match self.0.cap() {
-            molgfx::ClipCap::Open => PyClipCap::Open,
-            molgfx::ClipCap::Solid => PyClipCap::Solid,
+            molgfx::core::ClipCap::Open => PyClipCap::Open,
+            molgfx::core::ClipCap::Solid => PyClipCap::Solid,
         }
     }
     #[getter]
@@ -128,13 +131,13 @@ impl PyClipSet {
 
 #[pyclass(name = "SegmentStyle", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PySegmentStyle(pub(crate) molgfx::SegmentStyle);
+pub(crate) struct PySegmentStyle(pub(crate) molgfx::core::SegmentStyle);
 
 #[pymethods]
 impl PySegmentStyle {
     #[new]
     fn new(label: u32, color: PyRgba8, opacity: f32) -> Self {
-        Self(molgfx::SegmentStyle::new(label, color.0, opacity))
+        Self(molgfx::core::SegmentStyle::new(label, color.0, opacity))
     }
     #[getter]
     fn label(&self) -> u32 {
@@ -152,18 +155,18 @@ impl PySegmentStyle {
 
 #[pyclass(name = "SegmentStyleTable", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PySegmentStyleTable(pub(crate) molgfx::SegmentStyleTable);
+pub(crate) struct PySegmentStyleTable(pub(crate) molgfx::core::SegmentStyleTable);
 
 #[pymethods]
 impl PySegmentStyleTable {
     #[new]
     fn new(styles: Vec<PySegmentStyle>) -> PyResult<Self> {
         let styles = styles.into_iter().map(|style| style.0).collect::<Vec<_>>();
-        core(molgfx::SegmentStyleTable::new(&styles)).map(Self)
+        core(molgfx::core::SegmentStyleTable::new(&styles)).map(Self)
     }
     #[staticmethod]
     fn default() -> Self {
-        Self(molgfx::SegmentStyleTable::default())
+        Self(molgfx::core::SegmentStyleTable::default())
     }
     fn style_for(&self, label: u32) -> Option<PySegmentStyle> {
         self.0.style_for(label).map(PySegmentStyle)
@@ -176,23 +179,23 @@ impl PySegmentStyleTable {
 
 #[pyclass(name = "SegmentationStyle", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PySegmentationStyle(pub(crate) molgfx::SegmentationStyle);
+pub(crate) struct PySegmentationStyle(pub(crate) molgfx::core::SegmentationStyle);
 
 #[pymethods]
 impl PySegmentationStyle {
     #[new]
     #[pyo3(signature = (styles=None, opacity_scale=1.0, step_scale=0.65))]
     fn new(styles: Option<PySegmentStyleTable>, opacity_scale: f32, step_scale: f32) -> Self {
-        Self(molgfx::SegmentationStyle {
-            styles: styles.map_or_else(molgfx::SegmentStyleTable::default, |value| value.0),
+        Self(molgfx::core::SegmentationStyle {
+            styles: styles.map_or_else(molgfx::core::SegmentStyleTable::default, |value| value.0),
             opacity_scale,
             step_scale,
-            ..molgfx::SegmentationStyle::default()
+            ..molgfx::core::SegmentationStyle::default()
         })
     }
     #[staticmethod]
     fn default() -> Self {
-        Self(molgfx::SegmentationStyle::default())
+        Self(molgfx::core::SegmentationStyle::default())
     }
     #[getter]
     fn styles(&self) -> PySegmentStyleTable {
@@ -210,17 +213,17 @@ impl PySegmentationStyle {
 
 #[pyclass(name = "TubeRadiusMapping", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyTubeRadiusMapping(pub(crate) molgfx::TubeRadiusMapping);
+pub(crate) struct PyTubeRadiusMapping(pub(crate) molgfx::core::TubeRadiusMapping);
 
 #[pymethods]
 impl PyTubeRadiusMapping {
     #[staticmethod]
     fn constant() -> Self {
-        Self(molgfx::TubeRadiusMapping::Constant)
+        Self(molgfx::core::TubeRadiusMapping::Constant)
     }
     #[staticmethod]
     fn b_factor(domain: (f32, f32), radii: (f32, f32)) -> PyResult<Self> {
-        core(molgfx::TubeRadiusMapping::b_factor(
+        core(molgfx::core::TubeRadiusMapping::b_factor(
             [domain.0, domain.1],
             [radii.0, radii.1],
         ))
@@ -236,13 +239,13 @@ impl PyTubeRadiusMapping {
 
 #[pyclass(name = "CrystalCell", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyCrystalCell(pub(crate) molgfx::CrystalCell);
+pub(crate) struct PyCrystalCell(pub(crate) molgfx::core::CrystalCell);
 
 #[pymethods]
 impl PyCrystalCell {
     #[new]
     fn new(lengths: (f32, f32, f32), angles_degrees: (f32, f32, f32)) -> PyResult<Self> {
-        core(molgfx::CrystalCell::new(
+        core(molgfx::core::CrystalCell::new(
             [lengths.0, lengths.1, lengths.2],
             [angles_degrees.0, angles_degrees.1, angles_degrees.2],
         ))
@@ -269,13 +272,13 @@ impl PyCrystalCell {
 
 #[pyclass(name = "SymmetryInstance", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PySymmetryInstance(pub(crate) molgfx::SymmetryInstance);
+pub(crate) struct PySymmetryInstance(pub(crate) molgfx::core::SymmetryInstance);
 
 #[pymethods]
 impl PySymmetryInstance {
     #[new]
     fn new(id: u32, transform: PyMat4) -> PyResult<Self> {
-        core(molgfx::SymmetryInstance::new(id, transform.0)).map(Self)
+        core(molgfx::core::SymmetryInstance::new(id, transform.0)).map(Self)
     }
     #[getter]
     fn id(&self) -> u32 {
@@ -285,17 +288,4 @@ impl PySymmetryInstance {
     fn transform(&self) -> PyMat4 {
         PyMat4(self.0.transform)
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyVolumeStyle>()?;
-    module.add_class::<PyClipCap>()?;
-    module.add_class::<PyClipPlane>()?;
-    module.add_class::<PyClipSet>()?;
-    module.add_class::<PySegmentStyle>()?;
-    module.add_class::<PySegmentStyleTable>()?;
-    module.add_class::<PySegmentationStyle>()?;
-    module.add_class::<PyTubeRadiusMapping>()?;
-    module.add_class::<PyCrystalCell>()?;
-    module.add_class::<PySymmetryInstance>()
 }

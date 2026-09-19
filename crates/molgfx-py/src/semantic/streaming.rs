@@ -3,7 +3,7 @@
 use crate::core::{PyRepresentationHandle, PyScene, PyStructureHandle};
 use crate::error::{core, value};
 use crate::math::PyCamera;
-use numpy::{PyReadonlyArray1, PyUntypedArrayMethods};
+use numpy::{PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyUntypedArrayMethods};
 use pyo3::exceptions::PyMemoryError;
 use pyo3::prelude::*;
 
@@ -16,7 +16,7 @@ pub(crate) enum PyLodLevel {
     Domain,
 }
 
-impl From<PyLodLevel> for molgfx::LodLevel {
+impl From<PyLodLevel> for molgfx::semantic::LodLevel {
     fn from(value: PyLodLevel) -> Self {
         match value {
             PyLodLevel::Atom => Self::Atom,
@@ -27,27 +27,27 @@ impl From<PyLodLevel> for molgfx::LodLevel {
     }
 }
 
-impl From<molgfx::LodLevel> for PyLodLevel {
-    fn from(value: molgfx::LodLevel) -> Self {
+impl From<molgfx::semantic::LodLevel> for PyLodLevel {
+    fn from(value: molgfx::semantic::LodLevel) -> Self {
         match value {
-            molgfx::LodLevel::Atom => Self::Atom,
-            molgfx::LodLevel::Residue => Self::Residue,
-            molgfx::LodLevel::SecondaryStructure => Self::SecondaryStructure,
-            molgfx::LodLevel::Domain => Self::Domain,
+            molgfx::semantic::LodLevel::Atom => Self::Atom,
+            molgfx::semantic::LodLevel::Residue => Self::Residue,
+            molgfx::semantic::LodLevel::SecondaryStructure => Self::SecondaryStructure,
+            molgfx::semantic::LodLevel::Domain => Self::Domain,
         }
     }
 }
 
 #[pyclass(name = "LodPolicy", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyLodPolicy(pub(crate) molgfx::LodPolicy);
+pub(crate) struct PyLodPolicy(pub(crate) molgfx::semantic::LodPolicy);
 
 #[pymethods]
 impl PyLodPolicy {
     #[new]
     #[pyo3(signature = (atom_pixels=4.0, residue_pixels=1.0, secondary_pixels=0.25, hysteresis=0.15))]
     fn new(atom_pixels: f32, residue_pixels: f32, secondary_pixels: f32, hysteresis: f32) -> Self {
-        Self(molgfx::LodPolicy {
+        Self(molgfx::semantic::LodPolicy {
             atom_pixels,
             residue_pixels,
             secondary_pixels,
@@ -56,7 +56,7 @@ impl PyLodPolicy {
     }
     #[staticmethod]
     fn default() -> Self {
-        Self(molgfx::LodPolicy::default())
+        Self(molgfx::semantic::LodPolicy::default())
     }
     fn select(&self, error_pixels: f32, importance: f32, previous: PyLodLevel) -> PyLodLevel {
         self.0
@@ -67,7 +67,7 @@ impl PyLodPolicy {
 
 #[pyclass(name = "LodClusterKey", frozen, eq, skip_from_py_object)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct PyLodClusterKey(pub(crate) molgfx::LodClusterKey);
+pub(crate) struct PyLodClusterKey(pub(crate) molgfx::semantic::LodClusterKey);
 
 #[pymethods]
 impl PyLodClusterKey {
@@ -87,7 +87,7 @@ impl PyLodClusterKey {
 
 #[pyclass(name = "LodFrame", skip_from_py_object)]
 #[derive(Clone, Debug, Default)]
-pub(crate) struct PyLodFrame(pub(crate) molgfx::LodFrame);
+pub(crate) struct PyLodFrame(pub(crate) molgfx::semantic::LodFrame);
 
 #[pymethods]
 impl PyLodFrame {
@@ -95,14 +95,24 @@ impl PyLodFrame {
     fn new() -> Self {
         Self::default()
     }
+    /// Clusters to draw as an `N x 3` read-only integer table.
+    ///
+    /// Each row is one cluster: the row of its owning structure, its level —
+    /// the integer the matching `LodLevel` member compares equal to — and its
+    /// stable index within that level and structure. Rows are already in draw
+    /// order.
     #[getter]
-    fn visible(&self) -> Vec<PyLodClusterKey> {
-        self.0
-            .visible()
-            .iter()
-            .copied()
-            .map(PyLodClusterKey)
-            .collect()
+    fn visible<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<u32>>> {
+        let rows = self.0.visible().len();
+        let mut columns = Vec::with_capacity(rows.saturating_mul(3));
+        for key in self.0.visible() {
+            columns.push(key.structure.row());
+            columns.push(PyLodLevel::from(key.level) as u32);
+            columns.push(key.index);
+        }
+        let table = PyArray1::from_vec(py, columns).reshape((rows, 3))?;
+        table.readwrite().make_nonwriteable();
+        Ok(table)
     }
     #[getter]
     fn atom_structures(&self) -> Vec<PyStructureHandle> {
@@ -127,13 +137,13 @@ impl PyLodFrame {
 
 #[pyclass(name = "LodIndex", frozen, skip_from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyLodIndex(pub(crate) molgfx::LodIndex);
+pub(crate) struct PyLodIndex(pub(crate) molgfx::semantic::LodIndex);
 
 #[pymethods]
 impl PyLodIndex {
     #[new]
     fn new(scene: PyRef<'_, PyScene>) -> Self {
-        Self(molgfx::LodIndex::from_scene(&scene.inner))
+        Self(molgfx::semantic::LodIndex::from_scene(&scene.inner))
     }
     #[getter]
     fn cluster_count(&self) -> usize {
@@ -151,7 +161,7 @@ impl PyLodIndex {
         let previous = previous.as_ref().map(|frame| &frame.0);
         let policy = match policy {
             Some(policy) => policy.0,
-            None => molgfx::LodPolicy::default(),
+            None => molgfx::semantic::LodPolicy::default(),
         };
         self.0.select_into(
             &camera.inner,
@@ -165,7 +175,7 @@ impl PyLodIndex {
 
 #[pyclass(name = "LodScene", skip_from_py_object)]
 #[derive(Clone, Debug, Default)]
-pub(crate) struct PyLodScene(pub(crate) molgfx::LodScene);
+pub(crate) struct PyLodScene(pub(crate) molgfx::semantic::LodScene);
 
 #[pymethods]
 impl PyLodScene {
@@ -251,21 +261,21 @@ impl PyLodScene {
 
 #[pyclass(name = "StreamingBudget", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyStreamingBudget(pub(crate) molgfx::StreamingBudget);
+pub(crate) struct PyStreamingBudget(pub(crate) molgfx::semantic::StreamingBudget);
 
 #[pymethods]
 impl PyStreamingBudget {
     #[new]
     #[pyo3(signature = (max_resident_bytes=268_435_456, max_requests_per_frame=64))]
     fn new(max_resident_bytes: u64, max_requests_per_frame: usize) -> Self {
-        Self(molgfx::StreamingBudget {
+        Self(molgfx::semantic::StreamingBudget {
             max_resident_bytes,
             max_requests_per_frame,
         })
     }
     #[staticmethod]
     fn default() -> Self {
-        Self(molgfx::StreamingBudget::default())
+        Self(molgfx::semantic::StreamingBudget::default())
     }
     #[getter]
     fn max_resident_bytes(&self) -> u64 {
@@ -279,7 +289,7 @@ impl PyStreamingBudget {
 
 #[pyclass(name = "ChunkKey", frozen, skip_from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyChunkKey(pub(crate) molgfx::ChunkKey);
+pub(crate) struct PyChunkKey(pub(crate) molgfx::semantic::ChunkKey);
 
 #[pymethods]
 impl PyChunkKey {
@@ -299,7 +309,7 @@ impl PyChunkKey {
 
 #[pyclass(name = "ChunkRequest", frozen, skip_from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyChunkRequest(pub(crate) molgfx::ChunkRequest);
+pub(crate) struct PyChunkRequest(pub(crate) molgfx::semantic::ChunkRequest);
 
 #[pymethods]
 impl PyChunkRequest {
@@ -319,7 +329,7 @@ impl PyChunkRequest {
 
 #[pyclass(name = "StreamPlan", skip_from_py_object)]
 #[derive(Clone, Debug, Default)]
-pub(crate) struct PyStreamPlan(pub(crate) molgfx::StreamPlan);
+pub(crate) struct PyStreamPlan(pub(crate) molgfx::semantic::StreamPlan);
 
 #[pymethods]
 impl PyStreamPlan {
@@ -344,8 +354,8 @@ impl PyStreamPlan {
 #[pyclass(name = "StreamPlanner")]
 #[derive(Debug)]
 pub(crate) struct PyStreamPlanner {
-    inner: molgfx::StreamPlanner,
-    requests: Vec<molgfx::ChunkRequest>,
+    inner: molgfx::semantic::StreamPlanner,
+    requests: Vec<molgfx::semantic::ChunkRequest>,
 }
 
 #[pymethods]
@@ -355,10 +365,10 @@ impl PyStreamPlanner {
     fn new(budget: Option<PyStreamingBudget>) -> Self {
         let budget = match budget {
             Some(value) => value.0,
-            None => molgfx::StreamingBudget::default(),
+            None => molgfx::semantic::StreamingBudget::default(),
         };
         Self {
-            inner: molgfx::StreamPlanner::new(budget),
+            inner: molgfx::semantic::StreamPlanner::new(budget),
             requests: Vec::new(),
         }
     }
@@ -412,8 +422,8 @@ impl PyStreamPlanner {
         self.requests.clear();
         self.reserve_requests(length)?;
         for row in 0..length {
-            self.requests.push(molgfx::ChunkRequest {
-                key: molgfx::ChunkKey {
+            self.requests.push(molgfx::semantic::ChunkRequest {
+                key: molgfx::semantic::ChunkKey {
                     structure: structure.0,
                     level: lod_level(levels[row])?,
                     index: indices[row],
@@ -432,26 +442,12 @@ impl PyStreamPlanner {
     }
 }
 
-fn lod_level(code: u8) -> PyResult<molgfx::LodLevel> {
+fn lod_level(code: u8) -> PyResult<molgfx::semantic::LodLevel> {
     match code {
-        0 => Ok(molgfx::LodLevel::Atom),
-        1 => Ok(molgfx::LodLevel::Residue),
-        2 => Ok(molgfx::LodLevel::SecondaryStructure),
-        3 => Ok(molgfx::LodLevel::Domain),
+        0 => Ok(molgfx::semantic::LodLevel::Atom),
+        1 => Ok(molgfx::semantic::LodLevel::Residue),
+        2 => Ok(molgfx::semantic::LodLevel::SecondaryStructure),
+        3 => Ok(molgfx::semantic::LodLevel::Domain),
         _ => Err(value("LOD level codes must be in [0, 3]")),
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyLodLevel>()?;
-    module.add_class::<PyLodPolicy>()?;
-    module.add_class::<PyLodClusterKey>()?;
-    module.add_class::<PyLodFrame>()?;
-    module.add_class::<PyLodIndex>()?;
-    module.add_class::<PyLodScene>()?;
-    module.add_class::<PyStreamingBudget>()?;
-    module.add_class::<PyChunkKey>()?;
-    module.add_class::<PyChunkRequest>()?;
-    module.add_class::<PyStreamPlan>()?;
-    module.add_class::<PyStreamPlanner>()
 }

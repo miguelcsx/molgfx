@@ -10,8 +10,8 @@ pub(crate) struct PyGenericCompositionView {
     normalized_weights: Vec<f32>,
 }
 
-impl From<molgfx::GenericCompositionView> for PyGenericCompositionView {
-    fn from(value: molgfx::GenericCompositionView) -> Self {
+impl From<molgfx::semantic::GenericCompositionView> for PyGenericCompositionView {
+    fn from(value: molgfx::semantic::GenericCompositionView) -> Self {
         Self {
             domains: value.domains.into_iter().map(PyRowDomain).collect(),
             normalized_weights: value.normalized_weights,

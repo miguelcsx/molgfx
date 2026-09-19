@@ -20,13 +20,13 @@ impl PyScene {
         focus_opacity: f32,
         order: i32,
     ) -> PyResult<PyGenericCompositionView> {
-        composition(molgfx::GenericCompositionScene::compose_focus(
+        composition(molgfx::semantic::GenericCompositionScene::compose_focus(
             &mut self.inner,
-            molgfx::FocusLayer {
+            molgfx::semantic::FocusLayer {
                 domain: domain.0,
                 emphasis: emphasis.0,
             },
-            molgfx::FocusCompositionStyle {
+            molgfx::semantic::FocusCompositionStyle {
                 context_opacity,
                 focus_opacity,
                 order,
@@ -55,22 +55,24 @@ impl PyScene {
         let layers = domains
             .into_iter()
             .zip(deltas)
-            .map(|(domain, delta)| molgfx::DifferenceLayer {
+            .map(|(domain, delta)| molgfx::semantic::DifferenceLayer {
                 domain: domain.0,
                 delta: delta.0,
             })
             .collect::<Vec<_>>();
-        composition(molgfx::GenericCompositionScene::compose_difference(
-            &mut self.inner,
-            &layers,
-            molgfx::DifferenceCompositionStyle {
-                context_threshold,
-                emphasis_threshold,
-                context_opacity,
-                ramp: ramp.0,
-                order,
-            },
-        ))
+        composition(
+            molgfx::semantic::GenericCompositionScene::compose_difference(
+                &mut self.inner,
+                &layers,
+                molgfx::semantic::DifferenceCompositionStyle {
+                    context_threshold,
+                    emphasis_threshold,
+                    context_opacity,
+                    ramp: ramp.0,
+                    order,
+                },
+            ),
+        )
         .map(Into::into)
     }
 
@@ -95,16 +97,18 @@ impl PyScene {
             .into_iter()
             .zip(weights)
             .zip(colors)
-            .map(|((domain, weight), color)| molgfx::EnsembleLayer {
-                domain: domain.0,
-                weight,
-                color: color.0,
-            })
+            .map(
+                |((domain, weight), color)| molgfx::semantic::EnsembleLayer {
+                    domain: domain.0,
+                    weight,
+                    color: color.0,
+                },
+            )
             .collect::<Vec<_>>();
-        composition(molgfx::GenericCompositionScene::compose_ensemble(
+        composition(molgfx::semantic::GenericCompositionScene::compose_ensemble(
             &mut self.inner,
             &layers,
-            molgfx::EnsembleCompositionStyle {
+            molgfx::semantic::EnsembleCompositionStyle {
                 dominant_opacity,
                 alternate_opacity,
                 minimum_opacity,
@@ -115,6 +119,6 @@ impl PyScene {
     }
 }
 
-fn composition<T>(result: Result<T, molgfx::CompositionError>) -> PyResult<T> {
+fn composition<T>(result: Result<T, molgfx::semantic::CompositionError>) -> PyResult<T> {
     result.map_err(|error| SemanticError::new_err(error.to_string()))
 }

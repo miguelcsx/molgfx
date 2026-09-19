@@ -7,14 +7,14 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "ResidencyBudget", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyResidencyBudget(pub(crate) molgfx::ResidencyBudget);
+pub(crate) struct PyResidencyBudget(pub(crate) molgfx::semantic::ResidencyBudget);
 
 #[pymethods]
 impl PyResidencyBudget {
     #[new]
     #[pyo3(signature = (cpu, staging, gpu_hot, gpu_warm, in_flight))]
     fn new(cpu: u64, staging: u64, gpu_hot: u64, gpu_warm: u64, in_flight: u64) -> Self {
-        Self(molgfx::ResidencyBudget {
+        Self(molgfx::semantic::ResidencyBudget {
             cpu,
             staging,
             gpu_hot,
@@ -25,7 +25,7 @@ impl PyResidencyBudget {
 
     #[staticmethod]
     fn default() -> Self {
-        Self(molgfx::ResidencyBudget::default())
+        Self(molgfx::semantic::ResidencyBudget::default())
     }
 
     #[getter]
@@ -56,7 +56,7 @@ impl PyResidencyBudget {
 
 #[pyclass(name = "ResidencyUsage", frozen, skip_from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyResidencyUsage(pub(crate) molgfx::Usage);
+pub(crate) struct PyResidencyUsage(pub(crate) molgfx::semantic::Usage);
 
 #[pymethods]
 impl PyResidencyUsage {
@@ -93,7 +93,7 @@ pub(crate) enum PyResidencyClass {
     Warm,
 }
 
-impl From<PyResidencyClass> for molgfx::ResidencyClass {
+impl From<PyResidencyClass> for molgfx::semantic::ResidencyClass {
     fn from(value: PyResidencyClass) -> Self {
         match value {
             PyResidencyClass::Hot => Self::Hot,
@@ -102,11 +102,11 @@ impl From<PyResidencyClass> for molgfx::ResidencyClass {
     }
 }
 
-impl From<molgfx::ResidencyClass> for PyResidencyClass {
-    fn from(value: molgfx::ResidencyClass) -> Self {
+impl From<molgfx::semantic::ResidencyClass> for PyResidencyClass {
+    fn from(value: molgfx::semantic::ResidencyClass) -> Self {
         match value {
-            molgfx::ResidencyClass::Hot => Self::Hot,
-            molgfx::ResidencyClass::Warm => Self::Warm,
+            molgfx::semantic::ResidencyClass::Hot => Self::Hot,
+            molgfx::semantic::ResidencyClass::Warm => Self::Warm,
         }
     }
 }
@@ -121,14 +121,14 @@ pub(crate) enum PyResidencyPhase {
     Resident,
 }
 
-impl From<molgfx::ResidencyPhase> for PyResidencyPhase {
-    fn from(value: molgfx::ResidencyPhase) -> Self {
+impl From<molgfx::semantic::ResidencyPhase> for PyResidencyPhase {
+    fn from(value: molgfx::semantic::ResidencyPhase) -> Self {
         match value {
-            molgfx::ResidencyPhase::Absent => Self::Absent,
-            molgfx::ResidencyPhase::Requested => Self::Requested,
-            molgfx::ResidencyPhase::ReadyCpu => Self::ReadyCpu,
-            molgfx::ResidencyPhase::Uploading => Self::Uploading,
-            molgfx::ResidencyPhase::Resident => Self::Resident,
+            molgfx::semantic::ResidencyPhase::Absent => Self::Absent,
+            molgfx::semantic::ResidencyPhase::Requested => Self::Requested,
+            molgfx::semantic::ResidencyPhase::ReadyCpu => Self::ReadyCpu,
+            molgfx::semantic::ResidencyPhase::Uploading => Self::Uploading,
+            molgfx::semantic::ResidencyPhase::Resident => Self::Resident,
         }
     }
 }
@@ -141,7 +141,7 @@ pub(crate) enum PyResidencyFailure {
     BudgetExceeded,
 }
 
-impl From<PyResidencyFailure> for molgfx::FailureReason {
+impl From<PyResidencyFailure> for molgfx::semantic::FailureReason {
     fn from(value: PyResidencyFailure) -> Self {
         match value {
             PyResidencyFailure::Provider => Self::Provider,
@@ -151,25 +151,25 @@ impl From<PyResidencyFailure> for molgfx::FailureReason {
     }
 }
 
-impl From<molgfx::FailureReason> for PyResidencyFailure {
-    fn from(value: molgfx::FailureReason) -> Self {
+impl From<molgfx::semantic::FailureReason> for PyResidencyFailure {
+    fn from(value: molgfx::semantic::FailureReason) -> Self {
         match value {
-            molgfx::FailureReason::Provider => Self::Provider,
-            molgfx::FailureReason::InvalidPayload => Self::InvalidPayload,
-            molgfx::FailureReason::BudgetExceeded => Self::BudgetExceeded,
+            molgfx::semantic::FailureReason::Provider => Self::Provider,
+            molgfx::semantic::FailureReason::InvalidPayload => Self::InvalidPayload,
+            molgfx::semantic::FailureReason::BudgetExceeded => Self::BudgetExceeded,
         }
     }
 }
 
 #[pyclass(name = "ResidencyKey", frozen, eq, from_py_object)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct PyResidencyKey(pub(crate) molgfx::ResidencyKey);
+pub(crate) struct PyResidencyKey(pub(crate) molgfx::semantic::ResidencyKey);
 
 #[pymethods]
 impl PyResidencyKey {
     #[new]
     fn new(dataset: PyDatasetId, chunk: PyChunkId, detail: PyLodLevel) -> Self {
-        Self(molgfx::ResidencyKey {
+        Self(molgfx::semantic::ResidencyKey {
             dataset: dataset.0,
             chunk: chunk.0,
             detail: detail.into(),
@@ -194,7 +194,7 @@ impl PyResidencyKey {
 
 #[pyclass(name = "ResidencyTicket", frozen, eq, from_py_object)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct PyResidencyTicket(pub(crate) molgfx::ResidencyTicket);
+pub(crate) struct PyResidencyTicket(pub(crate) molgfx::semantic::ResidencyTicket);
 
 #[pymethods]
 impl PyResidencyTicket {
@@ -211,7 +211,7 @@ impl PyResidencyTicket {
 
 #[pyclass(name = "ResidencyRequest", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyResidencyRequest(pub(crate) molgfx::ResidencyRequest);
+pub(crate) struct PyResidencyRequest(pub(crate) molgfx::semantic::ResidencyRequest);
 
 #[pymethods]
 impl PyResidencyRequest {
@@ -222,7 +222,7 @@ impl PyResidencyRequest {
         residency_class: PyResidencyClass,
         priority: i32,
     ) -> Self {
-        Self(molgfx::ResidencyRequest {
+        Self(molgfx::semantic::ResidencyRequest {
             key: key.0,
             footprint: footprint.0,
             class: residency_class.into(),
@@ -253,7 +253,7 @@ impl PyResidencyRequest {
 
 #[pyclass(name = "ResidencySnapshot", frozen, skip_from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyResidencySnapshot(pub(crate) molgfx::ResidencySnapshot);
+pub(crate) struct PyResidencySnapshot(pub(crate) molgfx::semantic::ResidencySnapshot);
 
 #[pymethods]
 impl PyResidencySnapshot {
@@ -275,7 +275,7 @@ impl PyResidencySnapshot {
 
 #[pyclass(name = "ResidencyEviction", frozen, skip_from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyResidencyEviction(pub(crate) molgfx::Eviction);
+pub(crate) struct PyResidencyEviction(pub(crate) molgfx::semantic::Eviction);
 
 #[pymethods]
 impl PyResidencyEviction {
@@ -292,7 +292,7 @@ impl PyResidencyEviction {
 
 #[pyclass(name = "StaleCompletion", frozen, skip_from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyStaleCompletion(pub(crate) molgfx::StaleCompletion);
+pub(crate) struct PyStaleCompletion(pub(crate) molgfx::semantic::StaleCompletion);
 
 #[pymethods]
 impl PyStaleCompletion {
@@ -314,7 +314,7 @@ impl PyStaleCompletion {
 
 #[pyclass(name = "DeviceLossReport", frozen, skip_from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyDeviceLossReport(pub(crate) molgfx::DeviceLossReport);
+pub(crate) struct PyDeviceLossReport(pub(crate) molgfx::semantic::DeviceLossReport);
 
 #[pymethods]
 impl PyDeviceLossReport {
@@ -331,7 +331,7 @@ impl PyDeviceLossReport {
 
 #[pyclass(name = "ResidencyOutput", skip_from_py_object)]
 #[derive(Clone, Debug, Default)]
-pub(crate) struct PyResidencyOutput(pub(crate) molgfx::ResidencyOutput);
+pub(crate) struct PyResidencyOutput(pub(crate) molgfx::semantic::ResidencyOutput);
 
 #[pymethods]
 impl PyResidencyOutput {
@@ -393,7 +393,7 @@ impl PyResidencyOutput {
 
 #[pyclass(name = "ResidencyMachine")]
 #[derive(Debug)]
-pub(crate) struct PyResidencyMachine(pub(crate) molgfx::ResidencyMachine);
+pub(crate) struct PyResidencyMachine(pub(crate) molgfx::semantic::ResidencyMachine);
 
 #[pymethods]
 impl PyResidencyMachine {
@@ -402,9 +402,9 @@ impl PyResidencyMachine {
     fn new(budget: Option<PyResidencyBudget>) -> Self {
         let budget = match budget {
             Some(value) => value.0,
-            None => molgfx::ResidencyBudget::default(),
+            None => molgfx::semantic::ResidencyBudget::default(),
         };
-        Self(molgfx::ResidencyMachine::new(budget))
+        Self(molgfx::semantic::ResidencyMachine::new(budget))
     }
 
     #[getter]
