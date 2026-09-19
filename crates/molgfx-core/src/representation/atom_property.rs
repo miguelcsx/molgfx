@@ -140,13 +140,24 @@ impl AtomProperty {
             ));
         }
         self.interpolated.resize(start.len(), 0.0);
-        for ((output, &a), &b) in self.interpolated.iter_mut().zip(start).zip(end) {
-            *output = if a.is_nan() || b.is_nan() {
-                f32::NAN
-            } else {
-                a.mul_add(1.0 - alpha, b * alpha)
-            };
-        }
+        // Fixed block partition above the threshold, identical math per
+        // element either way — the interpolated column is the serial result
+        // byte for byte on any thread count.
+        molgfx_math::map_zip_blocks_into(
+            start,
+            end,
+            &mut self.interpolated,
+            molgfx_math::BLOCK,
+            |start, end, output| {
+                for ((output, &a), &b) in output.iter_mut().zip(start).zip(end) {
+                    *output = if a.is_nan() || b.is_nan() {
+                        f32::NAN
+                    } else {
+                        a.mul_add(1.0 - alpha, b * alpha)
+                    };
+                }
+            },
+        );
         let Some(domain) = finite_domain(&self.interpolated) else {
             return Err(invalid(
                 "property interpolation must contain a finite result",

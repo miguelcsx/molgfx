@@ -2,20 +2,19 @@ use super::*;
 use std::mem::{align_of, offset_of, size_of};
 
 #[test]
-fn an_atom_record_is_exactly_thirty_two_bytes_at_sixteen_byte_alignment() {
-    assert_eq!(size_of::<AtomGpu>(), 32);
-    assert_eq!(align_of::<AtomGpu>(), 16);
+fn an_atom_record_is_exactly_twenty_bytes_at_four_byte_alignment() {
+    assert_eq!(size_of::<AtomGpu>(), 20);
+    assert_eq!(align_of::<AtomGpu>(), 4);
 }
 
 #[test]
 fn atom_record_fields_sit_at_their_contracted_offsets() {
-    assert_eq!(offset_of!(AtomGpu, position), 0);
-    assert_eq!(offset_of!(AtomGpu, radius), 12);
-    assert_eq!(offset_of!(AtomGpu, color), 16);
-    assert_eq!(offset_of!(AtomGpu, element), 20);
-    assert_eq!(offset_of!(AtomGpu, flags), 22);
-    assert_eq!(offset_of!(AtomGpu, entity_id), 24);
-    assert_eq!(offset_of!(AtomGpu, semantic), 28);
+    assert_eq!(offset_of!(AtomGpu, radius), 0);
+    assert_eq!(offset_of!(AtomGpu, color), 4);
+    assert_eq!(offset_of!(AtomGpu, element), 8);
+    assert_eq!(offset_of!(AtomGpu, flags), 10);
+    assert_eq!(offset_of!(AtomGpu, entity_id), 12);
+    assert_eq!(offset_of!(AtomGpu, semantic), 16);
 }
 
 #[test]
@@ -76,7 +75,7 @@ fn indirect_draw_arguments_match_the_sixteen_byte_wire_format() {
 fn a_slice_of_atom_records_casts_to_bytes_and_back() {
     let atoms = vec![AtomGpu::default(); 3];
     let bytes: &[u8] = bytemuck::cast_slice(&atoms);
-    assert_eq!(bytes.len(), 96);
+    assert_eq!(bytes.len(), 60);
     let back: &[AtomGpu] = bytemuck::cast_slice(bytes);
     assert_eq!(back.len(), 3);
 }

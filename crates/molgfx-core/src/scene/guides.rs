@@ -157,7 +157,7 @@ impl Scene {
     }
 
     /// Lowers caller-integrated lines to the existing indirect guide batch.
-    /// Vector-field integration remains an upstream `pdbiox` operation.
+    /// Vector-field integration remains an upstream `molframe` operation.
     ///
     /// # Errors
     ///

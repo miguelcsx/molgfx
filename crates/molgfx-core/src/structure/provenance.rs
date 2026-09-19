@@ -14,8 +14,8 @@ mod tests;
 pub struct EntityProvenance<'a> {
     /// Exact entity written by the GPU id attachment.
     pub entity: EntityRef,
-    /// Structure-level deposition metadata retained by `pdbiox`.
-    pub entry: &'a pdbiox::EntryMetadata,
+    /// Structure-level deposition metadata retained by `molframe`.
+    pub entry: &'a molframe::EntryMetadata,
     /// Kind-specific source record.
     pub detail: ProvenanceDetail<'a>,
 }
@@ -25,12 +25,12 @@ pub struct EntityProvenance<'a> {
 #[non_exhaustive]
 pub enum ProvenanceDetail<'a> {
     /// Original atom row, including names, altloc, occupancy and B factor.
-    Atom(pdbiox::AtomRef<'a>),
+    Atom(molframe::AtomRef<'a>),
     /// Indexed covalent bond and its file/inference/user provenance.
-    Bond(pdbiox::BondRecord),
+    Bond(molframe::BondRecord),
     /// Caller-decoded reactive bond and its current birth/death weight.
     DynamicBond(&'a ActiveTopologyBond),
-    /// Caller- or `pdbiox`-supplied interaction fact.
+    /// Caller- or `molframe`-supplied interaction fact.
     Interaction(&'a InteractionEdge),
     /// Caller-authored analytic guide segment.
     Guide(&'a Guide),
@@ -58,14 +58,14 @@ impl Scene {
             EntityKind::Atom => ProvenanceDetail::Atom(
                 placed
                     .structure
-                    .atom(pdbiox::AtomIndex::new(entity.index))?,
+                    .atom(molframe::AtomIndex::new(entity.index))?,
             ),
             EntityKind::Bond => ProvenanceDetail::Bond(
                 placed
                     .structure
                     .data()
                     .bonds
-                    .get(pdbiox::BondIndex::new(entity.index))?,
+                    .get(molframe::BondIndex::new(entity.index))?,
             ),
             EntityKind::DynamicBond => {
                 ProvenanceDetail::DynamicBond(placed.bond_topology()?.bond(entity.index)?)

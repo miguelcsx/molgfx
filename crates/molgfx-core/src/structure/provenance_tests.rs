@@ -14,7 +14,7 @@ fn atom(owner: crate::StructureHandle, index: u32) -> EntityRef {
 }
 
 #[test]
-fn atoms_and_bonds_resolve_directly_to_pdbiox_source_rows() {
+fn atoms_and_bonds_resolve_directly_to_molframe_source_rows() {
     let structure = crate::fixture::structure();
     let scene = Scene::from_structure(&structure).unwrap_or_else(|error| panic!("{error}"));
     let Some((owner, _)) = scene.structures().next() else {
@@ -56,7 +56,7 @@ fn interactions_annotations_and_measurements_keep_their_source_objects() {
         end,
         InteractionKind::HydrogenBond,
         geometry,
-        "pdbiox:test",
+        "molframe:test",
     )
     .unwrap_or_else(|error| panic!("{error}"));
     let edge = scene
@@ -72,7 +72,7 @@ fn interactions_annotations_and_measurements_keep_their_source_objects() {
     else {
         panic!("interaction provenance resolves")
     };
-    assert_eq!(edge.provenance(), "pdbiox:test");
+    assert_eq!(edge.provenance(), "molframe:test");
 
     let anchor = AnnotationAnchor::entity(Vec3::ZERO, atom(owner, 0))
         .unwrap_or_else(|error| panic!("{error}"));
@@ -126,7 +126,7 @@ fn guides_and_interactions_with_the_same_row_keep_distinct_provenance() {
         end,
         InteractionKind::HydrogenBond,
         geometry,
-        "pdbiox:test",
+        "molframe:test",
     )
     .unwrap_or_else(|error| panic!("{error}"));
     let interaction = scene

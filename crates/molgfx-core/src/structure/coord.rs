@@ -15,15 +15,15 @@ mod tests;
 /// A borrowed view of one model's coordinate column.
 #[derive(Clone, Debug)]
 pub struct CoordRef {
-    structure: pdbiox::Structure,
-    model: pdbiox::ModelIndex,
+    structure: molframe::Structure,
+    model: molframe::ModelIndex,
 }
 
 impl CoordRef {
     /// Borrows the given model's coordinates; `None` when the model does not
     /// exist or stores no dense coordinate block.
     #[must_use]
-    pub fn new(structure: &pdbiox::Structure, model: pdbiox::ModelIndex) -> Option<Self> {
+    pub fn new(structure: &molframe::Structure, model: molframe::ModelIndex) -> Option<Self> {
         structure.model_positions(model)?;
         Some(Self {
             structure: structure.clone(),
@@ -70,7 +70,7 @@ impl CoordRef {
 
     /// Which model this reference reads.
     #[must_use]
-    pub fn model(&self) -> pdbiox::ModelIndex {
+    pub fn model(&self) -> molframe::ModelIndex {
         self.model
     }
 

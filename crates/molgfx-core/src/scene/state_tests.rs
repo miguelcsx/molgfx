@@ -224,10 +224,10 @@ _struct_conn.ptnr1_label_comp_id\n_struct_conn.ptnr1_label_atom_id\n\
 _struct_conn.ptnr2_label_asym_id\n_struct_conn.ptnr2_label_seq_id\n\
 _struct_conn.ptnr2_label_comp_id\n_struct_conn.ptnr2_label_atom_id\n\
 _struct_conn.pdbx_value_order\n1 covale A 1 LIG C1 A 1 LIG C2 SING\n";
-    let structure = match pdbiox::read_bytes(
+    let structure = match molframe::read_bytes(
         source.as_bytes().to_vec(),
         Some("components.cif"),
-        &pdbiox::ReadOptions::default(),
+        &molframe::ReadOptions::default(),
     ) {
         Ok((structure, _)) => structure,
         Err(error) => panic!("component fixture parses: {error:?}"),
@@ -280,10 +280,10 @@ _atom_site.Cartn_z
 ATOM 1 O O HOH A 1 1 0 0 0
 HETATM 2 O O SOL W 2 . 1 0 0
 ";
-    let structure = match pdbiox::read_bytes(
+    let structure = match molframe::read_bytes(
         source.as_bytes().to_vec(),
         Some("water.cif"),
-        &pdbiox::ReadOptions::default(),
+        &molframe::ReadOptions::default(),
     ) {
         Ok((structure, _)) => structure,
         Err(diagnostics) => panic!("water fixture parses: {diagnostics:?}"),
@@ -375,12 +375,12 @@ fn the_world_bound_covers_the_placed_structure() {
 }
 
 #[test]
-fn pdbiox_secondary_structure_replaces_the_reversible_residue_column() {
+fn molframe_secondary_structure_replaces_the_reversible_residue_column() {
     let mut scene = scene();
     let Some((handle, _)) = scene.structures().next() else {
         panic!("fixture structure exists")
     };
-    let records = [(pdbiox::ResidueIndex::new(1), SecondaryStructure::Strand)];
+    let records = [(molframe::ResidueIndex::new(1), SecondaryStructure::Strand)];
     if let Err(error) = scene.apply_secondary_structure(handle, &records) {
         panic!("secondary structure applies: {error}")
     }

@@ -3,7 +3,7 @@ use crate::fixture;
 
 fn table() -> AtomTable {
     let structure = fixture::structure();
-    let Some(table) = AtomTable::from_structure(&structure, pdbiox::ModelIndex::new(0)) else {
+    let Some(table) = AtomTable::from_structure(&structure, molframe::ModelIndex::new(0)) else {
         panic!("fixture materializes")
     };
     table
@@ -46,7 +46,7 @@ fn residue_membership_follows_the_hierarchy() {
 #[test]
 fn coordinates_stay_borrowed_while_columns_are_owned() {
     let structure = fixture::structure();
-    let Some(t) = AtomTable::from_structure(&structure, pdbiox::ModelIndex::new(0)) else {
+    let Some(t) = AtomTable::from_structure(&structure, molframe::ModelIndex::new(0)) else {
         panic!("fixture materializes")
     };
     assert_eq!(t.coords().slice().as_ptr(), structure.positions().as_ptr());

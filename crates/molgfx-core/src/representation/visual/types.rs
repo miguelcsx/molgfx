@@ -443,7 +443,7 @@ impl Instruction {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub struct ProgramOutputs {
+pub(crate) struct ProgramOutputs {
     pub(crate) registers: [u8; 11],
     pub(crate) present: u16,
 }

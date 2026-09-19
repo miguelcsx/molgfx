@@ -142,7 +142,7 @@ pub struct StructureDescription {
     pub generation: u32,
     /// Caller-owned global dataset identity.
     pub dataset_id: u64,
-    /// `pdbiox` entry id, when the source carries one.
+    /// `molframe` entry id, when the source carries one.
     pub source_id: Option<String>,
     /// Source title, when available.
     pub title: Option<String>,
@@ -156,7 +156,7 @@ pub struct StructureDescription {
     pub coordinate_hash: u64,
     /// Column-major model-to-world transform.
     pub model_to_world: [f32; 16],
-    /// Caller- or `pdbiox`-supplied residue classifications.
+    /// Caller- or `molframe`-supplied residue classifications.
     pub secondary_structure: Vec<String>,
 }
 

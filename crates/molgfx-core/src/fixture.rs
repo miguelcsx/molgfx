@@ -46,9 +46,9 @@ _struct_conn.pdbx_value_order
 ";
 
 /// Parses the fixture; panics with the diagnostics on failure (tests only).
-pub fn structure() -> pdbiox::Structure {
-    let options = pdbiox::ReadOptions::new();
-    match pdbiox::read_bytes(
+pub(crate) fn structure() -> molframe::Structure {
+    let options = molframe::ReadOptions::new();
+    match molframe::read_bytes(
         FIXTURE_CIF.as_bytes().to_vec(),
         Some("fixture.cif"),
         &options,

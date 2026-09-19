@@ -32,13 +32,17 @@ fn placements_share_atom_hierarchy_and_bvh_allocations() {
     assert_eq!(Arc::strong_count(&first.atoms), 3);
     assert_eq!(Arc::strong_count(&first.hierarchy), 3);
     assert!(!first.spatial_bvh_is_ready());
-    let first_bvh = first
-        .spatial_bvh()
-        .unwrap_or_else(|error| panic!("{error}")) as *const _;
+    let first_bvh = std::ptr::from_ref(
+        first
+            .spatial_bvh()
+            .unwrap_or_else(|error| panic!("{error}")),
+    );
     assert!(second.spatial_bvh_is_ready());
-    let second_bvh = second
-        .spatial_bvh()
-        .unwrap_or_else(|error| panic!("{error}")) as *const _;
+    let second_bvh = std::ptr::from_ref(
+        second
+            .spatial_bvh()
+            .unwrap_or_else(|error| panic!("{error}")),
+    );
     assert_eq!(first_bvh, second_bvh);
 }
 
@@ -52,7 +56,7 @@ fn mutable_secondary_structure_remains_placement_local() {
     let second = scene.add_asset(&asset);
     if let Err(error) = scene.apply_secondary_structure(
         first,
-        &[(pdbiox::ResidueIndex::new(0), SecondaryStructure::Helix)],
+        &[(molframe::ResidueIndex::new(0), SecondaryStructure::Helix)],
     ) {
         panic!("secondary structure applies: {error}");
     }

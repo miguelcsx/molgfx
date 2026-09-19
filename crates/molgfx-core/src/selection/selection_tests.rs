@@ -19,7 +19,7 @@ fn sorted_unique(indices: Vec<u32>) -> Vec<u32> {
 /// Builds every encoding of the same logical index set.
 fn encodings(indices: &[u32]) -> Vec<AtomSelection> {
     let sparse = AtomSelection::Sparse(indices.to_vec());
-    let mut dense_bits = pdbiox::BitVec::repeat(false, TABLE);
+    let mut dense_bits = molframe::BitVec::repeat(false, TABLE);
     for &i in indices {
         dense_bits.set(i, true);
     }

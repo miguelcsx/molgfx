@@ -1,7 +1,7 @@
 //! Caller-supplied molecular interactions and their deterministic glyph style.
 //!
 //! Detection, geometric classification and trajectory aggregation belong to
-//! `pdbiox` or the caller. The render engine validates those facts and maps
+//! `molframe` or the caller. The render engine validates those facts and maps
 //! them to a stable visual vocabulary; it never infers chemistry here.
 
 #[cfg(test)]

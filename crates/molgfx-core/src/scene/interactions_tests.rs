@@ -1,6 +1,6 @@
 use crate::{
-    fixture, EntityKind, EntityRef, InteractionAnchor, InteractionEdge, InteractionGeometry,
-    InteractionKind, Scene,
+    EntityKind, EntityRef, InteractionAnchor, InteractionEdge, InteractionGeometry,
+    InteractionKind, Scene, fixture,
 };
 use molgfx_math::Vec3;
 

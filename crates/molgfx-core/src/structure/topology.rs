@@ -234,7 +234,7 @@ impl BondTopologySegment {
                 (None, None) => 0.0,
             };
             let bond = match (transition.start, transition.end) {
-                (Some(start), Some(end)) if alpha >= 0.5 => end,
+                (Some(_), Some(end)) if alpha >= 0.5 => end,
                 (Some(start), _) => start,
                 (None, Some(end)) => end,
                 (None, None) => transition.active.bond,

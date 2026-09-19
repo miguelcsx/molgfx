@@ -57,7 +57,7 @@ impl Scene {
                     molgfx_math::Rgba8::opaque(68, 1, 84),
                     molgfx_math::Rgba8::opaque(253, 231, 37),
                 );
-                value.params.isolevel = (range[0] + range[1]) * 0.5;
+                value.params.isolevel = range[0].midpoint(range[1]);
             }
         }
         self.representation_revision = self.representation_revision.wrapping_add(1);

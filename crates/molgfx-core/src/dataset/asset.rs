@@ -5,14 +5,14 @@
 //! coordinates, hierarchy offsets or derived atom columns.
 
 use crate::{AtomTable, Column, DatasetError, DatasetId, Hierarchy, SecondaryStructure};
+use molframe::ModelIndex;
 use molgfx_math::{Aabb, Bvh, Mat4, SphereBounds};
-use pdbiox::ModelIndex;
 use std::sync::{Arc, OnceLock};
 
 #[derive(Debug)]
 struct StructureAssetData {
     dataset: DatasetId,
-    structure: pdbiox::Structure,
+    structure: molframe::Structure,
     atoms: Arc<AtomTable>,
     hierarchy: Arc<Hierarchy>,
     spatial_bvh: OnceLock<Result<Bvh, molgfx_math::BvhBuildError>>,
@@ -33,7 +33,7 @@ impl StructureAsset {
     ///
     /// Returns a typed error when model zero has no dense coordinates or its
     /// atom count cannot fit the chunk-local `u32` address space.
-    pub fn new(dataset: DatasetId, structure: &pdbiox::Structure) -> Result<Self, DatasetError> {
+    pub fn new(dataset: DatasetId, structure: &molframe::Structure) -> Result<Self, DatasetError> {
         Self::for_model(dataset, structure, ModelIndex::new(0))
     }
 
@@ -45,7 +45,7 @@ impl StructureAsset {
     /// atom count cannot fit the chunk-local `u32` address space.
     pub fn for_model(
         dataset: DatasetId,
-        structure: &pdbiox::Structure,
+        structure: &molframe::Structure,
         model: ModelIndex,
     ) -> Result<Self, DatasetError> {
         let Some(coords) = crate::CoordRef::new(structure, model) else {
@@ -82,7 +82,7 @@ impl StructureAsset {
 
     /// Shared parser-owned structure retained for zero-copy coordinates.
     #[must_use]
-    pub fn structure(&self) -> &pdbiox::Structure {
+    pub fn structure(&self) -> &molframe::Structure {
         &self.data.structure
     }
 
@@ -153,7 +153,7 @@ impl StructureAsset {
     }
 }
 
-fn validate_topology_counts(structure: &pdbiox::Structure) -> Result<(), DatasetError> {
+fn validate_topology_counts(structure: &molframe::Structure) -> Result<(), DatasetError> {
     let topology = &structure.data().topology;
     checked_topology_count(topology.models.len(), "model")?;
     checked_topology_count(topology.chains.len(), "chain")?;

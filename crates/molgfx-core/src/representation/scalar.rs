@@ -104,7 +104,7 @@ impl ScalarRamp {
     pub fn sequential(domain: [f32; 2]) -> Self {
         let [low, high] = finite_domain(domain);
         Self {
-            values: [low, (low + high) * 0.5, high],
+            values: [low, low.midpoint(high), high],
             colors: [
                 Rgba8::opaque(68, 1, 84),
                 Rgba8::opaque(33, 145, 140),

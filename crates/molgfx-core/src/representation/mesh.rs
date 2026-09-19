@@ -165,7 +165,7 @@ impl Mesh {
         })
     }
 
-    /// Converts a `pdbiox` indexed surface into renderable triangles.
+    /// Converts a `molframe` indexed surface into renderable triangles.
     ///
     /// # Errors
     ///
@@ -173,7 +173,7 @@ impl Mesh {
     /// provider mesh that violates the portable mesh contract.
     pub fn from_surface(
         owner: StructureHandle,
-        surface: &pdbiox::surface::IndexedSurfaceMesh,
+        surface: &molframe::surface::IndexedSurfaceMesh,
         color: Rgba8,
         material: Material,
         policy: SurfaceComponentPolicy,
@@ -194,9 +194,9 @@ impl Mesh {
             .map_err(|_| CoreError::InvalidMesh {
                 reason: "surface component maximum exceeds the host index range",
             })?;
-        let filtered = pdbiox::surface::filter_surface_components(
+        let filtered = molframe::surface::filter_surface_components(
             surface,
-            pdbiox::surface::SurfaceComponentFilter {
+            molframe::surface::SurfaceComponentFilter {
                 minimum_area,
                 maximum_components,
             },

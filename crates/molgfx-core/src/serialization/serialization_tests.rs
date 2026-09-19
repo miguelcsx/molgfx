@@ -289,7 +289,7 @@ fn manifest_round_trips_primitive_and_annotation_payloads() {
     assert_eq!(rebuilt.describe(), *description);
 }
 
-fn manifest_fixture_scene() -> (Scene, pdbiox::Structure) {
+fn manifest_fixture_scene() -> (Scene, molframe::Structure) {
     let structure = crate::fixture::structure();
     match Scene::from_structure(&structure) {
         Ok(scene) => (scene, structure),

@@ -51,6 +51,7 @@ pub struct Scene {
     pub(crate) instance_batches: SlotMap<crate::structure::InstanceBatch>,
     pub(crate) relation_batches: SlotMap<crate::representation::RelationBatch>,
     pub(crate) attributes: SlotMap<StoredAttribute>,
+    pub(crate) ensembles: SlotMap<crate::Ensemble>,
     pub(crate) domain_visuals:
         std::collections::BTreeMap<crate::RowDomain, crate::VisualDescriptor>,
     pub(crate) instance_timeline:
@@ -84,6 +85,8 @@ pub struct Scene {
     pub(crate) attribute_revision: u64,
     /// Bumped when a generic domain visual or its parameters change.
     pub(crate) domain_visual_revision: u64,
+    /// Bumped whenever weighted ensemble membership changes.
+    pub(crate) ensemble_revision: u64,
     /// Caller-controlled global presentation clock consumed by visual programs.
     pub(crate) presentation_time_seconds: f32,
     pub(crate) presentation_revision: u64,
@@ -206,7 +209,7 @@ impl Scene {
     /// # Errors
     ///
     /// Fails when the structure carries no dense coordinate block to borrow.
-    pub fn from_structure(structure: &pdbiox::Structure) -> Result<Self, CoreError> {
+    pub fn from_structure(structure: &molframe::Structure) -> Result<Self, CoreError> {
         let asset = StructureAsset::new(DatasetId::LEGACY, structure)
             .map_err(|error| structure_asset_error(&error))?;
         Ok(Self::from_asset(&asset))
@@ -227,7 +230,7 @@ impl Scene {
     /// Fails when the structure carries no dense coordinate block to borrow.
     pub fn add_structure(
         &mut self,
-        structure: &pdbiox::Structure,
+        structure: &molframe::Structure,
     ) -> Result<StructureHandle, CoreError> {
         let asset = StructureAsset::new(DatasetId::LEGACY, structure)
             .map_err(|error| structure_asset_error(&error))?;
@@ -263,7 +266,7 @@ impl Scene {
     }
 
     /// Replaces the residue secondary-structure column from caller- or
-    /// `pdbiox`-supplied assignments. Unmentioned residues become coil;
+    /// `molframe`-supplied assignments. Unmentioned residues become coil;
     /// out-of-range records are ignored.
     ///
     /// # Errors
@@ -272,7 +275,7 @@ impl Scene {
     pub fn apply_secondary_structure(
         &mut self,
         handle: StructureHandle,
-        records: &[(pdbiox::ResidueIndex, crate::SecondaryStructure)],
+        records: &[(molframe::ResidueIndex, crate::SecondaryStructure)],
     ) -> Result<(), CoreError> {
         let placed = self.structure_mut(handle).ok_or(CoreError::StaleHandle)?;
         let values = placed.secondary_structure.values_mut();

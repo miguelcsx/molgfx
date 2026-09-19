@@ -25,5 +25,4 @@ pub use types::{
 pub(crate) use types::{Expr, Instruction, Opcode, Parameter, ProgramOutputs, ValueKind};
 
 #[cfg(test)]
-#[path = "../visual_tests.rs"]
 mod tests;
