@@ -6,7 +6,10 @@ build-backend = "maturin"
 name = "molgfx"
 version = "0.1.0"
 requires-python = ">=3.10"
-dependencies = ["numpy>=2", "pdbiox>=0.1"]
+dependencies = ["numpy>=2"]
+
+[project.optional-dependencies]
+jupyter = ["anywidget>=0.9"]
 
 [tool.maturin]
 manifest-path = "crates/molgfx-py/Cargo.toml"
