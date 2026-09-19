@@ -20,7 +20,7 @@
 //!
 //! Every parallel branch schedules onto Rayon's process-wide registry. No
 //! scene, renderer or language binding constructs a private pool, so molgfx,
-//! pdbiox and independent Python `Engine` objects share the same Rust workers
+//! molframe and independent Python `Engine` objects share the same Rust workers
 //! instead of multiplying thread counts and scratch memory.
 
 use rayon::prelude::*;
@@ -76,6 +76,37 @@ where
     src.par_chunks(BLOCK)
         .zip(dst.par_chunks_mut(BLOCK))
         .for_each(|(source, target)| f(source, target));
+}
+
+/// Writes `dst` from two aligned sources block-wise, in parallel above
+/// `min_len`.
+///
+/// The two sources are visited in index-aligned blocks, so `f` sees the same
+/// element triplets as the serial form and the result is identical to it byte
+/// for byte.
+pub fn map_zip_blocks_into<T, U, V, F>(a: &[T], b: &[U], dst: &mut [V], min_len: usize, f: F)
+where
+    T: Sync,
+    U: Sync,
+    V: Send,
+    F: Fn(&[T], &[U], &mut [V]) + Send + Sync,
+{
+    let len = a.len().min(b.len()).min(dst.len());
+    let (a, b, dst) = (&a[..len], &b[..len], &mut dst[..len]);
+    if len < min_len {
+        for ((source, other), target) in a
+            .chunks(BLOCK)
+            .zip(b.chunks(BLOCK))
+            .zip(dst.chunks_mut(BLOCK))
+        {
+            f(source, other, target);
+        }
+        return;
+    }
+    a.par_chunks(BLOCK)
+        .zip(b.par_chunks(BLOCK))
+        .zip(dst.par_chunks_mut(BLOCK))
+        .for_each(|((source, other), target)| f(source, other, target));
 }
 
 /// Reduces `slice` with a fixed block partition and an in-order combine.
