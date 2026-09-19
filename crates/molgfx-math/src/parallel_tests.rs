@@ -8,7 +8,9 @@
 //! truncate.
 #![allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 
-use super::{BLOCK, all_blocks, for_each_block, map_blocks_into, reduce_blocks};
+use super::{
+    BLOCK, all_blocks, for_each_block, map_blocks_into, map_zip_blocks_into, reduce_blocks,
+};
 
 fn pool(threads: usize) -> rayon::ThreadPool {
     match rayon::ThreadPoolBuilder::new().num_threads(threads).build() {
@@ -92,6 +94,30 @@ fn a_block_map_truncates_to_the_shorter_of_its_two_slices() {
         target.copy_from_slice(source);
     });
     assert_eq!(dst, vec![0, 1, 2, 3]);
+}
+
+#[test]
+fn a_zipped_block_map_matches_the_serial_form_at_every_thread_count() {
+    for len in [0usize, 1, BLOCK - 1, BLOCK, BLOCK * 2 + 9] {
+        let left: Vec<f32> = (0..len as u32).map(|v| v as f32).collect();
+        let right: Vec<f32> = (0..len as u32).map(|v| v as f32).collect();
+        let expected: Vec<f32> = left
+            .iter()
+            .zip(&right)
+            .map(|(&a, &b)| a.mul_add(2.0, b))
+            .collect();
+        let mut dst = vec![0.0f32; len];
+        pool(8).install(|| {
+            map_zip_blocks_into(&left, &right, &mut dst, 0, |a, b, output| {
+                for ((slot, &x), &y) in output.iter_mut().zip(a).zip(b) {
+                    *slot = x.mul_add(2.0, y);
+                }
+            });
+        });
+        for (got, want) in dst.iter().zip(&expected) {
+            assert_eq!(got.to_bits(), want.to_bits(), "length {len}");
+        }
+    }
 }
 
 #[test]

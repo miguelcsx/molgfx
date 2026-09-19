@@ -29,5 +29,6 @@ pub use curves::{
     CurveSample, TransportFrame, parallel_transport, sample_catmull_rom,
     sample_catmull_rom_demanding, sample_catmull_rom_fixed, sample_cubic_bezier,
 };
+pub use parallel::{BLOCK, map_zip_blocks_into};
 pub use quantize::{round_u8, truncate_u16, unit_to_grid, unorm8};
 pub use types::{Mat3, Mat4, Quat, Rgba8, Vec2, Vec3, Vec4};
