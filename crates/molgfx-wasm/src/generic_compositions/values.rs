@@ -2,13 +2,16 @@
 
 use wasm_bindgen::prelude::*;
 
-pub(super) fn scalar_ramp(values: &[f32], colors: &[u8]) -> Result<molgfx::ScalarRamp, JsValue> {
+pub(super) fn scalar_ramp(
+    values: &[f32],
+    colors: &[u8],
+) -> Result<molgfx::core::ScalarRamp, JsValue> {
     if values.len() != 3 || colors.len() != 12 {
         return Err(JsValue::from_str(
             "rampValues must have 3 floats and rampRgba 12 bytes",
         ));
     }
-    molgfx::ScalarRamp::new(
+    molgfx::core::ScalarRamp::new(
         [values[0], values[1], values[2]],
         [
             rgba8(&colors[0..4])?,
@@ -19,9 +22,9 @@ pub(super) fn scalar_ramp(values: &[f32], colors: &[u8]) -> Result<molgfx::Scala
     .map_err(js_error)
 }
 
-pub(super) fn rgba8(value: &[u8]) -> Result<molgfx::Rgba8, JsValue> {
+pub(super) fn rgba8(value: &[u8]) -> Result<molgfx::math::Rgba8, JsValue> {
     if let [red, green, blue, alpha] = value {
-        Ok(molgfx::Rgba8::new(*red, *green, *blue, *alpha))
+        Ok(molgfx::math::Rgba8::new(*red, *green, *blue, *alpha))
     } else {
         Err(JsValue::from_str("RGBA must contain exactly four bytes"))
     }

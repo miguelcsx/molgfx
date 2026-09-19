@@ -1,8 +1,8 @@
 //! Point and rigid-instance insertion from contiguous arrays.
 
 use super::{
-    values::{core_error, js_value, ordered_rows, rgba8, vec3_rows},
     WebAnalyticTemplate, WebInstanceBatchHandle, WebPointBatchHandle,
+    values::{core_error, js_value, ordered_rows, rgba8, vec3_rows},
 };
 use crate::browser::WebScene;
 use std::sync::Arc;
@@ -29,15 +29,15 @@ impl WebScene {
         let rows = ordered_rows(namespace, positions.len())?;
         let color = rgba8(&rgba)?;
         let glyph = if sphere {
-            molgfx::PointGlyph::Sphere
+            molgfx::core::PointGlyph::Sphere
         } else {
-            molgfx::PointGlyph::Disc
+            molgfx::core::PointGlyph::Disc
         };
-        let batch = molgfx::PointBatch::new(
+        let batch = molgfx::core::PointBatch::new(
             Arc::from(positions),
             rows,
             glyph,
-            molgfx::PointStyle { radius, color },
+            molgfx::core::PointStyle { radius, color },
         )
         .map_err(core_error)?;
         Ok(WebPointBatchHandle {
@@ -73,13 +73,13 @@ impl WebScene {
             let xyz = row * 3;
             let xyzw = row * 4;
             transforms.push(
-                molgfx::RigidInstance::new(
-                    molgfx::Vec3::new(
+                molgfx::core::RigidInstance::new(
+                    molgfx::math::Vec3::new(
                         translations[xyz],
                         translations[xyz + 1],
                         translations[xyz + 2],
                     ),
-                    molgfx::Quat::from_array([
+                    molgfx::math::Quat::from_array([
                         orientations[xyzw],
                         orientations[xyzw + 1],
                         orientations[xyzw + 2],
@@ -91,12 +91,15 @@ impl WebScene {
             );
         }
         let rows = ordered_rows(namespace, transforms.len())?;
-        let batch =
-            molgfx::InstanceBatch::new(Arc::clone(&template.inner), Arc::from(transforms), rows)
-                .map_err(core_error)?
-                .with_style(molgfx::InstanceStyle {
-                    color: rgba8(&rgba)?,
-                });
+        let batch = molgfx::core::InstanceBatch::new(
+            Arc::clone(&template.inner),
+            Arc::from(transforms),
+            rows,
+        )
+        .map_err(core_error)?
+        .with_style(molgfx::core::InstanceStyle {
+            color: rgba8(&rgba)?,
+        });
         Ok(WebInstanceBatchHandle {
             inner: self.inner.add_instance_batch(batch),
         })

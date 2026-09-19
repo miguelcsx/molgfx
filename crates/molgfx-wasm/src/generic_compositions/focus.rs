@@ -21,13 +21,13 @@ impl WebScene {
         focus_opacity: f32,
         order: i32,
     ) -> Result<WebGenericCompositionView, JsValue> {
-        molgfx::GenericCompositionScene::compose_focus(
+        molgfx::semantic::GenericCompositionScene::compose_focus(
             &mut self.inner,
-            molgfx::FocusLayer {
+            molgfx::semantic::FocusLayer {
                 domain: domain.inner,
                 emphasis: emphasis.inner,
             },
-            molgfx::FocusCompositionStyle {
+            molgfx::semantic::FocusCompositionStyle {
                 context_opacity,
                 focus_opacity,
                 order,

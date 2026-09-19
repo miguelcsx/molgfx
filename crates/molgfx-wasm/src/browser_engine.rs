@@ -7,8 +7,9 @@ use crate::browser_types::{
     WebResolutionPolicy,
 };
 use molgfx::{
-    DerivedCacheBudget, Engine, EngineConfig, FrameStatus, ImageConfig, ResidencyBudget,
-    ResidencyConfig, UploadRingConfig,
+    ResidencyBudget,
+    gpu::UploadRingConfig,
+    render::{DerivedCacheBudget, Engine, EngineConfig, FrameStatus, ImageConfig, ResidencyConfig},
 };
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlCanvasElement;
@@ -346,7 +347,7 @@ fn scaled_extent(value: u32, scale: f64) -> u32 {
         .clamp(1.0, f64::from(u32::MAX)) as u32
 }
 
-fn render_error(error: &molgfx::RenderError) -> JsValue {
+fn render_error(error: &molgfx::render::RenderError) -> JsValue {
     web_error(error.code(), &error.to_string())
 }
 

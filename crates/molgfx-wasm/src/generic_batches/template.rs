@@ -8,7 +8,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct WebAnalyticTemplate {
-    pub(super) inner: Arc<molgfx::AnalyticTemplate>,
+    pub(super) inner: Arc<molgfx::core::AnalyticTemplate>,
 }
 
 #[wasm_bindgen]
@@ -33,7 +33,7 @@ impl WebAnalyticTemplate {
         }
         let spheres = spheres
             .chunks_exact(4)
-            .map(|row| molgfx::AnalyticSphere {
+            .map(|row| molgfx::core::AnalyticSphere {
                 center: [row[0], row[1], row[2]],
                 radius: row[3],
             })
@@ -41,9 +41,9 @@ impl WebAnalyticTemplate {
         let mut packed_capsules = Vec::with_capacity(capsules.len() / 7);
         for row in capsules.chunks_exact(7) {
             packed_capsules.push(
-                molgfx::AnalyticCapsule::new(
-                    molgfx::Vec3::new(row[0], row[1], row[2]),
-                    molgfx::Vec3::new(row[3], row[4], row[5]),
+                molgfx::core::AnalyticCapsule::new(
+                    molgfx::math::Vec3::new(row[0], row[1], row[2]),
+                    molgfx::math::Vec3::new(row[3], row[4], row[5]),
                     row[6],
                 )
                 .map_err(core_error)?,
@@ -53,9 +53,12 @@ impl WebAnalyticTemplate {
             namespace,
             spheres.len().saturating_add(packed_capsules.len()),
         )?;
-        let inner =
-            molgfx::AnalyticTemplate::new(Arc::from(spheres), Arc::from(packed_capsules), rows)
-                .map_err(core_error)?;
+        let inner = molgfx::core::AnalyticTemplate::new(
+            Arc::from(spheres),
+            Arc::from(packed_capsules),
+            rows,
+        )
+        .map_err(core_error)?;
         Ok(Self {
             inner: Arc::new(inner),
         })

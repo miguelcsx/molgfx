@@ -13,7 +13,10 @@ pub use crate::browser_types::{
     WebCapabilities, WebEngineConfig, WebLifecycleState, WebPick, WebPickKind, WebPowerPreference,
     WebProfile, WebRenderMode, WebResolutionPolicy,
 };
-use molgfx::{Camera, ColorScheme, Representation, RepresentationConfig, Rgba8, Scene};
+use molgfx::{
+    core::{ColorScheme, Representation, RepresentationConfig, Scene},
+    math::{Camera, Rgba8},
+};
 use wasm_bindgen::prelude::*;
 
 use crate::browser_secondary::parse_structure;
@@ -197,7 +200,7 @@ impl WebRepresentation {
 #[wasm_bindgen]
 #[derive(Debug)]
 pub struct WebScene {
-    sources: Vec<pdbiox::Structure>,
+    sources: Vec<molframe::Structure>,
     pub(crate) inner: Scene,
 }
 
@@ -212,7 +215,7 @@ impl WebScene {
         }
     }
 
-    /// Copies caller-supplied bytes once, parses through `pdbiox`, and creates a scene.
+    /// Copies caller-supplied bytes once, parses through `molframe`, and creates a scene.
     ///
     /// # Errors
     ///
@@ -283,6 +286,6 @@ impl WebScene {
     }
 }
 
-fn js_error(prefix: &str, diagnostics: &[pdbiox::Diagnostic]) -> JsValue {
+fn js_error(prefix: &str, diagnostics: &[molframe::Diagnostic]) -> JsValue {
     JsValue::from_str(&format!("{prefix}: {diagnostics:?}"))
 }

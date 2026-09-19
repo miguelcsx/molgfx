@@ -9,8 +9,8 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct WebDifferenceComposition {
-    layers: Vec<molgfx::DifferenceLayer>,
-    style: molgfx::DifferenceCompositionStyle,
+    layers: Vec<molgfx::semantic::DifferenceLayer>,
+    style: molgfx::semantic::DifferenceCompositionStyle,
 }
 
 #[wasm_bindgen]
@@ -33,7 +33,7 @@ impl WebDifferenceComposition {
         let ramp = values::scalar_ramp(&ramp_values, &ramp_rgba)?;
         Ok(Self {
             layers: Vec::new(),
-            style: molgfx::DifferenceCompositionStyle {
+            style: molgfx::semantic::DifferenceCompositionStyle {
                 context_threshold,
                 emphasis_threshold,
                 context_opacity,
@@ -46,7 +46,7 @@ impl WebDifferenceComposition {
     /// Appends one domain/attribute pair; this is composition metadata, not per-row data.
     #[wasm_bindgen(js_name = addLayer)]
     pub fn add_layer(&mut self, domain: &WebRowDomain, delta: &WebAttributeHandle) {
-        self.layers.push(molgfx::DifferenceLayer {
+        self.layers.push(molgfx::semantic::DifferenceLayer {
             domain: domain.inner,
             delta: delta.inner,
         });
@@ -58,7 +58,7 @@ impl WebDifferenceComposition {
     ///
     /// Returns a JavaScript error for stale domains or invalid visual metadata.
     pub fn apply(&self, scene: &mut WebScene) -> Result<WebGenericCompositionView, JsValue> {
-        molgfx::GenericCompositionScene::compose_difference(
+        molgfx::semantic::GenericCompositionScene::compose_difference(
             &mut scene.inner,
             &self.layers,
             self.style,

@@ -26,7 +26,7 @@ impl WebScene {
             self,
             domain,
             name,
-            molgfx::AttributeValues::Scalar(Arc::from(values)),
+            molgfx::core::AttributeValues::Scalar(Arc::from(values)),
         )
     }
 
@@ -46,7 +46,7 @@ impl WebScene {
             self,
             domain,
             name,
-            molgfx::AttributeValues::Category(Arc::from(values)),
+            molgfx::core::AttributeValues::Category(Arc::from(values)),
         )
     }
 
@@ -67,7 +67,7 @@ impl WebScene {
             self,
             domain,
             name,
-            molgfx::AttributeValues::Vector(Arc::from(values)),
+            molgfx::core::AttributeValues::Vector(Arc::from(values)),
         )
     }
 
@@ -89,13 +89,13 @@ impl WebScene {
         }
         let values = values
             .chunks_exact(4)
-            .map(|row| molgfx::Rgba8::new(row[0], row[1], row[2], row[3]))
+            .map(|row| molgfx::math::Rgba8::new(row[0], row[1], row[2], row[3]))
             .collect::<Vec<_>>();
         add_attribute(
             self,
             domain,
             name,
-            molgfx::AttributeValues::Color(Arc::from(values)),
+            molgfx::core::AttributeValues::Color(Arc::from(values)),
         )
     }
 
@@ -127,9 +127,10 @@ fn add_attribute(
     scene: &mut WebScene,
     domain: &WebRowDomain,
     name: String,
-    values: molgfx::AttributeValues,
+    values: molgfx::core::AttributeValues,
 ) -> Result<WebAttributeHandle, JsValue> {
-    let column = molgfx::AttributeColumn::new(domain.inner, name, values).map_err(core_error)?;
+    let column =
+        molgfx::core::AttributeColumn::new(domain.inner, name, values).map_err(core_error)?;
     Ok(WebAttributeHandle {
         inner: scene.inner.add_attribute(column).map_err(core_error)?,
     })

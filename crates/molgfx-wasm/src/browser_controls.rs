@@ -1,6 +1,6 @@
 //! Thin abstract-input adapters over the shared Rust camera controllers.
 
-use molgfx::{ArcballController, Button, FlyController, InputEvent, Key, OrbitController};
+use molgfx::core::{ArcballController, Button, FlyController, InputEvent, Key, OrbitController};
 use wasm_bindgen::prelude::*;
 
 use crate::browser_camera::WebCamera;

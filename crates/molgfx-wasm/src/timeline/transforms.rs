@@ -7,7 +7,7 @@ pub(super) fn rigid_rows(
     translations: &[f32],
     orientations: &[f32],
     scales: Vec<f32>,
-) -> Result<Vec<molgfx::RigidInstance>, JsValue> {
+) -> Result<Vec<molgfx::core::RigidInstance>, JsValue> {
     if !translations.len().is_multiple_of(3)
         || !orientations.len().is_multiple_of(4)
         || translations.len() / 3 != orientations.len() / 4
@@ -22,13 +22,13 @@ pub(super) fn rigid_rows(
         let xyz = row * 3;
         let xyzw = row * 4;
         rows.push(
-            molgfx::RigidInstance::new(
-                molgfx::Vec3::new(
+            molgfx::core::RigidInstance::new(
+                molgfx::math::Vec3::new(
                     translations[xyz],
                     translations[xyz + 1],
                     translations[xyz + 2],
                 ),
-                molgfx::Quat::from_array([
+                molgfx::math::Quat::from_array([
                     orientations[xyzw],
                     orientations[xyzw + 1],
                     orientations[xyzw + 2],

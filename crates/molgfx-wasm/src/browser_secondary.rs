@@ -1,26 +1,26 @@
 //! Deposited mmCIF secondary structure retained during the browser read.
 
-use molgfx::SecondaryStructure;
+use molgfx::core::SecondaryStructure;
 
 pub(crate) struct ParsedStructure {
-    pub(crate) structure: pdbiox::Structure,
-    pub(crate) secondary_structure: Vec<(pdbiox::ResidueIndex, SecondaryStructure)>,
+    pub(crate) structure: molframe::Structure,
+    pub(crate) secondary_structure: Vec<(molframe::ResidueIndex, SecondaryStructure)>,
 }
 
 pub(crate) fn parse_structure(
     bytes: Vec<u8>,
     name: Option<String>,
-) -> Result<ParsedStructure, Vec<pdbiox::Diagnostic>> {
-    let options = pdbiox::ReadOptions::new();
+) -> Result<ParsedStructure, Vec<molframe::Diagnostic>> {
+    let options = molframe::ReadOptions::new();
     let name = name.map(String::into_boxed_str);
     if !looks_like_mmcif(&bytes, name.as_deref()) {
-        return pdbiox::read_bytes(bytes, name.as_deref(), &options)
+        return molframe::read_bytes(bytes, name.as_deref(), &options)
             .and_then(|(structure, _)| finish_structure(&structure, Vec::new()));
     }
 
-    let input = pdbiox::InputBuffer::from_bytes(bytes);
+    let input = molframe::InputBuffer::from_bytes(bytes);
     let (document, structure, _) =
-        pdbiox::cif::read_with_metadata(&input, &options, keep_secondary_category)?;
+        molframe::cif::read_with_metadata(&input, &options, keep_secondary_category)?;
     let secondary_structure = document
         .first_block()
         .map_or_else(Vec::new, |block| deposited_records(block, &structure));
@@ -28,13 +28,13 @@ pub(crate) fn parse_structure(
 }
 
 fn finish_structure(
-    structure: &pdbiox::Structure,
-    secondary_structure: Vec<(pdbiox::ResidueIndex, SecondaryStructure)>,
-) -> Result<ParsedStructure, Vec<pdbiox::Diagnostic>> {
-    let bonded = pdbiox::infer_bonds(
+    structure: &molframe::Structure,
+    secondary_structure: Vec<(molframe::ResidueIndex, SecondaryStructure)>,
+) -> Result<ParsedStructure, Vec<molframe::Diagnostic>> {
+    let bonded = molframe::infer_bonds(
         structure,
-        pdbiox::BondInference::default(),
-        &pdbiox::ExecutionContext::default(),
+        molframe::BondInference::default(),
+        &molframe::ExecutionContext::default(),
     )
     .map_err(|diagnostic| vec![diagnostic])?;
     Ok(ParsedStructure {
@@ -63,9 +63,9 @@ fn keep_secondary_category(name: &str) -> bool {
 }
 
 fn deposited_records(
-    block: &pdbiox::cif::DataBlock,
-    structure: &pdbiox::Structure,
-) -> Vec<(pdbiox::ResidueIndex, SecondaryStructure)> {
+    block: &molframe::cif::DataBlock,
+    structure: &molframe::Structure,
+) -> Vec<(molframe::ResidueIndex, SecondaryStructure)> {
     let mut spans = Vec::new();
     collect_spans(block, "struct_conf", None, &mut spans);
     collect_spans(
@@ -96,7 +96,7 @@ fn deposited_records(
 }
 
 fn collect_spans(
-    block: &pdbiox::cif::DataBlock,
+    block: &molframe::cif::DataBlock,
     category_name: &str,
     forced: Option<SecondaryStructure>,
     output: &mut Vec<(String, i32, i32, SecondaryStructure)>,
@@ -104,7 +104,7 @@ fn collect_spans(
     let Some(category) = block.category(category_name) else {
         return;
     };
-    let mut rows = pdbiox::cif::Rows::new(category);
+    let mut rows = molframe::cif::Rows::new(category);
     loop {
         let kind = forced.or_else(|| {
             rows.identifier("conf_type_id")

@@ -1,6 +1,6 @@
 //! Browser builder for caller-colored weighted overlays.
 
-use super::{values, WebGenericCompositionView};
+use super::{WebGenericCompositionView, values};
 use crate::browser::WebScene;
 use crate::generic_batches::WebRowDomain;
 use wasm_bindgen::prelude::*;
@@ -9,8 +9,8 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct WebEnsembleComposition {
-    layers: Vec<molgfx::EnsembleLayer>,
-    style: molgfx::EnsembleCompositionStyle,
+    layers: Vec<molgfx::semantic::EnsembleLayer>,
+    style: molgfx::semantic::EnsembleCompositionStyle,
 }
 
 #[wasm_bindgen]
@@ -26,7 +26,7 @@ impl WebEnsembleComposition {
     ) -> Self {
         Self {
             layers: Vec::new(),
-            style: molgfx::EnsembleCompositionStyle {
+            style: molgfx::semantic::EnsembleCompositionStyle {
                 dominant_opacity,
                 alternate_opacity,
                 minimum_opacity,
@@ -48,7 +48,7 @@ impl WebEnsembleComposition {
         weight: f32,
         rgba: Vec<u8>,
     ) -> Result<(), JsValue> {
-        self.layers.push(molgfx::EnsembleLayer {
+        self.layers.push(molgfx::semantic::EnsembleLayer {
             domain: domain.inner,
             weight,
             color: values::rgba8(&rgba)?,
@@ -62,7 +62,7 @@ impl WebEnsembleComposition {
     ///
     /// Returns a JavaScript error for stale domains or invalid weights and opacities.
     pub fn apply(&self, scene: &mut WebScene) -> Result<WebGenericCompositionView, JsValue> {
-        molgfx::GenericCompositionScene::compose_ensemble(
+        molgfx::semantic::GenericCompositionScene::compose_ensemble(
             &mut scene.inner,
             &self.layers,
             self.style,
