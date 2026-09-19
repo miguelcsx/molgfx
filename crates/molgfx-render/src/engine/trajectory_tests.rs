@@ -188,7 +188,7 @@ fn cartoon_time_advances_never_rebuild_or_reupload_ribbon_geometry() {
     );
 }
 
-fn cartoon_structure() -> pdbiox::Structure {
+fn cartoon_structure() -> molframe::Structure {
     let cif = "\
 data_cartoon
 loop_
@@ -214,10 +214,10 @@ ATOM 2 C CA . ALA A 1 2 2.0 0.4 0.0 1.00 10.0 2 A 1
 ATOM 3 C CA . SER A 1 3 4.0 0.0 0.0 1.00 10.0 3 A 1
 ATOM 4 C CA . LEU A 1 4 6.0 -0.4 0.0 1.00 10.0 4 A 1
 ";
-    pdbiox::read_bytes(
+    molframe::read_bytes(
         cif.as_bytes().to_vec(),
         Some("cartoon-trajectory.cif"),
-        &pdbiox::ReadOptions::new(),
+        &molframe::ReadOptions::new(),
     )
     .map_or_else(
         |diagnostics| panic!("cartoon fixture parses: {diagnostics:?}"),

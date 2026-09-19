@@ -17,13 +17,13 @@ use molgfx_gpu::{
 
 /// Fullscreen motion-vector gather state.
 #[derive(Debug)]
-pub struct MotionBlurPass<D: Device> {
+pub(crate) struct MotionBlurPass<D: Device> {
     pipeline: D::Pipeline,
     pub(crate) layout: D::BindGroupLayout,
 }
 
 impl<D: Device> MotionBlurPass<D> {
-    pub fn new(device: &D, group0: &D::BindGroupLayout) -> Result<Self, RenderError> {
+    pub(crate) fn new(device: &D, group0: &D::BindGroupLayout) -> Result<Self, RenderError> {
         let layout = device.create_bind_group_layout(&BindGroupLayoutDesc {
             label: "group1: motion blur inputs",
             entries: &[
@@ -65,7 +65,7 @@ impl<D: Device> MotionBlurPass<D> {
         Ok(Self { pipeline, layout })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let Some(effect) = &ctx.passes.motion_blur else {
             return;
         };

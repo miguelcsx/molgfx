@@ -12,7 +12,7 @@ impl<D: Device> GpuScene<D> {
     /// # Errors
     ///
     /// Returns typed atlas validation, capacity or device failures.
-    pub fn install_brick_atlas(
+    pub(crate) fn install_brick_atlas(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -26,13 +26,13 @@ impl<D: Device> GpuScene<D> {
 
     /// Mutable atlas access used by provider completion and fence polling.
     #[must_use]
-    pub fn brick_atlas_mut(&mut self, index: usize) -> Option<&mut GpuBrickAtlas<D>> {
+    pub(crate) fn brick_atlas_mut(&mut self, index: usize) -> Option<&mut GpuBrickAtlas<D>> {
         self.brick_atlases.get_mut(index)
     }
 
     /// Number of independently budgeted sparse fields owned by the scene.
     #[must_use]
-    pub const fn brick_atlas_count(&self) -> usize {
+    pub(crate) const fn brick_atlas_count(&self) -> usize {
         self.brick_atlases.len()
     }
 }

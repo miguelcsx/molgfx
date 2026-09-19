@@ -13,14 +13,14 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub struct TemporalPass<D: Device> {
+pub(crate) struct TemporalPass<D: Device> {
     pipeline: D::Pipeline,
     pub(crate) layout: D::BindGroupLayout,
     pub(crate) sampler: D::Sampler,
 }
 
 impl<D: Device> TemporalPass<D> {
-    pub fn new(device: &D, group0: &D::BindGroupLayout) -> Result<Self, RenderError> {
+    pub(crate) fn new(device: &D, group0: &D::BindGroupLayout) -> Result<Self, RenderError> {
         let texture = |binding| BindGroupLayoutEntry {
             binding,
             visibility: ShaderStages::FRAGMENT,
@@ -73,7 +73,7 @@ impl<D: Device> TemporalPass<D> {
         })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let target_id = if ctx.temporal_write == 0 {
             HISTORY_A_RESOURCE
         } else {

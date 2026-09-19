@@ -87,16 +87,16 @@ pub(super) fn validate_bond_placements(
     Ok(())
 }
 
-fn endpoint_missing(atoms: &[ResidentAtomPage], endpoint: pdbiox::AtomEndpoint) -> bool {
+fn endpoint_missing(atoms: &[ResidentAtomPage], endpoint: molframe::AtomEndpoint) -> bool {
     resolve_endpoint(atoms, endpoint.dataset().get(), endpoint.row().get()).is_err()
 }
 
 fn record(
-    bonds: &pdbiox::BondChunk,
+    bonds: &molframe::BondChunk,
     local: u32,
-) -> Result<pdbiox::BondChunkRecord, ChunkResidencyError> {
+) -> Result<molframe::BondChunkRecord, ChunkResidencyError> {
     bonds
-        .record(pdbiox::LocalRow::new(local))
+        .record(molframe::LocalRow::new(local))
         .map_err(|_| ChunkResidencyError::ProviderBondRecord { local_row: local })
 }
 impl<D: molgfx_gpu::Device> super::BondGpuResidency<D> {

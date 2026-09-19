@@ -7,7 +7,7 @@
 
 use crate::error::RenderError;
 use crate::graph::PassContext;
-use crate::passes::{FrameBindings, AO_DENOISED_RESOURCE};
+use crate::passes::{AO_DENOISED_RESOURCE, FrameBindings};
 use molgfx_gpu::{
     BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, ColorTarget,
     CommandEncoder as _, Device, LoadOp, PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _,
@@ -16,13 +16,13 @@ use molgfx_gpu::{
 
 /// Pipeline and layout for the occlusion denoiser.
 #[derive(Debug)]
-pub struct AoDenoisePass<D: Device> {
+pub(crate) struct AoDenoisePass<D: Device> {
     pipeline: D::Pipeline,
     pub(crate) layout: D::BindGroupLayout,
 }
 
 impl<D: Device> AoDenoisePass<D> {
-    pub fn new(device: &D, group0: &D::BindGroupLayout) -> Result<Self, RenderError> {
+    pub(crate) fn new(device: &D, group0: &D::BindGroupLayout) -> Result<Self, RenderError> {
         let layout = device.create_bind_group_layout(&BindGroupLayoutDesc {
             label: "group1: occlusion denoise inputs",
             entries: &[
@@ -64,7 +64,7 @@ impl<D: Device> AoDenoisePass<D> {
         Ok(Self { pipeline, layout })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.is_massive_points_only() {
             return;
         }

@@ -28,7 +28,7 @@ fn interaction_scene() -> Scene {
             .unwrap_or_else(|error| panic!("{error}"));
         let geometry =
             InteractionGeometry::new(4.0, None).unwrap_or_else(|error| panic!("{error}"));
-        let edge = InteractionEdge::new(owner, start, end, kind, geometry, "test:pdbiox")
+        let edge = InteractionEdge::new(owner, start, end, kind, geometry, "test:molframe")
             .unwrap_or_else(|error| panic!("{error}"))
             .with_direction(InteractionDirection::Forward);
         scene
@@ -96,7 +96,7 @@ fn interaction_and_guide_row_zero_resolve_distinct_global_namespaces() {
         InteractionAnchor::world(end).unwrap_or_else(|error| panic!("{error}")),
         InteractionKind::HydrogenBond,
         geometry,
-        "test:pdbiox",
+        "test:molframe",
     )
     .unwrap_or_else(|error| panic!("{error}"));
     scene

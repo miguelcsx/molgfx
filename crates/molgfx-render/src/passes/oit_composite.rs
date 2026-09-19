@@ -10,13 +10,13 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub struct OitCompositePass<D: Device> {
+pub(crate) struct OitCompositePass<D: Device> {
     pipeline: D::Pipeline,
     pub(crate) layout: D::BindGroupLayout,
 }
 
 impl<D: Device> OitCompositePass<D> {
-    pub fn new(device: &D) -> Result<Self, RenderError> {
+    pub(crate) fn new(device: &D) -> Result<Self, RenderError> {
         let texture = |binding| BindGroupLayoutEntry {
             binding,
             visibility: ShaderStages::FRAGMENT,
@@ -47,7 +47,7 @@ impl<D: Device> OitCompositePass<D> {
         Ok(Self { pipeline, layout })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         if !ctx.scene.has_translucency() {
             return;
         }

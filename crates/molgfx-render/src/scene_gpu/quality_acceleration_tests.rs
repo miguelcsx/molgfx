@@ -28,10 +28,10 @@ ATOM 1 C C1 . LIG A 1 1 0.0 0.0 0.0 1.0 10.0 1 A 1
 ATOM 2 C C2 . LIG A 1 1 2.0 0.0 0.0 1.0 10.0 1 A 1
 ATOM 3 O O1 . LIG A 1 1 4.0 1.0 0.0 1.0 10.0 1 A 1
 ";
-    let structure = match pdbiox::read_bytes(
+    let structure = match molframe::read_bytes(
         cif.as_bytes().to_vec(),
         Some("quality.cif"),
-        &pdbiox::ReadOptions::new(),
+        &molframe::ReadOptions::new(),
     ) {
         Ok((structure, _)) => structure,
         Err(diagnostics) => panic!("quality fixture parses: {diagnostics:?}"),

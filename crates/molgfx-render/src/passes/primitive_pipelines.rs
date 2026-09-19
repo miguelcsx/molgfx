@@ -10,7 +10,7 @@
 
 use crate::error::RenderError;
 use crate::scene_gpu::{
-    PrimitiveDrawGroup, FAMILY_BOX, FAMILY_ELLIPSOID, FAMILY_PARTICLE, FAMILY_POLYGON,
+    FAMILY_BOX, FAMILY_ELLIPSOID, FAMILY_PARTICLE, FAMILY_POLYGON, PrimitiveDrawGroup,
 };
 use molgfx_gpu::{
     ColorTarget, DepthState, Device, PrimitiveTopology, RenderPipelineDesc, ShaderModuleDesc,

@@ -1,6 +1,6 @@
 //! Deterministic analytic measurement-guide generation.
 
-use super::label_types::{line_record, LabelGpu};
+use super::label_types::{LabelGpu, line_record};
 use molgfx_core::{AnnotationAnchor, Measurement, MeasurementKind};
 use molgfx_math::{Rgba8, Vec3};
 

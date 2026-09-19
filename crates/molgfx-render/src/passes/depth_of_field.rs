@@ -15,7 +15,7 @@ use molgfx_gpu::{
 
 /// Pipelines and layouts for the classification and bounded gather stages.
 #[derive(Debug)]
-pub struct DepthOfFieldPass<D: Device> {
+pub(crate) struct DepthOfFieldPass<D: Device> {
     classify_pipeline: D::Pipeline,
     resolve_pipeline: D::Pipeline,
     pub(crate) classify_layout: D::BindGroupLayout,
@@ -23,7 +23,7 @@ pub struct DepthOfFieldPass<D: Device> {
 }
 
 impl<D: Device> DepthOfFieldPass<D> {
-    pub fn new(device: &D, group0: &D::BindGroupLayout) -> Result<Self, RenderError> {
+    pub(crate) fn new(device: &D, group0: &D::BindGroupLayout) -> Result<Self, RenderError> {
         let classify_layout = device.create_bind_group_layout(&BindGroupLayoutDesc {
             label: "group1: depth-of-field tile classification",
             entries: &[BindGroupLayoutEntry {
@@ -92,7 +92,7 @@ impl<D: Device> DepthOfFieldPass<D> {
         })
     }
 
-    pub fn classify(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn classify(ctx: &mut PassContext<'_, D>) {
         let Some(effect) = &ctx.passes.depth_of_field else {
             return;
         };
@@ -121,7 +121,7 @@ impl<D: Device> DepthOfFieldPass<D> {
         pass.draw(0..3, 0..1);
     }
 
-    pub fn resolve(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn resolve(ctx: &mut PassContext<'_, D>) {
         let Some(effect) = &ctx.passes.depth_of_field else {
             return;
         };

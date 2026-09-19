@@ -17,7 +17,7 @@ use molgfx_gpu::{
 /// every curve on every pixel. The encoding set is closed and small, so every
 /// variant is built at load and none is ever created inside the frame loop.
 #[derive(Debug)]
-pub struct TonemapPass<D: Device> {
+pub(crate) struct TonemapPass<D: Device> {
     variants: Vec<D::Pipeline>,
     pub(crate) layout: D::BindGroupLayout,
 }
@@ -28,7 +28,7 @@ const fn variant_index(encoding: DisplayEncoding) -> usize {
 }
 
 impl<D: Device> TonemapPass<D> {
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         target_format: TextureFormat,
         group0: &D::BindGroupLayout,
@@ -88,7 +88,7 @@ impl<D: Device> TonemapPass<D> {
         Ok(Self { variants, layout })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let Some(target) = ctx.resources.view(ResourceId::SWAPCHAIN) else {
             return;
         };

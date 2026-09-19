@@ -56,7 +56,7 @@ struct FrameUploadCommand {
 }
 /// GPU-resident scene state with stable structure and representation slots.
 #[derive(Debug)]
-pub struct GpuScene<D: Device> {
+pub(crate) struct GpuScene<D: Device> {
     pub frame_uniforms: D::Buffer,
     pub group0: D::BindGroup,
     pub group0_layout: D::BindGroupLayout,
@@ -203,7 +203,7 @@ impl<D: Device> GpuScene<D> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn sync(
+    pub(crate) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,

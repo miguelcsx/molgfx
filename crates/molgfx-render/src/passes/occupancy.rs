@@ -4,7 +4,7 @@ use crate::error::RenderError;
 use molgfx_gpu::{ComputePipelineDesc, Device, ShaderModuleDesc};
 
 #[derive(Debug)]
-pub struct OccupancyPass<D: Device> {
+pub(crate) struct OccupancyPass<D: Device> {
     pub(crate) clear: D::Pipeline,
     pub(crate) decay: D::Pipeline,
     pub(crate) deposit: D::Pipeline,
@@ -13,7 +13,7 @@ pub struct OccupancyPass<D: Device> {
 }
 
 impl<D: Device> OccupancyPass<D> {
-    pub fn new(device: &D, layout: &D::BindGroupLayout) -> Result<Self, RenderError> {
+    pub(crate) fn new(device: &D, layout: &D::BindGroupLayout) -> Result<Self, RenderError> {
         let shader = device.create_shader_module(&ShaderModuleDesc {
             label: "temporal occupancy accumulation",
             wgsl: molgfx_shaders::OCCUPANCY,

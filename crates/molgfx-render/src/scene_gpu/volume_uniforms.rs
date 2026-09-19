@@ -104,7 +104,7 @@ impl VolumeUniforms {
             scalar: [
                 range[0],
                 range[1],
-                finite_or(representation.params.isolevel, (range[0] + range[1]) * 0.5)
+                finite_or(representation.params.isolevel, range[0].midpoint(range[1]))
                     .clamp(range[0], range[1]),
                 opacity,
             ],

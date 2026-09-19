@@ -10,14 +10,14 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub struct LightingPass<D: Device> {
+pub(crate) struct LightingPass<D: Device> {
     pipeline: D::Pipeline,
     massive_points: D::Pipeline,
     pub(crate) layout: D::BindGroupLayout,
 }
 
 impl<D: Device> LightingPass<D> {
-    pub fn new(device: &D, group0: &D::BindGroupLayout) -> Result<Self, RenderError> {
+    pub(crate) fn new(device: &D, group0: &D::BindGroupLayout) -> Result<Self, RenderError> {
         let texture = |binding| BindGroupLayoutEntry {
             binding,
             visibility: ShaderStages::FRAGMENT,
@@ -68,7 +68,7 @@ impl<D: Device> LightingPass<D> {
         })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let Some(target) = ctx.resources.view(HDR_RESOURCE) else {
             return;
         };

@@ -117,7 +117,7 @@ impl<D: Device> GpuScene<D> {
         Ok(changed)
     }
 
-    pub fn record_occupancies(
+    pub(crate) fn record_occupancies(
         &mut self,
         encoder: &mut D::CommandEncoder,
         pipelines: &OccupancyPass<D>,

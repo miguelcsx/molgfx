@@ -18,6 +18,9 @@ impl molgfx_gpu::Device for MockDevice {
     type Queue = MockQueue;
     type Surface = MockSurface;
 
+    // The trait declares `fn open_async(..) -> impl Future`, so the `async`
+    // keyword is the signature, not a suspension point.
+    #[allow(clippy::unused_async_trait_impl)]
     async fn open_async(
         _desc: &DeviceDesc,
         _window: Option<WindowTarget>,

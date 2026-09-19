@@ -91,9 +91,11 @@ fn timeline_materialization_is_a_real_budgeted_optional_allocation() {
         .buffers
         .lock()
         .unwrap_or_else(|error| panic!("{error}"));
-    assert!(!direct_buffers
-        .iter()
-        .any(|(_, label, _)| *label == "materialized generic instance timeline"));
+    assert!(
+        !direct_buffers
+            .iter()
+            .any(|(_, label, _)| *label == "materialized generic instance timeline")
+    );
     drop(direct_buffers);
 
     let mut cached = engine();
@@ -106,9 +108,11 @@ fn timeline_materialization_is_a_real_budgeted_optional_allocation() {
         .buffers
         .lock()
         .unwrap_or_else(|error| panic!("{error}"));
-    assert!(cached_buffers
-        .iter()
-        .any(|(_, label, _)| *label == "materialized generic instance timeline"));
+    assert!(
+        cached_buffers
+            .iter()
+            .any(|(_, label, _)| *label == "materialized generic instance timeline")
+    );
     assert_eq!(cached.derived_cache_usage().gpu_bytes, 4 * 32);
 }
 
@@ -168,9 +172,11 @@ fn tiny_instance_batches_reserve_the_full_runtime_storage_struct() {
             .buffers
             .lock()
             .unwrap_or_else(|error| panic!("{error}"));
-        assert!(buffers
-            .iter()
-            .any(|(_, label, bytes)| { *label == "generic instance cull output" && *bytes == 48 }));
+        assert!(
+            buffers.iter().any(|(_, label, bytes)| {
+                *label == "generic instance cull output" && *bytes == 48
+            })
+        );
     }
 }
 
@@ -203,9 +209,11 @@ fn sphere_only_templates_still_bind_one_complete_capsule_record() {
         .buffers
         .lock()
         .unwrap_or_else(|error| panic!("{error}"));
-    assert!(buffers
-        .iter()
-        .any(|(_, label, size)| { *label == "generic analytic template capsules" && *size == 48 }));
+    assert!(
+        buffers.iter().any(|(_, label, size)| {
+            *label == "generic analytic template capsules" && *size == 48
+        })
+    );
 }
 
 #[test]

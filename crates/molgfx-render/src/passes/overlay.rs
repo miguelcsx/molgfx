@@ -9,14 +9,14 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub struct OverlayPass<D: Device> {
+pub(crate) struct OverlayPass<D: Device> {
     /// One pipeline per overlay kind — glyph, gradient, scale, axis. Each
     /// shares the overlay instance array and skips the kinds it does not draw.
     pipelines: [D::Pipeline; 4],
 }
 
 impl<D: Device> OverlayPass<D> {
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         target_format: TextureFormat,
         frame: &D::BindGroupLayout,
@@ -57,7 +57,7 @@ impl<D: Device> OverlayPass<D> {
         })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let (Some(target), Some((group, args))) = (
             ctx.resources.view(ResourceId::SWAPCHAIN),
             ctx.scene.overlay_draw(),

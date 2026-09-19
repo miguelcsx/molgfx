@@ -26,7 +26,7 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub struct PrimitivePass<D: Device> {
+pub(crate) struct PrimitivePass<D: Device> {
     pipelines: PrimitivePipelineSet<D>,
     ligand_pose: LigandPosePipelineSet<D>,
     generic_instance_sphere: VisualPipelineSet<D>,
@@ -34,7 +34,7 @@ pub struct PrimitivePass<D: Device> {
 }
 
 impl<D: Device> PrimitivePass<D> {
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         group0: &D::BindGroupLayout,
         primitive: &D::BindGroupLayout,
@@ -130,7 +130,7 @@ impl<D: Device> PrimitivePass<D> {
         })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let (Some(albedo), Some(normal), Some(entity), Some(structure), Some(motion), Some(depth)) = (
             ctx.resources.view(ALBEDO_RESOURCE),
             ctx.resources.view(NORMAL_RESOURCE),

@@ -1,5 +1,5 @@
-use super::tests::{camera, engine, structure};
 use super::ImageConfig;
+use super::tests::{camera, engine, structure};
 use molgfx_core::{AtomSelection, RepresentationKind, Scene};
 
 #[test]

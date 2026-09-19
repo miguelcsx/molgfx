@@ -8,7 +8,7 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub struct CullPass<D: Device> {
+pub(crate) struct CullPass<D: Device> {
     reset: D::Pipeline,
     reset_tiles: D::Pipeline,
     bin_atoms: D::Pipeline,
@@ -131,7 +131,7 @@ impl<D: Device> CullPass<D> {
         })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let scene = ctx.scene;
         let cull = &ctx.passes.cull;
         let mut pass = ctx.encoder.begin_compute_pass(&ComputePassDesc {

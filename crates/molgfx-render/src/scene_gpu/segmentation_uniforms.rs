@@ -2,7 +2,7 @@
 
 use super::segmentation_lookup::{LookupMode, SegmentLookup};
 use super::uniforms::{clip_meta, clip_planes, material_uniforms};
-use molgfx_core::{Representation, SegmentedVolume, MAX_CLIP_PLANES};
+use molgfx_core::{MAX_CLIP_PLANES, Representation, SegmentedVolume};
 use molgfx_math::{Mat4, Vec3};
 
 #[cfg(test)]
@@ -86,9 +86,5 @@ impl SegmentationUniforms {
 }
 
 fn finite_or(value: f32, fallback: f32) -> f32 {
-    if value.is_finite() {
-        value
-    } else {
-        fallback
-    }
+    if value.is_finite() { value } else { fallback }
 }

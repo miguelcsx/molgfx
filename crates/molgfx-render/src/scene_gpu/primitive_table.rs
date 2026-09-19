@@ -1,7 +1,7 @@
 //! One revision-diffed GPU table for analytic primitives.
 
 use super::buffers::{count, ensure_upload_buffer};
-use super::primitive_draw::{regroup, PackedPrimitive, PrimitiveDrawGroup};
+use super::primitive_draw::{PackedPrimitive, PrimitiveDrawGroup, regroup};
 use super::primitive_packing::{pack_primitive, placement_revision};
 use super::structure::GpuStructure;
 use crate::error::RenderError;

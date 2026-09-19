@@ -11,11 +11,11 @@ use molgfx_gpu::{
 };
 /// Load-time state of the clear pass.
 #[derive(Debug)]
-pub struct ClearPass;
+pub(crate) struct ClearPass;
 
 impl ClearPass {
     /// Records the pass: one fullscreen triangle into the frame target.
-    pub fn record<D: Device>(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record<D: Device>(ctx: &mut PassContext<'_, D>) {
         let (Some(albedo), Some(normal), Some(entity), Some(structure), Some(motion), Some(depth)) = (
             ctx.resources.view(ALBEDO_RESOURCE),
             ctx.resources.view(NORMAL_RESOURCE),
@@ -61,7 +61,7 @@ impl ClearPass {
 
     /// Clears the categorical picking attachments to their shared empty
     /// sentinel before any transparent segment draw.
-    pub fn segment_ids<D: Device>(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn segment_ids<D: Device>(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.is_massive_points_only() {
             return;
         }

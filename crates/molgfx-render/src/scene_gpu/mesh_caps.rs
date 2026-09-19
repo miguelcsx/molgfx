@@ -148,10 +148,7 @@ fn connect_loops(mut segments: Vec<[Vec3; 2]>) -> Vec<Vec<Vec3>> {
     let mut loops = Vec::new();
     while let Some(segment) = segments.pop() {
         let mut points = vec![segment[0], segment[1]];
-        loop {
-            let Some(end) = points.last().copied() else {
-                break;
-            };
+        while let Some(end) = points.last().copied() {
             let Some((index, reverse)) =
                 segments.iter().enumerate().find_map(|(index, candidate)| {
                     if end.distance_squared(candidate[0]) <= EPSILON * EPSILON {

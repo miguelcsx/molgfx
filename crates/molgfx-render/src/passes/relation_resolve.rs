@@ -23,12 +23,12 @@ const ENTRIES: [&str; 16] = [
 ];
 
 #[derive(Debug)]
-pub struct RelationResolvePass<D: Device> {
+pub(crate) struct RelationResolvePass<D: Device> {
     pipelines: Vec<D::Pipeline>,
 }
 
 impl<D: Device> RelationResolvePass<D> {
-    pub fn new(device: &D, layout: &D::BindGroupLayout) -> Result<Self, RenderError> {
+    pub(crate) fn new(device: &D, layout: &D::BindGroupLayout) -> Result<Self, RenderError> {
         let shader = device.create_shader_module(&ShaderModuleDesc {
             label: "dynamic relation resolver",
             wgsl: molgfx_shaders::RELATION_RESOLVE,

@@ -15,14 +15,14 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub struct BondPass<D: Device> {
+pub(crate) struct BondPass<D: Device> {
     capsule: VisualPipelineSet<D>,
     wire: VisualPipelineSet<D>,
     paged: D::Pipeline,
 }
 
 impl<D: Device> BondPass<D> {
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         _target_format: TextureFormat,
         group0: &D::BindGroupLayout,
@@ -83,7 +83,7 @@ impl<D: Device> BondPass<D> {
         })
     }
 
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let (Some(albedo), Some(normal), Some(entity), Some(structure), Some(motion), Some(depth)) = (
             ctx.resources.view(ALBEDO_RESOURCE),
             ctx.resources.view(NORMAL_RESOURCE),

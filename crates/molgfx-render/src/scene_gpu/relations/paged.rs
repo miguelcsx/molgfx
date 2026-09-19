@@ -1,10 +1,10 @@
 //! Paged relation lowering onto the shared glyph and resolver pipelines.
 
 use super::{
-    count, row_limit, workgroups_2d, write_draw_args, BTreeMap, BindGroupDesc, BindGroupEntry,
-    Device, GenericVisualResources, GpuInstanceBatches, GpuInteractions, InteractionGpu,
-    PagedRelationVisualState, PickPages, RelationResolverGpu, RelationStream, RelationVisualPlan,
-    RelationVisualSource, RenderError, RESOLVER_ALIGNMENT_ROWS,
+    BTreeMap, BindGroupDesc, BindGroupEntry, Device, GenericVisualResources, GpuInstanceBatches,
+    GpuInteractions, InteractionGpu, PagedRelationVisualState, PickPages, RESOLVER_ALIGNMENT_ROWS,
+    RelationResolverGpu, RelationStream, RelationVisualPlan, RelationVisualSource, RenderError,
+    count, row_limit, workgroups_2d, write_draw_args,
 };
 use crate::engine::chunk_draw_plan::{ResidentRelationChunkPlacement, ResidentSpatialAnchor};
 use molgfx_core::{EntityKind, PagedSpatialAnchor};

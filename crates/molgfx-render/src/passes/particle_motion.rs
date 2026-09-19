@@ -9,12 +9,12 @@ use molgfx_gpu::{
 const WORKGROUP_SIZE: u32 = 64;
 
 #[derive(Debug)]
-pub struct ParticleMotionPass<D: Device> {
+pub(crate) struct ParticleMotionPass<D: Device> {
     pipeline: D::Pipeline,
 }
 
 impl<D: Device> ParticleMotionPass<D> {
-    pub fn new(device: &D, primitive: &D::BindGroupLayout) -> Result<Self, RenderError> {
+    pub(crate) fn new(device: &D, primitive: &D::BindGroupLayout) -> Result<Self, RenderError> {
         let shader = device.create_shader_module(&ShaderModuleDesc {
             label: "fixed-step particle advection",
             wgsl: molgfx_shaders::PARTICLE_ADVECTION,

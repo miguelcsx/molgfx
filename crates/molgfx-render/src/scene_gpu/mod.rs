@@ -2,7 +2,7 @@
 
 mod asset;
 mod asset_arena;
-pub mod brick_atlas;
+pub(crate) mod brick_atlas;
 mod buffers;
 mod dispatch;
 mod generic_visual;

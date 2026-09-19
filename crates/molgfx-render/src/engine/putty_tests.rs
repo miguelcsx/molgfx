@@ -1,7 +1,7 @@
 use super::tests::{camera, engine};
 use molgfx_core::{AtomSelection, Representation, Scene, TubeRadiusMapping};
 
-fn polymer() -> pdbiox::Structure {
+fn polymer() -> molframe::Structure {
     let cif = "\
 data_putty
 loop_
@@ -26,10 +26,10 @@ ATOM 1 C CA . GLY A 1 1 0.0 0.0 0.0 1.0 10.0 1 A 1
 ATOM 2 C CA . ALA A 1 2 2.0 0.4 0.0 1.0 30.0 2 A 1
 ATOM 3 C CA . SER A 1 3 4.0 0.0 0.0 1.0 50.0 3 A 1
 ";
-    match pdbiox::read_bytes(
+    match molframe::read_bytes(
         cif.as_bytes().to_vec(),
         Some("putty-render-test.cif"),
-        &pdbiox::ReadOptions::new(),
+        &molframe::ReadOptions::new(),
     ) {
         Ok((structure, _)) => structure,
         Err(diagnostics) => panic!("putty fixture parses: {diagnostics:?}"),

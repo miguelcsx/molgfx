@@ -13,7 +13,7 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub struct LabelPass<D: Device> {
+pub(crate) struct LabelPass<D: Device> {
     declutter: D::Pipeline,
     /// One pipeline per label kind — glyph, guide, marker. Each shares the
     /// decluttered instance array and skips the kinds it does not draw, so the
@@ -22,7 +22,7 @@ pub struct LabelPass<D: Device> {
 }
 
 impl<D: Device> LabelPass<D> {
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         frame: &D::BindGroupLayout,
         declutter_layout: &D::BindGroupLayout,
@@ -47,7 +47,7 @@ impl<D: Device> LabelPass<D> {
         })
     }
 
-    pub fn declutter(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn declutter(ctx: &mut PassContext<'_, D>) {
         let Some(group) = ctx.scene.label_declutter() else {
             return;
         };
@@ -61,7 +61,7 @@ impl<D: Device> LabelPass<D> {
         pass.dispatch(1, 1, 1);
     }
 
-    pub fn render(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn render(ctx: &mut PassContext<'_, D>) {
         let Some((group, args)) = ctx.scene.label_draw() else {
             return;
         };

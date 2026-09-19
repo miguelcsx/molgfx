@@ -7,10 +7,10 @@
 
 use crate::error::RenderError;
 use crate::graph::{PassContext, ResourceId};
-use crate::passes::visual_pipelines::{constants, VisualPipelineSet};
+use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
 use crate::passes::{
-    gbuffer_targets, ALBEDO_RESOURCE, ENTITY_RESOURCE, MOTION_RESOURCE, NORMAL_RESOURCE,
-    STRUCTURE_RESOURCE,
+    ALBEDO_RESOURCE, ENTITY_RESOURCE, MOTION_RESOURCE, NORMAL_RESOURCE, STRUCTURE_RESOURCE,
+    gbuffer_targets,
 };
 use molgfx_gpu::{
     ColorAttachment, CommandEncoder as _, CompareFunction, DepthAttachment, DepthLoadOp,
@@ -19,7 +19,7 @@ use molgfx_gpu::{
 };
 
 /// The graph resource id of the frame depth buffer.
-pub const DEPTH_RESOURCE: ResourceId = ResourceId(0);
+pub(crate) const DEPTH_RESOURCE: ResourceId = ResourceId(0);
 
 /// Load-time state of the sphere pass.
 ///
@@ -27,7 +27,7 @@ pub const DEPTH_RESOURCE: ResourceId = ResourceId(0);
 /// one shader branching per fragment, so a representation without clip planes
 /// never evaluates a clip test or clip-cap material on any covered pixel.
 #[derive(Debug)]
-pub struct SpherePass<D: Device> {
+pub(crate) struct SpherePass<D: Device> {
     unclipped: VisualPipelineSet<D>,
     clipped: VisualPipelineSet<D>,
     paged: D::Pipeline,
@@ -39,7 +39,7 @@ impl<D: Device> SpherePass<D> {
     /// # Errors
     ///
     /// Shader compilation or pipeline creation failed.
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         _target_format: TextureFormat,
         group0: &D::BindGroupLayout,
@@ -102,7 +102,7 @@ impl<D: Device> SpherePass<D> {
     }
 
     /// Records one indirect draw per ordered representation slot.
-    pub fn record(ctx: &mut PassContext<'_, D>) {
+    pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let (Some(albedo), Some(normal), Some(entity), Some(structure), Some(motion), Some(depth)) = (
             ctx.resources.view(ALBEDO_RESOURCE),
             ctx.resources.view(NORMAL_RESOURCE),

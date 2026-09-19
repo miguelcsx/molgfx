@@ -14,7 +14,7 @@ mod presentation;
 use presentation::presentation_bindings;
 
 #[derive(Debug)]
-pub struct FrameBindings<D: Device> {
+pub(crate) struct FrameBindings<D: Device> {
     pub(crate) ao: D::BindGroup,
     pub(crate) ao_denoise: D::BindGroup,
     pub(crate) lighting: D::BindGroup,
@@ -47,7 +47,11 @@ impl<T> PresentationSource<T> {
 }
 
 impl<D: Device> FrameBindings<D> {
-    pub fn new(device: &D, pool: &TransientPool<D>, passes: &PassRegistry<D>) -> Option<Self> {
+    pub(crate) fn new(
+        device: &D,
+        pool: &TransientPool<D>,
+        passes: &PassRegistry<D>,
+    ) -> Option<Self> {
         let views = FrameViews::new(pool)?;
         let base = base_bindings(device, passes, &views);
         let temporal = [

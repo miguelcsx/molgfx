@@ -14,7 +14,7 @@ const WORKGROUP_EDGE: u32 = 4;
 
 /// Compute state shared by every SES representation.
 #[derive(Debug)]
-pub struct SurfaceFieldPass<D: Device> {
+pub(crate) struct SurfaceFieldPass<D: Device> {
     generate_union: D::Pipeline,
     generate_gaussian: D::Pipeline,
     erode: D::Pipeline,
@@ -22,7 +22,7 @@ pub struct SurfaceFieldPass<D: Device> {
 }
 
 impl<D: Device> SurfaceFieldPass<D> {
-    pub fn output_layout(device: &D) -> D::BindGroupLayout {
+    pub(crate) fn output_layout(device: &D) -> D::BindGroupLayout {
         device.create_bind_group_layout(&BindGroupLayoutDesc {
             label: "group1: surface field output",
             entries: &[BindGroupLayoutEntry {
@@ -35,7 +35,7 @@ impl<D: Device> SurfaceFieldPass<D> {
         })
     }
 
-    pub fn input_layout(device: &D) -> D::BindGroupLayout {
+    pub(crate) fn input_layout(device: &D) -> D::BindGroupLayout {
         let storage = |binding| BindGroupLayoutEntry {
             binding,
             visibility: ShaderStages::COMPUTE,
@@ -58,7 +58,7 @@ impl<D: Device> SurfaceFieldPass<D> {
         })
     }
 
-    pub fn erosion_layout(device: &D) -> D::BindGroupLayout {
+    pub(crate) fn erosion_layout(device: &D) -> D::BindGroupLayout {
         device.create_bind_group_layout(&BindGroupLayoutDesc {
             label: "group1: surface field erosion",
             entries: &[
@@ -83,7 +83,7 @@ impl<D: Device> SurfaceFieldPass<D> {
         })
     }
 
-    pub fn normal_layout(device: &D) -> D::BindGroupLayout {
+    pub(crate) fn normal_layout(device: &D) -> D::BindGroupLayout {
         device.create_bind_group_layout(&BindGroupLayoutDesc {
             label: "group1: surface field normals",
             entries: &[
@@ -103,7 +103,7 @@ impl<D: Device> SurfaceFieldPass<D> {
         })
     }
 
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         output: &D::BindGroupLayout,
         erosion: &D::BindGroupLayout,

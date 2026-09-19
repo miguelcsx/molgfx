@@ -12,7 +12,7 @@ use crate::scene_gpu::GpuScene;
 use molgfx_gpu::{Device, TimestampWrites};
 
 /// Resolves declared resource ids to concrete views for one frame.
-pub struct ResourceTable<'a, D: Device> {
+pub(crate) struct ResourceTable<'a, D: Device> {
     pub(crate) pool: &'a TransientPool<D>,
     /// The acquired presentation target for this frame.
     pub(crate) swapchain: &'a D::TextureView,
@@ -21,7 +21,7 @@ pub struct ResourceTable<'a, D: Device> {
 impl<D: Device> ResourceTable<'_, D> {
     /// The view for a declared resource, or the frame's presentation target
     /// for [`ResourceId::SWAPCHAIN`].
-    pub fn view(&self, id: ResourceId) -> Option<&D::TextureView> {
+    pub(crate) fn view(&self, id: ResourceId) -> Option<&D::TextureView> {
         if id == ResourceId::SWAPCHAIN {
             return Some(self.swapchain);
         }
@@ -34,7 +34,7 @@ impl<D: Device> ResourceTable<'_, D> {
 /// Both fields index pre-built tonemap pipelines, so the set of encodings is
 /// closed and every variant exists before the first frame.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub struct DisplayEncoding {
+pub(crate) struct DisplayEncoding {
     /// Output primaries.
     pub gamut: DisplayGamut,
     /// Output electro-optical transfer curve.
@@ -42,7 +42,7 @@ pub struct DisplayEncoding {
 }
 
 /// Everything a record function receives.
-pub struct PassContext<'a, D: Device> {
+pub(crate) struct PassContext<'a, D: Device> {
     /// The open command encoder.
     pub encoder: &'a mut D::CommandEncoder,
     /// Resolves resource ids to views.

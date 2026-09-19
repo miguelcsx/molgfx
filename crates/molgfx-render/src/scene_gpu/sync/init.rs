@@ -54,7 +54,7 @@ struct SurfaceInit<D: Device> {
 
 impl<D: Device> GpuScene<D> {
     #[allow(clippy::too_many_lines)]
-    pub fn new(
+    pub(crate) fn new(
         device: &D,
         config: ResidencyConfig,
         picking_page_capacity: u32,

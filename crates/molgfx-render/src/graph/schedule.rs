@@ -20,7 +20,7 @@ mod tests;
 /// # Errors
 ///
 /// A dependency cycle.
-pub fn schedule<D: Device>(passes: &[PassNode<D>]) -> Result<Vec<usize>, RenderError> {
+pub(crate) fn schedule<D: Device>(passes: &[PassNode<D>]) -> Result<Vec<usize>, RenderError> {
     let n = passes.len();
     // after[i] holds passes that must run after pass i.
     let mut after: Vec<Vec<usize>> = vec![Vec::new(); n];

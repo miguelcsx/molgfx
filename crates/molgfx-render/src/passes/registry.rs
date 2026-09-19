@@ -12,7 +12,7 @@ use molgfx_gpu::Device;
 /// Every pass's load-time state, owned by the engine and exposed read-only
 /// to record functions through the context. Fields grow as passes land.
 #[derive(Debug)]
-pub struct PassRegistry<D: Device> {
+pub(crate) struct PassRegistry<D: Device> {
     /// The sphere impostor pass.
     pub(crate) sphere: SpherePass<D>,
     /// Pixel-stable atom points.

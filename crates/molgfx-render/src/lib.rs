@@ -33,6 +33,7 @@ pub(crate) use engine::{DerivedCache, DerivedFootprint, MaterializationPlan};
 #[cfg(not(target_arch = "wasm32"))]
 pub use engine::{FrameTicket, SequenceConfig, SequenceFrame, SequenceRenderer};
 pub use error::RenderError;
+pub use molgfx_geometry::PackingError;
 pub use residency::{
     ImmutableArenaMetrics, ResidencyConfig, ResidencyCounters, ResidencyInitError,
     ResidencyMetrics, ResidencyWorkspace,
