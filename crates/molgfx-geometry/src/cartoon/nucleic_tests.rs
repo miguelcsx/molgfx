@@ -31,9 +31,9 @@ ATOM 6 C C5  . DC A 1 1  0.600 -1.039 0.000 1.00 10.0 1 A 1
 ATOM 7 C C6  . DC A 1 1 -0.600 -1.039 0.000 1.00 10.0 1 A 1
 ";
 
-fn nucleotide() -> pdbiox::Structure {
-    let options = pdbiox::ReadOptions::new();
-    match pdbiox::read_bytes(
+fn nucleotide() -> molframe::Structure {
+    let options = molframe::ReadOptions::new();
+    match molframe::read_bytes(
         NUCLEOTIDE_CIF.as_bytes().to_vec(),
         Some("base.cif"),
         &options,
@@ -111,8 +111,8 @@ ATOM 4 O O  . GLY A 1 1  2.197 0.995 0.000 1.00 10.0 1 A 1
 
 #[test]
 fn residues_without_a_base_ring_emit_nothing() {
-    let options = pdbiox::ReadOptions::new();
-    let structure = match pdbiox::read_bytes(
+    let options = molframe::ReadOptions::new();
+    let structure = match molframe::read_bytes(
         PROTEIN_CIF.as_bytes().to_vec(),
         Some("protein.cif"),
         &options,

@@ -113,7 +113,7 @@ pub fn pack_bonds(
             atom_a,
             atom_b,
             representation.params.bond_radius,
-            bond.order == pdbiox::BondOrder::Aromatic,
+            bond.order == molframe::BondOrder::Aromatic,
             bond_entity(EntityKind::Bond, source_index)?,
         ));
     }

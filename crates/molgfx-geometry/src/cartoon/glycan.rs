@@ -65,7 +65,7 @@ fn ring_normal(ring: &[Vec3]) -> Option<Vec3> {
 /// tree with no links yields nothing rather than a ribbon through unrelated
 /// residues.
 pub fn extract_glycosidic_traces(
-    structure: &pdbiox::Structure,
+    structure: &molframe::Structure,
     selection: &AtomSelection,
     output: &mut PolymerTraces,
 ) {
@@ -176,7 +176,7 @@ fn push_sugar(
 /// Neighbour lists by centre proximity. Explicit glycosidic bonds are the
 /// stronger signal, but many deposited entries omit them for branched glycans,
 /// and a distance short enough to be a link is unambiguous at sugar scale.
-fn link_graph(structure: &pdbiox::Structure, sugars: &[Sugar]) -> Vec<Vec<usize>> {
+fn link_graph(structure: &molframe::Structure, sugars: &[Sugar]) -> Vec<Vec<usize>> {
     let mut links = if structure.data().bonds.is_available() {
         topology_links(structure, sugars)
     } else {
@@ -186,7 +186,7 @@ fn link_graph(structure: &pdbiox::Structure, sugars: &[Sugar]) -> Vec<Vec<usize>
     links
 }
 
-fn topology_links(structure: &pdbiox::Structure, sugars: &[Sugar]) -> Vec<Vec<usize>> {
+fn topology_links(structure: &molframe::Structure, sugars: &[Sugar]) -> Vec<Vec<usize>> {
     let Ok(atom_count) = usize::try_from(structure.atom_count()) else {
         return vec![Vec::new(); sugars.len()];
     };
@@ -278,7 +278,7 @@ fn connect(links: &mut [Vec<usize>], first: usize, second: usize) {
     }
 }
 
-fn collect_sugars(structure: &pdbiox::Structure, selection: &AtomSelection) -> Vec<Sugar> {
+fn collect_sugars(structure: &molframe::Structure, selection: &AtomSelection) -> Vec<Sugar> {
     let mut sugars = Vec::new();
     for chain in structure.data().chains() {
         let chain_id = chain.index().get();

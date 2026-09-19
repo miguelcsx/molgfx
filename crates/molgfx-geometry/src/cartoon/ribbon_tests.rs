@@ -190,7 +190,7 @@ fn twister_faces_use_distinct_orientation_colours() {
     assert_eq!(bottom.a, 200);
 }
 
-fn polymer_structure() -> pdbiox::Structure {
+fn polymer_structure() -> molframe::Structure {
     let cif = "\
 data_polymer
 loop_
@@ -215,10 +215,10 @@ ATOM 1 C CA . GLY A 1 1 0.0 0.0 0.0 1.00 10.0 1 A 1
 ATOM 2 C CA . ALA A 1 2 2.0 0.4 0.0 1.00 30.0 2 A 1
 ATOM 3 C CA . SER A 1 3 4.0 0.0 0.0 1.00 50.0 3 A 1
 ";
-    match pdbiox::read_bytes(
+    match molframe::read_bytes(
         cif.as_bytes().to_vec(),
         Some("polymer.cif"),
-        &pdbiox::ReadOptions::new(),
+        &molframe::ReadOptions::new(),
     ) {
         Ok((structure, _)) => structure,
         Err(diagnostics) => panic!("polymer fixture parses: {diagnostics:?}"),

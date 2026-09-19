@@ -12,9 +12,9 @@ mod packing;
 mod polyhedra;
 
 pub use cartoon::{
-    RibbonMesh, RibbonParams, RibbonVertex, SecondaryMotion, SplineProfile, TraceRange,
-    append_base_polygons, append_base_slabs, append_paper_chain, extract_glycosidic_traces,
-    extract_polymer_traces, solve_offsets, variable_tube_radius,
+    PolymerTraces, RibbonMesh, RibbonParams, RibbonVertex, SecondaryMotion, SplineProfile,
+    TraceRange, append_base_polygons, append_base_slabs, append_paper_chain,
+    extract_glycosidic_traces, extract_polymer_traces, solve_offsets, variable_tube_radius,
 };
 pub use packing::{
     PackingError, PropertyColumns, RibbonColoring, build_compaction_map,

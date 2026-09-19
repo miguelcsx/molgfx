@@ -53,7 +53,7 @@ struct RoundEdgeStyle {
 ///
 /// Returns [`crate::PackingError`] when a source atom row cannot be encoded.
 pub fn append_base_slabs(
-    structure: &pdbiox::Structure,
+    structure: &molframe::Structure,
     selection: &AtomSelection,
     thickness: f32,
     vertices: &mut Vec<RibbonVertex>,
@@ -73,7 +73,7 @@ pub fn append_base_slabs(
             };
             let mut ring = Vec::with_capacity(RING_ATOMS.len());
             for name in RING_ATOMS {
-                if let Some(position) = residue.atom(name).and_then(pdbiox::AtomRef::position) {
+                if let Some(position) = residue.atom(name).and_then(molframe::AtomRef::position) {
                     ring.push(Vec3::from(position));
                 }
             }
@@ -83,7 +83,7 @@ pub fn append_base_slabs(
             let entity_id = EntityId::pack(EntityKind::Atom, u64::from(sugar.index().get()))?;
             let glycosidic = GLYCOSIDIC_ATOMS
                 .iter()
-                .find_map(|name| residue.atom(name).and_then(pdbiox::AtomRef::position))
+                .find_map(|name| residue.atom(name).and_then(molframe::AtomRef::position))
                 .map(Vec3::from);
             emit_base(
                 &ring,
@@ -109,7 +109,7 @@ pub fn append_base_slabs(
 ///
 /// Returns [`crate::PackingError`] when a source atom row cannot be encoded.
 pub fn append_base_polygons(
-    structure: &pdbiox::Structure,
+    structure: &molframe::Structure,
     selection: &AtomSelection,
     thickness: f32,
     outline_radius: f32,
@@ -138,7 +138,7 @@ pub fn append_base_polygons(
                 .filter_map(|name| {
                     residue
                         .atom(name)
-                        .and_then(pdbiox::AtomRef::position)
+                        .and_then(molframe::AtomRef::position)
                         .map(Vec3::from)
                 })
                 .collect();

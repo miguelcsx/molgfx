@@ -4,7 +4,7 @@ use std::fmt::Write as _;
 /// Builds an mmCIF of pyranose rings whose centres sit at the given points.
 /// Each ring is a small hexagon around its centre, which is all the extractor
 /// reads.
-fn glycan(centres: &[(f32, f32, f32)]) -> pdbiox::Structure {
+fn glycan(centres: &[(f32, f32, f32)]) -> molframe::Structure {
     let mut cif = String::from(
         "data_glycan\nloop_\n_atom_site.group_PDB\n_atom_site.id\n\
 _atom_site.type_symbol\n_atom_site.label_atom_id\n_atom_site.label_alt_id\n\
@@ -35,8 +35,8 @@ _atom_site.auth_asym_id\n_atom_site.pdbx_PDB_model_num\n",
             id += 1;
         }
     }
-    let options = pdbiox::ReadOptions::new();
-    match pdbiox::read_bytes(cif.into_bytes(), Some("glycan.cif"), &options) {
+    let options = molframe::ReadOptions::new();
+    match molframe::read_bytes(cif.into_bytes(), Some("glycan.cif"), &options) {
         Ok((structure, _)) => structure,
         Err(diagnostics) => panic!("glycan fixture parses: {diagnostics:?}"),
     }
@@ -85,7 +85,7 @@ fn sugars_too_far_apart_are_not_linked() {
 
 #[test]
 fn a_structure_without_sugar_rings_yields_nothing() {
-    let options = pdbiox::ReadOptions::new();
+    let options = molframe::ReadOptions::new();
     let cif = "data_p\nloop_\n_atom_site.group_PDB\n_atom_site.id\n_atom_site.type_symbol\n\
 _atom_site.label_atom_id\n_atom_site.label_alt_id\n_atom_site.label_comp_id\n\
 _atom_site.label_asym_id\n_atom_site.label_entity_id\n_atom_site.label_seq_id\n\
@@ -94,7 +94,7 @@ _atom_site.B_iso_or_equiv\n_atom_site.auth_seq_id\n_atom_site.auth_asym_id\n\
 _atom_site.pdbx_PDB_model_num\n\
 ATOM 1 N N . GLY A 1 1 0.0 0.0 0.0 1.00 10.0 1 A 1\n\
 ATOM 2 C CA . GLY A 1 1 1.5 0.0 0.0 1.00 10.0 1 A 1\n";
-    let Ok((structure, _)) = pdbiox::read_bytes(cif.as_bytes().to_vec(), Some("p.cif"), &options)
+    let Ok((structure, _)) = molframe::read_bytes(cif.as_bytes().to_vec(), Some("p.cif"), &options)
     else {
         panic!("protein fixture parses")
     };
