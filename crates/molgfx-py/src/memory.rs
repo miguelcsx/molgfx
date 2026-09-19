@@ -23,8 +23,3 @@ pub(crate) enum PyMemoryTransferExclusion {
     /// No safe `DLPack` lifetime and deleter contract is available.
     DlpackLifetimeUnavailable,
 }
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyMemoryOwnership>()?;
-    module.add_class::<PyMemoryTransferExclusion>()
-}

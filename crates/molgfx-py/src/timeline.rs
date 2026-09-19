@@ -17,7 +17,7 @@ pub(crate) enum PyCameraEasing {
     SmoothStep,
 }
 
-impl From<PyCameraEasing> for molgfx::CameraEasing {
+impl From<PyCameraEasing> for molgfx::core::CameraEasing {
     fn from(value: PyCameraEasing) -> Self {
         match value {
             PyCameraEasing::Linear => Self::Linear,
@@ -28,13 +28,17 @@ impl From<PyCameraEasing> for molgfx::CameraEasing {
 
 #[pyclass(name = "CameraKeyframe", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyCameraKeyframe(molgfx::CameraKeyframe);
+pub(crate) struct PyCameraKeyframe(molgfx::core::CameraKeyframe);
 
 #[pymethods]
 impl PyCameraKeyframe {
     #[new]
     fn new(time_seconds: f64, camera: PyCamera) -> PyResult<Self> {
-        core(molgfx::CameraKeyframe::new(time_seconds, camera.inner)).map(Self)
+        core(molgfx::core::CameraKeyframe::new(
+            time_seconds,
+            camera.inner,
+        ))
+        .map(Self)
     }
 
     #[getter]
@@ -52,7 +56,7 @@ impl PyCameraKeyframe {
 
 #[pyclass(name = "CameraPath", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyCameraPath(molgfx::CameraPath);
+pub(crate) struct PyCameraPath(molgfx::core::CameraPath);
 
 #[pymethods]
 impl PyCameraPath {
@@ -63,7 +67,7 @@ impl PyCameraPath {
             .into_iter()
             .map(|value| value.0)
             .collect::<Vec<_>>();
-        core(molgfx::CameraPath::new(
+        core(molgfx::core::CameraPath::new(
             Arc::from(keyframes.into_boxed_slice()),
             easing.into(),
         ))
@@ -93,13 +97,13 @@ impl PyCameraPath {
 
 #[pyclass(name = "CameraBookmark", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyCameraBookmark(molgfx::CameraBookmark);
+pub(crate) struct PyCameraBookmark(molgfx::core::CameraBookmark);
 
 #[pymethods]
 impl PyCameraBookmark {
     #[new]
     fn new(label: String, time_seconds: f64, camera: PyCamera) -> PyResult<Self> {
-        core(molgfx::CameraBookmark::new(
+        core(molgfx::core::CameraBookmark::new(
             label,
             time_seconds,
             camera.inner,
@@ -109,7 +113,7 @@ impl PyCameraBookmark {
 
     #[staticmethod]
     fn from_json(source: &str) -> PyResult<Self> {
-        core(molgfx::CameraBookmark::from_json(source)).map(Self)
+        core(molgfx::core::CameraBookmark::from_json(source)).map(Self)
     }
 
     fn to_json(&self) -> PyResult<String> {
@@ -154,7 +158,7 @@ pub(crate) enum PyPlaybackMode {
     PingPong,
 }
 
-impl From<PyPlaybackMode> for molgfx::PlaybackMode {
+impl From<PyPlaybackMode> for molgfx::core::PlaybackMode {
     fn from(value: PyPlaybackMode) -> Self {
         match value {
             PyPlaybackMode::Clamp => Self::Clamp,
@@ -166,7 +170,7 @@ impl From<PyPlaybackMode> for molgfx::PlaybackMode {
 
 #[pyclass(name = "TimeWarp", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyTimeWarp(pub(crate) molgfx::TimeWarp);
+pub(crate) struct PyTimeWarp(pub(crate) molgfx::core::TimeWarp);
 
 #[pymethods]
 impl PyTimeWarp {
@@ -178,7 +182,7 @@ impl PyTimeWarp {
         range: (f64, f64),
         playback: PyPlaybackMode,
     ) -> PyResult<Self> {
-        core(molgfx::TimeWarp::new(
+        core(molgfx::core::TimeWarp::new(
             global_origin,
             local_origin,
             rate,
@@ -205,13 +209,13 @@ impl PyTimeWarp {
 
 #[pyclass(name = "Timeline")]
 #[derive(Debug)]
-pub(crate) struct PyTimeline(pub(crate) molgfx::Timeline);
+pub(crate) struct PyTimeline(pub(crate) molgfx::core::Timeline);
 
 #[pymethods]
 impl PyTimeline {
     #[new]
     fn new() -> Self {
-        Self(molgfx::Timeline::new())
+        Self(molgfx::core::Timeline::new())
     }
 
     fn bind_trajectory(
@@ -294,8 +298,8 @@ impl PyTimeline {
         core(self.0.bind_attribute(
             &mut scene.inner,
             attribute.0,
-            molgfx::AttributeValues::Scalar(Arc::from(start)),
-            molgfx::AttributeValues::Scalar(Arc::from(end)),
+            molgfx::core::AttributeValues::Scalar(Arc::from(start)),
+            molgfx::core::AttributeValues::Scalar(Arc::from(end)),
             warp.0,
         ))
         .map(Into::into)
@@ -314,8 +318,8 @@ impl PyTimeline {
         core(self.0.bind_attribute(
             &mut scene.inner,
             attribute.0,
-            molgfx::AttributeValues::Vector(Arc::from(start)),
-            molgfx::AttributeValues::Vector(Arc::from(end)),
+            molgfx::core::AttributeValues::Vector(Arc::from(start)),
+            molgfx::core::AttributeValues::Vector(Arc::from(end)),
             warp.0,
         ))
         .map(Into::into)
@@ -347,7 +351,7 @@ fn rigid_frames(
     translations: &PyReadonlyArray2<'_, f32>,
     orientations: &PyReadonlyArray2<'_, f32>,
     scales: &PyReadonlyArray1<'_, f32>,
-) -> PyResult<Vec<molgfx::RigidInstance>> {
+) -> PyResult<Vec<molgfx::core::RigidInstance>> {
     let translation_shape = translations.shape();
     if translation_shape.len() != 2 || translation_shape[1] != 3 {
         return Err(pyo3::exceptions::PyValueError::new_err(
@@ -371,13 +375,13 @@ fn rigid_frames(
         .map_err(|_| pyo3::exceptions::PyValueError::new_err("scales must be contiguous"))?;
     let mut frames = Vec::with_capacity(count);
     for row in 0..count {
-        frames.push(core(molgfx::RigidInstance::new(
-            molgfx::Vec3::from_array([
+        frames.push(core(molgfx::core::RigidInstance::new(
+            molgfx::math::Vec3::from_array([
                 translations[row * 3],
                 translations[row * 3 + 1],
                 translations[row * 3 + 2],
             ]),
-            molgfx::Quat::from_array([
+            molgfx::math::Quat::from_array([
                 orientations[row * 4],
                 orientations[row * 4 + 1],
                 orientations[row * 4 + 2],
@@ -403,14 +407,4 @@ fn vector_frames(values: &PyReadonlyArray2<'_, f32>) -> PyResult<Vec<[f32; 3]>> 
         .chunks_exact(3)
         .map(|row| [row[0], row[1], row[2]])
         .collect())
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyCameraEasing>()?;
-    module.add_class::<PyCameraKeyframe>()?;
-    module.add_class::<PyCameraPath>()?;
-    module.add_class::<PyCameraBookmark>()?;
-    module.add_class::<PyPlaybackMode>()?;
-    module.add_class::<PyTimeWarp>()?;
-    module.add_class::<PyTimeline>()
 }

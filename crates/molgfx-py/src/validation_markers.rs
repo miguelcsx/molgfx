@@ -14,7 +14,7 @@ pub(crate) enum PyValidationKind {
     Other,
 }
 
-impl From<PyValidationKind> for molgfx::ValidationKind {
+impl From<PyValidationKind> for molgfx::core::ValidationKind {
     fn from(value: PyValidationKind) -> Self {
         match value {
             PyValidationKind::Clash => Self::Clash,
@@ -27,7 +27,7 @@ impl From<PyValidationKind> for molgfx::ValidationKind {
 
 #[pyclass(name = "ValidationMarker", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyValidationMarker(molgfx::ValidationMarker);
+pub(crate) struct PyValidationMarker(molgfx::core::ValidationMarker);
 
 #[pymethods]
 impl PyValidationMarker {
@@ -39,7 +39,7 @@ impl PyValidationMarker {
         severity: f32,
         style: PyMarkerStyle,
     ) -> PyResult<Self> {
-        core(molgfx::ValidationMarker::new(
+        core(molgfx::core::ValidationMarker::new(
             owner.0,
             anchor.0,
             kind.into(),
@@ -63,9 +63,4 @@ impl PyScene {
     ) -> PyResult<PyAnnotationHandle> {
         core(self.inner.add_validation_marker(marker.0)).map(Into::into)
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyValidationKind>()?;
-    module.add_class::<PyValidationMarker>()
 }

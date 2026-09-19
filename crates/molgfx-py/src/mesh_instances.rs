@@ -6,6 +6,37 @@ use crate::math::PyMat4;
 use numpy::{PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 
+/// One transform-only occurrence of a shared mesh.
+#[pyclass(name = "MeshInstance", frozen, skip_from_py_object)]
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PyMeshInstance(pub(crate) molgfx::core::MeshInstance);
+
+impl From<&molgfx::core::MeshInstance> for PyMeshInstance {
+    fn from(value: &molgfx::core::MeshInstance) -> Self {
+        Self(*value)
+    }
+}
+
+#[pymethods]
+impl PyMeshInstance {
+    /// Shared mesh this occurrence places.
+    #[getter]
+    fn mesh(&self) -> PyMeshHandle {
+        self.0.mesh().into()
+    }
+
+    /// Model-to-world placement of this occurrence.
+    #[getter]
+    fn transform(&self) -> PyMat4 {
+        PyMat4(self.0.transform())
+    }
+
+    #[getter]
+    fn visible(&self) -> bool {
+        self.0.visible()
+    }
+}
+
 #[pymethods]
 impl PyScene {
     fn add_mesh_instance(
@@ -13,7 +44,7 @@ impl PyScene {
         mesh: PyMeshHandle,
         transform: PyMat4,
     ) -> PyResult<PyMeshInstanceHandle> {
-        let instance = core(molgfx::MeshInstance::new(mesh.0, transform.0))?;
+        let instance = core(molgfx::core::MeshInstance::new(mesh.0, transform.0))?;
         core(self.inner.add_mesh_instance(instance)).map(Into::into)
     }
 
@@ -30,12 +61,12 @@ impl PyScene {
             .map_err(|_| value("transforms must be C-contiguous float32"))?;
         let mut last = None;
         for lanes in transforms.chunks_exact(16) {
-            let matrix = molgfx::Mat4::from_cols_array(&[
+            let matrix = molgfx::math::Mat4::from_cols_array(&[
                 lanes[0], lanes[1], lanes[2], lanes[3], lanes[4], lanes[5], lanes[6], lanes[7],
                 lanes[8], lanes[9], lanes[10], lanes[11], lanes[12], lanes[13], lanes[14],
                 lanes[15],
             ]);
-            let instance = core(molgfx::MeshInstance::new(mesh.0, matrix))?;
+            let instance = core(molgfx::core::MeshInstance::new(mesh.0, matrix))?;
             last = Some(core(self.inner.add_mesh_instance(instance))?.into());
         }
         Ok(last)
@@ -63,5 +94,18 @@ impl PyScene {
 
     fn remove_mesh_instance(&mut self, handle: PyMeshInstanceHandle) -> bool {
         self.inner.remove_mesh_instance(handle.0).is_some()
+    }
+
+    /// Resolves a mesh instance by handle.
+    fn mesh_instance(&self, handle: PyMeshInstanceHandle) -> Option<PyMeshInstance> {
+        self.inner.mesh_instance(handle.0).map(Into::into)
+    }
+
+    /// Iterates mesh instances in deterministic handle order.
+    fn mesh_instances(&self) -> Vec<(PyMeshInstanceHandle, PyMeshInstance)> {
+        self.inner
+            .mesh_instances()
+            .map(|(handle, instance)| (handle.into(), instance.into()))
+            .collect()
     }
 }
