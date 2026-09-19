@@ -5,23 +5,36 @@
 //! the `frame_profile` binary instead — criterion drives no device here.
 
 use criterion::{Criterion, Throughput};
-use molgfx::{AtomSelection, Scene};
+use molgfx::core::{AtomSelection, Scene};
+use molgfx_bench::fixtures;
 use std::hint::black_box;
+use std::path::Path;
 
-const STRUCTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../benchmarks/scenes/4hhb.cif"
-);
+const STRUCTURE: &str = "4hhb.cif";
 
-fn load() -> pdbiox::Structure {
-    match pdbiox::read(STRUCTURE) {
-        Ok(structure) => structure,
-        Err(diagnostics) => panic!("fixture {STRUCTURE} must parse: {diagnostics:?}"),
+/// The measured structure, or nothing when this checkout carries no scene
+/// corpus. A checkout without one is a normal state, so the group is skipped
+/// with a note instead of aborting the run.
+fn load() -> Option<molframe::Structure> {
+    let path = fixtures::scene(Some(Path::new(STRUCTURE)))?;
+    if !path.is_file() {
+        eprintln!(
+            "skipped: {} is not in the scene corpus; set MOLGFX_SCENES to point at one",
+            path.display()
+        );
+        return None;
+    }
+    match molframe::read(&path) {
+        Ok(structure) => Some(structure),
+        Err(diagnostics) => {
+            eprintln!("skipped: {} must parse: {diagnostics:?}", path.display());
+            None
+        }
     }
 }
 
 /// Atom indices of every copy of a named component (e.g. the four haems).
-fn component_atoms(structure: &pdbiox::Structure, name: &str) -> Vec<u32> {
+fn component_atoms(structure: &molframe::Structure, name: &str) -> Vec<u32> {
     structure
         .data()
         .residues()
@@ -31,7 +44,9 @@ fn component_atoms(structure: &pdbiox::Structure, name: &str) -> Vec<u32> {
 }
 
 fn bench_kernels(c: &mut Criterion) {
-    let structure = load();
+    let Some(structure) = load() else {
+        return;
+    };
     let atom_count = structure.positions().len() as u64;
 
     let mut group = c.benchmark_group("core");
@@ -47,7 +62,11 @@ fn bench_kernels(c: &mut Criterion) {
     let ligand = component_atoms(&structure, "HEM");
     let mut scene = match Scene::from_structure(&structure) {
         Ok(scene) => scene,
-        Err(error) => panic!("scene must build: {error:?}"),
+        Err(error) => {
+            eprintln!("skipped: the selection bench needs a built scene: {error:?}");
+            group.finish();
+            return;
+        }
     };
     let reference = scene.add_selection(AtomSelection::Sparse(ligand));
     group.bench_function("select_residues_within_5A", |b| {

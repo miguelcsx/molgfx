@@ -1,10 +1,11 @@
 //! Whole-graph headless GPU benchmark using the production facade.
 
 use molgfx::{
-    AtomSelection, Camera, Engine, EngineConfig, Image, ImageConfig, RenderMode, RenderProfile,
-    RepresentationKind, Scene, SurfaceKind, SurfaceStyle,
+    core::{AtomSelection, RepresentationKind, Scene, SurfaceKind, SurfaceStyle},
+    math::Camera,
+    render::{Engine, EngineConfig, Image, ImageConfig, RenderMode, RenderProfile},
 };
-use molgfx_bench::{summarize, CumulativeTelemetry, FrameSample, FrameSummary};
+use molgfx_bench::{CumulativeTelemetry, FrameSample, FrameSummary, summarize};
 use std::error::Error;
 use std::fs::File;
 use std::io;
@@ -153,7 +154,7 @@ fn telemetry(engine: &Engine) -> CumulativeTelemetry {
     }
 }
 
-fn timing_telemetry(timing: &molgfx::FrameTiming) -> CumulativeTelemetry {
+fn timing_telemetry(timing: &molgfx::render::FrameTiming) -> CumulativeTelemetry {
     let value = timing.residency_counters();
     CumulativeTelemetry {
         allocation_events: value.allocation_events,
@@ -175,12 +176,12 @@ fn aspect_ratio(config: ImageConfig) -> f32 {
 
 fn load_scene(path: &str, requested: Option<&str>) -> Result<Scene, Box<dyn Error>> {
     let compact_input = matches!(requested, None | Some("spacefill" | "points"));
-    let options = pdbiox::ReadOptions::new()
-        .mode(pdbiox::ParseMode::Recover)
+    let options = molframe::ReadOptions::new()
+        .mode(molframe::ParseMode::Recover)
         .only_first_model(true)
         .only_atomic_coords(compact_input);
     let (structure, diagnostics) =
-        pdbiox::read_with_options(path, &options).map_err(|diagnostics| {
+        molframe::read_with_options(path, &options).map_err(|diagnostics| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("structure diagnostics: {diagnostics:?}"),

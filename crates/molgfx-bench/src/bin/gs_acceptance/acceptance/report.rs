@@ -124,9 +124,7 @@ impl MetricSet {
                 "production residency stall counter",
             ),
             peak_rss_bytes: Availability::Unavailable {
-                reason:
-                    "run through scripts/run-gs-acceptance.py for external process RSS sampling"
-                        .into(),
+                reason: "process RSS requires an external observer of the benchmark process".into(),
             },
             peak_vram_bytes: Availability::Unavailable {
                 reason: "active backend exposes resident arena bytes, not total process VRAM"
@@ -159,9 +157,7 @@ impl MetricSet {
             peak_resident_bytes: missing(),
             max_stall_events: missing(),
             peak_rss_bytes: Availability::Unavailable {
-                reason:
-                    "run through scripts/run-gs-acceptance.py for external process RSS sampling"
-                        .into(),
+                reason: "process RSS requires an external observer of the benchmark process".into(),
             },
             peak_vram_bytes: Availability::Unavailable {
                 reason: "active backend exposes no total process VRAM counter".into(),

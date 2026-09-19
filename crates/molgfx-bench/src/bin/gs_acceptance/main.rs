@@ -1,19 +1,24 @@
 //! Declarative GS-001..GS-010 candidate and telemetry runner.
 
+use molgfx::semantic::FocusScene;
 use molgfx::{
-    AtomSelection, AttributeColumn, AttributeValues, Camera, Engine, EngineConfig, Mat4,
-    RenderProfile, RepresentationKind, RowDomain, ScalarRamp, Scene, Select, SurfaceKind, Vec3,
-    VisualProgramBuilder, VisualStyle,
+    core::{
+        AtomCorrespondence, AtomSelection, AttributeColumn, AttributeValues, DifferenceScene,
+        DifferenceStyle, RepresentationKind, RowDomain, ScalarRamp, Scene, Select, SurfaceKind,
+        VisualProgramBuilder, VisualStyle,
+    },
+    math::{Camera, Mat4, Vec3},
+    render::{Engine, EngineConfig, RenderProfile},
 };
-use molgfx_recipes::{AtomCorrespondence, DifferenceScene, DifferenceStyle, FocusScene};
-#[path = "../acceptance/mod.rs"]
 mod acceptance;
+mod outcomes;
 use acceptance::{
     AcceptanceReport, AdapterEvidence, Availability, CandidateEvidence, GoldenSceneId,
     GoldenSceneSpec, MetricSet, SceneEvidence, SceneOutcome, SceneRecipe, arguments,
     dimension_aspect, golden_scene_specs, read_structure, write_png,
 };
 use molgfx_bench::{CumulativeTelemetry, FrameSample, summarize};
+use outcomes::{blocked, failed, panic_reason, unavailable_adapter};
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
 use std::alloc::System;
 use std::cell::Cell;
@@ -49,6 +54,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .fixture
             .clone()
             .or_else(|| spec.default_fixture.map(PathBuf::from));
+        let fixture = molgfx_bench::fixtures::scene(fixture.as_deref());
         let (scene_evidence, observed_adapter) = run_scene(
             spec,
             fixture,
@@ -86,6 +92,23 @@ fn run_scene(
     let Some(fixture) = fixture else {
         return (blocked(spec, None, spec.fixture_requirement), None);
     };
+    // A declared scene whose file is not in this checkout is blocked, not
+    // failed: nothing was measured, so nothing can be reported about the
+    // renderer.
+    if !fixture.is_file() {
+        return (
+            blocked(
+                spec,
+                Some(&fixture),
+                &format!(
+                    "fixture {} is not present; {}",
+                    fixture.display(),
+                    spec.fixture_requirement
+                ),
+            ),
+            None,
+        );
+    }
     let observed_atoms = Cell::new(None);
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
         execute_scene(spec, &fixture, output, warmup, frames, &observed_atoms)
@@ -131,7 +154,7 @@ fn execute_scene(
     let (structure, diagnostics) = read_structure(fixture)?;
     let observed_atoms = u64::from(structure.atom_count());
     observed.set(Some(observed_atoms));
-    let scene = build_scene(spec.recipe, &structure, fixture)?;
+    let scene = build_scene(spec.recipe, &structure)?;
     let camera = Camera::framing_aabb(
         &scene.world_aabb(),
         dimension_aspect(spec.config.width, spec.config.height)?,
@@ -227,8 +250,7 @@ fn execute_scene(
 
 fn build_scene(
     recipe: SceneRecipe,
-    structure: &pdbiox::Structure,
-    fixture: &Path,
+    structure: &molframe::Structure,
 ) -> Result<Scene, Box<dyn Error>> {
     let mut scene = Scene::from_structure(structure)?;
     match recipe {
@@ -238,7 +260,7 @@ fn build_scene(
             represent_all(&mut scene, RepresentationKind::Spacefill)?;
         }
         SceneRecipe::TransparentSurface => transparent_surface(&mut scene)?,
-        SceneRecipe::Confidence => confidence(&mut scene, structure, fixture)?,
+        SceneRecipe::Confidence => confidence(&mut scene, structure)?,
         SceneRecipe::Difference => difference(&mut scene, structure)?,
     }
     Ok(scene)
@@ -276,11 +298,7 @@ fn transparent_surface(scene: &mut Scene) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn confidence(
-    scene: &mut Scene,
-    structure: &pdbiox::Structure,
-    fixture: &Path,
-) -> Result<(), Box<dyn Error>> {
+fn confidence(scene: &mut Scene, structure: &molframe::Structure) -> Result<(), Box<dyn Error>> {
     let owner = scene
         .structures()
         .next()
@@ -314,7 +332,6 @@ fn confidence(
         .representation_mut(handle)
         .ok_or_else(|| io::Error::other("confidence representation became stale"))?;
     representation.visual = Some(VisualStyle::new(builder.finish()?));
-    let _ = fixture;
     Ok(())
 }
 
@@ -333,7 +350,7 @@ fn display_domain(values: &[f32]) -> Result<[f32; 2], io::Error> {
     })
 }
 
-fn difference(scene: &mut Scene, structure: &pdbiox::Structure) -> Result<(), Box<dyn Error>> {
+fn difference(scene: &mut Scene, structure: &molframe::Structure) -> Result<(), Box<dyn Error>> {
     let left = scene
         .structures()
         .next()
@@ -458,4 +475,4 @@ fn outside_target(observed: u64, target: u64) -> bool {
     observed < target.saturating_mul(3) / 4 || observed > target.saturating_mul(5) / 4
 }
 
-include!("gs_acceptance/outcomes.rs");
+// `outcomes` is declared at the top of the file.

@@ -1,6 +1,6 @@
-//! Fixed acceptance-scene declarations from `docs/23-benchmarks.md`.
+//! Fixed acceptance-scene declarations.
 
-use molgfx::{ImageConfig, RenderMode};
+use molgfx::render::{ImageConfig, RenderMode};
 use serde::Serialize;
 
 /// Stable golden-scene identity.
@@ -63,12 +63,14 @@ pub(crate) enum SceneRecipe {
     Publication4k,
 }
 
-/// One normative acceptance scene and its local fixture route.
+/// One normative acceptance scene and the fixture name it runs against.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct GoldenSceneSpec {
     pub(crate) id: GoldenSceneId,
     pub(crate) title: &'static str,
     pub(crate) recipe: SceneRecipe,
+    /// A name inside the scene corpus, resolved by `fixtures::scene`, or
+    /// nothing when the scene demands a fixture the corpus cannot supply.
     pub(crate) default_fixture: Option<&'static str>,
     pub(crate) target_atoms: u64,
     pub(crate) config: ImageConfig,
@@ -87,7 +89,7 @@ const GS001: GoldenSceneSpec = GoldenSceneSpec {
     id: GoldenSceneId::Gs001,
     title: "protein-ligand pocket",
     recipe: SceneRecipe::FocusPocket,
-    default_fixture: Some("benchmarks/scenes/3PTB.cif"),
+    default_fixture: Some("3PTB.cif"),
     target_atoms: 2_000,
     config: HD,
     mode: RenderMode::Realtime,
@@ -99,7 +101,7 @@ const GS002: GoldenSceneSpec = GoldenSceneSpec {
     id: GoldenSceneId::Gs002,
     title: "enzyme cartoon and ligand",
     recipe: SceneRecipe::CartoonLigand,
-    default_fixture: Some("benchmarks/scenes/4hhb.cif"),
+    default_fixture: Some("4hhb.cif"),
     target_atoms: 30_000,
     config: HD,
     mode: RenderMode::Realtime,
@@ -111,7 +113,7 @@ const GS003: GoldenSceneSpec = GoldenSceneSpec {
     id: GoldenSceneId::Gs003,
     title: "large complex spacefill",
     recipe: SceneRecipe::Spacefill,
-    default_fixture: Some("benchmarks/scenes/1AON.cif"),
+    default_fixture: Some("1AON.cif"),
     target_atoms: 100_000,
     config: HD,
     mode: RenderMode::Realtime,
@@ -123,7 +125,7 @@ const GS004: GoldenSceneSpec = GoldenSceneSpec {
     id: GoldenSceneId::Gs004,
     title: "transparent pocket surface",
     recipe: SceneRecipe::TransparentSurface,
-    default_fixture: Some("benchmarks/scenes/4hhb.cif"),
+    default_fixture: Some("4hhb.cif"),
     target_atoms: 30_000,
     config: HD,
     mode: RenderMode::Realtime,
@@ -135,7 +137,7 @@ const GS005: GoldenSceneSpec = GoldenSceneSpec {
     id: GoldenSceneId::Gs005,
     title: "viral capsid region",
     recipe: SceneRecipe::CapsidRegion,
-    default_fixture: Some("benchmarks/scenes/6VXX.cif"),
+    default_fixture: Some("6VXX.cif"),
     target_atoms: 1_000_000,
     config: HD,
     mode: RenderMode::Realtime,
@@ -159,7 +161,7 @@ const GS007: GoldenSceneSpec = GoldenSceneSpec {
     id: GoldenSceneId::Gs007,
     title: "quality protein-ligand pocket",
     recipe: SceneRecipe::QualityPocket,
-    default_fixture: Some("benchmarks/scenes/3PTB.cif"),
+    default_fixture: Some("3PTB.cif"),
     target_atoms: 2_000,
     config: HD,
     mode: RenderMode::Cinematic,
@@ -183,7 +185,7 @@ const GS009: GoldenSceneSpec = GoldenSceneSpec {
     id: GoldenSceneId::Gs009,
     title: "two-pose difference",
     recipe: SceneRecipe::Difference,
-    default_fixture: Some("benchmarks/scenes/3PTB.cif"),
+    default_fixture: Some("3PTB.cif"),
     target_atoms: 2_000,
     config: HD,
     mode: RenderMode::Realtime,
@@ -195,7 +197,7 @@ const GS010: GoldenSceneSpec = GoldenSceneSpec {
     id: GoldenSceneId::Gs010,
     title: "4K publication export",
     recipe: SceneRecipe::Publication4k,
-    default_fixture: Some("benchmarks/scenes/4hhb.cif"),
+    default_fixture: Some("4hhb.cif"),
     target_atoms: 30_000,
     config: ImageConfig {
         width: 3_840,
