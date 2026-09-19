@@ -4,10 +4,10 @@ use crate::error::value;
 use numpy::{PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 
-pub(super) fn ordered_rows(namespace: u64, count: usize) -> PyResult<molgfx::SourceRows> {
+pub(super) fn ordered_rows(namespace: u64, count: usize) -> PyResult<molgfx::core::SourceRows> {
     let count = u32::try_from(count).map_err(|_| value("row count exceeds u32"))?;
-    Ok(molgfx::SourceRows::ordered(
-        molgfx::SourceNamespace(namespace),
+    Ok(molgfx::core::SourceRows::ordered(
+        molgfx::core::SourceNamespace(namespace),
         count,
     ))
 }

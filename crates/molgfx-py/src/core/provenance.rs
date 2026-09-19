@@ -14,18 +14,18 @@ pub(crate) struct PyProvenance {
     detail_kind: &'static str,
 }
 
-impl From<molgfx::Provenance<'_>> for PyProvenance {
-    fn from(value: molgfx::Provenance<'_>) -> Self {
+impl From<molgfx::core::EntityProvenance<'_>> for PyProvenance {
+    fn from(value: molgfx::core::EntityProvenance<'_>) -> Self {
         let detail_kind = match value.detail {
-            molgfx::ProvenanceDetail::Atom(_) => "atom",
-            molgfx::ProvenanceDetail::Bond(_) => "bond",
-            molgfx::ProvenanceDetail::DynamicBond(_) => "dynamic_bond",
-            molgfx::ProvenanceDetail::Interaction(_) => "interaction",
-            molgfx::ProvenanceDetail::Guide(_) => "guide",
-            molgfx::ProvenanceDetail::Annotation(_) => "annotation",
-            molgfx::ProvenanceDetail::Measurement(_) => "measurement",
-            molgfx::ProvenanceDetail::Primitive(_) => "primitive",
-            molgfx::ProvenanceDetail::Mesh(_) => "mesh",
+            molgfx::core::ProvenanceDetail::Atom(_) => "atom",
+            molgfx::core::ProvenanceDetail::Bond(_) => "bond",
+            molgfx::core::ProvenanceDetail::DynamicBond(_) => "dynamic_bond",
+            molgfx::core::ProvenanceDetail::Interaction(_) => "interaction",
+            molgfx::core::ProvenanceDetail::Guide(_) => "guide",
+            molgfx::core::ProvenanceDetail::Annotation(_) => "annotation",
+            molgfx::core::ProvenanceDetail::Measurement(_) => "measurement",
+            molgfx::core::ProvenanceDetail::Primitive(_) => "primitive",
+            molgfx::core::ProvenanceDetail::Mesh(_) => "mesh",
             _ => "unknown",
         };
         Self {
@@ -77,8 +77,4 @@ impl PyScene {
     fn provenance(&self, entity: PyEntityRef) -> Option<PyProvenance> {
         self.inner.provenance(entity.0).map(Into::into)
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyProvenance>()
 }

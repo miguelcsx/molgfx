@@ -18,7 +18,7 @@ pub(crate) enum PyVisualOutput {
     PositionOffset,
 }
 
-impl From<PyVisualOutput> for molgfx::VisualOutput {
+impl From<PyVisualOutput> for molgfx::core::VisualOutput {
     fn from(value: PyVisualOutput) -> Self {
         match value {
             PyVisualOutput::BaseColor => Self::BaseColor,

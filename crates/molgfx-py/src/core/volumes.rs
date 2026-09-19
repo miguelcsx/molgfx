@@ -2,28 +2,35 @@
 
 use crate::error::core;
 use crate::math::PyMat4;
+use numpy::{PyArray1, PyReadonlyArray1};
 use pyo3::prelude::*;
 use std::sync::Arc;
 
 #[pyclass(name = "ScalarVolume", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyScalarVolume(pub(crate) molgfx::ScalarVolume);
+pub(crate) struct PyScalarVolume(pub(crate) molgfx::core::ScalarVolume);
 
 #[pymethods]
 impl PyScalarVolume {
     #[new]
     #[pyo3(signature = (dimensions, values, voxel_to_world=None))]
     fn new(
+        py: Python<'_>,
         dimensions: (u32, u32, u32),
-        values: Vec<f32>,
+        values: PyReadonlyArray1<'_, f32>,
         voxel_to_world: Option<PyMat4>,
     ) -> PyResult<Self> {
-        let transform = voxel_to_world.map_or(molgfx::Mat4::IDENTITY, |value| value.0);
-        core(molgfx::ScalarVolume::new(
-            [dimensions.0, dimensions.1, dimensions.2],
-            transform,
-            Arc::from(values.into_boxed_slice()),
-        ))
+        let values = values
+            .as_slice()
+            .map_err(|_| crate::error::value("values must be C-contiguous float32"))?;
+        let transform = voxel_to_world.map_or(molgfx::math::Mat4::IDENTITY, |value| value.0);
+        core(py.detach(|| {
+            molgfx::core::ScalarVolume::new(
+                [dimensions.0, dimensions.1, dimensions.2],
+                transform,
+                Arc::from(values),
+            )
+        }))
         .map(Self)
     }
 
@@ -38,8 +45,8 @@ impl PyScalarVolume {
         (value[0], value[1])
     }
     #[getter]
-    fn values(&self) -> Vec<f32> {
-        self.0.values().to_vec()
+    fn values<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f32>> {
+        PyArray1::from_slice(py, self.0.values())
     }
     #[getter]
     fn voxel_to_world(&self) -> PyMat4 {
@@ -50,7 +57,7 @@ impl PyScalarVolume {
 /// Compact declaration for a GPU-resident temporal occupancy volume.
 #[pyclass(name = "OccupancyStream", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyOccupancyStream(pub(crate) molgfx::OccupancyStream);
+pub(crate) struct PyOccupancyStream(pub(crate) molgfx::core::OccupancyStream);
 
 #[pymethods]
 impl PyOccupancyStream {
@@ -64,10 +71,10 @@ impl PyOccupancyStream {
         deposit: f32,
         maximum: f32,
     ) -> PyResult<Self> {
-        core(molgfx::OccupancyStream::new(
+        core(molgfx::core::OccupancyStream::new(
             [dimensions.0, dimensions.1, dimensions.2],
-            molgfx::Vec3::new(origin.0, origin.1, origin.2),
-            molgfx::Vec3::new(spacing.0, spacing.1, spacing.2),
+            molgfx::math::Vec3::new(origin.0, origin.1, origin.2),
+            molgfx::math::Vec3::new(spacing.0, spacing.1, spacing.2),
             decay,
             deposit,
             maximum,
@@ -100,23 +107,29 @@ impl PyOccupancyStream {
 
 #[pyclass(name = "SegmentedVolume", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PySegmentedVolume(pub(crate) molgfx::SegmentedVolume);
+pub(crate) struct PySegmentedVolume(pub(crate) molgfx::core::SegmentedVolume);
 
 #[pymethods]
 impl PySegmentedVolume {
     #[new]
     #[pyo3(signature = (dimensions, labels, voxel_to_world=None))]
     fn new(
+        py: Python<'_>,
         dimensions: (u32, u32, u32),
-        labels: Vec<u32>,
+        labels: PyReadonlyArray1<'_, u32>,
         voxel_to_world: Option<PyMat4>,
     ) -> PyResult<Self> {
-        let transform = voxel_to_world.map_or(molgfx::Mat4::IDENTITY, |value| value.0);
-        core(molgfx::SegmentedVolume::new(
-            [dimensions.0, dimensions.1, dimensions.2],
-            transform,
-            Arc::from(labels.into_boxed_slice()),
-        ))
+        let labels = labels
+            .as_slice()
+            .map_err(|_| crate::error::value("labels must be C-contiguous uint32"))?;
+        let transform = voxel_to_world.map_or(molgfx::math::Mat4::IDENTITY, |value| value.0);
+        core(py.detach(|| {
+            molgfx::core::SegmentedVolume::new(
+                [dimensions.0, dimensions.1, dimensions.2],
+                transform,
+                Arc::from(labels),
+            )
+        }))
         .map(Self)
     }
 
@@ -126,8 +139,8 @@ impl PySegmentedVolume {
         (value[0], value[1], value[2])
     }
     #[getter]
-    fn labels(&self) -> Vec<u32> {
-        self.0.labels().to_vec()
+    fn labels<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<u32>> {
+        PyArray1::from_slice(py, self.0.labels())
     }
     #[getter]
     fn voxel_to_world(&self) -> PyMat4 {
@@ -137,36 +150,36 @@ impl PySegmentedVolume {
 
 #[pyclass(name = "MaterialModel", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyMaterialModel(pub(crate) molgfx::MaterialModel);
+pub(crate) struct PyMaterialModel(pub(crate) molgfx::core::MaterialModel);
 
 #[pymethods]
 impl PyMaterialModel {
     #[staticmethod]
     fn molecular() -> Self {
-        Self(molgfx::MaterialModel::Molecular)
+        Self(molgfx::core::MaterialModel::Molecular)
     }
     #[staticmethod]
     fn principled(metallic: f32) -> Self {
-        Self(molgfx::MaterialModel::Principled { metallic })
+        Self(molgfx::core::MaterialModel::Principled { metallic })
     }
     #[staticmethod]
     fn anisotropic_ribbon(strength: f32) -> Self {
-        Self(molgfx::MaterialModel::AnisotropicRibbon { strength })
+        Self(molgfx::core::MaterialModel::AnisotropicRibbon { strength })
     }
     #[staticmethod]
     fn diffusion(strength: f32) -> Self {
-        Self(molgfx::MaterialModel::Diffusion { strength })
+        Self(molgfx::core::MaterialModel::Diffusion { strength })
     }
     fn __repr__(&self) -> String {
         match self.0 {
-            molgfx::MaterialModel::Molecular => "MaterialModel.Molecular".to_owned(),
-            molgfx::MaterialModel::Principled { metallic } => {
+            molgfx::core::MaterialModel::Molecular => "MaterialModel.Molecular".to_owned(),
+            molgfx::core::MaterialModel::Principled { metallic } => {
                 format!("MaterialModel.Principled({metallic})")
             }
-            molgfx::MaterialModel::AnisotropicRibbon { strength } => {
+            molgfx::core::MaterialModel::AnisotropicRibbon { strength } => {
                 format!("MaterialModel.AnisotropicRibbon({strength})")
             }
-            molgfx::MaterialModel::Diffusion { strength } => {
+            molgfx::core::MaterialModel::Diffusion { strength } => {
                 format!("MaterialModel.Diffusion({strength})")
             }
         }
@@ -175,25 +188,25 @@ impl PyMaterialModel {
 
 #[pyclass(name = "Material", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyMaterial(pub(crate) molgfx::Material);
+pub(crate) struct PyMaterial(pub(crate) molgfx::core::Material);
 
 #[pymethods]
 impl PyMaterial {
     #[staticmethod]
     fn default() -> Self {
-        Self(molgfx::Material::default())
+        Self(molgfx::core::Material::default())
     }
     #[staticmethod]
     fn principled(metallic: f32) -> Self {
-        Self(molgfx::Material::principled(metallic))
+        Self(molgfx::core::Material::principled(metallic))
     }
     #[staticmethod]
     fn anisotropic_ribbon(strength: f32) -> Self {
-        Self(molgfx::Material::anisotropic_ribbon(strength))
+        Self(molgfx::core::Material::anisotropic_ribbon(strength))
     }
     #[staticmethod]
     fn diffusion(strength: f32) -> Self {
-        Self(molgfx::Material::diffusion(strength))
+        Self(molgfx::core::Material::diffusion(strength))
     }
     #[getter]
     fn opacity(&self) -> f32 {
@@ -211,12 +224,4 @@ impl PyMaterial {
     fn model(&self) -> PyMaterialModel {
         PyMaterialModel(self.0.model)
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyScalarVolume>()?;
-    module.add_class::<PyOccupancyStream>()?;
-    module.add_class::<PySegmentedVolume>()?;
-    module.add_class::<PyMaterialModel>()?;
-    module.add_class::<PyMaterial>()
 }

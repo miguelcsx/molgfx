@@ -6,7 +6,7 @@ macro_rules! expression {
     ($python:literal, $name:ident, $native:ident) => {
         #[pyclass(name = $python, frozen, from_py_object)]
         #[derive(Clone, Copy, Debug)]
-        pub(crate) struct $name(pub(crate) molgfx::$native);
+        pub(crate) struct $name(pub(crate) molgfx::core::$native);
     };
 }
 

@@ -1,22 +1,15 @@
 //! Thin Python adapters for Rust-validated visual programs.
 
-#[path = "visual_compatibility.rs"]
-mod compatibility;
-#[path = "visual_enums.rs"]
-mod enums;
-#[path = "visual_expressions.rs"]
-mod expressions;
-#[path = "visual_inputs.rs"]
-mod inputs;
-#[path = "visual_register.rs"]
-mod register;
-pub(crate) use compatibility::PyVisualCompatibility;
-pub(crate) use enums::{PyVisualOutput, PyVisualStage};
+pub(crate) mod columns;
+pub(crate) mod compatibility;
+pub(crate) mod enums;
+pub(crate) mod expressions;
+pub(crate) mod inputs;
+pub(crate) use columns::{PyVisualAttributeRef, PyVisualColumnKey, PyVisualDescriptor};
 pub(crate) use expressions::{
     PyBoolExpr, PyColorExpr, PyColorParameter, PyScalarExpr, PyScalarParameter, PyVectorExpr,
     PyVectorParameter,
 };
-pub(crate) use register::register;
 
 use crate::core::PyAttributeHandle;
 use crate::error::{value, visual};
@@ -26,7 +19,7 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "VisualInputs", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyVisualInputs(molgfx::VisualInputs);
+pub(crate) struct PyVisualInputs(molgfx::core::VisualInputs);
 
 #[pymethods]
 impl PyVisualInputs {
@@ -57,7 +50,7 @@ impl PyVisualInputs {
             .map_or((f32::NAN, f32::NAN, f32::NAN, f32::NAN), |properties| {
                 properties
             });
-        Self(molgfx::VisualInputs {
+        Self(molgfx::core::VisualInputs {
             base_color: [base_color.0, base_color.1, base_color.2, base_color.3],
             base_opacity,
             time_seconds,
@@ -78,7 +71,7 @@ impl PyVisualInputs {
 
 #[pyclass(name = "VisualEvaluation", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyVisualEvaluation(molgfx::VisualEvaluation);
+pub(crate) struct PyVisualEvaluation(molgfx::core::VisualEvaluation);
 
 #[pymethods]
 impl PyVisualEvaluation {
@@ -130,7 +123,7 @@ impl PyVisualEvaluation {
 
 #[pyclass(name = "VisualProgram", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyVisualProgram(pub(crate) molgfx::VisualProgram);
+pub(crate) struct PyVisualProgram(pub(crate) molgfx::core::VisualProgram);
 
 #[pymethods]
 impl PyVisualProgram {
@@ -177,18 +170,18 @@ impl PyVisualProgram {
 
 #[pyclass(name = "VisualStyle", from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyVisualStyle(pub(crate) molgfx::VisualStyle);
+pub(crate) struct PyVisualStyle(pub(crate) molgfx::core::VisualStyle);
 
 #[pymethods]
 impl PyVisualStyle {
     #[new]
     fn new(program: PyVisualProgram) -> Self {
-        Self(molgfx::VisualStyle::new(program.0))
+        Self(molgfx::core::VisualStyle::new(program.0))
     }
 
     #[staticmethod]
     fn pulse(color: PyRgba8, cycles_per_second: f32, minimum: f32, maximum: f32) -> PyResult<Self> {
-        visual(molgfx::VisualStyle::pulse(
+        visual(molgfx::core::VisualStyle::pulse(
             color.0,
             cycles_per_second,
             minimum,
@@ -232,11 +225,11 @@ impl PyVisualStyle {
 #[pyclass(name = "VisualProgramBuilder")]
 #[derive(Debug)]
 pub(crate) struct PyVisualProgramBuilder {
-    inner: Option<molgfx::VisualProgramBuilder>,
+    inner: Option<molgfx::core::VisualProgramBuilder>,
 }
 
 impl PyVisualProgramBuilder {
-    fn builder(&mut self) -> PyResult<&mut molgfx::VisualProgramBuilder> {
+    fn builder(&mut self) -> PyResult<&mut molgfx::core::VisualProgramBuilder> {
         self.inner
             .as_mut()
             .ok_or_else(|| value("visual-program builder is already finished"))

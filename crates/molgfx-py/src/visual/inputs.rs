@@ -9,7 +9,7 @@ impl PyVisualProgramBuilder {
     #[new]
     fn new() -> Self {
         Self {
-            inner: Some(molgfx::VisualProgramBuilder::new()),
+            inner: Some(molgfx::core::VisualProgramBuilder::new()),
         }
     }
     fn scalar(&mut self, value_: f32) -> PyResult<PyScalarExpr> {
