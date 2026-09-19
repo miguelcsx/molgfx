@@ -12,7 +12,7 @@ use molgfx_gpu::{
 #[path = "convert_tests.rs"]
 mod tests;
 
-pub fn buffer_usage(usage: BufferUsage) -> wgpu::BufferUsages {
+pub(crate) fn buffer_usage(usage: BufferUsage) -> wgpu::BufferUsages {
     let mut out = wgpu::BufferUsages::empty();
     let pairs = [
         (BufferUsage::VERTEX, wgpu::BufferUsages::VERTEX),
@@ -37,7 +37,7 @@ pub fn buffer_usage(usage: BufferUsage) -> wgpu::BufferUsages {
     out
 }
 
-pub fn texture_usage(usage: TextureUsage) -> wgpu::TextureUsages {
+pub(crate) fn texture_usage(usage: TextureUsage) -> wgpu::TextureUsages {
     let mut out = wgpu::TextureUsages::empty();
     let pairs = [
         (
@@ -63,7 +63,7 @@ pub fn texture_usage(usage: TextureUsage) -> wgpu::TextureUsages {
     out
 }
 
-pub fn texture_format(format: TextureFormat) -> wgpu::TextureFormat {
+pub(crate) fn texture_format(format: TextureFormat) -> wgpu::TextureFormat {
     match format {
         TextureFormat::Rgba8Unorm => wgpu::TextureFormat::Rgba8Unorm,
         TextureFormat::Rgba8Snorm => wgpu::TextureFormat::Rgba8Snorm,
@@ -81,7 +81,7 @@ pub fn texture_format(format: TextureFormat) -> wgpu::TextureFormat {
 }
 
 /// The inverse mapping for the swapchain formats a surface may choose.
-pub fn surface_format_back(format: wgpu::TextureFormat) -> Option<TextureFormat> {
+pub(crate) fn surface_format_back(format: wgpu::TextureFormat) -> Option<TextureFormat> {
     match format {
         wgpu::TextureFormat::Rgba8Unorm => Some(TextureFormat::Rgba8Unorm),
         wgpu::TextureFormat::Rgba8UnormSrgb => Some(TextureFormat::Rgba8UnormSrgb),
@@ -91,7 +91,7 @@ pub fn surface_format_back(format: wgpu::TextureFormat) -> Option<TextureFormat>
     }
 }
 
-pub fn shader_stages(stages: ShaderStages) -> wgpu::ShaderStages {
+pub(crate) fn shader_stages(stages: ShaderStages) -> wgpu::ShaderStages {
     let mut out = wgpu::ShaderStages::empty();
     if stages.contains(ShaderStages::VERTEX) {
         out |= wgpu::ShaderStages::VERTEX;
@@ -105,7 +105,7 @@ pub fn shader_stages(stages: ShaderStages) -> wgpu::ShaderStages {
     out
 }
 
-pub fn binding_type(ty: BindingType) -> wgpu::BindingType {
+pub(crate) fn binding_type(ty: BindingType) -> wgpu::BindingType {
     match ty {
         BindingType::Uniform => wgpu::BindingType::Buffer {
             ty: wgpu::BufferBindingType::Uniform,
@@ -154,14 +154,14 @@ pub fn binding_type(ty: BindingType) -> wgpu::BindingType {
     }
 }
 
-pub fn texture_dimension(dimension: TextureDimension) -> wgpu::TextureDimension {
+pub(crate) fn texture_dimension(dimension: TextureDimension) -> wgpu::TextureDimension {
     match dimension {
         TextureDimension::D2 => wgpu::TextureDimension::D2,
         TextureDimension::D3 => wgpu::TextureDimension::D3,
     }
 }
 
-pub fn compare_function(f: CompareFunction) -> wgpu::CompareFunction {
+pub(crate) fn compare_function(f: CompareFunction) -> wgpu::CompareFunction {
     match f {
         CompareFunction::GreaterEqual => wgpu::CompareFunction::GreaterEqual,
         CompareFunction::Greater => wgpu::CompareFunction::Greater,
@@ -170,7 +170,7 @@ pub fn compare_function(f: CompareFunction) -> wgpu::CompareFunction {
     }
 }
 
-pub fn blend_state(mode: BlendMode) -> Option<wgpu::BlendState> {
+pub(crate) fn blend_state(mode: BlendMode) -> Option<wgpu::BlendState> {
     match mode {
         BlendMode::Replace => None,
         BlendMode::Alpha => Some(wgpu::BlendState::ALPHA_BLENDING),
@@ -201,27 +201,27 @@ pub fn blend_state(mode: BlendMode) -> Option<wgpu::BlendState> {
     }
 }
 
-pub fn topology(t: PrimitiveTopology) -> wgpu::PrimitiveTopology {
+pub(crate) fn topology(t: PrimitiveTopology) -> wgpu::PrimitiveTopology {
     match t {
         PrimitiveTopology::TriangleList => wgpu::PrimitiveTopology::TriangleList,
     }
 }
 
-pub fn filter_mode(f: FilterMode) -> wgpu::FilterMode {
+pub(crate) fn filter_mode(f: FilterMode) -> wgpu::FilterMode {
     match f {
         FilterMode::Nearest => wgpu::FilterMode::Nearest,
         FilterMode::Linear => wgpu::FilterMode::Linear,
     }
 }
 
-pub fn color_load(load: LoadOp) -> wgpu::LoadOp<wgpu::Color> {
+pub(crate) fn color_load(load: LoadOp) -> wgpu::LoadOp<wgpu::Color> {
     match load {
         LoadOp::Clear([r, g, b, a]) => wgpu::LoadOp::Clear(wgpu::Color { r, g, b, a }),
         LoadOp::Load => wgpu::LoadOp::Load,
     }
 }
 
-pub fn depth_load(load: DepthLoadOp) -> wgpu::LoadOp<f32> {
+pub(crate) fn depth_load(load: DepthLoadOp) -> wgpu::LoadOp<f32> {
     match load {
         DepthLoadOp::Clear(depth) => wgpu::LoadOp::Clear(depth),
         DepthLoadOp::Load => wgpu::LoadOp::Load,

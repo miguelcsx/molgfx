@@ -1,4 +1,4 @@
-use super::{DeviceErrors, DEVICE_LOST};
+use super::{DEVICE_LOST, DeviceErrors};
 use molgfx_gpu::GpuError;
 use std::sync::atomic::Ordering;
 

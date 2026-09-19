@@ -1,7 +1,6 @@
 // Binary records shared by geometry and compute culling shaders.
 
 struct AtomRecord {
-    position: vec3f,
     radius: f32,
     color: u32,
     element_flags: u32,
