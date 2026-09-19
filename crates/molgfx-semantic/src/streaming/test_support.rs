@@ -1,6 +1,6 @@
 use molgfx_core::{Scene, StructureHandle};
 
-pub(super) fn structure() -> pdbiox::Structure {
+pub(super) fn structure() -> molframe::Structure {
     let cif = "data_lod\n\
 loop_\n\
 _atom_site.group_PDB\n\
@@ -21,10 +21,10 @@ _atom_site.auth_seq_id\n\
 _atom_site.auth_asym_id\n\
 _atom_site.pdbx_PDB_model_num\n\
 ATOM 1 C CA . GLY A 1 1 0 0 0 1 10 1 A 1\n";
-    match pdbiox::read_bytes(
+    match molframe::read_bytes(
         cif.as_bytes().to_vec(),
         Some("lod.cif"),
-        &pdbiox::ReadOptions::new(),
+        &molframe::ReadOptions::new(),
     ) {
         Ok((structure, _)) => structure,
         Err(diagnostics) => panic!("LOD fixture parses: {diagnostics:?}"),

@@ -3,10 +3,10 @@ use molgfx_core::AtomSelection;
 
 fn scene() -> Scene {
     let source = "data_zone\nloop_\n_atom_site.group_PDB\n_atom_site.id\n_atom_site.type_symbol\n_atom_site.label_atom_id\n_atom_site.label_comp_id\n_atom_site.label_asym_id\n_atom_site.label_seq_id\n_atom_site.Cartn_x\n_atom_site.Cartn_y\n_atom_site.Cartn_z\nATOM 1 C CA ALA A 1 0 0 0\nATOM 2 O O ALA A 1 1 0 0\nHETATM 3 C C1 LIG A 2 3 0 0\nATOM 4 C CA GLY A 3 12 0 0\n";
-    let parsed = pdbiox::read_bytes(
+    let parsed = molframe::read_bytes(
         source.as_bytes().to_vec(),
         Some("zone.cif"),
-        &pdbiox::ReadOptions::default(),
+        &molframe::ReadOptions::default(),
     );
     let (structure, _) = match parsed {
         Ok(value) => value,

@@ -13,7 +13,10 @@ pub use composition::{
     GenericCompositionView,
 };
 pub use detail::{LodLevel, LodPolicy, MappingError, PropertyMapping};
-pub use focus::{SurfaceZone, SurfaceZoneScene, SurfaceZoneStyle};
+pub use focus::{
+    DistanceBands, FocusBand, FocusContext, FocusError, FocusScene, FocusStyle, FocusSurfaceExtent,
+    FocusView, SurfaceZone, SurfaceZoneScene, SurfaceZoneStyle,
+};
 pub use streaming::{
     AtlasSlot, BrickPage, BrickSelection, BrickSelectionScratch, BrickWorkingSet,
     BrickWorkingSetError, ChunkFootprint, ChunkId, ChunkKey, ChunkRequest, ClipmapLevel,

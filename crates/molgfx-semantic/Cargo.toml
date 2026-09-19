@@ -13,7 +13,7 @@ molgfx-core.workspace = true
 molgfx-math.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-pdbiox = { workspace = true, features = ["mmcif"] }
+molframe = { workspace = true, features = ["mmcif"] }
 
 [lints]
 workspace = true
