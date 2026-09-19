@@ -1,4 +1,13 @@
-fn blocked(spec: &GoldenSceneSpec, fixture: Option<&Path>, reason: &str) -> SceneEvidence {
+use super::acceptance::{
+    AdapterEvidence, Availability, GoldenSceneSpec, SceneEvidence, SceneOutcome,
+};
+use std::path::Path;
+
+pub(super) fn blocked(
+    spec: &GoldenSceneSpec,
+    fixture: Option<&Path>,
+    reason: &str,
+) -> SceneEvidence {
     SceneEvidence {
         id: spec.id,
         title: spec.title,
@@ -13,7 +22,7 @@ fn blocked(spec: &GoldenSceneSpec, fixture: Option<&Path>, reason: &str) -> Scen
     }
 }
 
-fn failed(
+pub(super) fn failed(
     spec: &GoldenSceneSpec,
     fixture: &Path,
     observed_atoms: Option<u64>,
@@ -33,7 +42,7 @@ fn failed(
     }
 }
 
-fn unavailable_adapter() -> AdapterEvidence {
+pub(super) fn unavailable_adapter() -> AdapterEvidence {
     AdapterEvidence {
         scope: "unavailable",
         capability_fingerprint: "unavailable".into(),
@@ -43,7 +52,7 @@ fn unavailable_adapter() -> AdapterEvidence {
     }
 }
 
-fn panic_reason(payload: &(dyn std::any::Any + Send)) -> &str {
+pub(super) fn panic_reason(payload: &(dyn std::any::Any + Send)) -> &str {
     if let Some(reason) = payload.downcast_ref::<String>() {
         reason
     } else if let Some(reason) = payload.downcast_ref::<&str>() {

@@ -2,6 +2,9 @@
 
 #![forbid(unsafe_code)]
 
+pub mod fixtures;
+pub mod reader;
+
 #[cfg(test)]
 #[path = "metrics_tests.rs"]
 mod tests;

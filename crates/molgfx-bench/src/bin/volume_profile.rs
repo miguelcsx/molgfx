@@ -3,11 +3,14 @@
 //! Usage: `volume_profile [direct|isosurface|medium|slice|liquid] [output.png]`
 
 use molgfx::{
-    Camera, ClipPlane, Engine, EngineConfig, Image, ImageConfig, Representation, Rgba8,
-    ScalarVolume, Scene, Vec3, VolumeSlice, VolumeStyle, VolumeTransferFunction,
-    VolumeTransferPoint,
+    core::{
+        ClipPlane, Representation, ScalarVolume, Scene, VolumeSlice, VolumeStyle,
+        VolumeTransferFunction, VolumeTransferPoint,
+    },
+    math::{Camera, Rgba8, Vec3},
+    render::{Engine, EngineConfig, Image, ImageConfig},
 };
-use molgfx_bench::{summarize, CumulativeTelemetry, FrameSample};
+use molgfx_bench::{CumulativeTelemetry, FrameSample, summarize};
 use std::error::Error;
 use std::fs::File;
 use std::path::Path;
@@ -111,7 +114,7 @@ fn write_png(path: impl AsRef<Path>, image: &Image) -> Result<(), Box<dyn Error>
     Ok(())
 }
 
-fn transfer() -> Result<VolumeTransferFunction, molgfx::CoreError> {
+fn transfer() -> Result<VolumeTransferFunction, molgfx::core::CoreError> {
     VolumeTransferFunction::new(&[
         VolumeTransferPoint::new(0.10, Rgba8::opaque(30, 118, 180), 0.0),
         VolumeTransferPoint::new(0.26, Rgba8::opaque(52, 191, 206), 0.025),
@@ -120,7 +123,7 @@ fn transfer() -> Result<VolumeTransferFunction, molgfx::CoreError> {
     ])
 }
 
-fn synthetic_density() -> Result<ScalarVolume, molgfx::CoreError> {
+fn synthetic_density() -> Result<ScalarVolume, molgfx::core::CoreError> {
     let mut values = Vec::with_capacity(usize::from(GRID).pow(3));
     let center = (f32::from(GRID) - 1.0) * 0.5;
     for z in 0..GRID {

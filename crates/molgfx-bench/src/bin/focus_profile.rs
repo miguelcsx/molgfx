@@ -1,13 +1,15 @@
 //! Whole-graph benchmark for semantic ligand focus and context composition.
 
+use molgfx::semantic::FocusScene;
 use molgfx::{
-    AtomSelection, BoundingSphere, Camera, Engine, EngineConfig, ImageConfig, RenderProfile,
-    RepresentationKind, Scene, Vec3,
+    core::{AtomSelection, RepresentationKind, Scene},
+    math::{BoundingSphere, Camera, Vec3},
+    render::{Engine, EngineConfig, ImageConfig, RenderProfile},
 };
 use molgfx_bench::{CumulativeTelemetry, FrameSample, FrameSummary, summarize};
-use molgfx_recipes::FocusScene;
 use std::error::Error;
 use std::io;
+use std::path::Path;
 use std::time::Instant;
 
 const WARMUP_FRAMES: usize = 20;
@@ -95,24 +97,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn load_structure(path: &str) -> Result<pdbiox::Structure, Box<dyn Error>> {
-    let options = pdbiox::ReadOptions::new()
-        .mode(pdbiox::ParseMode::Recover)
-        .only_first_model(true);
-    let (parsed, diagnostics) =
-        pdbiox::read_with_options(path, &options).map_err(|diagnostics| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("structure diagnostics: {diagnostics:?}"),
-            )
-        })?;
-    if !diagnostics.is_empty() {
-        eprintln!("structure recovered with diagnostics: {diagnostics:?}");
+fn load_structure(path: &str) -> Result<molframe::Structure, Box<dyn Error>> {
+    let (parsed, diagnostics) = molgfx_bench::reader::read_structure(Path::new(path))?;
+    if let Some(diagnostics) = diagnostics {
+        eprintln!("structure recovered with diagnostics: {diagnostics}");
     }
-    Ok(pdbiox::infer_bonds(
+    Ok(molframe::infer_bonds(
         &parsed,
-        pdbiox::BondInference::default(),
-        &pdbiox::ExecutionContext::default(),
+        molframe::BondInference::default(),
+        &molframe::ExecutionContext::default(),
     )
     .map_err(|diagnostic| {
         io::Error::new(
@@ -152,7 +145,7 @@ fn required<'a>(values: &'a [String], index: usize, what: &str) -> Result<&'a st
 }
 
 fn component_atoms(
-    structure: &pdbiox::Structure,
+    structure: &molframe::Structure,
     component: &str,
 ) -> Result<(Vec<u32>, Vec<Vec3>), io::Error> {
     let Some(residue) = structure

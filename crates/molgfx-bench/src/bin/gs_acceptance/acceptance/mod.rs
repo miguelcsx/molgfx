@@ -9,8 +9,10 @@ mod spec;
 #[path = "acceptance_tests.rs"]
 mod tests;
 
-pub(crate) use artifact::{dimension_aspect, read_structure, write_png};
+pub(crate) use artifact::{dimension_aspect, write_png};
 pub(crate) use cli::arguments;
+/// Re-exported so the acceptance records and the binary share one reader.
+pub(crate) use molgfx_bench::reader::read_structure;
 pub(crate) use report::{
     AcceptanceReport, AdapterEvidence, Availability, CandidateEvidence, MetricSet, SceneEvidence,
     SceneOutcome,
