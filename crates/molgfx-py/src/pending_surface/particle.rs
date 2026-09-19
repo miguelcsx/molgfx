@@ -11,7 +11,7 @@ pub(crate) enum PyParticleBoundary {
     Wrap,
 }
 
-impl From<PyParticleBoundary> for molgfx::ParticleBoundary {
+impl From<PyParticleBoundary> for molgfx::core::ParticleBoundary {
     fn from(value: PyParticleBoundary) -> Self {
         match value {
             PyParticleBoundary::Bounce => Self::Bounce,
@@ -20,18 +20,18 @@ impl From<PyParticleBoundary> for molgfx::ParticleBoundary {
     }
 }
 
-impl From<molgfx::ParticleBoundary> for PyParticleBoundary {
-    fn from(value: molgfx::ParticleBoundary) -> Self {
+impl From<molgfx::core::ParticleBoundary> for PyParticleBoundary {
+    fn from(value: molgfx::core::ParticleBoundary) -> Self {
         match value {
-            molgfx::ParticleBoundary::Bounce => Self::Bounce,
-            molgfx::ParticleBoundary::Wrap => Self::Wrap,
+            molgfx::core::ParticleBoundary::Bounce => Self::Bounce,
+            molgfx::core::ParticleBoundary::Wrap => Self::Wrap,
         }
     }
 }
 
 #[pyclass(name = "ParticleMotion", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyParticleMotion(pub(crate) molgfx::ParticleMotion);
+pub(crate) struct PyParticleMotion(pub(crate) molgfx::core::ParticleMotion);
 
 #[pymethods]
 impl PyParticleMotion {
@@ -45,7 +45,7 @@ impl PyParticleMotion {
         boundary: PyParticleBoundary,
         respawn_after_steps: u32,
     ) -> PyResult<Self> {
-        core(molgfx::ParticleMotion::new(
+        core(molgfx::core::ParticleMotion::new(
             velocity.0,
             bounds.0,
             fixed_timestep,

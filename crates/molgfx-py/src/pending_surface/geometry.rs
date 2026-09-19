@@ -8,13 +8,13 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "AnisotropicEllipsoid", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyAnisotropicEllipsoid(pub(crate) molgfx::AnisotropicEllipsoid);
+pub(crate) struct PyAnisotropicEllipsoid(pub(crate) molgfx::core::AnisotropicEllipsoid);
 
 #[pymethods]
 impl PyAnisotropicEllipsoid {
     #[new]
     fn new(center: PyVec3, tensor: [f32; 6]) -> PyResult<Self> {
-        core(molgfx::AnisotropicEllipsoid::new(center.0, tensor)).map(Self)
+        core(molgfx::core::AnisotropicEllipsoid::new(center.0, tensor)).map(Self)
     }
 
     #[getter]
@@ -50,7 +50,7 @@ pub(crate) enum PyCarbohydrateShape {
     Neu5Ac,
 }
 
-impl From<PyCarbohydrateShape> for molgfx::CarbohydrateShape {
+impl From<PyCarbohydrateShape> for molgfx::core::CarbohydrateShape {
     fn from(value: PyCarbohydrateShape) -> Self {
         match value {
             PyCarbohydrateShape::Unknown => Self::Unknown,
@@ -64,15 +64,15 @@ impl From<PyCarbohydrateShape> for molgfx::CarbohydrateShape {
     }
 }
 
-impl From<molgfx::CarbohydrateShape> for PyCarbohydrateShape {
-    fn from(value: molgfx::CarbohydrateShape) -> Self {
+impl From<molgfx::core::CarbohydrateShape> for PyCarbohydrateShape {
+    fn from(value: molgfx::core::CarbohydrateShape) -> Self {
         match value {
-            molgfx::CarbohydrateShape::Glc => Self::Glc,
-            molgfx::CarbohydrateShape::Gal => Self::Gal,
-            molgfx::CarbohydrateShape::Man => Self::Man,
-            molgfx::CarbohydrateShape::Fuc => Self::Fuc,
-            molgfx::CarbohydrateShape::Xyl => Self::Xyl,
-            molgfx::CarbohydrateShape::Neu5Ac => Self::Neu5Ac,
+            molgfx::core::CarbohydrateShape::Glc => Self::Glc,
+            molgfx::core::CarbohydrateShape::Gal => Self::Gal,
+            molgfx::core::CarbohydrateShape::Man => Self::Man,
+            molgfx::core::CarbohydrateShape::Fuc => Self::Fuc,
+            molgfx::core::CarbohydrateShape::Xyl => Self::Xyl,
+            molgfx::core::CarbohydrateShape::Neu5Ac => Self::Neu5Ac,
             _ => Self::Unknown,
         }
     }
@@ -80,7 +80,7 @@ impl From<molgfx::CarbohydrateShape> for PyCarbohydrateShape {
 
 #[pyclass(name = "CarbohydrateSymbol", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyCarbohydrateSymbol(pub(crate) molgfx::CarbohydrateSymbol);
+pub(crate) struct PyCarbohydrateSymbol(pub(crate) molgfx::core::CarbohydrateSymbol);
 
 #[pymethods]
 impl PyCarbohydrateSymbol {
@@ -93,7 +93,7 @@ impl PyCarbohydrateSymbol {
         shape: PyCarbohydrateShape,
         color: PyRgba8,
     ) -> PyResult<Self> {
-        core(molgfx::CarbohydrateSymbol::new(
+        core(molgfx::core::CarbohydrateSymbol::new(
             owner.0,
             center.0,
             orientation.0,
@@ -147,7 +147,7 @@ impl PyCarbohydrateSymbol {
 
 #[pyclass(name = "PlanarRegion", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyPlanarRegion(pub(crate) molgfx::PlanarRegion);
+pub(crate) struct PyPlanarRegion(pub(crate) molgfx::core::PlanarRegion);
 
 #[pymethods]
 impl PyPlanarRegion {
@@ -159,7 +159,7 @@ impl PyPlanarRegion {
         tangent: PyVec3,
         size: [f32; 2],
     ) -> PyResult<Self> {
-        core(molgfx::PlanarRegion::new(
+        core(molgfx::core::PlanarRegion::new(
             owner.0, center.0, normal.0, tangent.0, size,
         ))
         .map(Self)
@@ -198,13 +198,13 @@ impl PyPlanarRegion {
 
 #[pyclass(name = "Quadric", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyQuadric(pub(crate) molgfx::Quadric);
+pub(crate) struct PyQuadric(pub(crate) molgfx::core::Quadric);
 
 #[pymethods]
 impl PyQuadric {
     #[new]
     fn new(coefficients: [f32; 10], bounds: PyAabb, cells: [u16; 3]) -> PyResult<Self> {
-        core(molgfx::Quadric::new(coefficients, bounds.0, cells)).map(Self)
+        core(molgfx::core::Quadric::new(coefficients, bounds.0, cells)).map(Self)
     }
 
     #[getter]
@@ -220,7 +220,7 @@ impl PyQuadric {
 
 #[pyclass(name = "Guide", from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyGuide(pub(crate) molgfx::Guide);
+pub(crate) struct PyGuide(pub(crate) molgfx::core::Guide);
 
 #[pymethods]
 impl PyGuide {
@@ -231,7 +231,7 @@ impl PyGuide {
         end: PyVec3,
         style: PyGuideStyle,
     ) -> PyResult<Self> {
-        core(molgfx::Guide::new(owner.0, start.0, end.0, style.0)).map(Self)
+        core(molgfx::core::Guide::new(owner.0, start.0, end.0, style.0)).map(Self)
     }
 
     #[getter]

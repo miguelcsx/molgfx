@@ -10,52 +10,54 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "RepresentationInput", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyRepresentationInput(pub(crate) molgfx::RepresentationInput);
+pub(crate) struct PyRepresentationInput(pub(crate) molgfx::core::RepresentationInput);
 
 #[pymethods]
 impl PyRepresentationInput {
     #[staticmethod]
     fn stored(selection: PySelectionHandle) -> Self {
-        Self(molgfx::RepresentationInput::Stored(selection.0))
+        Self(molgfx::core::RepresentationInput::Stored(selection.0))
     }
 
     #[staticmethod]
     fn query(query: PySelect) -> Self {
-        Self(molgfx::RepresentationInput::Query(query.0))
+        Self(molgfx::core::RepresentationInput::Query(query.0))
     }
 
     #[staticmethod]
     fn source(source: String) -> Self {
-        Self(molgfx::RepresentationInput::Source(
+        Self(molgfx::core::RepresentationInput::Source(
             source.into_boxed_str(),
         ))
     }
 
     #[staticmethod]
     fn volume(volume: PyVolumeHandle) -> Self {
-        Self(molgfx::RepresentationInput::Volume(volume.0))
+        Self(molgfx::core::RepresentationInput::Volume(volume.0))
     }
 
     #[staticmethod]
     fn segmentation(segmentation: PySegmentationHandle) -> Self {
-        Self(molgfx::RepresentationInput::Segmentation(segmentation.0))
+        Self(molgfx::core::RepresentationInput::Segmentation(
+            segmentation.0,
+        ))
     }
 
     #[getter]
     fn kind(&self) -> &'static str {
         match &self.0 {
-            molgfx::RepresentationInput::Stored(_) => "stored",
-            molgfx::RepresentationInput::Query(_) => "query",
-            molgfx::RepresentationInput::Source(_) => "source",
-            molgfx::RepresentationInput::Volume(_) => "volume",
-            molgfx::RepresentationInput::Segmentation(_) => "segmentation",
+            molgfx::core::RepresentationInput::Stored(_) => "stored",
+            molgfx::core::RepresentationInput::Query(_) => "query",
+            molgfx::core::RepresentationInput::Source(_) => "source",
+            molgfx::core::RepresentationInput::Volume(_) => "volume",
+            molgfx::core::RepresentationInput::Segmentation(_) => "segmentation",
         }
     }
 }
 
 #[pyclass(name = "RepresentationParams", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyRepresentationParams(pub(crate) molgfx::RepresentationParams);
+pub(crate) struct PyRepresentationParams(pub(crate) molgfx::core::RepresentationParams);
 
 #[pymethods]
 impl PyRepresentationParams {
@@ -79,7 +81,7 @@ impl PyRepresentationParams {
         point_size_pixels: f32,
         line_width_pixels: f32,
     ) -> Self {
-        Self(molgfx::RepresentationParams {
+        Self(molgfx::core::RepresentationParams {
             radius_scale,
             bond_radius,
             probe_radius,
@@ -88,13 +90,15 @@ impl PyRepresentationParams {
             surface_kind: surface_kind.into(),
             surface_style: surface_style.into(),
             surface_components: surface_components
-                .map_or_else(molgfx::SurfaceComponentPolicy::keep_all, |policy| policy.0),
+                .map_or_else(molgfx::core::SurfaceComponentPolicy::keep_all, |policy| {
+                    policy.0
+                }),
             surface_pattern_spacing,
             surface_pattern_width_pixels,
             ribbon_width,
             tube_radius,
             tube_radius_mapping: tube_radius_mapping
-                .map_or(molgfx::TubeRadiusMapping::Constant, |value| value.0),
+                .map_or(molgfx::core::TubeRadiusMapping::Constant, |value| value.0),
             point_size_pixels,
             line_width_pixels,
         })
@@ -102,7 +106,7 @@ impl PyRepresentationParams {
 
     #[staticmethod]
     fn default() -> Self {
-        Self(molgfx::RepresentationParams::default())
+        Self(molgfx::core::RepresentationParams::default())
     }
 
     #[getter]
@@ -138,13 +142,13 @@ impl PyRepresentationParams {
 
 #[pyclass(name = "RepresentationConfig", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyRepresentationConfig(pub(crate) molgfx::RepresentationConfig);
+pub(crate) struct PyRepresentationConfig(pub(crate) molgfx::core::RepresentationConfig);
 
 #[pymethods]
 impl PyRepresentationConfig {
     #[new]
     fn new(kind: PyRepresentationKind) -> Self {
-        Self(molgfx::RepresentationConfig::new(kind.into()))
+        Self(molgfx::core::RepresentationConfig::new(kind.into()))
     }
 
     #[getter]

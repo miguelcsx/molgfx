@@ -4,25 +4,25 @@ use crate::math::PyRgba8;
 use crate::pending_surface::particle::{PyParticleBoundary, PyParticleMotion};
 use pyo3::prelude::*;
 
-const fn rgba(color: molgfx::Rgba8) -> [u8; 4] {
+const fn rgba(color: molgfx::math::Rgba8) -> [u8; 4] {
     [color.r, color.g, color.b, color.a]
 }
 
 #[pyclass(name = "ParticleMotionDescription", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyParticleMotionDescription(pub(crate) molgfx::ParticleMotionDescription);
+pub(crate) struct PyParticleMotionDescription(pub(crate) molgfx::core::ParticleMotionDescription);
 
 impl From<PyParticleMotion> for PyParticleMotionDescription {
     fn from(value: PyParticleMotion) -> Self {
         let bounds = value.0.bounds();
-        Self(molgfx::ParticleMotionDescription {
+        Self(molgfx::core::ParticleMotionDescription {
             velocity: value.0.velocity().to_array(),
             bounds: [bounds.min.to_array(), bounds.max.to_array()],
             fixed_timestep: value.0.fixed_timestep(),
             seed: value.0.seed(),
             boundary: match value.0.boundary() {
-                molgfx::ParticleBoundary::Bounce => "bounce",
-                molgfx::ParticleBoundary::Wrap => "wrap",
+                molgfx::core::ParticleBoundary::Bounce => "bounce",
+                molgfx::core::ParticleBoundary::Wrap => "wrap",
             }
             .to_owned(),
             respawn_after_steps: value.0.respawn_after_steps(),
@@ -49,7 +49,7 @@ impl PyParticleMotionDescription {
 
 #[pyclass(name = "MeshDescription", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyMeshDescription(pub(crate) molgfx::MeshDescription);
+pub(crate) struct PyMeshDescription(pub(crate) molgfx::core::MeshDescription);
 
 #[pymethods]
 impl PyMeshDescription {
@@ -81,7 +81,7 @@ impl PyMeshDescription {
 
 #[pyclass(name = "MeshInstanceDescription", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyMeshInstanceDescription(pub(crate) molgfx::MeshInstanceDescription);
+pub(crate) struct PyMeshInstanceDescription(pub(crate) molgfx::core::MeshInstanceDescription);
 
 #[pymethods]
 impl PyMeshInstanceDescription {
@@ -108,7 +108,7 @@ impl PyMeshInstanceDescription {
 
 #[pyclass(name = "OverlayDescription", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyOverlayDescription(pub(crate) molgfx::OverlayDescription);
+pub(crate) struct PyOverlayDescription(pub(crate) molgfx::core::OverlayDescription);
 
 #[pymethods]
 impl PyOverlayDescription {
@@ -127,7 +127,7 @@ impl PyOverlayDescription {
         values: [f32; 4],
         visible: bool,
     ) -> Self {
-        Self(molgfx::OverlayDescription {
+        Self(molgfx::core::OverlayDescription {
             row,
             generation,
             kind,
@@ -164,7 +164,7 @@ impl PyOverlayDescription {
 
 #[pyclass(name = "PrimitiveDescription", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyPrimitiveDescription(pub(crate) molgfx::PrimitiveDescription);
+pub(crate) struct PyPrimitiveDescription(pub(crate) molgfx::core::PrimitiveDescription);
 
 #[pymethods]
 impl PyPrimitiveDescription {

@@ -3,18 +3,19 @@
 use crate::core::{PyOverlayHandle, PyScene};
 use crate::error::core;
 use crate::math::PyRgba8;
+use crate::pending_surface::overlay::PyScreenOverlay;
 use pyo3::prelude::*;
 
 #[pyclass(name = "OverlayAnchor", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyOverlayAnchor(pub(crate) molgfx::OverlayAnchor);
+pub(crate) struct PyOverlayAnchor(pub(crate) molgfx::core::OverlayAnchor);
 
 #[pymethods]
 impl PyOverlayAnchor {
     #[new]
     #[pyo3(signature = (normalized, pixels=(0.0, 0.0)))]
     fn new(normalized: (f32, f32), pixels: (f32, f32)) -> PyResult<Self> {
-        core(molgfx::OverlayAnchor::new(
+        core(molgfx::core::OverlayAnchor::new(
             [normalized.0, normalized.1],
             [pixels.0, pixels.1],
         ))
@@ -34,6 +35,21 @@ impl PyOverlayAnchor {
 
 #[pymethods]
 impl PyScene {
+    /// Resolves one overlay by handle.
+    fn overlay(&self, handle: PyOverlayHandle) -> Option<PyScreenOverlay> {
+        self.inner
+            .overlay(handle.0)
+            .map(|overlay| PyScreenOverlay(overlay.clone()))
+    }
+
+    /// Iterates overlays in stable slot order.
+    fn overlays(&self) -> Vec<(PyOverlayHandle, PyScreenOverlay)> {
+        self.inner
+            .overlays()
+            .map(|(handle, overlay)| (handle.into(), PyScreenOverlay(overlay.clone())))
+            .collect()
+    }
+
     #[pyo3(signature = (text, anchor, color, size_pixels=14.0, order=0))]
     fn add_text_overlay(
         &mut self,
@@ -44,7 +60,7 @@ impl PyScene {
         order: i16,
     ) -> PyResult<PyOverlayHandle> {
         self.add_overlay(
-            molgfx::OverlayContent::Text {
+            molgfx::core::OverlayContent::Text {
                 text,
                 color: color.0,
                 size_pixels,
@@ -65,10 +81,10 @@ impl PyScene {
         order: i16,
     ) -> PyResult<PyOverlayHandle> {
         self.add_overlay(
-            molgfx::OverlayContent::ColorLegend {
+            molgfx::core::OverlayContent::ColorLegend {
                 title,
                 range: [range.0, range.1],
-                colors: [colors.0 .0, colors.1 .0],
+                colors: [colors.0.0, colors.1.0],
                 size_pixels: [size_pixels.0, size_pixels.1],
             },
             anchor.0,
@@ -86,7 +102,7 @@ impl PyScene {
         order: i16,
     ) -> PyResult<PyOverlayHandle> {
         self.add_overlay(
-            molgfx::OverlayContent::ScaleBar {
+            molgfx::core::OverlayContent::ScaleBar {
                 length_angstrom,
                 color: color.0,
                 width_pixels,
@@ -105,7 +121,7 @@ impl PyScene {
         order: i16,
     ) -> PyResult<PyOverlayHandle> {
         self.add_overlay(
-            molgfx::OverlayContent::CoordinateTripod {
+            molgfx::core::OverlayContent::CoordinateTripod {
                 size_pixels,
                 width_pixels,
             },
@@ -130,16 +146,12 @@ impl PyScene {
 impl PyScene {
     fn add_overlay(
         &mut self,
-        content: molgfx::OverlayContent,
-        anchor: molgfx::OverlayAnchor,
+        content: molgfx::core::OverlayContent,
+        anchor: molgfx::core::OverlayAnchor,
         order: i16,
     ) -> PyResult<PyOverlayHandle> {
-        let mut overlay = core(molgfx::ScreenOverlay::new(content, anchor))?;
+        let mut overlay = core(molgfx::core::ScreenOverlay::new(content, anchor))?;
         overlay.set_order(order);
         Ok(self.inner.add_overlay(overlay).into())
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyOverlayAnchor>()
 }
