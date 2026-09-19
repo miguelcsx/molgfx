@@ -13,8 +13,8 @@ pub(crate) struct PySequenceFrame {
     image: Option<PyImage>,
 }
 
-impl From<molgfx::SequenceFrame> for PySequenceFrame {
-    fn from(value: molgfx::SequenceFrame) -> Self {
+impl From<molgfx::render::SequenceFrame> for PySequenceFrame {
+    fn from(value: molgfx::render::SequenceFrame) -> Self {
         Self {
             ticket: super::PyFrameTicket(value.ticket),
             image: Some(value.image.into()),
@@ -39,11 +39,11 @@ impl PySequenceFrame {
 #[pyclass(name = "SequenceRenderer")]
 #[derive(Debug)]
 pub(crate) struct PySequenceRenderer {
-    inner: Option<molgfx::SequenceRenderer>,
+    inner: Option<molgfx::render::SequenceRenderer>,
 }
 
 pub(super) fn create(
-    engine: &molgfx::Engine,
+    engine: &molgfx::render::Engine,
     config: super::PySequenceConfig,
 ) -> PyResult<PySequenceRenderer> {
     render(engine.sequence(config.0)).map(|inner| PySequenceRenderer { inner: Some(inner) })
@@ -92,11 +92,6 @@ impl PySequenceRenderer {
     fn pending(&self) -> usize {
         self.inner
             .as_ref()
-            .map_or(0, molgfx::SequenceRenderer::pending)
+            .map_or(0, molgfx::render::SequenceRenderer::pending)
     }
-}
-
-pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PySequenceFrame>()?;
-    module.add_class::<PySequenceRenderer>()
 }

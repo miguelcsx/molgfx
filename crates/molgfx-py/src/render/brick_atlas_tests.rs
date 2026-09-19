@@ -40,22 +40,9 @@ fn borrowed_brick_bytes_preserve_the_numpy_pointer() {
 }
 
 fn with_numpy<T>(test: impl for<'py> FnOnce(Python<'py>) -> T) -> T {
-    let output = Command::new("python3")
-        .args([
-            "-c",
-            "import pathlib, numpy; print(pathlib.Path(numpy.__file__).parent.parent)",
-        ])
-        .output()
-        .expect("python3 must run for NumPy binding tests");
-    assert!(
-        output.status.success(),
-        "python3 must provide NumPy: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let site_packages = String::from_utf8(output.stdout)
-        .expect("NumPy site-packages path must be UTF-8")
-        .trim()
-        .to_owned();
+    let site_packages = numpy_site_packages().unwrap_or_else(|| {
+        panic!("no interpreter on this host provides NumPy");
+    });
 
     Python::initialize();
     Python::attach(|py| {
@@ -67,4 +54,23 @@ fn with_numpy<T>(test: impl for<'py> FnOnce(Python<'py>) -> T) -> T {
             .expect("embedded Python must import the discovered NumPy");
         test(py)
     })
+}
+
+/// The `NumPy` site-packages directory of the first interpreter that has it.
+///
+/// `python3` on `PATH` may be a virtual environment without `NumPy`, so the
+/// system interpreter is tried as well before giving up.
+fn numpy_site_packages() -> Option<String> {
+    let probe = "import pathlib, numpy; print(pathlib.Path(numpy.__file__).parent.parent)";
+    ["python3", "/usr/bin/python3", "python"]
+        .into_iter()
+        .find_map(|program| {
+            let output = Command::new(program).args(["-c", probe]).output().ok()?;
+            if !output.status.success() {
+                return None;
+            }
+            String::from_utf8(output.stdout)
+                .ok()
+                .map(|text| text.trim().to_owned())
+        })
 }

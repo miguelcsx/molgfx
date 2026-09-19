@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 
 pub(super) fn transfer_image_array(
     py: Python<'_>,
-    image: molgfx::Image,
+    image: molgfx::render::Image,
 ) -> PyResult<Bound<'_, PyArray3<u8>>> {
     let height =
         usize::try_from(image.height).map_err(|_| value("image height exceeds Python limits"))?;

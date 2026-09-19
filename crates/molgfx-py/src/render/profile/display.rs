@@ -7,25 +7,27 @@ use pyo3::prelude::*;
 pub(crate) enum PyToneMapping {
     AcesFitted,
     Reinhard,
-    None,
+    /// The identity curve. Named `Disabled` rather than `None` because
+    /// `ToneMapping.None` is a syntax error in Python source.
+    Disabled,
 }
 
-impl From<PyToneMapping> for molgfx::ToneMapping {
+impl From<PyToneMapping> for molgfx::render::ToneMapping {
     fn from(value: PyToneMapping) -> Self {
         match value {
             PyToneMapping::AcesFitted => Self::AcesFitted,
             PyToneMapping::Reinhard => Self::Reinhard,
-            PyToneMapping::None => Self::None,
+            PyToneMapping::Disabled => Self::None,
         }
     }
 }
 
-impl From<molgfx::ToneMapping> for PyToneMapping {
-    fn from(value: molgfx::ToneMapping) -> Self {
+impl From<molgfx::render::ToneMapping> for PyToneMapping {
+    fn from(value: molgfx::render::ToneMapping) -> Self {
         match value {
-            molgfx::ToneMapping::AcesFitted => Self::AcesFitted,
-            molgfx::ToneMapping::Reinhard => Self::Reinhard,
-            molgfx::ToneMapping::None => Self::None,
+            molgfx::render::ToneMapping::AcesFitted => Self::AcesFitted,
+            molgfx::render::ToneMapping::Reinhard => Self::Reinhard,
+            molgfx::render::ToneMapping::None => Self::Disabled,
         }
     }
 }
@@ -38,7 +40,7 @@ pub(crate) enum PyDisplayGamut {
     Rec2020,
 }
 
-impl From<PyDisplayGamut> for molgfx::DisplayGamut {
+impl From<PyDisplayGamut> for molgfx::render::DisplayGamut {
     fn from(value: PyDisplayGamut) -> Self {
         match value {
             PyDisplayGamut::Srgb => Self::Srgb,
@@ -48,12 +50,12 @@ impl From<PyDisplayGamut> for molgfx::DisplayGamut {
     }
 }
 
-impl From<molgfx::DisplayGamut> for PyDisplayGamut {
-    fn from(value: molgfx::DisplayGamut) -> Self {
+impl From<molgfx::render::DisplayGamut> for PyDisplayGamut {
+    fn from(value: molgfx::render::DisplayGamut) -> Self {
         match value {
-            molgfx::DisplayGamut::Srgb => Self::Srgb,
-            molgfx::DisplayGamut::DisplayP3 => Self::DisplayP3,
-            molgfx::DisplayGamut::Rec2020 => Self::Rec2020,
+            molgfx::render::DisplayGamut::Srgb => Self::Srgb,
+            molgfx::render::DisplayGamut::DisplayP3 => Self::DisplayP3,
+            molgfx::render::DisplayGamut::Rec2020 => Self::Rec2020,
         }
     }
 }
@@ -67,7 +69,7 @@ pub(crate) enum PyTransferFunction {
     Hlg,
 }
 
-impl From<PyTransferFunction> for molgfx::TransferFunction {
+impl From<PyTransferFunction> for molgfx::render::TransferFunction {
     fn from(value: PyTransferFunction) -> Self {
         match value {
             PyTransferFunction::Srgb => Self::Srgb,
@@ -78,20 +80,20 @@ impl From<PyTransferFunction> for molgfx::TransferFunction {
     }
 }
 
-impl From<molgfx::TransferFunction> for PyTransferFunction {
-    fn from(value: molgfx::TransferFunction) -> Self {
+impl From<molgfx::render::TransferFunction> for PyTransferFunction {
+    fn from(value: molgfx::render::TransferFunction) -> Self {
         match value {
-            molgfx::TransferFunction::Srgb => Self::Srgb,
-            molgfx::TransferFunction::Linear => Self::Linear,
-            molgfx::TransferFunction::Pq => Self::Pq,
-            molgfx::TransferFunction::Hlg => Self::Hlg,
+            molgfx::render::TransferFunction::Srgb => Self::Srgb,
+            molgfx::render::TransferFunction::Linear => Self::Linear,
+            molgfx::render::TransferFunction::Pq => Self::Pq,
+            molgfx::render::TransferFunction::Hlg => Self::Hlg,
         }
     }
 }
 
 #[pyclass(name = "DisplayTransform", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyDisplayTransform(pub(crate) molgfx::DisplayTransform);
+pub(crate) struct PyDisplayTransform(pub(crate) molgfx::render::DisplayTransform);
 
 #[pymethods]
 impl PyDisplayTransform {
@@ -107,8 +109,8 @@ impl PyDisplayTransform {
         transfer: Option<PyTransferFunction>,
         peak_luminance_nits: f32,
     ) -> Self {
-        let default = molgfx::DisplayTransform::default();
-        Self(molgfx::DisplayTransform {
+        let default = molgfx::render::DisplayTransform::default();
+        Self(molgfx::render::DisplayTransform {
             exposure_ev,
             contrast,
             saturation,
@@ -122,7 +124,7 @@ impl PyDisplayTransform {
 
     #[staticmethod]
     fn cinematic() -> Self {
-        Self(molgfx::DisplayTransform::cinematic())
+        Self(molgfx::render::DisplayTransform::cinematic())
     }
 
     #[getter]
@@ -164,11 +166,4 @@ impl PyDisplayTransform {
     fn peak_luminance_nits(&self) -> f32 {
         self.0.peak_luminance_nits
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyToneMapping>()?;
-    module.add_class::<PyDisplayGamut>()?;
-    module.add_class::<PyTransferFunction>()?;
-    module.add_class::<PyDisplayTransform>()
 }

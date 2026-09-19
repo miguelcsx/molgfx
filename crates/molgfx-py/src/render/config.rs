@@ -10,7 +10,7 @@ pub(crate) enum PyPowerPreference {
     LowPower,
 }
 
-impl From<PyPowerPreference> for molgfx::PowerPreference {
+impl From<PyPowerPreference> for molgfx::gpu::PowerPreference {
     fn from(value: PyPowerPreference) -> Self {
         match value {
             PyPowerPreference::HighPerformance => Self::HighPerformance,
@@ -19,11 +19,11 @@ impl From<PyPowerPreference> for molgfx::PowerPreference {
     }
 }
 
-impl From<molgfx::PowerPreference> for PyPowerPreference {
-    fn from(value: molgfx::PowerPreference) -> Self {
+impl From<molgfx::gpu::PowerPreference> for PyPowerPreference {
+    fn from(value: molgfx::gpu::PowerPreference) -> Self {
         match value {
-            molgfx::PowerPreference::HighPerformance => Self::HighPerformance,
-            molgfx::PowerPreference::LowPower => Self::LowPower,
+            molgfx::gpu::PowerPreference::HighPerformance => Self::HighPerformance,
+            molgfx::gpu::PowerPreference::LowPower => Self::LowPower,
         }
     }
 }
@@ -35,7 +35,7 @@ pub(crate) enum PyRenderMode {
     Cinematic,
 }
 
-impl From<PyRenderMode> for molgfx::RenderMode {
+impl From<PyRenderMode> for molgfx::render::RenderMode {
     fn from(value: PyRenderMode) -> Self {
         match value {
             PyRenderMode::Realtime => Self::Realtime,
@@ -44,11 +44,11 @@ impl From<PyRenderMode> for molgfx::RenderMode {
     }
 }
 
-impl From<molgfx::RenderMode> for PyRenderMode {
-    fn from(value: molgfx::RenderMode) -> Self {
+impl From<molgfx::render::RenderMode> for PyRenderMode {
+    fn from(value: molgfx::render::RenderMode) -> Self {
         match value {
-            molgfx::RenderMode::Realtime => Self::Realtime,
-            molgfx::RenderMode::Cinematic => Self::Cinematic,
+            molgfx::render::RenderMode::Realtime => Self::Realtime,
+            molgfx::render::RenderMode::Cinematic => Self::Cinematic,
         }
     }
 }
@@ -60,18 +60,18 @@ pub(crate) enum PyFrameStatus {
     Skipped,
 }
 
-impl From<molgfx::FrameStatus> for PyFrameStatus {
-    fn from(value: molgfx::FrameStatus) -> Self {
+impl From<molgfx::render::FrameStatus> for PyFrameStatus {
+    fn from(value: molgfx::render::FrameStatus) -> Self {
         match value {
-            molgfx::FrameStatus::Presented => Self::Presented,
-            molgfx::FrameStatus::Skipped => Self::Skipped,
+            molgfx::render::FrameStatus::Presented => Self::Presented,
+            molgfx::render::FrameStatus::Skipped => Self::Skipped,
         }
     }
 }
 
 #[pyclass(name = "FrameReport", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyFrameReport(pub(crate) molgfx::FrameReport);
+pub(crate) struct PyFrameReport(pub(crate) molgfx::render::FrameReport);
 
 #[pymethods]
 impl PyFrameReport {
@@ -82,14 +82,14 @@ impl PyFrameReport {
 
     #[getter]
     fn complete(&self) -> bool {
-        self.0.completeness == molgfx::FrameCompleteness::Complete
+        self.0.completeness == molgfx::render::FrameCompleteness::Complete
     }
 
     #[getter]
     fn pending_chunks(&self) -> u64 {
         match self.0.completeness {
-            molgfx::FrameCompleteness::Complete => 0,
-            molgfx::FrameCompleteness::Progressive { pending_chunks } => pending_chunks,
+            molgfx::render::FrameCompleteness::Complete => 0,
+            molgfx::render::FrameCompleteness::Progressive { pending_chunks } => pending_chunks,
         }
     }
 
@@ -97,12 +97,27 @@ impl PyFrameReport {
     fn streaming_proxy(&self) -> bool {
         self.0
             .degradation
-            .contains(molgfx::FrameDegradation::STREAMING_PROXY)
+            .contains(molgfx::render::FrameDegradation::STREAMING_PROXY)
     }
 
     #[getter]
     fn needs_another_frame(&self) -> bool {
         self.0.needs_another_frame
+    }
+
+    #[getter]
+    fn completeness(&self) -> super::chunk_residency::PyFrameCompleteness {
+        super::chunk_residency::PyFrameCompleteness(self.0.completeness)
+    }
+
+    #[getter]
+    fn degradation(&self) -> super::chunk_residency::PyFrameDegradation {
+        super::chunk_residency::PyFrameDegradation(self.0.degradation)
+    }
+
+    #[getter]
+    fn metrics(&self) -> super::chunk_residency::PyFrameMetrics {
+        super::chunk_residency::PyFrameMetrics(self.0.metrics)
     }
 
     #[getter]
@@ -128,14 +143,14 @@ impl PyFrameReport {
 
 #[pyclass(name = "DerivedCacheBudget", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyDerivedCacheBudget(pub(crate) molgfx::DerivedCacheBudget);
+pub(crate) struct PyDerivedCacheBudget(pub(crate) molgfx::render::DerivedCacheBudget);
 
 #[pymethods]
 impl PyDerivedCacheBudget {
     #[new]
     #[pyo3(signature = (cpu_bytes, gpu_bytes))]
     fn new(cpu_bytes: u64, gpu_bytes: u64) -> Self {
-        Self(molgfx::DerivedCacheBudget {
+        Self(molgfx::render::DerivedCacheBudget {
             cpu_bytes,
             gpu_bytes,
         })
@@ -143,7 +158,7 @@ impl PyDerivedCacheBudget {
 
     #[staticmethod]
     fn default() -> Self {
-        Self(molgfx::DerivedCacheBudget::default())
+        Self(molgfx::render::DerivedCacheBudget::default())
     }
 
     #[getter]
@@ -159,17 +174,17 @@ impl PyDerivedCacheBudget {
 
 #[pyclass(name = "ImageConfig", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyImageConfig(pub(crate) molgfx::ImageConfig);
+pub(crate) struct PyImageConfig(pub(crate) molgfx::render::ImageConfig);
 
 #[pymethods]
 impl PyImageConfig {
     #[new]
     fn new(width: u32, height: u32) -> Self {
-        Self(molgfx::ImageConfig { width, height })
+        Self(molgfx::render::ImageConfig { width, height })
     }
     #[staticmethod]
     fn publication_4k() -> Self {
-        Self(molgfx::ImageConfig::publication_4k())
+        Self(molgfx::render::ImageConfig::publication_4k())
     }
     #[getter]
     fn width(&self) -> u32 {
@@ -183,15 +198,15 @@ impl PyImageConfig {
 
 #[pyclass(name = "SequenceConfig", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PySequenceConfig(pub(crate) molgfx::SequenceConfig);
+pub(crate) struct PySequenceConfig(pub(crate) molgfx::render::SequenceConfig);
 
 #[pymethods]
 impl PySequenceConfig {
     #[new]
     #[pyo3(signature = (width, height, frames_per_second, max_in_flight=3))]
     fn new(width: u32, height: u32, frames_per_second: u32, max_in_flight: u8) -> PyResult<Self> {
-        crate::error::render(molgfx::SequenceConfig::at_fps(
-            molgfx::ImageConfig { width, height },
+        crate::error::render(molgfx::render::SequenceConfig::at_fps(
+            molgfx::render::ImageConfig { width, height },
             frames_per_second,
             max_in_flight,
         ))
@@ -221,7 +236,7 @@ impl PySequenceConfig {
 
 #[pyclass(name = "FrameTicket", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyFrameTicket(pub(crate) molgfx::FrameTicket);
+pub(crate) struct PyFrameTicket(pub(crate) molgfx::render::FrameTicket);
 
 #[pymethods]
 impl PyFrameTicket {
@@ -238,7 +253,7 @@ impl PyFrameTicket {
 
 #[pyclass(name = "EngineConfig", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyEngineConfig(pub(crate) molgfx::EngineConfig);
+pub(crate) struct PyEngineConfig(pub(crate) molgfx::render::EngineConfig);
 
 #[pymethods]
 impl PyEngineConfig {
@@ -252,10 +267,10 @@ impl PyEngineConfig {
         power: Option<PyPowerPreference>,
         derived_cache: Option<PyDerivedCacheBudget>,
     ) -> Self {
-        let mut value = molgfx::EngineConfig {
+        let mut value = molgfx::render::EngineConfig {
             width,
             height,
-            ..molgfx::EngineConfig::default()
+            ..molgfx::render::EngineConfig::default()
         };
         if let Some(mode) = mode {
             value.mode = mode.into();
@@ -273,7 +288,7 @@ impl PyEngineConfig {
     }
     #[staticmethod]
     fn default() -> Self {
-        Self(molgfx::EngineConfig::default())
+        Self(molgfx::render::EngineConfig::default())
     }
     #[getter]
     fn width(&self) -> u32 {
@@ -322,8 +337,8 @@ impl PyCapabilities {
     }
 }
 
-impl From<&molgfx::Capabilities> for PyCapabilities {
-    fn from(value: &molgfx::Capabilities) -> Self {
+impl From<&molgfx::gpu::Capabilities> for PyCapabilities {
+    fn from(value: &molgfx::gpu::Capabilities) -> Self {
         Self {
             max_storage_buffer_bytes: value.max_storage_buffer_bytes,
             max_texture_dim: value.max_texture_dim,
@@ -371,17 +386,4 @@ impl PyCapabilities {
     fn subgroup_ops(&self) -> bool {
         self.has_feature(Self::SUBGROUP_OPS)
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyPowerPreference>()?;
-    module.add_class::<PyRenderMode>()?;
-    module.add_class::<PyFrameStatus>()?;
-    module.add_class::<PyFrameReport>()?;
-    module.add_class::<PyDerivedCacheBudget>()?;
-    module.add_class::<PyImageConfig>()?;
-    module.add_class::<PySequenceConfig>()?;
-    module.add_class::<PyFrameTicket>()?;
-    module.add_class::<PyEngineConfig>()?;
-    module.add_class::<PyCapabilities>()
 }

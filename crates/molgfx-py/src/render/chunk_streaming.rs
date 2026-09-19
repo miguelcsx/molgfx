@@ -1,8 +1,9 @@
 //! Contiguous batch adapters for generic paged engine residency.
 
+use super::chunk_placement::PyChunkPlacementId;
 use super::engine::PyEngine;
 use crate::core::PyAnalyticTemplate;
-use crate::error::{render, value};
+use crate::error::{chunk_residency, render, value};
 use crate::math::{PyMat4, PyRgba8};
 use crate::semantic::{PyDatasetCatalog, PyResidencyRequest, PyResidencyTicket};
 use numpy::{PyReadonlyArray2, PyUntypedArrayMethods};
@@ -11,20 +12,20 @@ use std::sync::Arc;
 
 #[pyclass(name = "PointChunkPlacement", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyPointChunkPlacement(molgfx::PointChunkPlacement);
+pub(crate) struct PyPointChunkPlacement(molgfx::render::PointChunkPlacement);
 
 #[pymethods]
 impl PyPointChunkPlacement {
     #[new]
     fn new(
-        id: u64,
+        id: PyChunkPlacementId,
         ticket: PyResidencyTicket,
         model_to_world: PyMat4,
         diameter_pixels: f32,
         color: PyRgba8,
     ) -> PyResult<Self> {
-        molgfx::PointChunkPlacement::new(
-            molgfx::ChunkPlacementId::new(id),
+        molgfx::render::PointChunkPlacement::new(
+            id.0,
             ticket.0,
             model_to_world.0,
             diameter_pixels,
@@ -35,8 +36,8 @@ impl PyPointChunkPlacement {
     }
 
     #[getter]
-    fn id(&self) -> u64 {
-        self.0.id().get()
+    fn id(&self) -> PyChunkPlacementId {
+        PyChunkPlacementId(self.0.id())
     }
 
     #[getter]
@@ -62,19 +63,19 @@ impl PyPointChunkPlacement {
 
 #[pyclass(name = "InstanceChunkPlacement", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyInstanceChunkPlacement(molgfx::InstanceChunkPlacement);
+pub(crate) struct PyInstanceChunkPlacement(molgfx::render::InstanceChunkPlacement);
 
 #[pymethods]
 impl PyInstanceChunkPlacement {
     #[new]
     fn new(
-        id: u64,
+        id: PyChunkPlacementId,
         ticket: PyResidencyTicket,
         template: &PyAnalyticTemplate,
         color: PyRgba8,
     ) -> Self {
-        Self(molgfx::InstanceChunkPlacement::new(
-            molgfx::ChunkPlacementId::new(id),
+        Self(molgfx::render::InstanceChunkPlacement::new(
+            id.0,
             ticket.0,
             template.native(),
             color.0,
@@ -82,8 +83,8 @@ impl PyInstanceChunkPlacement {
     }
 
     #[getter]
-    fn id(&self) -> u64 {
-        self.0.id().get()
+    fn id(&self) -> PyChunkPlacementId {
+        PyChunkPlacementId(self.0.id())
     }
 
     #[getter]
@@ -105,19 +106,19 @@ pub(crate) enum PyChunkPlacementStatus {
     Resident,
 }
 
-impl From<molgfx::ChunkPlacementStatus> for PyChunkPlacementStatus {
-    fn from(value: molgfx::ChunkPlacementStatus) -> Self {
+impl From<molgfx::render::ChunkPlacementStatus> for PyChunkPlacementStatus {
+    fn from(value: molgfx::render::ChunkPlacementStatus) -> Self {
         match value {
-            molgfx::ChunkPlacementStatus::Missing => Self::Missing,
-            molgfx::ChunkPlacementStatus::NotResident => Self::NotResident,
-            molgfx::ChunkPlacementStatus::Resident => Self::Resident,
+            molgfx::render::ChunkPlacementStatus::Missing => Self::Missing,
+            molgfx::render::ChunkPlacementStatus::NotResident => Self::NotResident,
+            molgfx::render::ChunkPlacementStatus::Resident => Self::Resident,
         }
     }
 }
 
 #[pyclass(name = "ResidentGenericChunk", frozen, skip_from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyResidentGenericChunk(molgfx::ResidentGenericChunk);
+pub(crate) struct PyResidentGenericChunk(molgfx::render::ResidentGenericChunk);
 
 #[pymethods]
 impl PyResidentGenericChunk {
@@ -152,23 +153,27 @@ impl PyEngine {
     /// Requests chunk generations in one Python crossing.
     fn request_chunks(
         &mut self,
+        py: Python<'_>,
         requests: Vec<PyResidencyRequest>,
     ) -> PyResult<Vec<PyResidencyTicket>> {
-        let mut tickets = Vec::with_capacity(requests.len());
-        for request in requests {
-            let ticket = render(
-                self.inner
-                    .request_chunk_into(request.0, &mut self.residency_output)
-                    .map_err(molgfx::RenderError::from),
-            )?;
-            tickets.push(PyResidencyTicket(ticket));
-        }
-        Ok(tickets)
+        py.detach(|| {
+            let mut tickets = Vec::with_capacity(requests.len());
+            for request in requests {
+                let ticket = render(
+                    self.inner
+                        .request_chunk_into(request.0, &mut self.residency_output)
+                        .map_err(molgfx::render::RenderError::from),
+                )?;
+                tickets.push(PyResidencyTicket(ticket));
+            }
+            Ok(tickets)
+        })
     }
 
     /// Copies one C-contiguous `(rows, 3)` float32 array into shared Rust storage.
     fn deliver_point_chunk(
         &mut self,
+        py: Python<'_>,
         catalog: &PyDatasetCatalog,
         ticket: PyResidencyTicket,
         positions: PyReadonlyArray2<'_, f32>,
@@ -181,24 +186,27 @@ impl PyEngine {
             .as_slice()
             .map_err(|_| value("point positions must be C-contiguous float32"))?;
         let rows: &[[f32; 3]] = bytemuck::cast_slice(values);
-        let payload = molgfx::PointChunkPayload::new(Arc::from(rows))
+        let payload = molgfx::core::PointChunkPayload::new(Arc::from(rows))
             .map_err(|error| value(error.to_string()))?;
-        let data = molgfx::ChunkData::new(
+        let data = molgfx::core::ChunkData::new(
             &catalog.0,
             ticket.0.key.chunk,
-            molgfx::ChunkPayload::PointBatch(payload),
+            molgfx::core::ChunkPayload::PointBatch(payload),
         )
         .map_err(|error| value(error.to_string()))?;
-        render(
-            self.inner
-                .deliver_chunk_into(ticket.0, data, &mut self.residency_output)
-                .map_err(molgfx::RenderError::from),
-        )
+        py.detach(|| {
+            render(
+                self.inner
+                    .deliver_chunk_into(ticket.0, data, &mut self.residency_output)
+                    .map_err(molgfx::render::RenderError::from),
+            )
+        })
     }
 
     /// Validates one C-contiguous `(rows, 8)` rigid-transform array in Rust.
     fn deliver_instance_chunk(
         &mut self,
+        py: Python<'_>,
         catalog: &PyDatasetCatalog,
         ticket: PyResidencyTicket,
         transforms: PyReadonlyArray2<'_, f32>,
@@ -213,48 +221,54 @@ impl PyEngine {
         let mut instances = Vec::with_capacity(shape[0]);
         for row in values.chunks_exact(8) {
             instances.push(
-                molgfx::RigidInstance::new(
-                    molgfx::Vec3::new(row[0], row[1], row[2]),
-                    molgfx::Quat::from_array([row[4], row[5], row[6], row[7]]),
+                molgfx::core::RigidInstance::new(
+                    molgfx::math::Vec3::new(row[0], row[1], row[2]),
+                    molgfx::math::Quat::from_array([row[4], row[5], row[6], row[7]]),
                     row[3],
                 )
                 .map_err(|error| value(error.to_string()))?,
             );
         }
-        let payload = molgfx::InstanceChunkPayload::new(Arc::from(instances))
+        let payload = molgfx::core::InstanceChunkPayload::new(Arc::from(instances))
             .map_err(|error| value(error.to_string()))?;
-        let data = molgfx::ChunkData::new(
+        let data = molgfx::core::ChunkData::new(
             &catalog.0,
             ticket.0.key.chunk,
-            molgfx::ChunkPayload::InstanceBatch(payload),
+            molgfx::core::ChunkPayload::InstanceBatch(payload),
         )
         .map_err(|error| value(error.to_string()))?;
-        render(
-            self.inner
-                .deliver_chunk_into(ticket.0, data, &mut self.residency_output)
-                .map_err(molgfx::RenderError::from),
-        )
+        py.detach(|| {
+            render(
+                self.inner
+                    .deliver_chunk_into(ticket.0, data, &mut self.residency_output)
+                    .map_err(molgfx::render::RenderError::from),
+            )
+        })
     }
 
     /// Stages multiple already-delivered chunks without per-row Python calls.
-    fn upload_chunks(&mut self, tickets: Vec<PyResidencyTicket>) -> PyResult<()> {
-        for ticket in tickets {
-            render(
-                self.inner
-                    .upload_chunk_into(ticket.0, &mut self.residency_output)
-                    .map_err(molgfx::RenderError::from),
-            )?;
-        }
-        Ok(())
+    fn upload_chunks(&mut self, py: Python<'_>, tickets: Vec<PyResidencyTicket>) -> PyResult<()> {
+        py.detach(|| {
+            for ticket in tickets {
+                render(
+                    self.inner
+                        .upload_chunk_into(ticket.0, &mut self.residency_output)
+                        .map_err(molgfx::render::RenderError::from),
+                )?;
+            }
+            Ok(())
+        })
     }
 
     /// Publishes only backend-signalled uploads.
-    fn poll_chunk_uploads(&mut self) -> PyResult<()> {
-        render(
-            self.inner
-                .poll_chunk_uploads_into(&mut self.residency_output)
-                .map_err(molgfx::RenderError::from),
-        )
+    fn poll_chunk_uploads(&mut self, py: Python<'_>) -> PyResult<()> {
+        py.detach(|| {
+            render(
+                self.inner
+                    .poll_chunk_uploads_into(&mut self.residency_output)
+                    .map_err(molgfx::render::RenderError::from),
+            )
+        })
     }
 
     /// Replaces all point-chunk placements in one bounded operation.
@@ -262,50 +276,30 @@ impl PyEngine {
         &mut self,
         placements: Vec<PyPointChunkPlacement>,
     ) -> PyResult<()> {
-        if placements.len() > self.point_placements.capacity() {
-            return Err(value(
-                "point placement count exceeds engine residency capacity",
-            ));
-        }
-        self.point_placements.clear();
-        self.point_placements
-            .extend(placements.into_iter().map(|value| value.0));
-        render(
-            self.inner
-                .set_point_chunk_placements(&self.point_placements)
-                .map_err(molgfx::RenderError::from),
-        )
+        let placements: Vec<molgfx::render::PointChunkPlacement> = placements
+            .into_iter()
+            .map(|placement| placement.0)
+            .collect();
+        chunk_residency(self.inner.set_point_chunk_placements(&placements))
     }
 
-    fn point_chunk_placement_status(&self, id: u64) -> PyChunkPlacementStatus {
-        self.inner
-            .point_chunk_placement_status(molgfx::ChunkPlacementId::new(id))
-            .into()
+    fn point_chunk_placement_status(&self, id: PyChunkPlacementId) -> PyChunkPlacementStatus {
+        self.inner.point_chunk_placement_status(id.0).into()
     }
 
     fn set_instance_chunk_placements(
         &mut self,
         placements: Vec<PyInstanceChunkPlacement>,
     ) -> PyResult<()> {
-        if placements.len() > self.instance_placements.capacity() {
-            return Err(value(
-                "instance placement count exceeds engine residency capacity",
-            ));
-        }
-        self.instance_placements.clear();
-        self.instance_placements
-            .extend(placements.into_iter().map(|value| value.0));
-        render(
-            self.inner
-                .set_instance_chunk_placements(&self.instance_placements)
-                .map_err(molgfx::RenderError::from),
-        )
+        let placements: Vec<molgfx::render::InstanceChunkPlacement> = placements
+            .into_iter()
+            .map(|placement| placement.0)
+            .collect();
+        chunk_residency(self.inner.set_instance_chunk_placements(&placements))
     }
 
-    fn instance_chunk_placement_status(&self, id: u64) -> PyChunkPlacementStatus {
-        self.inner
-            .instance_chunk_placement_status(molgfx::ChunkPlacementId::new(id))
-            .into()
+    fn instance_chunk_placement_status(&self, id: PyChunkPlacementId) -> PyChunkPlacementStatus {
+        self.inner.instance_chunk_placement_status(id.0).into()
     }
 
     fn resident_generic_chunk(&self, ticket: PyResidencyTicket) -> Option<PyResidentGenericChunk> {
@@ -313,11 +307,4 @@ impl PyEngine {
             .resident_generic_chunk(ticket.0)
             .map(PyResidentGenericChunk)
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyPointChunkPlacement>()?;
-    module.add_class::<PyInstanceChunkPlacement>()?;
-    module.add_class::<PyChunkPlacementStatus>()?;
-    module.add_class::<PyResidentGenericChunk>()
 }

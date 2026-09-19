@@ -1,19 +1,19 @@
 //! Stable Python spelling for renderer entity identities.
 
-pub(super) const fn name(kind: molgfx::EntityKind) -> &'static str {
+pub(super) const fn name(kind: molgfx::core::EntityKind) -> &'static str {
     match kind {
-        molgfx::EntityKind::Atom => "atom",
-        molgfx::EntityKind::Bond => "bond",
-        molgfx::EntityKind::Edge => "edge",
-        molgfx::EntityKind::Label => "label",
-        molgfx::EntityKind::Primitive => "primitive",
-        molgfx::EntityKind::Mesh => "mesh",
-        molgfx::EntityKind::LigandPoseBatch => "unknown",
-        molgfx::EntityKind::Guide => "guide",
-        molgfx::EntityKind::DynamicBond => "dynamic_bond",
-        molgfx::EntityKind::Point => "point",
-        molgfx::EntityKind::Instance => "instance",
-        molgfx::EntityKind::TemplatePart => "template_part",
-        molgfx::EntityKind::Relation => "relation",
+        molgfx::core::EntityKind::Atom => "atom",
+        molgfx::core::EntityKind::Bond => "bond",
+        molgfx::core::EntityKind::Edge => "edge",
+        molgfx::core::EntityKind::Label => "label",
+        molgfx::core::EntityKind::Primitive => "primitive",
+        molgfx::core::EntityKind::Mesh => "mesh",
+        molgfx::core::EntityKind::LigandPoseBatch => "ligand_pose_batch",
+        molgfx::core::EntityKind::Guide => "guide",
+        molgfx::core::EntityKind::DynamicBond => "dynamic_bond",
+        molgfx::core::EntityKind::Point => "point",
+        molgfx::core::EntityKind::Instance => "instance",
+        molgfx::core::EntityKind::TemplatePart => "template_part",
+        molgfx::core::EntityKind::Relation => "relation",
     }
 }

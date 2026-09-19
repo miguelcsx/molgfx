@@ -8,23 +8,23 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "RenderProfile", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyRenderProfile(pub(crate) molgfx::RenderProfile);
+pub(crate) struct PyRenderProfile(pub(crate) molgfx::render::RenderProfile);
 
 #[pymethods]
 impl PyRenderProfile {
     #[staticmethod]
     fn inspection() -> Self {
-        Self(molgfx::RenderProfile::inspection())
+        Self(molgfx::render::RenderProfile::inspection())
     }
 
     #[staticmethod]
     fn illustrative() -> Self {
-        Self(molgfx::RenderProfile::illustrative())
+        Self(molgfx::render::RenderProfile::illustrative())
     }
 
     #[staticmethod]
     fn cinematic() -> Self {
-        Self(molgfx::RenderProfile::cinematic())
+        Self(molgfx::render::RenderProfile::cinematic())
     }
 
     fn with_effect(&self, value: PyPresentationEffect) -> Self {
@@ -43,7 +43,7 @@ impl PyRenderProfile {
 
 #[pyclass(name = "ResolvedRenderPlan", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyResolvedRenderPlan(pub(crate) molgfx::ResolvedRenderPlan);
+pub(crate) struct PyResolvedRenderPlan(pub(crate) molgfx::render::ResolvedRenderPlan);
 
 #[pymethods]
 impl PyResolvedRenderPlan {
@@ -81,9 +81,4 @@ impl PyResolvedRenderPlan {
     fn bloom(&self) -> Option<PyBloomStyle> {
         self.0.bloom().map(PyBloomStyle)
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyRenderProfile>()?;
-    module.add_class::<PyResolvedRenderPlan>()
 }
