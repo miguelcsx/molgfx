@@ -8,8 +8,11 @@ license.workspace = true
 repository.workspace = true
 
 [features]
-# The public facade exposes every stable molgfx-owned subsystem by default.
-# Consumers that need a smaller dependency graph can still opt out explicitly.
+# The default turns on the whole engine, so a caller who wants a picture adds
+# the crate and nothing else. The cost is real and worth stating: `semantic`
+# implies `realtime`, which links `molgfx-render` and `molgfx-wgpu`, so headless
+# work that only wants the scene graph pays for the renderer. A caller in that
+# position opts out with `default-features = false` and names what it needs.
 default = ["semantic"]
 # The interactive raster path over the default backend.
 realtime = ["dep:molgfx-render", "dep:molgfx-wgpu"]
@@ -23,49 +26,12 @@ molgfx-gpu.workspace = true
 molgfx-render = { workspace = true, optional = true }
 molgfx-wgpu = { workspace = true, optional = true }
 molgfx-semantic = { workspace = true, optional = true }
-num-traits.workspace = true
 
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-molgfx-recipes.workspace = true
-winit.workspace = true
-pdbiox = { workspace = true, features = ["mmcif", "bcif", "pdb", "chem", "spatial"] }
-png.workspace = true
+# Re-exported at the root. Public signatures in `molgfx-core` name types that
+# live here — a chunk payload carries `StructureChunk`, a selection carries a
+# `BitVec`, provenance carries `EntryMetadata` — and a caller who may import only
+# from `molgfx` has to be able to name them.
+molframe.workspace = true
 
 [lints]
 workspace = true
-
-[[example]]
-name = "pocket"
-required-features = ["realtime"]
-
-[[example]]
-name = "ligand_cutaway"
-required-features = ["semantic"]
-
-[[example]]
-name = "focus_cutaway"
-required-features = ["semantic"]
-
-[[example]]
-name = "mem_stress"
-required-features = ["semantic"]
-
-[[example]]
-name = "docking_swarm"
-required-features = ["semantic"]
-
-[[example]]
-name = "million_particles"
-required-features = ["realtime"]
-
-[[example]]
-name = "showcase"
-required-features = ["semantic"]
-
-[[example]]
-name = "unit_cell"
-required-features = ["semantic"]
-
-[[example]]
-name = "cinematic_4k"
-required-features = ["semantic"]
