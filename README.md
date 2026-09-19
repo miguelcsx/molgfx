@@ -94,47 +94,44 @@ The renderer decides how to efficiently turn those scenes into pixels.
 
 ## Quick start
 
-The intended high-level Rust API operates in terms of molecular representations rather than GPU commands:
+The API works in molecular terms — selections, representations, focus — and never
+in GPU commands:
 
 ```rust
-use molgfx::{
-    Camera,
-    Engine,
-    Molecule,
-    Representation,
-    Select,
-};
+use molgfx::molframe;
+// The root carries the curated surface — no prelude import.
+use molgfx::{Camera, Engine, EngineConfig, ImageConfig, RepresentationKind, Scene, Select};
+// Focus and context resolve through the semantic layer's trait.
+use molgfx::semantic::FocusScene;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let molecule = Molecule::load("1abc.cif")?;
+    let structure = molframe::read("1abc.cif")
+        .map_err(|errors| format!("{} diagnostics", errors.len()))?;
+    let mut scene = Scene::from_structure(&structure)?;
 
-    let mut engine = Engine::new()?;
-    let mut scene = engine.scene();
+    scene.represent(Select::polymer(), RepresentationKind::Cartoon)?;
+    scene.represent(Select::ligands(), RepresentationKind::BallAndStick)?;
+    let ligand = scene.select(Select::ligands())?;
+    scene.focus(ligand)?;
 
-    scene.add(&molecule);
-
-    scene.represent(
-        Select::polymer(),
-        Representation::Cartoon,
-    );
-
-    scene.represent(
-        Select::ligands(),
-        Representation::BallAndStick,
-    );
-
-    scene.focus(Select::ligands());
-
-    let frame = engine.render(
+    let camera = Camera::framing_aabb(&scene.world_aabb(), 16.0 / 9.0);
+    let mut engine = Engine::new(&EngineConfig::default(), None)?;
+    let image = engine.render_image(
         &scene,
-        &Camera::default(),
+        &camera,
+        ImageConfig {
+            width: 1920,
+            height: 1080,
+        },
     )?;
-
-    frame.save("structure.png")?;
-
+    std::fs::write("structure.png", image.png_bytes()?)?;
     Ok(())
 }
 ```
+
+The scene is host-side state: it resolves selections and representations, and the
+renderer uploads what it needs. The same snippet is a `no_run` doctest in the facade,
+so it is compiled with the crate.
 
 > The exact API remains pre-1.0. This example represents the intended abstraction level rather than a stable compatibility contract.
 
@@ -546,27 +543,27 @@ Shader behavior is tested and versioned with the rest of the renderer rather tha
 
 ## Python
 
-MolGFX is designed to expose a thin Python binding over the native engine.
-
-The intended interaction is high-level:
+The binding is the same declarative scene over the native engine; Python holds
+no rendering logic. The root carries the curated surface, so the same program
+reads:
 
 ```python
-import molgfx
+import molframe
+import molgfx as mg
 
-viewer = molgfx.Viewer()
+scene = mg.Scene.from_structure_shared(molframe.read("1abc.cif"))
 
-molecule = viewer.load("1abc.cif")
+scene.represent(scene.select(mg.Select.parse("polymer")), mg.Representation.cartoon())
+scene.represent(scene.select(mg.Select.parse("ligands")), mg.Representation.ball_and_stick())
 
-molecule.polymer.cartoon()
-molecule.ligands.ball_and_stick()
-
-viewer.focus(molecule.ligands)
-viewer.show()
+camera = mg.Camera.framing_aabb(scene.world_aabb(), 16.0 / 9.0)
+image = mg.Engine(mg.EngineConfig(1920, 1080)).render_image(scene, camera, 1920, 1080)
 ```
 
-The Python layer should orchestrate the engine rather than reimplement GPU or molecular rendering algorithms in Python.
-
-The API remains pre-1.0 and may evolve as the core rendering contracts stabilize.
+Rendering runs in Rust at native speed; Python only describes the scene. This
+program is executed end to end — `molframe.read` parses a real structure, the
+engine renders it, and the PNG comes back — as the binding's measured
+quick-start.
 
 ## Web
 
@@ -712,7 +709,6 @@ Architectural and contribution guidelines live in:
 
 - [`AGENTS.md`](AGENTS.md)
 - [`RULES.md`](RULES.md)
-- [`docs/`](docs/)
 
 ## License
 
