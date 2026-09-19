@@ -14,7 +14,7 @@ pub(crate) enum PyPropertyComparison {
     Greater,
 }
 
-impl From<PyPropertyComparison> for molgfx::PropertyComparison {
+impl From<PyPropertyComparison> for molgfx::core::PropertyComparison {
     fn from(value: PyPropertyComparison) -> Self {
         match value {
             PyPropertyComparison::Less => Self::Less,
@@ -35,7 +35,7 @@ pub(crate) enum PySecondaryStructure {
     Turn,
 }
 
-impl From<PySecondaryStructure> for molgfx::SecondaryStructure {
+impl From<PySecondaryStructure> for molgfx::core::SecondaryStructure {
     fn from(value: PySecondaryStructure) -> Self {
         match value {
             PySecondaryStructure::Coil => Self::Coil,
@@ -48,7 +48,7 @@ impl From<PySecondaryStructure> for molgfx::SecondaryStructure {
 
 #[pyclass(name = "Select", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PySelect(pub(crate) molgfx::Select);
+pub(crate) struct PySelect(pub(crate) molgfx::core::Select);
 
 #[pymethods]
 impl PySelect {
@@ -58,123 +58,127 @@ impl PySelect {
     }
     #[staticmethod]
     fn all() -> Self {
-        Self(molgfx::Select::all())
+        Self(molgfx::core::Select::all())
     }
     #[staticmethod]
     fn none() -> Self {
-        Self(molgfx::Select::none())
+        Self(molgfx::core::Select::none())
     }
     #[staticmethod]
     fn polymer() -> Self {
-        Self(molgfx::Select::polymer())
+        Self(molgfx::core::Select::polymer())
     }
     #[staticmethod]
     fn protein() -> Self {
-        Self(molgfx::Select::protein())
+        Self(molgfx::core::Select::protein())
     }
     #[staticmethod]
     fn nucleic() -> Self {
-        Self(molgfx::Select::nucleic())
+        Self(molgfx::core::Select::nucleic())
     }
     #[staticmethod]
     fn ligands() -> Self {
-        Self(molgfx::Select::ligands())
+        Self(molgfx::core::Select::ligands())
     }
     #[staticmethod]
     fn water() -> Self {
-        Self(molgfx::Select::water())
+        Self(molgfx::core::Select::water())
     }
     #[staticmethod]
     fn branched() -> Self {
-        Self(molgfx::Select::branched())
+        Self(molgfx::core::Select::branched())
     }
 
     #[staticmethod]
     fn chain(label: &str) -> PyResult<Self> {
-        core(molgfx::Select::chain(label)).map(Self)
+        core(molgfx::core::Select::chain(label)).map(Self)
     }
     #[staticmethod]
     fn residue_name(name: &str) -> PyResult<Self> {
-        core(molgfx::Select::residue_name(name)).map(Self)
+        core(molgfx::core::Select::residue_name(name)).map(Self)
     }
     #[staticmethod]
     fn atom_name(name: &str) -> PyResult<Self> {
-        core(molgfx::Select::atom_name(name)).map(Self)
+        core(molgfx::core::Select::atom_name(name)).map(Self)
     }
     #[staticmethod]
     fn residue(number: i32) -> Self {
-        Self(molgfx::Select::residue(number))
+        Self(molgfx::core::Select::residue(number))
     }
     #[staticmethod]
     fn element(symbol: &str) -> PyResult<Self> {
-        core(molgfx::Select::element(symbol)).map(Self)
+        core(molgfx::core::Select::element(symbol)).map(Self)
     }
     #[staticmethod]
     fn secondary(value: PySecondaryStructure) -> Self {
-        Self(molgfx::Select::secondary(value.into()))
+        Self(molgfx::core::Select::secondary(value.into()))
     }
     #[staticmethod]
     fn helix() -> Self {
-        Self(molgfx::Select::helix())
+        Self(molgfx::core::Select::helix())
     }
     #[staticmethod]
     fn sheet() -> Self {
-        Self(molgfx::Select::sheet())
+        Self(molgfx::core::Select::sheet())
     }
     #[staticmethod]
     fn coil() -> Self {
-        Self(molgfx::Select::coil())
+        Self(molgfx::core::Select::coil())
     }
     #[staticmethod]
     fn hydrogen() -> Self {
-        Self(molgfx::Select::hydrogen())
+        Self(molgfx::core::Select::hydrogen())
     }
     #[staticmethod]
     fn heavy() -> Self {
-        Self(molgfx::Select::heavy())
+        Self(molgfx::core::Select::heavy())
     }
     #[staticmethod]
     fn backbone() -> Self {
-        Self(molgfx::Select::backbone())
+        Self(molgfx::core::Select::backbone())
     }
     #[staticmethod]
     fn terminus() -> Self {
-        Self(molgfx::Select::terminus())
+        Self(molgfx::core::Select::terminus())
     }
     #[staticmethod]
     fn b_factor(comparison: PyPropertyComparison, threshold: f32) -> PyResult<Self> {
-        core(molgfx::Select::b_factor(comparison.into(), threshold)).map(Self)
+        core(molgfx::core::Select::b_factor(comparison.into(), threshold)).map(Self)
     }
     #[staticmethod]
     fn occupancy(comparison: PyPropertyComparison, threshold: f32) -> PyResult<Self> {
-        core(molgfx::Select::occupancy(comparison.into(), threshold)).map(Self)
+        core(molgfx::core::Select::occupancy(
+            comparison.into(),
+            threshold,
+        ))
+        .map(Self)
     }
     #[staticmethod]
     fn within(distance: f32, reference: PySelect) -> PyResult<Self> {
-        core(molgfx::Select::within(distance, reference.0)).map(Self)
+        core(molgfx::core::Select::within(distance, reference.0)).map(Self)
     }
     #[staticmethod]
     fn residues_within(distance: f32, reference: PySelect) -> PyResult<Self> {
-        core(molgfx::Select::residues_within(distance, reference.0)).map(Self)
+        core(molgfx::core::Select::residues_within(distance, reference.0)).map(Self)
     }
     #[staticmethod]
     fn beyond(distance: f32, reference: PySelect) -> PyResult<Self> {
-        core(molgfx::Select::beyond(distance, reference.0)).map(Self)
+        core(molgfx::core::Select::beyond(distance, reference.0)).map(Self)
     }
     #[staticmethod]
     fn in_sphere(center: PyVec3, radius: f32) -> PyResult<Self> {
-        core(molgfx::Select::in_sphere(center.0, radius)).map(Self)
+        core(molgfx::core::Select::in_sphere(center.0, radius)).map(Self)
     }
     #[staticmethod]
     fn in_box(min: PyVec3, max: PyVec3) -> PyResult<Self> {
-        core(molgfx::Select::in_box(min.0, max.0)).map(Self)
+        core(molgfx::core::Select::in_box(min.0, max.0)).map(Self)
     }
 
-    #[pyo3(name = "and")]
+    // Trailing underscores: the alternative is exporting the Python keywords
+    // `and` and `or`, which attribute access cannot reach.
     fn and_(&self, other: PySelect) -> Self {
         Self(self.0.clone().and(other.0))
     }
-    #[pyo3(name = "or")]
     fn or_(&self, other: PySelect) -> Self {
         Self(self.0.clone().or(other.0))
     }
@@ -189,10 +193,4 @@ impl PySelect {
 #[pyfunction]
 pub(crate) fn select(source: &str) -> PyResult<PySelect> {
     PySelect::parse(source)
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyPropertyComparison>()?;
-    module.add_class::<PySecondaryStructure>()?;
-    module.add_class::<PySelect>()
 }

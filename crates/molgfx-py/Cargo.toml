@@ -9,22 +9,33 @@ repository.workspace = true
 publish = false
 
 [lib]
-name = "molgfx_native"
+name = "_engine"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 bytemuck.workspace = true
 numpy.workspace = true
-pdbiox-py = { package = "pdbiox-py", git = "ssh://git@github.com/miguelcsx/pdbiox.git", rev = "27900eb8d93bfe8d8fd3eb2d643e00b77c0e28e1" }
+molframe-py.workspace = true
 molgfx = { workspace = true, features = ["semantic"] }
 pyo3 = { workspace = true, features = ["multiple-pymethods"] }
 
+# Cargo forbids `lints.workspace = true` next to a local override, so this crate
+# restates the workspace set and adds its own. Keep both lists in step.
 [lints.rust]
 missing_docs = "warn"
 missing_debug_implementations = "warn"
+unreachable_pub = "warn"
 
+# Thin adapters: a `#[pyclass]` constructor takes its argument by value, a
+# two-field accessor takes its receiver by reference, and a Python signature
+# carries as many arguments as the caller wrote. All three are the binding's
+# shape, not a defect.
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
+manual_unwrap_or = "allow"
+manual_unwrap_or_default = "allow"
+map_or_identity = "allow"
+chunks_exact_to_as_chunks = "allow"
 needless_pass_by_value = "allow"
 trivially_copy_pass_by_ref = "allow"
 too_many_arguments = "allow"

@@ -1,27 +1,17 @@
 //! Registration hub for the rendering binding modules.
 
-mod brick;
-mod brick_atlas;
-mod chunk_streaming;
-mod config;
-mod engine;
-mod engine_sequence;
-mod entity_kind;
-mod image_transfer;
-mod profile;
-mod session;
+pub(crate) mod brick;
+pub(crate) mod brick_atlas;
+pub(crate) mod chunk_placement;
+pub(crate) mod chunk_residency;
+pub(crate) mod chunk_streaming;
+pub(crate) mod config;
+pub(crate) mod engine;
+pub(crate) mod engine_sequence;
+pub(crate) mod entity_kind;
+pub(crate) mod image_transfer;
+pub(crate) mod profile;
+pub(crate) mod session;
 
 pub(crate) use config::*;
 pub(crate) use profile::*;
-
-use pyo3::prelude::*;
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    brick::register(module)?;
-    brick_atlas::register(module)?;
-    chunk_streaming::register(module)?;
-    config::register(module)?;
-    profile::register(module)?;
-    session::register(module)?;
-    engine::register(module)
-}

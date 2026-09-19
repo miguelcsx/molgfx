@@ -14,7 +14,7 @@ pub(crate) enum PyRelationPattern {
     Spring,
 }
 
-impl From<PyRelationPattern> for molgfx::RelationPattern {
+impl From<PyRelationPattern> for molgfx::core::RelationPattern {
     fn from(value: PyRelationPattern) -> Self {
         match value {
             PyRelationPattern::Solid => Self::Solid,
@@ -24,35 +24,45 @@ impl From<PyRelationPattern> for molgfx::RelationPattern {
         }
     }
 }
+impl From<molgfx::core::RelationPattern> for PyRelationPattern {
+    fn from(value: molgfx::core::RelationPattern) -> Self {
+        match value {
+            molgfx::core::RelationPattern::Solid => Self::Solid,
+            molgfx::core::RelationPattern::Dashed => Self::Dashed,
+            molgfx::core::RelationPattern::Dotted => Self::Dotted,
+            molgfx::core::RelationPattern::Spring => Self::Spring,
+        }
+    }
+}
 
 #[pyclass(name = "RowDomain", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyRowDomain(pub(crate) molgfx::RowDomain);
+pub(crate) struct PyRowDomain(pub(crate) molgfx::core::RowDomain);
 
 #[pymethods]
 impl PyRowDomain {
     #[staticmethod]
     fn atoms(handle: PyStructureHandle) -> Self {
-        Self(molgfx::RowDomain::Atoms(handle.0))
+        Self(molgfx::core::RowDomain::Atoms(handle.0))
     }
 
     #[staticmethod]
     fn points(handle: PyPointBatchHandle) -> Self {
-        Self(molgfx::RowDomain::Points(handle.0))
+        Self(molgfx::core::RowDomain::Points(handle.0))
     }
 
     #[staticmethod]
     fn instances(handle: PyInstanceBatchHandle) -> Self {
-        Self(molgfx::RowDomain::Instances(handle.0))
+        Self(molgfx::core::RowDomain::Instances(handle.0))
     }
 
     #[staticmethod]
     fn template_parts(handle: PyInstanceBatchHandle) -> Self {
-        Self(molgfx::RowDomain::TemplateParts(handle.0))
+        Self(molgfx::core::RowDomain::TemplateParts(handle.0))
     }
 
     #[staticmethod]
     fn relations(handle: PyRelationBatchHandle) -> Self {
-        Self(molgfx::RowDomain::Relations(handle.0))
+        Self(molgfx::core::RowDomain::Relations(handle.0))
     }
 }

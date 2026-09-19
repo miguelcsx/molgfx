@@ -11,5 +11,5 @@ dependencies = ["numpy>=2", "pdbiox>=0.1"]
 [tool.maturin]
 manifest-path = "crates/molgfx-py/Cargo.toml"
 python-source = "python"
-module-name = "molgfx._native"
+module-name = "molgfx._engine"
 features = ["pyo3/extension-module"]

@@ -4,7 +4,7 @@ use crate::core::PyStructureHandle;
 use crate::error::core;
 use crate::memory::PyMemoryOwnership;
 use crate::values::PyScalarFieldSemantics;
-use numpy::PyReadonlyArray1;
+use numpy::{PyArray1, PyReadonlyArray1};
 use pyo3::prelude::*;
 use std::sync::Arc;
 
@@ -21,7 +21,7 @@ pub(crate) enum PyAtomPropertyMeaning {
     Exposure,
 }
 
-impl From<PyAtomPropertyMeaning> for molgfx::AtomPropertyMeaning {
+impl From<PyAtomPropertyMeaning> for molgfx::core::AtomPropertyMeaning {
     fn from(value: PyAtomPropertyMeaning) -> Self {
         match value {
             PyAtomPropertyMeaning::Generic => Self::Generic,
@@ -38,7 +38,7 @@ impl From<PyAtomPropertyMeaning> for molgfx::AtomPropertyMeaning {
 
 #[pyclass(name = "AtomProperty", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyAtomProperty(pub(crate) molgfx::AtomProperty);
+pub(crate) struct PyAtomProperty(pub(crate) molgfx::core::AtomProperty);
 
 #[pymethods]
 impl PyAtomProperty {
@@ -54,7 +54,7 @@ impl PyAtomProperty {
         let values = values
             .as_slice()
             .map_err(|_| crate::error::value("values must be C-contiguous float32"))?;
-        core(molgfx::AtomProperty::new(
+        core(molgfx::core::AtomProperty::new(
             owner.0,
             name,
             Arc::from(values),
@@ -64,17 +64,12 @@ impl PyAtomProperty {
         .map(Self)
     }
 
-    fn copy_values(&self) -> Vec<f32> {
-        self.0.values().to_vec()
+    fn copy_values<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f32>> {
+        PyArray1::from_slice(py, self.0.values())
     }
 
     #[getter]
     fn numpy_ownership(&self) -> PyMemoryOwnership {
         PyMemoryOwnership::Copied
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyAtomPropertyMeaning>()?;
-    module.add_class::<PyAtomProperty>()
 }

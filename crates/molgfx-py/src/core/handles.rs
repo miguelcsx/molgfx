@@ -6,7 +6,7 @@ macro_rules! handle_type {
     ($rust:ident, $python:literal, $native:ident) => {
         #[pyclass(name = $python, frozen, eq, from_py_object)]
         #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-        pub(crate) struct $rust(pub(crate) molgfx::$native);
+        pub(crate) struct $rust(pub(crate) molgfx::core::$native);
 
         #[pymethods]
         impl $rust {
@@ -23,8 +23,8 @@ macro_rules! handle_type {
             }
         }
 
-        impl From<molgfx::$native> for $rust {
-            fn from(value: molgfx::$native) -> Self {
+        impl From<molgfx::core::$native> for $rust {
+            fn from(value: molgfx::core::$native) -> Self {
                 Self(value)
             }
         }
@@ -44,10 +44,16 @@ handle_type!(
     "SegmentationHandle",
     SegmentationHandle
 );
+handle_type!(PyEnsembleHandle, "EnsembleHandle", EnsembleHandle);
 handle_type!(
     PyAtomPropertyHandle,
     "AtomPropertyHandle",
     AtomPropertyHandle
+);
+handle_type!(
+    PyLigandPoseBatchHandle,
+    "LigandPoseBatchHandle",
+    LigandPoseBatchHandle
 );
 handle_type!(PyMeshHandle, "MeshHandle", MeshHandle);
 handle_type!(
@@ -79,7 +85,7 @@ macro_rules! opaque_handle_type {
     ($rust:ident, $python:literal, $native:ident) => {
         #[pyclass(name = $python, frozen, eq, from_py_object)]
         #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-        pub(crate) struct $rust(pub(crate) molgfx::$native);
+        pub(crate) struct $rust(pub(crate) molgfx::core::$native);
 
         #[pymethods]
         impl $rust {
@@ -88,8 +94,8 @@ macro_rules! opaque_handle_type {
             }
         }
 
-        impl From<molgfx::$native> for $rust {
-            fn from(value: molgfx::$native) -> Self {
+        impl From<molgfx::core::$native> for $rust {
+            fn from(value: molgfx::core::$native) -> Self {
                 Self(value)
             }
         }
@@ -97,6 +103,7 @@ macro_rules! opaque_handle_type {
 }
 
 opaque_handle_type!(PyGuideHandle, "GuideHandle", GuideHandle);
+opaque_handle_type!(PyInteractionHandle, "InteractionHandle", InteractionHandle);
 opaque_handle_type!(PyAnnotationHandle, "AnnotationHandle", AnnotationHandle);
 opaque_handle_type!(PyMeasurementHandle, "MeasurementHandle", MeasurementHandle);
 
@@ -115,9 +122,10 @@ pub(crate) enum PyEntityKind {
     Instance,
     TemplatePart,
     Relation,
+    LigandPoseBatch,
 }
 
-impl From<PyEntityKind> for molgfx::EntityKind {
+impl From<PyEntityKind> for molgfx::core::EntityKind {
     fn from(value: PyEntityKind) -> Self {
         match value {
             PyEntityKind::Atom => Self::Atom,
@@ -132,16 +140,37 @@ impl From<PyEntityKind> for molgfx::EntityKind {
             PyEntityKind::Instance => Self::Instance,
             PyEntityKind::TemplatePart => Self::TemplatePart,
             PyEntityKind::Relation => Self::Relation,
+            PyEntityKind::LigandPoseBatch => Self::LigandPoseBatch,
+        }
+    }
+}
+
+impl From<molgfx::core::EntityKind> for PyEntityKind {
+    fn from(value: molgfx::core::EntityKind) -> Self {
+        match value {
+            molgfx::core::EntityKind::Atom => Self::Atom,
+            molgfx::core::EntityKind::Bond => Self::Bond,
+            molgfx::core::EntityKind::Edge => Self::Edge,
+            molgfx::core::EntityKind::Label => Self::Label,
+            molgfx::core::EntityKind::Primitive => Self::Primitive,
+            molgfx::core::EntityKind::Mesh => Self::Mesh,
+            molgfx::core::EntityKind::Guide => Self::Guide,
+            molgfx::core::EntityKind::DynamicBond => Self::DynamicBond,
+            molgfx::core::EntityKind::Point => Self::Point,
+            molgfx::core::EntityKind::Instance => Self::Instance,
+            molgfx::core::EntityKind::TemplatePart => Self::TemplatePart,
+            molgfx::core::EntityKind::Relation => Self::Relation,
+            molgfx::core::EntityKind::LigandPoseBatch => Self::LigandPoseBatch,
         }
     }
 }
 
 #[pyclass(name = "EntityRef", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyEntityRef(pub(crate) molgfx::EntityRef);
+pub(crate) struct PyEntityRef(pub(crate) molgfx::core::EntityRef);
 
-impl From<molgfx::EntityRef> for PyEntityRef {
-    fn from(value: molgfx::EntityRef) -> Self {
+impl From<molgfx::core::EntityRef> for PyEntityRef {
+    fn from(value: molgfx::core::EntityRef) -> Self {
         Self(value)
     }
 }
@@ -150,7 +179,7 @@ impl From<molgfx::EntityRef> for PyEntityRef {
 impl PyEntityRef {
     #[new]
     fn new(structure: PyStructureHandle, kind: PyEntityKind, index: u32) -> Self {
-        Self(molgfx::EntityRef {
+        Self(molgfx::core::EntityRef {
             structure: structure.0,
             kind: kind.into(),
             index,
@@ -161,24 +190,8 @@ impl PyEntityRef {
         self.0.structure.into()
     }
     #[getter]
-    fn kind(&self) -> PyResult<PyEntityKind> {
-        match self.0.kind {
-            molgfx::EntityKind::Atom => Ok(PyEntityKind::Atom),
-            molgfx::EntityKind::Bond => Ok(PyEntityKind::Bond),
-            molgfx::EntityKind::Edge => Ok(PyEntityKind::Edge),
-            molgfx::EntityKind::Label => Ok(PyEntityKind::Label),
-            molgfx::EntityKind::Primitive => Ok(PyEntityKind::Primitive),
-            molgfx::EntityKind::Mesh => Ok(PyEntityKind::Mesh),
-            molgfx::EntityKind::Guide => Ok(PyEntityKind::Guide),
-            molgfx::EntityKind::DynamicBond => Ok(PyEntityKind::DynamicBond),
-            molgfx::EntityKind::Point => Ok(PyEntityKind::Point),
-            molgfx::EntityKind::Instance => Ok(PyEntityKind::Instance),
-            molgfx::EntityKind::TemplatePart => Ok(PyEntityKind::TemplatePart),
-            molgfx::EntityKind::Relation => Ok(PyEntityKind::Relation),
-            molgfx::EntityKind::LigandPoseBatch => Err(crate::error::value(
-                "legacy ligand-pose entities are not part of the public API",
-            )),
-        }
+    fn kind(&self) -> PyEntityKind {
+        self.0.kind.into()
     }
     #[getter]
     fn index(&self) -> u32 {
@@ -188,10 +201,10 @@ impl PyEntityRef {
 
 #[pyclass(name = "VolumeSegmentRef", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyVolumeSegmentRef(pub(crate) molgfx::VolumeSegmentRef);
+pub(crate) struct PyVolumeSegmentRef(pub(crate) molgfx::core::VolumeSegmentRef);
 
-impl From<molgfx::VolumeSegmentRef> for PyVolumeSegmentRef {
-    fn from(value: molgfx::VolumeSegmentRef) -> Self {
+impl From<molgfx::core::VolumeSegmentRef> for PyVolumeSegmentRef {
+    fn from(value: molgfx::core::VolumeSegmentRef) -> Self {
         Self(value)
     }
 }
@@ -200,7 +213,7 @@ impl From<molgfx::VolumeSegmentRef> for PyVolumeSegmentRef {
 impl PyVolumeSegmentRef {
     #[new]
     fn new(volume: PySegmentationHandle, label: u32) -> Self {
-        Self(molgfx::VolumeSegmentRef {
+        Self(molgfx::core::VolumeSegmentRef {
             volume: volume.0,
             label,
         })
@@ -213,28 +226,4 @@ impl PyVolumeSegmentRef {
     fn label(&self) -> u32 {
         self.0.label
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyStructureHandle>()?;
-    module.add_class::<PyRepresentationHandle>()?;
-    module.add_class::<PySelectionHandle>()?;
-    module.add_class::<PyVolumeHandle>()?;
-    module.add_class::<PySegmentationHandle>()?;
-    module.add_class::<PyAtomPropertyHandle>()?;
-    module.add_class::<PyMeshHandle>()?;
-    module.add_class::<PyMeshInstanceHandle>()?;
-    module.add_class::<PyOverlayHandle>()?;
-    module.add_class::<PyPrimitiveHandle>()?;
-    module.add_class::<PyAttributeHandle>()?;
-    module.add_class::<PyPointBatchHandle>()?;
-    module.add_class::<PyInstanceBatchHandle>()?;
-    module.add_class::<PyRelationBatchHandle>()?;
-    module.add_class::<PyTimelineTrackHandle>()?;
-    module.add_class::<PyGuideHandle>()?;
-    module.add_class::<PyAnnotationHandle>()?;
-    module.add_class::<PyMeasurementHandle>()?;
-    module.add_class::<PyEntityKind>()?;
-    module.add_class::<PyEntityRef>()?;
-    module.add_class::<PyVolumeSegmentRef>()
 }
