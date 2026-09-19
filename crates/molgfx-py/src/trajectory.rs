@@ -3,14 +3,13 @@
 use crate::core::{PyScene, PyStructureHandle};
 use crate::error::core;
 use crate::math::PyAabb;
-use numpy::ndarray::Array2;
-use numpy::{IntoPyArray, PyArray2, PyArrayMethods, PyReadonlyArray2, PyUntypedArrayMethods};
+use numpy::{PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use std::sync::Arc;
 
 #[pyclass(name = "TrajectoryChunkWindow", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyTrajectoryChunkWindow(pub(crate) molgfx::TrajectoryChunkWindow);
+pub(crate) struct PyTrajectoryChunkWindow(pub(crate) molgfx::render::TrajectoryChunkWindow);
 
 #[pymethods]
 impl PyTrajectoryChunkWindow {
@@ -21,7 +20,7 @@ impl PyTrajectoryChunkWindow {
         end: crate::semantic::PyResidencyTicket,
         interpolation: f32,
     ) -> PyResult<Self> {
-        molgfx::TrajectoryChunkWindow::new(structure.0, start.0, end.0, interpolation)
+        molgfx::render::TrajectoryChunkWindow::new(structure.0, start.0, end.0, interpolation)
             .map(Self)
             .map_err(|error| crate::error::value(error.to_string()))
     }
@@ -49,7 +48,7 @@ impl PyTrajectoryChunkWindow {
 
 #[pyclass(name = "TrajectoryFrame", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyTrajectoryFrame(pub(crate) molgfx::TrajectoryFrame);
+pub(crate) struct PyTrajectoryFrame(pub(crate) molgfx::core::TrajectoryFrame);
 
 #[pymethods]
 impl PyTrajectoryFrame {
@@ -73,7 +72,7 @@ impl PyTrajectoryFrame {
             .chunks_exact(3)
             .map(|row| [row[0], row[1], row[2]])
             .collect::<Vec<_>>();
-        core(molgfx::TrajectoryFrame::new(
+        core(molgfx::core::TrajectoryFrame::new(
             index,
             time_seconds,
             Arc::from(positions.into_boxed_slice()),
@@ -94,15 +93,8 @@ impl PyTrajectoryFrame {
 
     fn copy_positions_numpy<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f32>>> {
         let rows = self.0.positions().len();
-        let values = self
-            .0
-            .positions()
-            .iter()
-            .flat_map(|position| position.iter().copied())
-            .collect::<Vec<_>>();
-        let array = Array2::from_shape_vec((rows, 3), values)
-            .map_err(|error| crate::error::value(error.to_string()))?;
-        let result = array.into_pyarray(py);
+        let flat = PyArray1::from_slice(py, bytemuck::cast_slice(self.0.positions()));
+        let result = flat.reshape((rows, 3))?;
         result.readwrite().make_nonwriteable();
         Ok(result)
     }
@@ -119,7 +111,7 @@ impl PyTrajectoryFrame {
 
 #[pyclass(name = "TrajectorySegment", from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyTrajectorySegment(pub(crate) molgfx::TrajectorySegment);
+pub(crate) struct PyTrajectorySegment(pub(crate) molgfx::core::TrajectorySegment);
 
 #[pymethods]
 impl PyTrajectorySegment {
@@ -129,7 +121,7 @@ impl PyTrajectorySegment {
         end: PyTrajectoryFrame,
         sample_seconds: f32,
     ) -> PyResult<Self> {
-        core(molgfx::TrajectorySegment::new(
+        core(molgfx::core::TrajectorySegment::new(
             start.0,
             end.0,
             sample_seconds,
@@ -173,14 +165,14 @@ impl PyTrajectorySegment {
 
 #[pyclass(name = "TrajectoryBranch", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyTrajectoryBranch(molgfx::TrajectoryBranch);
+pub(crate) struct PyTrajectoryBranch(molgfx::core::TrajectoryBranch);
 
 #[pymethods]
 impl PyTrajectoryBranch {
     #[new]
     #[pyo3(signature = (from_state, to_state, event, probability=1.0))]
     fn new(from_state: u32, to_state: u32, event: String, probability: f32) -> PyResult<Self> {
-        core(molgfx::TrajectoryBranch::new(
+        core(molgfx::core::TrajectoryBranch::new(
             from_state,
             to_state,
             event,
@@ -213,13 +205,13 @@ impl PyTrajectoryBranch {
 
 #[pyclass(name = "TrajectoryStateGraph")]
 #[derive(Debug)]
-pub(crate) struct PyTrajectoryStateGraph(molgfx::TrajectoryStateGraph);
+pub(crate) struct PyTrajectoryStateGraph(molgfx::core::TrajectoryStateGraph);
 
 #[pymethods]
 impl PyTrajectoryStateGraph {
     #[new]
     fn new(states: Vec<u32>, branches: Vec<PyTrajectoryBranch>, initial: u32) -> PyResult<Self> {
-        core(molgfx::TrajectoryStateGraph::new(
+        core(molgfx::core::TrajectoryStateGraph::new(
             states,
             branches.into_iter().map(|branch| branch.0).collect(),
             initial,
@@ -260,8 +252,8 @@ impl PyTrajectoryStateGraph {
     }
 
     #[getter]
-    fn states(&self) -> Vec<u32> {
-        self.0.states().to_vec()
+    fn states<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<u32>> {
+        PyArray1::from_slice(py, self.0.states())
     }
 
     #[getter]
@@ -273,12 +265,4 @@ impl PyTrajectoryStateGraph {
             .map(PyTrajectoryBranch)
             .collect()
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyTrajectoryChunkWindow>()?;
-    module.add_class::<PyTrajectoryFrame>()?;
-    module.add_class::<PyTrajectorySegment>()?;
-    module.add_class::<PyTrajectoryBranch>()?;
-    module.add_class::<PyTrajectoryStateGraph>()
 }

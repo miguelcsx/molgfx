@@ -1,19 +1,20 @@
 //! Python adapters for caller-decoded dynamic covalent topology.
 
 use crate::error::core;
+use numpy::{PyArray1, PyArray2, PyArrayMethods};
 use pyo3::prelude::*;
 use std::sync::Arc;
 
 #[pyclass(name = "TopologyBond", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyTopologyBond(pub(crate) molgfx::TopologyBond);
+pub(crate) struct PyTopologyBond(pub(crate) molgfx::core::TopologyBond);
 
 #[pymethods]
 impl PyTopologyBond {
     #[new]
     #[pyo3(signature = (atom_a, atom_b, aromatic=false))]
     fn new(atom_a: u32, atom_b: u32, aromatic: bool) -> PyResult<Self> {
-        core(molgfx::TopologyBond::new(atom_a, atom_b, aromatic)).map(Self)
+        core(molgfx::core::TopologyBond::new(atom_a, atom_b, aromatic)).map(Self)
     }
 
     #[getter]
@@ -30,7 +31,7 @@ impl PyTopologyBond {
 
 #[pyclass(name = "BondTopologyFrame", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyBondTopologyFrame(pub(crate) molgfx::BondTopologyFrame);
+pub(crate) struct PyBondTopologyFrame(pub(crate) molgfx::core::BondTopologyFrame);
 
 #[pymethods]
 impl PyBondTopologyFrame {
@@ -43,7 +44,7 @@ impl PyBondTopologyFrame {
         provenance: &str,
     ) -> PyResult<Self> {
         let bonds = bonds.into_iter().map(|bond| bond.0).collect::<Vec<_>>();
-        core(molgfx::BondTopologyFrame::new(
+        core(molgfx::core::BondTopologyFrame::new(
             index,
             time_seconds,
             atom_count,
@@ -68,9 +69,19 @@ impl PyBondTopologyFrame {
         self.0.atom_count()
     }
 
+    /// Bond endpoints as an `N x 2` read-only column of atom indices.
+    ///
+    /// The row order is the frame's canonical order, which the `aromatic`
+    /// column shares.
     #[getter]
-    fn bonds(&self) -> Vec<PyTopologyBond> {
-        self.0.bonds().iter().copied().map(PyTopologyBond).collect()
+    fn atom_pairs<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<u32>>> {
+        column_pair(py, self.0.bonds().iter().copied())
+    }
+
+    /// Whether each bond in `atom_pairs` has aromatic presentation.
+    #[getter]
+    fn aromatic<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<bool>> {
+        column_aromatic(py, self.0.bonds().iter().copied())
     }
 
     #[getter]
@@ -81,7 +92,7 @@ impl PyBondTopologyFrame {
 
 #[pyclass(name = "BondTopologySegment", from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyBondTopologySegment(pub(crate) molgfx::BondTopologySegment);
+pub(crate) struct PyBondTopologySegment(pub(crate) molgfx::core::BondTopologySegment);
 
 #[pymethods]
 impl PyBondTopologySegment {
@@ -91,7 +102,7 @@ impl PyBondTopologySegment {
         end: PyBondTopologyFrame,
         sample_seconds: f32,
     ) -> PyResult<Self> {
-        core(molgfx::BondTopologySegment::new(
+        core(molgfx::core::BondTopologySegment::new(
             start.0,
             end.0,
             sample_seconds,
@@ -123,17 +134,59 @@ impl PyBondTopologySegment {
         self.0.interpolation()
     }
 
+    /// Endpoints of every row in the merged union, as an `N x 2` column.
+    ///
+    /// Zero-weight rows are retained so a row index stays stable across a
+    /// sample time change.
     #[getter]
-    fn bonds(&self) -> Vec<(PyTopologyBond, f32)> {
-        self.0
+    fn atom_pairs<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<u32>>> {
+        column_pair(py, self.0.bonds().map(|active| active.bond()))
+    }
+
+    /// Whether each row in `atom_pairs` has aromatic presentation.
+    #[getter]
+    fn aromatic<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<bool>> {
+        column_aromatic(py, self.0.bonds().map(|active| active.bond()))
+    }
+
+    /// Radius multiplier in `[0, 1]` of each row in `atom_pairs`.
+    #[getter]
+    fn weights<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f32>> {
+        let weights = self
+            .0
             .bonds()
-            .map(|active| (PyTopologyBond(active.bond()), active.weight()))
-            .collect()
+            .map(|active| active.weight())
+            .collect::<Vec<_>>();
+        let column = PyArray1::from_slice(py, &weights);
+        column.readwrite().make_nonwriteable();
+        column
     }
 }
 
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyTopologyBond>()?;
-    module.add_class::<PyBondTopologyFrame>()?;
-    module.add_class::<PyBondTopologySegment>()
+/// Packs bond endpoints into a read-only `N x 2` index column.
+fn column_pair(
+    py: Python<'_>,
+    bonds: impl ExactSizeIterator<Item = molgfx::core::TopologyBond>,
+) -> PyResult<Bound<'_, PyArray2<u32>>> {
+    let rows = bonds.len();
+    let mut endpoints = Vec::with_capacity(rows.saturating_mul(2));
+    for bond in bonds {
+        endpoints.extend_from_slice(&bond.atoms());
+    }
+    let column = PyArray1::from_vec(py, endpoints).reshape((rows, 2))?;
+    column.readwrite().make_nonwriteable();
+    Ok(column)
+}
+
+/// Packs one aromatic flag per bond into a read-only column.
+fn column_aromatic(
+    py: Python<'_>,
+    bonds: impl Iterator<Item = molgfx::core::TopologyBond>,
+) -> Bound<'_, PyArray1<bool>> {
+    let flags = bonds
+        .map(molgfx::core::TopologyBond::is_aromatic)
+        .collect::<Vec<_>>();
+    let column = PyArray1::from_slice(py, &flags);
+    column.readwrite().make_nonwriteable();
+    column
 }

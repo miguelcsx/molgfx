@@ -10,18 +10,18 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "AnnotationAnchor", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyAnnotationAnchor(pub(crate) molgfx::AnnotationAnchor);
+pub(crate) struct PyAnnotationAnchor(pub(crate) molgfx::core::AnnotationAnchor);
 
 #[pymethods]
 impl PyAnnotationAnchor {
     #[staticmethod]
     fn world(position: PyVec3) -> PyResult<Self> {
-        core(molgfx::AnnotationAnchor::world(position.0)).map(Self)
+        core(molgfx::core::AnnotationAnchor::world(position.0)).map(Self)
     }
 
     #[staticmethod]
     fn entity(position: PyVec3, entity: PyEntityRef) -> PyResult<Self> {
-        core(molgfx::AnnotationAnchor::entity(position.0, entity.0)).map(Self)
+        core(molgfx::core::AnnotationAnchor::entity(position.0, entity.0)).map(Self)
     }
 
     #[getter]
@@ -43,7 +43,7 @@ pub(crate) enum PyMarkerShape {
     Crosshair,
 }
 
-impl From<PyMarkerShape> for molgfx::MarkerShape {
+impl From<PyMarkerShape> for molgfx::core::MarkerShape {
     fn from(value: PyMarkerShape) -> Self {
         match value {
             PyMarkerShape::Circle => Self::Circle,
@@ -53,27 +53,27 @@ impl From<PyMarkerShape> for molgfx::MarkerShape {
     }
 }
 
-impl From<molgfx::MarkerShape> for PyMarkerShape {
-    fn from(value: molgfx::MarkerShape) -> Self {
+impl From<molgfx::core::MarkerShape> for PyMarkerShape {
+    fn from(value: molgfx::core::MarkerShape) -> Self {
         match value {
-            molgfx::MarkerShape::Circle => Self::Circle,
-            molgfx::MarkerShape::Diamond => Self::Diamond,
-            molgfx::MarkerShape::Crosshair => Self::Crosshair,
+            molgfx::core::MarkerShape::Circle => Self::Circle,
+            molgfx::core::MarkerShape::Diamond => Self::Diamond,
+            molgfx::core::MarkerShape::Crosshair => Self::Crosshair,
         }
     }
 }
 
 #[pyclass(name = "MarkerStyle", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyMarkerStyle(pub(crate) molgfx::MarkerStyle);
+pub(crate) struct PyMarkerStyle(pub(crate) molgfx::core::MarkerStyle);
 
 #[pymethods]
 impl PyMarkerStyle {
     #[new]
     #[pyo3(signature = (color=None, radius_pixels=6.0, shape=None))]
     fn new(color: Option<PyRgba8>, radius_pixels: f32, shape: Option<PyMarkerShape>) -> Self {
-        let default = molgfx::MarkerStyle::default();
-        Self(molgfx::MarkerStyle {
+        let default = molgfx::core::MarkerStyle::default();
+        Self(molgfx::core::MarkerStyle {
             color: color.map_or(default.color, |value| value.0),
             radius_pixels,
             shape: shape.map_or(default.shape, Into::into),
@@ -105,26 +105,26 @@ pub(crate) enum PyAnnotationKind {
     Hypothesis,
 }
 
-impl From<molgfx::AnnotationKind> for PyAnnotationKind {
-    fn from(value: molgfx::AnnotationKind) -> Self {
+impl From<molgfx::core::AnnotationKind> for PyAnnotationKind {
+    fn from(value: molgfx::core::AnnotationKind) -> Self {
         match value {
-            molgfx::AnnotationKind::Note => Self::Note,
-            molgfx::AnnotationKind::Marker => Self::Marker,
-            molgfx::AnnotationKind::Region => Self::Region,
-            molgfx::AnnotationKind::Hypothesis => Self::Hypothesis,
+            molgfx::core::AnnotationKind::Note => Self::Note,
+            molgfx::core::AnnotationKind::Marker => Self::Marker,
+            molgfx::core::AnnotationKind::Region => Self::Region,
+            molgfx::core::AnnotationKind::Hypothesis => Self::Hypothesis,
         }
     }
 }
 
 #[pyclass(name = "Annotation", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyAnnotation(pub(crate) molgfx::Annotation);
+pub(crate) struct PyAnnotation(pub(crate) molgfx::core::Annotation);
 
 #[pymethods]
 impl PyAnnotation {
     #[staticmethod]
     fn note(owner: PyStructureHandle, anchor: PyAnnotationAnchor, text: &str) -> PyResult<Self> {
-        core(molgfx::Annotation::note(owner.0, anchor.0, text)).map(Self)
+        core(molgfx::core::Annotation::note(owner.0, anchor.0, text)).map(Self)
     }
 
     #[staticmethod]
@@ -133,7 +133,10 @@ impl PyAnnotation {
         anchor: PyAnnotationAnchor,
         text: &str,
     ) -> PyResult<Self> {
-        core(molgfx::Annotation::hypothesis(owner.0, anchor.0, text)).map(Self)
+        core(molgfx::core::Annotation::hypothesis(
+            owner.0, anchor.0, text,
+        ))
+        .map(Self)
     }
 
     #[staticmethod]
@@ -142,7 +145,7 @@ impl PyAnnotation {
         anchor: PyAnnotationAnchor,
         style: PyMarkerStyle,
     ) -> PyResult<Self> {
-        core(molgfx::Annotation::marker(owner.0, anchor.0, style.0)).map(Self)
+        core(molgfx::core::Annotation::marker(owner.0, anchor.0, style.0)).map(Self)
     }
 
     #[staticmethod]
@@ -151,7 +154,12 @@ impl PyAnnotation {
         selection: PySelectionHandle,
         label: &str,
     ) -> PyResult<Self> {
-        core(molgfx::Annotation::region(owner.0, selection.0, label)).map(Self)
+        core(molgfx::core::Annotation::region(
+            owner.0,
+            selection.0,
+            label,
+        ))
+        .map(Self)
     }
 
     fn with_priority(&self, priority: i16) -> Self {
@@ -207,23 +215,23 @@ pub(crate) enum PyMeasurementKind {
     Dihedral,
 }
 
-impl From<molgfx::MeasurementKind> for PyMeasurementKind {
-    fn from(value: molgfx::MeasurementKind) -> Self {
+impl From<molgfx::core::MeasurementKind> for PyMeasurementKind {
+    fn from(value: molgfx::core::MeasurementKind) -> Self {
         match value {
-            molgfx::MeasurementKind::Distance => Self::Distance,
-            molgfx::MeasurementKind::Angle => Self::Angle,
-            molgfx::MeasurementKind::Dihedral => Self::Dihedral,
+            molgfx::core::MeasurementKind::Distance => Self::Distance,
+            molgfx::core::MeasurementKind::Angle => Self::Angle,
+            molgfx::core::MeasurementKind::Dihedral => Self::Dihedral,
         }
     }
 }
 
 #[pyclass(name = "Measurement", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyMeasurement(pub(crate) molgfx::Measurement);
+pub(crate) struct PyMeasurement(pub(crate) molgfx::core::Measurement);
 
 fn fixed_anchors<const N: usize>(
     values: Vec<PyAnnotationAnchor>,
-) -> PyResult<[molgfx::AnnotationAnchor; N]> {
+) -> PyResult<[molgfx::core::AnnotationAnchor; N]> {
     let count = values.len();
     values
         .try_into()
@@ -240,7 +248,7 @@ impl PyMeasurement {
         value: f32,
         provenance: &str,
     ) -> PyResult<Self> {
-        core(molgfx::Measurement::distance(
+        core(molgfx::core::Measurement::distance(
             owner.0,
             fixed_anchors::<2>(anchors)?,
             value,
@@ -256,7 +264,7 @@ impl PyMeasurement {
         value: f32,
         provenance: &str,
     ) -> PyResult<Self> {
-        core(molgfx::Measurement::angle(
+        core(molgfx::core::Measurement::angle(
             owner.0,
             fixed_anchors::<3>(anchors)?,
             value,
@@ -272,7 +280,7 @@ impl PyMeasurement {
         value: f32,
         provenance: &str,
     ) -> PyResult<Self> {
-        core(molgfx::Measurement::dihedral(
+        core(molgfx::core::Measurement::dihedral(
             owner.0,
             fixed_anchors::<4>(anchors)?,
             value,
@@ -348,14 +356,4 @@ impl PyScene {
     fn measurement(&self, handle: PyMeasurementHandle) -> Option<PyMeasurement> {
         self.inner.measurement(handle.0).cloned().map(PyMeasurement)
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyAnnotationAnchor>()?;
-    module.add_class::<PyMarkerShape>()?;
-    module.add_class::<PyMarkerStyle>()?;
-    module.add_class::<PyAnnotationKind>()?;
-    module.add_class::<PyAnnotation>()?;
-    module.add_class::<PyMeasurementKind>()?;
-    module.add_class::<PyMeasurement>()
 }

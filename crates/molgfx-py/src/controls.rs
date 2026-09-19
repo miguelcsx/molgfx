@@ -11,7 +11,7 @@ pub(crate) enum PyButton {
     Middle,
 }
 
-impl From<PyButton> for molgfx::Button {
+impl From<PyButton> for molgfx::core::Button {
     fn from(value: PyButton) -> Self {
         match value {
             PyButton::Left => Self::Left,
@@ -32,7 +32,7 @@ pub(crate) enum PyKey {
     Down,
 }
 
-impl From<PyKey> for molgfx::Key {
+impl From<PyKey> for molgfx::core::Key {
     fn from(value: PyKey) -> Self {
         match value {
             PyKey::Forward => Self::Forward,
@@ -47,17 +47,17 @@ impl From<PyKey> for molgfx::Key {
 
 #[pyclass(name = "InputEvent", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyInputEvent(molgfx::InputEvent);
+pub(crate) struct PyInputEvent(molgfx::core::InputEvent);
 
 #[pymethods]
 impl PyInputEvent {
     #[staticmethod]
     fn pointer_move(x: f32, y: f32) -> Self {
-        Self(molgfx::InputEvent::PointerMove { x, y })
+        Self(molgfx::core::InputEvent::PointerMove { x, y })
     }
     #[staticmethod]
     fn pointer_button(button: PyButton, pressed: bool, x: f32, y: f32) -> Self {
-        Self(molgfx::InputEvent::PointerButton {
+        Self(molgfx::core::InputEvent::PointerButton {
             button: button.into(),
             pressed,
             x,
@@ -66,18 +66,18 @@ impl PyInputEvent {
     }
     #[staticmethod]
     fn scroll(delta: f32) -> Self {
-        Self(molgfx::InputEvent::Scroll { delta })
+        Self(molgfx::core::InputEvent::Scroll { delta })
     }
     #[staticmethod]
     fn key(key: PyKey, pressed: bool) -> Self {
-        Self(molgfx::InputEvent::Key {
+        Self(molgfx::core::InputEvent::Key {
             key: key.into(),
             pressed,
         })
     }
     #[staticmethod]
     fn pinch(scale: f32) -> Self {
-        Self(molgfx::InputEvent::Pinch { scale })
+        Self(molgfx::core::InputEvent::Pinch { scale })
     }
 }
 
@@ -85,13 +85,13 @@ macro_rules! controller {
     ($python:literal, $name:ident, $native:ident) => {
         #[pyclass(name = $python, from_py_object)]
         #[derive(Clone, Copy, Debug, Default)]
-        pub(crate) struct $name(molgfx::$native);
+        pub(crate) struct $name(molgfx::core::$native);
 
         #[pymethods]
         impl $name {
             #[new]
             fn new() -> Self {
-                Self(molgfx::$native::default())
+                Self(molgfx::core::$native::default())
             }
             fn update(&mut self, event: PyInputEvent, camera: &mut PyCamera) {
                 self.0.update(event.0, &mut camera.inner);
@@ -109,13 +109,4 @@ impl PyFlyController {
     fn advance(&self, camera: &mut PyCamera, dt: f32, speed: f32) {
         self.0.advance(&mut camera.inner, dt, speed);
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyButton>()?;
-    module.add_class::<PyKey>()?;
-    module.add_class::<PyInputEvent>()?;
-    module.add_class::<PyArcballController>()?;
-    module.add_class::<PyOrbitController>()?;
-    module.add_class::<PyFlyController>()
 }
