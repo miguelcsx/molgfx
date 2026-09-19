@@ -3,10 +3,9 @@
 House rules for code in this repository. They are not style preferences with
 exceptions — they are constraints, and the build is configured to keep them.
 
-`docs/` covers *what* to build and what each change is traceable to. This covers
-*how* the code is written. A renderer lives or dies on the inner loop and on the
-frame budget, so several of these rules are sharper here than they would be in an
-ordinary library.
+This covers *how* the code is written. A renderer lives or dies on the inner loop
+and on the frame budget, so several of these rules are sharper here than they would
+be in an ordinary library.
 
 ---
 
@@ -102,13 +101,13 @@ reallocated inside the frame loop.
 **Why.** The engine's entire claim is that biology-scale structures render at
 interactive rates. One heap allocation on the per-atom upload path or one buffer
 recreation per frame forfeits that claim regardless of how correct the picture
-is. Allocation counts are measured and gated (`docs/21-performance.md`) because
-they are more stable than wall time.
+is. Allocation counts are gated rather than wall time because they do not move
+with the machine or the clock.
 
 **In practice.**
 
 - Interned `u32` identifiers, never strings, in anything a shader or a pack loop
-  touches. The dictionary comes from `pdbiox`; carry the ids through unchanged.
+  touches. The dictionary comes from `molframe`; carry the ids through unchanged.
 - One staging arena reused across frames, not one allocation per upload.
 - A reserved sentinel value instead of `Option<T>` on a per-atom column.
 - Pool transient GPU textures through the render graph; do not create a
@@ -148,6 +147,13 @@ Only `mod` declarations, `pub use` re-exports, and the module docstring. A
 **Why.** It makes the shape of a crate readable in one file, and it means moving
 an item between modules never touches the file that publishes it. The facade
 crate `molgfx` takes this furthest: it is re-exports and feature gates only.
+
+The facade publishes one module per inner crate — `molgfx::core`, `molgfx::math`
+— each a whole-crate re-export under the feature that links it, so a name lives
+in exactly one module and never collides with a same-named concept in another
+layer. `molgfx::prelude` is the curated shortcut for a program's ordinary
+vocabulary; it is the only part of the facade with judgement of its own, so its
+rule is stated in the module itself. Nothing else belongs at the root.
 
 ---
 
@@ -197,23 +203,20 @@ that both happen to clear a texture do not.
 
 ---
 
-## 9. `unsafe` is confined to two audited boundaries
+## 9. `unsafe` is confined to one audited boundary
 
-`#![forbid(unsafe_code)]` is the default in every crate. Exactly two boundaries
-are permitted `unsafe`, and only for their stated reason:
+`#![forbid(unsafe_code)]` is the default in every crate. Exactly one boundary is
+permitted `unsafe`, and only for its stated reason:
 
 - **`bytemuck` POD casts** — reinterpreting a packed `#[repr(C)]` vertex/atom
   struct as bytes for GPU upload. Use the `bytemuck` derives, never a hand-rolled
   `transmute`.
-- **`molgfx-gpu-vulkan`** — the Vulkan FFI surface. Every `unsafe` block there
-  carries a comment stating the invariant the caller upholds (handle validity,
-  lifetime, synchronisation).
 
 `unsafe` appearing anywhere else is a bug, not a shortcut.
 
-**Why.** wgpu already gives a safe GPU abstraction; the only genuine `unsafe` is
-byte reinterpretation and the raw Vulkan path. Concentrating it in two named
-places means the audit surface is a grep, not a codebase.
+**Why.** wgpu already gives a safe GPU abstraction; the only genuine `unsafe` left
+is byte reinterpretation. Confining it to one named boundary means the audit
+surface is a grep, not a codebase.
 
 ---
 
@@ -256,12 +259,67 @@ never drift.
 Everything above is checked by:
 
 ```bash
-cargo clippy --workspace --all-targets    # must be zero warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings   # zero warnings
 cargo fmt --all --check
-cargo test --workspace
-./scripts/check-docs.sh
-
-grep -rn "unwrap" crates/ | grep -v "_tests.rs"          # must be empty
-find crates -name "*.rs" | xargs wc -l | awk '$1>500'    # must be empty
-grep -rn "unsafe" crates/ | grep -v "molgfx-gpu-vulkan" | grep -v "bytemuck"  # audit surface
+cargo test --workspace --all-features
 ```
+
+plus these greps, each of which must come back empty:
+
+```bash
+# No unwrap/expect/unwrap_* outside test files. Tests live in `*_tests.rs`,
+# in `tests.rs` and under `generic_tests/`, hence the three exclusions.
+grep -rn "unwrap" crates/ --include="*.rs" | grep -v "_tests.rs" | grep -v "/tests.rs" | grep -v "generic_tests/"
+
+# The file cap, Rust and WGSL alike.
+find crates \( -name "*.rs" -o -name "*.wgsl" \) -print0 \
+  | xargs -0 wc -l | awk '$1>500 && $2 != "total" {print}'
+
+# The audit surface: `unsafe` as a keyword, so `forbid(unsafe_code)` and prose
+# mentions do not register. Only `bytemuck` casts are permitted.
+grep -rnE "(^|[^A-Za-z_])unsafe([[:space:]]*\{|[[:space:]]+(fn|impl|trait|extern|static|mut))" \
+  crates/ --include="*.rs" | grep -v bytemuck
+```
+
+No check reads a scene corpus, so a checkout with no `benchmarks/` passes the
+whole list; the benches that want data resolve it through
+`crates/molgfx-bench/src/fixtures.rs` and skip when it is absent. That makes the
+seam an invariant:
+
+```bash
+# Names a corpus directory in exactly one place — the benchmark harness's
+# resolver. Any other hit means a call site built a path itself.
+grep -rn "benchmarks/" crates/ --include="*.rs"
+```
+
+The Python binding is checked the same way — against the thing it describes,
+never against a second hand-written list:
+
+```bash
+# `python/molgfx/` holds no logic. Every statement in it is a docstring, an
+# import, an `__all__` literal, or the `__getattr__` that names the namespaces.
+cargo test -p molgfx-py --test python_surface
+
+# Every name the facade publishes is either carried by a stub or written down
+# with the reason it is not, in `crates/molgfx-py/facade-coverage-allowlist.txt`.
+cargo test -p molgfx-py --test facade_coverage
+
+# The stubs are compared against the compiled module, signatures included.
+# Needs the extension built into the environment first.
+uv run maturin develop -m crates/molgfx-py/Cargo.toml
+uv run python -m mypy.stubtest molgfx.molgfx_native
+```
+
+`mypy.stubtest` runs with no allowlist. Anything it cannot express is fixed in
+the stub or in the binding, not excused — so a stub cannot drift from the
+surface it describes, and the surface cannot drift from the facade without
+failing to compile. Two shapes in the stubs are deliberate and are not to be
+"fixed": a constructor is declared as `__new__` because PyO3 builds the instance
+in `tp_new` and leaves `__init__` as `object.__init__`, and a default PyO3
+cannot render in a text signature is written `...` rather than restated.
+
+The coverage allowlist covers what `stubtest` cannot see: a name the facade
+publishes that the binding never carried fails nothing, because there is no stub
+to compare against. Every unbound name is written down with its reason, and an
+entry that stops being true — the name was bound, or the facade stopped
+publishing it — fails the test, so the list only shrinks and only on purpose.
