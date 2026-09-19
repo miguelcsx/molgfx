@@ -1,9 +1,9 @@
 //! Lowering from generic composition metadata to bounded visual programs.
 
 use super::{
-    validation, CompositionError, DifferenceCompositionStyle, DifferenceLayer,
-    EnsembleCompositionStyle, EnsembleLayer, FocusCompositionStyle, FocusLayer,
-    GenericCompositionScene, GenericCompositionView,
+    CompositionError, DifferenceCompositionStyle, DifferenceLayer, EnsembleCompositionStyle,
+    EnsembleLayer, FocusCompositionStyle, FocusLayer, GenericCompositionScene,
+    GenericCompositionView, validation,
 };
 use molgfx_core::{RowDomain, Scene, VisualDescriptor, VisualProgramBuilder, VisualStyle};
 
