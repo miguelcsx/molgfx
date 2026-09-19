@@ -27,14 +27,14 @@ impl Hierarchy {
     /// Builds the offset arrays from the parsed structure's topology tables.
     /// `O(residues + chains + models)`.
     #[must_use]
-    pub fn from_structure(structure: &pdbiox::Structure) -> Self {
+    pub fn from_structure(structure: &molframe::Structure) -> Self {
         let topology = &structure.data().topology;
 
         let residue_count = topology.residues.len();
         let mut residue_atom_start = Vec::with_capacity(residue_count + 1);
         let mut end = 0u32;
         for i in 0..residue_count {
-            let index = pdbiox::ResidueIndex::new(crate::column::saturating_u32(i));
+            let index = molframe::ResidueIndex::new(crate::column::saturating_u32(i));
             let range = match topology.residues.atoms(index) {
                 Some(range) => range,
                 None => end..end,
@@ -48,7 +48,7 @@ impl Hierarchy {
         let mut chain_residue_start = Vec::with_capacity(chain_count + 1);
         let mut end = 0u32;
         for i in 0..chain_count {
-            let index = pdbiox::ChainIndex::new(crate::column::saturating_u32(i));
+            let index = molframe::ChainIndex::new(crate::column::saturating_u32(i));
             let range = match topology.chains.residues(index) {
                 Some(range) => range,
                 None => end..end,

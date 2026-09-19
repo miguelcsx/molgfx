@@ -2,7 +2,7 @@
 //!
 //! A description is deliberately not a second structure format. It records
 //! the scene-owned composition and hashes the caller-owned coordinates. The
-//! caller must supply the same `pdbiox` structures again before rendering.
+//! caller must supply the same `molframe` structures again before rendering.
 use super::coordinate_hash::coordinate_hash;
 use super::records;
 use super::types::{

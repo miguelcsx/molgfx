@@ -5,15 +5,15 @@ fn footprint() -> ChunkFootprint {
     ChunkFootprint::new(0, 128, 0, 64)
 }
 
-fn annotated_structure() -> pdbiox::Structure {
+fn annotated_structure() -> molframe::Structure {
     let structure = crate::fixture::structure();
     let mut editor = structure.edit();
     let values = (0..structure.atom_count()).map(f64::from).collect();
-    let Ok(column) = pdbiox::AnnotationColumn::from_values(values) else {
+    let Ok(column) = molframe::AnnotationColumn::from_values(values) else {
         return structure;
     };
     if editor
-        .set_annotation("score", pdbiox::AtomAnnotation::Real(column))
+        .set_annotation("score", molframe::AtomAnnotation::Real(column))
         .is_err()
     {
         return structure;
@@ -26,12 +26,12 @@ fn annotated_structure() -> pdbiox::Structure {
 
 #[test]
 fn structure_chunks_preserve_pointer_identity_and_lifetime_above_u32() {
-    let dataset = pdbiox::DatasetId::new(u64::from(u32::MAX) + 17);
-    let first_chunk = pdbiox::ChunkId::new(u64::from(u32::MAX) + 31);
+    let dataset = molframe::DatasetId::new(u64::from(u32::MAX) + 17);
+    let first_chunk = molframe::ChunkId::new(u64::from(u32::MAX) + 31);
     let structure = crate::fixture::structure();
     let pointer = structure.positions().as_ptr();
     let provider =
-        match pdbiox::StructureChunkProvider::new(dataset, first_chunk, structure.clone()) {
+        match molframe::StructureChunkProvider::new(dataset, first_chunk, structure.clone()) {
             Ok(provider) => provider,
             Err(error) => panic!("provider must be valid: {error}"),
         };
@@ -60,35 +60,35 @@ fn structure_chunks_preserve_pointer_identity_and_lifetime_above_u32() {
 fn property_and_frame_chunks_keep_native_backing_storage() {
     let structure = annotated_structure();
     let property_pointer = match structure.annotations().get("score") {
-        Some(pdbiox::AtomAnnotation::Real(column)) => column.values().as_ptr(),
+        Some(molframe::AtomAnnotation::Real(column)) => column.values().as_ptr(),
         _ => panic!("real property expected"),
     };
     let coordinate_pointer = structure.positions().as_ptr();
-    let property_provider = match pdbiox::PropertyChunkProvider::new(
-        pdbiox::DatasetId::new(41),
-        pdbiox::ChunkId::new(51),
+    let property_provider = match molframe::PropertyChunkProvider::new(
+        molframe::DatasetId::new(41),
+        molframe::ChunkId::new(51),
         structure.clone(),
         Arc::<str>::from("score"),
     ) {
         Ok(provider) => provider,
         Err(error) => panic!("property provider must be valid: {error}"),
     };
-    let frame_provider = match pdbiox::FrameChunkProvider::new(
-        pdbiox::DatasetId::new(42),
-        pdbiox::ChunkId::new(61),
+    let frame_provider = match molframe::FrameChunkProvider::new(
+        molframe::DatasetId::new(42),
+        molframe::ChunkId::new(61),
         structure,
-        pdbiox::ModelIndex::new(0),
+        molframe::ModelIndex::new(0),
     ) {
         Ok(provider) => provider,
         Err(error) => panic!("frame provider must be valid: {error}"),
     };
     let property_bridge = ProviderDatasetBridge::new(property_provider.dataset());
     let frame_bridge = ProviderDatasetBridge::new(frame_provider.dataset());
-    let property = match property_provider.chunk(pdbiox::ChunkId::new(51)) {
+    let property = match property_provider.chunk(molframe::ChunkId::new(51)) {
         Ok(chunk) => chunk,
         Err(error) => panic!("property chunk must exist: {error}"),
     };
-    let frame = match frame_provider.chunk(pdbiox::ChunkId::new(61)) {
+    let frame = match frame_provider.chunk(molframe::ChunkId::new(61)) {
         Ok(chunk) => chunk,
         Err(error) => panic!("frame chunk must exist: {error}"),
     };
@@ -120,11 +120,11 @@ fn property_and_frame_chunks_keep_native_backing_storage() {
 fn bond_chunks_preserve_global_endpoints_and_validate_host_footprint() {
     let structure = crate::fixture::structure();
     let coordinates = structure.positions().as_ptr();
-    let atom_dataset = pdbiox::DatasetId::new(u64::from(u32::MAX) + 300);
-    let atom_start = pdbiox::LogicalRow::new(u64::from(u32::MAX) + 700);
-    let provider = match pdbiox::BondChunkProvider::with_rows_per_chunk(
-        pdbiox::DatasetId::new(43),
-        pdbiox::ChunkId::new(u64::from(u32::MAX) + 60),
+    let atom_dataset = molframe::DatasetId::new(u64::from(u32::MAX) + 300);
+    let atom_start = molframe::LogicalRow::new(u64::from(u32::MAX) + 700);
+    let provider = match molframe::BondChunkProvider::with_rows_per_chunk(
+        molframe::DatasetId::new(43),
+        molframe::ChunkId::new(u64::from(u32::MAX) + 60),
         atom_dataset,
         atom_start,
         structure,
@@ -156,7 +156,7 @@ fn bond_chunks_preserve_global_endpoints_and_validate_host_footprint() {
     let ChunkPayload::ProviderBond(shared) = data.payload() else {
         panic!("native bond payload expected");
     };
-    let record = match shared.record(pdbiox::LocalRow::new(0)) {
+    let record = match shared.record(molframe::LocalRow::new(0)) {
         Ok(record) => record,
         Err(error) => panic!("global bond record must resolve: {error}"),
     };
@@ -169,12 +169,12 @@ fn bond_chunks_preserve_global_endpoints_and_validate_host_footprint() {
 
 #[test]
 fn compact_catalog_does_not_enumerate_more_than_u32_chunks() {
-    let descriptor = match pdbiox::DatasetDescriptor::regular(
-        pdbiox::DatasetId::new(71),
-        pdbiox::PayloadKind::Frame,
+    let descriptor = match molframe::DatasetDescriptor::regular(
+        molframe::DatasetId::new(71),
+        molframe::PayloadKind::Frame,
         1_u64 << 40,
         1,
-        pdbiox::ChunkId::new(1_u64 << 48),
+        molframe::ChunkId::new(1_u64 << 48),
     ) {
         Ok(descriptor) => descriptor,
         Err(error) => panic!("large descriptor must be valid: {error}"),
@@ -192,27 +192,27 @@ fn compact_catalog_does_not_enumerate_more_than_u32_chunks() {
 #[test]
 fn kind_mismatches_are_typed() {
     let structure = crate::fixture::structure();
-    let structure_descriptor = match pdbiox::DatasetDescriptor::source_defined(
-        pdbiox::DatasetId::new(81),
-        pdbiox::PayloadKind::Structure,
+    let structure_descriptor = match molframe::DatasetDescriptor::source_defined(
+        molframe::DatasetId::new(81),
+        molframe::PayloadKind::Structure,
         u64::from(structure.atom_count()),
         1,
-        pdbiox::ChunkId::new(91),
+        molframe::ChunkId::new(91),
         structure.atom_count(),
     ) {
         Ok(descriptor) => descriptor,
         Err(error) => panic!("descriptor must be valid: {error}"),
     };
-    let frame_provider = match pdbiox::FrameChunkProvider::new(
-        pdbiox::DatasetId::new(81),
-        pdbiox::ChunkId::new(91),
+    let frame_provider = match molframe::FrameChunkProvider::new(
+        molframe::DatasetId::new(81),
+        molframe::ChunkId::new(91),
         structure,
-        pdbiox::ModelIndex::new(0),
+        molframe::ModelIndex::new(0),
     ) {
         Ok(provider) => provider,
         Err(error) => panic!("frame provider must be valid: {error}"),
     };
-    let frame = match frame_provider.chunk(pdbiox::ChunkId::new(91)) {
+    let frame = match frame_provider.chunk(molframe::ChunkId::new(91)) {
         Ok(chunk) => chunk,
         Err(error) => panic!("frame chunk must exist: {error}"),
     };
@@ -220,35 +220,35 @@ fn kind_mismatches_are_typed() {
     assert!(matches!(
         ProviderDatasetBridge::new(structure_descriptor).frame_chunk(frame, footprint()),
         Err(ProviderBridgeError::PayloadKindMismatch {
-            expected: pdbiox::PayloadKind::Structure,
-            actual: pdbiox::PayloadKind::Frame
+            expected: molframe::PayloadKind::Structure,
+            actual: molframe::PayloadKind::Frame
         })
     ));
 }
 
 #[test]
 fn row_range_mismatches_are_typed() {
-    let coordinates: pdbiox::CoordinateBlock =
+    let coordinates: molframe::CoordinateBlock =
         [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]].into_iter().collect();
-    let source = match pdbiox::ChunkDescriptor::new(
-        pdbiox::DatasetId::new(101),
-        pdbiox::ChunkId::new(111),
-        pdbiox::LogicalRow::new(0),
+    let source = match molframe::ChunkDescriptor::new(
+        molframe::DatasetId::new(101),
+        molframe::ChunkId::new(111),
+        molframe::LogicalRow::new(0),
         2,
     ) {
         Ok(descriptor) => descriptor,
         Err(error) => panic!("source descriptor must be valid: {error}"),
     };
-    let frame = match pdbiox::FrameChunk::shared(source, coordinates, 0..2) {
+    let frame = match molframe::FrameChunk::shared(source, coordinates, 0..2) {
         Ok(frame) => frame,
         Err(error) => panic!("frame must be valid: {error}"),
     };
-    let dataset = match pdbiox::DatasetDescriptor::source_defined(
-        pdbiox::DatasetId::new(101),
-        pdbiox::PayloadKind::Frame,
+    let dataset = match molframe::DatasetDescriptor::source_defined(
+        molframe::DatasetId::new(101),
+        molframe::PayloadKind::Frame,
         1,
         1,
-        pdbiox::ChunkId::new(111),
+        molframe::ChunkId::new(111),
         2,
     ) {
         Ok(descriptor) => descriptor,

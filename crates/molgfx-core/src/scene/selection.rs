@@ -50,7 +50,7 @@ impl Scene {
                     let water = chain
                         .entity()
                         .and_then(|entity| data.topology.entities.kind(entity))
-                        == Some(pdbiox::EntityKind::Water);
+                        == Some(molframe::EntityKind::Water);
                     if water {
                         for residue in chain.residues() {
                             for atom in residue.atoms() {
@@ -137,7 +137,7 @@ impl Scene {
     /// Keeps selected atoms belonging to molecular graph components of at
     /// least `minimum_atoms` rows.
     ///
-    /// This operates on caller/`pdbiox`-supplied bonds. It is deterministic
+    /// This operates on caller/`molframe`-supplied bonds. It is deterministic
     /// molecular-component filtering for surface sources, not a substitute
     /// for connected-component analysis of an already sampled scalar field.
     ///

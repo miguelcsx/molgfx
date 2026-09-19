@@ -1,6 +1,6 @@
 //! Persistent caller-authored annotations and measurements.
 //!
-//! Geometry and values are supplied by `pdbiox` or the caller. The renderer
+//! Geometry and values are supplied by `molframe` or the caller. The renderer
 //! validates, stores and presents them; it never derives domain claims.
 
 use crate::{CoreError, EntityRef, SelectionHandle, StructureHandle};

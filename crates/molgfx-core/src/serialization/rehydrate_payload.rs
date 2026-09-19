@@ -1,6 +1,6 @@
 //! Reconstruction of primitives, guides, interactions and labels.
 
-use super::{insert, invalid, invalid_value, resolve_existing, resolve_raw, Scene};
+use super::{Scene, insert, invalid, invalid_value, resolve_existing, resolve_raw};
 use crate::annotation::LabelObject;
 use crate::serialization::types;
 use crate::serialization::types::{

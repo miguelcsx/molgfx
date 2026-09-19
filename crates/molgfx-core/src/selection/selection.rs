@@ -29,7 +29,7 @@ pub enum AtomSelection {
     /// Scattered indices, ascending.
     Sparse(Vec<u32>),
     /// A dense bitmask over the whole table.
-    Dense(pdbiox::BitVec),
+    Dense(molframe::BitVec),
     /// A compressed bitmap; the right shape for large scattered sets.
     Roaring(RoaringBitmap),
 }

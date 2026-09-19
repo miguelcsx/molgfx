@@ -1,7 +1,7 @@
-//! Zero-copy adaptation of `pdbiox` out-of-core provider contracts.
+//! Zero-copy adaptation of `molframe` out-of-core provider contracts.
 //!
 //! A provider dataset remains compact: this bridge stores its single
-//! [`pdbiox::DatasetDescriptor`] and adapts only chunks delivered by the
+//! [`molframe::DatasetDescriptor`] and adapts only chunks delivered by the
 //! caller. It neither performs I/O nor enumerates the logical dataset.
 
 use crate::{
@@ -26,9 +26,9 @@ pub enum ProviderBridgeError {
     #[error("provider dataset expects {expected:?}, received {actual:?}")]
     PayloadKindMismatch {
         /// Category declared by the provider dataset.
-        expected: pdbiox::PayloadKind,
+        expected: molframe::PayloadKind,
         /// Category carried by the delivered chunk.
-        actual: pdbiox::PayloadKind,
+        actual: molframe::PayloadKind,
     },
     /// A chunk identity lies outside the provider's compact namespace.
     #[error("provider chunk {chunk} lies outside dataset {dataset}")]
@@ -69,20 +69,20 @@ pub enum ProviderBridgeError {
     Dataset(#[from] DatasetError),
     /// A native provider invariant failed.
     #[error(transparent)]
-    Provider(#[from] pdbiox::ProviderError),
+    Provider(#[from] molframe::ProviderError),
 }
 
-/// Compact declarative bridge for one `pdbiox` provider dataset.
+/// Compact declarative bridge for one `molframe` provider dataset.
 #[derive(Clone, Debug)]
 pub struct ProviderDatasetBridge {
     catalog: DatasetCatalog,
-    provider: pdbiox::DatasetDescriptor,
+    provider: molframe::DatasetDescriptor,
 }
 
 impl ProviderDatasetBridge {
     /// Retains only the provider's O(1) dataset descriptor.
     #[must_use]
-    pub fn new(descriptor: pdbiox::DatasetDescriptor) -> Self {
+    pub fn new(descriptor: molframe::DatasetDescriptor) -> Self {
         Self {
             catalog: DatasetCatalog::from_provider(descriptor),
             provider: descriptor,
@@ -103,7 +103,7 @@ impl ProviderDatasetBridge {
     /// boundaries when applicable, and carry a finite non-empty row range.
     pub fn chunk_descriptor(
         &self,
-        source: pdbiox::ChunkDescriptor,
+        source: molframe::ChunkDescriptor,
         bounds: ChunkBounds,
         footprint: ChunkFootprint,
     ) -> Result<ChunkDescriptor, ProviderBridgeError> {
@@ -130,10 +130,10 @@ impl ProviderDatasetBridge {
     /// Returns a typed mismatch for foreign datasets, kinds, rows or bounds.
     pub fn structure_chunk(
         &self,
-        chunk: pdbiox::StructureChunk,
+        chunk: molframe::StructureChunk,
         footprint: ChunkFootprint,
     ) -> Result<ChunkData, ProviderBridgeError> {
-        self.require_kind(pdbiox::PayloadKind::Structure)?;
+        self.require_kind(molframe::PayloadKind::Structure)?;
         let bounds = adapt_bounds(chunk.descriptor().chunk(), chunk.atoms().stats().bounds)?;
         self.finish(
             chunk.descriptor(),
@@ -154,11 +154,11 @@ impl ProviderDatasetBridge {
     /// understated host footprint.
     pub fn bond_chunk(
         &self,
-        chunk: pdbiox::BondChunk,
+        chunk: molframe::BondChunk,
         bounds: ChunkBounds,
         footprint: ChunkFootprint,
     ) -> Result<ChunkData, ProviderBridgeError> {
-        self.require_kind(pdbiox::PayloadKind::BondTopology)?;
+        self.require_kind(molframe::PayloadKind::BondTopology)?;
         self.finish(
             chunk.descriptor(),
             bounds,
@@ -174,10 +174,10 @@ impl ProviderDatasetBridge {
     /// Returns a typed mismatch for foreign datasets, kinds, rows or bounds.
     pub fn property_chunk(
         &self,
-        chunk: pdbiox::PropertyChunk,
+        chunk: molframe::PropertyChunk,
         footprint: ChunkFootprint,
     ) -> Result<ChunkData, ProviderBridgeError> {
-        self.require_kind(pdbiox::PayloadKind::Property)?;
+        self.require_kind(molframe::PayloadKind::Property)?;
         let bounds = adapt_bounds(chunk.descriptor().chunk(), chunk.bounds())?;
         self.finish(
             chunk.descriptor(),
@@ -194,10 +194,10 @@ impl ProviderDatasetBridge {
     /// Returns a typed mismatch for foreign datasets, kinds, rows or bounds.
     pub fn frame_chunk(
         &self,
-        chunk: pdbiox::FrameChunk,
+        chunk: molframe::FrameChunk,
         footprint: ChunkFootprint,
     ) -> Result<ChunkData, ProviderBridgeError> {
-        self.require_kind(pdbiox::PayloadKind::Frame)?;
+        self.require_kind(molframe::PayloadKind::Frame)?;
         let bounds = adapt_bounds(chunk.descriptor().chunk(), chunk.bounds())?;
         self.finish(
             chunk.descriptor(),
@@ -209,7 +209,7 @@ impl ProviderDatasetBridge {
 
     fn finish(
         &self,
-        source: pdbiox::ChunkDescriptor,
+        source: molframe::ChunkDescriptor,
         bounds: ChunkBounds,
         footprint: ChunkFootprint,
         payload: ChunkPayload,
@@ -222,7 +222,7 @@ impl ProviderDatasetBridge {
         )?)
     }
 
-    fn require_kind(&self, actual: pdbiox::PayloadKind) -> Result<(), ProviderBridgeError> {
+    fn require_kind(&self, actual: molframe::PayloadKind) -> Result<(), ProviderBridgeError> {
         let expected = self.provider.payload();
         if expected != actual {
             return Err(ProviderBridgeError::PayloadKindMismatch { expected, actual });
@@ -231,18 +231,18 @@ impl ProviderDatasetBridge {
     }
 }
 
-const fn adapt_kind(kind: pdbiox::PayloadKind) -> PayloadKind {
+const fn adapt_kind(kind: molframe::PayloadKind) -> PayloadKind {
     match kind {
-        pdbiox::PayloadKind::Structure => PayloadKind::Structure,
-        pdbiox::PayloadKind::BondTopology => PayloadKind::BondTopology,
-        pdbiox::PayloadKind::Property => PayloadKind::ScalarProperty,
-        pdbiox::PayloadKind::Frame => PayloadKind::Trajectory,
+        molframe::PayloadKind::Structure => PayloadKind::Structure,
+        molframe::PayloadKind::BondTopology => PayloadKind::BondTopology,
+        molframe::PayloadKind::Property => PayloadKind::ScalarProperty,
+        molframe::PayloadKind::Frame => PayloadKind::Trajectory,
     }
 }
 
 fn validate_source(
-    dataset: pdbiox::DatasetDescriptor,
-    source: pdbiox::ChunkDescriptor,
+    dataset: molframe::DatasetDescriptor,
+    source: molframe::ChunkDescriptor,
 ) -> Result<(), ProviderBridgeError> {
     if source.dataset() != dataset.id() {
         return Err(ProviderBridgeError::DatasetMismatch {
@@ -268,7 +268,7 @@ fn validate_source(
             logical_rows: dataset.logical_rows(),
         });
     }
-    if matches!(dataset.layout(), pdbiox::ChunkLayout::Regular { .. })
+    if matches!(dataset.layout(), molframe::ChunkLayout::Regular { .. })
         && dataset.regular_chunk(source.chunk())? != source
     {
         return Err(ProviderBridgeError::RegularLayoutMismatch {
@@ -279,8 +279,8 @@ fn validate_source(
 }
 
 fn validate_chunk_identity(
-    dataset: pdbiox::DatasetDescriptor,
-    chunk: pdbiox::ChunkId,
+    dataset: molframe::DatasetDescriptor,
+    chunk: molframe::ChunkId,
 ) -> Result<(), ProviderBridgeError> {
     let Some(ordinal) = chunk.get().checked_sub(dataset.first_chunk().get()) else {
         return Err(chunk_mismatch(dataset, chunk));
@@ -292,8 +292,8 @@ fn validate_chunk_identity(
 }
 
 const fn chunk_mismatch(
-    dataset: pdbiox::DatasetDescriptor,
-    chunk: pdbiox::ChunkId,
+    dataset: molframe::DatasetDescriptor,
+    chunk: molframe::ChunkId,
 ) -> ProviderBridgeError {
     ProviderBridgeError::ChunkMismatch {
         dataset: dataset.id().get(),
@@ -302,8 +302,8 @@ const fn chunk_mismatch(
 }
 
 fn adapt_bounds(
-    chunk: pdbiox::ChunkId,
-    bounds: pdbiox::Aabb,
+    chunk: molframe::ChunkId,
+    bounds: molframe::Aabb,
 ) -> Result<ChunkBounds, ProviderBridgeError> {
     if bounds.is_empty() {
         return Err(ProviderBridgeError::MissingBounds { chunk: chunk.get() });

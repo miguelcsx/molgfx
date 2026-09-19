@@ -36,24 +36,24 @@ fn request(key: ResidencyKey, priority: i32) -> ResidencyRequest {
 }
 
 fn frame_data(key: ResidencyKey) -> (ChunkData, usize) {
-    let source_dataset = match pdbiox::DatasetDescriptor::regular(
-        pdbiox::DatasetId::new(key.dataset.get()),
-        pdbiox::PayloadKind::Frame,
+    let source_dataset = match molframe::DatasetDescriptor::regular(
+        molframe::DatasetId::new(key.dataset.get()),
+        molframe::PayloadKind::Frame,
         1_u64 << 50,
         2,
-        pdbiox::ChunkId::new(key.chunk.get()),
+        molframe::ChunkId::new(key.chunk.get()),
     ) {
         Ok(dataset) => dataset,
         Err(error) => panic!("provider dataset must be valid: {error}"),
     };
-    let source_chunk = match source_dataset.regular_chunk(pdbiox::ChunkId::new(key.chunk.get())) {
+    let source_chunk = match source_dataset.regular_chunk(molframe::ChunkId::new(key.chunk.get())) {
         Ok(chunk) => chunk,
         Err(error) => panic!("provider chunk must be valid: {error}"),
     };
-    let coordinates: pdbiox::CoordinateBlock =
+    let coordinates: molframe::CoordinateBlock =
         [[0.0, 0.0, 0.0], [1.0, 2.0, 3.0]].into_iter().collect();
     let pointer = coordinates.as_slice().as_ptr() as usize;
-    let frame = match pdbiox::FrameChunk::shared(source_chunk, coordinates, 0..2) {
+    let frame = match molframe::FrameChunk::shared(source_chunk, coordinates, 0..2) {
         Ok(frame) => frame,
         Err(error) => panic!("provider frame must be valid: {error}"),
     };

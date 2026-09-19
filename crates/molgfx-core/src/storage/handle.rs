@@ -30,6 +30,10 @@ pub struct VolumeHandle(pub(crate) RawHandle);
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub struct SegmentationHandle(pub(crate) RawHandle);
 
+/// Identifies a weighted caller-declared ensemble within a scene.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub struct EnsembleHandle(pub(crate) RawHandle);
+
 /// Identifies a caller-supplied interaction edge within a scene.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub struct InteractionHandle(pub(crate) RawHandle);
@@ -114,6 +118,7 @@ handle_identity!(
     SelectionHandle,
     VolumeHandle,
     SegmentationHandle,
+    EnsembleHandle,
     AttributeHandle,
     AtomPropertyHandle,
     PrimitiveHandle,
@@ -153,7 +158,7 @@ impl MeasurementHandle {
 
 /// Slot index plus generation; the unit every typed handle wraps.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
-pub struct RawHandle {
+pub(crate) struct RawHandle {
     index: u32,
     generation: u32,
 }
@@ -219,7 +224,7 @@ pub(crate) enum ManifestRowsError {
 
 impl ManifestRowsError {
     /// Stable caller-facing reason used by typed manifest errors.
-    pub const fn reason(self) -> &'static str {
+    pub(crate) const fn reason(self) -> &'static str {
         match self {
             Self::InconsistentOrder => "manifest rows are not strictly increasing",
             Self::RowOutOfRange => "manifest row is outside the supported identity range",
@@ -229,7 +234,7 @@ impl ManifestRowsError {
 }
 
 impl<T> SlotMap<T> {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             slots: Vec::new(),
             sparse: Vec::new(),
@@ -239,7 +244,7 @@ impl<T> SlotMap<T> {
     }
 
     /// Reserves backing slots for an insertion batch without changing handles.
-    pub fn reserve(&mut self, additional: usize) {
+    pub(crate) fn reserve(&mut self, additional: usize) {
         self.slots.reserve(additional);
     }
 
@@ -248,7 +253,7 @@ impl<T> SlotMap<T> {
     /// Rows above the dense prefix use one sparse record rather than allocating
     /// every intervening hole. The all-ones row is reserved so no manifest can
     /// collide with identity sentinels used by downstream GPU tables.
-    pub fn prepare_manifest_rows<I>(&mut self, rows: I) -> Result<(), ManifestRowsError>
+    pub(crate) fn prepare_manifest_rows<I>(&mut self, rows: I) -> Result<(), ManifestRowsError>
     where
         I: ExactSizeIterator<Item = u32>,
     {
@@ -281,7 +286,7 @@ impl<T> SlotMap<T> {
     }
 
     /// Inserts a value, reusing a freed slot when one exists.
-    pub fn insert(&mut self, value: T) -> RawHandle {
+    pub(crate) fn insert(&mut self, value: T) -> RawHandle {
         if let Some(index) = self.free.pop()
             && let Some(slot) = self.slot_mut(index)
             && slot.value.is_none()
@@ -310,7 +315,7 @@ impl<T> SlotMap<T> {
     /// edits allocate the next available identity, while rehydration must
     /// preserve rows and generations from a validated manifest. Large gaps are
     /// represented sparsely and therefore cost `O(live rows)`, not `O(max row)`.
-    pub fn insert_at(&mut self, handle: RawHandle, value: T) -> Option<()> {
+    pub(crate) fn insert_at(&mut self, handle: RawHandle, value: T) -> Option<()> {
         if handle.index == u32::MAX {
             return None;
         }
@@ -367,7 +372,7 @@ impl<T> SlotMap<T> {
     }
 
     /// Resolves a handle, or `None` when it is stale.
-    pub fn get(&self, handle: RawHandle) -> Option<&T> {
+    pub(crate) fn get(&self, handle: RawHandle) -> Option<&T> {
         let slot = self.slot(handle.index)?;
         if slot.generation != handle.generation {
             return None;
@@ -376,7 +381,7 @@ impl<T> SlotMap<T> {
     }
 
     /// Resolves a live row and returns its current generation-checked handle.
-    pub fn get_index(&self, index: u32) -> Option<(RawHandle, &T)> {
+    pub(crate) fn get_index(&self, index: u32) -> Option<(RawHandle, &T)> {
         let slot = self.slot(index)?;
         Some((
             RawHandle {
@@ -388,7 +393,7 @@ impl<T> SlotMap<T> {
     }
 
     /// Mutable resolution, or `None` when the handle is stale.
-    pub fn get_mut(&mut self, handle: RawHandle) -> Option<&mut T> {
+    pub(crate) fn get_mut(&mut self, handle: RawHandle) -> Option<&mut T> {
         let slot = self.slot_mut(handle.index)?;
         if slot.generation != handle.generation {
             return None;
@@ -397,7 +402,7 @@ impl<T> SlotMap<T> {
     }
 
     /// Removes an entry, invalidating every handle to it.
-    pub fn remove(&mut self, handle: RawHandle) -> Option<T> {
+    pub(crate) fn remove(&mut self, handle: RawHandle) -> Option<T> {
         let slot = self.slot_mut(handle.index)?;
         if slot.generation != handle.generation {
             return None;
@@ -411,7 +416,7 @@ impl<T> SlotMap<T> {
 
     /// Iterates live entries in slot order, which is stable across removals
     /// of other entries.
-    pub fn iter(&self) -> impl Iterator<Item = (RawHandle, &T)> + '_ {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (RawHandle, &T)> + '_ {
         let dense = self.slots.iter().enumerate().filter_map(|(i, slot)| {
             let value = slot.value.as_ref()?;
             let index = crate::column::saturating_u32(i);
@@ -437,7 +442,7 @@ impl<T> SlotMap<T> {
     }
 
     /// Number of live entries.
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.live
     }
 

@@ -205,16 +205,14 @@ impl EntityId {
     }
 }
 
-/// The per-atom instance record: exactly 32 bytes.
+/// The per-atom instance record: exactly 20 bytes.
 ///
-/// `position` is duplicated from the borrowed coordinate column only on
-/// backends that cannot bind that column directly; the preferred path leaves
-/// it zeroed and gathers positions in the vertex stage.
-#[repr(C, align(16))]
+/// Positions are not duplicated here. The record names its source row through
+/// `entity_id` and the shader gathers the coordinate from the borrowed
+/// `coords[]` column, so moving an atom is one write to that column.
+#[repr(C)]
 #[derive(Clone, Copy, PartialEq, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct AtomGpu {
-    /// World-space center, Ångström.
-    pub position: [f32; 3],
     /// Drawn radius, Ångström (van der Waals radius times the
     /// representation's scale).
     pub radius: f32,

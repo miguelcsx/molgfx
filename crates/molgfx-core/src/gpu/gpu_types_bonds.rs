@@ -2,7 +2,7 @@
 
 /// The smallest encodable bond radius, keeping the aromatic sign bit
 /// unambiguous on any input.
-pub const MIN_BOND_RADIUS: f32 = 1.0e-4;
+pub(crate) const MIN_BOND_RADIUS: f32 = 1.0e-4;
 
 impl BondGpu {
     /// Packs a bond record.

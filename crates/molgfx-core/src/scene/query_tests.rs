@@ -35,10 +35,10 @@ ATOM 1 C CA GLY A 1 1 0 0 0
 HETATM 2 C C1 LIG L 2 . 1 0 0
 HETATM 3 O O HOH W 3 . 5 0 0
 ";
-    let structure = match pdbiox::read_bytes(
+    let structure = match molframe::read_bytes(
         source.as_bytes().to_vec(),
         Some("query.cif"),
-        &pdbiox::ReadOptions::default(),
+        &molframe::ReadOptions::default(),
     ) {
         Ok((structure, _)) => structure,
         Err(diagnostics) => panic!("query fixture parses: {diagnostics:?}"),

@@ -17,14 +17,14 @@ use std::sync::Arc;
 pub struct PlacedStructure {
     asset: StructureAsset,
     /// The parsed structure; a cheap reference-counted handle.
-    pub structure: pdbiox::Structure,
+    pub structure: molframe::Structure,
     /// Model-to-world transform.
     pub model_to_world: Mat4,
     /// The dense per-atom table for the placed model.
     pub atoms: Arc<AtomTable>,
     /// Offset-array hierarchy over the structure's topology.
     pub hierarchy: Arc<Hierarchy>,
-    /// Per-residue secondary structure supplied by the caller or `pdbiox`.
+    /// Per-residue secondary structure supplied by the caller or `molframe`.
     pub secondary_structure: Column<SecondaryStructure>,
     trajectory: Option<TrajectorySegment>,
     trajectory_bvh: Option<Bvh>,
@@ -40,7 +40,7 @@ pub struct PlacedStructure {
 impl PlacedStructure {
     /// Places the first model of a structure at the identity transform.
     #[must_use]
-    pub fn new(structure: &pdbiox::Structure) -> Option<Self> {
+    pub fn new(structure: &molframe::Structure) -> Option<Self> {
         let Ok(asset) = StructureAsset::new(DatasetId::LEGACY, structure) else {
             return None;
         };

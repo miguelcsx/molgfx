@@ -9,7 +9,7 @@ use crate::{
 pub(super) fn rehydrate(
     scene: &mut Scene,
     descriptions: &[StructureDescription],
-    sources: &[pdbiox::Structure],
+    sources: &[molframe::Structure],
 ) -> Result<Vec<StructureHandle>, CoreError> {
     let mut used = vec![false; sources.len()];
     let mut assets = Vec::<StructureAsset>::new();
@@ -35,7 +35,7 @@ pub(super) fn rehydrate(
 
 fn find_new_asset(
     description: &StructureDescription,
-    sources: &[pdbiox::Structure],
+    sources: &[molframe::Structure],
     used: &mut [bool],
     dataset: Option<DatasetId>,
 ) -> Result<(StructureAsset, PlacedStructure), CoreError> {

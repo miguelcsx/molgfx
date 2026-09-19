@@ -193,7 +193,7 @@ impl Select {
     ///
     /// Returns [`CoreError::InvalidSelection`] for an unknown symbol.
     pub fn element(symbol: &str) -> Result<Self, CoreError> {
-        let Some(element) = pdbiox::Element::from_symbol(symbol) else {
+        let Some(element) = molframe::Element::from_symbol(symbol) else {
             return Err(invalid("element symbol is unknown"));
         };
         Ok(Self(SelectExpr::Predicate(AtomPredicate::Element(
@@ -201,7 +201,7 @@ impl Select {
         ))))
     }
 
-    /// Atoms assigned to one caller- or `pdbiox`-supplied secondary class.
+    /// Atoms assigned to one caller- or `molframe`-supplied secondary class.
     #[must_use]
     pub const fn secondary(value: SecondaryStructure) -> Self {
         Self(SelectExpr::Predicate(AtomPredicate::Secondary(value)))

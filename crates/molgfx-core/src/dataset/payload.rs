@@ -31,14 +31,14 @@ pub enum ChunkPayload {
     Mesh(MeshChunkPayload),
     /// Coarse point proxies.
     Proxy(ProxyChunkPayload),
-    /// Native `pdbiox` structure storage retained without copying.
-    ProviderStructure(pdbiox::StructureChunk),
-    /// Native `pdbiox` bond topology retained without materialising endpoints.
-    ProviderBond(pdbiox::BondChunk),
-    /// Native typed `pdbiox` property storage retained without conversion.
-    ProviderProperty(pdbiox::PropertyChunk),
-    /// Native `pdbiox` frame storage retained without copying.
-    ProviderFrame(pdbiox::FrameChunk),
+    /// Native `molframe` structure storage retained without copying.
+    ProviderStructure(molframe::StructureChunk),
+    /// Native `molframe` bond topology retained without materialising endpoints.
+    ProviderBond(molframe::BondChunk),
+    /// Native typed `molframe` property storage retained without conversion.
+    ProviderProperty(molframe::PropertyChunk),
+    /// Native `molframe` frame storage retained without copying.
+    ProviderFrame(molframe::FrameChunk),
     /// Generic tightly packed point positions.
     PointBatch(PointChunkPayload),
     /// Generic tightly packed rigid transforms.

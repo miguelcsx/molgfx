@@ -36,8 +36,8 @@ impl AtomTable {
     /// `O(atoms)`, run once per placement, never per frame.
     #[must_use]
     pub fn from_structure(
-        structure: &pdbiox::Structure,
-        model: pdbiox::ModelIndex,
+        structure: &molframe::Structure,
+        model: molframe::ModelIndex,
     ) -> Option<Self> {
         let coords = CoordRef::new(structure, model)?;
         let atom_count = coords.len();

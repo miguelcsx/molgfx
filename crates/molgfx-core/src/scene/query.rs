@@ -120,13 +120,13 @@ fn class_rows(class: EntityClass, placed: &PlacedStructure) -> RoaringBitmap {
         let polymer_kind = chain.polymer_kind();
         let matches = match class {
             EntityClass::Polymer => {
-                polymer_kind.is_polymer() || entity_kind == Some(pdbiox::EntityKind::Polymer)
+                polymer_kind.is_polymer() || entity_kind == Some(molframe::EntityKind::Polymer)
             }
-            EntityClass::Protein => matches!(polymer_kind, pdbiox::PolymerKind::Protein),
+            EntityClass::Protein => matches!(polymer_kind, molframe::PolymerKind::Protein),
             EntityClass::Nucleic => polymer_kind.is_nucleic(),
-            EntityClass::NonPolymer => entity_kind == Some(pdbiox::EntityKind::NonPolymer),
-            EntityClass::Water => entity_kind == Some(pdbiox::EntityKind::Water),
-            EntityClass::Branched => entity_kind == Some(pdbiox::EntityKind::Branched),
+            EntityClass::NonPolymer => entity_kind == Some(molframe::EntityKind::NonPolymer),
+            EntityClass::Water => entity_kind == Some(molframe::EntityKind::Water),
+            EntityClass::Branched => entity_kind == Some(molframe::EntityKind::Branched),
             EntityClass::All | EntityClass::None => false,
         };
         if matches {
@@ -144,8 +144,8 @@ fn predicate_rows(predicate: &AtomPredicate, placed: &PlacedStructure) -> Roarin
     let mut rows = RoaringBitmap::new();
     let data = placed.structure.data();
     for chain in data.chains() {
-        let first_residue = chain.residue_at(0).map(pdbiox::ResidueRef::index);
-        let last_residue = chain.residues().last().map(pdbiox::ResidueRef::index);
+        let first_residue = chain.residue_at(0).map(molframe::ResidueRef::index);
+        let last_residue = chain.residues().last().map(molframe::ResidueRef::index);
         for residue in chain.residues() {
             for atom in residue.atoms() {
                 if predicate_matches(
@@ -167,12 +167,12 @@ fn predicate_rows(predicate: &AtomPredicate, placed: &PlacedStructure) -> Roarin
 
 fn predicate_matches(
     predicate: &AtomPredicate,
-    chain: pdbiox::ChainRef<'_>,
-    residue: pdbiox::ResidueRef<'_>,
-    atom: pdbiox::AtomRef<'_>,
+    chain: molframe::ChainRef<'_>,
+    residue: molframe::ResidueRef<'_>,
+    atom: molframe::AtomRef<'_>,
     placed: &PlacedStructure,
-    first_residue: Option<pdbiox::ResidueIndex>,
-    last_residue: Option<pdbiox::ResidueIndex>,
+    first_residue: Option<molframe::ResidueIndex>,
+    last_residue: Option<molframe::ResidueIndex>,
 ) -> bool {
     match predicate {
         AtomPredicate::Chain(wanted) => chain
@@ -212,7 +212,7 @@ fn predicate_matches(
             };
             value.is_some_and(|value| comparison.matches(value, *threshold))
         }
-        AtomPredicate::Hydrogen => atom.element().is_some_and(pdbiox::Element::is_hydrogen),
+        AtomPredicate::Hydrogen => atom.element().is_some_and(molframe::Element::is_hydrogen),
         AtomPredicate::Heavy => atom
             .element()
             .is_some_and(|value| !value.is_unknown() && !value.is_hydrogen()),

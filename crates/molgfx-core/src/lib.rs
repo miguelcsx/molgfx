@@ -76,8 +76,9 @@ pub use representation::{
     VolumeTransferPoint, cpk_color, vdw_radius,
 };
 pub use scene::{
-    InstanceFramePair, PlaybackMode, PointFramePair, RepresentationInput, RowDomain, RowEntityRef,
-    Scene, SourceNamespace, SourceRows, TemplatePartPick, TimeWarp, Timeline, TrajectoryBranch,
+    AtomCorrespondence, DifferenceScene, DifferenceStyle, DifferenceView, InstanceFramePair,
+    PlaybackMode, PointFramePair, RepresentationInput, RowDomain, RowEntityRef, Scene,
+    SourceNamespace, SourceRows, TemplatePartPick, TimeWarp, Timeline, TrajectoryBranch,
     TrajectoryStateGraph,
 };
 pub use selection::{
@@ -96,22 +97,23 @@ pub use serialization::{
     ReferencedPayloadKind, RegionDescription, RelationBatchDescription, RepresentationDescription,
     RowDomainDescription, ScalarSemanticsDescription, SceneDescription, SceneDescriptionSources,
     SceneManifest, SegmentStyleDescription, SegmentationStyleDescription, SelectionDescription,
-    SelectionMask, SourceRowsDescription, StructureDescription, SurfaceScalarDescription,
-    TableCounts, TargetDescription, VerifiedPayload, VisualAttributeDescription,
-    VisualInstructionDescription, VisualStyleDescription, VolumeDescription,
-    VolumeStyleDescription, VolumeTransferPointDescription, read_manifest, write_manifest,
+    SelectionMask, SourceRowsDescription, StructureDescription, SurfaceComponentDescription,
+    SurfaceScalarDescription, TableCounts, TargetDescription, VerifiedPayload,
+    VisualAttributeDescription, VisualInstructionDescription, VisualStyleDescription,
+    VolumeDescription, VolumeStyleDescription, VolumeTransferPointDescription, read_manifest,
+    write_manifest,
 };
 pub use storage::{
-    AnnotationHandle, AtomPropertyHandle, AttributeHandle, Column, CoreError, GuideHandle,
-    InstanceBatchHandle, InteractionHandle, LigandPoseBatchHandle, MeasurementHandle, MeshHandle,
-    MeshInstanceHandle, OverlayHandle, PointBatchHandle, PrimitiveHandle, RelationBatchHandle,
-    RepresentationHandle, Revision, SegmentationHandle, SelectionHandle, StructureHandle,
-    TimelineTrackHandle, VolumeHandle,
+    AnnotationHandle, AtomPropertyHandle, AttributeHandle, Column, CoreError, EnsembleHandle,
+    GuideHandle, InstanceBatchHandle, InteractionHandle, LigandPoseBatchHandle, MeasurementHandle,
+    MeshHandle, MeshInstanceHandle, OverlayHandle, PointBatchHandle, PrimitiveHandle,
+    RelationBatchHandle, RepresentationHandle, Revision, SegmentationHandle, SelectionHandle,
+    StructureHandle, TimelineTrackHandle, VolumeHandle,
 };
 pub use structure::{
     ActiveTopologyBond, AnalyticCapsule, AnalyticSphere, AnalyticTemplate, AnisotropicEllipsoid,
     AtomTable, BondTopologyFrame, BondTopologySegment, CarbohydrateShape, CarbohydrateSymbol,
-    CoordRef, CrystalCell, EntityProvenance, Hierarchy, InstanceBatch, InstanceStyle,
+    CoordRef, CrystalCell, Ensemble, EntityProvenance, Hierarchy, InstanceBatch, InstanceStyle,
     LicoriceTemplate, LigandPose, LigandPoseBatch, OccupancyStream, Particle, ParticleBoundary,
     ParticleMotion, ParticleShape, PlacedStructure, PlanarRegion, PointBatch, PointGlyph,
     PointStyle, Primitive, ProvenanceDetail, RigidInstance, ScalarVolume, SecondaryStructure,

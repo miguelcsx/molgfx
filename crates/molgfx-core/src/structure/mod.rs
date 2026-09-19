@@ -4,6 +4,7 @@ mod analytic_instance;
 pub(crate) mod atoms;
 pub(crate) mod coord;
 pub(crate) mod density;
+mod ensemble;
 pub(crate) mod hierarchy;
 pub(crate) mod occupancy;
 pub(crate) mod particle;
@@ -26,6 +27,7 @@ pub use analytic_instance::{
 pub use atoms::AtomTable;
 pub use coord::CoordRef;
 pub use density::ScalarVolume;
+pub use ensemble::Ensemble;
 pub use hierarchy::Hierarchy;
 pub use occupancy::OccupancyStream;
 pub use particle::{Particle, ParticleBoundary, ParticleMotion, ParticleShape};

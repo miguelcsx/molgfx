@@ -18,8 +18,8 @@ use super::types::{
     OverlayDescription, ScalarSemanticsDescription, SelectionDescription, VolumeDescription,
 };
 use super::{
-    manifest::SCHEMA_VERSION, GenericSceneDescriptionSources, SceneDescription,
-    SceneDescriptionSources,
+    GenericSceneDescriptionSources, SceneDescription, SceneDescriptionSources,
+    manifest::SCHEMA_VERSION,
 };
 use crate::handle::{RawHandle, StructureHandle};
 use crate::scene::{Scene, StoredAtomProperty, StoredSegmentation, StoredSelection};

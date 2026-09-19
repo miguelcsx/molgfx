@@ -20,7 +20,7 @@ pub struct DatasetCatalog {
     roots: Vec<u32>,
     child_ranges: Vec<ChildRange>,
     children: Vec<u32>,
-    provider: Option<pdbiox::DatasetDescriptor>,
+    provider: Option<molframe::DatasetDescriptor>,
     logical_chunk_count: u64,
 }
 
@@ -67,13 +67,13 @@ impl DatasetCatalog {
         })
     }
 
-    /// Adapts compact `pdbiox` metadata without enumerating logical chunks.
+    /// Adapts compact `molframe` metadata without enumerating logical chunks.
     ///
     /// Provider chunks are validated and materialized independently by
     /// [`crate::ProviderDatasetBridge`]. Consequently, root and child
     /// traversal reports only descriptors explicitly stored by [`Self::new`].
     #[must_use]
-    pub fn from_provider(descriptor: pdbiox::DatasetDescriptor) -> Self {
+    pub fn from_provider(descriptor: molframe::DatasetDescriptor) -> Self {
         Self {
             dataset: DatasetId::new(descriptor.id().get()),
             descriptors: Vec::new(),

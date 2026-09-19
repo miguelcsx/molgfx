@@ -1,9 +1,12 @@
 //! The mutable renderable scene and its domain-specific editing operations.
 
 mod attributes;
+mod difference;
 mod domain_visuals;
+mod ensembles;
 mod generic_batches;
 mod generic_timeline;
+pub use difference::{AtomCorrespondence, DifferenceScene, DifferenceStyle, DifferenceView};
 pub use generic_timeline::{InstanceFramePair, PointFramePair};
 pub(crate) mod guides;
 pub(crate) mod interactions;

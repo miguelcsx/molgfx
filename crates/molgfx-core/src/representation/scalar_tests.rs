@@ -5,13 +5,13 @@ fn calibrated_fields_require_quantity_units_and_provenance() {
     let valid = ScalarFieldSemantics::quantity(
         Arc::from("electrostatic potential"),
         Arc::from("kT/e"),
-        Arc::from("pdbiox:apbs-run-42"),
+        Arc::from("molframe:apbs-run-42"),
     );
     assert!(valid.is_ok());
     let invalid = ScalarFieldSemantics::quantity(
         Arc::from("electrostatic potential"),
         Arc::from(" "),
-        Arc::from("pdbiox:apbs-run-42"),
+        Arc::from("molframe:apbs-run-42"),
     );
     assert!(invalid.is_err());
 }

@@ -58,7 +58,7 @@ fn measurement_values_are_supplied_validated_and_preformatted_once() {
         owner(),
         [anchor(0.0), anchor(2.417)],
         2.417,
-        "pdbiox:distance/v1",
+        "molframe:distance/v1",
     ) {
         Ok(value) => value,
         Err(error) => panic!("distance builds: {error}"),
@@ -66,7 +66,7 @@ fn measurement_values_are_supplied_validated_and_preformatted_once() {
     assert_eq!(distance.kind(), MeasurementKind::Distance);
     assert_eq!(distance.anchors().len(), 2);
     assert_eq!(distance.label(), "2.42 Å");
-    assert_eq!(distance.provenance(), "pdbiox:distance/v1");
+    assert_eq!(distance.provenance(), "molframe:distance/v1");
     let angle = Measurement::angle(
         owner(),
         [anchor(0.0), anchor(1.0), anchor(2.0)],

@@ -10,7 +10,7 @@ fn edge(kind: InteractionKind) -> InteractionEdge {
     let end = InteractionAnchor::world(Vec3::X * 3.0).unwrap_or_else(|error| panic!("{error}"));
     let geometry =
         InteractionGeometry::new(3.0, Some(150.0)).unwrap_or_else(|error| panic!("{error}"));
-    InteractionEdge::new(owner(), start, end, kind, geometry, "pdbiox:hbond/v1")
+    InteractionEdge::new(owner(), start, end, kind, geometry, "molframe:hbond/v1")
         .unwrap_or_else(|error| panic!("{error}"))
 }
 

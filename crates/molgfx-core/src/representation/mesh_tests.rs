@@ -86,7 +86,7 @@ fn bounds_enclose_every_vertex() {
 
 #[test]
 fn provider_surfaces_keep_normals_color_and_component_policy() {
-    use pdbiox::surface::{IndexedSurfaceMesh, SurfaceFace};
+    use molframe::surface::{IndexedSurfaceMesh, SurfaceFace};
 
     let surface = IndexedSurfaceMesh::new(
         vec![

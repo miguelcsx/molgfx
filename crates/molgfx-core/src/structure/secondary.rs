@@ -1,7 +1,7 @@
-//! Caller- or pdbiox-supplied secondary-structure state.
+//! Caller- or molframe-supplied secondary-structure state.
 
 /// Reversible per-residue cartoon classification. The renderer never infers
-/// this state; callers may apply records produced by `pdbiox`.
+/// this state; callers may apply records produced by `molframe`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum SecondaryStructure {
     /// No helix or sheet assignment.

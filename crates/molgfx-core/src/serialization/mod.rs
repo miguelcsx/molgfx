@@ -47,7 +47,7 @@ pub use types::{
 #[derive(Clone, Copy, Debug)]
 pub struct SceneDescriptionSources<'a> {
     /// Source structures in manifest order.
-    pub structures: &'a [pdbiox::Structure],
+    pub structures: &'a [molframe::Structure],
     /// Scalar volumes in manifest order.
     pub volumes: &'a [crate::ScalarVolume],
     /// Categorical volumes in manifest order.
