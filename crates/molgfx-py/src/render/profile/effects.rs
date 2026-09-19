@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "DepthOfField", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyDepthOfField(pub(crate) molgfx::DepthOfField);
+pub(crate) struct PyDepthOfField(pub(crate) molgfx::render::DepthOfField);
 
 #[pymethods]
 impl PyDepthOfField {
@@ -21,8 +21,8 @@ impl PyDepthOfField {
         blade_count: u8,
         focus: Option<PyFocusTarget>,
     ) -> Self {
-        let default = molgfx::DepthOfField::cinematic();
-        Self(molgfx::DepthOfField {
+        let default = molgfx::render::DepthOfField::cinematic();
+        Self(molgfx::render::DepthOfField {
             focal_length_mm,
             f_number,
             sensor_width_mm,
@@ -34,7 +34,7 @@ impl PyDepthOfField {
 
     #[staticmethod]
     fn cinematic() -> Self {
-        Self(molgfx::DepthOfField::cinematic())
+        Self(molgfx::render::DepthOfField::cinematic())
     }
 
     #[getter]
@@ -70,14 +70,14 @@ impl PyDepthOfField {
 
 #[pyclass(name = "MotionBlur", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyMotionBlur(pub(crate) molgfx::MotionBlur);
+pub(crate) struct PyMotionBlur(pub(crate) molgfx::render::MotionBlur);
 
 #[pymethods]
 impl PyMotionBlur {
     #[new]
     #[pyo3(signature = (shutter=0.55, max_blur_pixels=18.0))]
     fn new(shutter: f32, max_blur_pixels: f32) -> Self {
-        Self(molgfx::MotionBlur {
+        Self(molgfx::render::MotionBlur {
             shutter,
             max_blur_pixels,
         })
@@ -85,7 +85,7 @@ impl PyMotionBlur {
 
     #[staticmethod]
     fn cinematic() -> Self {
-        Self(molgfx::MotionBlur::cinematic())
+        Self(molgfx::render::MotionBlur::cinematic())
     }
 
     #[getter]
@@ -101,14 +101,14 @@ impl PyMotionBlur {
 
 #[pyclass(name = "BloomStyle", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyBloomStyle(pub(crate) molgfx::BloomStyle);
+pub(crate) struct PyBloomStyle(pub(crate) molgfx::render::BloomStyle);
 
 #[pymethods]
 impl PyBloomStyle {
     #[new]
     #[pyo3(signature = (threshold=1.7, intensity=0.26, radius=2.0))]
     fn new(threshold: f32, intensity: f32, radius: f32) -> Self {
-        Self(molgfx::BloomStyle {
+        Self(molgfx::render::BloomStyle {
             threshold,
             intensity,
             radius,
@@ -117,7 +117,7 @@ impl PyBloomStyle {
 
     #[staticmethod]
     fn cinematic() -> Self {
-        Self(molgfx::BloomStyle::cinematic())
+        Self(molgfx::render::BloomStyle::cinematic())
     }
 
     #[getter]
@@ -138,55 +138,55 @@ impl PyBloomStyle {
 
 #[pyclass(name = "PresentationEffect", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyPresentationEffect(pub(crate) molgfx::PresentationEffect);
+pub(crate) struct PyPresentationEffect(pub(crate) molgfx::render::PresentationEffect);
 
 #[pymethods]
 impl PyPresentationEffect {
     #[staticmethod]
     fn illustration(value: PyIllustrationStyle) -> Self {
-        Self(molgfx::PresentationEffect::Illustration(value.0))
+        Self(molgfx::render::PresentationEffect::Illustration(value.0))
     }
 
     #[staticmethod]
     fn depth_of_field(value: PyDepthOfField) -> Self {
-        Self(molgfx::PresentationEffect::DepthOfField(value.0))
+        Self(molgfx::render::PresentationEffect::DepthOfField(value.0))
     }
 
     #[staticmethod]
     fn motion_blur(value: PyMotionBlur) -> Self {
-        Self(molgfx::PresentationEffect::MotionBlur(value.0))
+        Self(molgfx::render::PresentationEffect::MotionBlur(value.0))
     }
 
     #[staticmethod]
     fn backdrop(value: PyBackdropStyle) -> Self {
-        Self(molgfx::PresentationEffect::Backdrop(value.0))
+        Self(molgfx::render::PresentationEffect::Backdrop(value.0))
     }
 
     #[staticmethod]
     fn lighting(value: PyLightingEnvironment) -> Self {
-        Self(molgfx::PresentationEffect::Lighting(value.0))
+        Self(molgfx::render::PresentationEffect::Lighting(value.0))
     }
 
     #[staticmethod]
     fn display(value: PyDisplayTransform) -> Self {
-        Self(molgfx::PresentationEffect::Display(value.0))
+        Self(molgfx::render::PresentationEffect::Display(value.0))
     }
 
     #[staticmethod]
     fn bloom(value: PyBloomStyle) -> Self {
-        Self(molgfx::PresentationEffect::Bloom(value.0))
+        Self(molgfx::render::PresentationEffect::Bloom(value.0))
     }
 }
 
 #[pyclass(name = "EffectLayer", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyEffectLayer(pub(crate) molgfx::EffectLayer);
+pub(crate) struct PyEffectLayer(pub(crate) molgfx::render::EffectLayer);
 
 #[pymethods]
 impl PyEffectLayer {
     #[new]
     fn new(effect: PyPresentationEffect) -> Self {
-        Self(molgfx::EffectLayer::new(effect.0))
+        Self(molgfx::render::EffectLayer::new(effect.0))
     }
 
     fn with_weight(&self, value: f32) -> Self {
@@ -196,12 +196,4 @@ impl PyEffectLayer {
     fn with_priority(&self, value: i16) -> Self {
         Self(self.0.with_priority(value))
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyDepthOfField>()?;
-    module.add_class::<PyMotionBlur>()?;
-    module.add_class::<PyBloomStyle>()?;
-    module.add_class::<PyPresentationEffect>()?;
-    module.add_class::<PyEffectLayer>()
 }

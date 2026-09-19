@@ -6,13 +6,13 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "BrickId", frozen, eq, from_py_object)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct PyBrickId(pub(crate) molgfx::BrickId);
+pub(crate) struct PyBrickId(pub(crate) molgfx::core::BrickId);
 
 #[pymethods]
 impl PyBrickId {
     #[new]
     fn new(value: u64) -> Self {
-        Self(molgfx::BrickId::new(value))
+        Self(molgfx::core::BrickId::new(value))
     }
 
     #[getter]
@@ -27,13 +27,13 @@ impl PyBrickId {
 
 #[pyclass(name = "BrickAddress", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyBrickAddress(pub(crate) molgfx::BrickAddress);
+pub(crate) struct PyBrickAddress(pub(crate) molgfx::core::BrickAddress);
 
 #[pymethods]
 impl PyBrickAddress {
     #[new]
     fn new(origin: [u64; 3], mip: u16) -> Self {
-        Self(molgfx::BrickAddress { origin, mip })
+        Self(molgfx::core::BrickAddress { origin, mip })
     }
 
     #[getter]
@@ -49,13 +49,13 @@ impl PyBrickAddress {
 
 #[pyclass(name = "DirtyGeneration", frozen, eq, from_py_object)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct PyDirtyGeneration(pub(crate) molgfx::DirtyGeneration);
+pub(crate) struct PyDirtyGeneration(pub(crate) molgfx::core::DirtyGeneration);
 
 #[pymethods]
 impl PyDirtyGeneration {
     #[new]
     fn new(value: u64) -> Self {
-        Self(molgfx::DirtyGeneration::new(value))
+        Self(molgfx::core::DirtyGeneration::new(value))
     }
 
     #[getter]
@@ -70,23 +70,23 @@ impl PyDirtyGeneration {
 
 #[pyclass(name = "BrickValueRange", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyBrickValueRange(pub(crate) molgfx::BrickValueRange);
+pub(crate) struct PyBrickValueRange(pub(crate) molgfx::core::BrickValueRange);
 
 #[pymethods]
 impl PyBrickValueRange {
     #[staticmethod]
     fn scalar(min: f32, max: f32) -> Self {
-        Self(molgfx::BrickValueRange::Scalar { min, max })
+        Self(molgfx::core::BrickValueRange::Scalar { min, max })
     }
 
     #[staticmethod]
     fn segmentation(min: u32, max: u32) -> Self {
-        Self(molgfx::BrickValueRange::Segmentation { min, max })
+        Self(molgfx::core::BrickValueRange::Segmentation { min, max })
     }
 
     #[staticmethod]
     fn occupancy(has_empty: bool, has_occupied: bool) -> Self {
-        Self(molgfx::BrickValueRange::Occupancy {
+        Self(molgfx::core::BrickValueRange::Occupancy {
             has_empty,
             has_occupied,
         })
@@ -95,22 +95,22 @@ impl PyBrickValueRange {
     #[getter]
     fn kind(&self) -> &'static str {
         match self.0 {
-            molgfx::BrickValueRange::Scalar { .. } => "scalar",
-            molgfx::BrickValueRange::Segmentation { .. } => "segmentation",
-            molgfx::BrickValueRange::Occupancy { .. } => "occupancy",
+            molgfx::core::BrickValueRange::Scalar { .. } => "scalar",
+            molgfx::core::BrickValueRange::Segmentation { .. } => "segmentation",
+            molgfx::core::BrickValueRange::Occupancy { .. } => "occupancy",
         }
     }
 }
 
 #[pyclass(name = "BrickShape", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyBrickShape(pub(crate) molgfx::BrickShape);
+pub(crate) struct PyBrickShape(pub(crate) molgfx::core::BrickShape);
 
 #[pymethods]
 impl PyBrickShape {
     #[new]
     fn new(stored: [u16; 3], halo: u16) -> PyResult<Self> {
-        dataset(molgfx::BrickShape::new(stored, halo)).map(Self)
+        dataset(molgfx::core::BrickShape::new(stored, halo)).map(Self)
     }
 
     #[getter]
@@ -136,7 +136,7 @@ impl PyBrickShape {
 
 #[pyclass(name = "BrickMetadata", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyBrickMetadata(pub(crate) molgfx::BrickMetadata);
+pub(crate) struct PyBrickMetadata(pub(crate) molgfx::core::BrickMetadata);
 
 #[pymethods]
 impl PyBrickMetadata {
@@ -148,7 +148,7 @@ impl PyBrickMetadata {
         value_range: PyBrickValueRange,
         generation: PyDirtyGeneration,
     ) -> PyResult<Self> {
-        dataset(molgfx::BrickMetadata::new(
+        dataset(molgfx::core::BrickMetadata::new(
             id.0,
             address.0,
             shape.0,
@@ -186,13 +186,13 @@ impl PyBrickMetadata {
 
 #[pyclass(name = "BrickDescriptor", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyBrickDescriptor(pub(crate) molgfx::BrickDescriptor);
+pub(crate) struct PyBrickDescriptor(pub(crate) molgfx::core::BrickDescriptor);
 
 #[pymethods]
 impl PyBrickDescriptor {
     #[new]
     fn new(chunk: PyChunkId, metadata: PyBrickMetadata) -> Self {
-        Self(molgfx::BrickDescriptor {
+        Self(molgfx::core::BrickDescriptor {
             chunk: chunk.0,
             metadata: metadata.0,
         })
@@ -211,7 +211,7 @@ impl PyBrickDescriptor {
 
 #[pyclass(name = "BrickCatalog", frozen, skip_from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyBrickCatalog(pub(crate) molgfx::BrickCatalog);
+pub(crate) struct PyBrickCatalog(pub(crate) molgfx::core::BrickCatalog);
 
 #[pymethods]
 impl PyBrickCatalog {
@@ -223,7 +223,7 @@ impl PyBrickCatalog {
         descriptors: Vec<PyBrickDescriptor>,
     ) -> PyResult<Self> {
         let descriptors = descriptors.into_iter().map(|value| value.0).collect();
-        dataset(molgfx::BrickCatalog::new(
+        dataset(molgfx::core::BrickCatalog::new(
             dataset_id.0,
             logical_extent,
             voxel_bytes,
@@ -259,15 +259,4 @@ impl PyBrickCatalog {
     fn logical_bytes(&self) -> PyResult<u64> {
         dataset(self.0.logical_bytes())
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyBrickId>()?;
-    module.add_class::<PyBrickAddress>()?;
-    module.add_class::<PyDirtyGeneration>()?;
-    module.add_class::<PyBrickValueRange>()?;
-    module.add_class::<PyBrickShape>()?;
-    module.add_class::<PyBrickMetadata>()?;
-    module.add_class::<PyBrickDescriptor>()?;
-    module.add_class::<PyBrickCatalog>()
 }

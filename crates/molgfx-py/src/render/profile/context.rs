@@ -101,7 +101,7 @@ impl<'py> LightingArguments<'py> {
 
 #[pyclass(name = "BackdropStyle", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyBackdropStyle(pub(crate) molgfx::BackdropStyle);
+pub(crate) struct PyBackdropStyle(pub(crate) molgfx::render::BackdropStyle);
 
 #[pymethods]
 impl PyBackdropStyle {
@@ -113,8 +113,8 @@ impl PyBackdropStyle {
         glow_color: Option<PyRgba8>,
         glow_strength: f32,
     ) -> Self {
-        let default = molgfx::BackdropStyle::default();
-        Self(molgfx::BackdropStyle {
+        let default = molgfx::render::BackdropStyle::default();
+        Self(molgfx::render::BackdropStyle {
             top: top.map_or(default.top, |value| value.0),
             bottom: bottom.map_or(default.bottom, |value| value.0),
             glow_color: glow_color.map_or(default.glow_color, |value| value.0),
@@ -124,17 +124,17 @@ impl PyBackdropStyle {
 
     #[staticmethod]
     fn compositing() -> Self {
-        Self(molgfx::BackdropStyle::compositing())
+        Self(molgfx::render::BackdropStyle::compositing())
     }
 
     #[staticmethod]
     fn transparent() -> Self {
-        Self(molgfx::BackdropStyle::transparent())
+        Self(molgfx::render::BackdropStyle::transparent())
     }
 
     #[staticmethod]
     fn studio() -> Self {
-        Self(molgfx::BackdropStyle::studio())
+        Self(molgfx::render::BackdropStyle::studio())
     }
 
     #[getter]
@@ -160,7 +160,7 @@ impl PyBackdropStyle {
 
 #[pyclass(name = "LightingEnvironment", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyLightingEnvironment(pub(crate) molgfx::LightingEnvironment);
+pub(crate) struct PyLightingEnvironment(pub(crate) molgfx::render::LightingEnvironment);
 
 #[pymethods]
 impl PyLightingEnvironment {
@@ -183,8 +183,8 @@ impl PyLightingEnvironment {
         let fill_strength = arguments.required("fill_strength", 0.28)?;
         let key_angular_radius = arguments.required("key_angular_radius", 0.16)?;
         let shadow_strength = arguments.required("shadow_strength", 0.48)?;
-        let default = molgfx::LightingEnvironment::neutral();
-        Ok(Self(molgfx::LightingEnvironment {
+        let default = molgfx::render::LightingEnvironment::neutral();
+        Ok(Self(molgfx::render::LightingEnvironment {
             zenith: zenith.map_or(default.zenith, |value| value.0),
             horizon: horizon.map_or(default.horizon, |value| value.0),
             ground: ground.map_or(default.ground, |value| value.0),
@@ -205,12 +205,12 @@ impl PyLightingEnvironment {
 
     #[staticmethod]
     fn neutral() -> Self {
-        Self(molgfx::LightingEnvironment::neutral())
+        Self(molgfx::render::LightingEnvironment::neutral())
     }
 
     #[staticmethod]
     fn documentary() -> Self {
-        Self(molgfx::LightingEnvironment::documentary())
+        Self(molgfx::render::LightingEnvironment::documentary())
     }
 
     #[getter]
@@ -291,7 +291,7 @@ impl PyLightingEnvironment {
 
 #[pyclass(name = "IllustrationStyle", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyIllustrationStyle(pub(crate) molgfx::IllustrationStyle);
+pub(crate) struct PyIllustrationStyle(pub(crate) molgfx::render::IllustrationStyle);
 
 #[pymethods]
 impl PyIllustrationStyle {
@@ -312,7 +312,7 @@ impl PyIllustrationStyle {
         motion_persistence: f32,
         outline_width: f32,
     ) -> Self {
-        Self(molgfx::IllustrationStyle {
+        Self(molgfx::render::IllustrationStyle {
             silhouette_strength,
             cavity_strength,
             depth_cue_strength,
@@ -324,7 +324,7 @@ impl PyIllustrationStyle {
 
     #[staticmethod]
     fn publication() -> Self {
-        Self(molgfx::IllustrationStyle::publication())
+        Self(molgfx::render::IllustrationStyle::publication())
     }
 
     #[getter]
@@ -356,10 +356,4 @@ impl PyIllustrationStyle {
     fn outline_width(&self) -> f32 {
         self.0.outline_width
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyBackdropStyle>()?;
-    module.add_class::<PyLightingEnvironment>()?;
-    module.add_class::<PyIllustrationStyle>()
 }

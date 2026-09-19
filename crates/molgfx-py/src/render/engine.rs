@@ -6,7 +6,7 @@ use crate::math::PyCamera;
 use crate::memory::{PyMemoryOwnership, PyMemoryTransferExclusion};
 use numpy::ndarray::Array3;
 use numpy::{
-    IntoPyArray, PyArray3, PyArrayMethods, PyReadonlyArray3, PyReadonlyArrayDyn,
+    IntoPyArray, PyArray1, PyArray3, PyArrayMethods, PyReadonlyArray3, PyReadonlyArrayDyn,
     PyUntypedArrayMethods,
 };
 use pyo3::exceptions::PyIOError;
@@ -21,13 +21,13 @@ use std::{
 #[pyclass(name = "Image")]
 #[derive(Debug)]
 pub(crate) struct PyImage {
-    image: Option<molgfx::Image>,
+    image: Option<molgfx::render::Image>,
     width: u32,
     height: u32,
 }
 
-impl From<molgfx::Image> for PyImage {
-    fn from(image: molgfx::Image) -> Self {
+impl From<molgfx::render::Image> for PyImage {
+    fn from(image: molgfx::render::Image) -> Self {
         Self {
             width: image.width,
             height: image.height,
@@ -49,7 +49,7 @@ impl PyImage {
             .map_err(|_| value("pixels must be C-contiguous uint8"))?;
         let height = u32::try_from(shape[0]).map_err(|_| value("image height exceeds u32"))?;
         let width = u32::try_from(shape[1]).map_err(|_| value("image width exceeds u32"))?;
-        Ok(molgfx::Image {
+        Ok(molgfx::render::Image {
             width,
             height,
             pixels: pixels.to_vec(),
@@ -105,11 +105,11 @@ impl PyImage {
 #[pyclass(name = "HdrImage")]
 #[derive(Debug)]
 pub(crate) struct PyHdrImage {
-    image: molgfx::HdrImage,
+    image: molgfx::render::HdrImage,
 }
 
-impl From<molgfx::HdrImage> for PyHdrImage {
-    fn from(image: molgfx::HdrImage) -> Self {
+impl From<molgfx::render::HdrImage> for PyHdrImage {
+    fn from(image: molgfx::render::HdrImage) -> Self {
         Self { image }
     }
 }
@@ -163,7 +163,7 @@ impl PyHdrImage {
 
 #[pyclass(name = "FrameTiming", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyFrameTiming(molgfx::FrameTiming);
+pub(crate) struct PyFrameTiming(molgfx::render::FrameTiming);
 
 #[pymethods]
 impl PyFrameTiming {
@@ -183,38 +183,40 @@ impl PyFrameTiming {
 
 #[pyclass(name = "PickEntity", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyPickEntity(pub(crate) molgfx::PickEntity);
+pub(crate) struct PyPickEntity(pub(crate) molgfx::render::PickEntity);
 
 #[pymethods]
 impl PyPickEntity {
     #[getter]
     fn kind(&self) -> &'static str {
         match self.0 {
-            molgfx::PickEntity::Structure(entity) => super::entity_kind::name(entity.kind()),
-            molgfx::PickEntity::VolumeSegment(_) => "volume_segment",
+            molgfx::render::PickEntity::Structure(entity) => {
+                super::entity_kind::name(entity.kind())
+            }
+            molgfx::render::PickEntity::VolumeSegment(_) => "volume_segment",
         }
     }
 
     #[getter]
     fn global_identity(&self) -> Option<PyGlobalPickIdentity> {
         match self.0 {
-            molgfx::PickEntity::Structure(entity) => Some(PyGlobalPickIdentity(entity)),
-            molgfx::PickEntity::VolumeSegment(_) => None,
+            molgfx::render::PickEntity::Structure(entity) => Some(PyGlobalPickIdentity(entity)),
+            molgfx::render::PickEntity::VolumeSegment(_) => None,
         }
     }
 
     #[getter]
     fn volume_segment(&self) -> Option<PyVolumeSegmentRef> {
         match self.0 {
-            molgfx::PickEntity::Structure(_) => None,
-            molgfx::PickEntity::VolumeSegment(segment) => Some(segment.into()),
+            molgfx::render::PickEntity::Structure(_) => None,
+            molgfx::render::PickEntity::VolumeSegment(segment) => Some(segment.into()),
         }
     }
 }
 
 #[pyclass(name = "GlobalPickIdentity", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyGlobalPickIdentity(molgfx::GlobalPickIdentity);
+pub(crate) struct PyGlobalPickIdentity(molgfx::core::GlobalPickIdentity);
 
 #[pymethods]
 impl PyGlobalPickIdentity {
@@ -246,11 +248,11 @@ pub(crate) struct PyPick {
     selection_indices: Vec<u32>,
 }
 
-impl From<molgfx::Pick> for PyPick {
-    fn from(value: molgfx::Pick) -> Self {
+impl From<molgfx::render::Pick> for PyPick {
+    fn from(value: molgfx::render::Pick) -> Self {
         let selection_indices = match value.selection {
-            molgfx::AtomSelection::Sparse(indices) => indices,
-            molgfx::AtomSelection::Range(range) => range.collect(),
+            molgfx::core::AtomSelection::Sparse(indices) => indices,
+            molgfx::core::AtomSelection::Range(range) => range.collect(),
             _ => Vec::new(),
         };
         Self {
@@ -268,36 +270,27 @@ impl PyPick {
     }
 
     #[getter]
-    fn selection_indices(&self) -> Vec<u32> {
-        self.selection_indices.clone()
+    fn selection_indices<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<u32>> {
+        PyArray1::from_slice(py, &self.selection_indices)
     }
 }
 
 #[pyclass(name = "Engine")]
 #[derive(Debug)]
 pub(crate) struct PyEngine {
-    pub(super) inner: molgfx::Engine,
-    trajectory_windows: Vec<molgfx::TrajectoryChunkWindow>,
-    pub(super) residency_output: molgfx::ResidencyOutput,
-    pub(super) point_placements: Vec<molgfx::PointChunkPlacement>,
-    pub(super) instance_placements: Vec<molgfx::InstanceChunkPlacement>,
+    pub(super) inner: molgfx::render::Engine,
+    pub(super) residency_output: molgfx::core::ResidencyOutput,
 }
 
 #[pymethods]
 impl PyEngine {
     #[new]
     #[pyo3(signature = (config=None))]
-    fn new(config: Option<super::PyEngineConfig>) -> PyResult<Self> {
-        let config = config.map_or_else(molgfx::EngineConfig::default, |value| value.0);
-        let trajectory_windows = Vec::with_capacity(config.residency.machine_capacity);
-        let point_placements = Vec::with_capacity(config.residency.machine_capacity);
-        let instance_placements = Vec::with_capacity(config.residency.machine_capacity);
-        render(molgfx::Engine::new(&config, None)).map(|inner| Self {
+    fn new(py: Python<'_>, config: Option<super::PyEngineConfig>) -> PyResult<Self> {
+        let config = config.map_or_else(molgfx::render::EngineConfig::default, |value| value.0);
+        render(py.detach(|| molgfx::render::Engine::new(&config, None))).map(|inner| Self {
             inner,
-            trajectory_windows,
-            residency_output: molgfx::ResidencyOutput::default(),
-            point_placements,
-            instance_placements,
+            residency_output: molgfx::core::ResidencyOutput::default(),
         })
     }
 
@@ -324,19 +317,9 @@ impl PyEngine {
         &mut self,
         windows: Vec<crate::trajectory::PyTrajectoryChunkWindow>,
     ) -> PyResult<()> {
-        if windows.len() > self.trajectory_windows.capacity() {
-            return Err(crate::error::value(
-                "trajectory window count exceeds engine residency capacity",
-            ));
-        }
-        self.trajectory_windows.clear();
-        self.trajectory_windows
-            .extend(windows.into_iter().map(|window| window.0));
-        crate::error::render(
-            self.inner
-                .set_trajectory_chunk_windows(&self.trajectory_windows)
-                .map_err(molgfx::RenderError::from),
-        )
+        let windows: Vec<molgfx::render::TrajectoryChunkWindow> =
+            windows.into_iter().map(|window| window.0).collect();
+        crate::error::chunk_residency(self.inner.set_trajectory_chunk_windows(&windows))
     }
 
     fn render(
@@ -361,7 +344,7 @@ impl PyEngine {
             self.inner.render_image(
                 &scene.inner,
                 &camera.inner,
-                molgfx::ImageConfig { width, height },
+                molgfx::render::ImageConfig { width, height },
             )
         }))
         .map(Into::into)
@@ -381,8 +364,8 @@ impl PyEngine {
         .map(Into::into)
     }
 
-    fn pick(&mut self, x: u32, y: u32) -> PyResult<Option<PyPick>> {
-        render(self.inner.pick(x, y)).map(|pick| pick.map(Into::into))
+    fn pick(&mut self, py: Python<'_>, x: u32, y: u32) -> PyResult<Option<PyPick>> {
+        render(py.detach(|| self.inner.pick(x, y))).map(|pick| pick.map(Into::into))
     }
 
     fn profile_frame(
@@ -401,27 +384,30 @@ impl PyEngine {
 
     fn install_brick_atlas(
         &mut self,
+        py: Python<'_>,
         catalog: &super::brick::PyBrickCatalog,
         config: super::brick_atlas::PyBrickAtlasConfig,
     ) -> PyResult<usize> {
-        super::brick_atlas::install(&mut self.inner, catalog, config)
+        super::brick_atlas::install(py, &mut self.inner, catalog, config)
     }
 
     fn stage_brick(
         &mut self,
+        py: Python<'_>,
         atlas: usize,
         descriptor: super::brick::PyBrickDescriptor,
         bytes: PyReadonlyArrayDyn<'_, u8>,
     ) -> PyResult<super::brick_atlas::PyFenceValue> {
-        super::brick_atlas::stage(&mut self.inner, atlas, descriptor, bytes)
+        super::brick_atlas::stage(py, &mut self.inner, atlas, descriptor, bytes)
     }
 
     fn evict_brick(
         &mut self,
+        py: Python<'_>,
         atlas: usize,
         brick: super::brick::PyBrickId,
     ) -> PyResult<super::brick_atlas::PyFenceValue> {
-        super::brick_atlas::evict(&mut self.inner, atlas, brick)
+        super::brick_atlas::evict(py, &mut self.inner, atlas, brick)
     }
 
     fn brick_atlas_metrics(
@@ -450,15 +436,4 @@ impl PyEngine {
     fn resolved_render_plan(&self) -> super::PyResolvedRenderPlan {
         super::PyResolvedRenderPlan(*self.inner.resolved_render_plan())
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyImage>()?;
-    module.add_class::<PyHdrImage>()?;
-    module.add_class::<PyFrameTiming>()?;
-    module.add_class::<PyPickEntity>()?;
-    module.add_class::<PyGlobalPickIdentity>()?;
-    module.add_class::<PyPick>()?;
-    module.add_class::<PyEngine>()?;
-    super::engine_sequence::register(module)
 }

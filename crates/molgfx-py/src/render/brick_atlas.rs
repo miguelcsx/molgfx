@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "UploadRingConfig", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyUploadRingConfig(pub(crate) molgfx::UploadRingConfig);
+pub(crate) struct PyUploadRingConfig(pub(crate) molgfx::gpu::UploadRingConfig);
 
 #[pymethods]
 impl PyUploadRingConfig {
@@ -19,7 +19,7 @@ impl PyUploadRingConfig {
         in_flight_budget_bytes: usize,
         alignment: usize,
     ) -> Self {
-        Self(molgfx::UploadRingConfig {
+        Self(molgfx::gpu::UploadRingConfig {
             capacity_bytes,
             ticket_capacity,
             epoch_budget_bytes,
@@ -63,7 +63,7 @@ pub(crate) enum PyBrickAtlasKind {
     Surface,
 }
 
-impl From<PyBrickAtlasKind> for molgfx::BrickAtlasKind {
+impl From<PyBrickAtlasKind> for molgfx::render::BrickAtlasKind {
     fn from(value: PyBrickAtlasKind) -> Self {
         match value {
             PyBrickAtlasKind::Scalar => Self::Scalar,
@@ -76,7 +76,7 @@ impl From<PyBrickAtlasKind> for molgfx::BrickAtlasKind {
 
 #[pyclass(name = "BrickAtlasConfig", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyBrickAtlasConfig(pub(crate) molgfx::BrickAtlasConfig);
+pub(crate) struct PyBrickAtlasConfig(pub(crate) molgfx::render::BrickAtlasConfig);
 
 #[pymethods]
 impl PyBrickAtlasConfig {
@@ -87,7 +87,7 @@ impl PyBrickAtlasConfig {
         uploads: PyUploadRingConfig,
         kind: PyBrickAtlasKind,
     ) -> Self {
-        Self(molgfx::BrickAtlasConfig {
+        Self(molgfx::render::BrickAtlasConfig {
             stored_shape,
             resident_capacity,
             uploads: uploads.0,
@@ -113,17 +113,17 @@ impl PyBrickAtlasConfig {
     #[getter]
     fn kind(&self) -> PyBrickAtlasKind {
         match self.0.kind {
-            molgfx::BrickAtlasKind::Scalar => PyBrickAtlasKind::Scalar,
-            molgfx::BrickAtlasKind::Segmentation => PyBrickAtlasKind::Segmentation,
-            molgfx::BrickAtlasKind::Occupancy => PyBrickAtlasKind::Occupancy,
-            molgfx::BrickAtlasKind::Surface => PyBrickAtlasKind::Surface,
+            molgfx::render::BrickAtlasKind::Scalar => PyBrickAtlasKind::Scalar,
+            molgfx::render::BrickAtlasKind::Segmentation => PyBrickAtlasKind::Segmentation,
+            molgfx::render::BrickAtlasKind::Occupancy => PyBrickAtlasKind::Occupancy,
+            molgfx::render::BrickAtlasKind::Surface => PyBrickAtlasKind::Surface,
         }
     }
 }
 
 #[pyclass(name = "FenceValue", frozen, eq, from_py_object)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct PyFenceValue(molgfx::FenceValue);
+pub(crate) struct PyFenceValue(molgfx::gpu::FenceValue);
 
 #[pymethods]
 impl PyFenceValue {
@@ -139,7 +139,7 @@ impl PyFenceValue {
 
 #[pyclass(name = "BrickAtlasMetrics", frozen, from_py_object)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PyBrickAtlasMetrics(molgfx::BrickAtlasMetrics);
+pub(crate) struct PyBrickAtlasMetrics(molgfx::render::BrickAtlasMetrics);
 
 #[pymethods]
 impl PyBrickAtlasMetrics {
@@ -180,27 +180,31 @@ impl PyBrickAtlasMetrics {
 }
 
 pub(super) fn install(
-    engine: &mut molgfx::Engine,
+    py: Python<'_>,
+    engine: &mut molgfx::render::Engine,
     catalog: &PyBrickCatalog,
     config: PyBrickAtlasConfig,
 ) -> PyResult<usize> {
-    brick_atlas(engine.install_brick_atlas(&catalog.0, config.0))
+    py.detach(|| brick_atlas(engine.install_brick_atlas(&catalog.0, config.0)))
 }
 
 pub(super) fn stage(
-    engine: &mut molgfx::Engine,
+    py: Python<'_>,
+    engine: &mut molgfx::render::Engine,
     atlas: usize,
     descriptor: PyBrickDescriptor,
     bytes: PyReadonlyArrayDyn<'_, u8>,
 ) -> PyResult<PyFenceValue> {
     let bytes = borrowed_bytes(&bytes)?;
-    brick_atlas(engine.stage_brick(
-        atlas,
-        molgfx::BrickAtlasUpload {
-            descriptor: descriptor.0,
-            bytes,
-        },
-    ))
+    py.detach(|| {
+        brick_atlas(engine.stage_brick(
+            atlas,
+            molgfx::render::BrickAtlasUpload {
+                descriptor: descriptor.0,
+                bytes,
+            },
+        ))
+    })
     .map(PyFenceValue)
 }
 
@@ -211,23 +215,20 @@ fn borrowed_bytes<'a>(bytes: &'a PyReadonlyArrayDyn<'_, u8>) -> PyResult<&'a [u8
 }
 
 pub(super) fn evict(
-    engine: &mut molgfx::Engine,
+    py: Python<'_>,
+    engine: &mut molgfx::render::Engine,
     atlas: usize,
     brick: PyBrickId,
 ) -> PyResult<PyFenceValue> {
-    brick_atlas(engine.evict_brick(atlas, brick.0)).map(PyFenceValue)
+    py.detach(|| brick_atlas(engine.evict_brick(atlas, brick.0)))
+        .map(PyFenceValue)
 }
 
-pub(super) fn metrics(engine: &mut molgfx::Engine, atlas: usize) -> Option<PyBrickAtlasMetrics> {
+pub(super) fn metrics(
+    engine: &mut molgfx::render::Engine,
+    atlas: usize,
+) -> Option<PyBrickAtlasMetrics> {
     engine.brick_atlas_metrics(atlas).map(PyBrickAtlasMetrics)
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyUploadRingConfig>()?;
-    module.add_class::<PyBrickAtlasKind>()?;
-    module.add_class::<PyBrickAtlasConfig>()?;
-    module.add_class::<PyFenceValue>()?;
-    module.add_class::<PyBrickAtlasMetrics>()
 }
 
 #[cfg(test)]

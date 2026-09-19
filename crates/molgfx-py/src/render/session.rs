@@ -8,13 +8,13 @@ use pyo3::prelude::*;
 
 #[pyclass(name = "RenderSession", frozen, from_py_object)]
 #[derive(Clone, Debug)]
-pub(crate) struct PyRenderSession(pub(crate) molgfx::RenderSession);
+pub(crate) struct PyRenderSession(pub(crate) molgfx::render::RenderSession);
 
 #[pymethods]
 impl PyRenderSession {
     #[staticmethod]
     fn capture(scene: &PyScene, camera: PyCamera, profile: PyRenderProfile) -> Self {
-        Self(molgfx::RenderSession::new(
+        Self(molgfx::render::RenderSession::new(
             &scene.inner,
             camera.inner,
             profile.0,
@@ -23,7 +23,7 @@ impl PyRenderSession {
 
     #[staticmethod]
     fn from_json(source: &str) -> PyResult<Self> {
-        render(molgfx::RenderSession::from_json(source)).map(Self)
+        render(molgfx::render::RenderSession::from_json(source)).map(Self)
     }
 
     fn to_json(&self) -> PyResult<String> {
@@ -46,8 +46,4 @@ impl PyRenderSession {
     fn profile(&self) -> PyRenderProfile {
         PyRenderProfile(self.0.profile.clone())
     }
-}
-
-pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<PyRenderSession>()
 }
