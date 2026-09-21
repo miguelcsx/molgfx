@@ -6,10 +6,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+autobins = false
 
 [dependencies]
 thiserror.workspace = true
-molgfx = { path = "../molgfx", features = ["realtime", "semantic"] }
+molgfx = { path = "../molgfx" }
 molframe = { workspace = true, features = ["mmcif", "bcif", "pdb", "chem", "spatial"] }
 png.workspace = true
 num-traits.workspace = true
@@ -23,6 +24,10 @@ criterion.workspace = true
 [[bench]]
 name = "kernels"
 harness = false
+
+[[bin]]
+name = "focus_profile"
+path = "src/bin/focus_profile.rs"
 
 [lints]
 workspace = true
