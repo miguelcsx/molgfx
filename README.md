@@ -1,720 +1,160 @@
-<div align="center">
-
 # MolGFX
 
-**Semantic, GPU-native molecular graphics for Rust, Python, and the web.**
+MolGFX is a semantic, GPU-native molecular rendering library for Rust, Python,
+and WebGPU. It turns a MolFrame structure plus an immutable declarative scene
+description into renderer-owned physical resources. MolGFX does not parse,
+fetch, dock, simulate, or open an application window.
 
-Build interactive molecular scenes from atoms and bonds to cartoons, surfaces, interactions, volumes, and scientific context.
+## Architecture
 
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
-[![Rust](https://img.shields.io/badge/Rust-2024-orange.svg?logo=rust)](https://www.rust-lang.org/)
-[![wgpu](https://img.shields.io/badge/GPU-wgpu-5C4EE5.svg)](https://wgpu.rs/)
-[![WebGPU](https://img.shields.io/badge/Web-WebGPU%20%2B%20WASM-4285F4.svg)](https://www.w3.org/TR/webgpu/)
+The system has three boundaries:
 
-</div>
+1. **Authoring contract** — immutable selections, representation and color
+   specifications, visual-expression DAGs, `SceneSpec`, and `ScenePatch`.
+2. **Resolved scene** — a mutable `Scene` retains MolFrame storage, assigns
+   monotonic semantic IDs, evaluates queries, tracks fine-grained revisions,
+   and applies patches atomically.
+3. **Physical renderer** — `Renderer` owns the device, shared buffers, derived
+   caches, render graph, upload staging, and readback resources. Backend types
+   do not appear in the facade.
 
----
+The serialized `SceneSpec` contains data-source descriptors and semantic state,
+not coordinate arrays or GPU records. This keeps local scenes zero-copy while
+allowing the same contract to travel to Python and WASM.
 
-MolGFX is an embeddable molecular graphics engine built for scientific applications.
+## Rust
 
-It turns structured molecular data into interactive GPU-native scenes and provides the rendering infrastructure for atoms, bonds, molecular cartoons, surfaces, density, interactions, annotations, and scientifically meaningful visual composition.
+```rust,no_run
+use molgfx::{Renderer, Scene, rep, sel};
 
-MolGFX is a graphics engine rather than a molecular analysis package or end-user application.
+# fn run(structure: &molframe::Structure) -> Result<(), molgfx::Error> {
+let mut scene = Scene::from_structure(structure)?;
+scene.add(rep::cartoon(sel::protein()))?;
+scene.add(rep::ball_and_stick(sel::ligands()))?;
+scene.focus(sel::ligands())?;
 
-Its responsibility is:
-
-> **molecular data → semantic scene → GPU rendering**
-
-## Why MolGFX?
-
-A conventional molecular renderer can start with coordinates and ask:
-
-> What geometry should I draw?
-
-MolGFX is designed to support a more useful abstraction:
-
-> What scientific information should this scene communicate?
-
-A ligand is not merely another group of spheres.  
-A binding site is not merely a list of residue indices.  
-A hydrogen bond is not merely a dashed line.  
-A confidence value is not merely a color.
-
-These concepts have meaning that can influence representation, visibility, emphasis, interaction, and level of detail.
-
-MolGFX keeps that meaning in the scene rather than reducing everything immediately to graphics primitives.
-
-- **Semantic scene graph** — molecular and scientific concepts remain identifiable after entering the renderer.
-- **GPU-native representations** — atoms, bonds, cartoons, surfaces, and volumes are designed around modern GPU execution.
-- **Native and WebGPU** — one rendering architecture for desktop and browser targets.
-- **Focus + context** — emphasize the scientifically relevant region without discarding surrounding structure.
-- **Scientific interactions** — measurements and molecular interactions exist as structured scene objects.
-- **Progressive visual quality** — interactive and high-quality rendering operate over the same scene.
-- **Semantic level of detail** — representation can change with scale while preserving molecular organization.
-- **Embeddable architecture** — build custom viewers, scientific applications, notebooks, dashboards, and visualization systems around the engine.
-
-## Status
-
-> **MolGFX is pre-1.0 and under active development.**
-
-The rendering architecture and public contracts are being implemented and validated incrementally. APIs may change before the first stable release.
-
-
-## Rendering model
-
-```mermaid
-flowchart LR
-    Data["Molecular Data"]
-
-    Data --> Scene["Semantic Scene"]
-
-    Scene --> Repr["Representations"]
-    Scene --> Style["Semantic Styling"]
-    Scene --> Interaction["Interactions"]
-    Scene --> Selection["Selection & Focus"]
-
-    Repr --> Geometry["GPU Geometry"]
-    Interaction --> Geometry
-
-    Geometry --> Render["Render Graph"]
-    Style --> Render
-    Selection --> Render
-
-    Render --> GPU["wgpu"]
-
-    GPU --> Native["Native GPU"]
-    GPU --> Web["WebGPU"]
+let mut renderer = Renderer::new()?;
+let image = renderer.render_image(&scene, (1920, 1080))?;
+image.save("structure.png")?;
+# Ok(())
+# }
 ```
 
-The scene graph forms the boundary between molecular meaning and GPU implementation.
+`molgfx::sel` is MolFrame's query builder, re-exported directly; MolGFX has no
+second molecular query language. `Scene::from_structure` clones MolFrame's
+shared storage handle and uploads its borrowed `[[f32; 3]]` coordinate column
+directly. Atom instance records therefore contain identity and appearance, not
+duplicated positions.
 
-Applications describe molecular scenes.
+Representations are typed values constructed in `molgfx::rep`: `cartoon`,
+`ball_and_stick`, `spacefill`, `licorice`, `lines`, `points`, `surface`,
+`nucleic_acid`, `bases`, `base_pairs`, and `glycan`. Cartoon recipes such as
+rocket styling remain recipes rather than new representation kinds.
 
-The renderer decides how to efficiently turn those scenes into pixels.
+Only `Scene` and `Renderer` are mutable. A transaction validates its complete
+result and commits one revision:
 
-## Quick start
-
-The API works in molecular terms — selections, representations, focus — and never
-in GPU commands:
-
-```rust
-use molgfx::molframe;
-// The root carries the curated surface — no prelude import.
-use molgfx::{Camera, Engine, EngineConfig, ImageConfig, RepresentationKind, Scene, Select};
-// Focus and context resolve through the semantic layer's trait.
-use molgfx::semantic::FocusScene;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let structure = molframe::read("1abc.cif")
-        .map_err(|errors| format!("{} diagnostics", errors.len()))?;
-    let mut scene = Scene::from_structure(&structure)?;
-
-    scene.represent(Select::polymer(), RepresentationKind::Cartoon)?;
-    scene.represent(Select::ligands(), RepresentationKind::BallAndStick)?;
-    let ligand = scene.select(Select::ligands())?;
-    scene.focus(ligand)?;
-
-    let camera = Camera::framing_aabb(&scene.world_aabb(), 16.0 / 9.0);
-    let mut engine = Engine::new(&EngineConfig::default(), None)?;
-    let image = engine.render_image(
-        &scene,
-        &camera,
-        ImageConfig {
-            width: 1920,
-            height: 1080,
-        },
-    )?;
-    std::fs::write("structure.png", image.png_bytes()?)?;
+```rust,no_run
+# use molgfx::{Scene, rep, sel};
+# fn edit(scene: &mut Scene) -> Result<(), molgfx::Error> {
+let ligand = scene.add(rep::licorice(sel::ligands()))?;
+let patch = scene.transaction(|tx| {
+    tx.set_opacity(ligand, 0.65);
+    tx.set_visible(ligand, true);
     Ok(())
-}
+})?;
+let json = patch.to_json()?;
+# let _ = json;
+# Ok(())
+# }
 ```
 
-The scene is host-side state: it resolves selections and representations, and the
-renderer uploads what it needs. The same snippet is a `no_run` doctest in the facade,
-so it is compiled with the crate.
-
-> The exact API remains pre-1.0. This example represents the intended abstraction level rather than a stable compatibility contract.
-
-MolGFX also exposes lower-level APIs for applications that need explicit control over scenes, rendering passes, resources, and GPU behavior.
-
-## Semantic scenes
-
-The scene graph represents scientific identity separately from visual representation.
-
-Conceptually:
-
-```text
-Scene
-├── Molecules
-│   ├── Polymers
-│   ├── Ligands
-│   ├── Waters
-│   └── Ions
-│
-├── Secondary Structure
-├── Binding Sites
-├── Interactions
-├── Surfaces
-├── Volumes
-├── Measurements
-├── Confidence
-└── Annotations
-```
-
-A ligand therefore remains a ligand whether the current representation is:
-
-```text
-ball-and-stick
-space filling
-outline
-transparent
-hidden
-highlighted
-```
-
-Rendering state changes.
-
-Scientific identity does not.
-
-This separation enables higher-level visualization behavior without encoding molecular meaning into low-level draw commands.
-
-## Representations
-
-MolGFX targets the core visual representations expected from a modern molecular graphics engine.
-
-### Atoms and bonds
-
-Supported representation families include:
-
-```text
-space filling
-ball-and-stick
-sticks
-lines
-points
-```
-
-Atoms and bonds are designed around analytic GPU primitives rather than dense sphere and cylinder meshes where possible.
-
-An atom can be represented by a compact impostor whose exact sphere intersection is evaluated by the fragment shader.
-
-A bond can similarly be represented as an analytic capsule or cylinder-like primitive.
-
-This provides smooth silhouettes without requiring high tessellation density.
-
-## Molecular cartoons
-
-Protein cartoons communicate secondary structure more effectively than atomistic representations at many scales.
-
-MolGFX's cartoon pipeline is designed around the molecular backbone and smooth transported coordinate frames.
-
-Distinct profiles can represent:
-
-- α-helices;
-- β-sheets;
-- coils;
-- turns.
-
-Geometry can be generated from structural control points rather than requiring applications to precompute display meshes.
-
-## Molecular surfaces
-
-Surface rendering supports spatial context that cannot always be communicated effectively through atoms alone.
-
-Target representations include:
-
-```text
-solvent-accessible surface
-solvent-excluded surface
-local molecular surface
-pocket surface
-scalar-field-colored surface
-```
-
-Surface data can participate in the same scene as atomistic and cartoon representations.
-
-A local pocket surface, for example, does not require constructing a separate visualization environment.
-
-## Volumetric data
-
-MolGFX's rendering architecture accommodates three-dimensional scalar fields.
-
-Relevant scientific data includes:
-
-- cryo-EM density;
-- electron density;
-- electrostatic fields;
-- arbitrary volumetric scientific data.
-
-Volumes can coexist with molecular geometry in the same camera, depth, clipping, and interaction model.
-
-## Focus + context
-
-A molecular scene may contain hundreds of thousands or millions of atoms while the current scientific question concerns only a small region.
-
-Simply hiding everything outside that region loses useful context.
-
-MolGFX is designed around **focus + context**.
-
-For example, when focusing on a ligand, a scene may choose to:
-
-```text
-emphasize the ligand
-reveal nearby residues
-show relevant interactions
-display a local surface
-reduce distant structural detail
-retain the global protein as subdued context
-```
-
-The result remains one scene.
-
-Focus changes its composition rather than constructing an unrelated visualization from scratch.
-
-## Semantic styling
-
-Visual appearance can be driven by scientific properties.
-
-Examples include:
-
-```text
-element
-residue identity
-chain
-secondary structure
-charge
-hydrophobicity
-distance
-confidence
-interaction type
-selection state
-arbitrary scalar values
-```
-
-These values can affect:
-
-```text
-color
-opacity
-material
-visibility
-emphasis
-representation
-level of detail
-```
-
-without changing the identity of the underlying scene object.
-
-## Molecular interactions
-
-Scientific interactions are represented as structured scene data rather than anonymous graphics primitives.
-
-Potential interaction types include:
-
-```text
-hydrogen bonds
-ionic interactions
-hydrophobic contacts
-π interactions
-metal coordination
-distance measurements
-angles
-dihedrals
-```
-
-Structured interactions can be:
-
-- rendered;
-- selected;
-- inspected;
-- styled;
-- filtered;
-- labeled;
-- connected to application UI.
-
-The renderer does not require that every interaction be computed internally. Applications may supply derived scientific information alongside molecular structure.
-
-## Selection and picking
-
-Interactive visualization requires a consistent mapping from pixels back to scientific objects.
-
-MolGFX's picking architecture is designed so that rendered geometry can resolve back to objects such as:
-
-```text
-atom
-bond
-residue
-chain
-ligand
-surface
-interaction
-annotation
-```
-
-Selection therefore operates at molecular rather than merely geometric granularity.
-
-The same selection model can drive highlighting, representations, focus, inspection, and application actions.
-
-## Real-time rendering
-
-The interactive rendering path prioritizes low latency during:
-
-- camera movement;
-- selection;
-- hover;
-- picking;
-- trajectory playback;
-- representation changes;
-- clipping;
-- interactive analysis.
-
-The architecture minimizes unnecessary CPU-side reconstruction and synchronization.
-
-Key techniques include:
-
-```text
-analytic impostors
-GPU geometry generation
-batched submission
-buffer reuse
-instance rendering
-explicit render passes
-semantic LOD
-minimal CPU ↔ GPU synchronization
-```
-
-## Progressive quality
-
-Interactive and publication-oriented rendering have different performance constraints.
-
-MolGFX is designed so a scene can transition from a responsive interactive path to progressively higher visual quality when interaction stops.
-
-Potential quality improvements include:
-
-- higher-quality ambient occlusion;
-- soft shadows;
-- improved transparency;
-- anti-aliasing;
-- higher sampling quality;
-- improved surface shading.
-
-Both rendering modes operate over the same scene.
-
-No separate publication renderer is required.
-
-## Semantic level of detail
-
-Traditional level-of-detail systems primarily simplify geometry.
-
-Molecular visualization can use the hierarchy of the science itself.
-
-Conceptually:
-
-```text
-atoms
-  ↓
-residues
-  ↓
-secondary structure
-  ↓
-domains
-  ↓
-whole molecule
-```
-
-At close range, individual atoms may matter.
-
-At large distances, showing those atoms independently becomes both expensive and visually meaningless.
-
-MolGFX can use semantic information together with screen-space criteria to determine an appropriate representation for the current scale.
-
-## Native and web
-
-MolGFX is designed around `wgpu`, allowing a shared renderer architecture across native graphics APIs and WebGPU.
-
-```text
-                   MolGFX
-                     │
-               semantic scene
-                     │
-                    wgpu
-              ┌──────┴──────┐
-              │             │
-            Native        WebGPU
-              │             │
-        Vulkan/Metal/    Browser
-         DX12/etc.       + WASM
-```
-
-Browser portability is an architectural requirement rather than a later compatibility layer.
-
-Portable crates avoid assumptions that would make the scene and rendering infrastructure native-only.
-
-## Data model boundary
-
-MolGFX does not need to own molecular file formats in order to render molecular information.
-
-The renderer operates on structured molecular data containing the information required for visualization, such as:
-
-```text
-coordinates
-elements
-bonds
-residue membership
-chain membership
-secondary structure
-structural annotations
-optional scientific properties
-```
-
-Adapters can translate compatible molecular representations into MolGFX scene data.
-
-Once inside the renderer, those inputs become semantic scene objects rather than format-specific parser structures.
-
-This keeps rendering independent from how molecular data was originally produced.
-
-## GPU architecture
-
-Rendering is split into layers with explicit responsibilities.
-
-```text
-scene
-  │
-  ▼
-representation resolution
-  │
-  ▼
-geometry preparation
-  │
-  ▼
-GPU resources
-  │
-  ▼
-render graph
-  │
-  ▼
-passes
-  │
-  ▼
-shaders
-  │
-  ▼
-frame
-```
-
-The renderer can therefore evolve individual representation and backend implementations without changing the high-level molecular API.
-
-## Render graph
-
-Complex molecular scenes require multiple rendering stages.
-
-A frame may involve passes for:
-
-```text
-depth
-opaque geometry
-surfaces
-transparency
-volumes
-outlines
-annotations
-picking
-post-processing
-```
-
-MolGFX models these explicitly rather than accumulating rendering behavior inside one monolithic draw loop.
-
-The render graph defines dependencies between passes and their GPU resources.
-
-## Shader architecture
-
-Shaders are treated as engine code.
-
-The shader layer is designed around:
-
-- shared WGSL infrastructure;
-- typed resource layouts;
-- explicit pipeline contracts;
-- shader validation;
-- reusable molecular primitives;
-- backend portability.
-
-Shader behavior is tested and versioned with the rest of the renderer rather than maintained as opaque strings inside application code.
+Patches carry a base revision and typed operations. Conflicts and invalid final
+states leave the scene unchanged. `ScenePatch::inverse` creates an undo patch
+against the exact base specification.
 
 ## Python
 
-The binding is the same declarative scene over the native engine; Python holds
-no rendering logic. The root carries the curated surface, so the same program
-reads:
+Python uses the same contract and MolFrame selection objects:
 
 ```python
 import molframe
-import molgfx as mg
+import molgfx
 
-scene = mg.Scene.from_structure_shared(molframe.read("1abc.cif"))
+structure = molframe.read("structure.cif")
+scene = molgfx.Scene(structure)
+scene.add(molgfx.rep.cartoon(target=molgfx.sel.protein()))
+scene.add(molgfx.rep.ball_and_stick(target=molgfx.sel.ligands()))
+scene.focus(molgfx.sel.ligands())
 
-scene.represent(scene.select(mg.Select.parse("polymer")), mg.Representation.cartoon())
-scene.represent(scene.select(mg.Select.parse("ligands")), mg.Representation.ball_and_stick())
-
-camera = mg.Camera.framing_aabb(scene.world_aabb(), 16.0 / 9.0)
-image = mg.Engine(mg.EngineConfig(1920, 1080)).render_image(scene, camera, 1920, 1080)
+renderer = molgfx.Renderer()
+renderer.render_image(scene, size=(1920, 1080)).save("structure.png")
 ```
 
-Rendering runs in Rust at native speed; Python only describes the scene. This
-program is executed end to end — `molframe.read` parses a real structure, the
-engine renders it, and the PNG comes back — as the binding's measured
-quick-start.
+Arguments are keyword-only where builders have multiple policies. Python
+retains the MolFrame capsule instead of converting coordinates through NumPy.
+The public exception hierarchy is `MolgfxError`, `SpecError`, and
+`RevisionConflict`; the shipped stubs contain no `Any` escape hatch.
 
-## Web
+Notebook interaction uses `molgfx.viewer.Viewer`. The AnyWidget sends the
+canonical scene JSON, compact BinaryCIF source buffers, and subsequent patches
+to the packaged `molgfx-wasm` module. That module parses the same contract and
+renders directly into a browser canvas with WebGPU. Resize remains local to the
+browser and no rendered frame pixels travel back through the Python kernel.
 
-The WebAssembly interface targets browser-native molecular graphics through WebGPU.
+## Wire contract and interoperability
 
-A web application should be able to use the same fundamental concepts:
+`SceneSpec` and `ScenePatch` are deterministic JSON values consumed by Rust,
+Python, and WASM. Runtime data bindings remain out of band and are identified by
+URI and content hash. `molgfx::interop` imports and exports the compatible
+MolViewSpec v1 subset as `.mvsj` or `.mvsx`; unsupported nodes produce explicit
+diagnostics, and MolGFX metadata is preserved in a namespaced extension.
 
-```text
-scene
-representation
-selection
-camera
-materials
-interaction
-rendering
-```
+`molgfx::streaming::DataSource` is the bounded asynchronous provider contract.
+Requests are prioritized and batched, cancellation is cooperative, failures
+propagate, and shutdown is explicit. Residency tickets, page handles, and upload
+details are intentionally renderer internals.
 
-without requiring a separate JavaScript rendering engine.
+## Performance invariants
 
-Browser-specific integration remains at the platform boundary while the molecular scene and renderer stay shared.
+- Coordinates are borrowed from MolFrame and never copied into scene records.
+- Atoms and bonds use analytic instanced impostors, not tessellated meshes.
+- Culling writes indirect draw counts on the GPU.
+- Upload staging uses bounded reusable arenas; streaming work is batched.
+- Picking uses one aligned readback buffer and one mapping operation.
+- BVH, surface, and render-graph resources are derived caches with explicit
+  revision keys and memory accounting.
+- WGSL is composed and validated once from `molgfx-shaders`; there is no SPIR-V
+  output or second maintained shader dialect.
 
-## Visual correctness
+Use `explain()` and stable hashes to inspect authoring values and renderer plans
+without exposing physical handles.
 
-A renderer being fast does not imply that it is correct.
+## Crates and validation
 
-MolGFX uses several layers of validation:
-
-```text
-unit tests
-property tests
-shader validation
-golden scenes
-perceptual image comparison
-GPU capability tests
-cross-platform checks
-```
-
-Golden scenes provide controlled examples whose expected output can be compared against later renderer revisions.
-
-Perceptual comparison catches visual regressions that ordinary unit tests cannot observe.
-
-Implementation and validation coverage are tracked separately.
-
-## Performance
-
-MolGFX aims to avoid unnecessary work before optimizing individual instructions.
-
-The architecture emphasizes:
-
-- compact molecular representations;
-- GPU-generated geometry;
-- analytic primitives;
-- resource reuse;
-- instancing;
-- efficient buffer updates;
-- batched command submission;
-- explicit render passes;
-- semantic level of detail;
-- minimal synchronization.
-
-Benchmarks cover CPU-side scene preparation and rendering-related workloads.
-
-Performance measurements should always identify:
-
-```text
-hardware
-graphics backend
-scene
-resolution
-software revision
-quality configuration
-```
-
-rather than presenting context-free FPS numbers.
-
-## Scope
-
-MolGFX owns molecular graphics.
-
-It does not attempt to become:
-
-- a molecular dynamics engine;
-- a docking engine;
-- a force-field implementation;
-- a protein-structure predictor;
-- a general-purpose molecular analysis library;
-- a workflow application.
-
-Keeping that boundary narrow makes the engine usable inside many kinds of scientific software.
-
-Examples include:
-
-```text
-molecular viewers
-desktop scientific applications
-browser applications
-Jupyter environments
-docking interfaces
-simulation viewers
-model inspection tools
-scientific dashboards
-publication pipelines
-custom research software
-```
-
-## Roadmap
-
-Development is organized around progressively more complete rendering capabilities.
-
-Major areas include:
-
-1. atom and bond rendering;
-2. camera and interaction infrastructure;
-3. molecular cartoons;
-4. picking and selection;
-5. semantic scene infrastructure;
-6. surfaces;
-7. scientific interactions;
-8. browser portability;
-9. Python bindings;
-10. progressive rendering;
-11. volumetric data;
-12. visual regression and performance validation.
-
-
-## Development
-
-Build the workspace:
+Ordinary callers depend on `molgfx`. Inner crates are separately versioned for
+expert integrations, but are not re-exported through the facade.
 
 ```bash
-cargo build --workspace
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
+cargo check -p molgfx-wasm --target wasm32-unknown-unknown
+cargo clippy -p molgfx-wasm --target wasm32-unknown-unknown --all-targets -- -D warnings
+python -m unittest discover -s python/tests
+python -m mypy.stubtest molgfx._engine
 ```
 
-Run tests:
+The workspace default members cover the engine only. Python, WASM, and benchmark
+leaves remain part of every `--workspace` command but stay outside the fast
+no-selector build.
 
-```bash
-cargo test --workspace
-```
+## Non-goals
 
-Rendering changes should include appropriate behavioral and visual validation.
-
-Architectural and contribution guidelines live in:
-
-- [`AGENTS.md`](AGENTS.md)
-- [`RULES.md`](RULES.md)
+MolGFX does not own molecular parsing or analysis, a second selection language,
+simulation, docking, a desktop event loop, or viewer camera/input controllers.
+Those responsibilities belong to MolFrame or the embedding viewer.
 
 ## License
 
-MolGFX is dual-licensed under either:
-
-- MIT License, or
-- Apache License 2.0,
-
-at your option.
+MIT. See [LICENSE](LICENSE).
