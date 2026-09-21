@@ -1,5 +1,20 @@
 [workspace]
 members = ["crates/*"]
+# The engine-only inner loop. Python, WASM and benchmark leaves remain outside
+# the default set because their target/tooling dependencies are not required
+# while iterating on the renderer.
+default-members = [
+    "crates/molgfx",
+    "crates/molgfx-math",
+    "crates/molgfx-core",
+    "crates/molgfx-gpu",
+    "crates/molgfx-wgpu",
+    "crates/molgfx-shaders",
+    "crates/molgfx-geometry",
+    "crates/molgfx-render",
+    "crates/molgfx-semantic",
+    "crates/molgfx-api",
+]
 resolver = "3"
 
 [workspace.metadata.molgfx.wasm]
@@ -47,13 +62,14 @@ molgfx-shaders = { version = "0.1.0", path = "crates/molgfx-shaders" }
 molgfx-geometry = { version = "0.1.0", path = "crates/molgfx-geometry" }
 molgfx-render = { version = "0.1.0", path = "crates/molgfx-render" }
 molgfx-semantic = { version = "0.1.0", path = "crates/molgfx-semantic" }
+molgfx-api = { version = "0.1.0", path = "crates/molgfx-api" }
 
 # The structural model and every detection the engine consumes.
 # Pinned to the published revision carrying the `molframe-*` package names.
-molframe = { git = "https://github.com/miguelcsx/molframe", rev = "e6f68d581da8739dd71d3e43df804c4f80b3d08e", default-features = false, features = ["mmcif", "bcif", "pdb"] }
+molframe = { git = "https://github.com/miguelcsx/molframe", rev = "a3fce8f8a096509f995377e1e1a062f4fd84f3cc", default-features = false, features = ["mmcif", "bcif", "pdb"] }
 # The provider's Python bridge names its library target `_native`, so the
 # dependency is renamed back to the package name for `molframe_py::` to resolve.
-molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "e6f68d581da8739dd71d3e43df804c4f80b3d08e" }
+molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "a3fce8f8a096509f995377e1e1a062f4fd84f3cc", default-features = false, features = ["bridge"] }
 
 # Python ABI shared by the thin binding crate and the sibling molframe bridge.
 pyo3 = "0.29"
@@ -69,8 +85,14 @@ rayon = "1.11"
 thiserror = "2.0"
 roaring = "0.11"
 bitflags = "2.13"
-wgpu = "30"
-naga = { version = "30", features = ["wgsl-in", "spv-out"] }
+# No default features: `wgpu-core` already target-gates its heavy
+# per-backend dependency crates internally (Apple/Windows-Linux-Android/wasm
+# each pull a different `wgpu-core-deps-*` crate), so this doesn't change
+# what actually compiles on a given host — it's explicit platform intent and
+# a guard against `wgpu`'s own `default` feature list growing under us.
+# `molgfx-wgpu` adds the backend features per target.
+wgpu = { version = "30", default-features = false }
+naga = { version = "30", features = ["wgsl-in"] }
 raw-window-handle = "0.6"
 pollster = "0.4"
 futures-channel = "0.3"
@@ -87,6 +109,7 @@ png = "0.18"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
+zip = { version = "5", default-features = false, features = ["deflate"] }
 
 [workspace.lints.rust]
 missing_docs = "warn"
