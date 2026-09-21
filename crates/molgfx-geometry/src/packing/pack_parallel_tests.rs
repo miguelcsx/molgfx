@@ -3,7 +3,6 @@
 //
 // The index-to-float casts below build fixture coordinates from a loop
 // counter bounded by a fixed literal in this file; nothing truncates.
-#![allow(clippy::cast_possible_truncation)]
 
 use super::*;
 use molgfx_core::{AtomSelection, RepresentationKind, Scene};
@@ -31,10 +30,10 @@ fn a_parallel_pack_matches_the_serial_pack() {
             "ATOM {} N N . GLY A 1 {} {:.2} {:.2} {:.2} 1.00 {:.1} {} A 1",
             index + 1,
             index + 1,
-            f64::from(index as u32) * 0.13,
-            f64::from((index % 97) as u32) * 0.07,
-            f64::from((index % 13) as u32) * 0.31,
-            10.0 + f64::from((index % 29) as u32) * 0.5,
+            f64::from(u32::try_from(index).expect("fixture index fits u32")) * 0.13,
+            f64::from(u32::try_from(index % 97).expect("fixture index fits u32")) * 0.07,
+            f64::from(u32::try_from(index % 13).expect("fixture index fits u32")) * 0.31,
+            10.0 + f64::from(u32::try_from(index % 29).expect("fixture index fits u32")) * 0.5,
             index + 1,
         );
     }
@@ -70,7 +69,10 @@ fn a_parallel_pack_matches_the_serial_pack() {
     let chunk = 512usize;
     for start in (0..count).step_by(chunk) {
         let end = (start + chunk).min(count);
-        let rows = AtomSelection::Range(start as u32..end as u32);
+        let rows = AtomSelection::Range(
+            u32::try_from(start).expect("fixture start fits u32")
+                ..u32::try_from(end).expect("fixture end fits u32"),
+        );
         let mut chunk_records = Vec::new();
         pack_atoms(table, representation, &rows, &mut chunk_records)
             .unwrap_or_else(|error| panic!("{error}"));

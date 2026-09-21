@@ -356,7 +356,9 @@ fn append_ribbon(
         .deformations
         .reserve(build.samples.len() * PROFILE_SIDES);
     for (sample, frame) in build.samples.iter().zip(build.frames.iter()) {
-        let segment = usize::try_from(sample.segment).map_or(usize::MAX, |value| value);
+        let segment = usize::try_from(sample.segment)
+            .into_iter()
+            .fold(usize::MAX, |_, value| value);
         let entity_id = match entities.get(segment) {
             Some(&value) => value,
             None => u32::MAX,
@@ -434,13 +436,17 @@ fn append_ring(ring: usize, base_vertex: u32, flat: bool, indices: &mut Vec<u32>
         return;
     };
     let base = base.saturating_add(base_vertex);
-    let stride = u32::try_from(PROFILE_SIDES).map_or(0, |value| value);
+    let stride = u32::try_from(PROFILE_SIDES)
+        .into_iter()
+        .fold(0, |_, value| value);
     for side in 0..PROFILE_SIDES {
         if flat && !BOX_FACE_SIDES[side % PROFILE_SIDES] {
             continue;
         }
-        let current = u32::try_from(side).map_or(0, |value| value);
-        let next = u32::try_from((side + 1) % PROFILE_SIDES).map_or(0, |value| value);
+        let current = u32::try_from(side).into_iter().fold(0, |_, value| value);
+        let next = u32::try_from((side + 1) % PROFILE_SIDES)
+            .into_iter()
+            .fold(0, |_, value| value);
         indices.extend_from_slice(&[
             base + current,
             base + stride + current,

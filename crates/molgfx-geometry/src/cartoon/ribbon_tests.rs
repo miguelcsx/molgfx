@@ -98,7 +98,9 @@ fn putty_lowering_keeps_base_geometry_constant_and_emits_compact_guide_values() 
     assert_eq!(mesh.radius_source_values(), &[10.0, 30.0, 50.0]);
     assert!(
         mesh.vertices
-            .chunks_exact(PROFILE_SIDES)
+            .as_chunks::<PROFILE_SIDES>()
+            .0
+            .iter()
             .all(|ring| (profile_diameters(ring).0 - 0.6).abs() < 1.0e-4),
         "putty radius is deferred to the vertex shader"
     );
@@ -255,11 +257,16 @@ fn the_twister_profile_gives_each_face_its_own_flat_normal() {
             ..RibbonParams::default()
         },
     );
-    let ring = mesh
+    let ring: &[RibbonVertex] = mesh
         .vertices
-        .chunks_exact(PROFILE_SIDES)
+        .as_chunks::<PROFILE_SIDES>()
+        .0
+        .iter()
         .next()
-        .unwrap_or(&[]);
+        .map_or(
+            &[] as &[RibbonVertex],
+            <[RibbonVertex; PROFILE_SIDES]>::as_slice,
+        );
     assert_eq!(ring.len(), PROFILE_SIDES);
     // Doubled corners: same position, different normal, which is what makes
     // the edge read as an edge instead of a gradient.

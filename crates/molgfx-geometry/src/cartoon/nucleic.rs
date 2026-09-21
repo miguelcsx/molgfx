@@ -265,7 +265,9 @@ fn push_round_edge(
     };
     for endpoint in [start, end] {
         for side_index in 0..SIDES {
-            let side_u16 = u16::try_from(side_index).map_or(0, |value| value);
+            let side_u16 = u16::try_from(side_index)
+                .into_iter()
+                .fold(0, |_, value| value);
             let angle = std::f32::consts::TAU * f32::from(side_u16) / 8.0;
             let radial = style.normal * angle.cos() + side * angle.sin();
             vertices.push(vertex(
@@ -296,7 +298,9 @@ fn vertex(position: Vec3, normal: Vec3, entity_id: u32, color: Rgba8) -> RibbonV
 }
 
 fn u32_index(value: usize) -> u32 {
-    u32::try_from(value).map_or(u32::MAX, |value| value)
+    u32::try_from(value)
+        .into_iter()
+        .fold(u32::MAX, |_, value| value)
 }
 
 fn emit_base(

@@ -145,10 +145,9 @@ pub fn extract_polymer_traces(
                 Some(&style) => style,
                 None => SecondaryStructure::Unknown,
             });
-            output.properties.push(match atom.b_factor() {
-                Some(value) => value,
-                None => f32::NAN,
-            });
+            output
+                .properties
+                .push(atom.b_factor().into_iter().fold(f32::NAN, |_, value| value));
         }
         finish_trace(
             chain_id,

@@ -38,7 +38,7 @@ fn every_face_winds_away_from_the_interior() {
         panic!("six points bound an octahedron")
     };
     let centre = vertices.iter().fold(Vec3::ZERO, |sum, p| sum + *p) / 6.0;
-    for face in indices.chunks_exact(3) {
+    for face in indices.as_chunks::<3>().0 {
         let (Some(&a), Some(&b), Some(&c)) = (
             vertices.get(face[0] as usize),
             vertices.get(face[1] as usize),
