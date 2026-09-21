@@ -10,13 +10,24 @@ repository.workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[dependencies]
+# Every item in `src/lib.rs` is gated the same way, so every dependency
+# belongs under the same gate: a native check of this crate should resolve
+# nothing rather than pay for wasm-bindgen machinery that cfg-stripping means
+# it never even type-checks. `target_os = "unknown"` (not just
+# `target_arch = "wasm32"`) is the `wasm-bindgen`-ecosystem convention
+# (`web-time`, `getrandom`): it's the flavor wasm-bindgen actually targets,
+# excluding `wasm32-wasip*`/`wasm32-unknown-emscripten` where there's no JS
+# host for these bindings to call into.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 js-sys.workspace = true
 molgfx.workspace = true
+molgfx-math.workspace = true
 molframe = { workspace = true, features = ["mmcif", "bcif", "pdb", "chem", "spatial"] }
+num-traits.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 web-sys.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

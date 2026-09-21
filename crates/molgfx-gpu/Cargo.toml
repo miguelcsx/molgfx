@@ -12,7 +12,11 @@ thiserror.workspace = true
 bitflags.workspace = true
 raw-window-handle.workspace = true
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
+# `target_os = "unknown"` (not just `target_arch = "wasm32"`) matches the
+# `wasm-bindgen` ecosystem's own convention (`web-time`, `getrandom`): it's
+# the flavor `web-sys` actually targets, excluding `wasm32-wasip*`/
+# `wasm32-unknown-emscripten` where there's no JS host to bind against.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 web-sys.workspace = true
 
 [lints]

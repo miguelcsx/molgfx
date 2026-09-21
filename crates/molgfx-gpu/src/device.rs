@@ -20,7 +20,7 @@ use crate::{
 };
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use std::future::Future;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::sync::Arc;
 
 /// Anything a presentation surface can be created from. Embedders hand the
@@ -30,24 +30,24 @@ use std::sync::Arc;
 /// Native window handles may cross worker threads. Browser canvas handles are
 /// bound to the JavaScript main thread, so requiring `Send + Sync` there would
 /// reject the platform's real WebGPU resources.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub trait WindowSource: HasWindowHandle + HasDisplayHandle + std::fmt::Debug + Send + Sync {}
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 impl<T: HasWindowHandle + HasDisplayHandle + std::fmt::Debug + Send + Sync> WindowSource for T {}
 
 /// Browser presentation source, intentionally confined to the JavaScript
 /// thread that owns its canvas.
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub trait WindowSource: HasWindowHandle + HasDisplayHandle + std::fmt::Debug {}
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 impl<T: HasWindowHandle + HasDisplayHandle + std::fmt::Debug> WindowSource for T {}
 
 /// A shared native window handle, alive for as long as its surface.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub type WindowTarget = Arc<dyn WindowSource>;
 
 /// A browser canvas supplied and owned by the host page.
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub type WindowTarget = web_sys::HtmlCanvasElement;
 
 /// Which adapter class to prefer when several are present.
@@ -155,7 +155,7 @@ pub trait Device: Sized + 'static {
     /// # Errors
     ///
     /// No compatible adapter, or device creation failed.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     fn open_blocking(
         desc: &DeviceDesc,
         window: Option<WindowTarget>,
