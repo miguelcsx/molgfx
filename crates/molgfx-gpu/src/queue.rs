@@ -49,7 +49,7 @@ pub trait Queue<D: Device> {
     /// # Errors
     ///
     /// The device was lost, or the buffer was not readable.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     fn read_buffer_blocking(
         &self,
         device: &D,
