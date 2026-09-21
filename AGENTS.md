@@ -21,13 +21,23 @@ simulate, or open a window; those are out of scope or the caller's job.
 ## Commands
 
 ```bash
-cargo build --workspace                      # build everything
+cargo build                                  # engine only (fast inner loop; see default-members)
+cargo build --workspace                      # everything, including py/wasm/bench
 cargo test  --workspace                      # all tests
 cargo test  -p molgfx-core                  # one crate
+cargo check -p molgfx-wasm --target wasm32-unknown-unknown   # the wasm leaf, on its real target
 cargo run   -p molgfx-bench --bin focus_profile --release   # drive the engine
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
 ```
+
+The workspace's `default-members` covers the engine crates only —
+`molgfx-py`, `molgfx-wasm` and `molgfx-bench` are left out of the no-selector
+inner loop because `molgfx-py` pulls `molframe-py`, which unconditionally
+requires `molframe`'s `full` feature (faer, parquet, sqlite, zstd, arrow,
+hdf5/netcdf, hoomd) into the same resolve session as everything else. Any
+`--workspace`-flagged command, including the ones below, still covers all
+three.
 
 Tests for `foo.rs` live in the sibling `foo_tests.rs`, with sentence-form names.
 A module directory may instead carry one `tests.rs` for the modules beside it.
@@ -89,10 +99,19 @@ Green means all of these pass:
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
+cargo check  -p molgfx-wasm --target wasm32-unknown-unknown
+cargo clippy -p molgfx-wasm --target wasm32-unknown-unknown --all-targets -- -D warnings
 grep -rn "unwrap" crates/ --include="*.rs" | grep -v "_tests.rs" | grep -v "/tests.rs" | grep -v "generic_tests/"   # must be empty
 find crates \( -name "*.rs" -o -name "*.wgsl" \) -print0 | xargs -0 wc -l | awk '$1>500 && $2 != "total" {print}'   # must be empty (file cap)
 grep -rnE "(^|[^A-Za-z_])unsafe([[:space:]]*\{|[[:space:]]+(fn|impl|trait|extern|static|mut))" crates/ --include="*.rs" | grep -v bytemuck   # must be empty
 ```
+
+`--workspace --all-features` type-checks and lints `molgfx-wasm` too, but only
+as an `rlib` for the host target — every item in that crate is
+`#[cfg(target_arch = "wasm32")]`-gated, so a host build cfg-strips all of it
+away first. The two `wasm32-unknown-unknown` lines above are the only ones
+that actually verify that crate's code; they aren't redundant with the
+`--workspace` commands above them.
 
 No check reads a scene corpus, so a checkout with no `benchmarks/` passes the whole
 list: the benchmarks resolve data through `crates/molgfx-bench/src/fixtures.rs` and
