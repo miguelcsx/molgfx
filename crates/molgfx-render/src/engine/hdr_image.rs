@@ -1,6 +1,7 @@
 //! Scene-linear HDR readback without a second full-resolution render target.
 
 use super::image::{ImageLayout, QUALITY_IMAGE_SAMPLES, REALTIME_IMAGE_SAMPLES};
+use super::shadow::ShadowMatrices;
 use super::{Engine, ImageConfig, MotionBlur, RenderMode, TemporalOptions};
 use crate::error::RenderError;
 use crate::graph::ResourceId;
@@ -111,7 +112,6 @@ impl<D: Device> Engine<D> {
         pending.resolve(mapped)
     }
 
-    #[allow(clippy::too_many_lines)]
     fn render_hdr_image_to_buffer(
         &mut self,
         scene: &Scene,
@@ -144,30 +144,7 @@ impl<D: Device> Engine<D> {
         for sample in 0..samples {
             self.scene_gpu.begin_frame();
             let quality = self.mode == RenderMode::Cinematic;
-            let uniforms = self.temporal.prepare(
-                camera,
-                &TemporalOptions {
-                    extent: [self.width, self.height],
-                    reset: sample == 0,
-                    quality,
-                    publication: true,
-                    illustration: self.resolved_plan.illustration(),
-                    optics,
-                    motion_blur: self
-                        .resolved_plan
-                        .motion_blur()
-                        .map_or([0.0; 4], MotionBlur::packed),
-                    atmosphere: self
-                        .resolved_plan
-                        .packed_presentation(self.scene_gpu.has_translucency()),
-                    lighting: self.resolved_plan.packed_lighting(),
-                    shadow_view: shadow.view,
-                    shadow_projection: shadow.projection,
-                    shadow_view_proj: shadow.view_projection,
-                },
-            );
-            self.scene_gpu
-                .write_frame_uniforms(&self.queue, &uniforms)?;
+            self.prepare_hdr_sample(camera, sample, quality, optics, shadow)?;
             let source = self.scene_linear_resource();
             let Some(pool) = &self.pool else {
                 return Err(molgfx_gpu::GpuError::DeviceLost.into());
@@ -221,6 +198,7 @@ impl<D: Device> Engine<D> {
                     (0, 0),
                     (config.width, config.height),
                     layout.padded_row,
+                    0,
                     &readback,
                 );
             }
@@ -231,6 +209,39 @@ impl<D: Device> Engine<D> {
             layout,
             buffer: readback,
         })
+    }
+
+    fn prepare_hdr_sample(
+        &mut self,
+        camera: &Camera,
+        sample: u32,
+        quality: bool,
+        optics: [f32; 4],
+        shadow: ShadowMatrices,
+    ) -> Result<(), RenderError> {
+        let uniforms = self.temporal.prepare(
+            camera,
+            &TemporalOptions {
+                extent: [self.width, self.height],
+                reset: sample == 0,
+                quality,
+                publication: true,
+                illustration: self.resolved_plan.illustration(),
+                optics,
+                motion_blur: self
+                    .resolved_plan
+                    .motion_blur()
+                    .map_or([0.0; 4], MotionBlur::packed),
+                atmosphere: self
+                    .resolved_plan
+                    .packed_presentation(self.scene_gpu.has_translucency()),
+                lighting: self.resolved_plan.packed_lighting(),
+                shadow_view: shadow.view,
+                shadow_projection: shadow.projection,
+                shadow_view_proj: shadow.view_projection,
+            },
+        );
+        self.scene_gpu.write_frame_uniforms(&self.queue, &uniforms)
     }
 
     fn scene_linear_resource(&self) -> ResourceId {

@@ -55,7 +55,7 @@ fn inline_attachment_descriptors_preserve_every_color_target() {
         queue.submit(encoder);
         for texture in &textures {
             let mut copy = device.create_command_encoder();
-            copy.copy_texture_to_buffer(texture, (0, 0), (1, 1), 256, &readback);
+            copy.copy_texture_to_buffer(texture, (0, 0), (1, 1), 256, 0, &readback);
             queue.submit(copy);
             let bytes = queue
                 .read_buffer_blocking(&device, &readback, 0, 4)

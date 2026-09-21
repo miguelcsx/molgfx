@@ -132,6 +132,7 @@ impl molgfx_gpu::CommandEncoder<WgpuDevice> for WgpuCommandEncoder {
         origin: (u32, u32),
         size: (u32, u32),
         bytes_per_row: u32,
+        destination_offset: u64,
         dst: &WgpuBuffer,
     ) {
         self.encoder.copy_texture_to_buffer(
@@ -148,7 +149,7 @@ impl molgfx_gpu::CommandEncoder<WgpuDevice> for WgpuCommandEncoder {
             wgpu::TexelCopyBufferInfo {
                 buffer: &dst.raw,
                 layout: wgpu::TexelCopyBufferLayout {
-                    offset: 0,
+                    offset: destination_offset,
                     bytes_per_row: Some(bytes_per_row),
                     rows_per_image: None,
                 },
