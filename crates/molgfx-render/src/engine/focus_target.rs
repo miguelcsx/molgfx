@@ -193,7 +193,7 @@ fn compensated_add(sum: &mut f32, error: &mut f32, value: f32) {
 
 fn integer_as_f32(value: u64) -> f32 {
     [48, 32, 16, 0].into_iter().fold(0.0, |result, shift| {
-        let limb = u16::try_from((value >> shift) & u64::from(u16::MAX)).map_or(0, |v| v);
+        let limb = crate::fallback(u16::try_from((value >> shift) & u64::from(u16::MAX)), 0);
         result * 65_536.0 + f32::from(limb)
     })
 }

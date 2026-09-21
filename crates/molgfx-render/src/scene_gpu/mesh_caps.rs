@@ -63,7 +63,7 @@ fn plane_segments(
     plane_index: usize,
 ) -> Vec<[Vec3; 2]> {
     let mut segments = Vec::new();
-    for triangle in indices.chunks_exact(3) {
+    for triangle in indices.as_chunks::<3>().0 {
         let Some(local) = triangle_points(vertices, triangle, vertex_base) else {
             continue;
         };
@@ -217,7 +217,7 @@ fn append_fan(
     let center = points.iter().copied().sum::<Vec3>() / divisor.max(1.0);
     let normal = inverse.transform_vector3(world_normal).normalize_or_zero();
     let color = molgfx_math::Rgba8::opaque(112, 128, 144);
-    let base = u32::try_from(vertices.len()).map_or(u32::MAX, |value| value);
+    let base = crate::fallback(u32::try_from(vertices.len()), u32::MAX);
     vertices.push(RibbonVertex {
         position: inverse.transform_point3(center).to_array(),
         entity_id,
@@ -231,8 +231,8 @@ fn append_fan(
         color,
     }));
     for index in 0..points.len() {
-        let current = u32::try_from(index).map_or(u32::MAX, |value| value);
-        let next = u32::try_from((index + 1) % points.len()).map_or(u32::MAX, |value| value);
+        let current = crate::fallback(u32::try_from(index), u32::MAX);
+        let next = crate::fallback(u32::try_from((index + 1) % points.len()), u32::MAX);
         indices.extend([
             base,
             base.saturating_add(1).saturating_add(current),

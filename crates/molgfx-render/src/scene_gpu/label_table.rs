@@ -142,7 +142,7 @@ impl<D: Device> GpuLabels<D> {
             let counts = LabelCountsGpu {
                 header_count: self.header_count,
                 source_count: self.source_count,
-                occupancy_count: u32::try_from(OCCUPANCY_SLOTS).map_or(u32::MAX, |value| value),
+                occupancy_count: crate::fallback(u32::try_from(OCCUPANCY_SLOTS), u32::MAX),
                 padding: 0,
             };
             queue.write_buffer(buffer, 0, bytemuck::bytes_of(&counts));
@@ -203,9 +203,12 @@ fn entry<D: Device>(binding: u32, buffer: &D::Buffer) -> BindGroupEntry<'_, D> {
 }
 
 fn byte_len<T>(count: usize) -> u64 {
-    u64::try_from(count.saturating_mul(std::mem::size_of::<T>())).map_or(u64::MAX, |value| value)
+    crate::fallback(
+        u64::try_from(count.saturating_mul(std::mem::size_of::<T>())),
+        u64::MAX,
+    )
 }
 
 fn size_u64<T>() -> u64 {
-    u64::try_from(std::mem::size_of::<T>()).map_or(u64::MAX, |value| value)
+    crate::fallback(u64::try_from(std::mem::size_of::<T>()), u64::MAX)
 }

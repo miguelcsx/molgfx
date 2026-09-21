@@ -164,10 +164,10 @@ impl FrameUniforms {
                 if history_valid { 1.0 } else { 0.0 },
                 if temporal.quality { 1.0 } else { 0.0 },
                 if temporal.publication { 1.0 } else { 0.0 },
-                f32::from(
-                    u16::try_from(temporal.sample_index.min(u32::from(u16::MAX)))
-                        .map_or(u16::MAX, |value| value),
-                ),
+                f32::from(crate::fallback(
+                    u16::try_from(temporal.sample_index.min(u32::from(u16::MAX))),
+                    u16::MAX,
+                )),
             ],
             illustration: temporal.illustration,
             npr: temporal.npr,
@@ -473,7 +473,7 @@ pub(super) fn clip_planes(clipping: &ClipSet) -> [[f32; 4]; MAX_CLIP_PLANES] {
 
 pub(super) fn clip_meta(clipping: &ClipSet) -> [u32; 4] {
     [
-        u32::try_from(clipping.planes().len()).map_or(0, |count| count),
+        crate::fallback(u32::try_from(clipping.planes().len()), 0),
         clipping.cap() as u32,
         0,
         0,
@@ -491,7 +491,7 @@ fn axis_cells(extent: f32, cell: f32) -> u32 {
 }
 
 fn dimension_f32(value: u32) -> f32 {
-    f32::from(u16::try_from(value).map_or(u16::MAX, |converted| converted))
+    f32::from(crate::fallback(u16::try_from(value), u16::MAX))
 }
 
 #[cfg(test)]

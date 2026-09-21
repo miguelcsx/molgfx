@@ -134,7 +134,7 @@ impl<D: Device> GpuProfiler<D> {
         let Some(ticks) = timestamp_delta(start, end, previous_start) else {
             return Ok(DecodedTiming::unresolved());
         };
-        let ticks = u32::try_from(ticks).map_or(u32::MAX, |value| value);
+        let ticks = crate::fallback(u32::try_from(ticks), u32::MAX);
         let seconds = f64::from(ticks) * f64::from(timestamp_period) / 1_000_000_000.0;
         let duration = std::time::Duration::try_from_secs_f64(seconds)
             .map_err(|_| molgfx_gpu::GpuError::DeviceLost)?;
@@ -433,7 +433,7 @@ fn timestamp_delta(
 }
 
 fn duration_ns(duration: std::time::Duration) -> u64 {
-    u64::try_from(duration.as_nanos()).map_or(u64::MAX, |value| value)
+    crate::fallback(u64::try_from(duration.as_nanos()), u64::MAX)
 }
 
 #[cfg(test)]

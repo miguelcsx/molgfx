@@ -50,7 +50,7 @@ impl<D: Device> VisualParameterTable<D> {
 
     pub(super) fn offset(slot: usize) -> u32 {
         let lanes = slot.saturating_mul(MAX_VISUAL_PARAMETERS);
-        u32::try_from(lanes).map_or(u32::MAX, |value| value)
+        crate::fallback(u32::try_from(lanes), u32::MAX)
     }
 
     pub(super) const fn binding_revision(&self) -> u64 {

@@ -131,10 +131,7 @@ pub(super) fn select_pose_batches(samples: &mut [PoseBatchSample], quality: bool
         }
         let available = remaining_instances / u64::from(sample.primitive_cost);
         let bounded = available.min(sample.source());
-        let candidate_limit = match u32::try_from(bounded) {
-            Ok(value) => value,
-            Err(_) => u32::MAX,
-        };
+        let candidate_limit = crate::fallback(u32::try_from(bounded), u32::MAX);
         let (opaque, translucent) = select_classes(sample, candidate_limit, sample.allowed_groups);
         let selected = opaque + translucent;
         sample.selected_opaque = opaque;
@@ -229,10 +226,7 @@ fn amortized_cost(sample: &PoseBatchSample) -> (u64, u64) {
     let capacity = sample
         .source()
         .min(REALTIME_POSE_PRIMITIVES / u64::from(sample.primitive_cost));
-    let selected = match u32::try_from(capacity) {
-        Ok(value) => value,
-        Err(_) => u32::MAX,
-    };
+    let selected = crate::fallback(u32::try_from(capacity), u32::MAX);
     let (opaque, translucent) = proportional_split(sample, selected);
     let groups = opacity_classes(opaque, translucent) * sample.shape_count;
     let instance_cost = capacity * u64::from(sample.primitive_cost);

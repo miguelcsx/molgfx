@@ -135,7 +135,10 @@ fn attach_all(
 }
 
 fn add_order(base: i32, index: usize) -> i32 {
-    base.saturating_add(i32::try_from(index).map_or(i32::MAX, |value| value))
+    let index = i32::try_from(index)
+        .into_iter()
+        .fold(i32::MAX, |_, value| value);
+    base.saturating_add(index)
 }
 
 fn view(

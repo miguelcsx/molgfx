@@ -154,14 +154,11 @@ impl<D: Device> VisualPropertyTable<D> {
                 continue;
             }
             let (revision, dirty_rows) = match column.reference {
-                VisualAttributeRef::Attribute { handle, .. } => scene
-                    .attribute_change(handle)
-                    .map_or((0, 0..column.length), |(revision, dirty)| (revision, dirty)),
+                VisualAttributeRef::Attribute { handle, .. } => {
+                    crate::fallback(scene.attribute_change(handle), (0, 0..column.length))
+                }
                 VisualAttributeRef::LegacyScalar(handle) => {
-                    let revision = match scene.property_content_revision(handle) {
-                        Some(revision) => revision,
-                        None => 0,
-                    };
+                    let revision = crate::fallback(scene.property_content_revision(handle), 0);
                     (revision, 0..column.length)
                 }
                 VisualAttributeRef::Column { .. } => (0, 0..column.length),
@@ -215,9 +212,7 @@ impl<D: Device> VisualPropertyTable<D> {
                 continue;
             };
             let column = self.columns[index];
-            binding.offsets[slot] = column
-                .materialized_offset
-                .map_or(column.offset, |value| value);
+            binding.offsets[slot] = crate::fallback(column.materialized_offset, column.offset);
             binding.layouts[slot] = column.stride_words
                 | ((column.reference.kind() as u32) << 8)
                 | (u32::from(column.temporal && column.materialized_offset.is_none()) << 16);

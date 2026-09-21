@@ -64,7 +64,7 @@ impl SegmentationUniforms {
             ],
             lookup: [
                 mode,
-                u32::try_from(lookup.entries().len()).map_or(u32::MAX, |value| value),
+                crate::fallback(u32::try_from(lookup.entries().len()), u32::MAX),
                 lookup.max_label(),
                 source_id,
             ],

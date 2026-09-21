@@ -25,10 +25,7 @@ impl ResourceLedger {
     }
 
     fn reserve(&self, bytes: u64, label: &'static str) -> Result<(), GpuError> {
-        let limit = match self.limit {
-            Some(limit) => limit,
-            None => u64::MAX,
-        };
+        let limit = self.limit.into_iter().fold(u64::MAX, |_, value| value);
         loop {
             let current = self.total.load(Ordering::Acquire);
             let Some(next) = current.checked_add(bytes) else {

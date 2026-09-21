@@ -41,8 +41,8 @@ pub(super) fn glyph_record(
     entity: u32,
     structure: u32,
 ) -> LabelGpu {
-    let low = u32::try_from(bits & u64::from(u32::MAX)).map_or(u32::MAX, |value| value);
-    let high = u32::try_from(bits >> 32).map_or(u32::MAX, |value| value);
+    let low = crate::fallback(u32::try_from(bits & u64::from(u32::MAX)), u32::MAX);
+    let high = crate::fallback(u32::try_from(bits >> 32), u32::MAX);
     LabelGpu {
         start_size: anchor.extend(GLYPH_WIDTH).to_array(),
         end_offset: [offset[0], offset[1], f32::from_bits(high), GLYPH_HEIGHT],

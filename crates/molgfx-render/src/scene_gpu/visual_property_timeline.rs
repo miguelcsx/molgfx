@@ -188,10 +188,7 @@ fn reference_consumers(scene: &Scene, reference: VisualAttributeRef) -> u32 {
             ))
         });
     let count = representations.saturating_add(domains);
-    match u32::try_from(count) {
-        Ok(value) => value,
-        Err(_) => u32::MAX,
-    }
+    crate::fallback(u32::try_from(count), u32::MAX)
 }
 
 fn program_consumers(

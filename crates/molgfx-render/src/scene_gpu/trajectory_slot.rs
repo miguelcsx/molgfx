@@ -83,7 +83,7 @@ impl<D: Device> GpuTrajectory<D> {
         };
         let was_active = self.active;
         self.active = true;
-        let count = u32::try_from(segment.atom_count()).map_or(u32::MAX, |value| value);
+        let count = crate::fallback(u32::try_from(segment.atom_count()), u32::MAX);
         let byte_len = (segment.atom_count() as u64).saturating_mul(12);
         let output_reallocated = self.ensure_buffers(device, byte_len)?;
         let pair = FramePair {
@@ -108,7 +108,7 @@ impl<D: Device> GpuTrajectory<D> {
             let previous_alpha = if pair_changed || self.alpha.is_none() {
                 segment.interpolation()
             } else if sample_changed {
-                f32::from_bits(self.alpha.map_or(alpha, |value| value))
+                f32::from_bits(crate::fallback(self.alpha, alpha))
             } else {
                 segment.interpolation()
             };

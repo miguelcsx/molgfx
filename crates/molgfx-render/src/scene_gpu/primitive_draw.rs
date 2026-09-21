@@ -112,7 +112,7 @@ pub(super) fn regroup(
     motion.clear();
     groups.clear();
     for row in rows.iter() {
-        let first = u32::try_from(records.len()).map_or(u32::MAX, |value| value);
+        let first = crate::fallback(u32::try_from(records.len()), u32::MAX);
         records.push(row.record);
         if include_auxiliary {
             previous.push(row.previous);

@@ -113,7 +113,7 @@ fn dispatch_count(engine: &super::Engine<MockDevice>) -> usize {
 #[test]
 fn density_volume_uploads_the_callers_values_once_and_draws_through_oit() {
     let values: Arc<[f32]> = (0..64)
-        .map(|index| f32::from(u8::try_from(index).map_or(u8::MAX, |value| value)) / 63.0)
+        .map(|index| f32::from(u8::try_from(index).unwrap_or(u8::MAX)) / 63.0)
         .collect();
     let source_pointer = values.as_ptr() as usize;
     let volume = match ScalarVolume::from_spacing([4, 4, 4], Vec3::splat(-1.5), Vec3::ONE, values) {

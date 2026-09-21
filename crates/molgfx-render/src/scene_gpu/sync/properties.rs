@@ -21,12 +21,11 @@ pub(super) fn resolve<'a>(
     ];
     let properties = handles
         .map(|handle| handle.and_then(|handle| scene.property_for_structure(handle, structure)));
-    let revisions = handles.map(|handle| match handle {
-        Some(handle) => match scene.property_content_revision(handle) {
-            Some(revision) => revision,
-            None => 0,
-        },
-        None => 0,
+    let revisions = handles.map(|handle| {
+        handle
+            .and_then(|handle| scene.property_content_revision(handle))
+            .into_iter()
+            .fold(0, |_, revision| revision)
     });
     (properties[0], properties[1], revisions)
 }
@@ -64,12 +63,10 @@ pub(super) fn resolve_visual(
         Some(VisualAttributeRef::Attribute { handle, .. }) => {
             scene.attribute_change(handle).map_or(0, |change| change.0)
         }
-        Some(VisualAttributeRef::LegacyScalar(handle)) => {
-            match scene.property_content_revision(handle) {
-                Some(revision) => revision,
-                None => 0,
-            }
-        }
+        Some(VisualAttributeRef::LegacyScalar(handle)) => scene
+            .property_content_revision(handle)
+            .into_iter()
+            .fold(0, |_, revision| revision),
         Some(VisualAttributeRef::Column { .. }) | None => 0,
     });
     (handles, revisions)

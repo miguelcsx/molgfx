@@ -38,13 +38,12 @@ impl SegmentLookup {
             && u64::from(max_label)
                 <= u64::try_from(count).map_or(u64::MAX, |value| value.saturating_mul(4));
         if direct {
-            let length = match usize::try_from(max_label)
-                .ok()
-                .and_then(|value| value.checked_add(1))
-            {
-                Some(length) => length,
-                None => 1,
-            };
+            let length = crate::fallback(
+                usize::try_from(max_label)
+                    .ok()
+                    .and_then(|value| value.checked_add(1)),
+                1,
+            );
             let mut entries = vec![SegmentStyleGpu::zeroed(); length];
             for style in styles {
                 if let Some(entry) = entries.get_mut(style.label as usize) {
@@ -59,7 +58,7 @@ impl SegmentLookup {
         } else {
             let capacity = hash_capacity(count);
             let mut entries = vec![SegmentStyleGpu::zeroed(); capacity];
-            let mask = u32::try_from(capacity.saturating_sub(1)).map_or(u32::MAX, |value| value);
+            let mask = crate::fallback(u32::try_from(capacity.saturating_sub(1)), u32::MAX);
             for style in styles {
                 let mut index = (hash_label(style.label) & mask) as usize;
                 for _ in 0..capacity {

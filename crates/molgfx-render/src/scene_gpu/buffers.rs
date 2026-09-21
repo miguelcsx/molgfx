@@ -195,5 +195,5 @@ pub(super) fn buffer_entry<D: Device>(binding: u32, buffer: &D::Buffer) -> BindG
 }
 
 pub(super) fn count(len: usize) -> u32 {
-    u32::try_from(len).map_or(u32::MAX, |value| value)
+    crate::fallback(u32::try_from(len), u32::MAX)
 }
