@@ -72,7 +72,7 @@ fn mutable_secondary_structure_remains_placement_local() {
     );
     assert_eq!(
         second.secondary_structure.values()[0],
-        SecondaryStructure::Coil
+        SecondaryStructure::Unknown
     );
 }
 

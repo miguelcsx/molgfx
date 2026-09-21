@@ -44,7 +44,8 @@ impl PolymerTraces {
         ranges: Vec<TraceRange>,
     ) {
         self.styles.clear();
-        self.styles.resize(points.len(), SecondaryStructure::Coil);
+        self.styles
+            .resize(points.len(), SecondaryStructure::Unknown);
         self.properties.clear();
         self.properties.resize(points.len(), f32::NAN);
         self.points = points;
@@ -142,7 +143,7 @@ pub fn extract_polymer_traces(
             let residue_index = residue.index().as_usize();
             output.styles.push(match secondary.get(residue_index) {
                 Some(&style) => style,
-                None => SecondaryStructure::Coil,
+                None => SecondaryStructure::Unknown,
             });
             output.properties.push(match atom.b_factor() {
                 Some(value) => value,

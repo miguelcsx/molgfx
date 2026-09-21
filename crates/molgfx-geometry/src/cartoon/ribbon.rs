@@ -363,7 +363,7 @@ fn append_ribbon(
         };
         let style = match styles.get(segment) {
             Some(&value) => value,
-            None => SecondaryStructure::Coil,
+            None => SecondaryStructure::Unknown,
         };
         let (width_scale, thickness_scale) = match build.params.profile {
             SplineProfile::Cartoon => profile_scale(style, sample.parameter, styles, segment),

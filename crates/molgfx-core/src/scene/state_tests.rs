@@ -390,9 +390,9 @@ fn molframe_secondary_structure_replaces_the_reversible_residue_column() {
     assert_eq!(
         placed.secondary_structure.values(),
         &[
-            SecondaryStructure::Coil,
+            SecondaryStructure::Unknown,
             SecondaryStructure::Strand,
-            SecondaryStructure::Coil
+            SecondaryStructure::Unknown
         ]
     );
 }
