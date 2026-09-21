@@ -18,22 +18,52 @@ struct GpuPagedInstanceBatch<D: Device> {
     capsule_count: u32,
 }
 
+struct PagedInstanceCreate<'a, D: Device> {
+    device: &'a D,
+    queue: &'a D::Queue,
+    cull_layout: &'a D::BindGroupLayout,
+    render_layout: &'a D::BindGroupLayout,
+    timeline_layout: &'a D::BindGroupLayout,
+    source: &'a D::Buffer,
+    source_revision: u64,
+    page: u32,
+    plan: &'a crate::engine::chunk_draw_plan::ResidentInstanceChunkPlacement,
+    template: Arc<GpuAnalyticTemplate<D>>,
+    resources: GenericVisualResources<'a, D>,
+    materialize: bool,
+}
+
+pub(super) struct PagedInstanceSync<'a, D: Device> {
+    pub(super) device: &'a D,
+    pub(super) queue: &'a D::Queue,
+    pub(super) cull_layout: &'a D::BindGroupLayout,
+    pub(super) render_layout: &'a D::BindGroupLayout,
+    pub(super) timeline_layout: &'a D::BindGroupLayout,
+    pub(super) source: &'a D::Buffer,
+    pub(super) source_revision: u64,
+    pub(super) picking: &'a PickPages,
+    pub(super) plans: &'a [crate::engine::chunk_draw_plan::ResidentInstanceChunkPlacement],
+    pub(super) resources: GenericVisualResources<'a, D>,
+    pub(super) derived_cache: &'a mut DerivedCache,
+    pub(super) frame: u64,
+}
+
 impl<D: Device> GpuPagedInstanceBatch<D> {
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        device: &D,
-        queue: &D::Queue,
-        cull_layout: &D::BindGroupLayout,
-        render_layout: &D::BindGroupLayout,
-        timeline_layout: &D::BindGroupLayout,
-        source: &D::Buffer,
-        source_revision: u64,
-        page: u32,
-        plan: &crate::engine::chunk_draw_plan::ResidentInstanceChunkPlacement,
-        template: Arc<GpuAnalyticTemplate<D>>,
-        resources: GenericVisualResources<'_, D>,
-        materialize: bool,
-    ) -> Result<Self, RenderError> {
+    fn new(input: PagedInstanceCreate<'_, D>) -> Result<Self, RenderError> {
+        let PagedInstanceCreate {
+            device,
+            queue,
+            cull_layout,
+            render_layout,
+            timeline_layout,
+            source,
+            source_revision,
+            page,
+            plan,
+            template,
+            resources,
+            materialize,
+        } = input;
         let count = plan.span.row_count();
         let sphere_count = checked_count(plan.template.spheres().len())?;
         let capsule_count = checked_count(plan.template.capsules().len())?;
@@ -132,22 +162,24 @@ fn same_materialized_config(
 }
 
 impl<D: Device> GpuInstanceBatches<D> {
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn sync_paged(
         &mut self,
-        device: &D,
-        queue: &D::Queue,
-        cull_layout: &D::BindGroupLayout,
-        render_layout: &D::BindGroupLayout,
-        timeline_layout: &D::BindGroupLayout,
-        source: &D::Buffer,
-        source_revision: u64,
-        picking: &PickPages,
-        plans: &[crate::engine::chunk_draw_plan::ResidentInstanceChunkPlacement],
-        resources: GenericVisualResources<'_, D>,
-        derived_cache: &mut DerivedCache,
-        frame: u64,
+        input: PagedInstanceSync<'_, D>,
     ) -> Result<bool, RenderError> {
+        let PagedInstanceSync {
+            device,
+            queue,
+            cull_layout,
+            render_layout,
+            timeline_layout,
+            source,
+            source_revision,
+            picking,
+            plans,
+            resources,
+            derived_cache,
+            frame,
+        } = input;
         self.plan_paged_materializations(plans, derived_cache, frame);
         if self.paged.len() == plans.len()
             && self
@@ -198,7 +230,7 @@ impl<D: Device> GpuInstanceBatches<D> {
                     || GpuAnalyticTemplate::new(device, queue, &plan.template),
                     Ok,
                 )?;
-            rebuilt.push(GpuPagedInstanceBatch::new(
+            rebuilt.push(GpuPagedInstanceBatch::new(PagedInstanceCreate {
                 device,
                 queue,
                 cull_layout,
@@ -210,8 +242,8 @@ impl<D: Device> GpuInstanceBatches<D> {
                 plan,
                 template,
                 resources,
-                *materialize,
-            )?);
+                materialize: *materialize,
+            })?);
         }
         self.paged = rebuilt;
         self.paged_binding_revision = self.paged_binding_revision.wrapping_add(1);

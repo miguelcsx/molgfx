@@ -4,6 +4,7 @@
 mod paged;
 #[path = "relations/visual.rs"]
 mod paged_visual;
+pub(in crate::scene_gpu) use paged::PagedRelationSync;
 
 use super::asset_arena::AssetArena;
 use super::buffers::{count, write_draw_args};
@@ -23,7 +24,7 @@ use molgfx_core::{
 };
 use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue as _};
 use molgfx_math::Mat4;
-use paged_visual::{PagedRelationVisualArenas, PagedRelationVisualState};
+use paged_visual::{PagedRelationVisualArenas, PagedRelationVisualState, PagedVisualSync};
 use std::collections::BTreeMap;
 
 const RESOLVER_ALIGNMENT_ROWS: usize = 4;
@@ -148,6 +149,20 @@ pub(super) struct RelationSources<'a, D: Device> {
     pub(super) instances: &'a GpuInstanceBatches<D>,
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct RelationSync<'a, D: Device> {
+    pub(super) device: &'a D,
+    pub(super) queue: &'a D::Queue,
+    pub(super) render_layout: &'a D::BindGroupLayout,
+    pub(super) cull_layout: &'a D::BindGroupLayout,
+    pub(super) resolve_layout: &'a D::BindGroupLayout,
+    pub(super) scene: &'a Scene,
+    pub(super) sources: RelationSources<'a, D>,
+    pub(super) picking: &'a PickPages,
+    pub(super) dynamic_sources_changed: bool,
+    pub(super) visual: GenericVisualResources<'a, D>,
+}
+
 impl<D: Device> Copy for RelationSources<'_, D> {}
 
 impl<D: Device> Clone for RelationSources<'_, D> {
@@ -191,20 +206,18 @@ impl<D: Device> GpuInteractions<D> {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub(super) fn sync(
-        &mut self,
-        device: &D,
-        queue: &D::Queue,
-        render_layout: &D::BindGroupLayout,
-        cull_layout: &D::BindGroupLayout,
-        resolve_layout: &D::BindGroupLayout,
-        scene: &Scene,
-        sources: RelationSources<'_, D>,
-        picking: &PickPages,
-        dynamic_sources_changed: bool,
-        visual: GenericVisualResources<'_, D>,
-    ) -> Result<bool, RenderError> {
+    pub(super) fn sync(&mut self, input: &RelationSync<'_, D>) -> Result<bool, RenderError> {
+        let RelationSync {
+            device,
+            queue,
+            cull_layout,
+            scene,
+            sources,
+            picking,
+            dynamic_sources_changed,
+            visual,
+            ..
+        } = *input;
         let revision = (
             scene.interaction_revision(),
             scene.guide_revision(),
@@ -235,13 +248,28 @@ impl<D: Device> GpuInteractions<D> {
             }
             return Ok(state_changed || dynamic_sources_changed);
         }
+        let row_count = self.sync_geometry(input, data_changed)?;
+        self.sync_visuals(device, queue, cull_layout, scene, visual)?;
+        self.count = row_count;
+        self.dynamic_dirty |= (data_changed && !self.streams.is_empty())
+            || (state_changed && self.streams.iter().any(|stream| stream.tracks_coordinates));
+        self.synced = Some(revision);
+        self.visual_synced = Some(visual_revision);
+        Ok(true)
+    }
+
+    fn sync_geometry(
+        &mut self,
+        input: &RelationSync<'_, D>,
+        data_changed: bool,
+    ) -> Result<u32, RenderError> {
         let mut output_rebound = false;
         let mut plans = Vec::new();
         if data_changed {
             self.invalidate_paged_sync();
             self.scratch.clear();
             self.visual_plans.clear();
-            self.pack_legacy(scene, sources.structures)?;
+            self.pack_legacy(input.scene, input.sources.structures)?;
             let legacy_count = count(self.scratch.len());
             if legacy_count != 0 {
                 self.visual_plans.push(RelationVisualPlan {
@@ -252,16 +280,23 @@ impl<D: Device> GpuInteractions<D> {
                     opacity: 1.0,
                 });
             }
-            plans = self.pack_relations(scene, picking)?;
-            self.base
-                .upload(device, queue, "base relation glyph table", &self.scratch)?;
-            output_rebound =
-                self.buffer
-                    .upload(device, queue, "interaction glyph table", &self.scratch)?;
+            plans = self.pack_relations(input.scene, input.picking)?;
+            self.base.upload(
+                input.device,
+                input.queue,
+                "base relation glyph table",
+                &self.scratch,
+            )?;
+            output_rebound = self.buffer.upload(
+                input.device,
+                input.queue,
+                "interaction glyph table",
+                &self.scratch,
+            )?;
         }
         let row_count = count(self.scratch.len());
         let visible_rebound = self.visible.reserve(
-            device,
+            input.device,
             "visible relation rows",
             u64::from(row_count).saturating_mul(4),
         )?;
@@ -271,18 +306,18 @@ impl<D: Device> GpuInteractions<D> {
         if data_changed && plans.is_empty() {
             self.streams.clear();
         } else if data_changed {
-            self.ensure_fallbacks(device, queue)?;
+            self.ensure_fallbacks(input.device, input.queue)?;
             self.resolvers.upload(
-                device,
-                queue,
+                input.device,
+                input.queue,
                 "dynamic relation resolver table",
                 &self.resolver_scratch,
             )?;
         }
         if data_changed {
             write_draw_args(
-                device,
-                queue,
+                input.device,
+                input.queue,
                 "interaction glyph indirect arguments",
                 6,
                 0,
@@ -290,21 +325,15 @@ impl<D: Device> GpuInteractions<D> {
             )?;
         }
         if output_rebound || visible_rebound || self.render_group.is_none() {
-            self.bind_draw_group(device, render_layout);
+            self.bind_draw_group(input.device, input.render_layout);
         }
         if data_changed && !plans.is_empty() {
-            self.bind_streams(device, resolve_layout, sources, &plans)?;
+            self.bind_streams(input.device, input.resolve_layout, input.sources, &plans)?;
         }
         if data_changed {
             self.capture_scene_state();
         }
-        self.sync_visuals(device, queue, cull_layout, scene, visual)?;
-        self.count = row_count;
-        self.dynamic_dirty |= (data_changed && !self.streams.is_empty())
-            || (state_changed && self.streams.iter().any(|stream| stream.tracks_coordinates));
-        self.synced = Some(revision);
-        self.visual_synced = Some(visual_revision);
-        Ok(true)
+        Ok(row_count)
     }
 
     fn capture_scene_state(&mut self) {

@@ -213,15 +213,15 @@ impl<D: Device> ChunkGpuResidency<D> {
             revision: self.revision,
             binding_revision: self.binding_revision,
         })?;
-        scene.sync_paged_instances(
+        scene.sync_paged_instances(crate::scene_gpu::PagedInstancesSync {
             device,
             queue,
-            &self.buffer,
-            self.binding_revision,
-            &self.instance_plan,
+            source: &self.buffer,
+            source_revision: self.binding_revision,
+            plans: &self.instance_plan,
             derived_cache,
             frame,
-        )?;
+        })?;
         self.plan_attribute_materializations(derived_cache, frame)?;
         scene.sync_paged_attribute_timelines(
             device,
@@ -231,20 +231,20 @@ impl<D: Device> ChunkGpuResidency<D> {
             self.binding_revision,
         )?;
         let residency = &*self;
-        scene.sync_paged_relations(
+        scene.sync_paged_relations(crate::scene_gpu::PagedRelationsSync {
             device,
             queue,
-            &self.display_buffer,
-            &self.buffer,
-            &self.relation_plan,
-            &self.instance_plan,
-            self.relation_revision,
-            self.binding_revision,
-            self.instance_timeline_revision,
-            self.attribute_timeline_revision,
-            |anchor| residency.resolve_spatial_anchor(anchor),
-            |ticket| residency.resident_visual_attribute_column(ticket),
-        )?;
+            display_source: &self.display_buffer,
+            generic_source: &self.buffer,
+            plans: &self.relation_plan,
+            instance_plans: &self.instance_plan,
+            revision: self.relation_revision,
+            source_revision: self.binding_revision,
+            instance_timeline_revision: self.instance_timeline_revision,
+            attribute_timeline_revision: self.attribute_timeline_revision,
+            resolve: |anchor| residency.resolve_spatial_anchor(anchor),
+            resolve_attribute: |ticket| residency.resident_visual_attribute_column(ticket),
+        })?;
         self.bonds.sync_scene(
             scene,
             device,
