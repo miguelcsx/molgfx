@@ -160,7 +160,9 @@ fn bond_over_break_length(bond: BondRecord) -> bool {
     }
     let position_a = resolved_position(input_atoms[bond.atom_a].entity_id);
     let position_b = resolved_position(input_atoms[bond.atom_b].entity_id);
-    return distance(position_a, position_b) > counts.bond_break_length;
+    let delta = position_a - position_b;
+    let break_length = counts.bond_break_length;
+    return dot(delta, delta) > break_length * break_length;
 }
 
 fn is_visible(index: u32) -> bool {
