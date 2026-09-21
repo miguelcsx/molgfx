@@ -45,6 +45,7 @@ pub trait CommandEncoder<D: Device>: Sized {
         origin: (u32, u32),
         size: (u32, u32),
         bytes_per_row: u32,
+        destination_offset: u64,
         dst: &D::Buffer,
     );
 

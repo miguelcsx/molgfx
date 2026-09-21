@@ -11,6 +11,7 @@ use molgfx_core::{
 use molgfx_gpu::{BufferDesc, BufferUsage, CommandEncoder as _, Device, Queue as _};
 
 const READBACK_BYTES: u32 = 256;
+const PICK_FIELDS: u64 = 4;
 
 /// A resolved visible entity and its convenient single-atom selection.
 #[derive(Clone, Debug)]
@@ -32,10 +33,7 @@ pub enum PickEntity {
 
 #[derive(Debug)]
 pub(crate) struct Picker<D: Device> {
-    local_row: D::Buffer,
-    resident_page: D::Buffer,
-    segment_volume: D::Buffer,
-    segment_label: D::Buffer,
+    readback: D::Buffer,
     submission: Box<[Option<PickPageTicket>]>,
 }
 
@@ -49,10 +47,7 @@ impl<D: Device> Picker<D> {
             .map_err(|_| molgfx_core::PickingError::AllocationFailed)?;
         submission.resize(capacity, None);
         Ok(Self {
-            local_row: readback(device, "local row pick readback")?,
-            resident_page: readback(device, "resident page pick readback")?,
-            segment_volume: readback(device, "segment volume pick readback")?,
-            segment_label: readback(device, "segment label pick readback")?,
+            readback: readback(device, "packed pick readback")?,
             submission: submission.into_boxed_slice(),
         })
     }
@@ -70,43 +65,16 @@ impl<D: Device> Engine<D> {
         if !self.record_pick(x, y)? {
             return Ok(None);
         }
-        let local_row = self
+        let packed = self
             .queue
             .read_buffer_async(
                 &self.device,
-                &self.picker.local_row,
+                &self.picker.readback,
                 0,
-                std::mem::size_of::<u32>() as u64,
+                u64::from(READBACK_BYTES) * PICK_FIELDS,
             )
             .await?;
-        let resident_page = self
-            .queue
-            .read_buffer_async(
-                &self.device,
-                &self.picker.resident_page,
-                0,
-                std::mem::size_of::<u32>() as u64,
-            )
-            .await?;
-        let segment_volume = self
-            .queue
-            .read_buffer_async(
-                &self.device,
-                &self.picker.segment_volume,
-                0,
-                std::mem::size_of::<u32>() as u64,
-            )
-            .await?;
-        let segment_label = self
-            .queue
-            .read_buffer_async(
-                &self.device,
-                &self.picker.segment_label,
-                0,
-                std::mem::size_of::<u32>() as u64,
-            )
-            .await?;
-        self.resolve_pick(&local_row, &resident_page, &segment_volume, &segment_label)
+        self.resolve_pick(&packed)
     }
 
     /// Resolves the exact visible entity at one top-left-origin pixel in
@@ -121,31 +89,13 @@ impl<D: Device> Engine<D> {
         if !self.record_pick(x, y)? {
             return Ok(None);
         }
-        let local_row = self.queue.read_buffer_blocking(
+        let packed = self.queue.read_buffer_blocking(
             &self.device,
-            &self.picker.local_row,
+            &self.picker.readback,
             0,
-            std::mem::size_of::<u32>() as u64,
+            u64::from(READBACK_BYTES) * PICK_FIELDS,
         )?;
-        let resident_page = self.queue.read_buffer_blocking(
-            &self.device,
-            &self.picker.resident_page,
-            0,
-            std::mem::size_of::<u32>() as u64,
-        )?;
-        let segment_volume = self.queue.read_buffer_blocking(
-            &self.device,
-            &self.picker.segment_volume,
-            0,
-            std::mem::size_of::<u32>() as u64,
-        )?;
-        let segment_label = self.queue.read_buffer_blocking(
-            &self.device,
-            &self.picker.segment_label,
-            0,
-            std::mem::size_of::<u32>() as u64,
-        )?;
-        self.resolve_pick(&local_row, &resident_page, &segment_volume, &segment_label)
+        self.resolve_pick(&packed)
     }
 
     fn record_pick(&mut self, x: u32, y: u32) -> Result<bool, RenderError> {
@@ -177,40 +127,42 @@ impl<D: Device> Engine<D> {
             (x, y),
             (1, 1),
             READBACK_BYTES,
-            &self.picker.local_row,
+            0,
+            &self.picker.readback,
         );
         encoder.copy_texture_to_buffer(
             structure_texture,
             (x, y),
             (1, 1),
             READBACK_BYTES,
-            &self.picker.resident_page,
+            u64::from(READBACK_BYTES),
+            &self.picker.readback,
         );
         encoder.copy_texture_to_buffer(
             segment_volume_texture,
             (x, y),
             (1, 1),
             READBACK_BYTES,
-            &self.picker.segment_volume,
+            u64::from(READBACK_BYTES) * 2,
+            &self.picker.readback,
         );
         encoder.copy_texture_to_buffer(
             segment_label_texture,
             (x, y),
             (1, 1),
             READBACK_BYTES,
-            &self.picker.segment_label,
+            u64::from(READBACK_BYTES) * 3,
+            &self.picker.readback,
         );
         self.queue.submit(encoder);
         Ok(true)
     }
 
-    fn resolve_pick(
-        &self,
-        local_row: &[u8],
-        resident_page: &[u8],
-        segment_volume: &[u8],
-        segment_label: &[u8],
-    ) -> Result<Option<Pick>, RenderError> {
+    fn resolve_pick(&self, packed: &[u8]) -> Result<Option<Pick>, RenderError> {
+        let local_row = pick_field(packed, 0);
+        let resident_page = pick_field(packed, 1);
+        let segment_volume = pick_field(packed, 2);
+        let segment_label = pick_field(packed, 3);
         if let (Some(source_id), Some(label)) = (read_u32(segment_volume), read_u32(segment_label))
             && source_id != u32::MAX
             && let Some(segment) = self.scene_gpu.resolve_segment(source_id, label)
@@ -263,9 +215,19 @@ impl<D: Device> Engine<D> {
 fn readback<D: Device>(device: &D, label: &'static str) -> Result<D::Buffer, RenderError> {
     Ok(device.create_buffer(&BufferDesc {
         label,
-        size: u64::from(READBACK_BYTES),
+        size: u64::from(READBACK_BYTES) * PICK_FIELDS,
         usage: BufferUsage::COPY_DST.union(BufferUsage::MAP_READ),
     })?)
+}
+
+fn pick_field(bytes: &[u8], index: usize) -> &[u8] {
+    let width = READBACK_BYTES as usize;
+    let start = index.saturating_mul(width);
+    let end = start.saturating_add(width).min(bytes.len());
+    match bytes.get(start..end) {
+        Some(field) => field,
+        None => &[],
+    }
 }
 
 fn read_u32(bytes: &[u8]) -> Option<u32> {
