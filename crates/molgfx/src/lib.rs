@@ -1,88 +1,79 @@
-//! Host-neutral facade for the public engine surface.
+//! `MolGFX`'s curated declarative molecular-rendering API.
 //!
-//! Callers import from here only. The crate is a list of re-exports and the
-//! feature flags that decide which subsystems get linked; it holds no rendering
-//! or scientific logic.
-//!
-//! The root carries the curated names an ordinary program wants — the scene and
-//! the engine that drives it, representations and materials, camera and image,
-//! the typed errors. Each subsystem is also published under its own name —
-//! `molgfx::core`, `molgfx::render` — so a name lives in exactly one place and
-//! a kernel, request record or render-graph type a program wants is one
-//! namespace away.
-//!
-//! Math identities are project-owned and re-exported from [`math`]; glam stays
-//! a private implementation detail. Backends are chosen by capability behind
-//! [`render::Engine`] and never named.
-//!
-//! The structural model is re-exported as [`molframe`] because public
-//! signatures here name its types — a chunk payload carries a `StructureChunk`,
-//! a selection carries a `BitVec` — and a caller restricted to this crate has to
-//! be able to say what it is holding.
-//!
-//! # Drawing a structure
-//!
-//! ```no_run
-//! use molgfx::{
-//!     Camera, Engine, EngineConfig, ImageConfig, Representation, RepresentationKind, Scene, Select,
-//! };
-//! use molgfx::molframe;
-//! // The semantic layer's composition methods resolve through its trait.
-//! use molgfx::semantic::FocusScene;
-//!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let structure = molframe::read("1abc.cif")
-//!         .map_err(|errors| format!("{} diagnostics", errors.len()))?;
-//!     let mut scene = Scene::from_structure(&structure)?;
-//!
-//!     scene.represent(Select::polymer(), RepresentationKind::Cartoon)?;
-//!     scene.represent(Select::ligands(), RepresentationKind::BallAndStick)?;
-//!     let ligand = scene.select(Select::ligands())?;
-//!     scene.focus(ligand)?;
-//!
-//!     let camera = Camera::framing_aabb(&scene.world_aabb(), 16.0 / 9.0);
-//!     let mut engine = Engine::new(&EngineConfig::default(), None)?;
-//!     let image = engine.render_image(
-//!         &scene,
-//!         &camera,
-//!         ImageConfig {
-//!             width: 1920,
-//!             height: 1080,
-//!         },
-//!     )?;
-//!     std::fs::write("structure.png", image.png_bytes()?)?;
-//!     Ok(())
-//! }
-//! ```
+//! A scene retains immutable `MolFrame` storage, stores portable semantic
+//! specifications, and resolves physical GPU resources only inside the
+//! renderer. Implementation crates remain separately usable by expert Rust
+//! callers; they are intentionally not exposed through this facade.
 
 #![forbid(unsafe_code)]
 
-pub mod core;
-pub mod gpu;
-pub mod math;
-#[cfg(feature = "realtime")]
-pub mod render;
-#[cfg(feature = "semantic")]
-pub mod semantic;
+#[cfg(not(target_arch = "wasm32"))]
+pub use molgfx_api::Image;
+pub use molgfx_api::Renderer;
+pub use molgfx_api::{
+    Camera, Color, ColorSpec, Error, InteractionChannel, Legend, LegendStop, Parameter,
+    ParameterType, ParameterValue, PatchError, PatchOperation, PickKind, PickResult, Quality,
+    RenderProfile, RepresentationId, RepresentationSpec, Revisions, Scene, SceneItem, ScenePatch,
+    SceneSpec, SceneTransaction, Selection, StructureId, StructureSource, VisualStyle, molframe,
+};
 
-pub use molframe;
+/// Immutable representation specifications and constructors.
+pub mod rep {
+    pub use molgfx_api::rep::{
+        AtomRepresentation, Cartoon, CartoonStyle, PointRepresentation, Surface, SurfaceKind,
+        SurfaceStyle, ball_and_stick, base_pairs, bases, cartoon, glycan, licorice, lines,
+        nucleic_acid, points, spacefill, surface,
+    };
+}
 
-pub use crate::core::{
-    AtomSelection, AttributeHandle, CameraBookmark, ColorScheme, CoreError, DifferenceScene,
-    Ensemble, EnsembleHandle, EntityProvenance, InstanceBatchHandle, Material, MeasurementHandle,
-    MeshHandle, OverlayHandle, PointBatchHandle, PrimitiveHandle, RelationBatchHandle,
-    Representation, RepresentationConfig, RepresentationHandle, RepresentationKind,
-    RepresentationPreset, Scene, Select, SelectionHandle, StructureHandle, Timeline,
-    TimelineTrackHandle, VolumeHandle,
-};
-pub use crate::math::{Aabb, Camera, Mat3, Mat4, Quat, Rgba8, Vec2, Vec3, Vec4};
-#[cfg(feature = "realtime")]
-pub use crate::render::{
-    Engine, EngineConfig, FrameReport, Image, ImageConfig, Pick, RenderError, RenderMode,
-    RenderProfile,
-};
-#[cfg(feature = "semantic")]
-pub use crate::semantic::{
-    FocusScene, FocusStyle, FocusView, GenericCompositionScene, SurfaceZone, SurfaceZoneScene,
-    SurfaceZoneStyle,
-};
+/// `MolFrame`'s exact molecular selection-expression surface.
+pub mod sel {
+    pub use molgfx_api::sel::{
+        Builder, ColumnBuilder, all, aromatic, backbone, by_residue, chain, col, glycans, heavy,
+        hetero, hydrogen, ions, ligands, lipids, name, none, nucleic, nucleic_backbone,
+        nucleic_base, nucleic_sugar, occupancy, polymer, protein, residues_within, resname,
+        sidechain, water, within,
+    };
+}
+
+/// Scientific color values and mappings.
+pub mod color {
+    pub use molgfx_api::color::{
+        Color, ColorSpec, Legend, LegendStop, chain, element, property, residue,
+        secondary_structure, uniform,
+    };
+}
+
+/// Adaptive rendering profiles.
+pub mod profile {
+    pub use molgfx_api::profile::{Quality, RenderProfile, adaptive, interactive, publication};
+}
+
+/// Typed immutable visual-expression DAGs.
+pub mod visual {
+    pub use molgfx_api::visual::{
+        BoolExpr, ColorExpr, Parameter, ParameterType, ParameterValue, ScalarExpr, VectorExpr,
+        VisualStyle,
+    };
+}
+
+/// Bounded provider-neutral data streaming.
+pub mod streaming {
+    pub use molgfx_api::streaming::{
+        Cancellation, Chunk, DataSource, Limits, Metadata, Priority, Request, Scheduler,
+        SourceError,
+    };
+}
+
+/// Portable scene interchange.
+pub mod interop {
+    pub use molgfx_api::interop::{
+        Diagnostic, MvsDocument, MvsImport, from_mvsj, from_mvsx, to_mvsj, to_mvsx,
+    };
+}
+
+/// Ordinary imports for authoring and rendering a scene.
+pub mod prelude {
+    pub use crate::Renderer;
+    pub use crate::{Scene, ScenePatch, color, profile, rep, sel, visual};
+}

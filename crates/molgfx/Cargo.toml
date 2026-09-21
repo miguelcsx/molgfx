@@ -1,37 +1,14 @@
 [package]
 name = "molgfx"
-description = "Facade crate: feature-gated re-exports of the public engine surface."
+description = "Curated declarative molecular-rendering API."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
-[features]
-# The default turns on the whole engine, so a caller who wants a picture adds
-# the crate and nothing else. The cost is real and worth stating: `semantic`
-# implies `realtime`, which links `molgfx-render` and `molgfx-wgpu`, so headless
-# work that only wants the scene graph pays for the renderer. A caller in that
-# position opts out with `default-features = false` and names what it needs.
-default = ["semantic"]
-# The interactive raster path over the default backend.
-realtime = ["dep:molgfx-render", "dep:molgfx-wgpu"]
-# The semantic layer: focus, banding, interactions.
-semantic = ["realtime", "dep:molgfx-semantic"]
-
 [dependencies]
-molgfx-math.workspace = true
-molgfx-core.workspace = true
-molgfx-gpu.workspace = true
-molgfx-render = { workspace = true, optional = true }
-molgfx-wgpu = { workspace = true, optional = true }
-molgfx-semantic = { workspace = true, optional = true }
-
-# Re-exported at the root. Public signatures in `molgfx-core` name types that
-# live here — a chunk payload carries `StructureChunk`, a selection carries a
-# `BitVec`, provenance carries `EntryMetadata` — and a caller who may import only
-# from `molgfx` has to be able to name them.
-molframe.workspace = true
+molgfx-api.workspace = true
 
 [lints]
 workspace = true
