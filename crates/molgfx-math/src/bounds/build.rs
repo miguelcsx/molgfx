@@ -120,10 +120,9 @@ pub(super) fn checked_u32(
     index: usize,
     maximum: u32,
 ) -> Result<u32, BvhBuildError> {
-    let index_u64 = match u64::try_from(index) {
-        Ok(value) => value,
-        Err(_) => u64::MAX,
-    };
+    let index_u64 = u64::try_from(index)
+        .into_iter()
+        .fold(u64::MAX, |_, value| value);
     let converted = u32::try_from(index).map_err(|_| BvhBuildError {
         resource,
         index: index_u64,

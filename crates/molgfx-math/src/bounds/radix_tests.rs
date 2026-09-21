@@ -5,7 +5,6 @@
 //!
 //! The index-to-`u32` casts build fixtures from loop counters bounded by
 //! literals in this file; there is nothing to truncate.
-#![allow(clippy::cast_possible_truncation)]
 
 use super::super::bvh::MortonEntry;
 use super::sort_by_code;
@@ -16,7 +15,7 @@ fn entries(codes: &[u64]) -> Vec<MortonEntry> {
         .enumerate()
         .map(|(source, code)| MortonEntry {
             code: *code,
-            source: source as u32,
+            source: u32::try_from(source).expect("fixture index fits u32"),
         })
         .collect()
 }
@@ -25,7 +24,12 @@ fn reference(codes: &[u64]) -> Vec<(u64, u32)> {
     let mut expected: Vec<(u64, u32)> = codes
         .iter()
         .enumerate()
-        .map(|(source, code)| (*code, source as u32))
+        .map(|(source, code)| {
+            (
+                *code,
+                u32::try_from(source).expect("fixture index fits u32"),
+            )
+        })
         .collect();
     expected.sort_unstable();
     expected

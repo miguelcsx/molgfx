@@ -1,15 +1,15 @@
 //! A source has to agree with the materialised boxes it replaces, including in
 //! how it treats rows the caller got wrong. Anything else would make the choice
 //! between them visible in the picture.
-#![allow(clippy::cast_precision_loss)]
 
 use super::{BvhSource, SphereBounds, SweptSphereBounds};
 use crate::{Aabb, Vec3};
+use num_traits::ToPrimitive as _;
 
 fn centers(len: usize) -> Vec<[f32; 3]> {
     (0..len)
         .map(|index| {
-            let value = index as f32;
+            let value = index.to_f32().expect("fixture index fits f32");
             [value, value * 0.5 - 2.0, 3.0 - value]
         })
         .collect()
@@ -39,7 +39,9 @@ fn a_row_past_the_end_is_the_empty_bound_rather_than_a_panic() {
 #[test]
 fn a_sphere_source_matches_the_boxes_it_replaces() {
     let centers = centers(16);
-    let radii: Vec<f32> = (0..16).map(|index| 1.0 + index as f32 * 0.25).collect();
+    let radii: Vec<f32> = (0..16)
+        .map(|index| 1.0 + index.to_f32().expect("fixture index fits f32") * 0.25)
+        .collect();
     let source = SphereBounds::new(&centers, &radii);
     for (index, (center, radius)) in centers.iter().zip(&radii).enumerate() {
         let center = Vec3::from_array(*center);
@@ -82,7 +84,7 @@ fn a_negative_radius_still_encloses_its_primitive() {
 fn a_hierarchy_over_a_sphere_source_matches_one_over_materialised_boxes() {
     let centers = centers(200);
     let radii: Vec<f32> = (0..200)
-        .map(|index| 0.5 + (index % 5) as f32 * 0.3)
+        .map(|index| 0.5 + (index % 5).to_f32().expect("fixture index fits f32") * 0.3)
         .collect();
     let source = SphereBounds::new(&centers, &radii);
     let materialised: Vec<Aabb> = (0..200).map(|index| source.bound(index)).collect();

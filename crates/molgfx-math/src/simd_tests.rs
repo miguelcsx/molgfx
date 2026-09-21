@@ -5,19 +5,21 @@
 //! and take maxima, so agreeing with the scalar form to the bit is the claim
 //! being tested, not an approximation of it. The index-to-float casts build
 //! fixtures from loop counters bounded by literals in this file.
-#![allow(clippy::cast_precision_loss)]
 
 use super::{all_finite, all_finite_non_negative, all_within, min_max, points_aabb, spheres_aabb};
 use crate::{Aabb, Vec3};
+use num_traits::ToPrimitive as _;
 
 fn column(len: usize) -> Vec<f32> {
-    (0..len).map(|index| index as f32 * 0.5 - 3.0).collect()
+    (0..len)
+        .map(|index| index.to_f32().expect("fixture index fits f32") * 0.5 - 3.0)
+        .collect()
 }
 
 fn points(len: usize) -> Vec<[f32; 3]> {
     (0..len)
         .map(|index| {
-            let value = index as f32;
+            let value = index.to_f32().expect("fixture index fits f32");
             [value * 0.5 - 3.0, 2.0 - value, value * 0.25]
         })
         .collect()
@@ -126,7 +128,9 @@ fn a_point_bound_skips_a_non_finite_row() {
 fn a_sphere_bound_agrees_with_the_scalar_builder_across_the_lane_boundary() {
     for len in 0..40usize {
         let centers = points(len);
-        let radii: Vec<f32> = (0..len).map(|index| 1.0 + index as f32 * 0.1).collect();
+        let radii: Vec<f32> = (0..len)
+            .map(|index| 1.0 + index.to_f32().expect("fixture index fits f32") * 0.1)
+            .collect();
         let mut expected = Aabb::EMPTY;
         for (center, radius) in centers.iter().zip(&radii) {
             expected.extend_sphere(Vec3::from_array(*center), *radius);
