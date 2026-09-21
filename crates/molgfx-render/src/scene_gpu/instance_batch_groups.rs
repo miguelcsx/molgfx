@@ -1,4 +1,3 @@
-#[allow(clippy::too_many_lines)]
 fn instance_groups<D: Device>(
     context: &InstanceGroupContext<'_, D>,
     inputs: &InstanceGroupInputs<'_, D>,
