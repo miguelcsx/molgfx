@@ -9,8 +9,11 @@ use molgfx_core::{
     PropertyAppearance, Representation, RepresentationKind, SecondaryStructure, SurfaceKind,
     SurfaceStyle,
 };
-use molgfx_math::{Rgba8, Vec3};
+use molgfx_math::Rgba8;
 use rayon::prelude::*;
+
+mod residue_beads;
+pub use residue_beads::pack_residue_beads;
 
 #[cfg(test)]
 #[path = "pack_parallel_tests.rs"]
@@ -175,9 +178,21 @@ fn pack_atoms_inner(
         }))
     };
 
-    if selection.count(table.len()) < MIN_PARALLEL_ATOMS {
+    pack_selection(table.len(), selection, out, &pack_one)
+}
+
+fn pack_selection<F>(
+    atom_count: u32,
+    selection: &AtomSelection,
+    out: &mut Vec<AtomGpu>,
+    pack_one: &F,
+) -> Result<(), PackingError>
+where
+    F: Fn(u32) -> Result<Option<AtomGpu>, PackingError> + Sync,
+{
+    if selection.count(atom_count) < MIN_PARALLEL_ATOMS {
         let mut packing_error = None;
-        selection.for_each(table.len(), |index| {
+        selection.for_each(atom_count, |index| {
             if packing_error.is_some() {
                 return;
             }
@@ -195,18 +210,39 @@ fn pack_atoms_inner(
             None => Ok(()),
         }
     } else {
-        // The selected indices in ascending order; the parallel pack writes
-        // them back in the same order, which the compacted layout assumes.
-        let Ok(count) = usize::try_from(selection.count(table.len())) else {
-            return Ok(());
+        // Common contiguous encodings feed rayon directly and allocate only
+        // the final record vector. Irregular encodings materialize indices
+        // once because rayon has no indexed iterator over their compressed
+        // representation.
+        let packed = match selection {
+            AtomSelection::All => (0..atom_count)
+                .into_par_iter()
+                .with_min_len(PARALLEL_BLOCK)
+                .filter_map(|index| pack_one(index).transpose())
+                .collect::<Result<Vec<_>, _>>()?,
+            AtomSelection::Range(range) => (range.start..range.end.min(atom_count))
+                .into_par_iter()
+                .with_min_len(PARALLEL_BLOCK)
+                .filter_map(|index| pack_one(index).transpose())
+                .collect::<Result<Vec<_>, _>>()?,
+            AtomSelection::Sparse(indices) => indices
+                .par_iter()
+                .with_min_len(PARALLEL_BLOCK)
+                .filter_map(|&index| pack_one(index).transpose())
+                .collect::<Result<Vec<_>, _>>()?,
+            _ => {
+                let Ok(count) = usize::try_from(selection.count(atom_count)) else {
+                    return Ok(());
+                };
+                let mut indices = Vec::with_capacity(count);
+                selection.for_each(atom_count, |index| indices.push(index));
+                indices
+                    .par_iter()
+                    .with_min_len(PARALLEL_BLOCK)
+                    .filter_map(|&index| pack_one(index).transpose())
+                    .collect::<Result<Vec<_>, _>>()?
+            }
         };
-        let mut indices = Vec::with_capacity(count);
-        selection.for_each(table.len(), |index| indices.push(index));
-        let packed = indices
-            .par_iter()
-            .with_min_len(PARALLEL_BLOCK)
-            .filter_map(|&index| pack_one(index).transpose())
-            .collect::<Result<Vec<_>, _>>()?;
         out.extend(packed);
         Ok(())
     }
@@ -342,7 +378,9 @@ fn atom_appearance(
 
 fn multiply_unorm8(left: u8, right: u8) -> u8 {
     let product = u16::from(left) * u16::from(right) + 127;
-    u8::try_from(product / 255).map_or(u8::MAX, |value| value)
+    u8::try_from(product / 255)
+        .into_iter()
+        .fold(u8::MAX, |_, value| value)
 }
 
 fn pack_softness(semantic: u32, softness_pixels: f32) -> u32 {
@@ -385,117 +423,4 @@ fn secondary_color(value: SecondaryStructure) -> Rgba8 {
         SecondaryStructure::Turn => Rgba8::opaque(0, 128, 94),
         SecondaryStructure::Coil => Rgba8::opaque(60, 120, 170),
     }
-}
-
-/// Packs one bead per residue: a sphere enclosing that residue's selected
-/// atoms.
-///
-/// A bead answers "where is this residue and how big is it" without drawing a
-/// thousand atoms, which is what makes it readable on a whole assembly. The
-/// radius encloses the residue's own atoms including their van der Waals
-/// extent, so a bead never claims less volume than the residue occupies. The
-/// entity id is the residue's first selected atom, so picking a bead resolves
-/// to real chemistry rather than to a synthetic id.
-///
-/// # Errors
-///
-/// Returns [`PackingError`] when a residue source row cannot be encoded.
-pub fn pack_residue_beads(
-    table: &AtomTable,
-    hierarchy: &Hierarchy,
-    secondary_structure: &[SecondaryStructure],
-    property: Option<&AtomProperty>,
-    representation: &Representation,
-    selection: &AtomSelection,
-    out: &mut Vec<AtomGpu>,
-) -> Result<(), PackingError> {
-    out.clear();
-    let coords = table.coords().slice();
-    let radii = table.radius().values();
-    let colors = table.color().values();
-    let elements = table.element().values();
-    let flags = table.flags().values();
-    let semantics = table.semantic().values();
-    let residues = table.residue().values();
-    let scale = representation.params.radius_scale.max(0.0);
-
-    // One pass gathers each residue's centroid; a second grows the radius to
-    // enclose it. Residues arrive in table order, so a single sweep suffices.
-    let mut current: Option<u32> = None;
-    let mut members: Vec<usize> = Vec::new();
-    let flush = |members: &mut Vec<usize>, out: &mut Vec<AtomGpu>| -> Result<(), PackingError> {
-        let Some(&first) = members.first() else {
-            return Ok(());
-        };
-        let (sum, count) = members
-            .iter()
-            .fold((Vec3::ZERO, 0.0f32), |(sum, n), index| {
-                let point = coords
-                    .get(*index)
-                    .map_or(Vec3::ZERO, |p| Vec3::from_array(*p));
-                (sum + point, n + 1.0)
-            });
-        let centre = sum / count.max(1.0);
-        let mut radius = 0.0f32;
-        for index in members.iter() {
-            let point = coords.get(*index).map_or(centre, |p| Vec3::from_array(*p));
-            let extent = radii.get(*index).copied().map_or(0.0, |value| value);
-            radius = radius.max(centre.distance(point) + extent);
-        }
-        let mut color = representation_color(
-            representation.color,
-            colors
-                .get(first)
-                .copied()
-                .map_or(Rgba8::opaque(255, 255, 255), |value| value),
-            Some((hierarchy, secondary_structure)),
-            property,
-            residues.get(first).copied(),
-            first,
-        );
-        color.a = representation.material.opacity_unorm8();
-        let source = u64::try_from(first).map_err(|_| PackingError::IndexOverflow {
-            resource: "residue bead source",
-            index: u64::MAX,
-        })?;
-        out.push(AtomGpu {
-            radius: radius * scale,
-            color,
-            element: elements.get(first).copied().map_or(0, |value| value),
-            flags: flags
-                .get(first)
-                .copied()
-                .map_or(molgfx_core::AtomFlags(0), |value| value),
-            entity_id: EntityId::pack(EntityKind::Atom, source)?,
-            semantic: semantics.get(first).copied().map_or(0, |value| value),
-        });
-        members.clear();
-        Ok(())
-    };
-
-    let mut packing_error = None;
-    selection.for_each(table.len(), |index| {
-        if packing_error.is_some() {
-            return;
-        }
-        let i = index as usize;
-        let residue = residues.get(i).copied();
-        if current != residue {
-            if let Err(error) = flush(&mut members, out) {
-                packing_error = Some(error);
-                return;
-            }
-            current = residue;
-        }
-        members.push(i);
-    });
-    if let Some(error) = packing_error {
-        out.clear();
-        return Err(error);
-    }
-    if let Err(error) = flush(&mut members, out) {
-        out.clear();
-        return Err(error);
-    }
-    Ok(())
 }
