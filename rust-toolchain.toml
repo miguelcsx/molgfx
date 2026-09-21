@@ -1,3 +1,7 @@
 [toolchain]
 channel = "1.98.1"
 components = ["rustfmt", "clippy"]
+# `molgfx-wasm`'s items are all `#[cfg(target_arch = "wasm32")]`-gated, so
+# this target is the only way to actually type-check that crate's code —
+# a native check just cfg-strips it away.
+targets = ["wasm32-unknown-unknown"]

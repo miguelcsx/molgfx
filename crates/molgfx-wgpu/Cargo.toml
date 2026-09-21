@@ -9,10 +9,23 @@ repository.workspace = true
 
 [dependencies]
 molgfx-gpu.workspace = true
-wgpu.workspace = true
 pollster.workspace = true
 futures-channel.workspace = true
 raw-window-handle.workspace = true
+
+[target.'cfg(target_vendor = "apple")'.dependencies]
+wgpu = { workspace = true, features = ["std", "parking_lot", "metal", "wgsl"] }
+
+# `webgpu` only means anything against a JS host, so this matches the same
+# `target_os = "unknown"` predicate used everywhere else this codebase gates
+# wasm-bindgen-family code (`molgfx-gpu`, `molgfx-wasm`) — not
+# `wasm32-wasip*`/`wasm32-unknown-emscripten`, which fall through to the
+# desktop-backend branch below like any other non-Apple, non-browser target.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+wgpu = { workspace = true, features = ["std", "webgpu", "wgsl"] }
+
+[target.'cfg(not(any(target_vendor = "apple", all(target_arch = "wasm32", target_os = "unknown"))))'.dependencies]
+wgpu = { workspace = true, features = ["std", "parking_lot", "vulkan", "dx12", "wgsl"] }
 
 [lints]
 workspace = true
