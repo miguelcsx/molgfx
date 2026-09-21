@@ -175,8 +175,10 @@ fn percentile(sorted: &[u64], percentile: usize) -> u64 {
 }
 
 fn maximum(samples: &[FrameSample], value: impl Fn(&FrameSample) -> u64) -> u64 {
-    match samples.iter().map(value).max() {
-        Some(maximum) => maximum,
-        None => 0,
-    }
+    samples
+        .iter()
+        .map(value)
+        .max()
+        .into_iter()
+        .fold(0, |_, maximum| maximum)
 }
