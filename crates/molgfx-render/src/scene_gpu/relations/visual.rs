@@ -169,6 +169,18 @@ pub(super) struct PagedRelationVisualState<D: Device> {
     slot: VisualSlot<D>,
 }
 
+pub(super) struct PagedVisualSync<'a, D: Device, F> {
+    pub(super) device: &'a D,
+    pub(super) queue: &'a D::Queue,
+    pub(super) descriptor: Arc<ChunkVisualDescriptor>,
+    pub(super) row_count: usize,
+    pub(super) color: molgfx_math::Rgba8,
+    pub(super) opacity: f32,
+    pub(super) time_seconds: f32,
+    pub(super) arenas: &'a PagedRelationVisualArenas<D>,
+    pub(super) resolve: F,
+}
+
 impl<D: Device> PagedRelationVisualState<D> {
     pub(super) fn new(descriptor: Arc<ChunkVisualDescriptor>) -> Self {
         Self {
@@ -177,22 +189,21 @@ impl<D: Device> PagedRelationVisualState<D> {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub(super) fn sync<F>(
-        &mut self,
-        device: &D,
-        queue: &D::Queue,
-        descriptor: Arc<ChunkVisualDescriptor>,
-        row_count: usize,
-        color: molgfx_math::Rgba8,
-        opacity: f32,
-        time_seconds: f32,
-        arenas: &PagedRelationVisualArenas<D>,
-        mut resolve: F,
-    ) -> Result<bool, RenderError>
+    pub(super) fn sync<F>(&mut self, input: PagedVisualSync<'_, D, F>) -> Result<bool, RenderError>
     where
         F: FnMut(molgfx_core::ResidencyTicket) -> Option<ResidentAttributeColumn>,
     {
+        let PagedVisualSync {
+            device,
+            queue,
+            descriptor,
+            row_count,
+            color,
+            opacity,
+            time_seconds,
+            arenas,
+            mut resolve,
+        } = input;
         self.descriptor = descriptor;
         let style = self.descriptor.style();
         let (_, parameters) = arenas.buffers().ok_or_else(limit)?;

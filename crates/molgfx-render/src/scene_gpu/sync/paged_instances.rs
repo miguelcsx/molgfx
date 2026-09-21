@@ -3,20 +3,33 @@
 use super::GpuScene;
 use crate::error::RenderError;
 use crate::scene_gpu::generic_visual::GenericVisualResources;
+use crate::scene_gpu::instance_batch_table::PagedInstanceSync;
 use molgfx_gpu::Device;
 
+pub(crate) struct PagedInstancesSync<'a, D: Device> {
+    pub(crate) device: &'a D,
+    pub(crate) queue: &'a D::Queue,
+    pub(crate) source: &'a D::Buffer,
+    pub(crate) source_revision: u64,
+    pub(crate) plans: &'a [crate::engine::chunk_draw_plan::ResidentInstanceChunkPlacement],
+    pub(crate) derived_cache: &'a mut crate::DerivedCache,
+    pub(crate) frame: u64,
+}
+
 impl<D: Device> GpuScene<D> {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn sync_paged_instances(
         &mut self,
-        device: &D,
-        queue: &D::Queue,
-        source: &D::Buffer,
-        source_revision: u64,
-        plans: &[crate::engine::chunk_draw_plan::ResidentInstanceChunkPlacement],
-        derived_cache: &mut crate::DerivedCache,
-        frame: u64,
+        input: PagedInstancesSync<'_, D>,
     ) -> Result<(), RenderError> {
+        let PagedInstancesSync {
+            device,
+            queue,
+            source,
+            source_revision,
+            plans,
+            derived_cache,
+            frame,
+        } = input;
         self.paged_instance_pick_scratch.clear();
         for plan in plans {
             if self.paged_instance_pick_scratch.len() == self.paged_instance_pick_scratch.capacity()
@@ -47,20 +60,20 @@ impl<D: Device> GpuScene<D> {
             parameter_slot_base: self.slots.len(),
             time_seconds: self.paged_visual_time_seconds,
         };
-        self.instance_batches.sync_paged(
+        self.instance_batches.sync_paged(PagedInstanceSync {
             device,
             queue,
-            &self.generic_instance_cull_layout,
-            &self.generic_instance_render_layout,
-            &self.instance_timeline_layout,
+            cull_layout: &self.generic_instance_cull_layout,
+            render_layout: &self.generic_instance_render_layout,
+            timeline_layout: &self.instance_timeline_layout,
             source,
             source_revision,
-            &self.picking_pages,
+            picking: &self.picking_pages,
             plans,
             resources,
             derived_cache,
             frame,
-        )?;
+        })?;
         Ok(())
     }
 }

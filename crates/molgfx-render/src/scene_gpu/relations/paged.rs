@@ -1,16 +1,20 @@
 //! Paged relation lowering onto the shared glyph and resolver pipelines.
 
 use super::{
-    BTreeMap, BindGroupDesc, BindGroupEntry, Device, GenericVisualResources, GpuInstanceBatches,
-    GpuInteractions, InteractionGpu, PagedRelationVisualState, PickPages, RESOLVER_ALIGNMENT_ROWS,
+    BTreeMap, BindGroupDesc, BindGroupEntry, Device, GpuInstanceBatches, GpuInteractions,
+    InteractionGpu, PagedRelationVisualState, PagedVisualSync, PickPages, RESOLVER_ALIGNMENT_ROWS,
     RelationResolverGpu, RelationStream, RelationVisualPlan, RelationVisualSource, RenderError,
     count, row_limit, workgroups_2d, write_draw_args,
 };
 use crate::engine::chunk_draw_plan::{ResidentRelationChunkPlacement, ResidentSpatialAnchor};
 use molgfx_core::{EntityKind, PagedSpatialAnchor};
 
+#[path = "paged/input.rs"]
+mod input;
 #[path = "paged/support.rs"]
 mod support;
+use input::PagedGeometryInput;
+pub(in crate::scene_gpu) use input::PagedRelationSync;
 use support::{
     anchor_key, create_model, create_rigid_config, missing_paged_source, paged_anchor_payload,
     paged_pipeline, rigid_timeline, source_entry, tracks_coordinates, write_matching_rigid_alpha,
@@ -62,29 +66,9 @@ impl<D: Device> Clone for PagedRelationSources<'_, D> {
 }
 
 impl<D: Device> GpuInteractions<D> {
-    #[allow(clippy::too_many_arguments)]
     pub(in crate::scene_gpu) fn sync_paged<F, A>(
         &mut self,
-        device: &D,
-        queue: &D::Queue,
-        render_layout: &D::BindGroupLayout,
-        cull_layout: &D::BindGroupLayout,
-        resolve_layout: &D::BindGroupLayout,
-        display_source: &D::Buffer,
-        generic_source: &D::Buffer,
-        instance_sources: &GpuInstanceBatches<D>,
-        plans: &[ResidentRelationChunkPlacement],
-        instance_plans: &[crate::engine::chunk_draw_plan::ResidentInstanceChunkPlacement],
-        picking: &PickPages,
-        resources: GenericVisualResources<'_, D>,
-        revision: u64,
-        source_revision: u64,
-        instance_binding_revision: u64,
-        instance_timeline_revision: u64,
-        attribute_timeline_revision: u64,
-        visual_revision: u64,
-        mut resolve: F,
-        mut resolve_attribute: A,
+        input: PagedRelationSync<'_, D, F, A>,
     ) -> Result<bool, RenderError>
     where
         F: FnMut(PagedSpatialAnchor) -> Option<ResidentSpatialAnchor>,
@@ -92,6 +76,28 @@ impl<D: Device> GpuInteractions<D> {
             molgfx_core::ResidencyTicket,
         ) -> Option<crate::engine::chunk_draw_plan::ResidentAttributeColumn>,
     {
+        let PagedRelationSync {
+            device,
+            queue,
+            render_layout,
+            cull_layout,
+            resolve_layout,
+            display_source,
+            generic_source,
+            instance_sources,
+            plans,
+            instance_plans,
+            picking,
+            resources,
+            revision,
+            source_revision,
+            instance_binding_revision,
+            instance_timeline_revision,
+            attribute_timeline_revision,
+            visual_revision,
+            mut resolve,
+            mut resolve_attribute,
+        } = input;
         let sync_key = (
             revision,
             source_revision,
@@ -107,15 +113,17 @@ impl<D: Device> GpuInteractions<D> {
         }
         if geometry_changed {
             self.rebuild_paged_geometry(
-                device,
-                queue,
-                render_layout,
-                resolve_layout,
-                display_source,
-                generic_source,
-                instance_sources,
-                plans,
-                picking,
+                &PagedGeometryInput {
+                    device,
+                    queue,
+                    render_layout,
+                    resolve_layout,
+                    display_source,
+                    generic_source,
+                    instance_sources,
+                    plans,
+                    picking,
+                },
                 &mut resolve,
             )?;
             self.cull_streams.clear();
@@ -140,23 +148,25 @@ impl<D: Device> GpuInteractions<D> {
         Ok(true)
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn rebuild_paged_geometry<F>(
         &mut self,
-        device: &D,
-        queue: &D::Queue,
-        render_layout: &D::BindGroupLayout,
-        resolve_layout: &D::BindGroupLayout,
-        display_source: &D::Buffer,
-        generic_source: &D::Buffer,
-        instance_sources: &GpuInstanceBatches<D>,
-        plans: &[ResidentRelationChunkPlacement],
-        picking: &PickPages,
+        input: &PagedGeometryInput<'_, D>,
         resolve: &mut F,
     ) -> Result<(), RenderError>
     where
         F: FnMut(PagedSpatialAnchor) -> Option<ResidentSpatialAnchor>,
     {
+        let &PagedGeometryInput {
+            device,
+            queue,
+            render_layout,
+            resolve_layout,
+            display_source,
+            generic_source,
+            instance_sources,
+            plans,
+            picking,
+        } = input;
         self.truncate_paged_state();
         self.ensure_fallbacks(device, queue)?;
         let mut streams = BTreeMap::<PagedStreamKey, Vec<RelationResolverGpu>>::new();
@@ -235,17 +245,17 @@ impl<D: Device> GpuInteractions<D> {
             let state = self.paged_visuals.entry(plan.id).or_insert_with(|| {
                 PagedRelationVisualState::new(std::sync::Arc::clone(&descriptor))
             });
-            changed |= state.sync(
+            changed |= state.sync(PagedVisualSync {
                 device,
                 queue,
                 descriptor,
-                plan.relations.len(),
-                plan.style.color,
-                plan.style.opacity,
+                row_count: plan.relations.len(),
+                color: plan.style.color,
+                opacity: plan.style.opacity,
                 time_seconds,
-                &self.paged_visual_arenas,
-                &mut *resolve,
-            )?;
+                arenas: &self.paged_visual_arenas,
+                resolve: &mut *resolve,
+            })?;
         }
         Ok(changed)
     }
