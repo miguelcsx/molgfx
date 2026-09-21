@@ -170,7 +170,7 @@ fn pack(scene: &Scene, records: &mut Vec<OverlayGpu>) {
                         [*size_pixels, *width_pixels, 0.0, 0.0],
                         color.to_f32(),
                         [0.0; 4],
-                        [3, u32::try_from(axis).map_or(0, |value| value), 0, 0],
+                        [3, crate::fallback(u32::try_from(axis), 0), 0, 0],
                     ));
                 }
             }
@@ -201,8 +201,8 @@ fn pack_text(
             [0.0; 4],
             [
                 0,
-                u32::try_from(bits & u64::from(u32::MAX)).map_or(u32::MAX, |value| value),
-                u32::try_from(bits >> 32).map_or(u32::MAX, |value| value),
+                crate::fallback(u32::try_from(bits & u64::from(u32::MAX)), u32::MAX),
+                crate::fallback(u32::try_from(bits >> 32), u32::MAX),
                 0,
             ],
         ));
@@ -231,5 +231,8 @@ fn record(
 }
 
 fn byte_len<T>(count: usize) -> u64 {
-    u64::try_from(count.saturating_mul(std::mem::size_of::<T>())).map_or(u64::MAX, |value| value)
+    crate::fallback(
+        u64::try_from(count.saturating_mul(std::mem::size_of::<T>())),
+        u64::MAX,
+    )
 }

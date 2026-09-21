@@ -14,8 +14,8 @@ pub(super) fn workgroups_2d(total: u64) -> [u32; 2] {
     let x = total.div_ceil(y);
     debug_assert!(x <= MAX_DISPATCH_AXIS && y <= MAX_DISPATCH_AXIS);
     [
-        u32::try_from(x).map_or(u32::MAX, |value| value),
-        u32::try_from(y).map_or(u32::MAX, |value| value),
+        crate::fallback(u32::try_from(x), u32::MAX),
+        crate::fallback(u32::try_from(y), u32::MAX),
     ]
 }
 

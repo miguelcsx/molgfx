@@ -12,10 +12,7 @@ pub(super) fn result_word_count(layout: [u32; 4]) -> u32 {
 }
 
 pub(super) fn saturating_u32(value: usize) -> u32 {
-    match u32::try_from(value) {
-        Ok(value) => value,
-        Err(_) => u32::MAX,
-    }
+    crate::fallback(u32::try_from(value), u32::MAX)
 }
 
 pub(super) fn representation_base_color(representation: &Representation) -> [f32; 4] {

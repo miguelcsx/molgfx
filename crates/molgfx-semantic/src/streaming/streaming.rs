@@ -294,10 +294,14 @@ fn cluster_for_range(
         let center = placed
             .model_to_world
             .transform_point3(Vec3::from_array(*position));
-        let radius = match placed.atoms.radius().values().get(atom as usize).copied() {
-            Some(radius) => radius,
-            None => 0.0,
-        };
+        let radius = placed
+            .atoms
+            .radius()
+            .values()
+            .get(atom as usize)
+            .copied()
+            .into_iter()
+            .fold(0.0, |_, radius| radius);
         bound.extend_sphere(center, radius);
         count = count.saturating_add(1);
     }
@@ -401,8 +405,14 @@ fn projected_radius_pixels(camera: &Camera, center: Vec3, radius: f32, viewport:
         return 0.0;
     }
     let matrix = camera.view_proj();
-    let width = f32::from(u16::try_from(viewport[0]).map_or(u16::MAX, |value| value));
-    let height = f32::from(u16::try_from(viewport[1]).map_or(u16::MAX, |value| value));
+    let width = u16::try_from(viewport[0])
+        .into_iter()
+        .fold(u16::MAX, |_, value| value);
+    let height = u16::try_from(viewport[1])
+        .into_iter()
+        .fold(u16::MAX, |_, value| value);
+    let width = f32::from(width);
+    let height = f32::from(height);
     let x_scale = matrix.x_axis.x.abs() * radius * width;
     let y_scale = matrix.y_axis.y.abs() * radius * height;
     ((x_scale + y_scale) * 0.25 / clip.w.abs()).max(0.0)

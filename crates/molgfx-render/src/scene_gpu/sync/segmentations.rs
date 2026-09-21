@@ -39,7 +39,7 @@ impl<D: Device> GpuScene<D> {
 
         let mut old_resources = std::mem::take(&mut self.segmentation_resources);
         for (source_id, handle) in self.segmentation_handle_scratch.iter().enumerate() {
-            let source_id = u32::try_from(source_id).map_or(u32::MAX, |value| value);
+            let source_id = crate::fallback(u32::try_from(source_id), u32::MAX);
             if let Some(index) = old_resources
                 .iter()
                 .position(|resource| resource.handle == *handle)

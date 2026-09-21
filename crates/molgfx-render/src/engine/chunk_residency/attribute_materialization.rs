@@ -161,10 +161,7 @@ impl<D: Device> ChunkGpuResidency<D> {
                     .count()
             })
             .fold(0_u32, |count, value| {
-                count.saturating_add(match u32::try_from(value) {
-                    Ok(value) => value,
-                    Err(_) => u32::MAX,
-                })
+                count.saturating_add(crate::fallback(u32::try_from(value), u32::MAX))
             })
     }
 }

@@ -306,7 +306,7 @@ impl PickPages {
             molgfx_core::PickingError::LocalRowOutsidePage {
                 page: page.get(),
                 row: token.local_row().get(),
-                row_count: u32::try_from(keys.len()).map_or(u32::MAX, |value| value),
+                row_count: crate::fallback(u32::try_from(keys.len()), u32::MAX),
             },
         )?;
         Ok(GlobalPickIdentity::new(

@@ -64,7 +64,7 @@ pub(super) fn write(image: &HdrImage, mut writer: impl Write) -> Result<(), Rend
         write_all(&mut writer, &encoded_row_bytes.to_le_bytes())?;
         planar.clear();
         for component in [6_usize, 4, 2, 0] {
-            for pixel in row.chunks_exact(CHANNEL_COUNT * CHANNEL_BYTES) {
+            for pixel in row.as_chunks::<{ CHANNEL_COUNT * CHANNEL_BYTES }>().0 {
                 planar.extend_from_slice(&pixel[component..component + CHANNEL_BYTES]);
             }
         }
@@ -121,7 +121,7 @@ fn write_box(output: &mut Vec<u8>, name: &str, max_x: i32, max_y: i32) {
 }
 
 fn write_attribute(output: &mut Vec<u8>, name: &str, kind: &str, value: &[u8]) {
-    let size = u32::try_from(value.len()).map_or(u32::MAX, |size| size);
+    let size = crate::fallback(u32::try_from(value.len()), u32::MAX);
     write_attribute_header(output, name, kind, size);
     output.extend_from_slice(value);
 }

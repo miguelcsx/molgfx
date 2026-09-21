@@ -169,8 +169,10 @@ impl<D: Device> GenericVisualState<D> {
         ) else {
             return resources.fallback;
         };
-        slot.cull_entries(instructions, parameters, properties)
-            .map_or(resources.fallback, |entries| entries)
+        crate::fallback(
+            slot.cull_entries(instructions, parameters, properties),
+            resources.fallback,
+        )
     }
 
     pub(super) const fn shading(&self) -> SlotShading {

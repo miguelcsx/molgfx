@@ -88,7 +88,8 @@ impl<D: Device> GpuMeshSlot<D> {
                 let normal = transform
                     .transform_vector3(vertex.normal)
                     .try_normalize()
-                    .map_or(vertex.normal, |unit| unit);
+                    .into_iter()
+                    .fold(vertex.normal, |_, unit| unit);
                 RibbonVertex {
                     position: transform.transform_point3(vertex.position).to_array(),
                     entity_id: occurrences.entity.0,
@@ -247,5 +248,5 @@ impl<D: Device> GpuMeshSlot<D> {
 
 fn multiply_unorm8(left: u8, right: u8) -> u8 {
     let product = u16::from(left) * u16::from(right) + 127;
-    u8::try_from(product / 255).map_or(u8::MAX, |value| value)
+    crate::fallback(u8::try_from(product / 255), u8::MAX)
 }

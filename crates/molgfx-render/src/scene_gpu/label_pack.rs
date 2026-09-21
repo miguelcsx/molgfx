@@ -236,13 +236,13 @@ fn selection_centroid(
 }
 
 fn glyph_count_f32(value: usize) -> f32 {
-    f32::from(u16::try_from(value).map_or(u16::MAX, |value| value))
+    f32::from(crate::fallback(u16::try_from(value), u16::MAX))
 }
 
 fn count_f32(value: u32) -> f32 {
-    f32::from(u16::try_from(value).map_or(u16::MAX, |value| value))
+    f32::from(crate::fallback(u16::try_from(value), u16::MAX))
 }
 
 fn count(value: usize) -> u32 {
-    u32::try_from(value).map_or(u32::MAX, |value| value)
+    crate::fallback(u32::try_from(value), u32::MAX)
 }

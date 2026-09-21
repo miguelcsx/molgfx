@@ -201,10 +201,9 @@ impl PagedSpatialIndex {
     }
 
     fn capacity_u32(&self) -> u32 {
-        match u32::try_from(self.pages.len()) {
-            Ok(capacity) => capacity,
-            Err(_) => u32::MAX,
-        }
+        u32::try_from(self.pages.len())
+            .into_iter()
+            .fold(u32::MAX, |_, capacity| capacity)
     }
 
     fn stale(token: SpatialPageToken) -> SpatialError {

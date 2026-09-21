@@ -104,10 +104,7 @@ impl GpuPageTable {
     }
 
     pub(super) fn byte_len(&self) -> u64 {
-        match u64::try_from(self.bytes().len()) {
-            Ok(value) => value,
-            Err(_) => u64::MAX,
-        }
+        crate::fallback(u64::try_from(self.bytes().len()), u64::MAX)
     }
 
     pub(super) const fn mask(&self) -> u32 {

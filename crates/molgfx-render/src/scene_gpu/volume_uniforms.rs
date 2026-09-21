@@ -117,7 +117,7 @@ impl VolumeUniforms {
             transfer_values,
             transfer_colors,
             transfer_meta: [
-                u32::try_from(points.len()).map_or(2, |count| count),
+                crate::fallback(u32::try_from(points.len()), 2),
                 representation.volume.rendering as u32,
                 0,
                 0,
