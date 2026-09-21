@@ -112,6 +112,7 @@ fn parse_secondary(
     values
         .iter()
         .map(|value| match value.as_str() {
+            "unknown" => Ok(crate::SecondaryStructure::Unknown),
             "coil" => Ok(crate::SecondaryStructure::Coil),
             "helix" => Ok(crate::SecondaryStructure::Helix),
             "strand" => Ok(crate::SecondaryStructure::Strand),

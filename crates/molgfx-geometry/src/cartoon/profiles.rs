@@ -137,7 +137,9 @@ pub(super) fn rocket_scale(
             let (width, _) = profile_scale(style, parameter, styles, segment);
             (width, 0.34)
         }
-        SecondaryStructure::Turn | SecondaryStructure::Coil => (0.3, 0.3),
+        SecondaryStructure::Turn | SecondaryStructure::Coil | SecondaryStructure::Unknown => {
+            (0.3, 0.3)
+        }
     }
 }
 
@@ -163,6 +165,6 @@ pub(super) fn profile_scale(
             (arrow * 1.2, 0.58)
         }
         SecondaryStructure::Turn => (0.55, 1.0),
-        SecondaryStructure::Coil => (0.48, 1.0),
+        SecondaryStructure::Coil | SecondaryStructure::Unknown => (0.48, 1.0),
     }
 }

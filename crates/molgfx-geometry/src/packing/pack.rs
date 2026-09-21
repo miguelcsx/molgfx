@@ -379,6 +379,7 @@ fn categorical_color(index: usize) -> Rgba8 {
 
 fn secondary_color(value: SecondaryStructure) -> Rgba8 {
     match value {
+        SecondaryStructure::Unknown => Rgba8::opaque(128, 128, 128),
         SecondaryStructure::Helix => Rgba8::opaque(170, 68, 153),
         SecondaryStructure::Strand => Rgba8::opaque(190, 110, 0),
         SecondaryStructure::Turn => Rgba8::opaque(0, 128, 94),

@@ -266,7 +266,7 @@ impl Scene {
     }
 
     /// Replaces the residue secondary-structure column from caller- or
-    /// `molframe`-supplied assignments. Unmentioned residues become coil;
+    /// `molframe`-supplied assignments. Unmentioned residues remain unknown;
     /// out-of-range records are ignored.
     ///
     /// # Errors
@@ -279,7 +279,7 @@ impl Scene {
     ) -> Result<(), CoreError> {
         let placed = self.structure_mut(handle).ok_or(CoreError::StaleHandle)?;
         let values = placed.secondary_structure.values_mut();
-        values.fill(crate::SecondaryStructure::Coil);
+        values.fill(crate::SecondaryStructure::Unknown);
         for &(residue, kind) in records {
             let index = residue.as_usize();
             if let Some(value) = values.get_mut(index) {

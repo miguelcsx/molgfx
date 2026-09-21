@@ -60,7 +60,7 @@ impl StructureAsset {
         let hierarchy = Arc::new(Hierarchy::from_structure(structure));
         let spatial_bounds = atom_bounds(&atoms);
         let secondary_structure =
-            Column::new(vec![SecondaryStructure::Coil; hierarchy.residue_count()]);
+            Column::new(vec![SecondaryStructure::Unknown; hierarchy.residue_count()]);
         Ok(Self {
             data: Arc::new(StructureAssetData {
                 dataset,

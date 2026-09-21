@@ -53,7 +53,7 @@ impl PlacedStructure {
         let atoms = asset.shared_atoms();
         let hierarchy = asset.shared_hierarchy();
         let secondary_structure =
-            Column::new(vec![SecondaryStructure::Coil; hierarchy.residue_count()]);
+            Column::new(vec![SecondaryStructure::Unknown; hierarchy.residue_count()]);
         Self {
             asset: asset.clone(),
             structure: asset.structure().clone(),
