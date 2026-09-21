@@ -2,9 +2,9 @@
 //! linear scan over every representable output, selecting the same step the
 //! search would have settled on. Agreeing with it across the whole domain is
 //! what makes the arithmetic form a drop-in.
-#![allow(clippy::cast_precision_loss)]
 
 use super::{round_u8, truncate_u16, unit_to_grid, unorm8};
+use num_traits::ToPrimitive as _;
 
 /// The bounded search the arithmetic replaced: the largest step at or below
 /// the target, then the nearer of that step and its successor, ties upward.
@@ -25,16 +25,13 @@ fn searched_round_u8(target: f32) -> u8 {
     } else {
         upper
     };
-    match u8::try_from(selected) {
-        Ok(value) => value,
-        Err(_) => u8::MAX,
-    }
+    u8::try_from(selected).expect("bounded byte search stays in range")
 }
 
 #[test]
 fn rounding_a_unit_value_agrees_with_the_bounded_search_at_every_step() {
     for step in 0..=2550u32 {
-        let value = step as f32 / 2550.0;
+        let value = step.to_f32().expect("fixture step fits f32") / 2550.0;
         assert_eq!(
             unorm8(value),
             searched_round_u8(value.clamp(0.0, 1.0) * 255.0),
@@ -46,7 +43,7 @@ fn rounding_a_unit_value_agrees_with_the_bounded_search_at_every_step() {
 #[test]
 fn rounding_a_scaled_value_agrees_with_the_bounded_search_at_every_step() {
     for step in 0..=5100u32 {
-        let value = step as f32 / 20.0;
+        let value = step.to_f32().expect("fixture step fits f32") / 20.0;
         assert_eq!(round_u8(value), searched_round_u8(value), "value {value}");
     }
 }
@@ -96,7 +93,7 @@ fn a_grid_index_partitions_the_unit_interval_and_never_leaves_the_grid() {
     assert_eq!(unit_to_grid(0.0, 1023), 0);
     assert_eq!(unit_to_grid(1.0, 1023), 1023);
     for step in 0..=4096u32 {
-        let value = step as f32 / 4096.0;
+        let value = step.to_f32().expect("fixture step fits f32") / 4096.0;
         assert!(unit_to_grid(value, 1023) <= 1023, "value {value}");
     }
 }
@@ -118,7 +115,7 @@ fn a_grid_index_agrees_with_the_bounded_search_it_replaced() {
         u32::from(low)
     };
     for step in 0..=8192u32 {
-        let value = step as f32 / 8192.0;
+        let value = step.to_f32().expect("fixture step fits f32") / 8192.0;
         assert_eq!(unit_to_grid(value, 1023), searched(value), "value {value}");
     }
 }

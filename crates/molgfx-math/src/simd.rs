@@ -31,14 +31,14 @@ const EXPONENT_MASK: u32 = 0x7f80_0000;
 #[must_use]
 pub fn all_finite(values: &[f32]) -> bool {
     let mut lanes = [true; LANES];
-    let mut chunks = values.chunks_exact(LANES);
-    for chunk in &mut chunks {
+    let (chunks, remainder) = values.as_chunks::<LANES>();
+    for chunk in chunks {
         for (lane, value) in lanes.iter_mut().zip(chunk) {
             *lane &= value.to_bits() & EXPONENT_MASK != EXPONENT_MASK;
         }
     }
     let mut finite = lanes.iter().all(|lane| *lane);
-    for value in chunks.remainder() {
+    for value in remainder {
         finite &= value.to_bits() & EXPONENT_MASK != EXPONENT_MASK;
     }
     finite
@@ -51,14 +51,14 @@ pub fn all_finite(values: &[f32]) -> bool {
 #[must_use]
 pub fn all_finite_non_negative(values: &[f32]) -> bool {
     let mut lanes = [true; LANES];
-    let mut chunks = values.chunks_exact(LANES);
-    for chunk in &mut chunks {
+    let (chunks, remainder) = values.as_chunks::<LANES>();
+    for chunk in chunks {
         for (lane, value) in lanes.iter_mut().zip(chunk) {
             *lane &= value.to_bits() & EXPONENT_MASK != EXPONENT_MASK && *value >= 0.0;
         }
     }
     let mut valid = lanes.iter().all(|lane| *lane);
-    for value in chunks.remainder() {
+    for value in remainder {
         valid &= value.to_bits() & EXPONENT_MASK != EXPONENT_MASK && *value >= 0.0;
     }
     valid
@@ -68,14 +68,14 @@ pub fn all_finite_non_negative(values: &[f32]) -> bool {
 #[must_use]
 pub fn all_within(values: &[f32], low: f32, high: f32) -> bool {
     let mut lanes = [true; LANES];
-    let mut chunks = values.chunks_exact(LANES);
-    for chunk in &mut chunks {
+    let (chunks, remainder) = values.as_chunks::<LANES>();
+    for chunk in chunks {
         for (lane, value) in lanes.iter_mut().zip(chunk) {
             *lane &= *value >= low && *value <= high;
         }
     }
     let mut inside = lanes.iter().all(|lane| *lane);
-    for value in chunks.remainder() {
+    for value in remainder {
         inside &= *value >= low && *value <= high;
     }
     inside
@@ -91,8 +91,8 @@ pub fn all_within(values: &[f32], low: f32, high: f32) -> bool {
 pub fn min_max(values: &[f32]) -> (f32, f32) {
     let mut low = [f32::INFINITY; LANES];
     let mut high = [f32::NEG_INFINITY; LANES];
-    let mut chunks = values.chunks_exact(LANES);
-    for chunk in &mut chunks {
+    let (chunks, remainder) = values.as_chunks::<LANES>();
+    for chunk in chunks {
         for ((low, high), value) in low.iter_mut().zip(high.iter_mut()).zip(chunk) {
             // `min`/`max` on a NaN operand return the other operand, so a
             // non-finite entry leaves the running range untouched.
@@ -106,7 +106,7 @@ pub fn min_max(values: &[f32]) -> (f32, f32) {
         minimum = minimum.min(*low);
         maximum = maximum.max(*high);
     }
-    for value in chunks.remainder() {
+    for value in remainder {
         minimum = minimum.min(*value);
         maximum = maximum.max(*value);
     }
@@ -121,8 +121,8 @@ pub fn min_max(values: &[f32]) -> (f32, f32) {
 pub fn points_aabb(points: &[[f32; 3]]) -> Aabb {
     let mut low = [[f32::INFINITY; 3]; LANES];
     let mut high = [[f32::NEG_INFINITY; 3]; LANES];
-    let mut chunks = points.chunks_exact(LANES);
-    for chunk in &mut chunks {
+    let (chunks, remainder) = points.as_chunks::<LANES>();
+    for chunk in chunks {
         for ((low, high), point) in low.iter_mut().zip(high.iter_mut()).zip(chunk) {
             for ((low, high), value) in low.iter_mut().zip(high.iter_mut()).zip(point) {
                 *low = low.min(*value);
@@ -135,7 +135,7 @@ pub fn points_aabb(points: &[[f32; 3]]) -> Aabb {
         bounds.min = bounds.min.min(Vec3::from_array(*low));
         bounds.max = bounds.max.max(Vec3::from_array(*high));
     }
-    for point in chunks.remainder() {
+    for point in remainder {
         bounds.extend(Vec3::from_array(*point));
     }
     if bounds.is_empty() {
@@ -156,9 +156,9 @@ pub fn spheres_aabb(centers: &[[f32; 3]], radii: &[f32]) -> Aabb {
     let (centers, radii) = (&centers[..len], &radii[..len]);
     let mut low = [[f32::INFINITY; 3]; LANES];
     let mut high = [[f32::NEG_INFINITY; 3]; LANES];
-    let mut center_chunks = centers.chunks_exact(LANES);
-    let mut radius_chunks = radii.chunks_exact(LANES);
-    for (centers, radii) in (&mut center_chunks).zip(&mut radius_chunks) {
+    let (center_chunks, center_remainder) = centers.as_chunks::<LANES>();
+    let (radius_chunks, radius_remainder) = radii.as_chunks::<LANES>();
+    for (centers, radii) in center_chunks.iter().zip(radius_chunks) {
         for (((low, high), center), radius) in
             low.iter_mut().zip(high.iter_mut()).zip(centers).zip(radii)
         {
@@ -174,11 +174,7 @@ pub fn spheres_aabb(centers: &[[f32; 3]], radii: &[f32]) -> Aabb {
         bounds.min = bounds.min.min(Vec3::from_array(*low));
         bounds.max = bounds.max.max(Vec3::from_array(*high));
     }
-    for (center, radius) in center_chunks
-        .remainder()
-        .iter()
-        .zip(radius_chunks.remainder())
-    {
+    for (center, radius) in center_remainder.iter().zip(radius_remainder) {
         bounds.extend_sphere(Vec3::from_array(*center), *radius);
     }
     if bounds.is_empty() {

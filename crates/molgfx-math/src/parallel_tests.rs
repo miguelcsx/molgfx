@@ -6,11 +6,11 @@
 //! The index-to-float and index-to-`u32` casts below build fixtures from loop
 //! counters whose ranges are fixed literals in this file; there is nothing to
 //! truncate.
-#![allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 
 use super::{
     BLOCK, all_blocks, for_each_block, map_blocks_into, map_zip_blocks_into, reduce_blocks,
 };
+use num_traits::ToPrimitive as _;
 
 fn pool(threads: usize) -> rayon::ThreadPool {
     match rayon::ThreadPoolBuilder::new().num_threads(threads).build() {
@@ -27,7 +27,7 @@ fn ill_conditioned(len: usize) -> Vec<f32> {
             if index % 3 == 0 {
                 1.0e7
             } else {
-                1.0e-3 * (index % 7) as f32
+                1.0e-3 * (index % 7).to_f32().expect("fixture index fits f32")
             }
         })
         .collect()
@@ -69,7 +69,8 @@ fn a_parallel_reduction_matches_the_serial_one_below_the_threshold() {
 #[test]
 fn a_block_map_writes_every_element_exactly_once() {
     for len in [0usize, 1, BLOCK - 1, BLOCK, BLOCK + 1, BLOCK * 3 + 7] {
-        let src: Vec<u32> = (0..len as u32).collect();
+        let end = u32::try_from(len).expect("fixture length fits u32");
+        let src: Vec<u32> = (0..end).collect();
         let mut dst = vec![0u32; len];
         pool(8).install(|| {
             map_blocks_into(&src, &mut dst, 0, |source, target| {
@@ -99,8 +100,11 @@ fn a_block_map_truncates_to_the_shorter_of_its_two_slices() {
 #[test]
 fn a_zipped_block_map_matches_the_serial_form_at_every_thread_count() {
     for len in [0usize, 1, BLOCK - 1, BLOCK, BLOCK * 2 + 9] {
-        let left: Vec<f32> = (0..len as u32).map(|v| v as f32).collect();
-        let right: Vec<f32> = (0..len as u32).map(|v| v as f32).collect();
+        let end = u32::try_from(len).expect("fixture length fits u32");
+        let left: Vec<f32> = (0..end)
+            .map(|value| value.to_f32().expect("fixture value fits f32"))
+            .collect();
+        let right = left.clone();
         let expected: Vec<f32> = left
             .iter()
             .zip(&right)
@@ -150,16 +154,16 @@ fn every_block_is_visited_with_its_own_start_offset() {
 #[test]
 fn an_all_predicate_agrees_with_the_serial_form_and_finds_a_single_failure() {
     let len = BLOCK * 2 + 3;
-    let values: Vec<u32> = (0..len as u32).collect();
+    let end = u32::try_from(len).expect("fixture length fits u32");
+    let values: Vec<u32> = (0..end).collect();
     assert!(all_blocks(&values, 0, |block| block
         .iter()
-        .all(|v| *v < len as u32)));
+        .all(|v| *v < end)));
     for position in [0usize, BLOCK, BLOCK + 1, len - 1] {
         let mut values = values.clone();
         values[position] = u32::MAX;
         assert!(
-            !pool(8)
-                .install(|| all_blocks(&values, 0, |block| block.iter().all(|v| *v < len as u32))),
+            !pool(8).install(|| all_blocks(&values, 0, |block| block.iter().all(|v| *v < end))),
             "failure at {position} went unseen"
         );
     }

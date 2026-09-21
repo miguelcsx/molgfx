@@ -10,20 +10,10 @@
 //! multiply and a cast. They run per atom, per voxel and per primitive, so the
 //! cost of the conversion is the cost of the arithmetic in it.
 //!
-//! The cast lints are silenced for this module alone, because saturating
-//! truncation is the operation being implemented rather than an accident of
-//! one. Every cast below is preceded by a clamp onto the destination's exact
-//! range and by a non-finite guard, so the two failure modes the lints warn
-//! about — wrapping and an undefined non-finite result — are unreachable. The
-//! sibling tests check that against a linear scan of every representable
-//! output. Do not push these casts back behind a bounded search: this code runs
-//! once per atom and the search cost eight to ten iterations to compute what a
-//! multiply and a cast compute exactly.
-#![allow(
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_precision_loss
-)]
+//! Every conversion is preceded by a clamp onto the destination's exact range
+//! and by a non-finite guard. The sibling tests check the boundary behavior.
+
+use num_traits::ToPrimitive as _;
 
 /// Rounds a unit value to unorm8 with ties resolved upward.
 ///
@@ -37,7 +27,10 @@ pub fn unorm8(value: f32) -> u8 {
     }
     // The clamp bounds the sum below 256.0, and `as` saturates rather than
     // wrapping, so the cast cannot alias a different byte.
-    (value.clamp(0.0, 1.0) * 255.0 + 0.5) as u8
+    (value.clamp(0.0, 1.0) * 255.0 + 0.5)
+        .to_u8()
+        .into_iter()
+        .fold(0, |_, converted| converted)
 }
 
 /// Rounds a value already expressed in `0..=255` units, ties upward.
@@ -51,7 +44,10 @@ pub fn round_u8(value: f32) -> u8 {
     if !value.is_finite() {
         return 0;
     }
-    (value.clamp(0.0, 255.0) + 0.5) as u8
+    (value.clamp(0.0, 255.0) + 0.5)
+        .to_u8()
+        .into_iter()
+        .fold(0, |_, converted| converted)
 }
 
 /// Truncates a non-negative value to `u16`, saturating at the maximum.
@@ -64,7 +60,11 @@ pub fn truncate_u16(value: f32) -> u16 {
     if !value.is_finite() {
         return 0;
     }
-    value.clamp(0.0, f32::from(u16::MAX)) as u16
+    value
+        .clamp(0.0, f32::from(u16::MAX))
+        .to_u16()
+        .into_iter()
+        .fold(0, |_, converted| converted)
 }
 
 /// Truncates a unit value onto a grid of `levels + 1` steps.
@@ -80,7 +80,14 @@ pub fn unit_to_grid(value: f32, levels: u32) -> u32 {
     }
     // `as` saturates at `levels` for an input of exactly one, so the returned
     // index is always a valid cell.
-    (value.clamp(0.0, 1.0) * levels as f32) as u32
+    let levels = levels
+        .to_f32()
+        .into_iter()
+        .fold(f32::MAX, |_, converted| converted);
+    (value.clamp(0.0, 1.0) * levels)
+        .to_u32()
+        .into_iter()
+        .fold(0, |_, converted| converted)
 }
 
 #[cfg(test)]

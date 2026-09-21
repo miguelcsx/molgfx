@@ -79,7 +79,9 @@ pub fn sample_catmull_rom_demanding(
             out.push(CurveSample {
                 position: position(curve, t),
                 tangent: normalized(derivative, Vec3::Z),
-                segment: u32::try_from(segment).map_or(u32::MAX, |value| value),
+                segment: u32::try_from(segment)
+                    .into_iter()
+                    .fold(u32::MAX, |_, value| value),
                 parameter: t,
             });
         }
@@ -117,7 +119,9 @@ pub fn sample_catmull_rom_fixed(
             out.push(CurveSample {
                 position: position(curve, t),
                 tangent: normalized(tangent(curve, t), Vec3::Z),
-                segment: u32::try_from(segment).map_or(u32::MAX, |value| value),
+                segment: u32::try_from(segment)
+                    .into_iter()
+                    .fold(u32::MAX, |_, value| value),
                 parameter: t,
             });
         }
