@@ -1,7 +1,6 @@
 // Persistent resources for one generic point batch.
 
 impl<D: Device> GpuPointBatch<D> {
-    #[allow(clippy::too_many_lines)]
     fn new(
         context: &PointBatchSync<'_, D>,
         handle: PointBatchHandle,

@@ -99,16 +99,6 @@ unreachable_pub = "warn"
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
-# The no-unwrap rule includes unwrap_or and unwrap_or_default; these lints would
-# rewrite the compliant `match`/`let..else` forms back into unwrap_or calls, so
-# they stay allowed. Do not "fix" these allows.
-manual_unwrap_or = "allow"
-manual_unwrap_or_default = "allow"
-map_or_identity = "allow"
-# Every site is a SIMD block whose width is a literal in the function, so
-# `as_chunks` would need the const argument spelled out at each of them for a
-# bound the compiler already elides behind the length check.
-chunks_exact_to_as_chunks = "allow"
 
 [profile.release]
 lto = "fat"

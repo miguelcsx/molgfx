@@ -1,7 +1,6 @@
 // Persistent resources for one generic analytic instance batch.
 
 impl<D: Device> GpuInstanceBatch<D> {
-    #[allow(clippy::too_many_lines)]
     fn new(
         context: &InstanceBatchSync<'_, D>,
         handle: InstanceBatchHandle,
