@@ -1,25 +1,22 @@
-"""The Jupyter widget: a notebook viewport over the native engine.
+"""The Jupyter widget: direct WebGPU over the shared WASM scene contract.
 
-The widget is glue, not computation — pointer events cross as data, the
-pointer-to-camera step and the render run in Rust, and the kernel ships the
-finished frame to the browser. Interaction renders at a quarter of the area
-with the light profile; releasing the pointer settles into one full-quality
-frame. It is the advanced interaction mode from day one, not a stepping
-stone:
+The kernel sends a canonical ``SceneSpec`` and compact BinaryCIF source data.
+Later edits are revision-checked ``ScenePatch`` messages; rendered pixels stay
+in the browser:
 
 ```python
 import molframe, molgfx as mg
 from molgfx.viewer import Viewer
 
-scene = mg.Scene.from_structure_shared(molframe.read("1abc.cif"))
-scene.represent(scene.select(mg.Select.parse("polymer")), mg.Representation.cartoon())
+scene = mg.Scene(molframe.read("1abc.cif"))
+scene.add(mg.rep.cartoon(target=mg.sel.protein()))
 
 Viewer(scene)
 ```
 
 The widget rides on ``anywidget`` (installed with ``pip install
-"molgfx[jupyter]"``) and renders on demand: between interactions the engine
-does nothing.
+"molgfx[jupyter]"``) and renders on demand with the packaged MolGFX WASM
+runtime.
 """
 
 from .viewer import Viewer
