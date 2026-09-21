@@ -45,6 +45,7 @@ mod structure;
 mod surface_components;
 mod surface_slot;
 mod sync;
+pub(crate) use sync::{PagedInstancesSync, PagedRelationsSync, SceneSync};
 mod trajectory_slot;
 mod uniforms;
 mod visual;

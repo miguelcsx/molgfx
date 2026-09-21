@@ -242,6 +242,7 @@ impl<D: Device> Engine<D> {
                     (0, 0),
                     (config.width, config.height),
                     layout.padded_row,
+                    0,
                     &readback,
                 );
             }
@@ -306,16 +307,16 @@ impl<D: Device> Engine<D> {
     pub(super) fn prepare_image(&mut self, scene: &Scene) -> Result<ImagePreparation, RenderError> {
         self.device.check_errors()?;
         self.chunk_residency.begin_epoch();
-        let scene_changed = self.scene_gpu.sync(
-            &self.device,
-            &self.queue,
+        let scene_changed = self.scene_gpu.sync(crate::scene_gpu::SceneSync {
+            device: &self.device,
+            queue: &self.queue,
             scene,
-            self.mode == RenderMode::Cinematic,
-            [self.width, self.height],
-            self.passes.ambient_occlusion.ray_query_layout(),
-            &mut self.derived_cache,
-            self.derived_frame,
-        )?;
+            quality: self.mode == RenderMode::Cinematic,
+            extent: [self.width, self.height],
+            ray_query_layout: self.passes.ambient_occlusion.ray_query_layout(),
+            derived_cache: &mut self.derived_cache,
+            derived_frame: self.derived_frame,
+        })?;
         self.chunk_residency.sync_scene(
             &mut self.scene_gpu,
             &self.device,
@@ -420,7 +421,7 @@ impl<D: Device> PendingImage<D> {
             format,
             TextureFormat::Bgra8Unorm | TextureFormat::Bgra8UnormSrgb
         ) {
-            for pixel in pixels.chunks_exact_mut(4) {
+            for pixel in pixels.as_chunks_mut::<4>().0 {
                 pixel.swap(0, 2);
             }
         }
