@@ -448,7 +448,12 @@ impl InteractionEdge {
         InteractionStyle {
             color,
             pattern,
-            width_pixels: base_width + self.normalized_strength.map_or(0.0, |value| value) * 1.5,
+            width_pixels: base_width
+                + self
+                    .normalized_strength
+                    .into_iter()
+                    .fold(0.0, |_, value| value)
+                    * 1.5,
             opacity: base_opacity * persistence,
             period_pixels: period,
             duty_cycle: duty,
@@ -458,8 +463,12 @@ impl InteractionEdge {
 }
 
 fn exact_u32_to_f32(value: u32) -> f32 {
-    let high = u16::try_from(value >> 16).map_or(u16::MAX, |part| part);
-    let low = u16::try_from(value & u32::from(u16::MAX)).map_or(u16::MAX, |part| part);
+    let high = u16::try_from(value >> 16)
+        .into_iter()
+        .fold(u16::MAX, |_, part| part);
+    let low = u16::try_from(value & u32::from(u16::MAX))
+        .into_iter()
+        .fold(u16::MAX, |_, part| part);
     f32::from(high) * 65_536.0 + f32::from(low)
 }
 

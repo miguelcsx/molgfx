@@ -83,7 +83,7 @@ impl ClipSet {
         }
         let mut set = Self::default();
         set.planes[..planes.len()].copy_from_slice(planes);
-        set.len = u8::try_from(planes.len()).map_or(0, |len| len);
+        set.len = u8::try_from(planes.len()).into_iter().fold(0, |_, len| len);
         Ok(set)
     }
 

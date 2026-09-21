@@ -317,7 +317,9 @@ const fn rgba(color: molgfx_math::Rgba8) -> [u8; 4] {
 }
 
 fn count(value: usize) -> u32 {
-    u32::try_from(value).map_or(u32::MAX, |value| value)
+    u32::try_from(value)
+        .into_iter()
+        .fold(u32::MAX, |_, value| value)
 }
 
 const fn table_chunk(row: u32, generation: u32) -> u64 {

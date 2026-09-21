@@ -369,7 +369,9 @@ impl Measurement {
             owner,
             kind,
             anchors,
-            anchor_count: u8::try_from(source.len()).map_or(4, |count| count),
+            anchor_count: u8::try_from(source.len())
+                .into_iter()
+                .fold(4, |_, count| count),
             value,
             label,
             provenance,

@@ -149,7 +149,11 @@ impl Mesh {
         let vertices = vertices
             .into_iter()
             .map(|vertex| MeshVertex {
-                normal: vertex.normal.try_normalize().map_or(Vec3::Y, |unit| unit),
+                normal: vertex
+                    .normal
+                    .try_normalize()
+                    .into_iter()
+                    .fold(Vec3::Y, |_, unit| unit),
                 ..vertex
             })
             .collect();
@@ -357,5 +361,7 @@ fn topology_indices(vertex_count: usize, topology: MeshTopology) -> Result<Vec<u
 }
 
 fn index_u32(index: usize) -> u32 {
-    u32::try_from(index).map_or(u32::MAX, |value| value)
+    u32::try_from(index)
+        .into_iter()
+        .fold(u32::MAX, |_, value| value)
 }

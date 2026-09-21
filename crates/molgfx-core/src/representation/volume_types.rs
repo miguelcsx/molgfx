@@ -60,7 +60,7 @@ impl VolumeTransferFunction {
         }
         let mut transfer = Self::default();
         transfer.points[..points.len()].copy_from_slice(points);
-        transfer.len = u8::try_from(points.len()).map_or(2, |len| len);
+        transfer.len = u8::try_from(points.len()).into_iter().fold(2, |_, len| len);
         Ok(transfer)
     }
 

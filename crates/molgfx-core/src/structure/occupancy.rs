@@ -113,10 +113,16 @@ impl OccupancyStream {
     /// Returns the grid extent in model coordinates.
     pub fn model_aabb(&self) -> Aabb {
         let maximum = Vec3::new(
-            f32::from(u16::try_from(self.dimensions[0] - 1).map_or(u16::MAX, |value| value)),
-            f32::from(u16::try_from(self.dimensions[1] - 1).map_or(u16::MAX, |value| value)),
-            f32::from(u16::try_from(self.dimensions[2] - 1).map_or(u16::MAX, |value| value)),
+            f32::from(bounded_u16(self.dimensions[0] - 1)),
+            f32::from(bounded_u16(self.dimensions[1] - 1)),
+            f32::from(bounded_u16(self.dimensions[2] - 1)),
         );
         Aabb::new(Vec3::ZERO, maximum).transform(&self.voxel_to_model)
     }
+}
+
+fn bounded_u16(value: u32) -> u16 {
+    u16::try_from(value)
+        .into_iter()
+        .fold(u16::MAX, |_, converted| converted)
 }

@@ -12,10 +12,9 @@ mod tests;
 /// Converts a length to `u32`, saturating at the maximum. Table sizes are
 /// bounded far below the limit; saturation only keeps the conversion total.
 pub(crate) fn saturating_u32(n: usize) -> u32 {
-    match u32::try_from(n) {
-        Ok(v) => v,
-        Err(_) => u32::MAX,
-    }
+    u32::try_from(n)
+        .into_iter()
+        .fold(u32::MAX, |_, value| value)
 }
 
 /// A monotonically increasing change counter.

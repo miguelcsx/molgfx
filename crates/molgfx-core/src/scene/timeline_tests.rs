@@ -96,7 +96,7 @@ fn a_stale_track_prevents_every_update_in_the_tick() {
         panic!("owner exists")
     };
     let positions: Arc<[[f32; 3]]> = Arc::from(placed.atoms.coords().slice());
-    let count = usize::try_from(placed.atoms.len()).map_or(0, |value| value);
+    let count = usize::try_from(placed.atoms.len()).unwrap_or(0);
     let start = TrajectoryFrame::new(0, 0.0, Arc::clone(&positions), "start")
         .unwrap_or_else(|error| panic!("{error}"));
     let end =

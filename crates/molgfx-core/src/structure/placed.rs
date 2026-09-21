@@ -195,10 +195,11 @@ impl PlacedStructure {
             segment.end().positions(),
             self.atoms.radius().values(),
         );
-        let mut hierarchy = match self.trajectory_bvh.take() {
-            Some(hierarchy) => hierarchy,
-            None => Bvh::default(),
-        };
+        let mut hierarchy = self
+            .trajectory_bvh
+            .take()
+            .into_iter()
+            .fold(Bvh::default(), |_, hierarchy| hierarchy);
         // Equal counts mean every primitive survived the previous build, so the
         // permutation still names the same atoms.
         let refittable =

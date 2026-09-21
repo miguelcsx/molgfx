@@ -12,10 +12,7 @@ fn key(chunk: u64, detail: ResidencyDetail) -> ResidencyKey {
 }
 
 fn request(chunk: u64, detail: ResidencyDetail, class: ResidencyClass) -> ResidencyRequest {
-    let priority = match i32::try_from(chunk) {
-        Ok(value) => value,
-        Err(_) => i32::MAX,
-    };
+    let priority = i32::try_from(chunk).unwrap_or(i32::MAX);
     ResidencyRequest {
         key: key(chunk, detail),
         footprint: ChunkFootprint::new(2, 4, 3, 5),
