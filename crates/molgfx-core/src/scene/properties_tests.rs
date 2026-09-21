@@ -8,7 +8,7 @@ fn interpolating_a_property_frame_lerps_values_and_keeps_nan_missing() {
     let Some((owner, placed)) = scene.structures().next() else {
         panic!("owner exists")
     };
-    let count = usize::try_from(placed.atoms.len()).map_or(0, |value| value);
+    let count = usize::try_from(placed.atoms.len()).unwrap_or(0);
     let property = AtomProperty::new(
         owner,
         "energy",
@@ -47,7 +47,7 @@ fn interpolating_a_property_frame_rejects_bad_inputs() {
     let Some((owner, placed)) = scene.structures().next() else {
         panic!("owner exists")
     };
-    let count = usize::try_from(placed.atoms.len()).map_or(0, |value| value);
+    let count = usize::try_from(placed.atoms.len()).unwrap_or(0);
     let handle = scene
         .add_atom_property(
             AtomProperty::new(
@@ -78,7 +78,7 @@ fn repeated_property_interpolation_reuses_the_same_row_allocation() {
     let Some((owner, placed)) = scene.structures().next() else {
         panic!("owner exists")
     };
-    let count = usize::try_from(placed.atoms.len()).map_or(0, |value| value);
+    let count = usize::try_from(placed.atoms.len()).unwrap_or(0);
     let property = AtomProperty::new(
         owner,
         "energy",
@@ -116,7 +116,7 @@ fn property_handles_are_stable_and_length_checked() {
     let Some((owner, placed)) = scene.structures().next() else {
         panic!("owner exists")
     };
-    let count = usize::try_from(placed.atoms.len()).map_or(0, |value| value);
+    let count = usize::try_from(placed.atoms.len()).unwrap_or(0);
     let property = AtomProperty::new(
         owner,
         "confidence",

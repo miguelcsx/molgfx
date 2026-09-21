@@ -200,14 +200,12 @@ fn resolve(
         Some(value) => value,
         None => inputs.base_color,
     };
-    let emission = match output(program, registers, VisualOutput::Emission) {
-        Some(value) => value,
-        None => [0.0; 4],
-    };
-    let offset = match output(program, registers, VisualOutput::PositionOffset) {
-        Some(value) => value,
-        None => [0.0; 4],
-    };
+    let emission = output(program, registers, VisualOutput::Emission)
+        .into_iter()
+        .fold([0.0; 4], |_, value| value);
+    let offset = output(program, registers, VisualOutput::PositionOffset)
+        .into_iter()
+        .fold([0.0; 4], |_, value| value);
     VisualEvaluation {
         base_color: finite_or(color, inputs.base_color).map(|value| value.clamp(0.0, 1.0)),
         opacity: scalar_output(

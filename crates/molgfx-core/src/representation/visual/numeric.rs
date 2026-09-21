@@ -52,10 +52,7 @@ pub(super) fn decode_slot(value: f32) -> usize {
 /// Reads a small opcode discriminant from an instruction's float payload.
 pub(super) fn decode_code(value: f32) -> u8 {
     let slot = decode_slot(value);
-    match u8::try_from(slot) {
-        Ok(code) => code,
-        Err(_) => u8::MAX,
-    }
+    u8::try_from(slot).into_iter().fold(u8::MAX, |_, code| code)
 }
 
 /// Converts a stable entity row to the scalar a program reads.
@@ -65,13 +62,11 @@ pub(super) fn decode_code(value: f32) -> u8 {
 /// stops being reliable at that scale, which is why the builder documents the
 /// input as exact only while representable.
 pub(super) fn entity_scalar(entity: u32) -> f32 {
-    let high = match u16::try_from(entity >> 16) {
-        Ok(high) => high,
-        Err(_) => u16::MAX,
-    };
-    let low = match u16::try_from(entity & u32::from(u16::MAX)) {
-        Ok(low) => low,
-        Err(_) => u16::MAX,
-    };
+    let high = u16::try_from(entity >> 16)
+        .into_iter()
+        .fold(u16::MAX, |_, high| high);
+    let low = u16::try_from(entity & u32::from(u16::MAX))
+        .into_iter()
+        .fold(u16::MAX, |_, low| low);
     f32::from(high).mul_add(65_536.0, f32::from(low))
 }

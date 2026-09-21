@@ -8,7 +8,7 @@ use std::sync::Arc;
 fn segment(atom_count: usize, start_x: f32, end_x: f32) -> TrajectorySegment {
     let positions = |offset: f32| {
         Arc::from(
-            (0..u16::try_from(atom_count).map_or(u16::MAX, |value| value))
+            (0..u16::try_from(atom_count).unwrap_or(u16::MAX))
                 .map(|index| [offset + f32::from(index), 0.0, 0.0])
                 .collect::<Vec<_>>(),
         )

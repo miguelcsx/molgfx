@@ -328,10 +328,9 @@ impl VisualProgram {
     fn parameter(&self, index: usize) -> Parameter {
         Parameter {
             builder: self.parameter_owner,
-            index: match u8::try_from(index) {
-                Ok(index) => index,
-                Err(_) => u8::MAX,
-            },
+            index: u8::try_from(index)
+                .into_iter()
+                .fold(u8::MAX, |_, index| index),
         }
     }
 

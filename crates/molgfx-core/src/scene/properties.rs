@@ -156,7 +156,9 @@ fn validate(scene: &Scene, property: &AtomProperty) -> Result<(), CoreError> {
     let structure = scene
         .structure(property.owner())
         .ok_or(CoreError::StaleHandle)?;
-    let expected = usize::try_from(structure.atoms.len()).map_or(usize::MAX, |value| value);
+    let expected = usize::try_from(structure.atoms.len())
+        .into_iter()
+        .fold(usize::MAX, |_, value| value);
     if property.values().len() != expected {
         return Err(CoreError::InvalidProperty {
             reason: "atom property length must equal the owning structure atom count",
