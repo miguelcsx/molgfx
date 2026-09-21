@@ -88,6 +88,34 @@ impl RepresentationConfig {
         self
     }
 
+    /// Sets cartoon ribbon width in ångström.
+    #[must_use]
+    pub const fn ribbon_width(mut self, width: f32) -> Self {
+        self.params.ribbon_width = width;
+        self
+    }
+
+    /// Sets point diameter in physical pixels.
+    #[must_use]
+    pub const fn point_size(mut self, pixels: f32) -> Self {
+        self.params.point_size_pixels = pixels;
+        self
+    }
+
+    /// Sets line diameter in physical pixels.
+    #[must_use]
+    pub const fn line_width(mut self, pixels: f32) -> Self {
+        self.params.line_width_pixels = pixels;
+        self
+    }
+
+    /// Sets solvent probe radius in ångström.
+    #[must_use]
+    pub const fn probe_radius(mut self, radius: f32) -> Self {
+        self.params.probe_radius = radius;
+        self
+    }
+
     /// Uses one constant radius for a trace or tube spline.
     ///
     /// # Errors
