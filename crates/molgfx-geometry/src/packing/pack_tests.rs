@@ -1,6 +1,5 @@
 // The index-to-float casts below build fixture coordinates from a loop
 // counter whose range is a fixed literal in this file; nothing truncates.
-#![allow(clippy::cast_possible_truncation)]
 
 use super::*;
 use molgfx_core::{
@@ -417,7 +416,7 @@ fn a_bead_encloses_its_residue_and_keeps_one_sphere_per_residue() {
 
     // Each bead answers for its own residue: it names the residue's first atom,
     // and its radius must enclose every one of that residue's atoms, measured
-    // from the centroid the test recomputes off the coordinate column.
+    // from the first selected atom whose coordinate the shader gathers.
     let coords = placed.atoms.coords().slice();
     let radii = placed.atoms.radius().values();
     for bead in &beads {
@@ -434,18 +433,11 @@ fn a_bead_encloses_its_residue_and_keeps_one_sphere_per_residue() {
             .filter(|(_, candidate)| candidate == &residue)
             .map(|(index, _)| index)
             .collect();
-        let (sum, count) =
-            members
-                .iter()
-                .fold((molgfx_math::Vec3::ZERO, 0.0f32), |(sum, count), member| {
-                    let point = coords
-                        .get(*member)
-                        .map_or(molgfx_math::Vec3::ZERO, |value| {
-                            molgfx_math::Vec3::from_array(*value)
-                        });
-                    (sum + point, count + 1.0)
-                });
-        let centre = sum / count.max(1.0);
+        let centre = coords
+            .get(first as usize)
+            .map_or(molgfx_math::Vec3::ZERO, |value| {
+                molgfx_math::Vec3::from_array(*value)
+            });
         for member in members {
             let Some(point) = coords.get(member).copied() else {
                 continue;
