@@ -6,6 +6,8 @@ mod draws;
 mod fallback;
 mod init;
 mod paged_instances;
+pub(crate) use paged_instances::PagedInstancesSync;
+pub(crate) use paged_relations::PagedRelationsSync;
 mod paged_relations;
 mod properties;
 mod relations;
@@ -46,6 +48,7 @@ use molgfx_core::{
     AtomGpu, BondGpu, RepresentationHandle, Scene, SegmentationHandle, VolumeHandle,
 };
 use molgfx_gpu::{ArenaAllocation, Device, UploadTicket};
+use semantic_tables::SemanticSync;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug)]
@@ -54,6 +57,18 @@ struct FrameUploadCommand {
     offset: usize,
     len: usize,
 }
+
+pub(crate) struct SceneSync<'a, D: Device> {
+    pub(crate) device: &'a D,
+    pub(crate) queue: &'a D::Queue,
+    pub(crate) scene: &'a Scene,
+    pub(crate) quality: bool,
+    pub(crate) extent: [u32; 2],
+    pub(crate) ray_query_layout: Option<&'a D::BindGroupLayout>,
+    pub(crate) derived_cache: &'a mut crate::DerivedCache,
+    pub(crate) derived_frame: u64,
+}
+
 /// GPU-resident scene state with stable structure and representation slots.
 #[derive(Debug)]
 pub(crate) struct GpuScene<D: Device> {
@@ -202,18 +217,17 @@ impl<D: Device> GpuScene<D> {
         Ok(true)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn sync(
-        &mut self,
-        device: &D,
-        queue: &D::Queue,
-        scene: &Scene,
-        quality: bool,
-        extent: [u32; 2],
-        ray_query_layout: Option<&D::BindGroupLayout>,
-        derived_cache: &mut crate::DerivedCache,
-        derived_frame: u64,
-    ) -> Result<bool, RenderError> {
+    pub(crate) fn sync(&mut self, input: SceneSync<'_, D>) -> Result<bool, RenderError> {
+        let SceneSync {
+            device,
+            queue,
+            scene,
+            quality,
+            extent,
+            ray_query_layout,
+            derived_cache,
+            derived_frame,
+        } = input;
         self.ensure_cull_tiles(device, extent)?;
         self.paged_visual_time_seconds = scene.presentation_time_seconds();
         self.paged_visual_time_revision = scene.presentation_revision();
@@ -272,7 +286,7 @@ impl<D: Device> GpuScene<D> {
                 changed |= source_changed;
             }
         }
-        changed |= self.sync_semantic_tables(
+        changed |= self.sync_semantic_tables(SemanticSync {
             device,
             queue,
             scene,
@@ -281,7 +295,7 @@ impl<D: Device> GpuScene<D> {
             dynamic_sources_changed,
             derived_cache,
             derived_frame,
-        )?;
+        })?;
         changed |= self.sync_volume_resources(device, queue, scene)?;
         changed |=
             self.sync_representation_slots(device, queue, scene, quality, ray_query_layout)?;
@@ -331,14 +345,12 @@ impl<D: Device> GpuScene<D> {
                 slot.key.structure,
                 representation.visual.as_ref(),
             );
-            let visual_program_offset = match representation
+            let visual_program_offset = representation
                 .visual
                 .as_ref()
                 .and_then(|style| self.visual_programs.offset(style.program()))
-            {
-                Some(offset) => offset,
-                None => 0,
-            };
+                .into_iter()
+                .fold(0, |_, offset| offset);
             let (overlay_volume, overlay_view, overlay_binding_revision) =
                 super::scalar_overlay::resolve(
                     &self.volume_resources,

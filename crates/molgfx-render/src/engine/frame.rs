@@ -33,16 +33,16 @@ impl<D: Device> Engine<D> {
         self.chunk_residency.begin_epoch();
         self.scene_gpu.begin_frame();
         // Sync: upload only what changed since the last frame.
-        let scene_changed = self.scene_gpu.sync(
-            &self.device,
-            &self.queue,
+        let scene_changed = self.scene_gpu.sync(crate::scene_gpu::SceneSync {
+            device: &self.device,
+            queue: &self.queue,
             scene,
-            self.mode == RenderMode::Cinematic,
-            [self.width, self.height],
-            self.passes.ambient_occlusion.ray_query_layout(),
-            &mut self.derived_cache,
-            self.derived_frame,
-        )?;
+            quality: self.mode == RenderMode::Cinematic,
+            extent: [self.width, self.height],
+            ray_query_layout: self.passes.ambient_occlusion.ray_query_layout(),
+            derived_cache: &mut self.derived_cache,
+            derived_frame: self.derived_frame,
+        })?;
         self.chunk_residency.sync_scene(
             &mut self.scene_gpu,
             &self.device,

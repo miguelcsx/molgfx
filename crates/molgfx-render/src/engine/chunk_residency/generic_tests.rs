@@ -250,8 +250,7 @@ fn resident_instance_chunks_reuse_analytic_culling_and_flat_part_picking() {
 }
 
 #[test]
-#[allow(clippy::too_many_lines)]
-fn paged_anchors_resolve_exact_occurrences_to_local_gpu_rows() {
+fn paged_point_anchors_resolve_exact_occurrences_to_local_gpu_rows() {
     use super::chunk_draw_plan::ResidentSpatialAnchor;
 
     let mut engine = engine();
@@ -306,7 +305,14 @@ fn paged_anchors_resolve_exact_occurrences_to_local_gpu_rows() {
             .resolve_spatial_anchor(PagedSpatialAnchor::Entity(stale))
             .is_none()
     );
+}
 
+#[test]
+fn paged_instance_anchors_resolve_template_parts_to_local_gpu_rows() {
+    use super::chunk_draw_plan::ResidentSpatialAnchor;
+
+    let mut engine = engine();
+    let mut output = ResidencyOutput::default();
     let Some((request, data)) = generic_fixtures().into_iter().nth(1) else {
         panic!("generic instance fixture must exist")
     };

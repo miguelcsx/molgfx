@@ -52,8 +52,28 @@ struct SurfaceInit<D: Device> {
     normal: D::TextureView,
 }
 
+struct InitialLayouts<D: Device> {
+    group2: D::BindGroupLayout,
+    quality: D::BindGroupLayout,
+    volume: D::BindGroupLayout,
+    segmentation: D::BindGroupLayout,
+    ribbon: D::BindGroupLayout,
+    atom_cull: D::BindGroupLayout,
+    bond_cull: D::BindGroupLayout,
+    visual_cull: D::BindGroupLayout,
+    interaction: D::BindGroupLayout,
+    primitive: D::BindGroupLayout,
+    primitive_motion: D::BindGroupLayout,
+    primitive_shadow: D::BindGroupLayout,
+}
+
+struct InitialResources<D: Device> {
+    assets: AssetArena<D>,
+    chunks: PagedChunkBatch<D>,
+    bonds: PagedBondBatch<D>,
+}
+
 impl<D: Device> GpuScene<D> {
-    #[allow(clippy::too_many_lines)]
     pub(crate) fn new(
         device: &D,
         config: ResidencyConfig,
@@ -62,45 +82,32 @@ impl<D: Device> GpuScene<D> {
         let frame_bytes = std::mem::size_of::<super::FrameUniforms>() as u64;
         let residency = super::residency_init::initialize(config, frame_bytes)?;
         let frame = create_frame_binding(device, residency.frame_resident_bytes)?;
-        let group2_layout = representation_layout(device)?;
-        let quality_layout = quality_layout(device)?;
-        let (volume_layout, segmentation_layout) =
-            (volume_layout(device), segmentation_layout(device));
+        let layouts = initial_layouts(device)?;
         let surface = surface_init(device)?;
-        let ribbon_layout = cartoon_layout(device);
-        let atom_cull_layout = atom_cull_layout(device);
-        let bond_cull_layout = bond_cull_layout(device);
-        let visual_cull_layout = visual_cull_layout(device);
         let (cull_tiles, cull_tiles_capacity) = create_cull_tiles(device, 256)?;
-        let interaction_layout = interaction_layout(device);
-        let primitive_layout = primitive_layout(device);
-        let primitive_motion_layout = primitive_motion_layout(device);
-        let primitive_shadow_layout = primitive_shadow_layout(device);
-        let asset_arena = AssetArena::new(device)?;
-        let paged_chunks = PagedChunkBatch::new(device, config)?;
-        let paged_bonds = PagedBondBatch::new(device, config)?;
+        let initial = initial_resources(device, config)?;
         Ok(Self {
             frame_uniforms: frame.uniforms,
             group0: frame.group,
             group0_layout: frame.layout,
-            group2_layout,
-            quality_layout,
-            volume_layout,
-            segmentation_layout,
+            group2_layout: layouts.group2,
+            quality_layout: layouts.quality,
+            volume_layout: layouts.volume,
+            segmentation_layout: layouts.segmentation,
             surface_field_output_layout: surface.output_layout,
             surface_field_input_layout: surface.input_layout,
             surface_field_erosion_layout: surface.erosion_layout,
             surface_field_normal_layout: surface.normal_layout,
             surface_component_layout: surface.component_layout,
-            ribbon_layout,
-            atom_cull_layout,
-            bond_cull_layout,
-            visual_cull_layout,
+            ribbon_layout: layouts.ribbon,
+            atom_cull_layout: layouts.atom_cull,
+            bond_cull_layout: layouts.bond_cull,
+            visual_cull_layout: layouts.visual_cull,
             cull_tiles,
             cull_tiles_capacity,
             cull_binding_revision: 0,
             cull_tile_count: 0,
-            interaction_layout,
+            interaction_layout: layouts.interaction,
             relation_cull_layout: relation_cull_layout(device),
             relation_resolve_layout: relation_resolve_layout(device),
             generic_point_cull_layout: generic_point_cull_layout(device),
@@ -109,9 +116,9 @@ impl<D: Device> GpuScene<D> {
             generic_instance_render_layout: generic_instance_render_layout(device),
             instance_timeline_layout: instance_timeline_layout(device),
             attribute_timeline_layout: attribute_timeline_layout(device),
-            primitive_layout,
-            primitive_motion_layout,
-            primitive_shadow_layout,
+            primitive_layout: layouts.primitive,
+            primitive_motion_layout: layouts.primitive_motion,
+            primitive_shadow_layout: layouts.primitive_shadow,
             ligand_pose_layout: ligand_pose_layout(device),
             label_declutter_layout: label_declutter_layout(device),
             label_render_layout: label_render_layout(device),
@@ -122,7 +129,7 @@ impl<D: Device> GpuScene<D> {
             surface_field_fallback: surface.field,
             _surface_normal_fallback_texture: surface.normal_texture,
             surface_normal_fallback: surface.normal,
-            asset_arena,
+            asset_arena: initial.assets,
             assets: Vec::new(),
             structures: Vec::new(),
             slots: Vec::new(),
@@ -140,8 +147,8 @@ impl<D: Device> GpuScene<D> {
             ligand_poses: GpuLigandPoses::new(),
             labels: GpuLabels::new(),
             overlays: GpuOverlays::new(),
-            paged_chunks,
-            paged_bonds,
+            paged_chunks: initial.chunks,
+            paged_bonds: initial.bonds,
             picking_pages: super::super::picking_pages::PickPages::new(picking_page_capacity)?,
             paged_instance_pick_scratch: Vec::with_capacity(config.machine_capacity),
             paged_relation_pick_scratch: Vec::with_capacity(config.machine_capacity),
@@ -172,6 +179,34 @@ impl<D: Device> GpuScene<D> {
             upload_fence: 0,
         })
     }
+}
+
+fn initial_layouts<D: Device>(device: &D) -> Result<InitialLayouts<D>, RenderError> {
+    Ok(InitialLayouts {
+        group2: representation_layout(device)?,
+        quality: quality_layout(device)?,
+        volume: volume_layout(device),
+        segmentation: segmentation_layout(device),
+        ribbon: cartoon_layout(device),
+        atom_cull: atom_cull_layout(device),
+        bond_cull: bond_cull_layout(device),
+        visual_cull: visual_cull_layout(device),
+        interaction: interaction_layout(device),
+        primitive: primitive_layout(device),
+        primitive_motion: primitive_motion_layout(device),
+        primitive_shadow: primitive_shadow_layout(device),
+    })
+}
+
+fn initial_resources<D: Device>(
+    device: &D,
+    config: ResidencyConfig,
+) -> Result<InitialResources<D>, RenderError> {
+    Ok(InitialResources {
+        assets: AssetArena::new(device)?,
+        chunks: PagedChunkBatch::new(device, config)?,
+        bonds: PagedBondBatch::new(device, config)?,
+    })
 }
 
 fn surface_init<D: Device>(device: &D) -> Result<SurfaceInit<D>, RenderError> {
