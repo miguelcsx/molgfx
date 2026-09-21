@@ -237,10 +237,9 @@ fn mix_channel(start: u8, end: u8, amount: u16, span: u16) -> u8 {
     } else {
         u32::from(start) - step
     };
-    match u8::try_from(value) {
-        Ok(byte) => byte,
-        Err(_) => u8::MAX,
-    }
+    u8::try_from(value)
+        .into_iter()
+        .fold(u8::MAX, |_, byte| byte)
 }
 
 /// Amplitude in hundredths of an Angstrom, saturating rather than wrapping.

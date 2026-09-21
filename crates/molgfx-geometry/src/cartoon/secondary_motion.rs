@@ -144,7 +144,10 @@ fn spine_tangent(spine: &[Vec3], index: usize) -> Vec3 {
         (Some(previous), Some(next)) => next - previous,
         _ => Vec3::X,
     };
-    direction.try_normalize().map_or(Vec3::X, |unit| unit)
+    direction
+        .try_normalize()
+        .into_iter()
+        .fold(Vec3::X, |_, unit| unit)
 }
 
 /// A stable axis perpendicular to the tangent, chosen away from the world axis
@@ -160,7 +163,8 @@ fn transverse_axis(tangent: Vec3) -> Vec3 {
     };
     seed.cross(tangent)
         .try_normalize()
-        .map_or(Vec3::Y, |unit| unit)
+        .into_iter()
+        .fold(Vec3::Y, |_, unit| unit)
 }
 
 /// Ends fade to zero so the deformation never detaches the ribbon from the
@@ -173,10 +177,14 @@ fn anchor_taper(index: usize, count: usize, anchor_fraction: f32) -> f32 {
     let from_start = index;
     let from_end = last - index;
     let nearest = from_start.min(from_end);
-    let anchored = (f32::from(u16::try_from(count).map_or(u16::MAX, |value| value))
-        * anchor_fraction)
-        .max(1.0);
-    let distance = f32::from(u16::try_from(nearest).map_or(u16::MAX, |value| value));
+    let count = u16::try_from(count)
+        .into_iter()
+        .fold(u16::MAX, |_, value| value);
+    let anchored = (f32::from(count) * anchor_fraction).max(1.0);
+    let nearest = u16::try_from(nearest)
+        .into_iter()
+        .fold(u16::MAX, |_, value| value);
+    let distance = f32::from(nearest);
     (distance / anchored).clamp(0.0, 1.0)
 }
 

@@ -104,11 +104,19 @@ pub fn variable_tube_radius(
     fallback: f32,
 ) -> f32 {
     let left = properties
-        .get(usize::try_from(controls[0]).map_or(usize::MAX, |value| value))
+        .get(
+            usize::try_from(controls[0])
+                .into_iter()
+                .fold(usize::MAX, |_, value| value),
+        )
         .copied()
         .filter(|value| value.is_finite());
     let right = properties
-        .get(usize::try_from(controls[1]).map_or(usize::MAX, |value| value))
+        .get(
+            usize::try_from(controls[1])
+                .into_iter()
+                .fold(usize::MAX, |_, value| value),
+        )
         .copied()
         .filter(|value| value.is_finite());
     match left.zip(right) {

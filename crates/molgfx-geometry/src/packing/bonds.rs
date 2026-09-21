@@ -153,10 +153,9 @@ fn pack_dynamic(
 }
 
 fn gpu_index(resource: &'static str, index: usize) -> Result<u32, PackingError> {
-    let diagnostic_index = match u64::try_from(index) {
-        Ok(value) => value,
-        Err(_) => u64::MAX,
-    };
+    let diagnostic_index = u64::try_from(index)
+        .into_iter()
+        .fold(u64::MAX, |_, value| value);
     u32::try_from(index).map_err(|_| PackingError::IndexOverflow {
         resource,
         index: diagnostic_index,

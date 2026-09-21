@@ -64,7 +64,9 @@ fn append_cap(
     thickness: f32,
     build: &mut RibbonBuild<'_>,
 ) {
-    let segment = usize::try_from(end.sample.segment).map_or(usize::MAX, |value| value);
+    let segment = usize::try_from(end.sample.segment)
+        .into_iter()
+        .fold(usize::MAX, |_, value| value);
     let entity_id = match entities.get(segment) {
         Some(&value) => value,
         None => u32::MAX,
