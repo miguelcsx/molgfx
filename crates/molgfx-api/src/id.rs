@@ -32,3 +32,11 @@ semantic_id!(
     RepresentationId,
     "Identity of a representation in one scene."
 );
+semantic_id!(VolumeId, "Identity of a density volume in one scene.");
+semantic_id!(AnnotationId, "Identity of an annotation in one scene.");
+semantic_id!(MeasurementId, "Identity of a measurement in one scene.");
+semantic_id!(
+    ScientificInteractionId,
+    "Identity of a scientific interaction in one scene."
+);
+semantic_id!(TrajectoryId, "Identity of a trajectory in one scene.");

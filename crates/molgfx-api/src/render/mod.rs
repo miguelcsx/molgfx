@@ -86,7 +86,10 @@ impl Image {
     ///
     /// Returns an encoding or filesystem error.
     pub fn save(&self, path: impl AsRef<std::path::Path>) -> Result<(), Error> {
-        std::fs::write(path, self.png_bytes()?).map_err(Error::from)
+        let file = std::fs::File::create(path)?;
+        self.0
+            .write_png(std::io::BufWriter::new(file))
+            .map_err(Error::from)
     }
 
     /// Pixel width.
@@ -298,5 +301,4 @@ fn engine_config(profile: RenderProfile) -> molgfx_render::EngineConfig {
 }
 
 #[cfg(test)]
-#[path = "renderer_tests.rs"]
 mod tests;
