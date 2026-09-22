@@ -268,3 +268,69 @@ fn focus_bounds_cover_only_the_focused_subject() {
         bounds.max
     );
 }
+
+/// One channel's bit for every row, read from the state words the shaders see.
+fn channel_bits(scene: &Scene, mask: u32) -> Vec<u32> {
+    let resolved = scene.resolved();
+    let Some((handle, _)) = resolved.structures().next() else {
+        panic!("the scene has a structure")
+    };
+    let Some(state) = resolved.interaction_state(handle) else {
+        panic!("the structure has a state column")
+    };
+    state.values().iter().map(|word| word & mask).collect()
+}
+
+fn hovered_words(scene: &Scene) -> Vec<u32> {
+    channel_bits(scene, molgfx_core::InteractionState::HOVERED.bits())
+}
+
+#[test]
+fn an_interaction_edit_leaves_other_channels_alone() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    if let Err(error) =
+        scene.set_interaction(crate::InteractionChannel::Selected, Some(sel::all().into()))
+    {
+        panic!("selecting must apply: {error}")
+    }
+    let before = channel_bits(&scene, molgfx_core::InteractionState::SELECTED.bits());
+    if let Err(error) =
+        scene.set_interaction(crate::InteractionChannel::Hovered, Some(sel::none().into()))
+    {
+        panic!("hovering must apply: {error}")
+    }
+    assert_eq!(
+        before,
+        channel_bits(&scene, molgfx_core::InteractionState::SELECTED.bits()),
+        "editing one channel must not disturb another channel's bits"
+    );
+}
+
+#[test]
+fn a_hover_moving_between_atoms_moves_exactly_its_bit() {
+    let mut scene =
+        Scene::from_structure(&separated_residues()).unwrap_or_else(|error| panic!("{error}"));
+    if let Err(error) = scene.set_interaction(
+        crate::InteractionChannel::Hovered,
+        Some(sel::resname().eq("ALA").into()),
+    ) {
+        panic!("hovering must apply: {error}")
+    }
+    let hovered = molgfx_core::InteractionState::HOVERED.bits();
+    assert_eq!(
+        hovered_words(&scene),
+        vec![hovered, hovered, 0, 0],
+        "the hovered residue carries the bit"
+    );
+    if let Err(error) = scene.set_interaction(
+        crate::InteractionChannel::Hovered,
+        Some(sel::resname().eq("GLY").into()),
+    ) {
+        panic!("moving the hover must apply: {error}")
+    }
+    assert_eq!(
+        hovered_words(&scene),
+        vec![0, 0, hovered, hovered],
+        "rows that left the channel lose the bit and rows that joined it gain it"
+    );
+}

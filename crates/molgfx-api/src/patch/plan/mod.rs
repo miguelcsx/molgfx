@@ -2,18 +2,21 @@
 
 use crate::error::{Error, PatchError};
 use crate::id::{RepresentationId, StructureId};
-use crate::representation::Selection;
 use crate::representation::form::RepresentationSpec;
 use crate::scene::Resolution;
-use crate::scene::runtime::{advance_domain_revisions, candidate_spec, resolve};
-use crate::spec::{InteractionChannel, PatchOperation, ScenePatch, SceneSpec};
+use crate::scene::runtime::{candidate_spec, resolve};
+use crate::spec::{PatchOperation, ScenePatch, SceneSpec};
 use crate::{
     AnnotationId, AnnotationSpec, MeasurementId, MeasurementSpec, ScientificInteractionId,
     ScientificInteractionSpec, TrajectoryId, TrajectorySpec, VolumeId, VolumeSpec,
 };
+use interactions::InteractionUpdates;
 use molgfx_core::{Representation, RepresentationHandle};
+use routing::is_structural;
 use std::collections::{BTreeMap, BTreeSet};
 
+mod interactions;
+mod routing;
 mod science;
 
 pub(crate) enum PatchPlan {
@@ -33,6 +36,7 @@ pub(crate) struct PatchInputs<'a> {
     pub(crate) properties: &'a BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
     pub(crate) structures: &'a BTreeMap<StructureId, molgfx_core::MolecularSource>,
     pub(crate) property_bindings: &'a BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
+    pub(crate) science_bindings: &'a crate::science::ScienceBindings,
 }
 
 pub(crate) struct LocalPatchPlan {
@@ -47,15 +51,6 @@ pub(crate) struct LocalPatchPlan {
     operations: Vec<PatchOperation>,
 }
 
-struct InteractionUpdates {
-    focus: Change<Selection>,
-    selected: Change<Selection>,
-    hovered: Change<Selection>,
-    muted: Change<Selection>,
-    hidden: Change<Selection>,
-    custom: BTreeMap<Box<str>, Option<Selection>>,
-}
-
 #[derive(Default)]
 struct ScienceDomains {
     volumes: Option<BTreeMap<VolumeId, VolumeSpec>>,
@@ -66,33 +61,23 @@ struct ScienceDomains {
 }
 
 #[derive(Clone, Default)]
-enum Change<T> {
+pub(super) enum Change<T> {
     #[default]
     Unchanged,
     Set(Option<T>),
-}
-
-impl Default for InteractionUpdates {
-    fn default() -> Self {
-        Self {
-            focus: Change::Unchanged,
-            selected: Change::Unchanged,
-            hovered: Change::Unchanged,
-            muted: Change::Unchanged,
-            hidden: Change::Unchanged,
-            custom: BTreeMap::new(),
-        }
-    }
 }
 
 impl PatchPlan {
     pub(crate) fn prepare(inputs: PatchInputs<'_>, patch: &ScenePatch) -> Result<Self, Error> {
         if patch.operations.iter().any(is_structural) {
             let candidate = candidate_spec(inputs.spec, patch)?;
-            let resolution = resolve(&candidate, inputs.structures, inputs.property_bindings)
-                .map_err(|error| {
-                    Error::InvalidSpec(format!("patch could not be resolved: {error}"))
-                })?;
+            let resolution = resolve(
+                &candidate,
+                inputs.structures,
+                inputs.property_bindings,
+                inputs.science_bindings,
+            )
+            .map_err(|error| Error::InvalidSpec(format!("patch could not be resolved: {error}")))?;
             return Ok(Self::Structural {
                 spec: Box::new(candidate),
                 resolution: Box::new(resolution),
@@ -186,7 +171,8 @@ impl LocalPatchPlan {
                 self.interactions.set(channel, selection.clone());
             }
             PatchOperation::SetCamera { camera } => self.camera = Change::Set(*camera),
-            PatchOperation::AddRepresentation { .. }
+            PatchOperation::AddStructure { .. }
+            | PatchOperation::AddRepresentation { .. }
             | PatchOperation::RemoveRepresentation { .. }
             | PatchOperation::ReplaceRepresentation { .. } => {
                 return Err(Error::InvalidSpec(
@@ -311,9 +297,19 @@ impl LocalPatchPlan {
         // Channel queries were already validated during preparation, so this
         // evaluates known-good queries against the scene that owns the columns.
         if self.interactions.touched() {
-            let channels = self.interactions.channels(spec);
-            let states = crate::scene::interaction::resolve_states(scene, &channels)?;
-            crate::scene::interaction::install(scene, states)?;
+            // Only the channels this patch actually re-stated need writing. The
+            // dense column already carries every other channel's bits, so a
+            // rebuild would re-evaluate queries the edit never mentioned.
+            let touched = self.interactions.restated_channels(spec);
+            if touched.is_empty() {
+                let channels = self.interactions.channels(spec);
+                let states = crate::scene::interaction::resolve_states(scene, &channels)?;
+                crate::scene::interaction::install(scene, states)?;
+            } else {
+                for (channel, next) in touched {
+                    crate::scene::interaction::update_channel(scene, channel, next.as_ref())?;
+                }
+            }
         }
         scene.replace_representations(self.physical)?;
         for (id, representation) in self.representations {
@@ -329,7 +325,6 @@ impl LocalPatchPlan {
         self.interactions.commit(spec);
         self.science.commit(spec);
         assign(&mut spec.camera, self.camera);
-        advance_domain_revisions(spec, &self.operations);
         if !self.operations.is_empty() {
             spec.revision = spec.revision.wrapping_add(1);
         }
@@ -366,105 +361,6 @@ fn apply_parameter(
     Ok(())
 }
 
-impl InteractionUpdates {
-    fn set(&mut self, channel: &InteractionChannel, selection: Option<Selection>) {
-        match channel {
-            InteractionChannel::Selected => self.selected = Change::Set(selection),
-            InteractionChannel::Hovered => self.hovered = Change::Set(selection),
-            InteractionChannel::Focused => self.focus = Change::Set(selection),
-            InteractionChannel::Muted => self.muted = Change::Set(selection),
-            InteractionChannel::Hidden => self.hidden = Change::Set(selection),
-            InteractionChannel::Custom(name) => {
-                let _ = self.custom.insert(name.clone(), selection);
-            }
-        }
-    }
-
-    /// Channel names visible to a visual program after this patch commits:
-    /// the base scene's channels, plus the ones this patch adds, minus the ones
-    /// it clears. A style may read a channel the same patch declares.
-    fn channel_names(&self, base: &SceneSpec) -> Vec<Box<str>> {
-        let mut names: Vec<Box<str>> = base
-            .custom_interactions
-            .keys()
-            .filter(|name| !matches!(self.custom.get(*name), Some(None)))
-            .cloned()
-            .collect();
-        for (name, selection) in &self.custom {
-            if selection.is_some() && !names.contains(name) {
-                names.push(name.clone());
-            }
-        }
-        names.sort_unstable();
-        names
-    }
-
-    /// True when this patch changes any interaction channel.
-    fn touched(&self) -> bool {
-        !matches!(self.focus, Change::Unchanged)
-            || !matches!(self.selected, Change::Unchanged)
-            || !matches!(self.hovered, Change::Unchanged)
-            || !matches!(self.muted, Change::Unchanged)
-            || !matches!(self.hidden, Change::Unchanged)
-            || !self.custom.is_empty()
-    }
-
-    /// The channels this patch leaves behind, paired with their queries.
-    fn channels(
-        &self,
-        base: &SceneSpec,
-    ) -> Vec<(crate::property::registry::StateChannel, Selection)> {
-        let mut candidate = base.clone();
-        self.clone_into_spec(&mut candidate);
-        crate::scene::interaction::channels(&candidate)
-    }
-
-    fn clone_into_spec(&self, spec: &mut SceneSpec) {
-        assign(&mut spec.focus, self.focus.clone());
-        assign(&mut spec.selected, self.selected.clone());
-        assign(&mut spec.hovered, self.hovered.clone());
-        assign(&mut spec.muted, self.muted.clone());
-        assign(&mut spec.hidden, self.hidden.clone());
-        for (name, selection) in &self.custom {
-            if let Some(selection) = selection {
-                let _ = spec
-                    .custom_interactions
-                    .insert(name.clone(), selection.clone());
-            } else {
-                let _ = spec.custom_interactions.remove(name);
-            }
-        }
-    }
-
-    fn selections(&self) -> impl Iterator<Item = &Selection> {
-        [
-            self.focus.value(),
-            self.selected.value(),
-            self.hovered.value(),
-            self.muted.value(),
-            self.hidden.value(),
-        ]
-        .into_iter()
-        .flatten()
-        .chain(self.custom.values().filter_map(Option::as_ref))
-    }
-
-    fn commit(self, spec: &mut SceneSpec) {
-        assign(&mut spec.focus, self.focus);
-        assign(&mut spec.selected, self.selected);
-        assign(&mut spec.hovered, self.hovered);
-        assign(&mut spec.muted, self.muted);
-        assign(&mut spec.hidden, self.hidden);
-        for (name, selection) in self.custom {
-            if let Some(selection) = selection {
-                let _ = spec.custom_interactions.insert(name, selection);
-            } else {
-                let _ = spec.custom_interactions.remove(&name);
-            }
-        }
-    }
-}
-
 impl<T> Change<T> {
     fn value(&self) -> Option<&T> {
         match self {
@@ -474,17 +370,8 @@ impl<T> Change<T> {
     }
 }
 
-fn assign<T>(target: &mut Option<T>, update: Change<T>) {
+pub(super) fn assign<T>(target: &mut Option<T>, update: Change<T>) {
     if let Change::Set(update) = update {
         *target = update;
     }
-}
-
-fn is_structural(operation: &PatchOperation) -> bool {
-    matches!(
-        operation,
-        PatchOperation::AddRepresentation { .. }
-            | PatchOperation::RemoveRepresentation { .. }
-            | PatchOperation::ReplaceRepresentation { .. }
-    )
 }
