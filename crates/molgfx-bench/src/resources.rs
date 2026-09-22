@@ -12,10 +12,18 @@ use molgfx::{Scene, rep, sel};
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, Stats};
 
 /// Edits each edit case performs, so a per-edit allocation is visible.
-pub const EDIT_COUNT: u32 = 64;
+pub const EDIT_COUNT: usize = 64;
 
 /// Edits run once, for a case that measures a cold edit against a warm one.
-pub const SINGLE_EDIT: u32 = 1;
+pub const SINGLE_EDIT: usize = 1;
+
+/// Distinct opacities an edit case walks through.
+///
+/// Written out rather than computed so the measurement needs no conversion and
+/// no clamp: the case is about what an edit allocates, not about the value.
+const OPACITY_RAMP: [f32; 16] = [
+    0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85,
+];
 
 /// Residue counts spanning a ligand, a domain and a small complex.
 pub const SIZES: [usize; 3] = [64, 1_024, 8_192];
@@ -48,8 +56,9 @@ pub struct ResourceRecord {
     pub allocated_bytes: usize,
     /// Bytes still live after the case, which is what a scene retains.
     pub live_bytes: isize,
-    /// Live bytes per atom; a figure that drifts with size is a scaling copy.
-    pub bytes_per_atom: f64,
+    /// Live bytes per atom in hundredths; a figure that drifts with size is a
+    /// scaling copy.
+    pub bytes_per_atom_hundredths: u64,
 }
 
 impl ResourceRecord {
@@ -75,7 +84,7 @@ impl ResourceRecord {
             reallocations,
             allocated_bytes: bytes_allocated,
             live_bytes,
-            bytes_per_atom: ratio(live_bytes, atoms),
+            bytes_per_atom_hundredths: bytes_per_atom_hundredths(live_bytes, atoms),
         };
         (record, value)
     }
@@ -92,25 +101,32 @@ impl ResourceRecord {
             self.reallocations,
             self.allocated_bytes,
             self.live_bytes,
-            self.bytes_per_atom
+            self.bytes_per_atom_hundredths
         )
     }
 }
 
-/// Live bytes per atom, the figure that says whether a scene is dense.
+/// Live bytes per atom, in hundredths, so no float cast is needed.
 ///
-/// The quotient is a reported figure, never an argument to anything, so the
-/// widening conversions are exact in every range a scene can reach.
-#[allow(clippy::cast_precision_loss)]
-fn ratio(live_bytes: isize, atoms: u64) -> f64 {
+/// The figure is reported rather than computed with, so an integer ratio at a
+/// fixed scale keeps it exact and leaves the type conversions out of the
+/// measurement entirely.
+fn bytes_per_atom_hundredths(live_bytes: isize, atoms: u64) -> u64 {
     if atoms == 0 {
-        return 0.0;
+        return 0;
     }
-    live_bytes as f64 / atoms as f64
+    let magnitude = live_bytes.unsigned_abs();
+    match u64::try_from(magnitude) {
+        Ok(bytes) => bytes.saturating_mul(100) / atoms,
+        Err(_) => u64::MAX,
+    }
 }
 
 fn signed(value: usize) -> isize {
-    isize::try_from(value).unwrap_or(isize::MAX)
+    match isize::try_from(value) {
+        Ok(signed) => signed,
+        Err(_) => isize::MAX,
+    }
 }
 
 /// Runs the selected case, or every case when `selected` is `all`.
@@ -216,9 +232,8 @@ fn run_one(case: &'static str, residues: usize) -> ResourceRecord {
             // An appearance edit writes one uniform block, so it must not
             // allocate a scene's worth of state per edit.
             ResourceRecord::measure(case, atoms, || {
-                for step in 0..EDIT_COUNT {
-                    let opacity = 0.1 + f32::from(u16::try_from(step).unwrap_or(0)) * 0.01;
-                    let _ = built.set_opacity(id, opacity);
+                for opacity in OPACITY_RAMP.iter().cycle().take(EDIT_COUNT) {
+                    let _ = built.set_opacity(id, *opacity);
                 }
             })
             .0

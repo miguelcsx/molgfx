@@ -42,7 +42,7 @@ pub use render::{PickKind, PickResult};
 pub use representation::RepresentationSpec;
 pub use representation::{SceneItem, Selection};
 pub use scene::Scene;
-pub use scene::runtime::structure_hash;
+pub use scene::hashing::structure_hash;
 pub use scene::transaction::SceneTransaction;
 pub use science::{
     Anchor, AnnotationSpec, DataSource, InteractionKind, MeasurementSpec, ScientificHandles,

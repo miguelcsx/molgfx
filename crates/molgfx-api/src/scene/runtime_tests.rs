@@ -1,4 +1,4 @@
-use super::structure_hash;
+use super::hashing::structure_hash;
 
 fn parse(source: &str) -> molframe::Structure {
     let result = molframe::read_bytes(
