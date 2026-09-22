@@ -1,6 +1,7 @@
 """AnyWidget transport for MolGFX's direct browser WebGPU runtime."""
 
 from pathlib import Path
+import weakref
 
 import anywidget
 import traitlets
@@ -34,13 +35,14 @@ class Viewer(anywidget.AnyWidget):
             **kwargs,
         )
         self._scene = scene
+        self._subscription = weakref.WeakMethod(self._on_scene_patch)
+        scene._subscribe(self._subscription)
+
+    def _on_scene_patch(self, patch_json):
+        """Forward one already-committed semantic patch to the browser."""
+        self.scene_patch = patch_json
+        self.patch_sequence += 1
 
     def apply(self, patch):
         """Apply one atomic patch locally and forward that exact patch once."""
         self._scene.apply(patch)
-        self.scene_patch = patch.to_json()
-        self.patch_sequence += 1
-
-    def refresh(self):
-        """Replace browser semantic state after direct Python-side scene edits."""
-        self.scene_spec = self._scene.to_json()
