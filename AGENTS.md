@@ -26,24 +26,18 @@ cargo build --workspace                      # everything, including py/wasm/ben
 cargo test  --workspace                      # all tests
 cargo test  -p molgfx-core                  # one crate
 cargo check -p molgfx-wasm --target wasm32-unknown-unknown   # the wasm leaf, on its real target
-cargo run   -p molgfx-bench --bin focus_profile --release   # drive the engine
-cargo clippy --workspace --all-targets -- -D warnings
+cargo bench -p molgfx-bench                    # declarative/runtime performance matrix
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --all
 ```
 
-The workspace's `default-members` covers the engine crates only —
-`molgfx-py`, `molgfx-wasm` and `molgfx-bench` are left out of the no-selector
-inner loop because `molgfx-py` pulls `molframe-py`, which unconditionally
-requires `molframe`'s `full` feature (faer, parquet, sqlite, zstd, arrow,
-hdf5/netcdf, hoomd) into the same resolve session as everything else. Any
-`--workspace`-flagged command, including the ones below, still covers all
-three.
+The workspace's `default-members` covers the engine crates only. Python, WASM,
+and benchmark leaves remain outside the no-selector inner loop, while every
+`--workspace` command covers them. `molframe-py` is domain-featured; do not
+restore its former unconditional `full` dependency.
 
 Tests for `foo.rs` live in the sibling `foo_tests.rs`, with sentence-form names.
 A module directory may instead carry one `tests.rs` for the modules beside it.
-Most crates are still stubs, so a command may have little to compile or run yet —
-the command is still the right one.
-
 ## Crates
 
 Dependencies point inward (a crate uses lower layers only). `#![forbid(unsafe_code)]`
@@ -59,16 +53,26 @@ everywhere; the only `unsafe` is `bytemuck` POD casts for GPU upload.
 | `molgfx-geometry` | GPU geometry: impostor packing, ribbons, surfaces, BVH build |
 | `molgfx-render` | Render graph; realtime + quality modes |
 | `molgfx-semantic` | The semantic layer: focus+context, materials, LOD, interactions |
-| `molgfx` | Facade: one module per inner crate, feature-gated, no logic |
+| `molgfx-api` | Declarative values, semantic IDs, patches, resolved-scene lowering |
+| `molgfx` | Curated facade: `Scene`, `Renderer`, specs, values, and explicit namespaces |
 | `molgfx-py` | PyO3 type adapters and registration over the facade |
 | `molgfx-wasm` | Browser bindings over the same declarative scene and engine |
 | `molgfx-bench` | Benchmark harness |
 
-Callers import from `molgfx` only. Backends are chosen by capability, never named
-in the public API. The facade publishes each inner crate as a module of the same
-name — `molgfx::core`, `molgfx::render` — so a name has one home and no collision
-with a same-named concept in another layer; `molgfx::prelude` is the curated
-shortcut for ordinary work.
+Ordinary callers import from `molgfx` only. Backends are chosen by capability,
+never named in the public API. The facade deliberately does not re-export inner
+crates or provide a `Deref` escape hatch. Low-level schema records live under
+`molgfx::schema`; advanced mechanisms live in explicit curated namespaces.
+`molgfx-py` and `molgfx-wasm` depend on `molgfx` alone — a binding that needs
+something inward is a missing curated namespace, not a reason to add a
+dependency.
+
+`molgfx-api` is organized one directory per domain concept — `scene/`, `patch/`,
+`visual/`, `spec/`, `representation/`, `science/`, `render/`, `interop/` — with
+tests beside the code they cover. Do not add a flat module at its root, and do
+not use `#[path]` or `include!` to keep one module's text in several files: a
+file that has outgrown the cap has outgrown its responsibility, so split the
+module.
 
 ## Project-specific gotchas
 
@@ -87,9 +91,19 @@ Things an agent would get wrong without being told (full rules in `RULES.md`):
   there is no second shader dialect to keep in sync.
 - **Errors are values.** Don't `unwrap`/`expect` outside tests, and don't panic on
   device loss or surface loss — return the typed error and let the caller recover.
-- **`unsafe` lives in one place only** — `bytemuck` casts. Anywhere else is a bug.
-- **No generated files and no local scripts.** A binding surface is either written
-  by hand or produced by a committed generator; there is no codegen step to re-run.
+- **No hand-written versions.** Nothing in the code defines a schema, wire or
+  format version, and no identifier or literal carries a `v1`/`v2` suffix.
+  Package versions live in `Cargo.toml`. Incompatible serialized input fails on
+  its own shape. (`MolViewSpec v1` is an external standard MolGFX reads, not a
+  version MolGFX defines.)
+- **One definition of a visual input.** Everything a visual program may read —
+  renderer scalars and vectors, interaction channels, bound atom columns — is
+  resolved through `molgfx-api`'s input registry. A style that authors cleanly
+  must lower cleanly; two validators that disagree is the bug that registry
+  exists to prevent.
+- **No `unsafe` in product code.** POD upload types use audited `bytemuck` derives.
+- **No ad-hoc generated source or local policy scripts.** Build-time WGSL
+  composition is part of the committed build architecture.
 
 ## Verification
 
@@ -101,6 +115,9 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 cargo check  -p molgfx-wasm --target wasm32-unknown-unknown
 cargo clippy -p molgfx-wasm --target wasm32-unknown-unknown --all-targets -- -D warnings
+python -m unittest discover -s python/tests
+python -m mypy.stubtest molgfx._engine
+grep -rnE '#\[(allow|expect)\b' crates/ --include='*.rs'  # must be empty
 grep -rn "unwrap" crates/ --include="*.rs" | grep -v "_tests.rs" | grep -v "/tests.rs" | grep -v "generic_tests/"   # must be empty
 find crates \( -name "*.rs" -o -name "*.wgsl" \) -print0 | xargs -0 wc -l | awk '$1>500 && $2 != "total" {print}'   # must be empty (file cap)
 grep -rnE "(^|[^A-Za-z_])unsafe([[:space:]]*\{|[[:space:]]+(fn|impl|trait|extern|static|mut))" crates/ --include="*.rs" | grep -v bytemuck   # must be empty
@@ -113,9 +130,9 @@ away first. The two `wasm32-unknown-unknown` lines above are the only ones
 that actually verify that crate's code; they aren't redundant with the
 `--workspace` commands above them.
 
-No check reads a scene corpus, so a checkout with no `benchmarks/` passes the whole
-list: the benchmarks resolve data through `crates/molgfx-bench/src/fixtures.rs` and
-skip when none is present.
+Repository-policy greps belong in CI workflow steps, never compiled product
+tests. No check reads a scene corpus, so a checkout without `benchmarks/` passes;
+benchmark fixtures resolve data only through the harness.
 
 ## Commit scopes
 
