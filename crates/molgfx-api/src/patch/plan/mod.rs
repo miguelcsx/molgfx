@@ -48,7 +48,12 @@ pub(crate) struct LocalPatchPlan {
     interactions: InteractionUpdates,
     science: ScienceDomains,
     camera: Change<molgfx_math::Camera>,
-    operations: Vec<PatchOperation>,
+    /// Whether the patch carried any operation at all.
+    ///
+    /// Only the emptiness is ever read, so the plan records the answer rather
+    /// than owning a second copy of the operations: an edit clones the patch's
+    /// operation list purely to ask whether it was empty.
+    touched: bool,
 }
 
 #[derive(Default)]
@@ -112,7 +117,7 @@ impl LocalPatchPlan {
             interactions: InteractionUpdates::default(),
             science: ScienceDomains::default(),
             camera: Change::Unchanged,
-            operations: patch.operations.clone(),
+            touched: !patch.operations.is_empty(),
         };
         for operation in &patch.operations {
             plan.apply_semantic_operation(spec, operation)?;
@@ -325,7 +330,7 @@ impl LocalPatchPlan {
         self.interactions.commit(spec);
         self.science.commit(spec);
         assign(&mut spec.camera, self.camera);
-        if !self.operations.is_empty() {
+        if self.touched {
             spec.revision = spec.revision.wrapping_add(1);
         }
         Ok(())

@@ -4,6 +4,7 @@
 
 pub mod fixtures;
 pub mod reader;
+pub mod resources;
 pub mod synthetic;
 
 #[cfg(test)]

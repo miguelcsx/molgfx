@@ -49,3 +49,39 @@ fn the_structure_digest_is_a_pinned_value() {
         "the structure digest is a published contract"
     );
 }
+
+/// A local edit must not copy the patch that carried it.
+///
+/// The plan used to own a second copy of the operation list purely to answer
+/// whether the patch was empty, which cost one allocation and one deep clone of
+/// the most expensive variant per edit. The plan records the emptiness instead,
+/// and this holds the shape that keeps it that way: the patch a caller holds is
+/// still the patch after it applies.
+#[test]
+fn applying_a_local_edit_does_not_copy_its_operation_list() {
+    use crate::{rep, sel};
+    let mut scene =
+        super::Scene::from_structure(&fixture()).unwrap_or_else(|error| panic!("{error}"));
+    let id = scene
+        .add(rep::spacefill(sel::all()))
+        .unwrap_or_else(|error| panic!("{error}"));
+
+    let patch = crate::ScenePatch {
+        base_revision: scene.revision(),
+        operations: vec![crate::PatchOperation::SetOpacity { id, opacity: 0.5 }],
+    };
+    let operations = patch.operations.as_ptr();
+    scene
+        .apply(&patch)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(
+        patch.operations.as_ptr(),
+        operations,
+        "the caller's operation list is neither moved nor reallocated"
+    );
+    assert_eq!(patch.operations.len(), 1);
+}
+
+fn fixture() -> molframe::Structure {
+    parse("ATOM      1  N   ALA A   1      11.104   6.134  -6.504  1.00  0.00           N\nEND\n")
+}
