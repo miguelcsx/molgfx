@@ -723,7 +723,7 @@ dependencies = [
 [[package]]
 name = "molframe"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=1207d0525958cb0101db1743c367e55a1a34596d#1207d0525958cb0101db1743c367e55a1a34596d"
+source = "git+https://github.com/miguelcsx/molframe?rev=ad77571a50e8126d7ea9a48016915b7a7483db04#ad77571a50e8126d7ea9a48016915b7a7483db04"
 dependencies = [
  "molframe-bcif",
  "molframe-chem",
@@ -743,7 +743,7 @@ dependencies = [
 [[package]]
 name = "molframe-bcif"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=1207d0525958cb0101db1743c367e55a1a34596d#1207d0525958cb0101db1743c367e55a1a34596d"
+source = "git+https://github.com/miguelcsx/molframe?rev=ad77571a50e8126d7ea9a48016915b7a7483db04#ad77571a50e8126d7ea9a48016915b7a7483db04"
 dependencies = [
  "indexmap",
  "molframe-cif",
@@ -759,7 +759,7 @@ dependencies = [
 [[package]]
 name = "molframe-chem"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=1207d0525958cb0101db1743c367e55a1a34596d#1207d0525958cb0101db1743c367e55a1a34596d"
+source = "git+https://github.com/miguelcsx/molframe?rev=ad77571a50e8126d7ea9a48016915b7a7483db04#ad77571a50e8126d7ea9a48016915b7a7483db04"
 dependencies = [
  "molframe-cif",
  "molframe-core",
@@ -769,7 +769,7 @@ dependencies = [
 [[package]]
 name = "molframe-cif"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=1207d0525958cb0101db1743c367e55a1a34596d#1207d0525958cb0101db1743c367e55a1a34596d"
+source = "git+https://github.com/miguelcsx/molframe?rev=ad77571a50e8126d7ea9a48016915b7a7483db04#ad77571a50e8126d7ea9a48016915b7a7483db04"
 dependencies = [
  "indexmap",
  "memchr",
@@ -782,7 +782,7 @@ dependencies = [
 [[package]]
 name = "molframe-core"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=1207d0525958cb0101db1743c367e55a1a34596d#1207d0525958cb0101db1743c367e55a1a34596d"
+source = "git+https://github.com/miguelcsx/molframe?rev=ad77571a50e8126d7ea9a48016915b7a7483db04#ad77571a50e8126d7ea9a48016915b7a7483db04"
 dependencies = [
  "bytemuck",
  "hashbrown 0.16.1",
@@ -795,7 +795,7 @@ dependencies = [
 [[package]]
 name = "molframe-engine"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=1207d0525958cb0101db1743c367e55a1a34596d#1207d0525958cb0101db1743c367e55a1a34596d"
+source = "git+https://github.com/miguelcsx/molframe?rev=ad77571a50e8126d7ea9a48016915b7a7483db04#ad77571a50e8126d7ea9a48016915b7a7483db04"
 dependencies = [
  "molframe-core",
  "thiserror",
@@ -804,7 +804,7 @@ dependencies = [
 [[package]]
 name = "molframe-pdb"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=1207d0525958cb0101db1743c367e55a1a34596d#1207d0525958cb0101db1743c367e55a1a34596d"
+source = "git+https://github.com/miguelcsx/molframe?rev=ad77571a50e8126d7ea9a48016915b7a7483db04#ad77571a50e8126d7ea9a48016915b7a7483db04"
 dependencies = [
  "molframe-core",
  "num-traits",
@@ -816,7 +816,7 @@ dependencies = [
 [[package]]
 name = "molframe-py"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=1207d0525958cb0101db1743c367e55a1a34596d#1207d0525958cb0101db1743c367e55a1a34596d"
+source = "git+https://github.com/miguelcsx/molframe?rev=ad77571a50e8126d7ea9a48016915b7a7483db04#ad77571a50e8126d7ea9a48016915b7a7483db04"
 dependencies = [
  "molframe",
  "numpy",
@@ -826,7 +826,7 @@ dependencies = [
 [[package]]
 name = "molframe-query"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=1207d0525958cb0101db1743c367e55a1a34596d#1207d0525958cb0101db1743c367e55a1a34596d"
+source = "git+https://github.com/miguelcsx/molframe?rev=ad77571a50e8126d7ea9a48016915b7a7483db04#ad77571a50e8126d7ea9a48016915b7a7483db04"
 dependencies = [
  "molframe-chem",
  "molframe-core",
@@ -835,7 +835,7 @@ dependencies = [
 [[package]]
 name = "molframe-spatial"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=1207d0525958cb0101db1743c367e55a1a34596d#1207d0525958cb0101db1743c367e55a1a34596d"
+source = "git+https://github.com/miguelcsx/molframe?rev=ad77571a50e8126d7ea9a48016915b7a7483db04#ad77571a50e8126d7ea9a48016915b7a7483db04"
 dependencies = [
  "molframe-core",
  "molframe-query",
@@ -847,7 +847,7 @@ dependencies = [
 [[package]]
 name = "molframe-surface"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=1207d0525958cb0101db1743c367e55a1a34596d#1207d0525958cb0101db1743c367e55a1a34596d"
+source = "git+https://github.com/miguelcsx/molframe?rev=ad77571a50e8126d7ea9a48016915b7a7483db04#ad77571a50e8126d7ea9a48016915b7a7483db04"
 dependencies = [
  "molframe-core",
  "molframe-spatial",
