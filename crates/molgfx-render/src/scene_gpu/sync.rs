@@ -147,6 +147,7 @@ pub(crate) struct GpuScene<D: Device> {
     structure_revision: Option<u64>,
     slot_structure_revision: Option<u64>,
     representation_revision: Option<u64>,
+    representation_membership_revision: Option<u64>,
     volume_slot_revision: Option<(u64, u64)>,
     segmentation_slot_revision: Option<(u64, u64)>,
     representation_scratch: Vec<(u16, RepresentationHandle)>,
@@ -427,8 +428,8 @@ impl<D: Device> GpuScene<D> {
     }
 
     fn reconcile_slots(&mut self, scene: &Scene) {
-        let revision = scene.representation_revision();
-        if self.representation_revision == Some(revision)
+        let revision = scene.representation_membership_revision();
+        if self.representation_membership_revision == Some(revision)
             && self.slot_structure_revision == Some(scene.structure_revision())
         {
             return;
@@ -437,7 +438,6 @@ impl<D: Device> GpuScene<D> {
         self.representation_scratch.extend(
             scene
                 .representations()
-                .filter(|(_, rep)| rep.visible)
                 .filter(|(_, rep)| rep.selection().is_some())
                 .map(|(handle, rep)| (rep.order, handle)),
         );
@@ -466,20 +466,33 @@ impl<D: Device> GpuScene<D> {
                         representation: *representation,
                     },
                     structure_index,
+                    draw_order: self.plan_scratch.len(),
+                    visible: value.visible,
                 });
             }
         }
         let mut old = std::mem::take(&mut self.slots);
+        old.sort_unstable_by_key(|slot| slot.key);
+        self.plan_scratch.sort_unstable_by_key(|plan| plan.key);
+        let mut old = old.into_iter().peekable();
         for plan in &self.plan_scratch {
-            if let Some(index) = old.iter().position(|slot| slot.key == plan.key) {
-                let mut slot = old.swap_remove(index);
+            while old.peek().is_some_and(|slot| slot.key < plan.key) {
+                let _ = old.next();
+            }
+            if old.peek().is_some_and(|slot| slot.key == plan.key) {
+                let Some(mut slot) = old.next() else {
+                    continue;
+                };
                 slot.structure_index = plan.structure_index;
+                slot.draw_order = plan.draw_order;
+                slot.visible = plan.visible;
                 self.slots.push(slot);
             } else {
                 self.slots.push(GpuSlot::new(*plan));
             }
         }
-        self.representation_revision = Some(revision);
+        self.slots.sort_unstable_by_key(|slot| slot.draw_order);
+        self.representation_membership_revision = Some(revision);
         self.slot_structure_revision = Some(scene.structure_revision());
     }
 }

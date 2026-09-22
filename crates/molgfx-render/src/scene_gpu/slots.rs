@@ -22,6 +22,8 @@ const FAST_POINT_INDEX_LIMIT: u32 = 1 << 24;
 pub(super) struct GpuSlot<D: Device> {
     pub(super) key: SlotKey,
     pub(super) structure_index: usize,
+    pub(super) draw_order: usize,
+    pub(super) visible: bool,
     atoms: Option<D::Buffer>,
     bonds: Option<D::Buffer>,
     atom_args: Option<D::Buffer>,
@@ -59,6 +61,8 @@ impl<D: Device> GpuSlot<D> {
         Self {
             key: plan.key,
             structure_index: plan.structure_index,
+            draw_order: plan.draw_order,
+            visible: plan.visible,
             atoms: None,
             bonds: None,
             atom_args: None,
@@ -94,6 +98,7 @@ impl<D: Device> GpuSlot<D> {
     }
 
     pub(super) fn sync(&mut self, mut input: SlotSync<'_, D>) -> Result<bool, RenderError> {
+        self.visible = input.representation.visible;
         let current = synced_state(&input);
         if self.synced == Some(current) {
             return Ok(false);

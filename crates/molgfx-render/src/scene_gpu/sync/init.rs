@@ -162,6 +162,7 @@ impl<D: Device> GpuScene<D> {
             structure_revision: None,
             slot_structure_revision: None,
             representation_revision: None,
+            representation_membership_revision: None,
             volume_slot_revision: None,
             segmentation_slot_revision: None,
             representation_scratch: Vec::new(),

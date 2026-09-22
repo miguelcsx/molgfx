@@ -8,6 +8,9 @@ use molgfx_gpu::{Device, Queue};
 use molgfx_math::{Aabb, Camera, Mat4, Projection, Vec3};
 
 use super::probe_offsets::PROBE_SAMPLE_COUNT;
+use overlay::overlay_uniforms;
+
+mod overlay;
 
 pub(super) const SURFACE_GRID_MAX_DIMENSION: u32 = 192;
 const SURFACE_GRID_TARGET_SPACING: f32 = 0.25;
@@ -230,6 +233,8 @@ pub(super) struct RepresentationUniforms {
     pub(super) overlay_visual: [f32; 4],
     /// Perceptual roughness, dielectric specular strength and reserved lanes.
     pub(super) material: [f32; 4],
+    /// Global opacity followed by reserved presentation lanes.
+    pub(super) presentation: [f32; 4],
 }
 
 impl RepresentationUniforms {
@@ -318,6 +323,7 @@ impl RepresentationUniforms {
             overlay_size: overlay.size,
             overlay_visual: overlay.visual,
             material: material_uniforms(representation.material),
+            presentation: presentation_uniforms(representation.material),
         }
     }
 }
@@ -335,71 +341,13 @@ pub(super) fn write_representation_uniforms<D: Device>(
     queue.write_buffer(buffer, 0, bytemuck::bytes_of(&value));
 }
 
-struct OverlayUniforms {
-    world_to_voxel: [[f32; 4]; 4],
-    domain: [f32; 4],
-    colors: [[f32; 4]; 3],
-    size: [u32; 4],
-    visual: [f32; 4],
-}
-
-fn overlay_uniforms(
-    representation: &Representation,
-    volume: Option<&ScalarVolume>,
-) -> OverlayUniforms {
-    let (Some(style), Some(volume)) = (representation.surface_scalar, volume) else {
-        return OverlayUniforms {
-            world_to_voxel: Mat4::IDENTITY.to_cols_array_2d(),
-            domain: [0.0, 0.5, 1.0, 0.0],
-            colors: [[0.0; 4]; 3],
-            size: [1, 1, 1, 0],
-            visual: [1.0, 0.0, 0.0, 0.0],
-        };
-    };
-    let values = style.ramp.values();
-    let colors = style.ramp.colors().map(color_f32);
-    let (interval, width) = match style.contours {
-        Some(contours) => (
-            contours.interval.max(f32::EPSILON),
-            contours.width_pixels.clamp(0.25, 8.0),
-        ),
-        None => (0.0, 1.0),
-    };
-    let dimensions = volume.dimensions();
-    OverlayUniforms {
-        world_to_voxel: volume.voxel_to_world().inverse().to_cols_array_2d(),
-        domain: [values[0], values[1], values[2], interval],
-        colors,
-        size: [dimensions[0], dimensions[1], dimensions[2], 1],
-        visual: [
-            width,
-            if style.sample_offset_angstrom.is_finite() {
-                style.sample_offset_angstrom.clamp(-100.0, 100.0)
-            } else {
-                0.0
-            },
-            0.0,
-            0.0,
-        ],
-    }
-}
-
-fn color_f32(color: molgfx_math::Rgba8) -> [f32; 4] {
-    let scale = 1.0 / 255.0;
-    [
-        f32::from(color.r) * scale,
-        f32::from(color.g) * scale,
-        f32::from(color.b) * scale,
-        f32::from(color.a) * scale,
-    ]
-}
-
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub(super) struct ClipUniforms {
     pub(super) planes: [[f32; 4]; MAX_CLIP_PLANES],
     pub(super) meta: [u32; 4],
     pub(super) material: [f32; 4],
+    pub(super) presentation: [f32; 4],
     pub(super) tube_mapping: [f32; 4],
     pub(super) tube: [f32; 4],
 }
@@ -410,6 +358,7 @@ impl ClipUniforms {
             planes: clip_planes(clipping),
             meta: clip_meta(clipping),
             material: material_uniforms(material),
+            presentation: presentation_uniforms(material),
             tube_mapping: [0.0; 4],
             tube: [0.0; 4],
         }
@@ -430,6 +379,7 @@ impl ClipUniforms {
             planes: clip_planes(&representation.clipping),
             meta: clip_meta(&representation.clipping),
             material: material_uniforms(representation.material),
+            presentation: presentation_uniforms(representation.material),
             tube_mapping: [0.0; 4],
             tube: [
                 representation.params.tube_radius.abs().max(1.0e-6),
@@ -461,6 +411,10 @@ pub(super) fn material_uniforms(material: Material) -> [f32; 4] {
         model[0],
         model[1],
     ]
+}
+
+fn presentation_uniforms(material: Material) -> [f32; 4] {
+    [f32::from(material.opacity_unorm8()) / 255.0, 0.0, 0.0, 0.0]
 }
 
 pub(super) fn clip_planes(clipping: &ClipSet) -> [[f32; 4]; MAX_CLIP_PLANES] {

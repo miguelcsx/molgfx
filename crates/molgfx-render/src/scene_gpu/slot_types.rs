@@ -109,7 +109,7 @@ impl SlotShading {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(super) struct SlotKey {
     pub(super) structure: StructureHandle,
     pub(super) representation: RepresentationHandle,
@@ -119,6 +119,8 @@ pub(super) struct SlotKey {
 pub(super) struct SlotPlan {
     pub(super) key: SlotKey,
     pub(super) structure_index: usize,
+    pub(super) draw_order: usize,
+    pub(super) visible: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -175,7 +177,6 @@ pub(super) struct RecordState {
     radius_scale: u32,
     bond_radius: u32,
     surface: [u32; 4],
-    opacity: u8,
     color: ColorScheme,
     appearance: Option<molgfx_core::PropertyAppearance>,
 }
@@ -193,7 +194,6 @@ impl RecordState {
                 representation.params.surface_kind as u32,
                 representation.params.surface_style as u32,
             ],
-            opacity: representation.material.opacity_unorm8(),
             color: representation.color,
             appearance: representation.appearance,
         }
@@ -206,7 +206,6 @@ pub(super) struct RibbonState {
     kind: u8,
     width: u32,
     radius: u32,
-    opacity: u8,
     color: ColorScheme,
     appearance: Option<molgfx_core::PropertyAppearance>,
 }
@@ -218,7 +217,6 @@ impl RibbonState {
             kind: kind_id(representation.kind),
             width: representation.params.ribbon_width.to_bits(),
             radius: representation.params.tube_radius.to_bits(),
-            opacity: representation.material.opacity_unorm8(),
             color: representation.color,
             appearance: representation.appearance,
         }

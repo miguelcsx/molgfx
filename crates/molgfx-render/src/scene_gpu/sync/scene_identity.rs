@@ -118,6 +118,7 @@ impl<D: Device> GpuScene<D> {
         self.structure_revision = None;
         self.slot_structure_revision = None;
         self.representation_revision = None;
+        self.representation_membership_revision = None;
         self.volume_slot_revision = None;
         self.segmentation_slot_revision = None;
         self.mesh_synced = None;
