@@ -15,7 +15,6 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 molframe-py.workspace = true
 molgfx.workspace = true
-molgfx-math.workspace = true
 pyo3 = { workspace = true, features = ["multiple-pymethods"] }
 serde_json.workspace = true
 

@@ -1,6 +1,7 @@
 //! Python context manager for one atomic semantic scene transaction.
 
-use crate::binding::{PyScene, error};
+use crate::binding::error;
+use crate::scene_binding::PyScene;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyModule};
@@ -39,13 +40,12 @@ impl PySceneTransaction {
             return Ok(false);
         }
         let base_revision = scene.inner.revision();
-        scene
-            .inner
-            .apply(&molgfx::ScenePatch {
-                base_revision,
-                operations,
-            })
-            .map_err(error)?;
+        let patch = molgfx::ScenePatch {
+            base_revision,
+            operations,
+        };
+        scene.inner.apply(&patch).map_err(error)?;
+        scene.publish(py, &patch)?;
         Ok(false)
     }
 }
