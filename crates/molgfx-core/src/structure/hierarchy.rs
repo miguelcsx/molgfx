@@ -6,32 +6,38 @@
 //! binary search, `O(log n)`; range queries are `O(1)`.
 
 use std::ops::Range;
+use std::sync::Arc;
 
 #[cfg(test)]
 #[path = "hierarchy_tests.rs"]
 mod tests;
 
 /// Offset-array form of the model → chain → residue → atom hierarchy.
+///
+/// Each array is reference-counted rather than owned, so an asset built from a
+/// source shares the offsets that source already holds instead of copying them.
+/// The arrays are immutable once built, which is what makes the sharing safe and
+/// why the three of them can be handed around as one clone apiece.
 #[derive(Clone, Debug, Default)]
 pub struct Hierarchy {
     /// `residue_atom_start[i]..residue_atom_start[i+1]` are residue `i`'s
     /// atoms; length is residue count + 1.
-    pub residue_atom_start: Vec<u32>,
+    pub residue_atom_start: Arc<[u32]>,
     /// Chain `i`'s residues, same convention.
-    pub chain_residue_start: Vec<u32>,
+    pub chain_residue_start: Arc<[u32]>,
     /// Model `i`'s chains, same convention.
-    pub model_chain_start: Vec<u32>,
+    pub model_chain_start: Arc<[u32]>,
 }
 
 impl Hierarchy {
-    /// Copies compact offsets from a provider-neutral source once per asset.
+    /// Shares compact offsets from a provider-neutral source, one clone apiece.
     #[must_use]
     pub fn from_source(source: &crate::MolecularSource) -> Self {
         let topology = source.topology();
         Self {
-            residue_atom_start: topology.residue_atom_start.to_vec(),
-            chain_residue_start: topology.chain_residue_start.to_vec(),
-            model_chain_start: topology.model_chain_start.to_vec(),
+            residue_atom_start: Arc::clone(&topology.residue_atom_start),
+            chain_residue_start: Arc::clone(&topology.chain_residue_start),
+            model_chain_start: Arc::clone(&topology.model_chain_start),
         }
     }
 
@@ -82,9 +88,9 @@ impl Hierarchy {
         model_chain_start.push(end);
 
         Self {
-            residue_atom_start,
-            chain_residue_start,
-            model_chain_start,
+            residue_atom_start: residue_atom_start.into(),
+            chain_residue_start: chain_residue_start.into(),
+            model_chain_start: model_chain_start.into(),
         }
     }
 
