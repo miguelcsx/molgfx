@@ -287,6 +287,7 @@ pub(super) struct SlotSync<'a, D: Device> {
     pub(super) visual_parameter_binding_revision: u64,
     pub(super) visual_property_offsets: [u32; 4],
     pub(super) visual_attribute_layouts: [u32; 4],
+    pub(super) visual_state_offset: u32,
     pub(super) visual_property_binding_revision: u64,
     pub(super) visual_property_revisions: [u64; 4],
     pub(super) visual_time_seconds: f32,

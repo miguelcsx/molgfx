@@ -53,7 +53,12 @@ fn styled_config(input: &VisualConfigInput<'_>) -> VisualConfig {
         attribute_layouts: input.attribute_layouts,
         property_end_offsets: input.property_end_offsets,
         property_alphas: input.property_alphas,
-        arena_offsets: [input.program_offset, input.parameter_offset, 0, 0],
+        arena_offsets: [
+            input.program_offset,
+            input.parameter_offset,
+            input.state_offset,
+            0,
+        ],
         result_layout: result_layout(input.program, input.result_count),
         ..VisualConfig::default()
     };

@@ -305,6 +305,7 @@ impl<D: Device> GpuSlot<D> {
             attribute_layouts: input.visual_attribute_layouts,
             property_end_offsets: [0; 4],
             property_alphas: [0.0; 4],
+            state_offset: input.visual_state_offset,
             time_seconds: input.visual_time_seconds,
             entity_count: self.atom_count as usize,
             result_count: input.placed.atoms.len() as usize,

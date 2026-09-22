@@ -15,6 +15,14 @@ impl<D: Device> VisualPropertyTable<D> {
         self.offsets_for_domain(scene, RowDomain::Atoms(structure), style)
     }
 
+    pub(in crate::scene_gpu) fn state_offset(&self, structure: StructureHandle) -> u32 {
+        self.states
+            .binary_search_by_key(&structure, |column| column.structure)
+            .ok()
+            .and_then(|index| self.states.get(index))
+            .map_or(1, |column| column.offset)
+    }
+
     pub(in crate::scene_gpu) fn offsets_for_domain(
         &self,
         scene: &Scene,

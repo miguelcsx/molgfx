@@ -169,6 +169,11 @@ fn visual_evaluate_instruction(
             || abs(length_squared) > 3.402823466e+38;
         return vec4f(select(left.xyz * inverseSqrt(length_squared), vec3f(0.0), invalid), 0.0);
     }
+    if opcode == 24u {
+        let state_offset = visual_config.arena_offsets.z;
+        let state = visual_properties[state_offset + inputs.entity];
+        return vec4f(select(0.0, 1.0, (state & bitcast<u32>(instruction.data.x)) != 0u));
+    }
     return vec4f(0.0);
 }
 
