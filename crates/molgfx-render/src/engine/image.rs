@@ -78,18 +78,20 @@ impl Image {
     /// Returns [`RenderError::ImageEncoding`] if the pixel buffer is malformed
     /// or the PNG encoder rejects the stream.
     pub fn png_bytes(&self) -> Result<Vec<u8>, RenderError> {
-        let expected = usize::try_from(self.width)
-            .ok()
-            .and_then(|width| width.checked_mul(usize::try_from(self.height).ok()?))
-            .and_then(|pixels| pixels.checked_mul(4))
-            .ok_or(RenderError::InvalidImageSize)?;
-        if self.pixels.len() != expected {
-            return Err(RenderError::ImageEncoding {
-                summary: "RGBA8 pixel buffer length does not match image dimensions".to_owned(),
-            });
-        }
         let mut bytes = Vec::new();
-        let mut encoder = png::Encoder::new(&mut bytes, self.width, self.height);
+        self.write_png(&mut bytes)?;
+        Ok(bytes)
+    }
+
+    /// Streams deterministic RGBA PNG bytes into a caller-owned writer.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RenderError::ImageEncoding`] for malformed pixels or an
+    /// encoder/writer failure.
+    pub fn write_png(&self, output: impl std::io::Write) -> Result<(), RenderError> {
+        self.validate_pixels()?;
+        let mut encoder = png::Encoder::new(output, self.width, self.height);
         encoder.set_color(png::ColorType::Rgba);
         encoder.set_depth(png::BitDepth::Eight);
         let mut writer = encoder
@@ -102,8 +104,23 @@ impl Image {
             .map_err(|error| RenderError::ImageEncoding {
                 summary: error.to_string(),
             })?;
-        drop(writer);
-        Ok(bytes)
+        writer.finish().map_err(|error| RenderError::ImageEncoding {
+            summary: error.to_string(),
+        })
+    }
+
+    fn validate_pixels(&self) -> Result<(), RenderError> {
+        let expected = usize::try_from(self.width)
+            .ok()
+            .and_then(|width| width.checked_mul(usize::try_from(self.height).ok()?))
+            .and_then(|pixels| pixels.checked_mul(4))
+            .ok_or(RenderError::InvalidImageSize)?;
+        if self.pixels.len() != expected {
+            return Err(RenderError::ImageEncoding {
+                summary: "RGBA8 pixel buffer length does not match image dimensions".to_owned(),
+            });
+        }
+        Ok(())
     }
 }
 
