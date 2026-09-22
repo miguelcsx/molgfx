@@ -23,6 +23,7 @@ struct RepresentationUniforms {
     overlay_size: vec4u,
     overlay_visual: vec4f,
     material: vec4f,
+    presentation: vec4f,
 }
 
 @group(2) @binding(9)

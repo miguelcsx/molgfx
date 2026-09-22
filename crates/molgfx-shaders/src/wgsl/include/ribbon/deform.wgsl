@@ -9,6 +9,7 @@ struct RibbonUniforms {
     planes: array<vec4f, 4>,
     metadata: vec4u,
     material: vec4f,
+    presentation: vec4f,
     tube_mapping: vec4f,
     tube: vec4f,
 }

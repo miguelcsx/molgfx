@@ -79,6 +79,9 @@ pub(crate) use temporal::{TemporalOptions, TemporalState};
 mod tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
+mod slot_cache_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "residency_integration_tests.rs"]
 mod residency_integration_tests;
 

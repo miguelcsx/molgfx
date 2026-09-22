@@ -1,9 +1,12 @@
 //! The frame loop: sync, build, record, one submission, present.
 //!
-//! CPU cost per frame is `O(passes)` — a fixed handful of pass records —
-//! never a function of atom count; per-primitive work lives on the GPU.
-//! Nothing here allocates on the steady-state path beyond the first frame's
-//! pool construction.
+//! CPU cost per frame is proportional to the active passes, the placed
+//! structures, the resident semantic tables and the representation states —
+//! never to atom or bond count, because per-primitive work lives on the GPU.
+//! A structure or representation whose revisions are unchanged costs one
+//! comparison and no upload, so a still scene walks a short fixed list rather
+//! than touching its contents. Nothing here allocates on the steady-state path
+//! beyond the first frame's pool construction.
 
 use super::{
     Engine, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport, FrameStatus,

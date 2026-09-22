@@ -194,7 +194,6 @@ impl<D: Device> RibbonSlot<D> {
 }
 
 fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), RenderError> {
-    let params = spline_params(input.representation);
     let structure = input
         .placed
         .source
@@ -202,6 +201,7 @@ fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), Rend
         .ok_or(RenderError::SourceCapabilityMissing {
             capability: "ribbon topology",
         })?;
+    let params = spline_params(input.representation);
     if input.representation.kind == RepresentationKind::PaperChain {
         input.mesh.clear();
     } else if input.representation.kind == RepresentationKind::Twister {
@@ -234,7 +234,7 @@ fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), Rend
             molgfx_geometry::RibbonColoring {
                 color: input.representation.color,
                 appearance: input.representation.appearance,
-                opacity: input.representation.material.opacity_unorm8(),
+                opacity: u8::MAX,
             },
         );
     }
@@ -273,7 +273,7 @@ fn append_nucleotide_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Resul
             structure,
             input.selection,
             PAPER_CHAIN_HEIGHT,
-            input.representation.material.opacity_unorm8(),
+            u8::MAX,
             &mut input.mesh.vertices,
             &mut input.mesh.indices,
         )?;
@@ -306,10 +306,9 @@ const TWISTER_THICKNESS_SCALE: f32 = 0.2;
 const TWISTER_MAX_STEPS: u8 = 32;
 
 fn spline_params(representation: &Representation) -> RibbonParams {
-    let opacity = representation.material.opacity_unorm8();
     let color = match representation.color {
-        ColorScheme::Uniform(color) => molgfx_math::Rgba8::new(color.r, color.g, color.b, opacity),
-        _ => molgfx_math::Rgba8::new(110, 165, 235, opacity),
+        ColorScheme::Uniform(color) => molgfx_math::Rgba8::new(color.r, color.g, color.b, u8::MAX),
+        _ => molgfx_math::Rgba8::new(110, 165, 235, u8::MAX),
     };
     match representation.kind {
         RepresentationKind::Trace | RepresentationKind::Tube => {

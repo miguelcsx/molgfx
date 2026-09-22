@@ -159,6 +159,7 @@ fn atom_color(packed: u32) -> vec4f {
 /// built-in path when no visual style is attached.
 fn atom_visual_color(entity_id: u32, packed: u32) -> vec4f {
     var fallback = atom_color(packed);
+    fallback.a *= representation.presentation.x;
     if visual_counts.visual_enabled == 0u {
         return fallback;
     }

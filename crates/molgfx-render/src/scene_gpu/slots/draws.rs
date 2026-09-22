@@ -17,6 +17,9 @@ impl<D: Device> GpuSlot<D> {
         pass: &SurfaceFieldPass<D>,
         components: &SurfaceComponentPass<D>,
     ) {
+        if !self.visible {
+            return;
+        }
         self.surface.record(encoder, pass, components);
     }
 
@@ -24,7 +27,8 @@ impl<D: Device> GpuSlot<D> {
         &self,
         translucent: bool,
     ) -> Option<(&D::BindGroup, &D::Buffer, SlotShading)> {
-        (self.atom_count > 0
+        (self.visible
+            && self.atom_count > 0
             && (matches!(
                 self.kind,
                 RepresentationKind::Spacefill
@@ -44,7 +48,7 @@ impl<D: Device> GpuSlot<D> {
         &self,
         translucent: bool,
     ) -> Option<(&D::BindGroup, &D::Buffer, SlotShading)> {
-        (self.bond_count > 0 && self.translucent == translucent).then_some((
+        (self.visible && self.bond_count > 0 && self.translucent == translucent).then_some((
             self.group2.as_ref()?,
             self.bond_args.as_ref()?,
             self.shading,
@@ -69,7 +73,8 @@ impl<D: Device> GpuSlot<D> {
         &self,
         translucent: bool,
     ) -> Option<(&D::BindGroup, &D::Buffer, SlotShading)> {
-        (self.atom_count > 0
+        (self.visible
+            && self.atom_count > 0
             && self.kind == RepresentationKind::Points
             && self.translucent == translucent)
             .then_some((
@@ -83,15 +88,17 @@ impl<D: Device> GpuSlot<D> {
         &self,
         translucent: bool,
     ) -> Option<(&D::BindGroup, &D::Buffer, SlotShading)> {
-        (matches!(
-            self.kind,
-            RepresentationKind::Cartoon
-                | RepresentationKind::Trace
-                | RepresentationKind::Tube
-                | RepresentationKind::Rocket
-                | RepresentationKind::Twister
-                | RepresentationKind::PaperChain
-        ) && self.translucent == translucent)
+        (self.visible
+            && matches!(
+                self.kind,
+                RepresentationKind::Cartoon
+                    | RepresentationKind::Trace
+                    | RepresentationKind::Tube
+                    | RepresentationKind::Rocket
+                    | RepresentationKind::Twister
+                    | RepresentationKind::PaperChain
+            )
+            && self.translucent == translucent)
             .then(|| self.ribbon.draw())?
             .map(|(group, args)| (group, args, self.shading))
     }
@@ -100,7 +107,8 @@ impl<D: Device> GpuSlot<D> {
         &self,
         translucent: bool,
     ) -> Option<(&D::BindGroup, &D::Buffer, SlotShading)> {
-        (self.kind == RepresentationKind::Surface
+        (self.visible
+            && self.kind == RepresentationKind::Surface
             && self.atom_count > 0
             && !self.shading.surface_atoms()
             && self.translucent == translucent)
@@ -114,7 +122,7 @@ impl<D: Device> GpuSlot<D> {
     pub(in crate::scene_gpu) fn quality_draw(
         &self,
     ) -> Option<super::super::slot_types::QualityDraw<'_, D>> {
-        if self.atom_count == 0 || self.translucent {
+        if !self.visible || self.atom_count == 0 || self.translucent {
             return None;
         }
         match self.kind {
@@ -134,7 +142,9 @@ impl<D: Device> GpuSlot<D> {
         &mut self,
         encoder: &mut D::CommandEncoder,
     ) {
-        self.quality_acceleration.record_hardware(encoder);
+        if self.visible {
+            self.quality_acceleration.record_hardware(encoder);
+        }
     }
 
     pub(in crate::scene_gpu) fn cull(
@@ -142,10 +152,11 @@ impl<D: Device> GpuSlot<D> {
         tile_groups: [u32; 2],
         fast_tile_lod: bool,
     ) -> Option<CullDispatch<'_, D>> {
-        if (self.kind == RepresentationKind::Surface
-            && !self.shading.surface_atoms()
-            && !self.visual.has_cull_results()
-            && !self.visual.has_shading_results())
+        if !self.visible
+            || (self.kind == RepresentationKind::Surface
+                && !self.shading.surface_atoms()
+                && !self.visual.has_cull_results()
+                && !self.visual.has_shading_results())
             || (self.atom_count == 0 && self.bond_count == 0)
         {
             return None;
@@ -198,11 +209,12 @@ impl<D: Device> GpuSlot<D> {
     }
 
     pub(in crate::scene_gpu) const fn is_translucent(&self) -> bool {
-        self.translucent
+        self.visible && self.translucent
     }
 
     pub(in crate::scene_gpu) fn is_massive_point(&self) -> bool {
-        self.kind == RepresentationKind::Points
+        self.visible
+            && self.kind == RepresentationKind::Points
             && self.atom_count >= REALTIME_SHADOW_INSTANCES
             && !self.translucent
     }

@@ -73,9 +73,11 @@ fn ribbon_visual(
     world_position: vec3f,
     world_normal: vec3f,
 ) -> VisualFragmentResult {
+    var presented_color = base_color;
+    presented_color.a *= ribbon_uniforms.presentation.x;
     if !VISUAL_PROGRAM_ENABLED {
         return VisualFragmentResult(
-            base_color,
+            presented_color,
             vec3f(0.0),
             false,
             ribbon_uniforms.material.x,
@@ -94,7 +96,7 @@ fn ribbon_visual(
     );
     return visual_resolve(
         VisualEvaluationInputs(
-            base_color,
+            presented_color,
             vec4f(local_position, 0.0),
             vec4f(world_position, 0.0),
             vec4f(world_normal, 0.0),
@@ -102,7 +104,7 @@ fn ribbon_visual(
             camera_distance,
             ribbon_visual_source(entity_id),
         ),
-        ribbon_visual_fallback(entity_id, base_color),
+        ribbon_visual_fallback(entity_id, presented_color),
     );
 }
 
