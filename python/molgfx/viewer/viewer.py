@@ -1,6 +1,7 @@
 """AnyWidget transport for MolGFX's direct browser WebGPU runtime."""
 
 from pathlib import Path
+import json
 import weakref
 
 import anywidget
@@ -26,20 +27,46 @@ class Viewer(anywidget.AnyWidget):
 
     def __init__(self, scene, **kwargs):
         """Bind a scene and its compact BinaryCIF sources to the browser."""
-        sources = scene._browser_sources()
+        self._scene = scene
+        self._structures = {}
+        self._materialize(scene._browser_sources())
         super().__init__(
             scene_spec=scene.to_json(),
-            structure_ids=list(map(lambda source: source[0], sources)),
-            structure_names=list(map(lambda source: source[1], sources)),
-            structure_payloads=list(map(lambda source: source[2], sources)),
+            structure_ids=list(self._structures),
+            structure_names=[entry[0] for entry in self._structures.values()],
+            structure_payloads=[entry[1] for entry in self._structures.values()],
             **kwargs,
         )
-        self._scene = scene
         self._subscription = weakref.WeakMethod(self._on_scene_patch)
         scene._subscribe(self._subscription)
 
+    def _materialize(self, sources):
+        """Record each structure's payload the first time it is announced."""
+        for identity, name, payload in sources:
+            if identity not in self._structures:
+                self._structures[identity] = (name, bytes(payload))
+
+    def _resync_structures(self):
+        """Transfer every structure the scene now declares, each exactly once.
+
+        The page rebuilds from ``scene_spec`` because binding a source is a
+        resolve-time operation: the widget binds every transported structure and
+        then resolves, so one spec replacement already carries the addition.
+        """
+        self._materialize(self._scene._browser_sources())
+        if len(self._structures) == len(self.structure_ids):
+            return
+        self.structure_ids = list(self._structures)
+        self.structure_names = [entry[0] for entry in self._structures.values()]
+        self.structure_payloads = [entry[1] for entry in self._structures.values()]
+        self.scene_spec = self._scene.to_json()
+
     def _on_scene_patch(self, patch_json):
         """Forward one already-committed semantic patch to the browser."""
+        operations = json.loads(patch_json).get("operations", [])
+        if any(operation.get("op") == "add_structure" for operation in operations):
+            self._resync_structures()
+            return
         self.scene_patch = patch_json
         self.patch_sequence += 1
 

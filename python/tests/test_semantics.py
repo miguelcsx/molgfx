@@ -111,13 +111,6 @@ class SceneSemanticsTests(unittest.TestCase):
                 kind="contact", first=origin, second=x_axis
             )
         )
-        detected = scene.add(
-            molgfx.interaction.detected(
-                kind="hydrogen_bond",
-                structure=scene.structure_id,
-                target=molgfx.sel.all(),
-            )
-        )
         trajectory = scene.add(
             molgfx.trajectory.bind(
                 structure=scene.structure_id,
@@ -134,13 +127,12 @@ class SceneSemanticsTests(unittest.TestCase):
         self.assertIsInstance(angle, molgfx.MeasurementId)
         self.assertIsInstance(dihedral, molgfx.MeasurementId)
         self.assertIsInstance(explicit, molgfx.ScientificInteractionId)
-        self.assertIsInstance(detected, molgfx.ScientificInteractionId)
         self.assertIsInstance(trajectory, molgfx.TrajectoryId)
         spec = json.loads(scene.to_json())
         self.assertEqual(len(spec["volumes"]), 1)
         self.assertEqual(len(spec["annotations"]), 1)
         self.assertEqual(len(spec["measurements"]), 3)
-        self.assertEqual(len(spec["scientific_interactions"]), 2)
+        self.assertEqual(len(spec["scientific_interactions"]), 1)
         self.assertEqual(len(spec["trajectories"]), 1)
 
     def test_property_binding_is_owned_by_its_structure(self):
@@ -188,6 +180,36 @@ class SceneSemanticsTests(unittest.TestCase):
         self.assertEqual(len(first), 1)
         self.assertEqual(first, second)
         self.assertGreater(len(first[0][2]), 0)
+
+
+    def test_detected_interactions_are_not_exposed(self):
+        self.assertFalse(hasattr(molgfx.interaction, "detected"))
+        self.assertFalse(hasattr(molgfx.ScientificInteraction, "detected"))
+
+    def test_a_covalent_disulfide_is_not_an_authorable_interaction(self):
+        with self.assertRaises(TypeError):
+            molgfx.interaction.explicit(
+                kind="disulfide",
+                first=molgfx.annotation.world((0.0, 0.0, 0.0)),
+                second=molgfx.annotation.world((1.0, 0.0, 0.0)),
+            )
+
+    def test_every_remaining_interaction_kind_is_authorable(self):
+        first = molgfx.annotation.world((0.0, 0.0, 0.0))
+        second = molgfx.annotation.world((1.0, 0.0, 0.0))
+        for kind in (
+            "hydrogen_bond",
+            "salt_bridge",
+            "pi_stacking",
+            "cation_pi",
+            "hydrophobic",
+            "metal_coordination",
+            "contact",
+        ):
+            self.assertIsInstance(
+                molgfx.interaction.explicit(kind=kind, first=first, second=second),
+                molgfx.ScientificInteraction,
+            )
 
 
 class ViewerTransportTests(unittest.TestCase):

@@ -157,6 +157,42 @@ fn interaction_edits(criterion: &mut Criterion) {
     group.finish();
 }
 
+/// An interaction edit whose channel selects nothing, or everything.
+///
+/// This is the part of an edit that does not depend on the selection: compiling
+/// and evaluating the channel's query, and retiring the bit it used to carry.
+/// It is deliberately *not* expected to flatten with scene size — `MolFrame`'s
+/// evaluator is proportional to the structure whatever the query selects, so
+/// this curve is the floor an edit cannot go below. Its value is as a bound:
+/// `edit/interaction` measures the same edit with a selection the size of the
+/// molecule, and the gap between the two is what the state write actually
+/// costs.
+fn interaction_overhead(criterion: &mut Criterion) {
+    let mut group = criterion.benchmark_group("edit/interaction_overhead");
+    for residues in SIZES {
+        let mut scene = represented(residues, 1);
+        let mut selected = false;
+        group.throughput(Throughput::Elements(1));
+        let _ = group.bench_function(BenchmarkId::from_parameter(residues), |bencher| {
+            bencher.iter(|| {
+                selected = !selected;
+                // Toggling a whole-molecule channel against nothing exercises
+                // both directions and leaves the scene as it was found.
+                let target = if selected {
+                    Some(sel::all().into())
+                } else {
+                    Some(sel::none().into())
+                };
+                match scene.set_interaction(molgfx::InteractionChannel::Hovered, target) {
+                    Ok(()) => {}
+                    Err(error) => panic!("a hover edit must apply: {error}"),
+                }
+            });
+        });
+    }
+    group.finish();
+}
+
 /// An edit must cost the same whether the scene holds one representation or
 /// many: only the touched one should be revalidated.
 fn edit_cost_by_representation_count(criterion: &mut Criterion) {
@@ -172,6 +208,49 @@ fn edit_cost_by_representation_count(criterion: &mut Criterion) {
                     Ok(()) => {}
                     Err(error) => panic!("opacity edit must apply: {error}"),
                 }
+            });
+        });
+    }
+    group.finish();
+}
+
+/// Packing the atom records of a large selection must reach the parallel path
+/// without paying an extra record-sized allocation. Sizes sit above
+/// `MIN_PARALLEL_ATOMS` so the measured cost is the parallel arm, and the
+/// bench packs a real column through the real packer.
+fn packing_parallelism(criterion: &mut Criterion) {
+    use molgfx_core::{
+        AtomSelection, AtomTable, Representation, RepresentationKind, RepresentationTarget, Scene,
+    };
+
+    let mut group = criterion.benchmark_group("packing/parallel");
+    for residues in [16_384_usize, 32_768, 65_536] {
+        let structure = synthetic::structure(residues);
+        let Some(table) = AtomTable::from_structure(&structure, molframe::ModelIndex::new(0))
+        else {
+            panic!("the synthetic structure has a first model")
+        };
+        let mut scene = match Scene::from_structure(&structure) {
+            Ok(scene) => scene,
+            Err(error) => panic!("synthetic scene must resolve: {error}"),
+        };
+        let selection = scene.add_selection(AtomSelection::All);
+        let representation = Representation::new(
+            RepresentationTarget::Selection(selection),
+            RepresentationKind::Spacefill,
+        );
+        let atoms = table.len();
+        let mut out = Vec::new();
+        group.throughput(Throughput::Elements(u64::from(atoms)));
+        let _ = group.bench_function(BenchmarkId::from_parameter(atoms), |bencher| {
+            bencher.iter(|| {
+                let result = molgfx_geometry::pack_atoms(
+                    black_box(&table),
+                    black_box(&representation),
+                    black_box(&AtomSelection::All),
+                    black_box(&mut out),
+                );
+                black_box((result.is_ok(), out.len()));
             });
         });
     }
@@ -220,10 +299,12 @@ fn specification_parsing(criterion: &mut Criterion) {
 criterion::criterion_group!(
     semantic,
     construction,
+    packing_parallelism,
     appearance_edits,
     visibility_edits,
     parameter_edits,
     interaction_edits,
+    interaction_overhead,
     edit_cost_by_representation_count,
     visual_lowering_by_node_count,
     specification_parsing,

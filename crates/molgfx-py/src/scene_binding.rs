@@ -4,7 +4,7 @@ use crate::binding::{PyRepresentation, PyScenePatch, PySceneSpec, error, selecti
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 #[pyclass(name = "Scene")]
 pub(super) struct PyScene {
@@ -19,7 +19,8 @@ struct BrowserSource {
     identity: u64,
     name: String,
     provider: crate::native_adapter::SharedNativeProvider,
-    encoded: Option<Vec<u8>>,
+    /// Compact `BinaryCIF` encoding, produced on the first browser transfer.
+    encoded: OnceLock<Vec<u8>>,
 }
 
 impl PyScene {
@@ -41,19 +42,41 @@ impl PyScene {
     }
 
     pub(super) fn publish(&mut self, py: Python<'_>, patch: &molgfx::ScenePatch) -> PyResult<()> {
-        let encoded = patch.to_json().map_err(error)?;
-        let mut live = Vec::with_capacity(self.subscribers.len());
-        for reference in self.subscribers.drain(..) {
-            let callback = reference.call0(py)?;
-            if callback.bind(py).is_none() {
-                continue;
-            }
-            let _ = callback.call1(py, (&encoded,))?;
-            live.push(reference);
-        }
-        self.subscribers = live;
-        Ok(())
+        deliver_subscribers(py, &mut self.subscribers, patch)
     }
+}
+
+/// Calls every live weak subscriber with one encoded patch.
+///
+/// Dropped weak references are pruned; `Subscriber callback error` propagates.
+fn deliver_subscribers(
+    py: Python<'_>,
+    subscribers: &mut Vec<Py<PyAny>>,
+    patch: &molgfx::ScenePatch,
+) -> PyResult<()> {
+    let encoded = patch.to_json().map_err(error)?;
+    let mut live = Vec::with_capacity(subscribers.len());
+    for reference in subscribers.drain(..) {
+        let callback = reference.call0(py)?;
+        if callback.bind(py).is_none() {
+            continue;
+        }
+        let _ = callback.call1(py, (&encoded,))?;
+        live.push(reference);
+    }
+    *subscribers = live;
+    Ok(())
+}
+
+/// Announces one patch to subscribers without holding a borrow of the scene.
+fn deliver(slf: &Bound<'_, PyScene>, py: Python<'_>, patch: &molgfx::ScenePatch) -> PyResult<()> {
+    let mut subscribers = {
+        let mut this = slf.borrow_mut();
+        std::mem::take(&mut this.subscribers)
+    };
+    let result = deliver_subscribers(py, &mut subscribers, patch);
+    slf.borrow_mut().subscribers = subscribers;
+    result
 }
 
 #[pymethods]
@@ -71,7 +94,7 @@ impl PyScene {
                 identity: 1,
                 name: "structure.bcif".to_owned(),
                 provider,
-                encoded: None,
+                encoded: OnceLock::new(),
             }],
             subscribers: Vec::new(),
         })
@@ -241,15 +264,18 @@ impl PyScene {
         py: Python<'py>,
     ) -> PyResult<Vec<(u64, &str, Bound<'py, PyBytes>)>> {
         for source in &mut self.browser_sources {
-            if source.encoded.is_none() {
-                source.encoded = Some(source.provider.browser_bytes()?);
+            if source.encoded.get().is_none() {
+                // Encoding is fallible and depends on this binding's provider,
+                // so it is stored once here rather than in a static initializer.
+                let bytes = source.provider.browser_bytes()?;
+                let _ = source.encoded.set(bytes);
             }
         }
         Ok(self
             .browser_sources
             .iter()
             .filter_map(|source| {
-                source.encoded.as_ref().map(|bytes| {
+                source.encoded.get().map(|bytes| {
                     (
                         source.identity,
                         source.name.as_str(),
@@ -258,6 +284,60 @@ impl PyScene {
                 })
             })
             .collect())
+    }
+
+    /// Adds another molecular source and announces it to subscribers.
+    ///
+    /// The payload travels to the browser through `_browser_sources`; the patch
+    /// stream carries only the portable structure descriptor, exactly like the
+    /// representation path above. Subscribers are called with no borrow held on
+    /// this object, because a viewer answering the announcement reads the new
+    /// payload back through `_browser_sources` re-entrantly.
+    fn _add_structure(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        structure: &Bound<'_, PyAny>,
+    ) -> PyResult<crate::id_binding::PyStructureId> {
+        let (identity, patch) = {
+            let mut this = slf.borrow_mut();
+            if this.pending.is_some() {
+                return Err(PyValueError::new_err(
+                    "structures cannot be added inside a scene transaction",
+                ));
+            }
+            let provider = Arc::new(crate::native_adapter::NativeProvider::import(structure)?);
+            let source = crate::native_adapter::source(&provider);
+            let base_revision = this.inner.revision();
+            let identity = this.inner.add_source(&source).map_err(error)?;
+            let announced = this
+                .inner
+                .spec()
+                .structures
+                .get(&identity)
+                .cloned()
+                .ok_or_else(|| PyValueError::new_err("added structure is unavailable"))?;
+            let ordinal = this.browser_sources.len().checked_add(1).ok_or_else(|| {
+                PyValueError::new_err("structure transport columns are exhausted")
+            })?;
+            this.browser_sources.push(BrowserSource {
+                identity: identity.get(),
+                name: format!("structure-{ordinal}.bcif"),
+                provider,
+                encoded: OnceLock::new(),
+            });
+            (
+                identity,
+                molgfx::ScenePatch {
+                    base_revision,
+                    operations: vec![molgfx::schema::PatchOperation::AddStructure {
+                        id: identity,
+                        source: announced,
+                    }],
+                },
+            )
+        };
+        deliver(slf, py, &patch)?;
+        Ok(crate::id_binding::PyStructureId(identity.get()))
     }
 
     fn _subscribe(&mut self, subscriber: Py<PyAny>) {

@@ -20,9 +20,23 @@ stats_alloc = "0.1.10"
 
 [dev-dependencies]
 criterion.workspace = true
+# The packing benchmark measures a geometry-crate kernel directly. These are
+# dev-dependencies: the harness itself still reaches the engine through the
+# facade alone, and nothing in the workspace depends on this crate.
+molgfx-core = { path = "../molgfx-core" }
+molgfx-api = { path = "../molgfx-api" }
+molgfx-geometry = { path = "../molgfx-geometry" }
 
 [[bench]]
 name = "kernels"
+harness = false
+
+[[bench]]
+name = "semantic"
+harness = false
+
+[[bench]]
+name = "scaling"
 harness = false
 
 [[bin]]
