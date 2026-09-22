@@ -5,10 +5,7 @@ mod model;
 
 pub(crate) use ledger::DerivedCache;
 pub use model::{DerivedCacheBudget, DerivedCacheUsage};
-pub(crate) use model::{DerivedCacheKey, DerivedFootprint, MaterializationPlan};
-
-#[cfg(test)]
-pub(super) use model::DerivedCacheClass;
+pub(crate) use model::{DerivedCacheClass, DerivedCacheKey, DerivedFootprint, MaterializationPlan};
 
 #[cfg(test)]
 mod tests;

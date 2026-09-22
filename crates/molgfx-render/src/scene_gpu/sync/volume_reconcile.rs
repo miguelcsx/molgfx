@@ -1,5 +1,12 @@
+//! Volume-resource and volume-slot reconciliation.
+
+use super::super::volume_slot::{GpuVolumeResource, GpuVolumeSlot};
+use super::GpuScene;
+use molgfx_core::Scene;
+use molgfx_gpu::Device;
+
 impl<D: Device> GpuScene<D> {
-    fn reconcile_volume_slots(&mut self, scene: &Scene) {
+    pub(super) fn reconcile_volume_slots(&mut self, scene: &Scene) {
         let revision = (scene.volume_revision(), scene.representation_revision());
         if self.volume_slot_revision == Some(revision) {
             return;

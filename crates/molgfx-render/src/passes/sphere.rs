@@ -101,6 +101,67 @@ impl<D: Device> SpherePass<D> {
         })
     }
 
+    /// Compiles the sphere impostor pipeline built from the generated sibling.
+    ///
+    /// The sibling keeps every interpreted entry, so the generated unit is
+    /// selected by the same fragment shading as the interpreted one.
+    ///
+    /// # Errors
+    ///
+    /// Shader compilation or pipeline creation failed.
+    pub(crate) fn build_specialized(
+        device: &D,
+        group0: &D::BindGroupLayout,
+        group2: &D::BindGroupLayout,
+        clipped: bool,
+    ) -> Result<D::Pipeline, RenderError> {
+        let (label, fs_entry) = if clipped {
+            ("specialized clipped sphere impostors", "fs_sphere_clipped")
+        } else {
+            ("specialized sphere impostors", "fs_sphere")
+        };
+        Self::fragment_pipeline(
+            device,
+            group0,
+            group2,
+            molgfx_shaders::GEOMETRY_SPHERE_SPECIALIZED,
+            "sphere impostors generated",
+            fs_entry,
+            label,
+        )
+    }
+
+    /// Builds one fragment pipeline of the sphere unit from a module source.
+    fn fragment_pipeline(
+        device: &D,
+        group0: &D::BindGroupLayout,
+        group2: &D::BindGroupLayout,
+        wgsl: &'static str,
+        module_label: &'static str,
+        fs_entry: &'static str,
+        label: &'static str,
+    ) -> Result<D::Pipeline, RenderError> {
+        let shader = device.create_shader_module(&ShaderModuleDesc {
+            label: module_label,
+            wgsl,
+        })?;
+        Ok(device.create_render_pipeline(&RenderPipelineDesc {
+            label,
+            layouts: &[Some(group0), None, Some(group2)],
+            shader: &shader,
+            vs_entry: "vs_sphere_opaque",
+            fs_entry: Some(fs_entry),
+            color_targets: &gbuffer_targets(),
+            depth: Some(DepthState {
+                format: TextureFormat::Depth32Float,
+                write: true,
+                compare: CompareFunction::GreaterEqual,
+            }),
+            constants: &constants(true),
+            topology: PrimitiveTopology::TriangleList,
+        })?)
+    }
+
     /// Records one indirect draw per ordered representation slot.
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let (Some(albedo), Some(normal), Some(entity), Some(structure), Some(motion), Some(depth)) = (
@@ -113,9 +174,7 @@ impl<D: Device> SpherePass<D> {
         ) else {
             return;
         };
-        if ctx.scene.atom_draws(false).next().is_none()
-            && ctx.scene.paged_spacefill_draw().is_none()
-        {
+        if !ctx.scene.has_atom_draws(false) && ctx.scene.paged_spacefill_draw().is_none() {
             return;
         }
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
@@ -152,18 +211,21 @@ impl<D: Device> SpherePass<D> {
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         // Draws arrive grouped by representation, so the pipeline changes at
         // most once per representation rather than once per draw.
-        let mut bound = None;
-        for (group2, args, shading) in ctx.scene.atom_draws(false) {
-            if bound != Some(shading) {
-                pass.set_pipeline(if shading.clipped() {
-                    ctx.passes.sphere.clipped.get(shading)
+        let mut bound: Option<*const D::Pipeline> = None;
+        if let Some(arena) = ctx.scene.indirect_args() {
+            for (group2, offset, shading, specialized) in ctx.scene.atom_draws(false) {
+                let pipeline = if shading.clipped() {
+                    ctx.passes.sphere.clipped.select(shading, specialized)
                 } else {
-                    ctx.passes.sphere.unclipped.get(shading)
-                });
-                bound = Some(shading);
+                    ctx.passes.sphere.unclipped.select(shading, specialized)
+                };
+                if bound != Some(std::ptr::from_ref(pipeline)) {
+                    pass.set_pipeline(pipeline);
+                    bound = Some(std::ptr::from_ref(pipeline));
+                }
+                pass.set_bind_group(2, group2, &[]);
+                pass.draw_indirect(arena, offset);
             }
-            pass.set_bind_group(2, group2, &[]);
-            pass.draw_indirect(args, 0);
         }
         if let Some((group, args, offset)) = ctx.scene.paged_spacefill_draw() {
             pass.set_pipeline(&ctx.passes.sphere.paged);

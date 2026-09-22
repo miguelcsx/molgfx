@@ -19,6 +19,12 @@ impl<D: Device> VisualPropertyTable<D> {
     ) -> Result<bool, RenderError> {
         self.handle_scratch.clear();
         for (_, representation) in scene.representations() {
+            // A colour scheme reads one scalar column; it is planned here so
+            // the shader can sample it from the same arena visual programs use.
+            if let Some(handle) = representation.color.property_handle() {
+                self.handle_scratch
+                    .push(VisualAttributeRef::LegacyScalar(handle));
+            }
             let Some(style) = &representation.visual else {
                 continue;
             };

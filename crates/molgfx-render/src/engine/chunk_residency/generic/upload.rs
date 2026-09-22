@@ -74,11 +74,6 @@ impl<D: Device> ChunkGpuResidency<D> {
         );
         if let Some(cluster_allocation) = cluster_allocation {
             queue.write_buffer(
-                &self.display_buffer,
-                allocation.byte_offset(),
-                &uploads.staging_bytes()[start..end],
-            );
-            queue.write_buffer(
                 &self.cluster_buffer,
                 cluster_allocation.byte_offset(),
                 bytemuck::cast_slice(self.cluster_scratch.as_slice()),

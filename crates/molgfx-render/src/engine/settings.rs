@@ -1,6 +1,6 @@
 //! Runtime engine settings and render-profile topology updates.
 
-use super::{Engine, RenderMode, RenderProfile, ResolvedRenderPlan};
+use super::{Engine, QualityTier, RenderMode, RenderProfile, ResolvedRenderPlan};
 use crate::engine::graph_setup::realtime_nodes;
 use crate::error::RenderError;
 use crate::graph;
@@ -35,8 +35,49 @@ impl<D: Device> Engine<D> {
     pub fn set_render_mode(&mut self, mode: RenderMode) {
         if self.mode != mode {
             self.mode = mode;
+            // The cinematic path is the deterministic publication path, so it
+            // holds one tier.
+            self.adaptive.set_publication(mode == RenderMode::Cinematic);
             self.temporal.reset();
         }
+    }
+
+    /// The adaptive quality tier the next frame presents at.
+    #[must_use]
+    pub const fn quality_tier(&self) -> QualityTier {
+        self.adaptive.tier()
+    }
+
+    /// The tier every stage of the current frame reads.
+    pub(crate) const fn tier(&self) -> QualityTier {
+        self.adaptive.tier()
+    }
+
+    /// Publishes this frame's tier into the state the frame loop reads.
+    ///
+    /// Called at the top of every frame path, before any pass is built, so one
+    /// frame never mixes two tiers. A tier move restarts accumulation, because
+    /// history gathered under one sample budget is not a valid prefix of
+    /// another.
+    pub(crate) fn sync_quality_tier(&mut self) {
+        if self.temporal.tier() != self.adaptive.tier() {
+            self.temporal.set_tier(self.adaptive.tier());
+            self.temporal.reset();
+        }
+    }
+
+    /// Deterministic description of the adaptive quality loop: the tier it
+    /// currently holds, the smoothed frame time that drives it, and the
+    /// resolution that tier selects.
+    #[must_use]
+    pub fn explain(&self) -> String {
+        format!(
+            "quality tier: {:?}\nsmoothed frame time ns: {}\ntarget fps: {}\n{}",
+            self.adaptive.tier(),
+            self.adaptive.smoothed_ns(),
+            self.adaptive.target_fps(),
+            self.scene_gpu.specialization_report()
+        )
     }
 
     /// Current rendering strategy.
@@ -121,6 +162,14 @@ impl<D: Device> Engine<D> {
         self.profile = profile;
         self.temporal.reset();
         Ok(())
+    }
+
+    /// Replaces the derived-resource budget.
+    ///
+    /// The new limit takes effect on the next frame, which releases whatever
+    /// no longer fits; a released resource rebuilds on next use.
+    pub fn set_derived_cache_budget(&mut self, budget: crate::DerivedCacheBudget) {
+        self.derived_cache.set_budget(budget);
     }
 
     /// The caller-authored presentation recipe.

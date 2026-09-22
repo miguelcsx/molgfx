@@ -31,12 +31,21 @@ pub struct DerivedCacheUsage {
     pub peak_gpu_bytes: u64,
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
+/// Eviction priority, lowest first: declaration order *is* the order the
+/// ledger evicts in, so the cheapest-to-rebuild classes come first.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub(in crate::engine) enum DerivedCacheClass {
-    Appearance,
+pub(crate) enum DerivedCacheClass {
+    /// Shared visible sets: recomputed by the next cull pass, so cheapest first.
+    Visibility,
+    /// Packed instance records: a repack of one selection.
+    RecordSet,
+    /// Shared quality hierarchies, rebuilt from the packed records.
+    Acceleration,
+    /// Shared surface fields: rebuilt by re-running the field generation and
+    /// erosion dispatches over the whole grid, which is the most expensive of
+    /// the five, so they evict last among the non-timeline classes.
+    SurfaceField,
     TimelineMaterialization,
-    StaticEndpoints,
 }
 
 /// Collision-free identity for one recomputable resource owner.
@@ -44,11 +53,29 @@ pub(in crate::engine) enum DerivedCacheClass {
 pub(crate) enum DerivedCacheKey {
     #[cfg(test)]
     Test(u64),
+    /// One shared packed record set, named by the key that produced it.
+    RecordSet(crate::scene_gpu::RecordKey),
+    /// One shared visible set.
+    Visibility(crate::scene_gpu::VisibilityKey),
+    /// One shared surface field.
+    SurfaceField(crate::scene_gpu::SurfaceFieldKey),
     SceneAttribute(molgfx_core::AttributeHandle),
     ScenePoint(molgfx_core::PointBatchHandle),
     SceneInstance(molgfx_core::InstanceBatchHandle),
     PagedAttribute(molgfx_core::ResidencyTicket),
     PagedInstance(molgfx_core::ChunkOccurrenceId),
+}
+
+impl From<crate::scene_gpu::RecordKey> for DerivedCacheKey {
+    fn from(value: crate::scene_gpu::RecordKey) -> Self {
+        Self::RecordSet(value)
+    }
+}
+
+impl From<crate::scene_gpu::VisibilityKey> for DerivedCacheKey {
+    fn from(value: crate::scene_gpu::VisibilityKey) -> Self {
+        Self::Visibility(value)
+    }
 }
 
 #[cfg(test)]

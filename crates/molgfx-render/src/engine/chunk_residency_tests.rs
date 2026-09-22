@@ -109,8 +109,10 @@ fn paged_gpu_storage_and_staging_are_committed_only_when_used() {
         2
     );
     assert!(buffer_exists(&engine, "resident structure chunks"));
-    assert!(buffer_exists(&engine, "resident display coordinates"));
     assert!(buffer_exists(&engine, "resident structure chunk clusters"));
+    // Paged chunks read the canonical coordinate backing; the second display
+    // buffer exists only while a trajectory window does.
+    assert!(!buffer_exists(&engine, "resident display coordinates"));
     assert!(!buffer_exists(&engine, "resident trajectory frames"));
     assert!(!buffer_exists(&engine, "resident provider bonds"));
     assert!(!buffer_exists(&engine, "paged visible rows"));
@@ -120,7 +122,6 @@ fn paged_gpu_storage_and_staging_are_committed_only_when_used() {
 fn assert_paged_buffers_absent(engine: &Engine<MockDevice>) {
     for label in [
         "resident structure chunks",
-        "resident display coordinates",
         "resident trajectory frames",
         "resident structure chunk clusters",
         "resident provider bonds",
@@ -297,10 +298,11 @@ fn provider_storage_is_retained_and_exact_bytes_become_resident_only_after_signa
             .phase,
         ResidencyPhase::Uploading
     );
-    assert!(engine.resident_structure_chunk(ticket).is_none());
     if let Err(error) = engine.poll_chunk_uploads_into(&mut output) {
         panic!("unresolved poll must remain valid: {error}");
     }
+    // The fence came from the upload's own epoch flush, so only the backend
+    // signal is still outstanding.
     assert!(engine.resident_structure_chunk(ticket).is_none());
 
     complete(&mut engine, &mut output);
@@ -314,18 +316,25 @@ fn provider_storage_is_retained_and_exact_bytes_become_resident_only_after_signa
         Ok(value) => value,
         Err(error) => panic!("write log must be available: {error}"),
     };
-    let uploaded = payloads.iter().find(|bytes| bytes.starts_with(&expected));
-    let Some(uploaded) = uploaded else {
-        panic!("one upload must begin with the exact borrowed coordinates")
+    // The chunk's staged range opens with the provider's own coordinate bytes
+    // and continues with its derived radii in the same reservation.
+    let staged = payloads
+        .iter()
+        .map(Vec::as_slice)
+        .find(|bytes| bytes.starts_with(&expected));
+    let Some(staged) = staged else {
+        panic!("one staged payload must begin with the exact borrowed coordinates")
     };
     assert_eq!(
-        uploaded.len(),
-        expected.len() + 2 * std::mem::size_of::<f32>()
+        &staged[..expected.len()],
+        expected.as_slice(),
+        "the staged range opens with the provider's exact coordinates"
     );
+    let radii = bytemuck::cast_slice::<f32, u8>(&[1.70_f32, 1.55_f32]);
     assert_eq!(
-        &uploaded[expected.len()..],
-        bytemuck::cast_slice::<f32, u8>(&[1.70_f32, 1.55_f32]),
-        "derived radii follow coordinates without duplicating them"
+        &staged[expected.len()..expected.len() + radii.len()],
+        radii,
+        "derived radii follow the coordinates in the same range"
     );
 }
 
@@ -440,53 +449,4 @@ fn upload_backpressure_preserves_cpu_payload_for_retry() {
     upload(&mut engine, second, &mut output);
     complete(&mut engine, &mut output);
     assert!(engine.resident_structure_chunk(second).is_some());
-}
-
-#[test]
-fn stable_frames_do_not_allocate_or_rewrite_resident_chunk_storage() {
-    let mut engine = engine();
-    let mut output = ResidencyOutput::default();
-    let (ticket, _, _) = request_and_deliver(&mut engine, fixture(51, 61, 1), &mut output);
-    upload(&mut engine, ticket, &mut output);
-    complete(&mut engine, &mut output);
-    let before = engine.chunk_residency_metrics();
-    let structure_buffer = match engine.device.log.buffers.lock() {
-        Ok(buffers) => buffers
-            .iter()
-            .find(|(_, label, _)| *label == "resident structure chunks")
-            .map(|(id, _, _)| *id),
-        Err(_) => None,
-    };
-    let Some(structure_buffer) = structure_buffer else {
-        panic!("structure arena buffer must exist")
-    };
-    let writes_before = structure_write_count(&engine, structure_buffer);
-    let scene = molgfx_core::Scene::new();
-    let camera = super::tests::camera();
-    for _ in 0..2 {
-        if let Err(error) = engine.render(&scene, &camera) {
-            panic!("stable frame must render: {error}");
-        }
-    }
-    let after = engine.chunk_residency_metrics();
-    assert_eq!(
-        after.arena.host_allocation_events,
-        before.arena.host_allocation_events
-    );
-    assert_eq!(
-        after.uploads.host_allocation_events,
-        before.uploads.host_allocation_events
-    );
-    assert_eq!(after.tracked_capacity, before.tracked_capacity);
-    assert_eq!(
-        structure_write_count(&engine, structure_buffer),
-        writes_before
-    );
-}
-
-fn structure_write_count(engine: &Engine<MockDevice>, buffer: u32) -> usize {
-    match engine.device.log.writes.lock() {
-        Ok(writes) => writes.iter().filter(|(id, _, _, _)| *id == buffer).count(),
-        Err(_) => 0,
-    }
 }

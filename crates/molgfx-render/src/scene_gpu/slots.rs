@@ -4,10 +4,13 @@ mod bindings;
 mod draws;
 mod records;
 mod state;
-use super::quality_acceleration::QualityAcceleration;
+use super::placement_acceleration::PlacementAcceleration;
+use super::record_cache::RecordKey;
 use super::ribbon_slot::{RibbonSlot, RibbonSync};
-use super::slot_types::{SlotKey, SlotPlan, SlotShading, SlotSync, SlotSynced};
-use super::surface_slot::{SurfaceSlot, SurfaceSync};
+use super::slot_types::{
+    DrawSpecializations, SlotKey, SlotPlan, SlotShading, SlotSync, SlotSynced,
+};
+use super::surface_slot::SurfaceSlot;
 use super::sync::selection_bounds::SelectionBoundsCache;
 use super::uniforms::write_representation_uniforms;
 use super::visual::{VisualBase, VisualSlot, VisualSync};
@@ -17,80 +20,76 @@ use molgfx_core::RepresentationKind;
 use molgfx_gpu::Device;
 use state::{is_spline, shading, synced_state};
 
-const FAST_POINT_INDEX_LIMIT: u32 = 1 << 24;
+pub(crate) const FAST_POINT_INDEX_LIMIT: u32 = 1 << 24;
+
 #[derive(Debug)]
 pub(super) struct GpuSlot<D: Device> {
     pub(super) key: SlotKey,
+    /// Which shared record set this slot draws from.
+    pub(super) record_key: Option<RecordKey>,
+    /// The cull policy this slot's shared visible set was computed under.
+    pub(super) visibility_key: Option<super::VisibilityKey>,
     pub(super) structure_index: usize,
     pub(super) draw_order: usize,
     pub(super) visible: bool,
-    atoms: Option<D::Buffer>,
-    bonds: Option<D::Buffer>,
-    atom_args: Option<D::Buffer>,
-    bond_args: Option<D::Buffer>,
-    surface_args: Option<D::Buffer>,
-    compaction: Option<D::Buffer>,
+    atom_args: Option<u64>,
+    bond_args: Option<u64>,
+    surface_args: Option<u64>,
     representation_uniforms: Option<D::Buffer>,
-    surface: SurfaceSlot<D>,
+    color_uniforms: Option<D::Buffer>,
+    /// The colour property column's arena offset and stride in words.
+    color_column: [u32; 2],
+    pub(in crate::scene_gpu) surface: SurfaceSlot,
     group2: Option<D::BindGroup>,
     quality_group: Option<D::BindGroup>,
     atom_cull_group: Option<D::BindGroup>,
     bond_cull_group: Option<D::BindGroup>,
     visual_cull_group: Option<D::BindGroup>,
-    visible_atoms: Option<D::Buffer>,
-    visible_bonds: Option<D::Buffer>,
-    counts: Option<D::Buffer>,
-    atom_count: u32,
-    bond_count: u32,
-    atoms_capacity: u64,
-    bonds_capacity: u64,
-    compaction_capacity: u64,
-    visible_atoms_capacity: u64,
-    visible_bonds_capacity: u64,
-    selection_bounds: SelectionBoundsCache,
+    pub(crate) atom_count: u32,
+    pub(crate) bond_count: u32,
+    pub(in crate::scene_gpu) selection_bounds: SelectionBoundsCache,
     synced: Option<SlotSynced>,
     translucent: bool,
     kind: RepresentationKind,
     shading: SlotShading,
-    quality_acceleration: QualityAcceleration<D>,
+    /// The generated pipeline each family resolved to, refreshed once per
+    /// frame before any pass records. A slot without a style holds a table of
+    /// `None`, so its draws keep the interpreted pipeline.
+    specialized: DrawSpecializations,
+    hardware: PlacementAcceleration<D>,
     ribbon: RibbonSlot<D>,
     visual: VisualSlot<D>,
 }
+
 impl<D: Device> GpuSlot<D> {
     pub(super) fn new(plan: SlotPlan) -> Self {
         Self {
             key: plan.key,
+            record_key: None,
+            visibility_key: None,
             structure_index: plan.structure_index,
             draw_order: plan.draw_order,
             visible: plan.visible,
-            atoms: None,
-            bonds: None,
             atom_args: None,
             bond_args: None,
             surface_args: None,
-            compaction: None,
             representation_uniforms: None,
+            color_uniforms: None,
+            color_column: [0, 1],
             surface: SurfaceSlot::new(),
             group2: None,
             quality_group: None,
             atom_cull_group: None,
             bond_cull_group: None,
             visual_cull_group: None,
-            visible_atoms: None,
-            visible_bonds: None,
-            counts: None,
             atom_count: 0,
             bond_count: 0,
-            atoms_capacity: 0,
-            bonds_capacity: 0,
-            compaction_capacity: 0,
-            visible_atoms_capacity: 0,
-            visible_bonds_capacity: 0,
             selection_bounds: SelectionBoundsCache::new(),
             synced: None,
             translucent: false,
             shading: SlotShading::default(),
-            quality_acceleration: QualityAcceleration::new(),
+            specialized: [None; super::slot_types::DRAW_FAMILIES],
+            hardware: PlacementAcceleration::new(),
             kind: RepresentationKind::Spacefill,
             ribbon: RibbonSlot::new(),
             visual: VisualSlot::new(),
@@ -99,29 +98,34 @@ impl<D: Device> GpuSlot<D> {
 
     pub(super) fn sync(&mut self, mut input: SlotSync<'_, D>) -> Result<bool, RenderError> {
         self.visible = input.representation.visible;
+        self.kind = input.representation.kind;
         let current = synced_state(&input);
+        // Argument slots are scene state resolved in the record pass; adopt
+        // them even on a frame that changes nothing else, because a slot may
+        // be seeing its records for the first time.
+        if let Some((atom, bond, surface)) = input.args {
+            self.atom_args = Some(atom);
+            self.bond_args = Some(bond);
+            self.surface_args = Some(surface);
+        }
         if self.synced == Some(current) {
             return Ok(false);
         }
+        self.adopt_counts(input.records.atom_count, input.records.bond_count);
+        self.ensure_uniforms(input.device)?;
+        let records_changed = self.record_key != Some(current.record_key);
+        let topology_changed = self
+            .synced
+            .is_none_or(|old| old.bond_topology != current.bond_topology);
+        self.record_key = Some(current.record_key);
         let selection_bounds =
             self.selection_bounds
                 .resolve(input.placed, input.representation, input.selection)?;
         self.translucent = input.representation.is_translucent();
-        self.kind = input.representation.kind;
         self.shading = shading(input.representation);
         let representation_changed = self
             .synced
             .is_none_or(|old| old.presentation != current.presentation);
-        let records_changed = self.synced.is_none_or(|old| {
-            old.records != current.records
-                || old.color != current.color
-                || old.flags != current.flags
-                || old.semantic != current.semantic
-                || old.properties != current.properties
-        });
-        let topology_changed = self
-            .synced
-            .is_none_or(|old| old.bond_topology != current.bond_topology);
         let spatial_bounds_changed = self
             .synced
             .is_none_or(|old| old.spatial_bounds != current.spatial_bounds);
@@ -136,21 +140,18 @@ impl<D: Device> GpuSlot<D> {
             records_changed,
             topology_changed,
         )?;
+        if placement_changed || self.synced.is_none() {
+            let blas = input.acceleration_draw.and_then(|value| value.blas());
+            self.hardware.sync(
+                input.device,
+                blas,
+                input.ray_query_layout,
+                input.placed.model_to_world,
+            );
+        }
         if spatial_bounds_changed && !records_changed && !topology_changed && !is_spline(self.kind)
         {
-            self.quality_acceleration.sync_coordinates(
-                input.device,
-                input.queue,
-                input.placed,
-                input.atoms,
-                input.bonds,
-                input.ray_query_layout,
-            )?;
             self.bind_representation(&input);
-        }
-        if placement_changed && !spatial_bounds_changed {
-            self.quality_acceleration
-                .sync_placement(input.device, input.placed);
         }
         if self.cull_binding_changed(&current) {
             self.bind_cull_input(&input);
@@ -171,15 +172,12 @@ impl<D: Device> GpuSlot<D> {
         records_changed: bool,
         topology_changed: bool,
     ) -> Result<bool, RenderError> {
+        // Packed records are resident in the cache already, so a record or
+        // topology change needs no upload here — only a surface field rebuild,
+        // which the branch below covers.
+        let _ = (records_changed, topology_changed);
         let binding_changed = if is_spline(input.representation.kind) {
             self.sync_cartoon(input, current, representation_changed, selection_bounds)?
-        } else if records_changed {
-            self.ribbon.clear();
-            self.upload_records(&mut input.records(selection_bounds))?;
-            false
-        } else if topology_changed {
-            self.upload_bonds(&mut input.records(selection_bounds))?;
-            false
         } else if self.kind == RepresentationKind::Surface
             && (representation_changed
                 || self.synced.is_none_or(|old| {
@@ -188,15 +186,9 @@ impl<D: Device> GpuSlot<D> {
                         || old.overlay_binding != current.overlay_binding
                 }))
         {
-            let coordinates_changed = self
+            let _coordinates_changed = self
                 .synced
                 .is_none_or(|old| old.coordinates != current.coordinates);
-            let quality_changed = self.synced.is_none_or(|old| old.quality != current.quality);
-            self.sync_surface_resources(
-                input,
-                selection_bounds,
-                coordinates_changed || quality_changed,
-            )?;
             self.bind_representation(input);
             false
         } else if self.group2.is_none()
@@ -239,14 +231,20 @@ impl<D: Device> GpuSlot<D> {
     }
 
     fn bind_representation(&mut self, input: &SlotSync<'_, D>) {
+        let (records, visibility, acceleration) =
+            (input.records, input.visibility, input.acceleration_draw);
         self.bind(&RepresentationBinding {
             device: input.device,
+            records,
+            visibility,
+            acceleration,
             layout: input.layout,
             quality_layout: input.quality_layout,
             structure: input.structure_gpu,
             asset_arena: input.asset_arena,
             surface_field_fallback: input.surface_field_fallback,
             surface_normal_fallback: input.surface_normal_fallback,
+            surface_fields: input.surface_fields,
             overlay: input.overlay_view,
             visual_programs: input.visual_program_buffer,
             visual_parameters: input.visual_parameter_buffer,
@@ -255,8 +253,12 @@ impl<D: Device> GpuSlot<D> {
     }
 
     fn bind_cull_input(&mut self, input: &SlotSync<'_, D>) {
+        let (records, visibility) = (input.records, input.visibility);
         self.bind_cull(&CullBinding {
             device: input.device,
+            records,
+            visibility,
+            arena: input.draw_arena,
             atom_layout: input.atom_cull_layout,
             bond_layout: input.bond_cull_layout,
             visual_layout: input.visual_cull_layout,
@@ -337,28 +339,18 @@ impl<D: Device> GpuSlot<D> {
         representation_changed: bool,
         selection_bounds: molgfx_math::Aabb,
     ) -> Result<bool, RenderError> {
+        // A spline draws its ribbon geometry, not packed atom instances; the
+        // shared record set is consulted only when a visual style samples it.
         let visual_records_changed = input.representation.visual.is_some()
             && self.synced.is_none_or(|old| {
-                old.records != current.records
-                    || old.color != current.color
-                    || old.flags != current.flags
-                    || old.semantic != current.semantic
-                    || old.visual_program != current.visual_program
+                old.visual_program != current.visual_program || old.record_key != current.record_key
             });
-        if visual_records_changed {
-            self.upload_records(&mut input.records(selection_bounds))?;
-            self.bond_count = 0;
-        } else if input.representation.visual.is_none() {
-            self.atom_count = 0;
-            self.bond_count = 0;
-        }
+        let _ = selection_bounds;
         let geometry_changed = self.synced.is_none_or(|old| {
             old.ribbon != current.ribbon
-                || old.color != current.color
-                || old.flags != current.flags
-                || old.semantic != current.semantic
                 || old.properties != current.properties
                 || old.secondary_structure != current.secondary_structure
+                || old.record_key != current.record_key
         });
         if geometry_changed {
             self.ribbon.sync(&mut RibbonSync {
@@ -412,38 +404,19 @@ impl<D: Device> GpuSlot<D> {
                 input.quality,
             );
         }
+        // The colour block changes with the scheme, which is presentation
+        // state: writing it here is what keeps a scheme change off the record
+        // path entirely.
+        if let Some(color) = &self.color_uniforms {
+            super::color_uniforms::ColorUniforms::new(input.representation, self.color_column)
+                .write::<D>(input.queue, color);
+        }
     }
 
-    fn sync_surface_resources(
-        &mut self,
-        input: &SlotSync<'_, D>,
-        selection_bounds: molgfx_math::Aabb,
-        force_generate: bool,
-    ) -> Result<(), RenderError> {
-        let (Some(atoms), Some(compaction), Some(uniforms)) =
-            (&self.atoms, &self.compaction, &self.representation_uniforms)
-        else {
-            return Ok(());
-        };
-        self.surface.sync(&SurfaceSync {
-            device: input.device,
-            queue: input.queue,
-            output_layout: input.surface_field_output_layout,
-            input_layout: input.surface_field_input_layout,
-            erosion_layout: input.surface_field_erosion_layout,
-            normal_layout: input.surface_field_normal_layout,
-            component_layout: input.surface_component_layout,
-            structure: input.structure_gpu,
-            asset_arena: input.asset_arena,
-            representation: input.representation,
-            atoms,
-            compaction,
-            uniforms,
-            atom_count: self.atom_count,
-            selection_bounds,
-            force_generate,
-            quality: input.quality,
-            overlay_volume: input.overlay_volume,
-        })
+    /// The shared field this slot shades, when it shades one.
+    pub(in crate::scene_gpu) const fn surface_key(
+        &self,
+    ) -> Option<super::surface_field::SurfaceFieldKey> {
+        self.surface.key()
     }
 }

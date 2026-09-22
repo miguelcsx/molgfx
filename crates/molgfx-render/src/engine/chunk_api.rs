@@ -219,6 +219,10 @@ impl<D: Device> Engine<D> {
             self.chunk_residency.apply(output)?;
             return Err(error);
         }
+        // Staging only filled the host ring. One device epoch carries every
+        // chunk staged since the last flush, so this is where the bytes
+        // actually reach the arena — once per upload, not once per segment.
+        self.chunk_residency.flush(&self.device, &self.queue)?;
         Ok(())
     }
 
@@ -231,6 +235,9 @@ impl<D: Device> Engine<D> {
         &mut self,
         output: &mut ResidencyOutput,
     ) -> Result<(), ChunkResidencyError> {
+        // A frame that delivered chunks without uploading them still needs its
+        // epoch flushed before completion can be observed.
+        self.chunk_residency.flush(&self.device, &self.queue)?;
         self.chunk_residency.poll(&self.device, &self.queue)?;
         let completed = self.chunk_residency.completed().len();
         for index in 0..completed {

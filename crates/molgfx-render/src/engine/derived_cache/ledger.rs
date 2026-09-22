@@ -9,7 +9,6 @@ use super::model::{
 /// lookup without hash-table capacity or randomized iteration state. Pressure
 /// scans are `O(n)` and occur only when a new optional allocation exceeds its
 /// budget. Visible source data and required indirect state never enter it.
-#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Debug)]
 pub(crate) struct DerivedCache {
     budget: DerivedCacheBudget,
@@ -18,7 +17,6 @@ pub(crate) struct DerivedCache {
     evicted: Vec<DerivedCacheKey>,
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 impl DerivedCache {
     pub(crate) const fn new(budget: DerivedCacheBudget) -> Self {
         Self {
@@ -38,7 +36,13 @@ impl DerivedCache {
         self.usage
     }
 
-    pub(super) fn retain<K: Into<DerivedCacheKey>>(
+    /// Replaces the hard limits and immediately releases what no longer fits.
+    pub(crate) fn set_budget(&mut self, budget: DerivedCacheBudget) {
+        self.budget = budget;
+        self.trim();
+    }
+
+    pub(crate) fn retain<K: Into<DerivedCacheKey>>(
         &mut self,
         key: K,
         class: DerivedCacheClass,
@@ -113,6 +117,31 @@ impl DerivedCache {
 
     pub(crate) fn contains(&self, key: DerivedCacheKey) -> bool {
         self.index(key).is_ok()
+    }
+
+    /// Releases entries until the retained set fits the current budget.
+    ///
+    /// The budget is the only thing that destroys a derived resource: a
+    /// visibility gate suppresses a draw, it never frees memory. Lowering the
+    /// budget therefore has to be able to evict something already resident,
+    /// which is what this walk is for. Entries leave in the same deterministic
+    /// `(class, last_used_frame, key)` order as pressure eviction.
+    pub(crate) fn trim(&mut self) {
+        while self.would_exceed(DerivedFootprint {
+            cpu_bytes: 0,
+            gpu_bytes: 0,
+        }) {
+            let Some(index) = self
+                .entries
+                .iter()
+                .enumerate()
+                .min_by_key(|(_, entry)| (entry.class, entry.last_used_frame, entry.key))
+                .map(|(index, _)| index)
+            else {
+                return;
+            };
+            self.remove_index(index);
+        }
     }
 
     pub(crate) fn take_evictions(&mut self) -> impl Iterator<Item = DerivedCacheKey> + '_ {

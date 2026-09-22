@@ -1,5 +1,6 @@
 //! The engine: owns the device, the graph and every pass's state.
 
+mod adaptive;
 mod backdrop;
 pub(crate) mod bond_draw_plan;
 mod bond_residency;
@@ -22,6 +23,7 @@ mod image;
 mod init;
 mod lighting_environment;
 mod picking;
+pub(crate) mod pipeline_cache;
 mod profile;
 mod profile_numeric;
 mod profiling;
@@ -34,6 +36,7 @@ mod statistics;
 mod target;
 mod temporal;
 
+pub use adaptive::{AdaptiveQuality, AdaptiveQualityConfig, QualityTier};
 pub use backdrop::{BackdropStyle, DisplayGamut, DisplayTransform, ToneMapping, TransferFunction};
 pub use chunk_placement::{
     AttributeChunkWindow, BondChunkPlacement, ChunkPlacementError, ChunkPlacementId,
@@ -66,7 +69,7 @@ pub use statistics::LigandPoseStats;
 
 pub(crate) use crate::passes::PassRegistry;
 pub(crate) use derived_cache::{
-    DerivedCache, DerivedCacheKey, DerivedFootprint, MaterializationPlan,
+    DerivedCache, DerivedCacheClass, DerivedCacheKey, DerivedFootprint, MaterializationPlan,
 };
 pub(crate) use focus_target::FocusTracker;
 pub(crate) use picking::Picker;
@@ -76,10 +79,24 @@ pub(crate) use temporal::{TemporalOptions, TemporalState};
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "engine_tests.rs"]
-mod tests;
+pub(crate) mod tests;
+
+#[cfg(test)]
+#[path = "pipeline_cache_tests.rs"]
+mod pipeline_cache_tests;
+
+#[cfg(test)]
+#[path = "indirect_arena_tests.rs"]
+mod indirect_arena_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod slot_cache_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod surface_field_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod color_scheme_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "residency_integration_tests.rs"]

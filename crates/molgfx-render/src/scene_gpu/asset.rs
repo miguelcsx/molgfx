@@ -9,12 +9,12 @@ use molgfx_gpu::Device;
 #[path = "asset_tests.rs"]
 mod tests;
 
-/// Collision-resistant identity for immutable renderer input.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct GpuAssetIdentity {
-    pub(super) dataset: DatasetId,
-    pub(super) coordinate_generation: u64,
-    pub(super) fingerprint: u64,
+/// Identity of one immutable structure asset, comparable for cache keys.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct GpuAssetIdentity {
+    pub(crate) dataset: DatasetId,
+    pub(crate) coordinate_generation: u64,
+    pub(crate) fingerprint: u64,
 }
 
 impl GpuAssetIdentity {

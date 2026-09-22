@@ -1,6 +1,6 @@
 //! Deterministic temporal camera state and low-discrepancy subpixel sampling.
 
-use super::IllustrationStyle;
+use super::{IllustrationStyle, QualityTier};
 use crate::scene_gpu::{FrameUniforms, TemporalFrame};
 use molgfx_math::{Camera, Mat4};
 
@@ -85,6 +85,7 @@ const JITTER: [[f32; 2]; 64] = [
 pub(crate) struct TemporalState {
     frame_index: u32,
     settled_frames: u8,
+    tier: QualityTier,
     previous_view_proj: Option<Mat4>,
     previous_camera: Option<Camera>,
     write_index: usize,
@@ -107,6 +108,16 @@ pub(crate) struct TemporalOptions {
 }
 
 impl TemporalState {
+    /// The tier the caller last published into this state.
+    pub(crate) const fn tier(&self) -> QualityTier {
+        self.tier
+    }
+
+    /// Records the tier the frame loop is rendering at.
+    pub(crate) fn set_tier(&mut self, tier: QualityTier) {
+        self.tier = tier;
+    }
+
     pub(crate) fn reset(&mut self) {
         self.frame_index = 0;
         self.settled_frames = 0;
@@ -171,8 +182,7 @@ impl TemporalState {
         }
     }
 
-    pub(crate) const fn needs_another_frame(&self, quality: bool) -> bool {
-        let sample_budget = if quality { 64 } else { 8 };
+    pub(crate) const fn needs_another_frame(&self, sample_budget: u8) -> bool {
         self.settled_frames < sample_budget
     }
 }

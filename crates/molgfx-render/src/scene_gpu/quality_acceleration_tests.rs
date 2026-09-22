@@ -1,3 +1,5 @@
+use super::super::placement_acceleration::PlacementAcceleration;
+use super::super::quality_hardware::QualityBlas;
 use super::*;
 use crate::testing::{MockBindGroupLayout, MockDevice};
 use molgfx_core::{EntityId, PlacedStructure};
@@ -75,7 +77,7 @@ fn bond_hierarchy_is_persistent_and_covers_each_compact_bond() {
     ];
     let mut acceleration = QualityAcceleration::<MockDevice>::new();
     acceleration
-        .sync_topology(&device, &queue, &atoms, &bonds, &placed, None)
+        .sync_topology(&device, &queue, &atoms, &bonds, &placed)
         .unwrap_or_else(|error| panic!("quality hierarchy uploads: {error}"));
     assert_eq!(acceleration.hierarchy.primitive_indices.len(), bonds.len());
     assert!(acceleration.counts().nodes > 0);
@@ -96,7 +98,7 @@ fn bond_hierarchy_is_persistent_and_covers_each_compact_bond() {
         acceleration.upload_indices.capacity(),
     );
     acceleration
-        .sync_coordinates(&device, &queue, &placed, &atoms, &bonds, None)
+        .sync_topology(&device, &queue, &atoms, &bonds, &placed)
         .unwrap_or_else(|error| panic!("quality hierarchy rebuilds in place: {error}"));
     assert_eq!(
         capacities,
@@ -123,11 +125,11 @@ fn empty_bond_sets_reuse_the_structure_binding_without_allocating() {
         ..BondGpu::default()
     }];
     acceleration
-        .sync_topology(&device, &queue, &atoms, &bonds, &placed, None)
+        .sync_topology(&device, &queue, &atoms, &bonds, &placed)
         .unwrap_or_else(|error| panic!("non-empty quality hierarchy binds: {error}"));
     assert!(acceleration.nodes().is_some());
     acceleration
-        .sync_topology(&device, &queue, &atoms, &[], &placed, None)
+        .sync_topology(&device, &queue, &atoms, &[], &placed)
         .unwrap_or_else(|error| panic!("empty quality hierarchy binds: {error}"));
     assert_eq!(acceleration.counts().nodes, 0);
     assert_eq!(acceleration.counts().indices, 0);
@@ -136,7 +138,7 @@ fn empty_bond_sets_reuse_the_structure_binding_without_allocating() {
 }
 
 #[test]
-fn hardware_selection_builds_once_and_updates_only_the_tlas_for_placement() {
+fn one_shared_blas_serves_every_placement_and_only_the_tlas_rebuilds() {
     let device = MockDevice::with_ray_query();
     let queue = device.queue();
     let mut placed = placed_structure();
@@ -147,35 +149,43 @@ fn hardware_selection_builds_once_and_updates_only_the_tlas_for_placement() {
         radius: 0.2,
         ..BondGpu::default()
     }];
-    let mut acceleration = QualityAcceleration::<MockDevice>::new();
-    acceleration
-        .sync_topology(
-            &device,
-            &queue,
-            &atoms,
-            &bonds,
-            &placed,
-            Some(&MockBindGroupLayout::default()),
-        )
-        .unwrap_or_else(|error| panic!("quality hierarchy uploads: {error}"));
-    assert!(acceleration.hardware_group().is_some());
-    let mut encoder = device.create_command_encoder();
-    acceleration.record_hardware(&mut encoder);
-    assert_eq!(device.log.blas_builds.load(Ordering::Relaxed), 1);
-    assert_eq!(device.log.tlas_builds.load(Ordering::Relaxed), 1);
-    acceleration.record_hardware(&mut encoder);
-    assert_eq!(device.log.blas_builds.load(Ordering::Relaxed), 1);
-    assert_eq!(device.log.tlas_builds.load(Ordering::Relaxed), 1);
+    let layout = MockBindGroupLayout::default();
 
-    placed.model_to_world = molgfx_math::Mat4::from_translation(molgfx_math::Vec3::X);
-    acceleration.sync_placement(&device, &placed);
-    acceleration.record_hardware(&mut encoder);
+    // One BLAS, shared by two placements of the same records.
+    let mut shared = QualityBlas::<MockDevice>::new();
+    shared.sync(&device, &queue, &atoms, &bonds, &placed);
+    assert!(shared.blas().is_some(), "the shared BLAS builds");
+    let mut first = PlacementAcceleration::<MockDevice>::new();
+    let mut second = PlacementAcceleration::<MockDevice>::new();
+    first.sync(&device, shared.blas(), Some(&layout), placed.model_to_world);
+    second.sync(&device, shared.blas(), Some(&layout), placed.model_to_world);
+    assert!(first.group().is_some());
+    assert!(second.group().is_some());
+
+    let mut encoder = device.create_command_encoder();
+    shared.record(&mut encoder);
+    first.record(&mut encoder);
+    second.record(&mut encoder);
     assert_eq!(device.log.blas_builds.load(Ordering::Relaxed), 1);
     assert_eq!(device.log.tlas_builds.load(Ordering::Relaxed), 2);
+
+    // A repeated frame rebuilds neither.
+    shared.record(&mut encoder);
+    first.record(&mut encoder);
+    second.record(&mut encoder);
+    assert_eq!(device.log.blas_builds.load(Ordering::Relaxed), 1);
+    assert_eq!(device.log.tlas_builds.load(Ordering::Relaxed), 2);
+
+    // Moving one placement re-instances its TLAS and no BLAS.
+    placed.model_to_world = molgfx_math::Mat4::from_translation(molgfx_math::Vec3::X);
+    first.sync(&device, shared.blas(), Some(&layout), placed.model_to_world);
+    first.record(&mut encoder);
+    assert_eq!(device.log.blas_builds.load(Ordering::Relaxed), 1);
+    assert_eq!(device.log.tlas_builds.load(Ordering::Relaxed), 3);
 }
 
 #[test]
-fn hardware_device_loss_falls_back_without_discarding_compute_bvhs() {
+fn hardware_device_loss_falls_back_without_discarding_the_compute_bvh() {
     let device = MockDevice::with_ray_query();
     let queue = device.queue();
     let placed = placed_structure();
@@ -188,23 +198,30 @@ fn hardware_device_loss_falls_back_without_discarding_compute_bvhs() {
     }];
     let mut acceleration = QualityAcceleration::<MockDevice>::new();
     acceleration
-        .sync_topology(
-            &device,
-            &queue,
-            &atoms,
-            &bonds,
-            &placed,
-            Some(&MockBindGroupLayout::default()),
-        )
+        .sync_topology(&device, &queue, &atoms, &bonds, &placed)
         .unwrap_or_else(|error| panic!("quality hierarchy uploads: {error}"));
+
+    let mut shared = QualityBlas::<MockDevice>::new();
+    shared.sync(&device, &queue, &atoms, &bonds, &placed);
+    assert!(shared.blas().is_some(), "the shared BLAS builds");
+    let mut placement = PlacementAcceleration::<MockDevice>::new();
+    placement.sync(
+        &device,
+        shared.blas(),
+        Some(&MockBindGroupLayout::default()),
+        placed.model_to_world,
+    );
+    assert!(placement.group().is_some());
+
     device.fail_next_ray_query();
-    acceleration.record_hardware(&mut device.create_command_encoder());
+    placement.record(&mut device.create_command_encoder());
     assert_eq!(
-        acceleration.hardware.failure(),
+        placement.failure(),
         Some(super::super::quality_hardware::HardwareFailure::DeviceLost)
     );
-    assert!(acceleration.hardware_group().is_none());
+    assert!(placement.group().is_none());
     assert!(acceleration.nodes().is_some());
+    assert!(shared.blas().is_some());
 }
 
 #[test]
@@ -221,8 +238,16 @@ fn missing_ray_query_capability_keeps_the_compute_path_selected() {
     }];
     let mut acceleration = QualityAcceleration::<MockDevice>::new();
     acceleration
-        .sync_topology(&device, &queue, &atoms, &bonds, &placed, None)
+        .sync_topology(&device, &queue, &atoms, &bonds, &placed)
         .unwrap_or_else(|error| panic!("quality hierarchy uploads: {error}"));
-    assert!(acceleration.hardware_group().is_none());
+    let mut shared = QualityBlas::<MockDevice>::new();
+    shared.sync(&device, &queue, &atoms, &bonds, &placed);
+    let mut placement = PlacementAcceleration::<MockDevice>::new();
+    placement.sync(&device, None, None, placed.model_to_world);
+    assert!(placement.group().is_none());
+    assert_eq!(
+        placement.failure(),
+        Some(super::super::quality_hardware::HardwareFailure::Unavailable)
+    );
     assert!(acceleration.nodes().is_some());
 }

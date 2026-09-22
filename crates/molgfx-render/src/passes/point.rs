@@ -111,6 +111,38 @@ impl<D: Device> PointPass<D> {
         })
     }
 
+    /// Compiles the atom-point pipeline built from the generated sibling.
+    ///
+    /// # Errors
+    ///
+    /// Shader compilation or pipeline creation failed.
+    pub(crate) fn build_specialized(
+        device: &D,
+        group0: &D::BindGroupLayout,
+        group2: &D::BindGroupLayout,
+    ) -> Result<D::Pipeline, RenderError> {
+        let shader = device.create_shader_module(&ShaderModuleDesc {
+            label: "point generated",
+            wgsl: molgfx_shaders::GEOMETRY_POINT_SPECIALIZED,
+        })?;
+        let targets = gbuffer_targets();
+        Ok(device.create_render_pipeline(&RenderPipelineDesc {
+            label: "specialized atom points",
+            layouts: &[Some(group0), None, Some(group2)],
+            shader: &shader,
+            vs_entry: "vs_point",
+            fs_entry: Some("fs_point"),
+            color_targets: &[targets[0], targets[1], targets[2], targets[3], targets[4]],
+            depth: Some(DepthState {
+                format: TextureFormat::Depth32Float,
+                write: true,
+                compare: CompareFunction::GreaterEqual,
+            }),
+            constants: &constants(true),
+            topology: PrimitiveTopology::TriangleList,
+        })?)
+    }
+
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let (Some(albedo), Some(normal), Some(entity), Some(structure), Some(motion), Some(depth)) = (
             ctx.resources.view(ALBEDO_RESOURCE),
@@ -145,14 +177,17 @@ impl<D: Device> PointPass<D> {
             timestamps: ctx.timestamps,
         });
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
-        let mut bound = None;
-        for (group, args, shading) in ctx.scene.point_draws(false) {
-            if bound != Some(shading) {
-                pass.set_pipeline(ctx.passes.point.pipeline.get(shading));
-                bound = Some(shading);
+        let mut bound: Option<*const D::Pipeline> = None;
+        if let Some(arena) = ctx.scene.indirect_args() {
+            for (group, offset, shading, specialized) in ctx.scene.point_draws(false) {
+                let pipeline = ctx.passes.point.pipeline.select(shading, specialized);
+                if bound != Some(std::ptr::from_ref(pipeline)) {
+                    pass.set_pipeline(pipeline);
+                    bound = Some(std::ptr::from_ref(pipeline));
+                }
+                pass.set_bind_group(2, group, &[]);
+                pass.draw_indirect(arena, offset);
             }
-            pass.set_bind_group(2, group, &[]);
-            pass.draw_indirect(args, 0);
         }
         if let Some((group, args, offset)) = ctx.scene.paged_point_draw() {
             pass.set_pipeline(&ctx.passes.point.paged_pipeline);

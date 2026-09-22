@@ -7,6 +7,7 @@ use crate::passes::{
     ALBEDO_RESOURCE, DEPTH_RESOURCE, ENTITY_RESOURCE, MOTION_RESOURCE, NORMAL_RESOURCE,
     STRUCTURE_RESOURCE, gbuffer_targets,
 };
+use crate::scene_gpu::DrawFamily;
 use molgfx_gpu::{
     ColorAttachment, CommandEncoder as _, CompareFunction, DepthAttachment, DepthLoadOp,
     DepthState, Device, LoadOp, PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _,
@@ -54,6 +55,37 @@ impl<D: Device> CartoonPass<D> {
         Ok(Self { pipeline })
     }
 
+    /// Compiles the cartoon ribbon pipeline built from the generated sibling.
+    ///
+    /// # Errors
+    ///
+    /// Shader compilation or pipeline creation failed.
+    pub(crate) fn build_specialized(
+        device: &D,
+        group0: &D::BindGroupLayout,
+        ribbon: &D::BindGroupLayout,
+    ) -> Result<D::Pipeline, RenderError> {
+        let shader = device.create_shader_module(&ShaderModuleDesc {
+            label: "cartoon generated",
+            wgsl: molgfx_shaders::GEOMETRY_CARTOON_SPECIALIZED,
+        })?;
+        Ok(device.create_render_pipeline(&RenderPipelineDesc {
+            label: "specialized cartoon ribbons",
+            layouts: &[Some(group0), None, Some(ribbon)],
+            shader: &shader,
+            vs_entry: "vs_cartoon",
+            fs_entry: Some("fs_cartoon"),
+            color_targets: &gbuffer_targets(),
+            depth: Some(DepthState {
+                format: TextureFormat::Depth32Float,
+                write: true,
+                compare: CompareFunction::GreaterEqual,
+            }),
+            constants: &constants(true),
+            topology: PrimitiveTopology::TriangleList,
+        })?)
+    }
+
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let (Some(albedo), Some(normal), Some(entity), Some(structure), Some(motion), Some(depth)) = (
             ctx.resources.view(ALBEDO_RESOURCE),
@@ -65,7 +97,11 @@ impl<D: Device> CartoonPass<D> {
         ) else {
             return;
         };
-        if ctx.scene.cartoon_draws(false).next().is_none()
+        if ctx
+            .scene
+            .cartoon_draws(false, DrawFamily::Cartoon)
+            .next()
+            .is_none()
             && ctx.scene.mesh_draws(false).next().is_none()
         {
             return;
@@ -102,15 +138,16 @@ impl<D: Device> CartoonPass<D> {
             timestamps: ctx.timestamps,
         });
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
-        let mut bound = None;
-        for (group2, args, shading) in ctx
+        let mut bound: Option<*const D::Pipeline> = None;
+        for (group2, args, shading, specialized) in ctx
             .scene
-            .cartoon_draws(false)
+            .cartoon_draws(false, DrawFamily::Cartoon)
             .chain(ctx.scene.mesh_draws(false))
         {
-            if bound != Some(shading) {
-                pass.set_pipeline(ctx.passes.cartoon.pipeline.get(shading));
-                bound = Some(shading);
+            let pipeline = ctx.passes.cartoon.pipeline.select(shading, specialized);
+            if bound != Some(std::ptr::from_ref(pipeline)) {
+                pass.set_pipeline(pipeline);
+                bound = Some(std::ptr::from_ref(pipeline));
             }
             pass.set_bind_group(2, group2, &[]);
             pass.draw_indirect(args, 0);

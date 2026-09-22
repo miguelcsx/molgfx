@@ -38,6 +38,23 @@ pub(super) fn upload_grow<D: Device, T: bytemuck::Pod>(
     Ok(())
 }
 
+/// One slice of the scene-wide argument arena, as a bindable range.
+///
+/// The cull shader writes instance counts at "offset zero" of its own view, so
+/// a slot binds a range starting at its own slot rather than the whole arena.
+pub(super) fn arena_range<D: Device>(
+    binding: u32,
+    arena: &D::Buffer,
+    offset: u64,
+) -> molgfx_gpu::BindGroupEntry<'_, D> {
+    molgfx_gpu::BindGroupEntry::BufferRange {
+        binding,
+        buffer: arena,
+        offset,
+        size: super::indirect_arena::SLOT_STRIDE,
+    }
+}
+
 /// Ensures a writable storage buffer without requiring a full staging slice.
 ///
 /// This is the streaming counterpart to [`upload_grow`]: callers can reserve
@@ -80,16 +97,7 @@ fn grow_capacity(needed: u64, limit: u64, label: &'static str) -> Result<u64, Re
     Ok(grown.max(256).min(limit))
 }
 
-pub(super) fn write_args<D: Device>(
-    device: &D,
-    queue: &D::Queue,
-    label: &'static str,
-    buffer: &mut Option<D::Buffer>,
-) -> Result<(), RenderError> {
-    write_draw_args(device, queue, label, 6, 0, buffer)
-}
-
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub(super) struct CullCountInput {
     pub(super) atoms: u32,
     pub(super) bonds: u32,
@@ -102,42 +110,34 @@ pub(super) struct CullCountInput {
     pub(super) bond_bvh_indices: u32,
 }
 
-pub(super) fn write_counts<D: Device>(
-    device: &D,
+impl From<CullCountInput> for CullCounts {
+    fn from(input: CullCountInput) -> Self {
+        Self {
+            atoms: input.atoms,
+            bonds: input.bonds,
+            lod_enabled: input.lod_mode,
+            padding: if input.lod_mode == 2 {
+                input.atoms.div_ceil(65_536).max(1)
+            } else {
+                1
+            },
+            bond_break_length: input.bond_break_length,
+            visual_enabled: u32::from(input.visual_enabled),
+            atom_bvh_nodes: input.atom_bvh_nodes,
+            atom_bvh_indices: input.atom_bvh_indices,
+            bond_bvh_nodes: input.bond_bvh_nodes,
+            bond_bvh_indices: input.bond_bvh_indices,
+        }
+    }
+}
+
+/// Writes cull counts into an already-allocated buffer.
+pub(super) fn write_counts_into<D: Device>(
     queue: &D::Queue,
+    buffer: &D::Buffer,
     input: CullCountInput,
-    buffer: &mut Option<D::Buffer>,
-) -> Result<(), RenderError> {
-    if buffer.is_none() {
-        *buffer = Some(device.create_buffer(&BufferDesc {
-            label: "cull counts",
-            size: std::mem::size_of::<CullCounts>() as u64,
-            usage: BufferUsage::UNIFORM.union(BufferUsage::COPY_DST),
-        })?);
-    }
-    if let Some(buffer) = buffer {
-        queue.write_buffer(
-            buffer,
-            0,
-            bytemuck::bytes_of(&CullCounts {
-                atoms: input.atoms,
-                bonds: input.bonds,
-                lod_enabled: input.lod_mode,
-                padding: if input.lod_mode == 2 {
-                    input.atoms.div_ceil(65_536).max(1)
-                } else {
-                    1
-                },
-                bond_break_length: input.bond_break_length,
-                visual_enabled: u32::from(input.visual_enabled),
-                atom_bvh_nodes: input.atom_bvh_nodes,
-                atom_bvh_indices: input.atom_bvh_indices,
-                bond_bvh_nodes: input.bond_bvh_nodes,
-                bond_bvh_indices: input.bond_bvh_indices,
-            }),
-        );
-    }
-    Ok(())
+) {
+    queue.write_buffer(buffer, 0, bytemuck::bytes_of(&CullCounts::from(input)));
 }
 
 pub(super) fn write_draw_args<D: Device>(

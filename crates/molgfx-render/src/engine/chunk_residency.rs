@@ -16,6 +16,8 @@ mod state;
 mod tracked;
 #[path = "chunk_trajectory.rs"]
 mod trajectory;
+#[path = "chunk_residency/upload_batch.rs"]
+mod upload_batch;
 
 use super::chunk_draw_plan::ChunkClusterGpu;
 use super::chunk_residency_support::local_offset;
@@ -23,9 +25,10 @@ use super::{ChunkResidencyError, ChunkResidencyMetrics, ResidentStructureChunk};
 use molgfx_core::{
     ChunkData, ChunkPayload, ChunkSpan, Eviction, LogicalRow, ResidencyOutput, ResidencyTicket,
 };
-use molgfx_gpu::{Device, Queue};
+use molgfx_gpu::{Device, Queue as _};
 pub(super) use state::ChunkGpuResidency;
 use tracked::{TrackedChunk, ticket_key};
+pub(in crate::engine) use upload_batch::{CopyTarget, stage_segments};
 
 #[cfg(test)]
 #[path = "chunk_residency/lazy_tests.rs"]
@@ -45,7 +48,7 @@ impl<D: Device> ChunkGpuResidency<D> {
         data: &ChunkData,
     ) -> Result<(), ChunkResidencyError> {
         match data.payload() {
-            ChunkPayload::ProviderStructure(_) => self.stage_structure(device, queue, ticket, data),
+            ChunkPayload::ProviderStructure(_) => self.stage_structure(device, ticket, data),
             ChunkPayload::ProviderBond(_) => {
                 self.rebuild_atom_pages()?;
                 self.bonds.stage(
@@ -68,7 +71,6 @@ impl<D: Device> ChunkGpuResidency<D> {
     fn stage_structure(
         &mut self,
         device: &D,
-        queue: &D::Queue,
         ticket: ResidencyTicket,
         data: &ChunkData,
     ) -> Result<(), ChunkResidencyError> {
@@ -93,7 +95,6 @@ impl<D: Device> ChunkGpuResidency<D> {
         }
         self.build_clusters(structure.positions())?;
         self.ensure_source_buffer(device)?;
-        self.ensure_display_buffer(device)?;
         self.ensure_cluster_buffer(device)?;
         let radius_bytes = bytemuck::cast_slice(self.radius_scratch.as_slice());
         let coordinate_len =
@@ -115,44 +116,28 @@ impl<D: Device> ChunkGpuResidency<D> {
                 return Err(error.into());
             }
         };
-        let reservation = match self.uploads.ensure()?.reserve(total_len) {
-            Ok(value) => value,
-            Err(error) => {
-                self.arena.release(allocation)?;
-                self.cluster_arena.release(cluster_allocation)?;
-                return Err(error.into());
-            }
-        };
-        let uploads = self.uploads.ensure()?;
-        let staging = uploads.bytes_mut(reservation)?;
-        staging[..coordinate_bytes.len()].copy_from_slice(coordinate_bytes);
-        staging[coordinate_bytes.len()..].copy_from_slice(radius_bytes);
-        uploads.commit(reservation.ticket())?;
-        if let Err(error) = uploads.ensure_submittable(reservation.ticket()) {
-            uploads.cancel(reservation.ticket())?;
+        let segments = [
+            (
+                coordinate_bytes,
+                CopyTarget::Canonical,
+                allocation.byte_offset(),
+            ),
+            (
+                radius_bytes,
+                CopyTarget::Canonical,
+                allocation.byte_offset() + coordinate_len,
+            ),
+            (
+                cluster_bytes,
+                CopyTarget::Cluster,
+                cluster_allocation.byte_offset(),
+            ),
+        ];
+        if let Err(error) = stage_segments(&mut self.uploads, &mut self.staged, ticket, &segments) {
             self.arena.release(allocation)?;
             self.cluster_arena.release(cluster_allocation)?;
-            return Err(error.into());
+            return Err(error);
         }
-        let start = reservation.offset();
-        let end = start + reservation.len();
-        queue.write_buffer(
-            &self.buffer,
-            allocation.byte_offset(),
-            &uploads.staging_bytes()[start..end],
-        );
-        queue.write_buffer(
-            &self.display_buffer,
-            allocation.byte_offset(),
-            &uploads.staging_bytes()[start..end],
-        );
-        queue.write_buffer(
-            &self.cluster_buffer,
-            cluster_allocation.byte_offset(),
-            cluster_bytes,
-        );
-        let fence = queue.submit_tracked(device.create_command_encoder());
-        uploads.submit(reservation.ticket(), fence)?;
         self.insert_tracked(TrackedChunk::Uploading {
             ticket,
             allocation,
@@ -163,7 +148,7 @@ impl<D: Device> ChunkGpuResidency<D> {
                 LogicalRow::new(structure.descriptor().logical_start().get()),
                 structure.descriptor().rows(),
             )?,
-            fence,
+            fence: None,
             local_rows: structure.descriptor().rows(),
             coordinate_bytes: coordinate_len,
             radius_base: local_offset::<f32>(allocation.byte_offset() + coordinate_len)?,
@@ -200,7 +185,7 @@ impl<D: Device> ChunkGpuResidency<D> {
                 index += 1;
                 continue;
             };
-            if fence > completed {
+            if fence.is_some_and(|value| value > completed) {
                 index += 1;
                 continue;
             }
