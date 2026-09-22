@@ -34,12 +34,10 @@ fn typed_parameters_have_stable_names_and_hashes() {
     };
     assert!(style.wgsl().contains("parameters.focus_opacity"));
     assert_eq!(style.stable_hash(), style.clone().stable_hash());
-    assert!(style.explain().contains("interpreter: true"));
-    assert!(
-        style
-            .explain()
-            .contains("specialized-wgsl: prepared-not-selected")
-    );
+    // The compiler reports what it produced; the executed path is the
+    // renderer's to report, so this must not claim a pipeline ran.
+    assert!(style.explain().contains("specialized-wgsl: emitted"));
+    assert!(!style.explain().contains("interpreter: true"));
 }
 
 #[test]

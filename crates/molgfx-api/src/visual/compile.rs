@@ -106,10 +106,15 @@ impl CompiledVisual {
     }
 
     /// Deterministic compiler-plan summary.
+    ///
+    /// Reports what this compiler produced, not what the renderer will run with:
+    /// the compiled form is the interpreter's input, and the engine selects a
+    /// specialized pipeline over it where one is eligible and compiles.
+    /// `Renderer::explain` carries the executed path.
     #[must_use]
     pub fn explain(&self) -> String {
         format!(
-            "VisualStyle\nhash: {}\nstage: {:?}\nproperties: {}\nparameters: {}\npipeline: typed-bytecode-interpreter\ninterpreter: true\nspecialized-wgsl: prepared-not-selected",
+            "VisualStyle\nhash: {}\nstage: {:?}\nproperties: {}\nparameters: {}\ncompiled: typed-bytecode-interpreter-input\nspecialized-wgsl: emitted",
             self.hash,
             self.stage,
             self.properties.join(", "),
