@@ -4,6 +4,7 @@
 
 pub mod fixtures;
 pub mod reader;
+pub mod synthetic;
 
 #[cfg(test)]
 #[path = "metrics_tests.rs"]

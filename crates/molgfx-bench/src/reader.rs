@@ -2,9 +2,7 @@
 //!
 //! One parse decision for the crate: recover past a malformed row rather than
 //! refusing the file, and read only the first model so a multi-model entry
-//! measures the state it deposits. `bin/frame_profile.rs` sets its own options
-//! deliberately — it drops non-atomic rows for its compact scene variants — and
-//! does not come through here.
+//! measures the state it deposits.
 
 use std::error::Error;
 use std::io;
