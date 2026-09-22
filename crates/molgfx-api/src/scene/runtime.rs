@@ -30,36 +30,71 @@ pub fn structure_hash(structure: &molgfx_core::MolecularSource) -> Box<str> {
     format!("{digest:x}", digest = hash.finalize()).into_boxed_str()
 }
 
+/// Bytes hashed per `update` call when a column is fed to the digest.
+///
+/// The digest sees the same byte stream whatever the block size, so this only
+/// trades calls against a stack buffer: large enough that the calls are rare,
+/// small enough to stay off the heap entirely.
+const HASH_BLOCK_BYTES: usize = 4096;
+
 /// Feeds every coordinate lane as one contiguous run.
+///
+/// The lanes are hashed in bounded blocks rather than through a buffer of the
+/// whole column: the digest covers the same bytes in the same order, and the
+/// transient copy of the coordinate array — the largest allocation a scene
+/// construction makes — disappears.
 fn hash_coordinate_lanes(hash: &mut Sha256, coordinates: &[[f32; 3]]) {
-    let mut lanes = Vec::with_capacity(coordinates.len() * 12);
+    let mut block = [0_u8; HASH_BLOCK_BYTES];
+    let mut filled = 0;
     for coordinate in coordinates {
         for lane in coordinate {
-            lanes.extend_from_slice(&lane.to_bits().to_le_bytes());
+            let bytes = lane.to_bits().to_le_bytes();
+            if filled + bytes.len() > block.len() {
+                hash.update(&block[..filled]);
+                filled = 0;
+            }
+            block[filled..filled + bytes.len()].copy_from_slice(&bytes);
+            filled += bytes.len();
         }
     }
-    hash.update(&lanes);
+    hash.update(&block[..filled]);
 }
 
 /// Feeds every atom's element and residue as one run.
 fn hash_atoms(hash: &mut Sha256, atoms: &[molgfx_core::SourceAtom]) {
-    let mut bytes = Vec::with_capacity(atoms.len() * 5);
+    let mut block = [0_u8; HASH_BLOCK_BYTES];
+    let mut filled = 0;
     for atom in atoms {
-        bytes.push(atom.element);
-        bytes.extend_from_slice(&atom.residue.to_le_bytes());
+        let mut entry = [0_u8; 5];
+        entry[0] = atom.element;
+        entry[1..].copy_from_slice(&atom.residue.to_le_bytes());
+        if filled + entry.len() > block.len() {
+            hash.update(&block[..filled]);
+            filled = 0;
+        }
+        block[filled..filled + entry.len()].copy_from_slice(&entry);
+        filled += entry.len();
     }
-    hash.update(&bytes);
+    hash.update(&block[..filled]);
 }
 
 /// Feeds every bond's endpoints and aromaticity as one run.
 fn hash_bonds(hash: &mut Sha256, bonds: &[molgfx_core::SourceBond]) {
-    let mut bytes = Vec::with_capacity(bonds.len() * 9);
+    let mut block = [0_u8; HASH_BLOCK_BYTES];
+    let mut filled = 0;
     for bond in bonds {
-        bytes.extend_from_slice(&bond.atoms[0].to_le_bytes());
-        bytes.extend_from_slice(&bond.atoms[1].to_le_bytes());
-        bytes.push(u8::from(bond.aromatic));
+        let mut entry = [0_u8; 9];
+        entry[..4].copy_from_slice(&bond.atoms[0].to_le_bytes());
+        entry[4..8].copy_from_slice(&bond.atoms[1].to_le_bytes());
+        entry[8] = u8::from(bond.aromatic);
+        if filled + entry.len() > block.len() {
+            hash.update(&block[..filled]);
+            filled = 0;
+        }
+        block[filled..filled + entry.len()].copy_from_slice(&entry);
+        filled += entry.len();
     }
-    hash.update(&bytes);
+    hash.update(&block[..filled]);
 }
 
 /// Feeds the parser's own labels, keeping the per-field length prefix that
