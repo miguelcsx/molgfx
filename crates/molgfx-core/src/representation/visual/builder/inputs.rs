@@ -4,10 +4,30 @@
 //! computed, so a program that only reads them costs one instruction each
 //! and nothing at evaluation time beyond a load.
 
-use super::super::{ColorExpr, ScalarExpr, ValueKind, VectorExpr, VisualError};
+use super::super::{BoolExpr, ColorExpr, Opcode, ScalarExpr, ValueKind, VectorExpr, VisualError};
 use super::VisualProgramBuilder;
 
 impl VisualProgramBuilder {
+    /// Tests one GPU-resident semantic interaction bit.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VisualError`] when the mask is empty or the program has no
+    /// instruction slot left.
+    pub fn interaction_state(&mut self, mask: u32) -> Result<BoolExpr, VisualError> {
+        if mask == 0 {
+            return Err(VisualError::MalformedProgram);
+        }
+        self.emit_at(
+            ValueKind::Bool,
+            Opcode::State,
+            [0; 3],
+            [f32::from_bits(mask), 0.0, 0.0, 0.0],
+            super::super::VisualStage::Entity,
+        )
+        .map(BoolExpr)
+    }
+
     /// Built-in color resolved by the drawable before this program runs.
     ///
     /// # Errors

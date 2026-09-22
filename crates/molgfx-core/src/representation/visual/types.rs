@@ -329,6 +329,7 @@ pub(crate) enum Opcode {
     Select = 21,
     Dot = 22,
     Normalize = 23,
+    State = 24,
 }
 
 impl Opcode {
@@ -358,6 +359,7 @@ impl Opcode {
             21 => Some(Self::Select),
             22 => Some(Self::Dot),
             23 => Some(Self::Normalize),
+            24 => Some(Self::State),
             _ => None,
         }
     }
@@ -378,7 +380,7 @@ impl Opcode {
             | Self::Or
             | Self::Dot => 2,
             Self::Clamp | Self::SmoothStep | Self::Mix | Self::Select => 3,
-            Self::Constant | Self::Input | Self::Property | Self::Parameter => 0,
+            Self::Constant | Self::Input | Self::Property | Self::Parameter | Self::State => 0,
         }
     }
 }

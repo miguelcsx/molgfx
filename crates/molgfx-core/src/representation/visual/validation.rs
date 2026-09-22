@@ -51,6 +51,7 @@ fn validate_instruction(
             exact_index(instruction.data[0]).and_then(|slot| parameter_kinds.get(slot))
                 == Some(&instruction.kind)
         }
+        Opcode::State => instruction.kind == ValueKind::Bool && instruction.data[0].to_bits() != 0,
         Opcode::Add | Opcode::Subtract => {
             matches!(instruction.kind, ValueKind::Scalar | ValueKind::Vector)
                 && matches(&[instruction.kind, instruction.kind])
@@ -94,7 +95,7 @@ fn validate_instruction(
     }
     Ok(match instruction.opcode {
         Opcode::Constant | Opcode::Parameter => VisualStage::Uniform,
-        Opcode::Property => VisualStage::Entity,
+        Opcode::Property | Opcode::State => VisualStage::Entity,
         Opcode::Input => input_contract(instruction.data[0])
             .map(|value| value.1)
             .ok_or(VisualError::MalformedProgram)?,

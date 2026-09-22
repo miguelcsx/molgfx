@@ -13,7 +13,7 @@ use crate::error::CoreError;
 use crate::handle::{RepresentationHandle, SlotMap, StructureHandle, VolumeHandle};
 use crate::placed::PlacedStructure;
 use crate::representation::{Representation, RepresentationKind, RepresentationTarget};
-use crate::{DatasetId, StructureAsset};
+use crate::{Column, DatasetId, StructureAsset};
 #[path = "identity.rs"]
 mod identity;
 #[path = "representation_state.rs"]
@@ -34,6 +34,7 @@ mod tests;
 pub struct Scene {
     identity: SceneIdentity,
     pub(crate) structures: SlotMap<PlacedStructure>,
+    pub(crate) interaction_states: std::collections::BTreeMap<StructureHandle, Column<u32>>,
     pub(crate) selections: SlotMap<StoredSelection>,
     pub(crate) representations: SlotMap<StoredRepresentation>,
     pub(crate) volumes: SlotMap<StoredVolume>,
@@ -61,6 +62,8 @@ pub struct Scene {
         std::collections::BTreeMap<crate::AttributeHandle, TemporalAttribute>,
     /// Bumped whenever structure placement or membership changes.
     structure_revision: u64,
+    /// Bumped when one or more semantic interaction channels change.
+    pub(crate) interaction_state_revision: u64,
     /// Bumped whenever the representation list or its parameters change;
     /// keys the renderer's slot table rebuild.
     pub(crate) representation_revision: u64,
@@ -264,8 +267,13 @@ impl Scene {
     /// Places a shared structure asset at the identity transform.
     pub fn add_asset(&mut self, asset: &StructureAsset) -> StructureHandle {
         let placed = PlacedStructure::from_asset(asset);
+        let atom_count = placed.atoms.len() as usize;
         self.structure_revision = self.structure_revision.wrapping_add(1);
-        StructureHandle(self.structures.insert(placed))
+        let handle = StructureHandle(self.structures.insert(placed));
+        let _ = self
+            .interaction_states
+            .insert(handle, Column::new(vec![0; atom_count]));
+        handle
     }
 
     /// Removes a placed structure; its handle and dependent representations
@@ -273,7 +281,9 @@ impl Scene {
     pub fn remove_structure(&mut self, handle: StructureHandle) -> Option<PlacedStructure> {
         let removed = self.structures.remove(handle.0);
         if removed.is_some() {
+            let _ = self.interaction_states.remove(&handle);
             self.structure_revision = self.structure_revision.wrapping_add(1);
+            self.interaction_state_revision = self.interaction_state_revision.wrapping_add(1);
         }
         removed
     }
