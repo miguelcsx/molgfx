@@ -11,11 +11,33 @@
 pub use molgfx_api::Image;
 pub use molgfx_api::Renderer;
 pub use molgfx_api::{
-    Camera, Color, ColorSpec, Error, InteractionChannel, Legend, LegendStop, Parameter,
-    ParameterType, ParameterValue, PatchError, PatchOperation, PickKind, PickResult, Quality,
-    RenderProfile, RepresentationId, RepresentationSpec, Revisions, Scene, SceneItem, ScenePatch,
-    SceneSpec, SceneTransaction, Selection, StructureId, StructureSource, VisualStyle, molframe,
+    Anchor, AnnotationId, AnnotationSpec, Camera, Color, ColorSpec, Error, InteractionChannel,
+    InteractionKind, Legend, LegendStop, MeasurementId, MeasurementSpec, Parameter, ParameterType,
+    ParameterValue, PatchError, PickKind, PickResult, Quality, RenderProfile, RepresentationId,
+    RepresentationSpec, ScalarProperty, ScalarPropertyBinding, Scene, SceneItem, ScenePatch,
+    SceneSpec, SceneTransaction, ScientificInteractionId, ScientificInteractionSpec, Selection,
+    StructureId, TrajectoryId, TrajectorySpec, VisualStyle, VolumeId, VolumeSpec, molframe,
 };
+
+pub use molgfx_api::{annotation, density, interaction, measurement, trajectory};
+
+/// Binding caller-owned molecular storage, for language bindings and embedders.
+pub mod source {
+    pub use molgfx_api::source::{
+        AtomSelection, CoreError, MolecularProvider, MolecularSource, SourceAtom, SourceBond,
+        SourceTopology, topology_identity,
+    };
+}
+
+/// Low-level wire-schema values.
+pub mod schema {
+    pub use molgfx_api::{DataSource, PatchOperation, Revisions, StructureSource};
+}
+
+/// Validated camera construction from facade-native values.
+pub mod camera {
+    pub use molgfx_api::camera::perspective;
+}
 
 /// Immutable representation specifications and constructors.
 pub mod rep {
