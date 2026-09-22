@@ -3,7 +3,8 @@
 use crate::error::Error;
 use crate::id::{RepresentationId, StructureId};
 use crate::representation::{SceneItem, Selection};
-use crate::scene::runtime::{next_representation_id, next_structure_id, resolve, structure_hash};
+use crate::scene::hashing::structure_hash;
+use crate::scene::runtime::{next_representation_id, next_structure_id, resolve};
 use crate::spec::{InteractionChannel, PatchOperation, ScenePatch, SceneSpec, StructureSource};
 use molgfx_core::{RepresentationHandle, SelectionHandle};
 use std::collections::BTreeMap;
@@ -37,6 +38,7 @@ pub(crate) struct Resolution {
     pub(crate) science: crate::science::lower::LoweredScience,
 }
 
+pub(crate) mod hashing;
 pub(crate) mod interaction;
 #[cfg(test)]
 mod interaction_tests;
