@@ -26,6 +26,9 @@ use identity::SceneIdentity;
 #[path = "asset_tests.rs"]
 mod asset_tests;
 #[cfg(test)]
+#[path = "representation_revision_tests.rs"]
+mod representation_revision_tests;
+#[cfg(test)]
 #[path = "state_tests.rs"]
 mod tests;
 
@@ -65,8 +68,10 @@ pub struct Scene {
     /// Bumped when one or more semantic interaction channels change.
     pub(crate) interaction_state_revision: u64,
     /// Bumped whenever the representation list or its parameters change;
-    /// keys the renderer's slot table rebuild.
+    /// keys content synchronization.
     pub(crate) representation_revision: u64,
+    /// Bumped only when representation-to-structure slot membership can change.
+    pub(crate) representation_membership_revision: u64,
     pub(crate) mesh_revision: u64,
     pub(crate) overlay_revision: u64,
     /// Bumped whenever volume membership or content changes.
