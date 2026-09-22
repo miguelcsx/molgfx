@@ -135,6 +135,46 @@ class SceneSemanticsTests(unittest.TestCase):
         self.assertEqual(len(spec["scientific_interactions"]), 1)
         self.assertEqual(len(spec["trajectories"]), 1)
 
+    def test_a_bound_trajectory_pair_reaches_the_renderer(self):
+        scene = molgfx.Scene(structure())
+        source = molgfx.data.source("trajectory-sha256")
+        scene.add(
+            molgfx.trajectory.bind(
+                structure=scene.structure_id,
+                source=source,
+                frame_count=2,
+            )
+        )
+
+        start = molgfx.trajectory.frame(0, 0.0, ((11.104, 13.207, 9.274), (12.56, 13.318, 9.111)))
+        end = molgfx.trajectory.frame(1, 1.0, ((11.904, 13.207, 9.274), (12.56, 13.318, 9.111)))
+        scene.bind_trajectory(source_hash="trajectory-sha256", start=start, end=end)
+
+        # Advancing inside the resident interval samples the pair already held,
+        # so it uploads no coordinates.
+        scene.set_trajectory_time(structure=scene.structure_id, seconds=0.5)
+        # The resident interval is [0, 1]; a sample outside it is refused at
+        # the core seam, which surfaces as the general engine error.
+        with self.assertRaises(molgfx.MolgfxError):
+            scene.set_trajectory_time(structure=scene.structure_id, seconds=5.0)
+
+    def test_an_unbound_trajectory_source_stays_unresolved(self):
+        scene = molgfx.Scene(structure())
+        scene.add(
+            molgfx.trajectory.bind(
+                structure=scene.structure_id,
+                source=molgfx.data.source("declared"),
+                frame_count=2,
+            )
+        )
+        start = molgfx.trajectory.frame(0, 0.0, ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)))
+        end = molgfx.trajectory.frame(1, 1.0, ((1.0, 0.0, 0.0), (0.0, 0.0, 0.0)))
+        scene.bind_trajectory(source_hash="other", start=start, end=end)
+
+        # The descriptor remains in the specification; a binding for a
+        # different source does not satisfy it.
+        self.assertEqual(len(json.loads(scene.to_json())["trajectories"]), 1)
+
     def test_property_binding_is_owned_by_its_structure(self):
         scene = molgfx.Scene(structure())
         prop = scene.bind_property(

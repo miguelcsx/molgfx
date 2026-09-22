@@ -7,7 +7,9 @@
 //! inferred here.
 
 use crate::error::Error;
-use crate::id::{AnnotationId, MeasurementId, ScientificInteractionId, StructureId, VolumeId};
+use crate::id::{
+    AnnotationId, MeasurementId, ScientificInteractionId, StructureId, TrajectoryId, VolumeId,
+};
 use crate::representation::Selection;
 use crate::science::{
     Anchor, MeasurementSpec, ScienceBindings, ScientificInteractionSpec, VolumeSpec,
@@ -27,6 +29,7 @@ pub(crate) struct LoweredScience {
     pub(crate) labels: Vec<(AnnotationId, AnnotationHandle)>,
     pub(crate) measurements: Vec<(MeasurementId, MeasurementHandle)>,
     pub(crate) interactions: Vec<(ScientificInteractionId, InteractionHandle)>,
+    pub(crate) trajectories: Vec<(TrajectoryId, StructureHandle)>,
 }
 
 impl LoweredScience {
@@ -37,6 +40,7 @@ impl LoweredScience {
             labels: self.labels.len(),
             measurements: self.measurements.len(),
             interactions: self.interactions.len(),
+            trajectories: self.trajectories.len(),
         }
     }
 }
@@ -135,7 +139,42 @@ pub(crate) fn lower(
             .push((*id, lowering.scene.add_interaction(edge)?));
     }
 
+    for (id, trajectory) in &spec.trajectories {
+        if let Some(handle) = lower_trajectory(lowering, trajectory)? {
+            lowered.trajectories.push((*id, handle));
+        }
+    }
+
     Ok(lowered)
+}
+
+/// Installs a trajectory's resident frame pair on the structure it belongs to.
+///
+/// Stores nothing for a source with no runtime binding: the descriptor stays
+/// portable and the item is simply unresolved, the same contract a volume
+/// follows. The structure's atom count is checked here rather than at binding
+/// time because a binding is declared before the structure it names is
+/// necessarily resolved.
+fn lower_trajectory(
+    lowering: &mut SciLowering<'_>,
+    spec: &crate::TrajectorySpec,
+) -> Result<Option<StructureHandle>, Error> {
+    let Some(binding) = lowering.bindings.trajectory(&spec.source.content_hash) else {
+        return Ok(None);
+    };
+    binding.matches(spec)?;
+    let handle = *lowering
+        .handles
+        .get(&spec.structure)
+        .ok_or_else(|| Error::InvalidSpec("trajectory targets an unbound structure".to_owned()))?;
+    let atom_count = lowering
+        .scene
+        .structure(handle)
+        .map_or(0, |placed| placed.atoms.len() as usize);
+    lowering
+        .scene
+        .set_trajectory_segment(handle, binding.native(atom_count)?)?;
+    Ok(Some(handle))
 }
 
 /// Stores nothing for a grid with no runtime binding; the descriptor stays

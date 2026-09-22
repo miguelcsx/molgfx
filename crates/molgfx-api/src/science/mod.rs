@@ -16,7 +16,7 @@ mod builders;
 pub(crate) mod lower;
 mod validation;
 pub(crate) use bindings::ScienceBindings;
-pub use bindings::{ScientificHandles, VolumeBinding};
+pub use bindings::{ScientificHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding};
 pub use builders::{annotation, density, interaction, measurement, trajectory};
 
 /// Portable origin for bulk data stored outside [`crate::SceneSpec`].

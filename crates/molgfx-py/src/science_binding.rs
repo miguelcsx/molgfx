@@ -33,6 +33,51 @@ struct PyScientificInteraction(molgfx::ScientificInteractionSpec);
 #[pyclass(name = "Trajectory", frozen, skip_from_py_object)]
 struct PyTrajectory(molgfx::TrajectorySpec);
 
+/// One decoded coordinate frame, handed to `Scene.bind_trajectory`.
+///
+/// A frame is the value the renderer samples between, so it is its own type
+/// rather than a loose triple of index, time and coordinates repeated per call.
+#[derive(Clone, Debug)]
+#[pyclass(name = "TrajectoryFrame", frozen, skip_from_py_object)]
+pub(super) struct PyTrajectoryFrame(pub(super) molgfx::TrajectoryFrame);
+
+#[pymethods]
+impl PyTrajectoryFrame {
+    #[new]
+    #[pyo3(signature = (index, time, positions))]
+    fn new(index: u64, time: f32, positions: Vec<[f32; 3]>) -> Self {
+        Self(molgfx::TrajectoryFrame::new(
+            index,
+            time,
+            std::sync::Arc::from(positions),
+        ))
+    }
+
+    /// This frame's stable identity in its source.
+    #[getter]
+    fn index(&self) -> u64 {
+        self.0.index()
+    }
+
+    /// Presentation time this frame was recorded at, in seconds.
+    #[getter]
+    fn time(&self) -> f32 {
+        self.0.time_seconds()
+    }
+
+    /// The frame's coordinates, one per atom.
+    #[getter]
+    fn positions(&self) -> Vec<[f32; 3]> {
+        self.0.positions().to_vec()
+    }
+}
+
+#[pyfunction(name = "frame")]
+#[pyo3(signature = (index, time, positions))]
+fn trajectory_frame(index: u64, time: f32, positions: Vec<[f32; 3]>) -> PyTrajectoryFrame {
+    PyTrajectoryFrame::new(index, time, positions)
+}
+
 fn rgb(value: (u8, u8, u8)) -> molgfx::Color {
     molgfx::Color::rgb(value.0, value.1, value.2)
 }
@@ -247,6 +292,7 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyMeasurement>()?;
     module.add_class::<PyScientificInteraction>()?;
     module.add_class::<PyTrajectory>()?;
+    module.add_class::<PyTrajectoryFrame>()?;
     let data = namespace(module, "data")?;
     data.add_function(wrap_pyfunction!(source, &data)?)?;
     module.add_submodule(&data)?;
@@ -268,5 +314,7 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_submodule(&interaction)?;
     let trajectory = namespace(module, "trajectory")?;
     trajectory.add_function(wrap_pyfunction!(bind_trajectory, &trajectory)?)?;
+    trajectory.add_function(wrap_pyfunction!(trajectory_frame, &trajectory)?)?;
+    trajectory.add_class::<PyTrajectoryFrame>()?;
     module.add_submodule(&trajectory)
 }

@@ -19,7 +19,7 @@ pub use molgfx_api::{
     StructureId, TrajectoryId, TrajectorySpec, VisualStyle, VolumeId, VolumeSpec, molframe,
 };
 
-pub use molgfx_api::{ScientificHandles, VolumeBinding};
+pub use molgfx_api::{ScientificHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding};
 pub use molgfx_api::{annotation, density, interaction, measurement, trajectory};
 
 /// Binding caller-owned molecular storage, for language bindings and embedders.

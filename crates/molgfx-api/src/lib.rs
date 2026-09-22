@@ -46,7 +46,8 @@ pub use scene::runtime::structure_hash;
 pub use scene::transaction::SceneTransaction;
 pub use science::{
     Anchor, AnnotationSpec, DataSource, InteractionKind, MeasurementSpec, ScientificHandles,
-    ScientificInteractionSpec, TrajectorySpec, VolumeBinding, VolumeSpec,
+    ScientificInteractionSpec, TrajectoryBinding, TrajectoryFrame, TrajectorySpec, VolumeBinding,
+    VolumeSpec,
 };
 pub use spec::{InteractionChannel, SceneSpec, StructureSource};
 pub use visual::{
