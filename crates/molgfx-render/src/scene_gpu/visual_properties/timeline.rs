@@ -1,7 +1,15 @@
+//! Attribute-timeline dispatch resources.
+
+use crate::error::RenderError;
+use molgfx_core::{RowDomain, Scene, VisualAttributeRef};
+use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
+
+use super::{AttributeTimelineConfig, AttributeTimelineGpu, VisualPropertyTable};
+
 // Optional GPU materialization for temporal columns reused by multiple styles.
 
 impl<D: Device> VisualPropertyTable<D> {
-    fn bind_timelines(
+    pub(super) fn bind_timelines(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -52,14 +60,14 @@ impl<D: Device> VisualPropertyTable<D> {
             self.timelines.push(AttributeTimelineGpu {
                 config,
                 group,
-                groups: super::dispatch::workgroups_2d(u64::from(words).div_ceil(64)),
+                groups: crate::scene_gpu::dispatch::workgroups_2d(u64::from(words).div_ceil(64)),
                 paged_plan: None,
             });
         }
         Ok(())
     }
 
-    pub(super) fn sync_paged_timelines(
+    pub(in crate::scene_gpu) fn sync_paged_timelines(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -121,7 +129,9 @@ impl<D: Device> VisualPropertyTable<D> {
             self.paged_timelines.push(AttributeTimelineGpu {
                 config,
                 group,
-                groups: super::dispatch::workgroups_2d(u64::from(plan.word_count).div_ceil(64)),
+                groups: crate::scene_gpu::dispatch::workgroups_2d(
+                    u64::from(plan.word_count).div_ceil(64),
+                ),
                 paged_plan: Some(*plan),
             });
         }
@@ -130,7 +140,7 @@ impl<D: Device> VisualPropertyTable<D> {
     }
 }
 
-fn same_paged_layout(
+pub(super) fn same_paged_layout(
     left: crate::engine::chunk_draw_plan::ResidentAttributeMaterialization,
     right: crate::engine::chunk_draw_plan::ResidentAttributeMaterialization,
 ) -> bool {
@@ -141,7 +151,7 @@ fn same_paged_layout(
         && left.word_count == right.word_count
 }
 
-fn paged_timeline_config(
+pub(super) fn paged_timeline_config(
     plan: crate::engine::chunk_draw_plan::ResidentAttributeMaterialization,
 ) -> Result<AttributeTimelineConfig, RenderError> {
     let word_offset = |bytes: u64| {
@@ -170,7 +180,7 @@ fn paged_timeline_config(
     })
 }
 
-fn reference_consumers(scene: &Scene, reference: VisualAttributeRef) -> u32 {
+pub(super) fn reference_consumers(scene: &Scene, reference: VisualAttributeRef) -> u32 {
     let representations = scene
         .representations()
         .fold(0_usize, |count, (_, representation)| {
@@ -191,7 +201,7 @@ fn reference_consumers(scene: &Scene, reference: VisualAttributeRef) -> u32 {
     crate::fallback(u32::try_from(count), u32::MAX)
 }
 
-fn program_consumers(
+pub(super) fn program_consumers(
     program: &molgfx_core::VisualProgram,
     reference: VisualAttributeRef,
     split: bool,
