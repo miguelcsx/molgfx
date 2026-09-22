@@ -166,6 +166,41 @@ impl PyScene {
             .map_err(error)
     }
 
+    /// Binds the two resident frames a trajectory descriptor samples between.
+    ///
+    /// The pair replaces whatever interval the structure held, and the sample
+    /// time is clamped to it.
+    #[pyo3(signature = (*, source_hash, start, end, sample_time=None))]
+    fn bind_trajectory(
+        &mut self,
+        source_hash: &str,
+        start: &crate::science_binding::PyTrajectoryFrame,
+        end: &crate::science_binding::PyTrajectoryFrame,
+        sample_time: Option<f32>,
+    ) -> PyResult<()> {
+        let binding = molgfx::TrajectoryBinding::new(
+            molgfx::schema::DataSource::new(source_hash),
+            start.0.clone(),
+            end.0.clone(),
+        );
+        let binding = match sample_time {
+            Some(sample_time) => binding.sample_seconds(sample_time),
+            None => binding,
+        };
+        self.inner.bind_trajectory(binding).map_err(error)
+    }
+
+    /// Advances a structure's presentation time inside its resident interval.
+    #[pyo3(signature = (*, structure, seconds))]
+    fn set_trajectory_time(&mut self, structure: &Bound<'_, PyAny>, seconds: f32) -> PyResult<()> {
+        self.inner
+            .set_trajectory_time(
+                molgfx::StructureId::new(crate::id_binding::structure_id(structure)?),
+                seconds,
+            )
+            .map_err(error)
+    }
+
     fn set_visible(
         &mut self,
         py: Python<'_>,

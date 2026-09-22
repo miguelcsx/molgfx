@@ -1,6 +1,7 @@
 use crate::{
-    Anchor, DataSource, InteractionKind, Scene, ScenePatch, SceneSpec, StructureId, VolumeBinding,
-    annotation, density, interaction, measurement, trajectory,
+    Anchor, DataSource, InteractionKind, Scene, ScenePatch, SceneSpec, StructureId,
+    TrajectoryBinding, TrajectoryFrame, VolumeBinding, annotation, density, interaction,
+    measurement, trajectory,
 };
 use std::sync::Arc;
 
@@ -188,4 +189,165 @@ fn scientific_additions_have_exact_inverse_patches() {
         .and_then(|value| value.patched(&inverse))
         .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(restored.volumes, base.volumes);
+}
+
+/// One atom, two frames at increasing index and time, so the pair is a valid
+/// interpolation interval for the fixture structure.
+/// The scene's first placed structure, which is the one every fixture targets.
+fn first_placed(scene: &Scene) -> &molgfx_core::PlacedStructure {
+    let Some((_, placed)) = scene.resolved().structures().next() else {
+        panic!("the scene carries its structure")
+    };
+    placed
+}
+
+fn trajectory_frames(offset: f32) -> (TrajectoryFrame, TrajectoryFrame) {
+    let start: Arc<[[f32; 3]]> = Arc::new([[11.104, 6.134, -6.504]]);
+    let end: Arc<[[f32; 3]]> = Arc::new([[11.104 + offset, 6.134, -6.504]]);
+    (
+        TrajectoryFrame::new(0, 0.0, start),
+        TrajectoryFrame::new(1, 1.0, end),
+    )
+}
+
+#[test]
+fn a_bound_trajectory_reaches_the_renderer_as_a_resident_frame_pair() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    let source = DataSource::new("frames-hash");
+    let _ = scene
+        .add(trajectory::trajectory(
+            StructureId::new(1),
+            source.clone(),
+            2,
+        ))
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(
+        scene.scientific_handles().trajectories,
+        0,
+        "a descriptor without a runtime binding stays unresolved"
+    );
+
+    let (start, end) = trajectory_frames(1.0);
+    scene
+        .bind_trajectory(TrajectoryBinding::new(source, start, end))
+        .unwrap_or_else(|error| panic!("{error}"));
+
+    let handles = scene.scientific_handles();
+    assert_eq!(
+        handles.trajectories, 1,
+        "the pair installs on its structure"
+    );
+    let segment = first_placed(&scene)
+        .trajectory()
+        .unwrap_or_else(|| panic!("the structure holds a resident segment"));
+    assert_eq!(
+        segment.start().positions(),
+        [[11.104, 6.134, -6.504]],
+        "the start frame is the one the binding declared"
+    );
+    assert_eq!(
+        segment.end().positions(),
+        [[12.104, 6.134, -6.504]],
+        "the end frame is the one the binding declared"
+    );
+}
+
+#[test]
+fn advancing_trajectory_time_samples_the_resident_pair() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    let source = DataSource::new("frames-hash");
+    let _ = scene
+        .add(trajectory::trajectory(
+            StructureId::new(1),
+            source.clone(),
+            2,
+        ))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let (start, end) = trajectory_frames(2.0);
+    scene
+        .bind_trajectory(TrajectoryBinding::new(source, start, end))
+        .unwrap_or_else(|error| panic!("{error}"));
+
+    scene
+        .set_trajectory_time(StructureId::new(1), 0.5)
+        .unwrap_or_else(|error| panic!("a time inside the interval must apply: {error}"));
+    let segment = first_placed(&scene)
+        .trajectory()
+        .unwrap_or_else(|| panic!("the structure holds a resident segment"));
+    assert!(
+        (segment.interpolation() - 0.5).abs() < 1e-6,
+        "half the interval samples halfway between the frames"
+    );
+
+    let outside = scene.set_trajectory_time(StructureId::new(1), 5.0);
+    assert!(
+        outside.is_err(),
+        "a time outside the resident interval is refused"
+    );
+}
+
+#[test]
+fn a_trajectory_pair_outside_its_declared_frame_count_is_refused() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    let source = DataSource::new("frames-hash");
+    // The descriptor says one frame, so a pair cannot exist inside it.
+    let _ = scene
+        .add(trajectory::trajectory(
+            StructureId::new(1),
+            source.clone(),
+            1,
+        ))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let (start, end) = trajectory_frames(1.0);
+    let result = scene.bind_trajectory(TrajectoryBinding::new(source, start, end));
+    assert!(
+        result.is_err(),
+        "a pair reaching past the declared frame count is refused"
+    );
+}
+
+#[test]
+fn a_trajectory_pair_must_match_its_structure_topology() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    let source = DataSource::new("frames-hash");
+    let _ = scene
+        .add(trajectory::trajectory(
+            StructureId::new(1),
+            source.clone(),
+            2,
+        ))
+        .unwrap_or_else(|error| panic!("{error}"));
+    // Two atoms against a one-atom structure: the pairs are valid in
+    // themselves, so only the topology check can reject them.
+    let start = TrajectoryFrame::new(0, 0.0, Arc::new([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]));
+    let end = TrajectoryFrame::new(1, 1.0, Arc::new([[0.0, 1.0, 0.0], [1.0, 1.0, 0.0]]));
+    let result = scene.bind_trajectory(TrajectoryBinding::new(source, start, end));
+    assert!(result.is_err(), "frames must match the structure's atoms");
+}
+
+#[test]
+fn an_unmatched_trajectory_source_stays_unresolved() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    let _ = scene
+        .add(trajectory::trajectory(
+            StructureId::new(1),
+            DataSource::new("declared-hash"),
+            2,
+        ))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let (start, end) = trajectory_frames(1.0);
+    scene
+        .bind_trajectory(TrajectoryBinding::new(
+            DataSource::new("other-hash"),
+            start,
+            end,
+        ))
+        .unwrap_or_else(|error| panic!("{error}"));
+
+    assert_eq!(
+        scene.scientific_handles().trajectories,
+        0,
+        "a binding for a different source does not satisfy the descriptor"
+    );
+    assert_eq!(scene.spec().trajectories.len(), 1);
 }
