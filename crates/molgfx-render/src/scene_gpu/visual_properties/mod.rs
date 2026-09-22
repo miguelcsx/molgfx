@@ -12,7 +12,7 @@ mod upload;
 
 use super::grow_buffer::GrowBuffer;
 use crate::engine::DerivedCacheKey;
-use molgfx_core::VisualAttributeRef;
+use molgfx_core::{StructureHandle, VisualAttributeRef};
 use molgfx_gpu::Device;
 
 pub(super) const MISSING_CHUNK: [u32; 256] = [f32::NAN.to_bits(); 256];
@@ -30,6 +30,14 @@ pub(super) struct PropertyColumn {
     storage_words: u32,
     materialized_offset: Option<u32>,
     cache_key: Option<DerivedCacheKey>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) struct StateColumn {
+    structure: StructureHandle,
+    offset: u32,
+    length: u32,
+    revision: u64,
 }
 
 #[repr(C)]
@@ -64,9 +72,10 @@ pub(in crate::scene_gpu) struct AttributeArenaBinding {
 pub(in crate::scene_gpu) struct VisualPropertyTable<D: Device> {
     buffer: GrowBuffer<D>,
     columns: Vec<PropertyColumn>,
+    states: Vec<StateColumn>,
     planned_handles: Vec<VisualAttributeRef>,
     handle_scratch: Vec<VisualAttributeRef>,
-    source_key: Option<(u64, u64, u64, u64)>,
+    source_key: Option<(u64, u64, u64, u64, u64)>,
     binding_revision: u64,
     timelines: Vec<AttributeTimelineGpu<D>>,
     paged_timelines: Vec<AttributeTimelineGpu<D>>,
@@ -78,6 +87,7 @@ impl<D: Device> VisualPropertyTable<D> {
         Self {
             buffer: GrowBuffer::new(),
             columns: Vec::new(),
+            states: Vec::new(),
             planned_handles: Vec::new(),
             handle_scratch: Vec::new(),
             source_key: None,

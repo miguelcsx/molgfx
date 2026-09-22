@@ -182,6 +182,9 @@ pub(super) struct VisualSync<'a, D: Device> {
     pub(super) parameter_buffer: &'a D::Buffer,
     pub(super) parameter_offset: u32,
     pub(super) parameters_preloaded: bool,
+    /// Word offset of this structure's interaction-state column in the property
+    /// arena. One addresses the missing-value slot, which reads as no state bits.
+    pub(super) state_offset: u32,
     pub(super) property_offsets: [u32; 4],
     pub(super) attribute_layouts: [u32; 4],
     pub(super) property_end_offsets: [u32; 4],
@@ -237,6 +240,7 @@ struct VisualConfigInput<'a> {
     attribute_layouts: [u32; 4],
     property_end_offsets: [u32; 4],
     property_alphas: [f32; 4],
+    state_offset: u32,
     time_seconds: f32,
     program_offset: u32,
     parameter_offset: u32,
@@ -401,6 +405,7 @@ impl<D: Device> VisualSlot<D> {
             attribute_layouts: input.attribute_layouts,
             property_end_offsets: input.property_end_offsets,
             property_alphas: input.property_alphas,
+            state_offset: input.state_offset,
             time_seconds: input.time_seconds,
             program_offset: input.program_offset,
             parameter_offset: input.parameter_offset,

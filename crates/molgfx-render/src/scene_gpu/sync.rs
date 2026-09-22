@@ -400,6 +400,7 @@ impl<D: Device> GpuScene<D> {
                 visual_parameter_binding_revision: self.visual_parameters.binding_revision(),
                 visual_property_offsets: visual_attributes.offsets,
                 visual_attribute_layouts: visual_attributes.layouts,
+                visual_state_offset: self.visual_properties.state_offset(slot.key.structure),
                 visual_property_binding_revision: self.visual_properties.binding_revision(),
                 visual_property_revisions,
                 visual_time_seconds: scene.presentation_time_seconds(),

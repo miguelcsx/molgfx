@@ -21,18 +21,22 @@ impl<D: Device> VisualPropertyTable<D> {
             scene.representation_revision(),
             scene.domain_visual_revision(),
             scene.generic_timeline_binding_revision(),
+            scene.structure_revision(),
         );
         let source_changed = self.source_key != Some(source_key);
         let scene_changed = self
             .source_key
-            .is_some_and(|(identity, _, _, _)| identity != source_key.0);
+            .is_some_and(|(identity, _, _, _, _)| identity != source_key.0);
         let evicted = self.columns.iter().any(|column| {
             column
                 .cache_key
                 .is_some_and(|key| !derived_cache.contains(key))
         });
-        let plan_changed = (source_changed || evicted)
+        let property_plan_changed = (source_changed || evicted)
             && self.refresh_plan(scene, scene_changed || evicted, derived_cache, frame)?;
+        let state_plan_changed =
+            source_changed && self.refresh_state_plan(scene, scene_changed || evicted)?;
+        let plan_changed = property_plan_changed || state_plan_changed;
         self.source_key = Some(source_key);
         let bytes = self.required_bytes();
         let rebound = self
@@ -46,6 +50,7 @@ impl<D: Device> VisualPropertyTable<D> {
         };
         if plan_changed || rebound {
             queue.write_buffer(buffer, 0, bytemuck::bytes_of(&f32::NAN));
+            queue.write_buffer(buffer, 4, bytemuck::bytes_of(&0_u32));
         }
         let force_upload = plan_changed || rebound;
         let mut uploaded = force_upload;
@@ -86,6 +91,18 @@ impl<D: Device> VisualPropertyTable<D> {
                 dirty_rows
             };
             upload_column::<D>(queue, buffer, scene, column, dirty_rows);
+            column.revision = revision;
+            uploaded = true;
+        }
+        for column in &mut self.states {
+            let Some(state) = scene.interaction_state(column.structure) else {
+                continue;
+            };
+            let revision = state.revision().get();
+            if !force_upload && revision == column.revision {
+                continue;
+            }
+            queue.write_buffer(buffer, u64::from(column.offset) * 4, state.as_bytes());
             column.revision = revision;
             uploaded = true;
         }

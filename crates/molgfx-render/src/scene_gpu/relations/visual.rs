@@ -240,6 +240,7 @@ impl<D: Device> PagedRelationVisualState<D> {
             attribute_layouts: layouts,
             property_end_offsets: end_offsets,
             property_alphas: alphas,
+            state_offset: 1,
             time_seconds,
             entity_count: row_count,
             result_count: row_count,

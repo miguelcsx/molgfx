@@ -39,6 +39,7 @@ fn visual_config_carries_time_property_offsets_and_displacement_bound() {
         time_seconds: 0.75,
         program_offset: 17,
         parameter_offset: 32,
+        state_offset: 1,
     });
 
     assert_eq!(config.counts[1], 1_000_000);
@@ -92,6 +93,7 @@ fn visual_config_counts_only_fragment_stage_instructions_for_pipeline_routing() 
         time_seconds: 0.0,
         program_offset: 0,
         parameter_offset: 0,
+        state_offset: 1,
     });
 
     assert_eq!(
