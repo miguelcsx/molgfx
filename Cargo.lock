@@ -685,6 +685,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
+name = "matrixmultiply"
+version = "0.3.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f607c237553f086e7043417a51df26b2eb899d3caff94e6a67592ff992fedc7"
+dependencies = [
+ "autocfg",
+ "rawpointer",
+]
+
+[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -713,12 +723,13 @@ dependencies = [
 [[package]]
 name = "molframe"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=a3fce8f8a096509f995377e1e1a062f4fd84f3cc#a3fce8f8a096509f995377e1e1a062f4fd84f3cc"
+source = "git+https://github.com/miguelcsx/molframe?rev=394531e452bc6f7140528b0b883518fac24fdc96#394531e452bc6f7140528b0b883518fac24fdc96"
 dependencies = [
  "molframe-bcif",
  "molframe-chem",
  "molframe-cif",
  "molframe-core",
+ "molframe-engine",
  "molframe-pdb",
  "molframe-query",
  "molframe-spatial",
@@ -732,7 +743,7 @@ dependencies = [
 [[package]]
 name = "molframe-bcif"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=a3fce8f8a096509f995377e1e1a062f4fd84f3cc#a3fce8f8a096509f995377e1e1a062f4fd84f3cc"
+source = "git+https://github.com/miguelcsx/molframe?rev=394531e452bc6f7140528b0b883518fac24fdc96#394531e452bc6f7140528b0b883518fac24fdc96"
 dependencies = [
  "indexmap",
  "molframe-cif",
@@ -748,7 +759,7 @@ dependencies = [
 [[package]]
 name = "molframe-chem"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=a3fce8f8a096509f995377e1e1a062f4fd84f3cc#a3fce8f8a096509f995377e1e1a062f4fd84f3cc"
+source = "git+https://github.com/miguelcsx/molframe?rev=394531e452bc6f7140528b0b883518fac24fdc96#394531e452bc6f7140528b0b883518fac24fdc96"
 dependencies = [
  "molframe-cif",
  "molframe-core",
@@ -758,7 +769,7 @@ dependencies = [
 [[package]]
 name = "molframe-cif"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=a3fce8f8a096509f995377e1e1a062f4fd84f3cc#a3fce8f8a096509f995377e1e1a062f4fd84f3cc"
+source = "git+https://github.com/miguelcsx/molframe?rev=394531e452bc6f7140528b0b883518fac24fdc96#394531e452bc6f7140528b0b883518fac24fdc96"
 dependencies = [
  "indexmap",
  "memchr",
@@ -771,7 +782,7 @@ dependencies = [
 [[package]]
 name = "molframe-core"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=a3fce8f8a096509f995377e1e1a062f4fd84f3cc#a3fce8f8a096509f995377e1e1a062f4fd84f3cc"
+source = "git+https://github.com/miguelcsx/molframe?rev=394531e452bc6f7140528b0b883518fac24fdc96#394531e452bc6f7140528b0b883518fac24fdc96"
 dependencies = [
  "bytemuck",
  "hashbrown 0.16.1",
@@ -782,9 +793,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "molframe-engine"
+version = "0.1.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=394531e452bc6f7140528b0b883518fac24fdc96#394531e452bc6f7140528b0b883518fac24fdc96"
+dependencies = [
+ "molframe-core",
+ "thiserror",
+]
+
+[[package]]
 name = "molframe-pdb"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=a3fce8f8a096509f995377e1e1a062f4fd84f3cc#a3fce8f8a096509f995377e1e1a062f4fd84f3cc"
+source = "git+https://github.com/miguelcsx/molframe?rev=394531e452bc6f7140528b0b883518fac24fdc96#394531e452bc6f7140528b0b883518fac24fdc96"
 dependencies = [
  "molframe-core",
  "num-traits",
@@ -796,16 +816,17 @@ dependencies = [
 [[package]]
 name = "molframe-py"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=a3fce8f8a096509f995377e1e1a062f4fd84f3cc#a3fce8f8a096509f995377e1e1a062f4fd84f3cc"
+source = "git+https://github.com/miguelcsx/molframe?rev=394531e452bc6f7140528b0b883518fac24fdc96#394531e452bc6f7140528b0b883518fac24fdc96"
 dependencies = [
  "molframe",
+ "numpy",
  "pyo3",
 ]
 
 [[package]]
 name = "molframe-query"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=a3fce8f8a096509f995377e1e1a062f4fd84f3cc#a3fce8f8a096509f995377e1e1a062f4fd84f3cc"
+source = "git+https://github.com/miguelcsx/molframe?rev=394531e452bc6f7140528b0b883518fac24fdc96#394531e452bc6f7140528b0b883518fac24fdc96"
 dependencies = [
  "molframe-chem",
  "molframe-core",
@@ -814,7 +835,7 @@ dependencies = [
 [[package]]
 name = "molframe-spatial"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=a3fce8f8a096509f995377e1e1a062f4fd84f3cc#a3fce8f8a096509f995377e1e1a062f4fd84f3cc"
+source = "git+https://github.com/miguelcsx/molframe?rev=394531e452bc6f7140528b0b883518fac24fdc96#394531e452bc6f7140528b0b883518fac24fdc96"
 dependencies = [
  "molframe-core",
  "molframe-query",
@@ -826,7 +847,7 @@ dependencies = [
 [[package]]
 name = "molframe-surface"
 version = "0.1.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=a3fce8f8a096509f995377e1e1a062f4fd84f3cc#a3fce8f8a096509f995377e1e1a062f4fd84f3cc"
+source = "git+https://github.com/miguelcsx/molframe?rev=394531e452bc6f7140528b0b883518fac24fdc96#394531e452bc6f7140528b0b883518fac24fdc96"
 dependencies = [
  "molframe-core",
  "molframe-spatial",
@@ -935,7 +956,6 @@ version = "0.1.0"
 dependencies = [
  "molframe-py",
  "molgfx",
- "molgfx-math",
  "pyo3",
  "serde_json",
 ]
@@ -1025,7 +1045,7 @@ dependencies = [
  "naga-types",
  "num-traits",
  "once_cell",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "spirv",
  "thiserror",
  "unicode-ident",
@@ -1039,8 +1059,41 @@ checksum = "590afbf58a6f4f62873cd5cff4468061844bafa1cdf399cc954537c22d768d49"
 dependencies = [
  "hashbrown 0.17.1",
  "indexmap",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "thiserror",
+]
+
+[[package]]
+name = "ndarray"
+version = "0.17.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "520080814a7a6b4a6e9070823bb24b4531daac8c4627e08ba5de8c5ef2f2752d"
+dependencies = [
+ "matrixmultiply",
+ "num-complex",
+ "num-integer",
+ "num-traits",
+ "portable-atomic",
+ "portable-atomic-util",
+ "rawpointer",
+]
+
+[[package]]
+name = "num-complex"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73f88a1307638156682bada9d7604135552957b7818057dcef22705b4d509495"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "num-integer"
+version = "0.1.47"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ce2d95d4b3734dc35aa2f45e1aa22cd416814592a4f9d9205e11affd5b8e10b"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -1051,6 +1104,22 @@ checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
  "libm",
+]
+
+[[package]]
+name = "numpy"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a5b15d63a5ff39e378daed0e1340d3a5964703ea9712eb09a0dc66fade996f4"
+dependencies = [
+ "libc",
+ "ndarray",
+ "num-complex",
+ "num-integer",
+ "num-traits",
+ "pyo3",
+ "pyo3-build-config",
+ "rustc-hash 2.1.3",
 ]
 
 [[package]]
@@ -1467,6 +1536,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rawpointer"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60a357793950651c4ed0f3f52338f53b2f809f32d83a07f72909fa13e4c6c1e3"
+
+[[package]]
 name = "rayon"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1564,6 +1639,12 @@ name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
+
+[[package]]
+name = "rustc-hash"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d"
 
 [[package]]
 name = "rustix"
@@ -2054,7 +2135,7 @@ dependencies = [
  "portable-atomic",
  "profiling",
  "raw-window-handle",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "smallvec",
  "thiserror",
  "wgpu-core-deps-apple",

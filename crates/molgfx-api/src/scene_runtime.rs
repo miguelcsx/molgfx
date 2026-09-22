@@ -18,7 +18,7 @@ pub(super) fn structure_hash(structure: &molframe::Structure) -> Box<str> {
         let Ok(model) = u32::try_from(model) else {
             break;
         };
-        if let Some(coordinates) = structure.model_positions(molframe::ModelIndex::new(model)) {
+        if let Some(coordinates) = structure.model_coordinates(molframe::ModelIndex::new(model)) {
             for coordinate in coordinates {
                 for lane in coordinate {
                     hash.update(lane.to_bits().to_le_bytes());
@@ -26,7 +26,7 @@ pub(super) fn structure_hash(structure: &molframe::Structure) -> Box<str> {
             }
         }
     }
-    for chain in structure.data().chains() {
+    for chain in structure.chains() {
         hash_text(&mut hash, chain.label());
         hash_text(&mut hash, chain.auth_label());
         for residue in chain.residues() {
