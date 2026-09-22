@@ -2,6 +2,7 @@
 
 use crate::visual::{Parameter, ScalarExpr};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// Vector expression used by displacement and direction-aware styles.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -14,11 +15,11 @@ pub enum VectorExpr {
     /// Dynamically updateable vector uniform.
     Parameter(Parameter<[f32; 3]>),
     /// Component-wise addition.
-    Add(Box<Self>, Box<Self>),
+    Add(Arc<Self>, Arc<Self>),
     /// Scalar multiplication.
-    Scale(Box<Self>, Box<ScalarExpr>),
+    Scale(Arc<Self>, Arc<ScalarExpr>),
     /// Defined normalization; a zero vector remains zero.
-    Normalize(Box<Self>),
+    Normalize(Arc<Self>),
 }
 
 impl VectorExpr {
@@ -31,13 +32,13 @@ impl VectorExpr {
     /// Dot product with another vector.
     #[must_use]
     pub fn dot(self, right: Self) -> ScalarExpr {
-        ScalarExpr::VectorDot(Box::new(self), Box::new(right))
+        ScalarExpr::VectorDot(Arc::new(self), Arc::new(right))
     }
 
     /// Defined normalization; a zero vector remains zero.
     #[must_use]
     pub fn normalized(self) -> Self {
-        Self::Normalize(Box::new(self))
+        Self::Normalize(Arc::new(self))
     }
 }
 
@@ -45,7 +46,7 @@ impl std::ops::Add for VectorExpr {
     type Output = Self;
 
     fn add(self, right: Self) -> Self {
-        Self::Add(Box::new(self), Box::new(right))
+        Self::Add(Arc::new(self), Arc::new(right))
     }
 }
 
@@ -53,7 +54,7 @@ impl std::ops::Mul<ScalarExpr> for VectorExpr {
     type Output = Self;
 
     fn mul(self, right: ScalarExpr) -> Self {
-        Self::Scale(Box::new(self), Box::new(right))
+        Self::Scale(Arc::new(self), Arc::new(right))
     }
 }
 

@@ -1,13 +1,9 @@
 //! Mutable semantic scene and atomic transaction boundary.
 
-use crate::SceneTransaction;
-use crate::error::{Error, PatchError};
+use crate::error::Error;
 use crate::id::{RepresentationId, StructureId};
 use crate::representation::{SceneItem, Selection};
-use crate::scene_runtime::{
-    apply_runtime_edits, candidate_spec, canonical_selection_count, next_representation_id,
-    next_structure_id, resolve, structure_hash,
-};
+use crate::scene::runtime::{next_representation_id, next_structure_id, resolve, structure_hash};
 use crate::spec::{InteractionChannel, PatchOperation, ScenePatch, SceneSpec, StructureSource};
 use molgfx_core::{RepresentationHandle, SelectionHandle};
 use std::collections::BTreeMap;
@@ -17,18 +13,33 @@ use std::collections::BTreeMap;
 pub struct Scene {
     spec: SceneSpec,
     resolved: molgfx_core::Scene,
-    structures: BTreeMap<StructureId, molframe::Structure>,
+    structures: BTreeMap<StructureId, molgfx_core::MolecularSource>,
     representations: BTreeMap<RepresentationId, RepresentationHandle>,
     selections: BTreeMap<String, SelectionHandle>,
+    visuals: BTreeMap<RepresentationId, crate::visual::ResolvedVisual>,
+    property_bindings: BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
+    properties: BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
     next_structure: u64,
     next_representation: u64,
 }
 
-pub(super) struct Resolution {
-    pub(super) scene: molgfx_core::Scene,
-    pub(super) representations: BTreeMap<RepresentationId, RepresentationHandle>,
-    pub(super) selections: BTreeMap<String, SelectionHandle>,
+pub(crate) struct Resolution {
+    pub(crate) scene: molgfx_core::Scene,
+    pub(crate) representations: BTreeMap<RepresentationId, RepresentationHandle>,
+    pub(crate) selections: BTreeMap<String, SelectionHandle>,
+    pub(crate) visuals: BTreeMap<RepresentationId, crate::visual::ResolvedVisual>,
+    pub(crate) properties: BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
 }
+
+pub(crate) mod interaction;
+#[cfg(test)]
+mod interaction_tests;
+mod operations;
+pub(crate) mod properties;
+pub(crate) mod runtime;
+#[cfg(test)]
+mod runtime_tests;
+pub(crate) mod transaction;
 
 impl Scene {
     /// Builds a scene over a shared immutable `MolFrame` snapshot.
@@ -37,24 +48,37 @@ impl Scene {
     ///
     /// Returns a validation error if the molecular source cannot be adapted.
     pub fn from_structure(structure: &molframe::Structure) -> Result<Self, Error> {
+        Self::from_source(molgfx_core::MolecularSource::from_molframe(structure))
+    }
+
+    /// Builds a scene over a provider-neutral immutable molecular source.
+    ///
+    /// # Errors
+    ///
+    /// Returns a validation error if the molecular source cannot be adapted.
+    pub fn from_source(source: molgfx_core::MolecularSource) -> Result<Self, Error> {
         let structure_id = StructureId(1);
         let mut spec = SceneSpec::empty();
         let _ = spec.structures.insert(
             structure_id,
             StructureSource {
-                content_hash: structure_hash(structure),
+                content_hash: structure_hash(&source),
                 uri: None,
                 format: None,
             },
         );
         let mut structures = BTreeMap::new();
-        let _ = structures.insert(structure_id, structure.clone());
+        let _ = structures.insert(structure_id, source.clone());
+        let resolved = molgfx_core::Scene::from_source(source)?;
         Ok(Self {
             spec,
-            resolved: molgfx_core::Scene::from_structure(structure)?,
+            resolved,
             structures,
             representations: BTreeMap::new(),
             selections: BTreeMap::new(),
+            visuals: BTreeMap::new(),
+            property_bindings: BTreeMap::new(),
+            properties: BTreeMap::new(),
             next_structure: 2,
             next_representation: 1,
         })
@@ -73,12 +97,29 @@ impl Scene {
         spec: SceneSpec,
         structures: BTreeMap<StructureId, molframe::Structure>,
     ) -> Result<Self, Error> {
-        if spec.version != 1 {
-            return Err(Error::InvalidSpec(format!(
-                "unsupported SceneSpec version {}",
-                spec.version
-            )));
-        }
+        Self::from_spec_with_properties(
+            spec,
+            structures
+                .into_iter()
+                .map(|(id, structure)| {
+                    (id, molgfx_core::MolecularSource::from_molframe(&structure))
+                })
+                .collect(),
+            BTreeMap::new(),
+        )
+    }
+
+    /// Resolves a portable specification with explicit shared property columns.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error unless structure and property bindings exactly match
+    /// their descriptors and every value column satisfies its row contract.
+    pub fn from_spec_with_properties(
+        spec: SceneSpec,
+        structures: BTreeMap<StructureId, molgfx_core::MolecularSource>,
+        property_bindings: BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
+    ) -> Result<Self, Error> {
         spec.validate_camera()?;
         if spec.structures.len() != structures.len()
             || spec
@@ -104,7 +145,7 @@ impl Scene {
             }
         }
         spec.validate_selections()?;
-        let resolution = resolve(&spec, &structures)?;
+        let resolution = resolve(&spec, &structures, &property_bindings)?;
         let next_structure = next_structure_id(&spec)?;
         let next_representation = next_representation_id(&spec)?;
         Ok(Self {
@@ -113,6 +154,9 @@ impl Scene {
             structures,
             representations: resolution.representations,
             selections: resolution.selections,
+            visuals: resolution.visuals,
+            property_bindings,
+            properties: resolution.properties,
             next_structure,
             next_representation,
         })
@@ -123,71 +167,115 @@ impl Scene {
     /// # Errors
     ///
     /// Returns an error for an invalid selection or representation value.
-    pub fn add<T: SceneItem>(&mut self, item: T) -> Result<RepresentationId, Error> {
-        let mut representation = item.into_spec();
-        if representation.structure.is_none() {
+    pub fn add<T: SceneItem>(&mut self, item: T) -> Result<T::Id, Error> {
+        item.add_to(self)
+    }
+
+    pub(crate) fn insert_representation(
+        &mut self,
+        mut representation: crate::RepresentationSpec,
+    ) -> Result<RepresentationId, Error> {
+        if representation.common.structure.is_none() {
             if self.structures.len() != 1 {
                 return Err(Error::InvalidSpec(
                     "multi-structure scenes require an explicit representation structure"
                         .to_owned(),
                 ));
             }
-            representation.structure = self.structures.first_key_value().map(|(id, _)| *id);
-        }
-        representation.validate()?;
-        let native = representation.native()?;
-        let structure = representation.structure.ok_or_else(|| {
-            Error::InvalidSpec("representation has no structure target".to_owned())
-        })?;
-        if !self.structures.contains_key(&structure) {
-            return Err(Error::InvalidSpec(
-                "representation targets an unknown structure".to_owned(),
-            ));
-        }
-        let selection_key = format!(
-            "{}:{}",
-            structure.get(),
-            representation.target.stable_hash()?
-        );
-        let selection = if let Some(selection) = self.selections.get(&selection_key).copied() {
-            selection
-        } else {
-            let core_structure = self
-                .structures
-                .keys()
-                .position(|id| *id == structure)
-                .and_then(|index| {
-                    self.resolved
-                        .structures()
-                        .nth(index)
-                        .map(|(handle, _)| handle)
-                })
-                .ok_or_else(|| Error::InvalidSpec("structure binding is unresolved".to_owned()))?;
-            let all_structures = self.resolved.select_str(representation.selection())?;
-            let rows = self
-                .resolved
-                .selection_for(all_structures, core_structure)
-                .cloned()
-                .ok_or_else(|| Error::InvalidSpec("selection did not resolve".to_owned()))?;
-            let selection = self
-                .resolved
-                .add_structure_selection(core_structure, rows)?;
-            let _ = self.selections.insert(selection_key, selection);
-            selection
-        };
-        let handle = self.resolved.represent(selection, native)?;
-        if !representation.visible {
-            self.resolved.hide(handle);
+            representation.common.structure = self.structures.first_key_value().map(|(id, _)| *id);
         }
         let id = RepresentationId(self.next_representation);
-        self.next_representation = self.next_representation.checked_add(1).ok_or_else(|| {
-            Error::InvalidSpec("representation identity space is exhausted".to_owned())
+        self.apply(&ScenePatch {
+            base_revision: self.revision(),
+            operations: vec![PatchOperation::AddRepresentation { id, representation }],
         })?;
-        let _ = self.representations.insert(id, handle);
-        let _ = self.spec.representations.insert(id, representation);
-        self.spec.revision = self.spec.revision.wrapping_add(1);
-        self.spec.revisions.selection = self.spec.revisions.selection.wrapping_add(1);
-        self.spec.revisions.appearance = self.spec.revisions.appearance.wrapping_add(1);
+        Ok(id)
+    }
+
+    pub(crate) fn insert_volume(
+        &mut self,
+        volume: crate::VolumeSpec,
+    ) -> Result<crate::VolumeId, Error> {
+        let id = crate::VolumeId(next_id_for(
+            self.spec.volumes.last_key_value().map(|(id, _)| id.get()),
+            "volume",
+        )?);
+        self.apply(&ScenePatch {
+            base_revision: self.revision(),
+            operations: vec![PatchOperation::AddVolume { id, volume }],
+        })?;
+        Ok(id)
+    }
+
+    pub(crate) fn insert_annotation(
+        &mut self,
+        annotation: crate::AnnotationSpec,
+    ) -> Result<crate::AnnotationId, Error> {
+        let id = crate::AnnotationId(next_id_for(
+            self.spec
+                .annotations
+                .last_key_value()
+                .map(|(id, _)| id.get()),
+            "annotation",
+        )?);
+        self.apply(&ScenePatch {
+            base_revision: self.revision(),
+            operations: vec![PatchOperation::AddAnnotation { id, annotation }],
+        })?;
+        Ok(id)
+    }
+
+    pub(crate) fn insert_measurement(
+        &mut self,
+        measurement: crate::MeasurementSpec,
+    ) -> Result<crate::MeasurementId, Error> {
+        let id = crate::MeasurementId(next_id_for(
+            self.spec
+                .measurements
+                .last_key_value()
+                .map(|(id, _)| id.get()),
+            "measurement",
+        )?);
+        self.apply(&ScenePatch {
+            base_revision: self.revision(),
+            operations: vec![PatchOperation::AddMeasurement { id, measurement }],
+        })?;
+        Ok(id)
+    }
+
+    pub(crate) fn insert_scientific_interaction(
+        &mut self,
+        interaction: crate::ScientificInteractionSpec,
+    ) -> Result<crate::ScientificInteractionId, Error> {
+        let id = crate::ScientificInteractionId(next_id_for(
+            self.spec
+                .scientific_interactions
+                .last_key_value()
+                .map(|(id, _)| id.get()),
+            "scientific interaction",
+        )?);
+        self.apply(&ScenePatch {
+            base_revision: self.revision(),
+            operations: vec![PatchOperation::AddScientificInteraction { id, interaction }],
+        })?;
+        Ok(id)
+    }
+
+    pub(crate) fn insert_trajectory(
+        &mut self,
+        trajectory: crate::TrajectorySpec,
+    ) -> Result<crate::TrajectoryId, Error> {
+        let id = crate::TrajectoryId(next_id_for(
+            self.spec
+                .trajectories
+                .last_key_value()
+                .map(|(id, _)| id.get()),
+            "trajectory",
+        )?);
+        self.apply(&ScenePatch {
+            base_revision: self.revision(),
+            operations: vec![PatchOperation::AddTrajectory { id, trajectory }],
+        })?;
         Ok(id)
     }
 
@@ -197,17 +285,29 @@ impl Scene {
     ///
     /// Returns an error if the source cannot be adapted or IDs are exhausted.
     pub fn add_structure(&mut self, structure: &molframe::Structure) -> Result<StructureId, Error> {
+        self.add_source(&molgfx_core::MolecularSource::from_molframe(structure))
+    }
+
+    /// Adds another provider-neutral source without copying coordinates.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the source cannot be adapted or IDs are exhausted.
+    pub fn add_source(
+        &mut self,
+        source: &molgfx_core::MolecularSource,
+    ) -> Result<StructureId, Error> {
         let id = StructureId(self.next_structure);
         let next_structure = self.next_structure.checked_add(1).ok_or_else(|| {
             Error::InvalidSpec("structure identity space is exhausted".to_owned())
         })?;
         let mut candidate_structures = self.structures.clone();
-        let _ = candidate_structures.insert(id, structure.clone());
+        let _ = candidate_structures.insert(id, source.clone());
         let mut candidate = self.spec.clone();
         let _ = candidate.structures.insert(
             id,
             StructureSource {
-                content_hash: structure_hash(structure),
+                content_hash: structure_hash(source),
                 uri: None,
                 format: None,
             },
@@ -215,13 +315,15 @@ impl Scene {
         candidate.revision = candidate.revision.wrapping_add(1);
         candidate.revisions.topology = candidate.revisions.topology.wrapping_add(1);
         candidate.revisions.coordinates = candidate.revisions.coordinates.wrapping_add(1);
-        let resolution = resolve(&candidate, &candidate_structures)?;
+        let resolution = resolve(&candidate, &candidate_structures, &self.property_bindings)?;
         self.next_structure = next_structure;
         self.structures = candidate_structures;
         self.spec = candidate;
         self.resolved = resolution.scene;
         self.representations = resolution.representations;
         self.selections = resolution.selections;
+        self.visuals = resolution.visuals;
+        self.properties = resolution.properties;
         Ok(id)
     }
 
@@ -304,7 +406,13 @@ impl Scene {
         })
     }
 
-    /// Sets the scene focus query.
+    /// Focuses a molecular subject and de-emphasizes its distant context.
+    ///
+    /// The selected atoms receive the focused interaction bit, and — unless the
+    /// muted channel has been set explicitly — whole residues beyond the
+    /// surrounding shell receive the muted bit. Both are ordinary state bits, so
+    /// a visual style reads them through `visual.state(..)` and the camera frames
+    /// them through [`Self::focus_bounds`]. No hidden representation is inserted.
     ///
     /// # Errors
     ///
@@ -345,102 +453,13 @@ impl Scene {
             operations: vec![PatchOperation::SetCamera { camera }],
         })
     }
+}
 
-    /// Applies all operations or leaves the scene unchanged.
-    ///
-    /// # Errors
-    ///
-    /// Returns a revision conflict, missing-ID, validation, or renderer error.
-    pub fn apply(&mut self, patch: &ScenePatch) -> Result<(), Error> {
-        if patch.base_revision != self.spec.revision {
-            return Err(PatchError::RevisionConflict {
-                expected: patch.base_revision,
-                actual: self.spec.revision,
-            }
-            .into());
-        }
-        let candidate = candidate_spec(&self.spec, patch)?;
-        let requires_rebuild = patch.operations.iter().any(|operation| {
-            matches!(
-                operation,
-                PatchOperation::AddRepresentation { .. }
-                    | PatchOperation::RemoveRepresentation { .. }
-                    | PatchOperation::ReplaceRepresentation { .. }
-            )
-        });
-        if requires_rebuild {
-            let resolution = resolve(&candidate, &self.structures).map_err(|error| {
-                Error::InvalidSpec(format!("patch could not be resolved: {error}"))
-            })?;
-            self.resolved = resolution.scene;
-            self.representations = resolution.representations;
-            self.selections = resolution.selections;
-        } else {
-            apply_runtime_edits(
-                &mut self.resolved,
-                &self.representations,
-                &candidate,
-                &patch.operations,
-            )?;
-        }
-        self.spec = candidate;
-        self.next_representation = next_representation_id(&self.spec)?;
-        Ok(())
-    }
-
-    /// Collects several semantic changes into one revision and patch.
-    ///
-    /// # Errors
-    ///
-    /// Returns the edit callback error or an atomic patch application error.
-    pub fn transaction<F>(&mut self, edit: F) -> Result<ScenePatch, Error>
-    where
-        F: FnOnce(&mut SceneTransaction) -> Result<(), Error>,
-    {
-        let mut transaction = SceneTransaction {
-            patch: ScenePatch::empty(self.revision()),
-        };
-        edit(&mut transaction)?;
-        let patch = transaction.patch;
-        self.apply(&patch)?;
-        Ok(patch)
-    }
-
-    /// Deterministic semantic plan summary.
-    #[must_use]
-    pub fn explain(&self) -> String {
-        let visible = self
-            .spec
-            .representations
-            .values()
-            .filter(|representation| representation.visible)
-            .count();
-        format!(
-            "SceneSpec v{}\nrevision: {}\nstructures: {}\nrepresentations: {} ({} visible)\ncanonical selections: {}",
-            self.spec.version,
-            self.spec.revision,
-            self.spec.structures.len(),
-            self.spec.representations.len(),
-            visible,
-            canonical_selection_count(&self.spec)
-        )
-    }
-
-    pub(crate) const fn resolved(&self) -> &molgfx_core::Scene {
-        &self.resolved
-    }
-
-    /// Camera framing the current resolved molecular bounds.
-    #[must_use]
-    pub fn framing_camera(&self, aspect: f32) -> molgfx_math::Camera {
-        let Some(mut camera) = self.spec.camera else {
-            return molgfx_math::Camera::framing_aabb(&self.resolved.world_aabb(), aspect);
-        };
-        camera.projection.set_aspect(aspect);
-        camera
-    }
+fn next_id_for(last: Option<u64>, kind: &str) -> Result<u64, Error> {
+    crate::fallback(last, 0)
+        .checked_add(1)
+        .ok_or_else(|| Error::InvalidSpec(format!("{kind} identity space is exhausted")))
 }
 
 #[cfg(test)]
-#[path = "scene_tests.rs"]
 mod tests;

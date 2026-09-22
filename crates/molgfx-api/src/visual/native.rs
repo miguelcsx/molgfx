@@ -1,62 +1,75 @@
 //! Lowering from the public typed DAG to the renderer's bounded typed IR.
 
-use crate::visual::{BoolExpr, ColorExpr, ParameterValue, ScalarExpr, VectorExpr, VisualStyle};
+use super::intern::{Interner, Key};
+use crate::property::registry::{ScalarInput, StateChannel, VectorInput};
+use crate::spec::lowering::Lowering;
+use crate::visual::{
+    BoolExpr, ColorExpr, CompiledVisual, ParameterValue, ScalarExpr, VectorExpr, VisualStyle,
+};
 use crate::{Error, color};
 use molgfx_core::{
     BoolExpr as NativeBool, ColorExpr as NativeColor, ScalarExpr as NativeScalar,
     VectorExpr as NativeVector, VisualProgramBuilder,
 };
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 
-pub(super) fn lower(
+pub(crate) fn lower(
     style: &VisualStyle,
+    compiled_plan: &CompiledVisual,
     overrides: &BTreeMap<Box<str>, ParameterValue>,
+    lowering: Lowering<'_>,
+    structure: crate::StructureId,
 ) -> Result<molgfx_core::VisualStyle, Error> {
-    let mut compiler = Compiler::new(overrides);
-    let color = compiler.color(&style.color)?;
-    let opacity = compiler.scalar(&style.opacity)?;
-    let visible = compiler.boolean(&style.visible)?;
-    compiler.builder.set_base_color(color).map_err(core_error)?;
-    compiler.builder.set_opacity(opacity).map_err(core_error)?;
-    compiler
+    let mut lowerer = Compiler::new(compiled_plan, overrides, lowering, structure)?;
+    let color = lowerer.color(&style.color)?;
+    let opacity = lowerer.scalar(&style.opacity)?;
+    let visible = lowerer.boolean(&style.visible)?;
+    lowerer.builder.set_base_color(color).map_err(core_error)?;
+    lowerer.builder.set_opacity(opacity).map_err(core_error)?;
+    lowerer
         .builder
         .set_visibility(visible)
         .map_err(core_error)?;
-    let program = compiler.builder.finish().map_err(core_error)?;
-    if compiler.used_parameters.len() != overrides.len() {
+    let program = lowerer.builder.finish().map_err(core_error)?;
+    if lowerer.used_parameters.len() != overrides.len() {
         return Err(Error::InvalidSpec(
             "visual parameter override names an undeclared parameter".to_owned(),
         ));
     }
-    let mut lowered = molgfx_core::VisualStyle::new(program);
-    for (slot, value) in compiler.updates {
+    let mut runtime_style = molgfx_core::VisualStyle::new(program);
+    for (slot, value) in lowerer.updates {
         match value {
             ParameterValue::Scalar(value) => {
-                let parameter = lowered
+                let parameter = runtime_style
                     .program()
                     .scalar_parameter(slot)
                     .ok_or_else(|| invalid_parameter_type(slot))?;
-                lowered.set_scalar(parameter, value).map_err(core_error)?;
+                runtime_style
+                    .set_scalar(parameter, value)
+                    .map_err(core_error)?;
             }
             ParameterValue::Color(value) => {
-                let parameter = lowered
+                let parameter = runtime_style
                     .program()
                     .color_parameter(slot)
                     .ok_or_else(|| invalid_parameter_type(slot))?;
-                lowered
+                runtime_style
                     .set_color(parameter, value.to_linear_f32())
                     .map_err(core_error)?;
             }
             ParameterValue::Vector(value) => {
-                let parameter = lowered
+                let parameter = runtime_style
                     .program()
                     .vector_parameter(slot)
                     .ok_or_else(|| invalid_parameter_type(slot))?;
-                lowered.set_vector(parameter, value).map_err(core_error)?;
+                runtime_style
+                    .set_vector(parameter, value)
+                    .map_err(core_error)?;
             }
         }
     }
-    Ok(lowered)
+    Ok(runtime_style)
 }
 
 struct Compiler<'a> {
@@ -64,70 +77,109 @@ struct Compiler<'a> {
     overrides: &'a BTreeMap<Box<str>, ParameterValue>,
     used_parameters: std::collections::BTreeSet<Box<str>>,
     updates: Vec<(usize, ParameterValue)>,
-    declarations: BTreeMap<Box<str>, ParameterValue>,
-    scalars: BTreeMap<String, NativeScalar>,
-    vectors: BTreeMap<String, NativeVector>,
-    colors: BTreeMap<String, NativeColor>,
-    booleans: BTreeMap<String, NativeBool>,
+    scalars: HashMap<Key, NativeScalar>,
+    vectors: HashMap<Key, NativeVector>,
+    colors: HashMap<Key, NativeColor>,
+    booleans: HashMap<Key, NativeBool>,
     scalar_parameters: BTreeMap<Box<str>, NativeScalar>,
     vector_parameters: BTreeMap<Box<str>, NativeVector>,
     color_parameters: BTreeMap<Box<str>, NativeColor>,
+    interner: Interner,
+    properties: &'a BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
+    channels: &'a [Box<str>],
+    structure: crate::StructureId,
 }
 
 impl<'a> Compiler<'a> {
-    fn new(overrides: &'a BTreeMap<Box<str>, ParameterValue>) -> Self {
-        Self {
+    fn new(
+        compiled_plan: &CompiledVisual,
+        overrides: &'a BTreeMap<Box<str>, ParameterValue>,
+        lowering: Lowering<'a>,
+        structure: crate::StructureId,
+    ) -> Result<Self, Error> {
+        let mut lowerer = Self {
             builder: VisualProgramBuilder::new(),
             overrides,
             used_parameters: std::collections::BTreeSet::new(),
             updates: Vec::new(),
-            declarations: BTreeMap::new(),
-            scalars: BTreeMap::new(),
-            vectors: BTreeMap::new(),
-            colors: BTreeMap::new(),
-            booleans: BTreeMap::new(),
+            scalars: HashMap::new(),
+            vectors: HashMap::new(),
+            colors: HashMap::new(),
+            booleans: HashMap::new(),
             scalar_parameters: BTreeMap::new(),
             vector_parameters: BTreeMap::new(),
             color_parameters: BTreeMap::new(),
+            interner: Interner::default(),
+            properties: lowering.properties,
+            channels: lowering.channels,
+            structure,
+        };
+        for (name, default) in compiled_plan.parameter_defaults() {
+            lowerer.declare_parameter(name, default)?;
+        }
+        Ok(lowerer)
+    }
+
+    fn declare_parameter(&mut self, name: &str, default: &ParameterValue) -> Result<(), Error> {
+        let slot = self.parameter_count();
+        match default {
+            ParameterValue::Scalar(value) => {
+                let (_, expression) = self.builder.scalar_parameter(*value).map_err(core_error)?;
+                let _ = self.scalar_parameters.insert(name.into(), expression);
+                self.record_override(name, slot, ParameterKind::Scalar)
+            }
+            ParameterValue::Color(value) => {
+                let (_, expression) = self
+                    .builder
+                    .color_parameter(value.to_linear_f32())
+                    .map_err(core_error)?;
+                let _ = self.color_parameters.insert(name.into(), expression);
+                self.record_override(name, slot, ParameterKind::Color)
+            }
+            ParameterValue::Vector(value) => {
+                let (_, expression) = self.builder.vector_parameter(*value).map_err(core_error)?;
+                let _ = self.vector_parameters.insert(name.into(), expression);
+                self.record_override(name, slot, ParameterKind::Vector)
+            }
         }
     }
 
     fn scalar(&mut self, expression: &ScalarExpr) -> Result<NativeScalar, Error> {
-        let key = expression_key(expression)?;
+        let key = self.interner.scalar(expression);
         if let Some(value) = self.scalars.get(&key).copied() {
             return Ok(value);
         }
         let value = match expression {
             ScalarExpr::Constant(value) => self.builder.scalar(*value),
-            ScalarExpr::Property(name) => {
+            ScalarExpr::Property(property) => {
+                if property.structure() != self.structure {
+                    return Err(Error::InvalidSpec(format!(
+                        "property '{}' belongs to another structure",
+                        property.name()
+                    )));
+                }
+                let handle = self
+                    .properties
+                    .get(property.name())
+                    .copied()
+                    .ok_or_else(|| {
+                        Error::InvalidSpec(format!("property '{}' is not bound", property.name()))
+                    })?;
+                let value = self.builder.atom_property(handle).map_err(core_error)?;
+                let _ = self.scalars.insert(key, value);
+                return Ok(value);
+            }
+            ScalarExpr::Input(name) => {
                 let value = self.scalar_input(name)?;
                 let _ = self.scalars.insert(key, value);
                 return Ok(value);
             }
             ScalarExpr::Parameter(parameter) => {
-                self.declare(
-                    parameter.name(),
-                    ParameterValue::Scalar(*parameter.default_value()),
-                )?;
-                if let Some(value) = self.scalar_parameters.get(parameter.name()).copied() {
-                    Ok(value)
-                } else {
-                    if self.vector_parameters.contains_key(parameter.name())
-                        || self.color_parameters.contains_key(parameter.name())
-                    {
-                        return Err(parameter_type_conflict(parameter.name()));
-                    }
-                    let slot = self.parameter_count();
-                    let (_, value) = self
-                        .builder
-                        .scalar_parameter(*parameter.default_value())
-                        .map_err(core_error)?;
-                    let _ = self
-                        .scalar_parameters
-                        .insert(parameter.name().into(), value);
-                    self.record_override(parameter.name(), slot, ParameterKind::Scalar)?;
-                    Ok(value)
-                }
+                return self
+                    .scalar_parameters
+                    .get(parameter.name())
+                    .copied()
+                    .ok_or_else(|| parameter_type_conflict(parameter.name()));
             }
             ScalarExpr::Add(left, right) => {
                 let left = self.scalar(left)?;
@@ -161,57 +213,37 @@ impl<'a> Compiler<'a> {
     }
 
     fn scalar_input(&mut self, name: &str) -> Result<NativeScalar, Error> {
-        let value = match name {
-            "time" => self.builder.time(),
-            "camera_distance" => self.builder.camera_distance(),
-            "entity_index" => self.builder.entity_index(),
-            "base_opacity" => self.builder.base_opacity(),
-            "roughness" => self.builder.base_roughness(),
-            "specular" => self.builder.base_specular(),
-            "material_strength" => self.builder.base_material_strength(),
-            _ => return Err(unsupported("the requested scalar property")),
+        let value = match ScalarInput::parse(name)? {
+            ScalarInput::Time => self.builder.time(),
+            ScalarInput::CameraDistance => self.builder.camera_distance(),
+            ScalarInput::EntityIndex => self.builder.entity_index(),
+            ScalarInput::BaseOpacity => self.builder.base_opacity(),
+            ScalarInput::Roughness => self.builder.base_roughness(),
+            ScalarInput::Specular => self.builder.base_specular(),
+            ScalarInput::MaterialStrength => self.builder.base_material_strength(),
         };
         value.map_err(core_error)
     }
 
     fn vector(&mut self, expression: &VectorExpr) -> Result<NativeVector, Error> {
-        let key = expression_key(expression)?;
+        let key = self.interner.vector(expression);
         if let Some(value) = self.vectors.get(&key).copied() {
             return Ok(value);
         }
         let value = match expression {
             VectorExpr::Constant(value) => self.builder.vector(*value),
-            VectorExpr::Property(name) => match name.as_ref() {
-                "local_position" => self.builder.local_position(),
-                "world_position" => self.builder.world_position(),
-                "normal" => self.builder.normal(),
-                "view_direction" => self.builder.view_direction(),
-                _ => return Err(unsupported("the requested vector property")),
+            VectorExpr::Property(name) => match VectorInput::parse(name)? {
+                VectorInput::LocalPosition => self.builder.local_position(),
+                VectorInput::WorldPosition => self.builder.world_position(),
+                VectorInput::Normal => self.builder.normal(),
+                VectorInput::ViewDirection => self.builder.view_direction(),
             },
             VectorExpr::Parameter(parameter) => {
-                self.declare(
-                    parameter.name(),
-                    ParameterValue::Vector(*parameter.default_value()),
-                )?;
-                if let Some(value) = self.vector_parameters.get(parameter.name()).copied() {
-                    Ok(value)
-                } else {
-                    if self.scalar_parameters.contains_key(parameter.name())
-                        || self.color_parameters.contains_key(parameter.name())
-                    {
-                        return Err(parameter_type_conflict(parameter.name()));
-                    }
-                    let slot = self.parameter_count();
-                    let (_, value) = self
-                        .builder
-                        .vector_parameter(*parameter.default_value())
-                        .map_err(core_error)?;
-                    let _ = self
-                        .vector_parameters
-                        .insert(parameter.name().into(), value);
-                    self.record_override(parameter.name(), slot, ParameterKind::Vector)?;
-                    Ok(value)
-                }
+                return self
+                    .vector_parameters
+                    .get(parameter.name())
+                    .copied()
+                    .ok_or_else(|| parameter_type_conflict(parameter.name()));
             }
             VectorExpr::Add(left, right) => {
                 let left = self.vector(left)?;
@@ -234,13 +266,16 @@ impl<'a> Compiler<'a> {
     }
 
     fn boolean(&mut self, expression: &BoolExpr) -> Result<NativeBool, Error> {
-        let key = expression_key(expression)?;
+        let key = self.interner.boolean(expression);
         if let Some(value) = self.booleans.get(&key).copied() {
             return Ok(value);
         }
         let value = match expression {
             BoolExpr::Constant(value) => self.builder.boolean(*value),
-            BoolExpr::State(_) => return Err(unsupported("interaction-state visual input")),
+            BoolExpr::State(name) => {
+                let mask = StateChannel::parse(name, self.channels)?.mask()?;
+                self.builder.interaction_state(mask)
+            }
             BoolExpr::Less(left, right) => {
                 let left = self.scalar(left)?;
                 let right = self.scalar(right)?;
@@ -267,34 +302,18 @@ impl<'a> Compiler<'a> {
     }
 
     fn color(&mut self, expression: &ColorExpr) -> Result<NativeColor, Error> {
-        let key = expression_key(expression)?;
+        let key = self.interner.color(expression);
         if let Some(value) = self.colors.get(&key).copied() {
             return Ok(value);
         }
         let value = match expression {
             ColorExpr::Constant(value) => self.builder.color(value.to_linear_f32()),
             ColorExpr::Parameter(parameter) => {
-                self.declare(
-                    parameter.name(),
-                    ParameterValue::Color(*parameter.default_value()),
-                )?;
-                if let Some(value) = self.color_parameters.get(parameter.name()).copied() {
-                    Ok(value)
-                } else {
-                    if self.scalar_parameters.contains_key(parameter.name())
-                        || self.vector_parameters.contains_key(parameter.name())
-                    {
-                        return Err(parameter_type_conflict(parameter.name()));
-                    }
-                    let slot = self.parameter_count();
-                    let (_, value) = self
-                        .builder
-                        .color_parameter(parameter.default_value().to_linear_f32())
-                        .map_err(core_error)?;
-                    let _ = self.color_parameters.insert(parameter.name().into(), value);
-                    self.record_override(parameter.name(), slot, ParameterKind::Color)?;
-                    Ok(value)
-                }
+                return self
+                    .color_parameters
+                    .get(parameter.name())
+                    .copied()
+                    .ok_or_else(|| parameter_type_conflict(parameter.name()));
             }
             ColorExpr::Select { condition, yes, no } => {
                 let condition = self.boolean(condition)?;
@@ -309,7 +328,7 @@ impl<'a> Compiler<'a> {
                 ..
             } => {
                 let value = self.scalar(value)?;
-                let colors = color::palette(palette).map(crate::Color::native);
+                let colors = color::palette(palette)?.map(crate::Color::native);
                 let ramp = molgfx_core::ScalarRamp::new(
                     [domain[0], domain[0].midpoint(domain[1]), domain[1]],
                     colors,
@@ -324,19 +343,6 @@ impl<'a> Compiler<'a> {
 
     fn parameter_count(&self) -> usize {
         self.scalar_parameters.len() + self.vector_parameters.len() + self.color_parameters.len()
-    }
-
-    fn declare(&mut self, name: &str, value: ParameterValue) -> Result<(), Error> {
-        match self.declarations.get(name) {
-            Some(existing) if existing != &value => Err(Error::InvalidSpec(format!(
-                "visual parameter '{name}' has conflicting declarations"
-            ))),
-            Some(_) => Ok(()),
-            None => {
-                let _ = self.declarations.insert(name.into(), value);
-                Ok(())
-            }
-        }
     }
 
     fn record_override(
@@ -368,14 +374,6 @@ enum ParameterKind {
     Scalar,
     Color,
     Vector,
-}
-
-fn expression_key(value: &impl serde::Serialize) -> Result<String, Error> {
-    serde_json::to_string(value).map_err(Error::from)
-}
-
-fn unsupported(input: &str) -> Error {
-    Error::InvalidSpec(format!("renderer does not expose {input} yet"))
 }
 
 fn parameter_type_conflict(name: &str) -> Error {

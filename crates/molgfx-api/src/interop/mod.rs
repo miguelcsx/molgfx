@@ -5,10 +5,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::io::{Cursor, Read, Write};
 
-#[path = "interop_import.rs"]
+#[cfg(test)]
+mod tests;
+
 mod import;
-#[path = "interop_schema.rs"]
 mod schema;
+#[cfg(test)]
+mod schema_tests;
 
 /// Information that could not be represented exactly during interchange.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]

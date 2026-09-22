@@ -1,12 +1,11 @@
 //! `MolViewSpec` tree traversal and semantic import.
 
 use super::{Diagnostic, MvsDocument, MvsImport, MvsNode, schema};
-use crate::representation::SceneItem;
 use crate::{RepresentationId, SceneSpec, StructureId, StructureSource, rep};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 
-pub(super) fn import_document(document: &MvsDocument) -> Result<MvsImport, crate::Error> {
+pub(crate) fn import_document(document: &MvsDocument) -> Result<MvsImport, crate::Error> {
     if document.root.kind.as_ref() != "root" {
         return Err(crate::Error::InvalidSpec(
             "MolViewSpec root node is required".to_owned(),
@@ -94,7 +93,7 @@ impl ImportState {
         };
         let kind = crate::fallback(node.params.get("type").and_then(Value::as_str), "cartoon");
         let mut spec = representation(kind, &selector, &node.children, path, &mut self.diagnostics);
-        spec.structure = ancestors
+        spec.common.structure = ancestors
             .iter()
             .rev()
             .find(|parent| parent.kind.as_ref() == "structure")
@@ -239,25 +238,25 @@ fn representation(
             );
         }
     }
-    let mut spec = match kind {
-        "cartoon" | "backbone" | "putty" => rep::cartoon(selector).into_spec(),
-        "ball_and_stick" => rep::ball_and_stick(selector).into_spec(),
-        "line" => rep::lines(selector).into_spec(),
-        "spacefill" => rep::spacefill(selector).into_spec(),
-        "carbohydrate" => rep::glycan(selector).into_spec(),
-        "surface" => rep::surface(selector).into_spec(),
+    let mut spec: crate::RepresentationSpec = match kind {
+        "cartoon" | "backbone" | "putty" => rep::cartoon(selector).into(),
+        "ball_and_stick" => rep::ball_and_stick(selector).into(),
+        "line" => rep::lines(selector).into(),
+        "spacefill" => rep::spacefill(selector).into(),
+        "carbohydrate" => rep::glycan(selector).into(),
+        "surface" => rep::surface(selector).into(),
         other => {
             diagnostics.push(Diagnostic {
                 code: "unsupported_representation".into(),
                 message: format!("representation '{other}' mapped to cartoon").into(),
                 path: path.into(),
             });
-            rep::cartoon(selector).into_spec()
+            rep::cartoon(selector).into()
         }
     };
-    spec.opacity = opacity;
+    spec.common.opacity = opacity;
     if let Some(color) = color {
-        spec.color = crate::color::uniform(color);
+        spec.common.color = crate::color::uniform(color);
     }
     spec
 }

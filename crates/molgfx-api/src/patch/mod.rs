@@ -1,8 +1,17 @@
 //! Atomic revision-checked semantic scene edits.
 
-use crate::id::RepresentationId;
+pub(crate) mod plan;
+pub(crate) mod science_ops;
+
+use crate::id::{
+    AnnotationId, MeasurementId, RepresentationId, ScientificInteractionId, TrajectoryId, VolumeId,
+};
 use crate::representation::Selection;
-use crate::spec::{InteractionChannel, RepresentationSpec, SceneSpec};
+use crate::representation::form::RepresentationSpec;
+use crate::science::{
+    AnnotationSpec, MeasurementSpec, ScientificInteractionSpec, TrajectorySpec, VolumeSpec,
+};
+use crate::spec::{InteractionChannel, SceneSpec};
 use crate::{ParameterValue, VisualStyle};
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +25,66 @@ pub enum PatchOperation {
         id: RepresentationId,
         /// Complete immutable representation value.
         representation: RepresentationSpec,
+    },
+    /// Inserts a density volume whose grid is supplied separately.
+    AddVolume {
+        /// Stable volume identity.
+        id: VolumeId,
+        /// Immutable volume metadata.
+        volume: VolumeSpec,
+    },
+    /// Removes a density volume.
+    RemoveVolume {
+        /// Volume to remove.
+        id: VolumeId,
+    },
+    /// Inserts a semantic annotation.
+    AddAnnotation {
+        /// Stable annotation identity.
+        id: AnnotationId,
+        /// Immutable annotation value.
+        annotation: AnnotationSpec,
+    },
+    /// Removes an annotation.
+    RemoveAnnotation {
+        /// Annotation to remove.
+        id: AnnotationId,
+    },
+    /// Inserts a geometric measurement.
+    AddMeasurement {
+        /// Stable measurement identity.
+        id: MeasurementId,
+        /// Immutable measurement value.
+        measurement: MeasurementSpec,
+    },
+    /// Removes a measurement.
+    RemoveMeasurement {
+        /// Measurement to remove.
+        id: MeasurementId,
+    },
+    /// Inserts an explicit or detected scientific interaction.
+    AddScientificInteraction {
+        /// Stable scientific interaction identity.
+        id: ScientificInteractionId,
+        /// Immutable interaction value.
+        interaction: ScientificInteractionSpec,
+    },
+    /// Removes a scientific interaction.
+    RemoveScientificInteraction {
+        /// Scientific interaction to remove.
+        id: ScientificInteractionId,
+    },
+    /// Binds a trajectory descriptor to one structure.
+    AddTrajectory {
+        /// Stable trajectory identity.
+        id: TrajectoryId,
+        /// Immutable trajectory metadata.
+        trajectory: TrajectorySpec,
+    },
+    /// Removes a trajectory binding.
+    RemoveTrajectory {
+        /// Trajectory to remove.
+        id: TrajectoryId,
     },
     /// Removes a representation.
     RemoveRepresentation {
@@ -132,7 +201,7 @@ impl ScenePatch {
         let mut operation_groups = Vec::with_capacity(self.operations.len());
         for operation in &self.operations {
             operation_groups.push(inverse_operations(operation, &state)?);
-            crate::scene_runtime::apply_operation(&mut state, operation)?;
+            crate::scene::runtime::apply_operation(&mut state, operation)?;
         }
         let operations = operation_groups.into_iter().rev().flatten().collect();
         Ok(Self {
@@ -146,11 +215,40 @@ impl ScenePatch {
     }
 }
 
-fn inverse_operations(
+type Inverse = Result<Vec<PatchOperation>, crate::Error>;
+
+fn inverse_operations(operation: &PatchOperation, base: &SceneSpec) -> Inverse {
+    if let Some(operations) = inverse_science(operation, base)? {
+        return Ok(operations);
+    }
+    if let Some(operations) = inverse_representation(operation, base)? {
+        return Ok(operations);
+    }
+    let one = |operation| vec![operation];
+    Ok(match operation {
+        PatchOperation::SetFocus { .. } => one(PatchOperation::SetFocus {
+            selection: base.focus.clone(),
+        }),
+        PatchOperation::SetInteraction { channel, .. } => one(PatchOperation::SetInteraction {
+            channel: channel.clone(),
+            selection: interaction(base, channel).cloned(),
+        }),
+        PatchOperation::SetCamera { .. } => one(PatchOperation::SetCamera {
+            camera: base.camera,
+        }),
+        _ => {
+            return Err(crate::Error::InvalidSpec(
+                "patch inversion was not dispatched".to_owned(),
+            ));
+        }
+    })
+}
+
+fn inverse_representation(
     operation: &PatchOperation,
     base: &SceneSpec,
-) -> Result<Vec<PatchOperation>, crate::Error> {
-    let one = |operation| vec![operation];
+) -> Result<Option<Vec<PatchOperation>>, crate::Error> {
+    let one = |operation| Some(vec![operation]);
     Ok(match operation {
         PatchOperation::AddRepresentation { id, .. } => {
             one(PatchOperation::RemoveRepresentation { id: *id })
@@ -179,6 +277,7 @@ fn inverse_operations(
                 .representations
                 .get(id)
                 .ok_or(crate::PatchError::MissingId)?
+                .common
                 .visible,
         }),
         PatchOperation::SetOpacity { id, .. } => one(PatchOperation::SetOpacity {
@@ -187,26 +286,30 @@ fn inverse_operations(
                 .representations
                 .get(id)
                 .ok_or(crate::PatchError::MissingId)?
-                .opacity,
+                .opacity(),
         }),
         PatchOperation::SetVisual { id, .. } => {
             let representation = base
                 .representations
                 .get(id)
                 .ok_or(crate::PatchError::MissingId)?;
-            let mut operations = Vec::with_capacity(representation.parameters.len() + 1);
+            let mut operations = Vec::with_capacity(representation.common.parameters.len() + 1);
             operations.push(PatchOperation::SetVisual {
                 id: *id,
-                visual: representation.visual.clone(),
+                visual: representation.common.visual.clone(),
             });
-            operations.extend(representation.parameters.iter().map(|(name, value)| {
-                PatchOperation::SetParameter {
-                    id: *id,
-                    name: name.clone(),
-                    value: Some(value.clone()),
-                }
-            }));
-            operations
+            operations.extend(
+                representation
+                    .common
+                    .parameters
+                    .iter()
+                    .map(|(name, value)| PatchOperation::SetParameter {
+                        id: *id,
+                        name: name.clone(),
+                        value: Some(value.clone()),
+                    }),
+            );
+            Some(operations)
         }
         PatchOperation::SetParameter { id, name, .. } => one(PatchOperation::SetParameter {
             id: *id,
@@ -215,20 +318,77 @@ fn inverse_operations(
                 .representations
                 .get(id)
                 .ok_or(crate::PatchError::MissingId)?
+                .common
                 .parameters
                 .get(name)
                 .cloned(),
         }),
-        PatchOperation::SetFocus { .. } => one(PatchOperation::SetFocus {
-            selection: base.focus.clone(),
+        _ => None,
+    })
+}
+
+fn inverse_science(
+    operation: &PatchOperation,
+    base: &SceneSpec,
+) -> Result<Option<Vec<PatchOperation>>, crate::Error> {
+    let one = |operation| Some(vec![operation]);
+    Ok(match operation {
+        PatchOperation::AddVolume { id, .. } => one(PatchOperation::RemoveVolume { id: *id }),
+        PatchOperation::RemoveVolume { id } => one(PatchOperation::AddVolume {
+            id: *id,
+            volume: base
+                .volumes
+                .get(id)
+                .cloned()
+                .ok_or(crate::PatchError::MissingId)?,
         }),
-        PatchOperation::SetInteraction { channel, .. } => one(PatchOperation::SetInteraction {
-            channel: channel.clone(),
-            selection: interaction(base, channel).cloned(),
+        PatchOperation::AddAnnotation { id, .. } => {
+            one(PatchOperation::RemoveAnnotation { id: *id })
+        }
+        PatchOperation::RemoveAnnotation { id } => one(PatchOperation::AddAnnotation {
+            id: *id,
+            annotation: base
+                .annotations
+                .get(id)
+                .cloned()
+                .ok_or(crate::PatchError::MissingId)?,
         }),
-        PatchOperation::SetCamera { .. } => one(PatchOperation::SetCamera {
-            camera: base.camera,
+        PatchOperation::AddMeasurement { id, .. } => {
+            one(PatchOperation::RemoveMeasurement { id: *id })
+        }
+        PatchOperation::RemoveMeasurement { id } => one(PatchOperation::AddMeasurement {
+            id: *id,
+            measurement: base
+                .measurements
+                .get(id)
+                .cloned()
+                .ok_or(crate::PatchError::MissingId)?,
         }),
+        PatchOperation::AddScientificInteraction { id, .. } => {
+            one(PatchOperation::RemoveScientificInteraction { id: *id })
+        }
+        PatchOperation::RemoveScientificInteraction { id } => {
+            one(PatchOperation::AddScientificInteraction {
+                id: *id,
+                interaction: base
+                    .scientific_interactions
+                    .get(id)
+                    .cloned()
+                    .ok_or(crate::PatchError::MissingId)?,
+            })
+        }
+        PatchOperation::AddTrajectory { id, .. } => {
+            one(PatchOperation::RemoveTrajectory { id: *id })
+        }
+        PatchOperation::RemoveTrajectory { id } => one(PatchOperation::AddTrajectory {
+            id: *id,
+            trajectory: base
+                .trajectories
+                .get(id)
+                .cloned()
+                .ok_or(crate::PatchError::MissingId)?,
+        }),
+        _ => None,
     })
 }
 

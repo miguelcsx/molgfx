@@ -20,5 +20,8 @@ fn structure_identity_includes_topology_not_only_coordinates() {
     let glycine = parse(
         "ATOM      1  N   GLY A   1      11.104   6.134  -6.504  1.00  0.00           N\nEND\n",
     );
-    assert_ne!(structure_hash(&alanine), structure_hash(&glycine));
+    assert_ne!(
+        structure_hash(&molgfx_core::MolecularSource::from_molframe(&alanine)),
+        structure_hash(&molgfx_core::MolecularSource::from_molframe(&glycine))
+    );
 }

@@ -9,32 +9,21 @@ mod id;
 pub mod interop;
 mod patch;
 pub mod profile;
+pub mod property;
 mod render;
 mod representation;
 mod scene;
-mod scene_runtime;
-mod scene_transaction;
+mod science;
+mod selection;
 pub mod source;
 mod spec;
-mod spec_native;
 pub mod streaming;
 pub mod visual;
-mod visual_native;
 
 #[inline]
 fn fallback<T>(candidate: impl IntoIterator<Item = T>, fallback: T) -> T {
     candidate.into_iter().fold(fallback, |_, value| value)
 }
-
-#[cfg(test)]
-#[path = "color_tests.rs"]
-mod color_tests;
-#[cfg(test)]
-#[path = "interop_tests.rs"]
-mod interop_tests;
-#[cfg(test)]
-#[path = "visual_tests.rs"]
-mod visual_tests;
 
 pub use color::{Color, ColorSpec, Legend, LegendStop};
 pub use error::{Error, PatchError};
@@ -45,14 +34,20 @@ pub use id::{
 pub use interop::{Diagnostic, MvsDocument, MvsImport, from_mvsj, from_mvsx, to_mvsj, to_mvsx};
 pub use patch::{PatchOperation, ScenePatch};
 pub use profile::{Quality, RenderProfile};
+pub use property::{PropertySpec, ScalarProperty, ScalarPropertyBinding};
 #[cfg(not(target_arch = "wasm32"))]
 pub use render::Image;
 pub use render::Renderer;
 pub use render::{PickKind, PickResult};
+pub use representation::RepresentationSpec;
 pub use representation::{SceneItem, Selection};
 pub use scene::Scene;
-pub use scene_transaction::SceneTransaction;
-pub use spec::{InteractionChannel, RepresentationSpec, Revisions, SceneSpec, StructureSource};
+pub use scene::transaction::SceneTransaction;
+pub use science::{
+    Anchor, AnnotationSpec, DataSource, InteractionKind, MeasurementSpec,
+    ScientificInteractionSpec, TrajectorySpec, VolumeSpec,
+};
+pub use spec::{InteractionChannel, Revisions, SceneSpec, StructureSource};
 pub use visual::{
     BoolExpr, ColorExpr, Parameter, ParameterType, ParameterValue, ScalarExpr, VectorExpr,
     VisualStyle,
@@ -61,11 +56,14 @@ pub use visual::{
 pub mod rep {
     //! Typed representation constructors.
     pub use crate::representation::{
-        AtomRepresentation, Cartoon, CartoonStyle, PointRepresentation, Surface, SurfaceKind,
-        SurfaceStyle, ball_and_stick, base_pairs, bases, cartoon, glycan, licorice, lines,
-        nucleic_acid, points, spacefill, surface,
+        BallAndStick, BasePairs, Bases, Cartoon, CartoonStyle, Glycan, Licorice, Lines,
+        NucleicAcid, PointRepresentation, Spacefill, Surface, SurfaceKind, SurfaceStyle,
+        ball_and_stick, base_pairs, bases, cartoon, glycan, licorice, lines, nucleic_acid, points,
+        spacefill, surface,
     };
 }
+
+pub use science::{annotation, density, interaction, measurement, trajectory};
 
 /// `MolFrame`'s immutable molecular selection expressions.
 pub mod sel {
