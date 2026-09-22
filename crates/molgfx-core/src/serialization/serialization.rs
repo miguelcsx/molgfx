@@ -17,7 +17,6 @@ use crate::{
     VisualOutput, VisualStyle,
 };
 use molgfx_math::Rgba8;
-pub(crate) const SCHEMA_VERSION: u16 = 8;
 
 #[cfg(test)]
 #[path = "serialization_tests.rs"]
@@ -28,8 +27,6 @@ impl Scene {
     #[must_use]
     pub fn describe(&self) -> SceneDescription {
         SceneDescription {
-            schema: SCHEMA_VERSION,
-            engine: format!("molgfx-scene-{SCHEMA_VERSION}"),
             structures: self
                 .structures
                 .iter()

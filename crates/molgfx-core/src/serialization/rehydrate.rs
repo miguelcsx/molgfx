@@ -17,10 +17,7 @@ use super::types::{
     AtomPropertyDescription, MeshDescription, MeshInstanceDescription, ObjectIdentity,
     OverlayDescription, ScalarSemanticsDescription, SelectionDescription, VolumeDescription,
 };
-use super::{
-    GenericSceneDescriptionSources, SceneDescription, SceneDescriptionSources,
-    manifest::SCHEMA_VERSION,
-};
+use super::{GenericSceneDescriptionSources, SceneDescription, SceneDescriptionSources};
 use crate::handle::{RawHandle, StructureHandle};
 use crate::scene::{Scene, StoredAtomProperty, StoredSegmentation, StoredSelection};
 use crate::{AtomProperty, AtomPropertyMeaning, AtomSelection, CoreError, ScalarFieldSemantics};
@@ -61,7 +58,6 @@ impl Scene {
         sources: SceneDescriptionSources<'_>,
         generic_sources: GenericSceneDescriptionSources<'_>,
     ) -> Result<Self, CoreError> {
-        validate_header(description)?;
         if sources.volumes.len()
             != description
                 .volumes
@@ -122,16 +118,6 @@ impl Scene {
         scene.validate_description(description)?;
         Ok(scene)
     }
-}
-
-fn validate_header(description: &SceneDescription) -> Result<(), CoreError> {
-    if description.schema != SCHEMA_VERSION {
-        return invalid("unsupported scene schema");
-    }
-    if description.engine != format!("molgfx-scene-{SCHEMA_VERSION}") {
-        return invalid("scene engine format does not match the schema");
-    }
-    Ok(())
 }
 
 fn rehydrate_meshes(

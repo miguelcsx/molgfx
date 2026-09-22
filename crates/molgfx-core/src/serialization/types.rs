@@ -20,10 +20,6 @@ pub use primitive_description::{ParticleMotionDescription, PrimitiveDescription}
 /// JSON-compatible, reproducible description of a scene composition.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct SceneDescription {
-    /// Manifest schema version.
-    pub schema: u16,
-    /// Engine format identifier, kept separate from the package version.
-    pub engine: String,
     /// Caller-supplied structures referenced by source id and coordinate hash.
     pub structures: Vec<StructureDescription>,
     /// Structure-scoped atom selections.
