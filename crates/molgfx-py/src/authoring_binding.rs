@@ -16,6 +16,10 @@ pub(super) struct PyRenderProfile(pub(super) molgfx::RenderProfile);
 #[pyclass(name = "Camera", frozen, skip_from_py_object)]
 pub(super) struct PyCamera(pub(super) molgfx::Camera);
 
+#[derive(Clone, Debug)]
+#[pyclass(name = "ScalarProperty", frozen, skip_from_py_object)]
+pub(super) struct PyScalarProperty(pub(super) molgfx::ScalarProperty);
+
 #[pymethods]
 impl PyCamera {
     #[new]
@@ -28,20 +32,22 @@ impl PyCamera {
         aspect: f32,
         near: f32,
         far: f32,
-    ) -> Self {
-        Self(molgfx::Camera {
-            eye: molgfx_math::Vec3::new(position.0, position.1, position.2),
-            target: molgfx_math::Vec3::new(target.0, target.1, target.2),
-            up: molgfx_math::Vec3::new(up.0, up.1, up.2),
-            projection: molgfx_math::Projection::Perspective {
-                fov_y: fov_y
-                    .into_iter()
-                    .fold(std::f32::consts::FRAC_PI_4, |_, value| value),
-                aspect,
-                near,
-                far,
-            },
-        })
+    ) -> PyResult<Self> {
+        let mut fov_y_radians = std::f32::consts::FRAC_PI_4;
+        if let Some(value) = fov_y {
+            fov_y_radians = value;
+        }
+        molgfx::camera::perspective(
+            [position.0, position.1, position.2],
+            [target.0, target.1, target.2],
+            [up.0, up.1, up.2],
+            fov_y_radians,
+            aspect,
+            near,
+            far,
+        )
+        .map(Self)
+        .map_err(crate::binding::error)
     }
 
     #[getter]
@@ -118,16 +124,16 @@ fn uniform(rgb: (u8, u8, u8)) -> PyColorSpec {
 }
 
 #[pyfunction]
-#[pyo3(signature = (*, name, ramp, domain, units=None, missing=(128, 128, 128)))]
+#[pyo3(signature = (*, property, ramp, domain, units=None, missing=(128, 128, 128)))]
 fn property(
-    name: &str,
+    property: &PyScalarProperty,
     ramp: &str,
     domain: (f32, f32),
     units: Option<&str>,
     missing: (u8, u8, u8),
 ) -> PyColorSpec {
     PyColorSpec(molgfx::color::property(
-        name,
+        property.0.clone(),
         ramp,
         [domain.0, domain.1],
         units.map(Into::into),
@@ -154,6 +160,7 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyColorSpec>()?;
     module.add_class::<PyRenderProfile>()?;
     module.add_class::<PyCamera>()?;
+    module.add_class::<PyScalarProperty>()?;
     let color = PyModule::new(module.py(), "color")?;
     color.add_function(wrap_pyfunction!(element, &color)?)?;
     color.add_function(wrap_pyfunction!(chain, &color)?)?;

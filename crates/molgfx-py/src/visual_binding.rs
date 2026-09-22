@@ -211,8 +211,8 @@ fn scalar(value: f32) -> PyScalarExpr {
 }
 
 #[pyfunction]
-fn property(name: &str) -> PyScalarExpr {
-    PyScalarExpr(molgfx::visual::ScalarExpr::property(name))
+fn property(property: &crate::authoring_binding::PyScalarProperty) -> PyScalarExpr {
+    PyScalarExpr(molgfx::visual::ScalarExpr::property(property.0.clone()))
 }
 
 #[pyfunction]
@@ -268,7 +268,7 @@ fn ramp(
     missing: (u8, u8, u8),
 ) -> PyResult<PyColorExpr> {
     Ok(PyColorExpr(molgfx::visual::ColorExpr::Ramp {
-        value: scalar_expression(value)?,
+        value: scalar_expression(value)?.into(),
         palette: palette.into(),
         domain: [domain.0, domain.1],
         missing: molgfx::Color::rgb(missing.0, missing.1, missing.2),
@@ -282,9 +282,9 @@ fn where_color(
     no: &Bound<'_, PyAny>,
 ) -> PyResult<PyColorExpr> {
     Ok(PyColorExpr(molgfx::visual::ColorExpr::Select {
-        condition: condition.0.clone(),
-        yes: Box::new(color_expression(yes)?),
-        no: Box::new(color_expression(no)?),
+        condition: condition.0.clone().into(),
+        yes: color_expression(yes)?.into(),
+        no: color_expression(no)?.into(),
     }))
 }
 

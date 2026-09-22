@@ -2,7 +2,7 @@
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyBytes, PyModule};
+use pyo3::types::{PyAny, PyModule};
 
 create_exception!(_engine, MolgfxError, PyException);
 create_exception!(_engine, SpecError, MolgfxError);
@@ -36,54 +36,30 @@ pub(super) fn selection(object: &Bound<'_, PyAny>) -> PyResult<String> {
 }
 
 #[derive(Clone, Debug)]
-enum NativeRepresentation {
-    Cartoon(molgfx::rep::Cartoon),
-    Atom(molgfx::rep::AtomRepresentation),
-    Point(molgfx::rep::PointRepresentation),
-    Surface(molgfx::rep::Surface),
-}
-
-#[derive(Clone, Debug)]
 #[pyclass(name = "Representation", frozen, skip_from_py_object)]
-struct PyRepresentation(NativeRepresentation);
+pub(super) struct PyRepresentation(pub(super) molgfx::RepresentationSpec);
 
 impl PyRepresentation {
-    fn add_to(&self, scene: &mut molgfx::Scene) -> Result<molgfx::RepresentationId, molgfx::Error> {
-        match &self.0 {
-            NativeRepresentation::Cartoon(value) => scene.add(value.clone()),
-            NativeRepresentation::Atom(value) => scene.add(value.clone()),
-            NativeRepresentation::Point(value) => scene.add(value.clone()),
-            NativeRepresentation::Surface(value) => scene.add(value.clone()),
-        }
+    pub(super) fn add_to(
+        &self,
+        scene: &mut molgfx::Scene,
+    ) -> Result<molgfx::RepresentationId, molgfx::Error> {
+        scene.add(self.0.clone())
     }
 
     fn with_visual(&self, visual: molgfx::VisualStyle) -> Self {
-        Self(match &self.0 {
-            NativeRepresentation::Cartoon(value) => {
-                NativeRepresentation::Cartoon(value.clone().visual(visual))
-            }
-            NativeRepresentation::Atom(value) => {
-                NativeRepresentation::Atom(value.clone().visual(visual))
-            }
-            NativeRepresentation::Point(value) => {
-                NativeRepresentation::Point(value.clone().visual(visual))
-            }
-            NativeRepresentation::Surface(value) => {
-                NativeRepresentation::Surface(value.clone().visual(visual))
-            }
-        })
+        Self(self.0.clone().visual(visual))
+    }
+
+    fn from_item(item: impl Into<molgfx::RepresentationSpec>) -> Self {
+        Self(item.into())
     }
 }
 
 #[pymethods]
 impl PyRepresentation {
     fn explain(&self) -> String {
-        match &self.0 {
-            NativeRepresentation::Cartoon(value) => value.explain(),
-            NativeRepresentation::Atom(value) => value.explain(),
-            NativeRepresentation::Point(value) => value.explain(),
-            NativeRepresentation::Surface(value) => value.explain(),
-        }
+        self.0.explain()
     }
 
     fn visual(&self, style: &crate::visual_binding::PyVisualStyle) -> Self {
@@ -93,7 +69,7 @@ impl PyRepresentation {
 
 #[derive(Clone, Debug)]
 #[pyclass(name = "SceneSpec", frozen, skip_from_py_object)]
-struct PySceneSpec(molgfx::SceneSpec);
+pub(super) struct PySceneSpec(pub(super) molgfx::SceneSpec);
 
 #[pymethods]
 impl PySceneSpec {
@@ -124,7 +100,7 @@ impl PySceneSpec {
 
 #[derive(Clone, Debug)]
 #[pyclass(name = "ScenePatch", frozen, skip_from_py_object)]
-struct PyScenePatch(molgfx::ScenePatch);
+pub(super) struct PyScenePatch(pub(super) molgfx::ScenePatch);
 
 #[pymethods]
 impl PyScenePatch {
@@ -164,308 +140,108 @@ fn color_spec(color: Option<&Bound<'_, PyAny>>) -> PyResult<Option<molgfx::Color
         .map_err(|_| PyValueError::new_err("color must be a ColorSpec or RGB tuple"))
 }
 
-#[pyfunction]
-#[pyo3(signature = (*, target, style="ribbon", width=None, opacity=1.0, color=None))]
-fn cartoon(
-    target: &Bound<'_, PyAny>,
-    style: &str,
-    width: Option<f32>,
-    opacity: f32,
-    color: Option<&Bound<'_, PyAny>>,
-) -> PyResult<PyRepresentation> {
-    let mut value = molgfx::rep::cartoon(selection(target)?).opacity(opacity);
-    value = value.style(match style {
-        "ribbon" => molgfx::rep::CartoonStyle::Ribbon,
-        "rocket" => molgfx::rep::CartoonStyle::Rocket,
-        "nucleic_acid" => molgfx::rep::CartoonStyle::NucleicAcid,
-        "glycan" => molgfx::rep::CartoonStyle::Glycan,
-        _ => return Err(PyValueError::new_err("unknown cartoon style")),
-    });
-    if let Some(width) = width {
-        value = value.width(width);
-    }
-    if let Some(color) = color_spec(color)? {
-        value = value.color(color);
-    }
-    Ok(PyRepresentation(NativeRepresentation::Cartoon(value)))
+/// Converts a Python-facing control value into the builder's own type.
+///
+/// Enumerated controls arrive from Python as strings; numeric ones pass
+/// through. Keeping the conversion in a trait lets one declaration below
+/// describe every representation regardless of how its controls are typed.
+trait Control<T> {
+    fn control(self) -> PyResult<T>;
 }
 
-fn atom_representation(
-    target: &Bound<'_, PyAny>,
-    kind: &str,
-    radius: Option<f32>,
-    bond_radius: Option<f32>,
-    opacity: f32,
-    color: Option<&Bound<'_, PyAny>>,
-) -> PyResult<PyRepresentation> {
-    let target = selection(target)?;
-    let mut value = match kind {
-        "ball_and_stick" => molgfx::rep::ball_and_stick(target),
-        "spacefill" => molgfx::rep::spacefill(target),
-        "licorice" => molgfx::rep::licorice(target),
-        "lines" => molgfx::rep::lines(target),
-        _ => return Err(PyValueError::new_err("unknown atom representation")),
+impl Control<f32> for f32 {
+    fn control(self) -> PyResult<f32> {
+        Ok(self)
     }
-    .opacity(opacity);
-    if let Some(radius) = radius {
-        value = value.radius(radius);
-    }
-    if let Some(radius) = bond_radius {
-        value = value.bond_radius(radius);
-    }
-    if let Some(color) = color_spec(color)? {
-        value = value.color(color);
-    }
-    Ok(PyRepresentation(NativeRepresentation::Atom(value)))
 }
 
-macro_rules! atom_constructor {
-    ($name:ident, $kind:literal) => {
-        #[pyfunction]
-        #[pyo3(signature = (*, target, radius=None, bond_radius=None, opacity=1.0, color=None))]
-        fn $name(
-            target: &Bound<'_, PyAny>,
-            radius: Option<f32>,
-            bond_radius: Option<f32>,
-            opacity: f32,
-            color: Option<&Bound<'_, PyAny>>,
-        ) -> PyResult<PyRepresentation> {
-            atom_representation(target, $kind, radius, bond_radius, opacity, color)
+/// Declares the string spellings of one enumerated control.
+macro_rules! named_control {
+    ($type:ty, $label:literal, [$($name:literal => $variant:ident),* $(,)?]) => {
+        impl Control<$type> for String {
+            fn control(self) -> PyResult<$type> {
+                match self.as_str() {
+                    $($name => Ok(<$type>::$variant),)*
+                    other => Err(PyValueError::new_err(format!(
+                        "unknown {} '{other}'; expected one of {}",
+                        $label,
+                        [$($name),*].join(", ")
+                    ))),
+                }
+            }
         }
     };
 }
 
-atom_constructor!(ball_and_stick, "ball_and_stick");
-atom_constructor!(spacefill, "spacefill");
-atom_constructor!(licorice, "licorice");
-atom_constructor!(lines, "lines");
+named_control!(molgfx::rep::CartoonStyle, "cartoon style", [
+    "ribbon" => Ribbon,
+    "rocket" => Rocket,
+    "nucleic_acid" => NucleicAcid,
+    "glycan" => Glycan,
+]);
 
-#[pyfunction]
-#[pyo3(signature = (*, target, size=None, opacity=1.0, color=None))]
-fn points(
-    target: &Bound<'_, PyAny>,
-    size: Option<f32>,
-    opacity: f32,
-    color: Option<&Bound<'_, PyAny>>,
-) -> PyResult<PyRepresentation> {
-    let mut value = molgfx::rep::points(selection(target)?).opacity(opacity);
-    if let Some(size) = size {
-        value = value.size(size);
-    }
-    if let Some(color) = color_spec(color)? {
-        value = value.color(color);
-    }
-    Ok(PyRepresentation(NativeRepresentation::Point(value)))
-}
+named_control!(molgfx::rep::SurfaceKind, "surface kind", [
+    "van_der_waals" => VanDerWaals,
+    "solvent_accessible" => SolventAccessible,
+    "solvent_excluded" => SolventExcluded,
+    "gaussian" => Gaussian,
+]);
 
-#[pyfunction]
-#[pyo3(signature = (*, target, probe_radius=None, isolevel=None, opacity=1.0, color=None))]
-fn surface(
-    target: &Bound<'_, PyAny>,
-    probe_radius: Option<f32>,
-    isolevel: Option<f32>,
-    opacity: f32,
-    color: Option<&Bound<'_, PyAny>>,
-) -> PyResult<PyRepresentation> {
-    let mut value = molgfx::rep::surface(selection(target)?).opacity(opacity);
-    if let Some(radius) = probe_radius {
-        value = value.probe_radius(radius);
-    }
-    if let Some(level) = isolevel {
-        value = value.isolevel(level);
-    }
-    if let Some(color) = color_spec(color)? {
-        value = value.color(color);
-    }
-    Ok(PyRepresentation(NativeRepresentation::Surface(value)))
-}
+named_control!(molgfx::rep::SurfaceStyle, "surface style", [
+    "solid" => Solid,
+    "contour" => Contour,
+    "dots" => Dots,
+    "filled_contour" => FilledContour,
+    "mesh" => Mesh,
+]);
 
-#[pyfunction]
-#[pyo3(signature = (*, target, width=None, opacity=1.0, color=None))]
-fn nucleic_acid(
-    target: &Bound<'_, PyAny>,
-    width: Option<f32>,
-    opacity: f32,
-    color: Option<&Bound<'_, PyAny>>,
-) -> PyResult<PyRepresentation> {
-    let mut value = molgfx::rep::nucleic_acid(selection(target)?).opacity(opacity);
-    if let Some(width) = width {
-        value = value.width(width);
-    }
-    if let Some(color) = color_spec(color)? {
-        value = value.color(color);
-    }
-    Ok(PyRepresentation(NativeRepresentation::Cartoon(value)))
-}
-
-fn base_representation(
-    target: &Bound<'_, PyAny>,
-    paired: bool,
-    opacity: f32,
-    color: Option<&Bound<'_, PyAny>>,
-) -> PyResult<PyRepresentation> {
-    let target = selection(target)?;
-    let mut value = if paired {
-        molgfx::rep::base_pairs(target)
-    } else {
-        molgfx::rep::bases(target)
-    }
-    .opacity(opacity);
-    if let Some(color) = color_spec(color)? {
-        value = value.color(color);
-    }
-    Ok(PyRepresentation(NativeRepresentation::Atom(value)))
-}
-
-#[pyfunction]
-#[pyo3(signature = (*, target, opacity=1.0, color=None))]
-fn bases(
-    target: &Bound<'_, PyAny>,
-    opacity: f32,
-    color: Option<&Bound<'_, PyAny>>,
-) -> PyResult<PyRepresentation> {
-    base_representation(target, false, opacity, color)
-}
-
-#[pyfunction]
-#[pyo3(signature = (*, target, opacity=1.0, color=None))]
-fn base_pairs(
-    target: &Bound<'_, PyAny>,
-    opacity: f32,
-    color: Option<&Bound<'_, PyAny>>,
-) -> PyResult<PyRepresentation> {
-    base_representation(target, true, opacity, color)
-}
-
-#[pyfunction]
-#[pyo3(signature = (*, target, width=None, opacity=1.0, color=None))]
-fn glycan(
-    target: &Bound<'_, PyAny>,
-    width: Option<f32>,
-    opacity: f32,
-    color: Option<&Bound<'_, PyAny>>,
-) -> PyResult<PyRepresentation> {
-    let mut value = molgfx::rep::glycan(selection(target)?).opacity(opacity);
-    if let Some(width) = width {
-        value = value.width(width);
-    }
-    if let Some(color) = color_spec(color)? {
-        value = value.color(color);
-    }
-    Ok(PyRepresentation(NativeRepresentation::Cartoon(value)))
-}
-
-#[pyclass(name = "Scene")]
-pub(super) struct PyScene {
-    pub(super) inner: molgfx::Scene,
-    pub(super) pending: Option<Vec<molgfx::PatchOperation>>,
-    browser_sources: Vec<(u64, String, Vec<u8>)>,
-}
-
-impl PyScene {
-    pub(super) fn stage_or_apply(&mut self, operation: molgfx::PatchOperation) -> PyResult<()> {
-        if let Some(pending) = &mut self.pending {
-            pending.push(operation);
-            return Ok(());
+/// Declares one representation constructor over exactly the controls its form
+/// defines.
+///
+/// The list mirrors the typed Rust builder for the same form, so a control that
+/// exists in one language exists in the other and neither can drift into
+/// offering a parameter the renderer has no place to put.
+macro_rules! representation {
+    ($name:ident $(, $control:ident : $type:ty)* $(,)?) => {
+        #[pyfunction]
+        #[pyo3(signature = (*, target, $($control = None,)* opacity = 1.0, color = None))]
+        fn $name(
+            target: &Bound<'_, PyAny>,
+            $($control: Option<$type>,)*
+            opacity: f32,
+            color: Option<&Bound<'_, PyAny>>,
+        ) -> PyResult<PyRepresentation> {
+            let mut value = molgfx::rep::$name(selection(target)?).opacity(opacity);
+            $(
+                if let Some($control) = $control {
+                    value = value.$control(Control::control($control)?);
+                }
+            )*
+            if let Some(color) = color_spec(color)? {
+                value = value.color(color);
+            }
+            Ok(PyRepresentation::from_item(value))
         }
-        self.inner
-            .apply(&molgfx::ScenePatch {
-                base_revision: self.inner.revision(),
-                operations: vec![operation],
-            })
-            .map_err(error)
-    }
+    };
 }
 
-#[pymethods]
-impl PyScene {
-    #[new]
-    fn new(structure: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let structure = molframe_py::structure_from_python(structure)?;
-        let bytes = molgfx::molframe::write_bcif(&structure)
-            .map_err(|findings| PyValueError::new_err(format!("{findings:?}")))?;
-        let inner = molgfx::Scene::from_structure(&structure).map_err(error)?;
-        Ok(Self {
-            inner,
-            pending: None,
-            browser_sources: vec![(1, "structure.bcif".to_owned(), bytes)],
-        })
-    }
-
-    fn add(&mut self, representation: &PyRepresentation) -> PyResult<u64> {
-        if self.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "representations cannot be added inside a scene transaction",
-            ));
-        }
-        representation
-            .add_to(&mut self.inner)
-            .map(molgfx::RepresentationId::get)
-            .map_err(error)
-    }
-
-    fn set_visible(&mut self, representation: u64, visible: bool) -> PyResult<()> {
-        self.stage_or_apply(molgfx::PatchOperation::SetVisibility {
-            id: molgfx::RepresentationId::new(representation),
-            visible,
-        })
-    }
-
-    fn set_opacity(&mut self, representation: u64, opacity: f32) -> PyResult<()> {
-        self.stage_or_apply(molgfx::PatchOperation::SetOpacity {
-            id: molgfx::RepresentationId::new(representation),
-            opacity,
-        })
-    }
-
-    fn set_visual(
-        &mut self,
-        representation: u64,
-        visual: Option<&crate::visual_binding::PyVisualStyle>,
-    ) -> PyResult<()> {
-        self.stage_or_apply(molgfx::PatchOperation::SetVisual {
-            id: molgfx::RepresentationId::new(representation),
-            visual: visual.map(|value| value.0.clone()),
-        })
-    }
-
-    fn focus(&mut self, target: &Bound<'_, PyAny>) -> PyResult<()> {
-        self.stage_or_apply(molgfx::PatchOperation::SetFocus {
-            selection: Some(selection(target)?.into()),
-        })
-    }
-
-    fn apply(&mut self, patch: &PyScenePatch) -> PyResult<()> {
-        if self.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "patches cannot be applied inside a scene transaction",
-            ));
-        }
-        self.inner.apply(&patch.0).map_err(error)
-    }
-
-    #[getter]
-    fn revision(&self) -> u64 {
-        self.inner.revision()
-    }
-
-    fn to_json(&self) -> PyResult<String> {
-        self.inner.to_spec().to_json().map_err(error)
-    }
-    #[getter]
-    fn spec(&self) -> PySceneSpec {
-        PySceneSpec(self.inner.to_spec())
-    }
-    fn explain(&self) -> String {
-        self.inner.explain()
-    }
-    fn _browser_sources<'py>(&self, py: Python<'py>) -> Vec<(u64, &str, Bound<'py, PyBytes>)> {
-        self.browser_sources
-            .iter()
-            .map(|(identity, name, bytes)| (*identity, name.as_str(), PyBytes::new(py, bytes)))
-            .collect()
-    }
-}
+representation!(cartoon, width: f32, style: String);
+representation!(ball_and_stick, radius: f32, bond_radius: f32);
+representation!(spacefill, radius: f32);
+representation!(licorice, radius: f32, bond_radius: f32);
+representation!(lines, width: f32);
+representation!(points, size: f32);
+representation!(
+    surface,
+    kind: String,
+    style: String,
+    probe_radius: f32,
+    isolevel: f32
+);
+representation!(nucleic_acid, width: f32);
+representation!(bases, radius: f32);
+representation!(base_pairs, radius: f32, bond_radius: f32);
+representation!(glycan, width: f32);
 
 #[pymodule]
 fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -479,10 +255,12 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyRepresentation>()?;
     module.add_class::<PySceneSpec>()?;
     module.add_class::<PyScenePatch>()?;
-    module.add_class::<PyScene>()?;
+    module.add_class::<crate::scene_binding::PyScene>()?;
+    crate::id_binding::register(module)?;
     crate::transaction_binding::register(module)?;
     crate::authoring_binding::register(module)?;
     crate::render_binding::register(module)?;
+    crate::science_binding::register(module)?;
     crate::visual_binding::register(module)?;
     let rep = PyModule::new(module.py(), "rep")?;
     rep.add_function(wrap_pyfunction!(cartoon, &rep)?)?;

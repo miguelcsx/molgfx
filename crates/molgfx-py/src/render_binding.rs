@@ -1,8 +1,9 @@
 //! Rendering and semantic-picking Python adapters.
 
-use crate::binding::{PyScene, error};
+use crate::binding::error;
+use crate::scene_binding::PyScene;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyModule};
+use pyo3::types::{PyAny, PyBytes, PyModule};
 
 #[derive(Clone, Debug)]
 #[pyclass(name = "PickResult", frozen, skip_from_py_object)]
@@ -65,13 +66,12 @@ impl PyImage {
         self.0.height()
     }
     fn png_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        self.0
-            .png_bytes()
-            .map(|bytes| PyBytes::new(py, &bytes))
-            .map_err(error)
+        let bytes = py.detach(|| self.0.png_bytes()).map_err(error)?;
+        Ok(PyBytes::new(py, &bytes))
     }
-    fn save(&self, path: &str) -> PyResult<()> {
-        self.0.save(path).map_err(error)
+    fn save(&self, py: Python<'_>, path: &Bound<'_, PyAny>) -> PyResult<()> {
+        let path = path.extract::<std::path::PathBuf>()?;
+        py.detach(|| self.0.save(path)).map_err(error)
     }
 }
 
@@ -82,26 +82,33 @@ struct PyRenderer(molgfx::Renderer);
 impl PyRenderer {
     #[new]
     #[pyo3(signature = (*, profile=None))]
-    fn new(profile: Option<&crate::authoring_binding::PyRenderProfile>) -> PyResult<Self> {
-        match profile {
-            Some(profile) => molgfx::Renderer::with_profile(profile.0),
+    fn new(
+        py: Python<'_>,
+        profile: Option<&crate::authoring_binding::PyRenderProfile>,
+    ) -> PyResult<Self> {
+        let profile = profile.map(|profile| profile.0);
+        py.detach(|| match profile {
+            Some(profile) => molgfx::Renderer::with_profile(profile),
             None => molgfx::Renderer::new(),
-        }
+        })
         .map(Self)
         .map_err(error)
     }
 
     #[pyo3(signature = (scene, *, size))]
-    fn render_image(&mut self, scene: &PyScene, size: (u32, u32)) -> PyResult<PyImage> {
-        self.0
-            .render_image(&scene.inner, size)
+    fn render_image(
+        &mut self,
+        py: Python<'_>,
+        scene: &PyScene,
+        size: (u32, u32),
+    ) -> PyResult<PyImage> {
+        py.detach(|| self.0.render_image(&scene.inner, size))
             .map(PyImage)
             .map_err(error)
     }
 
-    fn pick(&mut self, x: u32, y: u32) -> PyResult<Option<PyPickResult>> {
-        self.0
-            .pick(x, y)
+    fn pick(&mut self, py: Python<'_>, x: u32, y: u32) -> PyResult<Option<PyPickResult>> {
+        py.detach(|| self.0.pick(x, y))
             .map(|pick| pick.map(PyPickResult))
             .map_err(error)
     }
