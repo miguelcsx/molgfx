@@ -65,5 +65,4 @@ pub const fn adaptive(target_fps: u16) -> RenderProfile {
 }
 
 #[cfg(test)]
-#[path = "profile_tests.rs"]
 mod tests;

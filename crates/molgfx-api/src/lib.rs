@@ -2,17 +2,19 @@
 
 #![forbid(unsafe_code)]
 
+pub mod camera;
 pub mod color;
 mod error;
 mod id;
 pub mod interop;
 mod patch;
 pub mod profile;
-mod renderer;
+mod render;
 mod representation;
 mod scene;
 mod scene_runtime;
 mod scene_transaction;
+pub mod source;
 mod spec;
 mod spec_native;
 pub mod streaming;
@@ -31,22 +33,22 @@ mod color_tests;
 #[path = "interop_tests.rs"]
 mod interop_tests;
 #[cfg(test)]
-#[path = "streaming_tests.rs"]
-mod streaming_tests;
-#[cfg(test)]
 #[path = "visual_tests.rs"]
 mod visual_tests;
 
 pub use color::{Color, ColorSpec, Legend, LegendStop};
 pub use error::{Error, PatchError};
-pub use id::{RepresentationId, StructureId};
+pub use id::{
+    AnnotationId, MeasurementId, RepresentationId, ScientificInteractionId, StructureId,
+    TrajectoryId, VolumeId,
+};
 pub use interop::{Diagnostic, MvsDocument, MvsImport, from_mvsj, from_mvsx, to_mvsj, to_mvsx};
 pub use patch::{PatchOperation, ScenePatch};
 pub use profile::{Quality, RenderProfile};
 #[cfg(not(target_arch = "wasm32"))]
-pub use renderer::Image;
-pub use renderer::Renderer;
-pub use renderer::{PickKind, PickResult};
+pub use render::Image;
+pub use render::Renderer;
+pub use render::{PickKind, PickResult};
 pub use representation::{SceneItem, Selection};
 pub use scene::Scene;
 pub use scene_transaction::SceneTransaction;

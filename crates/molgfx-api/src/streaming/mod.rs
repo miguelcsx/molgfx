@@ -1,5 +1,8 @@
 //! Bounded asynchronous molecular data streaming.
 
+#[cfg(test)]
+mod tests;
+
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
