@@ -177,7 +177,7 @@ fn push_sugar(
 /// stronger signal, but many deposited entries omit them for branched glycans,
 /// and a distance short enough to be a link is unambiguous at sugar scale.
 fn link_graph(structure: &molframe::Structure, sugars: &[Sugar]) -> Vec<Vec<usize>> {
-    let mut links = if structure.data().bonds.is_available() {
+    let mut links = if structure.bonds().is_available() {
         topology_links(structure, sugars)
     } else {
         vec![Vec::new(); sugars.len()]
@@ -202,7 +202,7 @@ fn topology_links(structure: &molframe::Structure, sugars: &[Sugar]) -> Vec<Vec<
         }
     }
     let mut links = vec![Vec::new(); sugars.len()];
-    for bond in structure.data().bonds.iter() {
+    for bond in structure.bonds().iter() {
         let first = match owner.get(bond.atom_a.as_usize()) {
             Some(value) => *value,
             None => usize::MAX,
@@ -280,7 +280,7 @@ fn connect(links: &mut [Vec<usize>], first: usize, second: usize) {
 
 fn collect_sugars(structure: &molframe::Structure, selection: &AtomSelection) -> Vec<Sugar> {
     let mut sugars = Vec::new();
-    for chain in structure.data().chains() {
+    for chain in structure.chains() {
         let chain_id = chain.index().get();
         for residue in chain.residues() {
             let names = if residue.atom("O5").is_some() {

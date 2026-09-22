@@ -1,4 +1,5 @@
 use super::*;
+use molframe::engine::core as frame;
 use std::sync::Arc;
 
 fn footprint() -> ChunkFootprint {
@@ -7,7 +8,7 @@ fn footprint() -> ChunkFootprint {
 
 fn annotated_structure() -> molframe::Structure {
     let structure = crate::fixture::structure();
-    let mut editor = structure.edit();
+    let mut editor = structure.engine().edit();
     let values = (0..structure.atom_count()).map(f64::from).collect();
     let Ok(column) = molframe::AnnotationColumn::from_values(values) else {
         return structure;
@@ -19,22 +20,25 @@ fn annotated_structure() -> molframe::Structure {
         return structure;
     }
     match editor.commit() {
-        Ok(edited) => edited,
+        Ok(edited) => edited.into(),
         Err(_) => structure,
     }
 }
 
 #[test]
 fn structure_chunks_preserve_pointer_identity_and_lifetime_above_u32() {
-    let dataset = molframe::DatasetId::new(u64::from(u32::MAX) + 17);
-    let first_chunk = molframe::ChunkId::new(u64::from(u32::MAX) + 31);
+    let dataset = frame::DatasetId::new(u64::from(u32::MAX) + 17);
+    let first_chunk = frame::ChunkId::new(u64::from(u32::MAX) + 31);
     let structure = crate::fixture::structure();
-    let pointer = structure.positions().as_ptr();
-    let provider =
-        match molframe::StructureChunkProvider::new(dataset, first_chunk, structure.clone()) {
-            Ok(provider) => provider,
-            Err(error) => panic!("provider must be valid: {error}"),
-        };
+    let pointer = structure.coordinates().as_ptr();
+    let provider = match frame::StructureChunkProvider::new(
+        dataset,
+        first_chunk,
+        structure.engine().clone(),
+    ) {
+        Ok(provider) => provider,
+        Err(error) => panic!("provider must be valid: {error}"),
+    };
     let source = match provider.chunk(first_chunk) {
         Ok(chunk) => chunk,
         Err(error) => panic!("chunk must exist: {error}"),
@@ -63,20 +67,20 @@ fn property_and_frame_chunks_keep_native_backing_storage() {
         Some(molframe::AtomAnnotation::Real(column)) => column.values().as_ptr(),
         _ => panic!("real property expected"),
     };
-    let coordinate_pointer = structure.positions().as_ptr();
-    let property_provider = match molframe::PropertyChunkProvider::new(
-        molframe::DatasetId::new(41),
-        molframe::ChunkId::new(51),
-        structure.clone(),
+    let coordinate_pointer = structure.coordinates().as_ptr();
+    let property_provider = match frame::PropertyChunkProvider::new(
+        frame::DatasetId::new(41),
+        frame::ChunkId::new(51),
+        structure.engine().clone(),
         Arc::<str>::from("score"),
     ) {
         Ok(provider) => provider,
         Err(error) => panic!("property provider must be valid: {error}"),
     };
-    let frame_provider = match molframe::FrameChunkProvider::new(
-        molframe::DatasetId::new(42),
-        molframe::ChunkId::new(61),
-        structure,
+    let frame_provider = match frame::FrameChunkProvider::new(
+        frame::DatasetId::new(42),
+        frame::ChunkId::new(61),
+        structure.into_engine(),
         molframe::ModelIndex::new(0),
     ) {
         Ok(provider) => provider,
@@ -84,11 +88,11 @@ fn property_and_frame_chunks_keep_native_backing_storage() {
     };
     let property_bridge = ProviderDatasetBridge::new(property_provider.dataset());
     let frame_bridge = ProviderDatasetBridge::new(frame_provider.dataset());
-    let property = match property_provider.chunk(molframe::ChunkId::new(51)) {
+    let property = match property_provider.chunk(frame::ChunkId::new(51)) {
         Ok(chunk) => chunk,
         Err(error) => panic!("property chunk must exist: {error}"),
     };
-    let frame = match frame_provider.chunk(molframe::ChunkId::new(61)) {
+    let frame = match frame_provider.chunk(frame::ChunkId::new(61)) {
         Ok(chunk) => chunk,
         Err(error) => panic!("frame chunk must exist: {error}"),
     };
@@ -119,15 +123,15 @@ fn property_and_frame_chunks_keep_native_backing_storage() {
 #[test]
 fn bond_chunks_preserve_global_endpoints_and_validate_host_footprint() {
     let structure = crate::fixture::structure();
-    let coordinates = structure.positions().as_ptr();
-    let atom_dataset = molframe::DatasetId::new(u64::from(u32::MAX) + 300);
-    let atom_start = molframe::LogicalRow::new(u64::from(u32::MAX) + 700);
-    let provider = match molframe::BondChunkProvider::with_rows_per_chunk(
-        molframe::DatasetId::new(43),
-        molframe::ChunkId::new(u64::from(u32::MAX) + 60),
+    let coordinates = structure.coordinates().as_ptr();
+    let atom_dataset = frame::DatasetId::new(u64::from(u32::MAX) + 300);
+    let atom_start = frame::LogicalRow::new(u64::from(u32::MAX) + 700);
+    let provider = match frame::BondChunkProvider::with_rows_per_chunk(
+        frame::DatasetId::new(43),
+        frame::ChunkId::new(u64::from(u32::MAX) + 60),
         atom_dataset,
         atom_start,
-        structure,
+        structure.into_engine(),
         1,
     ) {
         Ok(provider) => provider,
@@ -156,7 +160,7 @@ fn bond_chunks_preserve_global_endpoints_and_validate_host_footprint() {
     let ChunkPayload::ProviderBond(shared) = data.payload() else {
         panic!("native bond payload expected");
     };
-    let record = match shared.record(molframe::LocalRow::new(0)) {
+    let record = match shared.record(frame::LocalRow::new(0)) {
         Ok(record) => record,
         Err(error) => panic!("global bond record must resolve: {error}"),
     };
@@ -169,12 +173,12 @@ fn bond_chunks_preserve_global_endpoints_and_validate_host_footprint() {
 
 #[test]
 fn compact_catalog_does_not_enumerate_more_than_u32_chunks() {
-    let descriptor = match molframe::DatasetDescriptor::regular(
-        molframe::DatasetId::new(71),
-        molframe::PayloadKind::Frame,
+    let descriptor = match frame::DatasetDescriptor::regular(
+        frame::DatasetId::new(71),
+        frame::PayloadKind::Frame,
         1_u64 << 40,
         1,
-        molframe::ChunkId::new(1_u64 << 48),
+        frame::ChunkId::new(1_u64 << 48),
     ) {
         Ok(descriptor) => descriptor,
         Err(error) => panic!("large descriptor must be valid: {error}"),
@@ -192,27 +196,27 @@ fn compact_catalog_does_not_enumerate_more_than_u32_chunks() {
 #[test]
 fn kind_mismatches_are_typed() {
     let structure = crate::fixture::structure();
-    let structure_descriptor = match molframe::DatasetDescriptor::source_defined(
-        molframe::DatasetId::new(81),
-        molframe::PayloadKind::Structure,
+    let structure_descriptor = match frame::DatasetDescriptor::source_defined(
+        frame::DatasetId::new(81),
+        frame::PayloadKind::Structure,
         u64::from(structure.atom_count()),
         1,
-        molframe::ChunkId::new(91),
+        frame::ChunkId::new(91),
         structure.atom_count(),
     ) {
         Ok(descriptor) => descriptor,
         Err(error) => panic!("descriptor must be valid: {error}"),
     };
-    let frame_provider = match molframe::FrameChunkProvider::new(
-        molframe::DatasetId::new(81),
-        molframe::ChunkId::new(91),
-        structure,
+    let frame_provider = match frame::FrameChunkProvider::new(
+        frame::DatasetId::new(81),
+        frame::ChunkId::new(91),
+        structure.into_engine(),
         molframe::ModelIndex::new(0),
     ) {
         Ok(provider) => provider,
         Err(error) => panic!("frame provider must be valid: {error}"),
     };
-    let frame = match frame_provider.chunk(molframe::ChunkId::new(91)) {
+    let frame = match frame_provider.chunk(frame::ChunkId::new(91)) {
         Ok(chunk) => chunk,
         Err(error) => panic!("frame chunk must exist: {error}"),
     };
@@ -220,35 +224,35 @@ fn kind_mismatches_are_typed() {
     assert!(matches!(
         ProviderDatasetBridge::new(structure_descriptor).frame_chunk(frame, footprint()),
         Err(ProviderBridgeError::PayloadKindMismatch {
-            expected: molframe::PayloadKind::Structure,
-            actual: molframe::PayloadKind::Frame
+            expected: frame::PayloadKind::Structure,
+            actual: frame::PayloadKind::Frame
         })
     ));
 }
 
 #[test]
 fn row_range_mismatches_are_typed() {
-    let coordinates: molframe::CoordinateBlock =
+    let coordinates: frame::CoordinateBlock =
         [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]].into_iter().collect();
-    let source = match molframe::ChunkDescriptor::new(
-        molframe::DatasetId::new(101),
-        molframe::ChunkId::new(111),
-        molframe::LogicalRow::new(0),
+    let source = match frame::ChunkDescriptor::new(
+        frame::DatasetId::new(101),
+        frame::ChunkId::new(111),
+        frame::LogicalRow::new(0),
         2,
     ) {
         Ok(descriptor) => descriptor,
         Err(error) => panic!("source descriptor must be valid: {error}"),
     };
-    let frame = match molframe::FrameChunk::shared(source, coordinates, 0..2) {
+    let frame = match frame::FrameChunk::shared(source, coordinates, 0..2) {
         Ok(frame) => frame,
         Err(error) => panic!("frame must be valid: {error}"),
     };
-    let dataset = match molframe::DatasetDescriptor::source_defined(
-        molframe::DatasetId::new(101),
-        molframe::PayloadKind::Frame,
+    let dataset = match frame::DatasetDescriptor::source_defined(
+        frame::DatasetId::new(101),
+        frame::PayloadKind::Frame,
         1,
         1,
-        molframe::ChunkId::new(111),
+        frame::ChunkId::new(111),
         2,
     ) {
         Ok(descriptor) => descriptor,

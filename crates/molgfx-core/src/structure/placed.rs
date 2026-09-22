@@ -16,8 +16,8 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct PlacedStructure {
     asset: StructureAsset,
-    /// The parsed structure; a cheap reference-counted handle.
-    pub structure: molframe::Structure,
+    /// Provider-neutral immutable molecular source.
+    pub source: crate::MolecularSource,
     /// Model-to-world transform.
     pub model_to_world: Mat4,
     /// The dense per-atom table for the placed model.
@@ -56,7 +56,7 @@ impl PlacedStructure {
             Column::new(vec![SecondaryStructure::Unknown; hierarchy.residue_count()]);
         Self {
             asset: asset.clone(),
-            structure: asset.structure().clone(),
+            source: asset.source().clone(),
             model_to_world: Mat4::IDENTITY,
             hierarchy,
             secondary_structure,

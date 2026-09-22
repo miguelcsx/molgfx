@@ -5,6 +5,7 @@
 //! allocates nothing and costs `O(returned chunks)`.
 
 use crate::{ChunkDescriptor, ChunkFootprint, ChunkId, DatasetError, DatasetId};
+use molframe::engine::core as molframe;
 
 #[derive(Clone, Copy, Debug, Default)]
 struct ChildRange {

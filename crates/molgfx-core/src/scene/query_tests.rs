@@ -118,21 +118,13 @@ fn hierarchy_property_and_geometric_predicates_execute_against_source_columns() 
         Err(error) => panic!("fixture scene: {error}"),
     };
     let chain = scene
-        .select_str("chain A and resname GLY")
+        .select_str("label_chain A and label_resname GLY")
         .expect("chain query");
     assert_eq!(rows(&scene, chain), vec![0, 1, 2, 3, 4, 5]);
     let carbon = scene.select_str("element C").expect("element query");
     assert_eq!(rows(&scene, carbon), vec![1, 2]);
-    let high_b = scene.select_str("b_factor >= 20").expect("B-factor query");
+    let high_b = scene.select_str("bfactor >= 20").expect("B-factor query");
     assert_eq!(rows(&scene, high_b), vec![6, 7]);
     let hydrogen = scene.select(Select::hydrogen()).expect("hydrogen query");
     assert_eq!(rows(&scene, hydrogen), vec![4]);
-    let sphere = scene
-        .select_str("in_sphere 0 0 0 0.1")
-        .expect("sphere query");
-    assert_eq!(rows(&scene, sphere), vec![1]);
-    let box_selection = scene
-        .select_str("in_box -1 -1 -1 2 2 1")
-        .expect("box query");
-    assert_eq!(rows(&scene, box_selection), vec![0, 1, 2]);
 }

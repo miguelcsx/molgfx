@@ -12,7 +12,7 @@ use std::sync::{Arc, OnceLock};
 #[derive(Debug)]
 struct StructureAssetData {
     dataset: DatasetId,
-    structure: molframe::Structure,
+    source: crate::MolecularSource,
     atoms: Arc<AtomTable>,
     hierarchy: Arc<Hierarchy>,
     spatial_bvh: OnceLock<Result<Bvh, molgfx_math::BvhBuildError>>,
@@ -34,7 +34,7 @@ impl StructureAsset {
     /// Returns a typed error when model zero has no dense coordinates or its
     /// atom count cannot fit the chunk-local `u32` address space.
     pub fn new(dataset: DatasetId, structure: &molframe::Structure) -> Result<Self, DatasetError> {
-        Self::for_model(dataset, structure, ModelIndex::new(0))
+        Self::from_source(dataset, crate::MolecularSource::from_molframe(structure))
     }
 
     /// Builds one shared asset from a specific model.
@@ -48,6 +48,9 @@ impl StructureAsset {
         structure: &molframe::Structure,
         model: ModelIndex,
     ) -> Result<Self, DatasetError> {
+        if model == ModelIndex::new(0) {
+            return Self::new(dataset, structure);
+        }
         let Some(coords) = crate::CoordRef::new(structure, model) else {
             return Err(DatasetError::MissingStructureModel);
         };
@@ -64,7 +67,38 @@ impl StructureAsset {
         Ok(Self {
             data: Arc::new(StructureAssetData {
                 dataset,
-                structure: structure.clone(),
+                source: crate::MolecularSource::from_molframe(structure),
+                atoms,
+                hierarchy,
+                spatial_bvh: OnceLock::new(),
+                spatial_bounds,
+                secondary_structure,
+            }),
+        })
+    }
+
+    /// Builds one shared asset from a provider-neutral coordinate source.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the coordinate or topology tables exceed `u32`.
+    pub fn from_source(
+        dataset: DatasetId,
+        source: crate::MolecularSource,
+    ) -> Result<Self, DatasetError> {
+        u32::try_from(source.coordinates().len()).map_err(|_| DatasetError::StructureTooLarge)?;
+        checked_topology_count(source.topology().model_chain_start.len(), "model")?;
+        checked_topology_count(source.topology().chain_residue_start.len(), "chain")?;
+        checked_topology_count(source.topology().residue_atom_start.len(), "residue")?;
+        let atoms = Arc::new(AtomTable::from_source(&source));
+        let hierarchy = Arc::new(Hierarchy::from_source(&source));
+        let spatial_bounds = atom_bounds(&atoms);
+        let secondary_structure =
+            Column::new(vec![SecondaryStructure::Unknown; hierarchy.residue_count()]);
+        Ok(Self {
+            data: Arc::new(StructureAssetData {
+                dataset,
+                source,
                 atoms,
                 hierarchy,
                 spatial_bvh: OnceLock::new(),
@@ -82,8 +116,14 @@ impl StructureAsset {
 
     /// Shared parser-owned structure retained for zero-copy coordinates.
     #[must_use]
-    pub fn structure(&self) -> &molframe::Structure {
-        &self.data.structure
+    pub fn source(&self) -> &crate::MolecularSource {
+        &self.data.source
+    }
+
+    /// Native `MolFrame` source when this asset originated there.
+    #[must_use]
+    pub fn structure(&self) -> Option<&molframe::Structure> {
+        self.data.source.molframe()
     }
 
     /// Immutable atom columns materialized once for every placement.
@@ -154,7 +194,7 @@ impl StructureAsset {
 }
 
 fn validate_topology_counts(structure: &molframe::Structure) -> Result<(), DatasetError> {
-    let topology = &structure.data().topology;
+    let topology = &structure.engine().data().topology;
     checked_topology_count(topology.models.len(), "model")?;
     checked_topology_count(topology.chains.len(), "chain")?;
     checked_topology_count(topology.residues.len(), "residue")

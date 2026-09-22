@@ -345,7 +345,7 @@ impl PickPages {
             self.add_len(
                 dataset,
                 EntityKind::Bond,
-                placed.structure.data().bonds.len(),
+                placed.source.topology().bonds.len(),
             )?;
             if let Some(topology) = placed.bond_topology() {
                 self.add_len(dataset, EntityKind::DynamicBond, topology.bonds().len())?;

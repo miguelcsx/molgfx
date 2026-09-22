@@ -3,6 +3,7 @@
 use super::BondState;
 use crate::engine::bond_draw_plan::ResidentAtomPage;
 use crate::engine::{BondChunkPlacement, ChunkPlacementError, ChunkResidencyError};
+use molframe::engine::core as molframe;
 use molgfx_core::{ChunkPayload, ChunkSpan, DatasetId, LogicalRow};
 
 pub(super) fn resolve_endpoint(

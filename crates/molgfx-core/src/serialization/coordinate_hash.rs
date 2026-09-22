@@ -6,7 +6,14 @@ pub(super) fn coordinate_hash(placed: &crate::PlacedStructure) -> u64 {
         *hash ^= u64::from(byte);
         *hash = hash.wrapping_mul(1_099_511_628_211);
     };
-    if let Some(id) = placed.structure.data().entry.id.as_deref() {
+    for byte in placed.source.identity().to_le_bytes() {
+        update(&mut hash, byte);
+    }
+    if let Some(id) = placed
+        .source
+        .molframe()
+        .and_then(|structure| structure.metadata().id.as_deref())
+    {
         for byte in id.as_bytes() {
             update(&mut hash, *byte);
         }

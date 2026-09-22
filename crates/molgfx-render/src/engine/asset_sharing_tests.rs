@@ -188,7 +188,10 @@ fn conflicting_content_for_one_dataset_is_a_typed_error() {
 }
 
 fn edited_structure(source: &molframe::Structure, offset: f32) -> molframe::Structure {
-    let mut editor = match source.edit_coordinates(&molframe::ExecutionContext::default()) {
+    let mut editor = match source
+        .engine()
+        .edit_coordinates(&molframe::ExecutionContext::default())
+    {
         Ok(editor) => editor,
         Err(error) => panic!("coordinate edit is admitted: {error}"),
     };
@@ -200,7 +203,7 @@ fn edited_structure(source: &molframe::Structure, offset: f32) -> molframe::Stru
     };
     position[0] += offset;
     match editor.commit() {
-        Ok(structure) => structure,
+        Ok(structure) => structure.into(),
         Err(findings) => panic!("coordinate edit commits: {findings:?}"),
     }
 }

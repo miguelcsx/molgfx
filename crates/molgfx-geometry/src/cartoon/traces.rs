@@ -85,7 +85,7 @@ pub fn extract_polymer_traces(
     output.normals.clear();
     output.ranges.clear();
     let max_gap_sq = max_gap.max(0.0).powi(2);
-    for chain in structure.data().chains() {
+    for chain in structure.chains() {
         let chain_id = chain.index().get();
         let mut trace_start = output.points.len();
         for residue in chain.residues() {

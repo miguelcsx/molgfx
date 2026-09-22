@@ -37,7 +37,7 @@ pub fn append_paper_chain(
     vertices: &mut Vec<RibbonVertex>,
     indices: &mut Vec<u32>,
 ) -> Result<(), crate::PackingError> {
-    for residue in structure.data().residues() {
+    for residue in structure.residues() {
         if residue.atom("O5").is_some() {
             append_named_ring(
                 residue, &PYRANOSE, selection, height, opacity, vertices, indices,

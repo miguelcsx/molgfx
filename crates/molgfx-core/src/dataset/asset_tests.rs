@@ -13,7 +13,7 @@ fn cloned_assets_share_every_base_column() {
     assert!(asset.shares_storage_with(&clone));
     assert_eq!(
         asset.atoms().coords().slice().as_ptr(),
-        source.positions().as_ptr()
+        source.coordinates().as_ptr()
     );
     assert_eq!(
         asset.atoms().element().values().as_ptr(),

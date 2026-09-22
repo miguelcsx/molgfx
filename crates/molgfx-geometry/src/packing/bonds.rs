@@ -99,10 +99,10 @@ pub fn pack_bonds(
     if let Some(topology) = placed.bond_topology() {
         return pack_dynamic(topology, representation, compaction, out);
     }
-    for (source_index, bond) in placed.structure.data().bonds.iter().enumerate() {
+    for (source_index, bond) in placed.source.topology().bonds.iter().enumerate() {
         let (Some(&atom_a), Some(&atom_b)) = (
-            compaction.get(bond.atom_a.as_usize()),
-            compaction.get(bond.atom_b.as_usize()),
+            compaction.get(bond.atoms[0] as usize),
+            compaction.get(bond.atoms[1] as usize),
         ) else {
             continue;
         };
@@ -113,7 +113,7 @@ pub fn pack_bonds(
             atom_a,
             atom_b,
             representation.params.bond_radius,
-            bond.order == molframe::BondOrder::Aromatic,
+            bond.aromatic,
             bond_entity(EntityKind::Bond, source_index)?,
         ));
     }

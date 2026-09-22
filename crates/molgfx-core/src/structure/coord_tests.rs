@@ -8,8 +8,8 @@ fn the_coordinate_slice_is_the_parsers_own_buffer_not_a_copy() {
         panic!("fixture has a dense model 0")
     };
     // Pointer identity: the seam hands out the same memory the parser owns.
-    assert_eq!(coords.slice().as_ptr(), structure.positions().as_ptr());
-    assert_eq!(coords.len(), structure.positions().len());
+    assert_eq!(coords.slice().as_ptr(), structure.coordinates().as_ptr());
+    assert_eq!(coords.len(), structure.coordinates().len());
 }
 
 #[test]
@@ -20,7 +20,7 @@ fn coordinate_bytes_are_twelve_per_atom_over_the_same_memory() {
     };
     let bytes = coords.as_bytes();
     assert_eq!(bytes.len(), coords.len() * 12);
-    assert_eq!(bytes.as_ptr(), structure.positions().as_ptr().cast());
+    assert_eq!(bytes.as_ptr(), structure.coordinates().as_ptr().cast());
 }
 
 #[test]

@@ -66,10 +66,10 @@ molgfx-api = { version = "0.1.0", path = "crates/molgfx-api" }
 
 # The structural model and every detection the engine consumes.
 # Pinned to the published revision carrying the `molframe-*` package names.
-molframe = { git = "https://github.com/miguelcsx/molframe", rev = "a3fce8f8a096509f995377e1e1a062f4fd84f3cc", default-features = false, features = ["mmcif", "bcif", "pdb"] }
+molframe = { git = "https://github.com/miguelcsx/molframe", rev = "394531e452bc6f7140528b0b883518fac24fdc96", default-features = false, features = ["mmcif", "bcif", "pdb"] }
 # The provider's Python bridge names its library target `_native`, so the
 # dependency is renamed back to the package name for `molframe_py::` to resolve.
-molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "a3fce8f8a096509f995377e1e1a062f4fd84f3cc", default-features = false, features = ["bridge"] }
+molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "394531e452bc6f7140528b0b883518fac24fdc96", default-features = false }
 
 # Python ABI shared by the thin binding crate and the sibling molframe bridge.
 pyo3 = "0.29"
@@ -106,7 +106,7 @@ criterion = "0.8"
 winit = "0.30"
 fontdue = "0.9"
 png = "0.18"
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
 sha2 = "0.10"
 zip = { version = "5", default-features = false, features = ["deflate"] }

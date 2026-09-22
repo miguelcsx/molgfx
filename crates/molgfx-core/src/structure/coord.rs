@@ -15,7 +15,7 @@ mod tests;
 /// A borrowed view of one model's coordinate column.
 #[derive(Clone, Debug)]
 pub struct CoordRef {
-    structure: molframe::Structure,
+    source: crate::MolecularSource,
     model: molframe::ModelIndex,
 }
 
@@ -24,23 +24,26 @@ impl CoordRef {
     /// exist or stores no dense coordinate block.
     #[must_use]
     pub fn new(structure: &molframe::Structure, model: molframe::ModelIndex) -> Option<Self> {
-        structure.model_positions(model)?;
+        structure.model_coordinates(model)?;
         Some(Self {
-            structure: structure.clone(),
+            source: crate::MolecularSource::from_molframe(structure),
             model,
         })
+    }
+
+    /// Borrows the provider's canonical coordinate column.
+    #[must_use]
+    pub fn from_source(source: &crate::MolecularSource) -> Self {
+        Self {
+            source: source.clone(),
+            model: molframe::ModelIndex::new(0),
+        }
     }
 
     /// The coordinate slice, straight from the parser's storage. `O(1)`.
     #[must_use]
     pub fn slice(&self) -> &[[f32; 3]] {
-        match self.structure.model_positions(self.model) {
-            Some(slice) => slice,
-            // Existence was proven at construction and the structure is
-            // immutable, so this arm is unreachable; an empty slice keeps
-            // the accessor total without panicking.
-            None => &[],
-        }
+        self.source.coordinates()
     }
 
     /// The coordinates as raw bytes for direct upload, 12 bytes per atom.
@@ -65,7 +68,7 @@ impl CoordRef {
     /// keying spatial caches such as the bounding hierarchy.
     #[must_use]
     pub fn generation(&self) -> u64 {
-        self.structure.generation().get()
+        self.source.coordinate_revision()
     }
 
     /// Which model this reference reads.

@@ -94,7 +94,6 @@ pub struct Scene {
     pub(crate) spatial_traversal: Vec<u32>,
     pub(crate) spatial_candidates: Vec<u32>,
     pub(crate) spatial_result: roaring::RoaringBitmap,
-    pub(crate) selection_cache: Vec<(Box<str>, crate::Select)>,
 }
 
 #[derive(Clone, Debug)]
@@ -215,6 +214,17 @@ impl Scene {
         Ok(Self::from_asset(&asset))
     }
 
+    /// Builds a scene containing one provider-neutral molecular source.
+    ///
+    /// # Errors
+    ///
+    /// Fails when source tables exceed renderer address limits.
+    pub fn from_source(source: crate::MolecularSource) -> Result<Self, CoreError> {
+        let asset = StructureAsset::from_source(DatasetId::LEGACY, source)
+            .map_err(|error| structure_asset_error(&error))?;
+        Ok(Self::from_asset(&asset))
+    }
+
     /// Builds a scene containing one placement of a shared structure asset.
     #[must_use]
     pub fn from_asset(asset: &StructureAsset) -> Self {
@@ -233,6 +243,20 @@ impl Scene {
         structure: &molframe::Structure,
     ) -> Result<StructureHandle, CoreError> {
         let asset = StructureAsset::new(DatasetId::LEGACY, structure)
+            .map_err(|error| structure_asset_error(&error))?;
+        Ok(self.add_asset(&asset))
+    }
+
+    /// Places a provider-neutral molecular source at the identity transform.
+    ///
+    /// # Errors
+    ///
+    /// Fails when source tables exceed renderer address limits.
+    pub fn add_source(
+        &mut self,
+        source: crate::MolecularSource,
+    ) -> Result<StructureHandle, CoreError> {
+        let asset = StructureAsset::from_source(DatasetId::LEGACY, source)
             .map_err(|error| structure_asset_error(&error))?;
         Ok(self.add_asset(&asset))
     }

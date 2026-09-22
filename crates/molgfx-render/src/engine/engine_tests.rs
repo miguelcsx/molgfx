@@ -291,7 +291,7 @@ fn an_unchanged_scene_uploads_only_the_frame_uniforms() {
 #[test]
 fn changing_a_clip_plane_updates_only_representation_state() {
     let source = structure();
-    let coordinate_pointer = source.positions().as_ptr() as usize;
+    let coordinate_pointer = source.coordinates().as_ptr() as usize;
     let mut scene = match Scene::from_structure(&source) {
         Ok(scene) => scene,
         Err(error) => panic!("fixture scene builds: {error}"),
