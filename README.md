@@ -31,7 +31,6 @@ use molgfx::{Renderer, Scene, rep, sel};
 let mut scene = Scene::from_structure(structure)?;
 scene.add(rep::cartoon(sel::protein()))?;
 scene.add(rep::ball_and_stick(sel::ligands()))?;
-scene.focus(sel::ligands())?;
 
 let mut renderer = Renderer::new()?;
 let image = renderer.render_image(&scene, (1920, 1080))?;
@@ -39,6 +38,10 @@ image.save("structure.png")?;
 # Ok(())
 # }
 ```
+
+`molgfx::camera` builds validated cameras from plain coordinate triples, and
+`molgfx::source` is the seam a language binding implements to hand MolGFX
+storage it already owns — the Python and WASM bindings use nothing else.
 
 `molgfx::sel` is MolFrame's query builder, re-exported directly; MolGFX has no
 second molecular query language. `Scene::from_structure` clones MolFrame's
@@ -85,7 +88,6 @@ structure = molframe.read("structure.cif")
 scene = molgfx.Scene(structure)
 scene.add(molgfx.rep.cartoon(target=molgfx.sel.protein()))
 scene.add(molgfx.rep.ball_and_stick(target=molgfx.sel.ligands()))
-scene.focus(molgfx.sel.ligands())
 
 renderer = molgfx.Renderer()
 renderer.render_image(scene, size=(1920, 1080)).save("structure.png")
@@ -110,25 +112,43 @@ URI and content hash. `molgfx::interop` imports and exports the compatible
 MolViewSpec v1 subset as `.mvsj` or `.mvsx`; unsupported nodes produce explicit
 diagnostics, and MolGFX metadata is preserved in a namespaced extension.
 
-`molgfx::streaming::DataSource` is the bounded asynchronous provider contract.
-Requests are prioritized and batched, cancellation is cooperative, failures
-propagate, and shutdown is explicit. Residency tickets, page handles, and upload
-details are intentionally renderer internals.
+`molgfx::streaming::DataSource` defines bounded asynchronous provider behavior.
+Its scheduler validates priority-preserving batches, cancellation, backpressure,
+and shutdown. The existing lower-level residency engine remains an expert API
+until source descriptors and provider scheduling are connected end to end.
 
 ## Performance invariants
 
 - Coordinates are borrowed from MolFrame and never copied into scene records.
 - Atoms and bonds use analytic instanced impostors, not tessellated meshes.
 - Culling writes indirect draw counts on the GPU.
-- Upload staging uses bounded reusable arenas; streaming work is batched.
+- Upload staging and residency are bounded; static assets share one immutable
+  arena. The chunk upload path is still being consolidated into backend copy
+  batches.
 - Picking uses one aligned readback buffer and one mapping operation.
-- BVH, surface, and render-graph resources are derived caches with explicit
-  revision keys and memory accounting.
+- Structure coordinates, the visual property arena and atom BVHs are shared per
+  immutable asset. Packed molecular records, compaction maps, visibility lists
+  and indirect arguments are still owned per physical representation, so
+  overlapping representations over one molecule each carry their own; sharing
+  them by canonical selection is the next ownership change.
+- Appearance is separate from molecular records: opacity, material and
+  visibility edits write fixed-size uniform state and never repack atoms or
+  bonds, at any scene size. Hiding a representation gates its draws and retains
+  its resources.
+- Semantic interaction channels — selected, hovered, focused, muted, hidden and
+  caller-named ones — are one GPU-resident state word per atom, shared by every
+  representation over that structure and readable from a visual style.
 - WGSL is composed and validated once from `molgfx-shaders`; there is no SPIR-V
   output or second maintained shader dialect.
 
 Use `explain()` and stable hashes to inspect authoring values and renderer plans
-without exposing physical handles.
+without exposing physical handles. Visual explanations identify the typed
+bytecode interpreter until specialized WGSL is selected by the renderer.
+
+Neither `SceneSpec` nor the scene manifest carries a hand-maintained version
+number. Compatibility is decided by the shape of the data: a document that does
+not match the current schema fails to deserialize. Package versions live in
+`Cargo.toml` and nowhere else.
 
 ## Crates and validation
 

@@ -84,11 +84,10 @@ let frame = match surface.get_current_texture() {
 };
 ```
 
-Clippy pushes the other way, so `manual_unwrap_or_default` and `manual_unwrap_or`
-are set to `allow` in the workspace manifest specifically to keep this rule
-enforceable. **Do not "fix" those allows.** Tests are exempt: prefer
-`let ... else { panic!("...") }` there so the failure message says what was
-expected.
+No Clippy warning is silenced to preserve this rule. Write the branch explicitly
+in a shape that is both clear and lint-clean. Tests are exempt from the panic
+restriction: prefer `let ... else { panic!("...") }` there so the failure
+message says what was expected.
 
 ---
 
@@ -148,12 +147,9 @@ Only `mod` declarations, `pub use` re-exports, and the module docstring. A
 an item between modules never touches the file that publishes it. The facade
 crate `molgfx` takes this furthest: it is re-exports and feature gates only.
 
-The facade publishes one module per inner crate — `molgfx::core`, `molgfx::math`
-— each a whole-crate re-export under the feature that links it, so a name lives
-in exactly one module and never collides with a same-named concept in another
-layer. `molgfx::prelude` is the curated shortcut for a program's ordinary
-vocabulary; it is the only part of the facade with judgement of its own, so its
-rule is stated in the module itself. Nothing else belongs at the root.
+The facade publishes only the stable declarative vocabulary and curated
+namespaces. It never re-exports whole implementation crates and never exposes a
+`Deref` route into renderer internals.
 
 ---
 
@@ -271,6 +267,10 @@ plus these greps, each of which must come back empty:
 # in `tests.rs` and under `generic_tests/`, hence the three exclusions.
 grep -rn "unwrap" crates/ --include="*.rs" | grep -v "_tests.rs" | grep -v "/tests.rs" | grep -v "generic_tests/"
 
+# No source or manifest lint suppression. Fix every warning at its cause.
+grep -rnE '#\[(allow|expect)\b' crates/ --include="*.rs"
+grep -rnE 'level[[:space:]]*=[[:space:]]*"allow"|allow[[:space:]]*=' --include="*.toml" .
+
 # The file cap, Rust and WGSL alike.
 find crates \( -name "*.rs" -o -name "*.wgsl" \) -print0 \
   | xargs -0 wc -l | awk '$1>500 && $2 != "total" {print}'
@@ -292,34 +292,15 @@ seam an invariant:
 grep -rn "benchmarks/" crates/ --include="*.rs"
 ```
 
-The Python binding is checked the same way — against the thing it describes,
-never against a second hand-written list:
+The Python binding is checked against runtime behavior and its precise stubs:
 
 ```bash
-# `python/molgfx/` holds no logic. Every statement in it is a docstring, an
-# import, an `__all__` literal, or the `__getattr__` that names the namespaces.
-cargo test -p molgfx-py --test python_surface
-
-# Every name the facade publishes is either carried by a stub or written down
-# with the reason it is not, in `crates/molgfx-py/facade-coverage-allowlist.txt`.
-cargo test -p molgfx-py --test facade_coverage
-
-# The stubs are compared against the compiled module, signatures included.
-# Needs the extension built into the environment first.
-uv run maturin develop -m crates/molgfx-py/Cargo.toml
-uv run python -m mypy.stubtest molgfx.molgfx_native
+maturin develop -m crates/molgfx-py/Cargo.toml
+python -m unittest discover -s python/tests
+python -m mypy.stubtest molgfx._engine
 ```
 
 `mypy.stubtest` runs with no allowlist. Anything it cannot express is fixed in
-the stub or in the binding, not excused — so a stub cannot drift from the
-surface it describes, and the surface cannot drift from the facade without
-failing to compile. Two shapes in the stubs are deliberate and are not to be
-"fixed": a constructor is declared as `__new__` because PyO3 builds the instance
-in `tp_new` and leaves `__init__` as `object.__init__`, and a default PyO3
-cannot render in a text signature is written `...` rather than restated.
-
-The coverage allowlist covers what `stubtest` cannot see: a name the facade
-publishes that the binding never carried fails nothing, because there is no stub
-to compare against. Every unbound name is written down with its reason, and an
-entry that stops being true — the name was bound, or the facade stopped
-publishing it — fails the test, so the list only shrinks and only on purpose.
+the stub or in the binding, not excused. Repository policies such as line count,
+lint suppression, and unsafe boundaries are workflow shell checks, never product
+tests that inspect source text.
