@@ -19,6 +19,7 @@ pub use molgfx_api::{
     StructureId, TrajectoryId, TrajectorySpec, VisualStyle, VolumeId, VolumeSpec, molframe,
 };
 
+pub use molgfx_api::{ScientificHandles, VolumeBinding};
 pub use molgfx_api::{annotation, density, interaction, measurement, trajectory};
 
 /// Binding caller-owned molecular storage, for language bindings and embedders.
@@ -31,7 +32,7 @@ pub mod source {
 
 /// Low-level wire-schema values.
 pub mod schema {
-    pub use molgfx_api::{DataSource, PatchOperation, Revisions, StructureSource};
+    pub use molgfx_api::{DataSource, PatchOperation, StructureSource};
 }
 
 /// Validated camera construction from facade-native values.

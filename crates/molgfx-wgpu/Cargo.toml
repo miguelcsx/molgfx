@@ -27,5 +27,11 @@ wgpu = { workspace = true, features = ["std", "webgpu", "wgsl"] }
 [target.'cfg(not(any(target_vendor = "apple", all(target_arch = "wasm32", target_os = "unknown"))))'.dependencies]
 wgpu = { workspace = true, features = ["std", "parking_lot", "vulkan", "dx12", "wgsl"] }
 
+[dev-dependencies]
+molgfx-core.workspace = true
+molgfx-math.workspace = true
+molgfx-render.workspace = true
+molframe.workspace = true
+
 [lints]
 workspace = true

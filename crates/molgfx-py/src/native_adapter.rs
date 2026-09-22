@@ -80,13 +80,18 @@ impl MolecularProvider for NativeProvider {
             .map_err(|_| CoreError::InvalidSelection {
                 reason: "MolFrame query evaluation failed",
             })?;
-        if rows.is_empty() {
-            Ok(AtomSelection::Empty)
-        } else if rows.len() == self.coordinates().len() {
-            Ok(AtomSelection::All)
-        } else {
-            Ok(AtomSelection::Sparse(rows))
-        }
+        Ok(compact(rows, self.coordinates().len()))
+    }
+}
+
+/// Folds a provider row vector into the compactest selection shape.
+fn compact(rows: Vec<u32>, atom_count: usize) -> AtomSelection {
+    if rows.is_empty() {
+        AtomSelection::Empty
+    } else if rows.len() == atom_count {
+        AtomSelection::All
+    } else {
+        AtomSelection::Sparse(rows)
     }
 }
 

@@ -69,3 +69,24 @@ jobs:
       - run: maturin develop -m crates/molgfx-py/Cargo.toml
       - run: python -m unittest discover -s python/tests
       - run: python -m mypy.stubtest molgfx._engine
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: python -m pip install --upgrade pip maturin anywidget numpy playwright
+      - run: python -m pip install 'molframe @ git+https://github.com/miguelcsx/molframe@394531e452bc6f7140528b0b883518fac24fdc96'
+      - run: maturin develop -m crates/molgfx-py/Cargo.toml
+      - run: python -m playwright install --with-deps chromium
+      - name: Build the browser runtime
+        run: |
+          cargo install wasm-pack --locked
+          wasm-pack build crates/molgfx-wasm --target web --out-dir ../../python/molgfx/viewer/static --out-name molgfx_wasm
+      - run: python -m unittest discover -s python/tests -p 'test_viewer.py' -v

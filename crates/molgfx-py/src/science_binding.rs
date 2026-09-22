@@ -44,7 +44,6 @@ fn interaction_kind(value: &str) -> PyResult<molgfx::InteractionKind> {
         "pi_stacking" => Ok(molgfx::InteractionKind::PiStacking),
         "cation_pi" => Ok(molgfx::InteractionKind::CationPi),
         "hydrophobic" => Ok(molgfx::InteractionKind::Hydrophobic),
-        "disulfide" => Ok(molgfx::InteractionKind::Disulfide),
         "metal_coordination" => Ok(molgfx::InteractionKind::MetalCoordination),
         "contact" => Ok(molgfx::InteractionKind::Contact),
         _ => Err(PyTypeError::new_err("unknown scientific interaction kind")),
@@ -150,24 +149,6 @@ fn explicit(kind: &str, first: &PyAnchor, second: &PyAnchor) -> PyResult<PyScien
         first.0.clone(),
         second.0.clone(),
     )))
-}
-
-#[pyfunction]
-#[pyo3(signature = (*, kind, structure, target, cutoff=4.0))]
-fn detected(
-    kind: &str,
-    structure: &Bound<'_, PyAny>,
-    target: &Bound<'_, PyAny>,
-    cutoff: f32,
-) -> PyResult<PyScientificInteraction> {
-    Ok(PyScientificInteraction(
-        molgfx::ScientificInteractionSpec::Detected {
-            kind: interaction_kind(kind)?,
-            structure: molgfx::StructureId::new(crate::id_binding::structure_id(structure)?),
-            selection: selection(target)?.into(),
-            cutoff,
-        },
-    ))
 }
 
 #[pyfunction(name = "bind")]
@@ -284,7 +265,6 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_submodule(&measurement)?;
     let interaction = namespace(module, "interaction")?;
     interaction.add_function(wrap_pyfunction!(explicit, &interaction)?)?;
-    interaction.add_function(wrap_pyfunction!(detected, &interaction)?)?;
     module.add_submodule(&interaction)?;
     let trajectory = namespace(module, "trajectory")?;
     trajectory.add_function(wrap_pyfunction!(bind_trajectory, &trajectory)?)?;
