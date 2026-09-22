@@ -77,8 +77,8 @@ pub use representation::{
 };
 pub use scene::{
     AtomCorrespondence, DifferenceScene, DifferenceStyle, DifferenceView, InstanceFramePair,
-    PlaybackMode, PointFramePair, RepresentationInput, RowDomain, RowEntityRef, Scene,
-    SourceNamespace, SourceRows, TemplatePartPick, TimeWarp, Timeline, TrajectoryBranch,
+    InteractionState, PlaybackMode, PointFramePair, RepresentationInput, RowDomain, RowEntityRef,
+    Scene, SourceNamespace, SourceRows, TemplatePartPick, TimeWarp, Timeline, TrajectoryBranch,
     TrajectoryStateGraph,
 };
 pub use selection::{

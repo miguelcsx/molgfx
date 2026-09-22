@@ -30,6 +30,8 @@ pub struct VisualInputs {
     pub specular: f32,
     /// Built-in model-specific material strength.
     pub material_strength: f32,
+    /// Packed semantic interaction channels for this entity.
+    pub interaction_bits: u32,
     /// Up to four generic typed attribute values, expanded to four lanes.
     pub attributes: [[f32; 4]; 4],
     /// Transitional scalar values for old programs.
@@ -52,6 +54,7 @@ impl Default for VisualInputs {
             roughness: 0.34,
             specular: 0.5,
             material_strength: 0.0,
+            interaction_bits: 0,
             attributes: [[f32::NAN; 4]; 4],
             properties: [f32::NAN; 4],
         }
@@ -186,6 +189,14 @@ fn evaluate(
                 0.0,
             ],
             Opcode::Normalize => normalize(left),
+            Opcode::State => [
+                f32::from(u8::from(
+                    inputs.interaction_bits & instruction.data[0].to_bits() != 0,
+                )),
+                0.0,
+                0.0,
+                0.0,
+            ],
         };
     }
     resolve(program, &registers, inputs)
