@@ -310,17 +310,7 @@ impl WebRenderer {
         let eye = vector3(position, "camera position")?;
         let target = vector3(target, "camera target")?;
         let up = vector3(up, "camera up vector")?;
-        let distance = eye.distance(target);
-        if !eye.is_finite()
-            || !target.is_finite()
-            || !up.is_finite()
-            || distance <= f32::EPSILON
-            || up.length_squared() <= f32::EPSILON
-        {
-            return Err(JsError::new(
-                "camera vectors must be finite and non-degenerate",
-            ));
-        }
+        let distance = distance(eye, target);
         let width = self
             .width
             .to_f32()
@@ -329,17 +319,19 @@ impl WebRenderer {
             .height
             .to_f32()
             .ok_or_else(|| JsError::new("canvas height cannot be represented"))?;
-        let camera = molgfx_math::Camera {
+        // Near and far track the viewing distance so a molecule stays inside
+        // the depth range at every zoom. The facade owns camera validity, so
+        // the browser rejects exactly the cameras the native path rejects.
+        let camera = molgfx::camera::perspective(
             eye,
             target,
             up,
-            projection: molgfx_math::Projection::Perspective {
-                fov_y: 45_f32.to_radians(),
-                aspect: width / height,
-                near: (distance * 0.001).max(0.001),
-                far: (distance * 10.0).max(10.0),
-            },
-        };
+            45_f32.to_radians(),
+            width / height,
+            (distance * 0.001).max(0.001),
+            (distance * 10.0).max(10.0),
+        )
+        .map_err(javascript_error)?;
         self.inner
             .present(resolved, &camera)
             .map_err(javascript_error)
@@ -363,13 +355,16 @@ impl WebRenderer {
     }
 }
 
-fn vector3(value: &js_sys::Float32Array, name: &str) -> Result<molgfx_math::Vec3, JsError> {
+fn vector3(value: &js_sys::Float32Array, name: &str) -> Result<[f32; 3], JsError> {
     if value.length() != 3 {
         return Err(JsError::new(&format!("{name} must have three values")));
     }
-    Ok(molgfx_math::Vec3::new(
-        value.get_index(0),
-        value.get_index(1),
-        value.get_index(2),
-    ))
+    Ok([value.get_index(0), value.get_index(1), value.get_index(2)])
+}
+
+fn distance(from: [f32; 3], to: [f32; 3]) -> f32 {
+    let x = to[0] - from[0];
+    let y = to[1] - from[1];
+    let z = to[2] - from[2];
+    z.mul_add(z, x.mul_add(x, y * y)).sqrt()
 }
