@@ -61,6 +61,8 @@ impl Scene {
             }
         }
         self.representation_revision = self.representation_revision.wrapping_add(1);
+        self.representation_membership_revision =
+            self.representation_membership_revision.wrapping_add(1);
         let handle = self
             .representations
             .insert(StoredRepresentation { value, revision: 0 });
@@ -119,8 +121,51 @@ impl Scene {
     ) -> Option<&mut Representation> {
         let stored = self.representations.get_mut(handle.0)?;
         self.representation_revision = self.representation_revision.wrapping_add(1);
+        self.representation_membership_revision =
+            self.representation_membership_revision.wrapping_add(1);
         stored.revision = stored.revision.wrapping_add(1);
         Some(&mut stored.value)
+    }
+
+    /// Atomically replaces a prepared batch of representation state.
+    ///
+    /// Every handle is checked before any value changes. A successful batch
+    /// advances the scene revision once and each touched representation once.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::StaleHandle`] without changing the scene when any
+    /// handle is no longer live.
+    pub fn replace_representations(
+        &mut self,
+        replacements: Vec<(RepresentationHandle, Representation)>,
+    ) -> Result<(), CoreError> {
+        if replacements
+            .iter()
+            .any(|(handle, _)| self.representations.get(handle.0).is_none())
+        {
+            return Err(CoreError::StaleHandle);
+        }
+        let changed = !replacements.is_empty();
+        let membership_changed = replacements.iter().any(|(handle, replacement)| {
+            self.representations
+                .get(handle.0)
+                .is_some_and(|stored| stored.value.target != replacement.target)
+        });
+        for (handle, replacement) in replacements {
+            if let Some(stored) = self.representations.get_mut(handle.0) {
+                stored.value = replacement;
+                stored.revision = stored.revision.wrapping_add(1);
+            }
+        }
+        if changed {
+            self.representation_revision = self.representation_revision.wrapping_add(1);
+        }
+        if membership_changed {
+            self.representation_membership_revision =
+                self.representation_membership_revision.wrapping_add(1);
+        }
+        Ok(())
     }
 
     /// Replaces the safe visual style attached to one representation.
@@ -294,6 +339,8 @@ impl Scene {
     pub fn remove_representation(&mut self, handle: RepresentationHandle) {
         if self.representations.remove(handle.0).is_some() {
             self.representation_revision = self.representation_revision.wrapping_add(1);
+            self.representation_membership_revision =
+                self.representation_membership_revision.wrapping_add(1);
         }
     }
 
@@ -312,10 +359,16 @@ impl Scene {
         self.representations.len()
     }
 
-    /// Revision key for representation membership and topology-affecting edits.
+    /// Revision key for any representation content edit.
     #[must_use]
     pub fn representation_revision(&self) -> u64 {
         self.representation_revision
+    }
+
+    /// Revision key for the physical representation-to-structure slot table.
+    #[must_use]
+    pub fn representation_membership_revision(&self) -> u64 {
+        self.representation_membership_revision
     }
 
     /// Revision of one representation's parameters.
