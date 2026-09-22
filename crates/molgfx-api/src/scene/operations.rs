@@ -1,6 +1,6 @@
 //! Atomic mutation and inspection operations for a live scene.
 
-use super::{Resolution, Scene};
+use super::Scene;
 use crate::ScenePatch;
 use crate::SceneTransaction;
 use crate::error::{Error, PatchError};
@@ -31,26 +31,17 @@ impl Scene {
                 structures: &self.structures,
                 property_bindings: &self.property_bindings,
                 science_bindings: &self.science_bindings,
+                structure_assets: &self.structure_assets,
             },
             patch,
         )?;
         match plan {
             PatchPlan::Structural { spec, resolution } => {
-                let Resolution {
-                    scene,
-                    representations,
-                    selections,
-                    visuals,
-                    properties,
-                    science,
-                } = *resolution;
                 self.spec = *spec;
-                self.resolved = scene;
-                self.representations = representations;
-                self.selections = selections;
-                self.visuals = visuals;
-                self.properties = properties;
-                self.science = science;
+                // Install through the one path that also records the resolved
+                // structure assets, so the next structural patch can reuse
+                // them instead of re-materialising every atom table.
+                self.install_resolution(*resolution);
                 self.next_representation = next_representation_id(&self.spec)?;
             }
             PatchPlan::Local(plan) => {

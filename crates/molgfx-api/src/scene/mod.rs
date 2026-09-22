@@ -21,6 +21,9 @@ pub struct Scene {
     properties: BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
     science_bindings: crate::science::ScienceBindings,
     science: crate::science::lower::LoweredScience,
+    /// Structure assets of the current resolution, so a later resolution over
+    /// the same sources reuses their atom tables instead of rebuilding them.
+    structure_assets: crate::scene::runtime::StructureAssets,
     next_structure: u64,
     next_representation: u64,
 }
@@ -84,6 +87,7 @@ impl Scene {
             property_bindings: BTreeMap::new(),
             properties: BTreeMap::new(),
             science_bindings: crate::science::ScienceBindings::default(),
+            structure_assets: crate::scene::runtime::StructureAssets::default(),
             science: crate::science::lower::LoweredScience::default(),
             next_structure: 2,
             next_representation: 1,
@@ -155,6 +159,8 @@ impl Scene {
         let resolution = resolve(&spec, &structures, &property_bindings, &science_bindings)?;
         let next_structure = next_structure_id(&spec)?;
         let next_representation = next_representation_id(&spec)?;
+        let structure_assets =
+            crate::scene::runtime::StructureAssets::capture(&structures, &resolution.scene);
         Ok(Self {
             spec,
             resolved: resolution.scene,
@@ -166,6 +172,7 @@ impl Scene {
             properties: resolution.properties,
             science_bindings,
             science: resolution.science,
+            structure_assets,
             next_structure,
             next_representation,
         })

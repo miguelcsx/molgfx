@@ -21,9 +21,10 @@ pub const SINGLE_EDIT: u32 = 1;
 pub const SIZES: [usize; 3] = [64, 1_024, 8_192];
 
 /// The cases this instrument measures.
-pub const CASES: [&str; 8] = [
+pub const CASES: [&str; 9] = [
     "scene_only",
     "add_one_representation",
+    "add_eight_representations",
     "one_representation",
     "eight_representations",
     "shared_selection",
@@ -156,6 +157,19 @@ fn run_one(case: &'static str, residues: usize) -> ResourceRecord {
             };
             ResourceRecord::measure(case, atoms, || {
                 let _ = built.add(rep::spacefill(sel::all()));
+            })
+            .0
+        }
+        "add_eight_representations" => {
+            // Eight adds against a scene that already exists, so the first
+            // add's one-off scene setup is not mistaken for a per-add cost.
+            let Some(mut built) = scene() else {
+                panic!("scene builds");
+            };
+            ResourceRecord::measure(case, atoms, || {
+                for _ in 0..8 {
+                    let _ = built.add(rep::spacefill(sel::all()));
+                }
             })
             .0
         }
