@@ -93,6 +93,8 @@ impl Scene {
 
     /// Replaces every resolved view of the core scene at once.
     pub(super) fn install_resolution(&mut self, resolution: Resolution) {
+        self.structure_assets =
+            crate::scene::runtime::StructureAssets::capture(&self.structures, &resolution.scene);
         self.resolved = resolution.scene;
         self.representations = resolution.representations;
         self.selections = resolution.selections;

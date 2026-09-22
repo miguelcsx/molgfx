@@ -220,8 +220,10 @@ impl MolframeProvider {
         .map_err(|_| CoreError::InvalidSelection {
             reason: "MolFrame query evaluation failed",
         })?;
-        let rows = selection.selection.iter().collect::<RoaringBitmap>();
-        Ok(adaptive(rows, self.structure.atom_count()))
+        let selected = selection.selection.len();
+        Ok(adaptive(selected, self.structure.atom_count(), || {
+            selection.selection.iter().collect::<RoaringBitmap>()
+        }))
     }
 }
 
@@ -283,12 +285,18 @@ where
     starts
 }
 
-fn adaptive(rows: RoaringBitmap, table_len: u32) -> AtomSelection {
-    if rows.is_empty() {
-        AtomSelection::Empty
-    } else if rows.len() == u64::from(table_len) {
-        AtomSelection::All
-    } else {
-        AtomSelection::Roaring(rows)
+/// Narrows a `MolFrame` selection to the densest shape that holds it.
+///
+/// The membership is asked for once as a count, so a whole-structure or empty
+/// result is answered without touching a single atom. Only a partial result is
+/// enumerated into a bitmap, which is the one case where the bitmap is the
+/// representation that is kept rather than a temporary.
+fn adaptive(selected: u64, table_len: u32, rows: impl FnOnce() -> RoaringBitmap) -> AtomSelection {
+    if selected == 0 {
+        return AtomSelection::Empty;
     }
+    if selected == u64::from(table_len) {
+        return AtomSelection::All;
+    }
+    AtomSelection::Roaring(rows())
 }

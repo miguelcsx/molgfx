@@ -4,7 +4,7 @@ use crate::error::{Error, PatchError};
 use crate::id::{RepresentationId, StructureId};
 use crate::representation::form::RepresentationSpec;
 use crate::scene::Resolution;
-use crate::scene::runtime::{candidate_spec, resolve};
+use crate::scene::runtime::candidate_spec;
 use crate::spec::{PatchOperation, ScenePatch, SceneSpec};
 use crate::{
     AnnotationId, AnnotationSpec, MeasurementId, MeasurementSpec, ScientificInteractionId,
@@ -37,6 +37,7 @@ pub(crate) struct PatchInputs<'a> {
     pub(crate) structures: &'a BTreeMap<StructureId, molgfx_core::MolecularSource>,
     pub(crate) property_bindings: &'a BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
     pub(crate) science_bindings: &'a crate::science::ScienceBindings,
+    pub(crate) structure_assets: &'a crate::scene::runtime::StructureAssets,
 }
 
 pub(crate) struct LocalPatchPlan {
@@ -76,11 +77,15 @@ impl PatchPlan {
     pub(crate) fn prepare(inputs: PatchInputs<'_>, patch: &ScenePatch) -> Result<Self, Error> {
         if patch.operations.iter().any(is_structural) {
             let candidate = candidate_spec(inputs.spec, patch)?;
-            let resolution = resolve(
+            // A structural patch in this planner only ever adds, removes or
+            // replaces representations and scientific items; the molecules are
+            // untouched, so their atom tables are reused rather than rebuilt.
+            let resolution = crate::scene::runtime::resolve_reusing(
                 &candidate,
                 inputs.structures,
                 inputs.property_bindings,
                 inputs.science_bindings,
+                Some(inputs.structure_assets),
             )
             .map_err(|error| Error::InvalidSpec(format!("patch could not be resolved: {error}")))?;
             return Ok(Self::Structural {
