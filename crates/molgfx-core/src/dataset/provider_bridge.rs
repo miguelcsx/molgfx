@@ -8,6 +8,8 @@ use crate::{
     ChunkBounds, ChunkData, ChunkDescriptor, ChunkFootprint, ChunkPayload, ChunkSpan,
     DatasetCatalog, DatasetError, DatasetId, PayloadKind,
 };
+use ::molframe::Aabb as MolframeAabb;
+use molframe::engine::core as molframe;
 use thiserror::Error;
 
 /// Typed failure while adapting a native provider contract.
@@ -303,7 +305,7 @@ const fn chunk_mismatch(
 
 fn adapt_bounds(
     chunk: molframe::ChunkId,
-    bounds: molframe::Aabb,
+    bounds: MolframeAabb,
 ) -> Result<ChunkBounds, ProviderBridgeError> {
     if bounds.is_empty() {
         return Err(ProviderBridgeError::MissingBounds { chunk: chunk.get() });

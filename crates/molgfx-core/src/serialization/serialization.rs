@@ -121,15 +121,21 @@ fn structure_description(
     handle: StructureHandle,
     placed: &crate::PlacedStructure,
 ) -> StructureDescription {
-    let entry = &placed.structure.data().entry;
+    let entry = placed.source.molframe().map(molframe::Structure::metadata);
     StructureDescription {
         row: handle.row(),
         generation: handle.generation(),
         dataset_id: placed.dataset_id().get(),
-        source_id: entry.id.as_deref().map(str::to_owned),
-        title: entry.title.as_deref().map(str::to_owned),
-        method: entry.method.as_deref().map(str::to_owned),
-        resolution: entry.resolution,
+        source_id: entry
+            .and_then(|value| value.id.as_deref())
+            .map(str::to_owned),
+        title: entry
+            .and_then(|value| value.title.as_deref())
+            .map(str::to_owned),
+        method: entry
+            .and_then(|value| value.method.as_deref())
+            .map(str::to_owned),
+        resolution: entry.and_then(|value| value.resolution),
         atom_count: placed.atoms.len(),
         coordinate_hash: coordinate_hash(placed),
         model_to_world: placed.model_to_world.to_cols_array(),

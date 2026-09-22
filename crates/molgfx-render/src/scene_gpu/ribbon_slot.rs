@@ -195,15 +195,22 @@ impl<D: Device> RibbonSlot<D> {
 
 fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), RenderError> {
     let params = spline_params(input.representation);
+    let structure = input
+        .placed
+        .source
+        .molframe()
+        .ok_or(RenderError::SourceCapabilityMissing {
+            capability: "ribbon topology",
+        })?;
     if input.representation.kind == RepresentationKind::PaperChain {
         input.mesh.clear();
     } else if input.representation.kind == RepresentationKind::Twister {
         input
             .mesh
-            .generate_glycan(&input.placed.structure, input.selection, params);
+            .generate_glycan(structure, input.selection, params);
     } else {
         input.mesh.generate_structure(
-            &input.placed.structure,
+            structure,
             input.selection,
             input.placed.secondary_structure.values(),
             8.0,
@@ -246,9 +253,16 @@ fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), Rend
 }
 
 fn append_nucleotide_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), RenderError> {
+    let structure = input
+        .placed
+        .source
+        .molframe()
+        .ok_or(RenderError::SourceCapabilityMissing {
+            capability: "nucleotide topology",
+        })?;
     if input.representation.kind == RepresentationKind::Cartoon {
         molgfx_geometry::append_base_slabs(
-            &input.placed.structure,
+            structure,
             input.selection,
             BASE_SLAB_THICKNESS,
             &mut input.mesh.vertices,
@@ -256,7 +270,7 @@ fn append_nucleotide_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Resul
         )?;
     } else if input.representation.kind == RepresentationKind::PaperChain {
         molgfx_geometry::append_paper_chain(
-            &input.placed.structure,
+            structure,
             input.selection,
             PAPER_CHAIN_HEIGHT,
             input.representation.material.opacity_unorm8(),

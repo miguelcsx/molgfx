@@ -9,7 +9,7 @@ repository.workspace = true
 
 [dependencies]
 molgfx-math.workspace = true
-molframe = { workspace = true, features = ["surface"] }
+molframe = { workspace = true, features = ["query", "surface"] }
 bytemuck.workspace = true
 smallvec.workspace = true
 hashbrown.workspace = true

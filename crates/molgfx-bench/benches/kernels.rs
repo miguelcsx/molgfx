@@ -34,7 +34,7 @@ fn bench_kernels(c: &mut Criterion) {
     let Some(structure) = load() else {
         return;
     };
-    let atom_count = u64::try_from(structure.positions().len())
+    let atom_count = u64::try_from(structure.coordinates().len())
         .into_iter()
         .fold(u64::MAX, |_, value| value);
 

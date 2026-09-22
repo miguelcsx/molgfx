@@ -93,11 +93,14 @@ fn insert_placement(
 }
 
 fn structure_matches(description: &StructureDescription, placed: &PlacedStructure) -> bool {
-    let entry = &placed.structure.data().entry;
-    entry.id.as_deref() == description.source_id.as_deref()
-        && entry.title.as_deref() == description.title.as_deref()
-        && entry.method.as_deref() == description.method.as_deref()
-        && same_option_bits(entry.resolution, description.resolution)
+    let metadata_matches = placed.source.molframe().is_some_and(|structure| {
+        let entry = structure.metadata();
+        entry.id.as_deref() == description.source_id.as_deref()
+            && entry.title.as_deref() == description.title.as_deref()
+            && entry.method.as_deref() == description.method.as_deref()
+            && same_option_bits(entry.resolution, description.resolution)
+    });
+    metadata_matches
         && placed.atoms.len() == description.atom_count
         && super::super::coordinate_hash::coordinate_hash(placed) == description.coordinate_hash
 }

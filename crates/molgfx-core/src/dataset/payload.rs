@@ -7,6 +7,7 @@ use crate::{
     ScalarChunkPayload, StructureChunkPayload, TrajectoryChunkPayload, TrajectoryFramesPayload,
     VolumeBrickPayload,
 };
+use molframe::engine::core as molframe;
 
 /// One of the host-neutral payload categories declared by [`PayloadKind`].
 #[derive(Clone, Debug)]

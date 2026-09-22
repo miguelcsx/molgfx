@@ -4,6 +4,7 @@ use super::{
     StructureChunkPlacement,
 };
 use crate::testing::MockDevice;
+use molframe::engine::core as frame;
 use molgfx_core::{
     ChunkData, ChunkFootprint, ChunkId, DatasetId, ResidencyClass, ResidencyDetail, ResidencyKey,
     ResidencyOutput, ResidencyRequest,
@@ -154,12 +155,12 @@ fn bond_placement_capacity_is_bounded_by_the_working_set() {
 
 fn fixtures() -> (Fixture, Fixture, Fixture) {
     let structure = bonded_structure();
-    let atom_provider = molframe::DatasetDescriptor::source_defined(
-        molframe::DatasetId::new(ATOM_DATASET),
-        molframe::PayloadKind::Structure,
+    let atom_provider = frame::DatasetDescriptor::source_defined(
+        frame::DatasetId::new(ATOM_DATASET),
+        frame::PayloadKind::Structure,
         ATOM_START + 4,
         2,
-        molframe::ChunkId::new(1_001),
+        frame::ChunkId::new(1_001),
         2,
     )
     .unwrap_or_else(|error| panic!("atom provider descriptor: {error}"));
@@ -167,27 +168,27 @@ fn fixtures() -> (Fixture, Fixture, Fixture) {
     let first = structure_fixture(&atom_bridge, structure.clone(), 0, 1_001, ATOM_START);
     let second = structure_fixture(&atom_bridge, structure.clone(), 1, 1_002, ATOM_START + 2);
 
-    let bond_descriptor = molframe::ChunkDescriptor::new(
-        molframe::DatasetId::new(BOND_DATASET),
-        molframe::ChunkId::new(2_001),
-        molframe::LogicalRow::new(u64::from(u32::MAX) + 9_000),
+    let bond_descriptor = frame::ChunkDescriptor::new(
+        frame::DatasetId::new(BOND_DATASET),
+        frame::ChunkId::new(2_001),
+        frame::LogicalRow::new(u64::from(u32::MAX) + 9_000),
         2,
     )
     .unwrap_or_else(|error| panic!("bond descriptor: {error}"));
-    let bond = molframe::BondChunk::shared(
+    let bond = frame::BondChunk::shared(
         bond_descriptor,
-        structure,
+        structure.into_engine(),
         0..2,
-        molframe::DatasetId::new(ATOM_DATASET),
-        molframe::LogicalRow::new(ATOM_START),
+        frame::DatasetId::new(ATOM_DATASET),
+        frame::LogicalRow::new(ATOM_START),
     )
     .unwrap_or_else(|error| panic!("bond chunk: {error}"));
-    let bond_provider = molframe::DatasetDescriptor::source_defined(
-        molframe::DatasetId::new(BOND_DATASET),
-        molframe::PayloadKind::BondTopology,
+    let bond_provider = frame::DatasetDescriptor::source_defined(
+        frame::DatasetId::new(BOND_DATASET),
+        frame::PayloadKind::BondTopology,
         u64::from(u32::MAX) + 9_002,
         1,
-        molframe::ChunkId::new(2_001),
+        frame::ChunkId::new(2_001),
         2,
     )
     .unwrap_or_else(|error| panic!("bond provider descriptor: {error}"));
@@ -215,14 +216,14 @@ fn structure_fixture(
     chunk: u64,
     start: u64,
 ) -> Fixture {
-    let descriptor = molframe::ChunkDescriptor::new(
-        molframe::DatasetId::new(ATOM_DATASET),
-        molframe::ChunkId::new(chunk),
-        molframe::LogicalRow::new(start),
+    let descriptor = frame::ChunkDescriptor::new(
+        frame::DatasetId::new(ATOM_DATASET),
+        frame::ChunkId::new(chunk),
+        frame::LogicalRow::new(start),
         2,
     )
     .unwrap_or_else(|error| panic!("structure descriptor: {error}"));
-    let source = molframe::StructureChunk::shared(descriptor, structure, storage)
+    let source = frame::StructureChunk::shared(descriptor, structure.into_engine(), storage)
         .unwrap_or_else(|error| panic!("structure chunk: {error}"));
     let pointer = source.positions().as_ptr() as usize;
     let bytes = bytemuck::cast_slice(source.positions()).to_vec();
@@ -291,9 +292,9 @@ fn licorice(ticket: molgfx_core::ResidencyTicket, id: u64) -> BondChunkPlacement
 }
 
 fn bonded_structure() -> molframe::Structure {
-    let mut atoms = molframe::ChunkBuilder::with_target(2);
+    let mut atoms = frame::ChunkBuilder::with_target(2);
     for (atom, position) in (0..4u32).zip([0.0_f32, 1.0, 2.0, 3.0]) {
-        atoms.push(molframe::AtomRecord {
+        atoms.push(frame::AtomRecord {
             position: Some([position, 0.0, 0.0]),
             element: molframe::Element::CARBON,
             atom_name: molframe::SymbolId::from_raw(0),
@@ -301,9 +302,9 @@ fn bonded_structure() -> molframe::Structure {
             alternate_component_id: absent(),
             alt_id: molframe::AltId::BLANK,
             residue: molframe::ResidueIndex::new(atom),
-            occupancy: (1.0, molframe::Presence::Present),
-            b_factor: (10.0, molframe::Presence::Present),
-            formal_charge: (0, molframe::Presence::Inapplicable),
+            occupancy: (1.0, frame::Presence::Present),
+            b_factor: (10.0, frame::Presence::Present),
+            formal_charge: (0, frame::Presence::Inapplicable),
             atom_site_id: atom,
         });
     }
@@ -317,11 +318,11 @@ fn bonded_structure() -> molframe::Structure {
             provenance: molframe::BondProvenance::File,
         });
     }
-    let mut data = molframe::StructureData::empty();
+    let mut data = frame::StructureData::empty();
     data.chunks = Arc::new(chunks);
-    data.coords = molframe::CoordinateStore::Single(coordinates);
+    data.coords = frame::CoordinateStore::Single(coordinates);
     data.bonds = bonds.finish();
-    molframe::Structure::new(data)
+    frame::Structure::new(data).into()
 }
 
 fn buffer_id(engine: &Engine<MockDevice>, label: &'static str) -> u32 {

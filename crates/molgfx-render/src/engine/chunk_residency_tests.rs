@@ -1,5 +1,6 @@
 use super::{Engine, EngineConfig};
 use crate::testing::MockDevice;
+use molframe::engine::core as frame;
 use molgfx_core::{
     ChunkData, ChunkFootprint, ChunkId, ChunkPayload, DatasetId, HostWorkingSet, ResidencyBudget,
     ResidencyClass, ResidencyDetail, ResidencyKey, ResidencyOutput, ResidencyPhase,
@@ -148,15 +149,15 @@ pub(super) fn fixture(dataset: u64, chunk: u64, priority: i32) -> Fixture {
         Ok((value, _)) => value,
         Err(error) => panic!("fixture must parse: {error:?}"),
     };
-    let provider = match molframe::StructureChunkProvider::new(
-        molframe::DatasetId::new(dataset),
-        molframe::ChunkId::new(chunk),
-        structure,
+    let provider = match frame::StructureChunkProvider::new(
+        frame::DatasetId::new(dataset),
+        frame::ChunkId::new(chunk),
+        structure.into_engine(),
     ) {
         Ok(value) => value,
         Err(error) => panic!("provider must initialize: {error}"),
     };
-    let source = match provider.chunk(molframe::ChunkId::new(chunk)) {
+    let source = match provider.chunk(frame::ChunkId::new(chunk)) {
         Ok(value) => value,
         Err(error) => panic!("provider chunk must exist: {error}"),
     };
@@ -198,16 +199,16 @@ pub(super) fn frame_fixture(dataset: u64, chunk: u64, priority: i32, offset: f32
         Ok((value, _)) => value,
         Err(error) => panic!("frame fixture must parse: {error:?}"),
     };
-    let provider = match molframe::FrameChunkProvider::new(
-        molframe::DatasetId::new(dataset),
-        molframe::ChunkId::new(chunk),
-        structure,
+    let provider = match frame::FrameChunkProvider::new(
+        frame::DatasetId::new(dataset),
+        frame::ChunkId::new(chunk),
+        structure.into_engine(),
         molframe::ModelIndex::new(0),
     ) {
         Ok(value) => value,
         Err(error) => panic!("frame provider must initialize: {error}"),
     };
-    let source = match provider.chunk(molframe::ChunkId::new(chunk)) {
+    let source = match provider.chunk(frame::ChunkId::new(chunk)) {
         Ok(value) => value,
         Err(error) => panic!("frame chunk must exist: {error}"),
     };

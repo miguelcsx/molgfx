@@ -43,25 +43,13 @@ impl Scene {
     /// Returns [`CoreError::InvalidSelection`] for malformed syntax, unknown
     /// keywords or invalid spatial distances.
     pub fn select_str(&mut self, source: &str) -> Result<SelectionHandle, CoreError> {
-        let query = if let Some((_, query)) = self
-            .selection_cache
-            .iter()
-            .find(|(cached, _)| cached.as_ref() == source)
-        {
-            query.clone()
-        } else {
-            let query: Select = source.parse()?;
-            if self.selection_cache.len() == SELECTION_CACHE_LIMIT {
-                self.selection_cache.remove(0);
-            }
-            self.selection_cache.push((source.into(), query.clone()));
-            query
-        };
-        self.select(query)
+        let mut scoped = Vec::with_capacity(self.structures.len());
+        for (raw, placed) in self.structures.iter() {
+            scoped.push((StructureHandle(raw), placed.source.select(source)?));
+        }
+        Ok(self.add_scoped_selection(scoped))
     }
 }
-
-const SELECTION_CACHE_LIMIT: usize = 32;
 
 fn evaluate(
     expression: &SelectExpr,
@@ -111,7 +99,10 @@ fn class_rows(class: EntityClass, placed: &PlacedStructure) -> RoaringBitmap {
     if class == EntityClass::All {
         return (0..placed.atoms.len()).collect();
     }
-    let data = placed.structure.data();
+    let Some(structure) = placed.source.molframe() else {
+        return RoaringBitmap::new();
+    };
+    let data = structure.engine().data();
     let mut rows = RoaringBitmap::new();
     for chain in data.chains() {
         let entity_kind = chain
@@ -142,7 +133,10 @@ fn class_rows(class: EntityClass, placed: &PlacedStructure) -> RoaringBitmap {
 
 fn predicate_rows(predicate: &AtomPredicate, placed: &PlacedStructure) -> RoaringBitmap {
     let mut rows = RoaringBitmap::new();
-    let data = placed.structure.data();
+    let Some(structure) = placed.source.molframe() else {
+        return rows;
+    };
+    let data = structure.engine().data();
     for chain in data.chains() {
         let first_residue = chain.residue_at(0).map(molframe::ResidueRef::index);
         let last_residue = chain.residues().last().map(molframe::ResidueRef::index);

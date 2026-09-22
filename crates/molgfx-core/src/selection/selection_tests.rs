@@ -19,13 +19,8 @@ fn sorted_unique(indices: Vec<u32>) -> Vec<u32> {
 /// Builds every encoding of the same logical index set.
 fn encodings(indices: &[u32]) -> Vec<AtomSelection> {
     let sparse = AtomSelection::Sparse(indices.to_vec());
-    let mut dense_bits = molframe::BitVec::repeat(false, TABLE);
-    for &i in indices {
-        dense_bits.set(i, true);
-    }
-    let dense = AtomSelection::Dense(dense_bits);
     let roaring = AtomSelection::Roaring(indices.iter().copied().collect());
-    vec![sparse, dense, roaring]
+    vec![sparse, roaring]
 }
 
 proptest! {

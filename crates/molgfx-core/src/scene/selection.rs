@@ -44,22 +44,11 @@ impl Scene {
             .structures
             .iter()
             .map(|(raw, placed)| {
-                let mut rows = roaring::RoaringBitmap::new();
-                let data = placed.structure.data();
-                for chain in data.chains() {
-                    let water = chain
-                        .entity()
-                        .and_then(|entity| data.topology.entities.kind(entity))
-                        == Some(molframe::EntityKind::Water);
-                    if water {
-                        for residue in chain.residues() {
-                            for atom in residue.atoms() {
-                                rows.insert(atom.index().get());
-                            }
-                        }
-                    }
-                }
-                (StructureHandle(raw), AtomSelection::Roaring(rows))
+                let selection = match placed.source.select("water") {
+                    Ok(selection) => selection,
+                    Err(_) => AtomSelection::Empty,
+                };
+                (StructureHandle(raw), selection)
             })
             .collect();
         self.add_scoped_selection(scoped)
@@ -178,13 +167,8 @@ impl Scene {
                     *size = 1;
                 }
             });
-            for bond in placed.structure.data().bonds.iter() {
-                union_selected(
-                    &mut parents,
-                    &mut sizes,
-                    bond.atom_a.get(),
-                    bond.atom_b.get(),
-                );
+            for bond in placed.source.topology().bonds.iter() {
+                union_selected(&mut parents, &mut sizes, bond.atoms[0], bond.atoms[1]);
             }
             let mut retained = roaring::RoaringBitmap::new();
             selected.for_each(atom_count, |atom| {

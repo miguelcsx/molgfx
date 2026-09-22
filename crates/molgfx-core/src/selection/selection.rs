@@ -28,8 +28,6 @@ pub enum AtomSelection {
     Ranges(SmallVec<[Range<u32>; 4]>),
     /// Scattered indices, ascending.
     Sparse(Vec<u32>),
-    /// A dense bitmask over the whole table.
-    Dense(molframe::BitVec),
     /// A compressed bitmap; the right shape for large scattered sets.
     Roaring(RoaringBitmap),
 }
@@ -48,7 +46,6 @@ impl AtomSelection {
                 .map(|r| u64::from(r.end.saturating_sub(r.start)))
                 .sum(),
             Self::Sparse(v) => v.len() as u64,
-            Self::Dense(bits) => bits.ones().filter(|&i| i < table_len).count() as u64,
             Self::Roaring(map) => map.len(),
         }
     }
@@ -62,7 +59,6 @@ impl AtomSelection {
             Self::Range(r) => r.contains(&index),
             Self::Ranges(rs) => rs.iter().any(|r| r.contains(&index)),
             Self::Sparse(v) => v.binary_search(&index).is_ok(),
-            Self::Dense(bits) => bits.test(index),
             Self::Roaring(map) => map.contains(index),
         }
     }
@@ -91,13 +87,6 @@ impl AtomSelection {
             }
             Self::Sparse(v) => {
                 for &i in v {
-                    if i < table_len {
-                        visit(i);
-                    }
-                }
-            }
-            Self::Dense(bits) => {
-                for i in bits.ones() {
                     if i < table_len {
                         visit(i);
                     }

@@ -60,7 +60,7 @@ pub fn append_base_slabs(
     indices: &mut Vec<u32>,
 ) -> Result<(), crate::PackingError> {
     let half_thickness = (thickness.max(0.02)) * 0.5;
-    for chain in structure.data().chains() {
+    for chain in structure.chains() {
         for residue in chain.residues() {
             let Some(sugar) = residue.atom(SUGAR_ATTACHMENT) else {
                 continue;
@@ -117,7 +117,7 @@ pub fn append_base_polygons(
     indices: &mut Vec<u32>,
 ) -> Result<(), crate::PackingError> {
     let half_thickness = thickness.max(0.02) * 0.5;
-    for chain in structure.data().chains() {
+    for chain in structure.chains() {
         for residue in chain.residues() {
             let Some(sugar) = residue.atom(SUGAR_ATTACHMENT) else {
                 continue;

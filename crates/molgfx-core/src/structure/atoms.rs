@@ -41,7 +41,7 @@ impl AtomTable {
     ) -> Option<Self> {
         let coords = CoordRef::new(structure, model)?;
         let atom_count = coords.len();
-        let data = structure.data();
+        let data = structure.engine().data();
 
         let mut element = vec![0u16; atom_count];
         let mut residue = vec![0u32; atom_count];
@@ -77,6 +77,40 @@ impl AtomTable {
             flags: Column::new(vec![AtomFlags::VISIBLE; atom_count]),
             semantic: Column::new(vec![0u32; atom_count]),
         })
+    }
+
+    /// Materializes renderer columns from a provider-neutral source.
+    #[must_use]
+    pub fn from_source(source: &crate::MolecularSource) -> Self {
+        let coords = CoordRef::from_source(source);
+        let atom_count = coords.len();
+        let mut element = Vec::with_capacity(atom_count);
+        let mut residue = Vec::with_capacity(atom_count);
+        let mut radius = Vec::with_capacity(atom_count);
+        let mut color = Vec::with_capacity(atom_count);
+        for atom in source.topology().atoms.iter().take(atom_count) {
+            let atomic_number = atom.element;
+            element.push(u16::from(atom.element));
+            residue.push(atom.residue);
+            radius.push(radii::vdw_radius(atomic_number));
+            color.push(radii::cpk_color(atomic_number));
+        }
+        while element.len() < atom_count {
+            element.push(0);
+            residue.push(0);
+            radius.push(radii::vdw_radius(0));
+            color.push(radii::cpk_color(0));
+        }
+        Self {
+            len: crate::column::saturating_u32(atom_count),
+            coords,
+            element: Column::new(element),
+            residue: Column::new(residue),
+            radius: Column::new(radius),
+            color: Column::new(color),
+            flags: Column::new(vec![AtomFlags::VISIBLE; atom_count]),
+            semantic: Column::new(vec![0; atom_count]),
+        }
     }
 
     /// Number of atoms.

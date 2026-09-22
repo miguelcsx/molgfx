@@ -70,6 +70,13 @@ pub enum RenderError {
     #[error("invalid off-screen image dimensions")]
     InvalidImageSize,
 
+    /// A physical representation requires source annotations not exposed by its provider.
+    #[error("molecular source does not provide {capability}")]
+    SourceCapabilityMissing {
+        /// Required provider capability.
+        capability: &'static str,
+    },
+
     /// Sequence timestamps or buffering parameters violate the deterministic contract.
     #[error("invalid render sequence: {reason}")]
     InvalidSequence {
@@ -162,6 +169,7 @@ impl RenderError {
             Self::GraphCycle { .. } => "MOLGFX-E0070",
             Self::UnknownResource { .. } => "MOLGFX-E0071",
             Self::InvalidImageSize => "MOLGFX-E0072",
+            Self::SourceCapabilityMissing { .. } => "MOLGFX-E0092",
             Self::InvalidSequence { .. } => "MOLGFX-E0089",
             Self::SequenceBackpressure { .. } => "MOLGFX-E0090",
             Self::InvalidFocusTarget { .. } => "MOLGFX-E0073",

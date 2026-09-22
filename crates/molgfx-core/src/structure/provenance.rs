@@ -54,15 +54,12 @@ impl Scene {
     #[must_use]
     pub fn provenance(&self, entity: EntityRef) -> Option<EntityProvenance<'_>> {
         let placed = self.structure(entity.structure)?;
+        let structure = placed.source.molframe()?;
         let detail = match entity.kind {
-            EntityKind::Atom => ProvenanceDetail::Atom(
-                placed
-                    .structure
-                    .atom(molframe::AtomIndex::new(entity.index))?,
-            ),
+            EntityKind::Atom => ProvenanceDetail::Atom(structure.atom_at(entity.index as usize)?),
             EntityKind::Bond => ProvenanceDetail::Bond(
-                placed
-                    .structure
+                structure
+                    .engine()
                     .data()
                     .bonds
                     .get(molframe::BondIndex::new(entity.index))?,
@@ -95,7 +92,7 @@ impl Scene {
         };
         Some(EntityProvenance {
             entity,
-            entry: &placed.structure.data().entry,
+            entry: structure.metadata(),
             detail,
         })
     }

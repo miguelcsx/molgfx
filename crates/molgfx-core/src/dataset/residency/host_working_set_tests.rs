@@ -4,6 +4,7 @@ use crate::{
     LogicalRow, PayloadKind, PropertyChunkPayload, PropertyValues, ProviderDatasetBridge,
     ResidencyClass, ResidencyDetail,
 };
+use molframe::engine::core as frame;
 use std::sync::Arc;
 
 const HOST_BYTES: u64 = 24;
@@ -36,24 +37,24 @@ fn request(key: ResidencyKey, priority: i32) -> ResidencyRequest {
 }
 
 fn frame_data(key: ResidencyKey) -> (ChunkData, usize) {
-    let source_dataset = match molframe::DatasetDescriptor::regular(
-        molframe::DatasetId::new(key.dataset.get()),
-        molframe::PayloadKind::Frame,
+    let source_dataset = match frame::DatasetDescriptor::regular(
+        frame::DatasetId::new(key.dataset.get()),
+        frame::PayloadKind::Frame,
         1_u64 << 50,
         2,
-        molframe::ChunkId::new(key.chunk.get()),
+        frame::ChunkId::new(key.chunk.get()),
     ) {
         Ok(dataset) => dataset,
         Err(error) => panic!("provider dataset must be valid: {error}"),
     };
-    let source_chunk = match source_dataset.regular_chunk(molframe::ChunkId::new(key.chunk.get())) {
+    let source_chunk = match source_dataset.regular_chunk(frame::ChunkId::new(key.chunk.get())) {
         Ok(chunk) => chunk,
         Err(error) => panic!("provider chunk must be valid: {error}"),
     };
-    let coordinates: molframe::CoordinateBlock =
+    let coordinates: frame::CoordinateBlock =
         [[0.0, 0.0, 0.0], [1.0, 2.0, 3.0]].into_iter().collect();
     let pointer = coordinates.as_slice().as_ptr() as usize;
-    let frame = match molframe::FrameChunk::shared(source_chunk, coordinates, 0..2) {
+    let frame = match frame::FrameChunk::shared(source_chunk, coordinates, 0..2) {
         Ok(frame) => frame,
         Err(error) => panic!("provider frame must be valid: {error}"),
     };

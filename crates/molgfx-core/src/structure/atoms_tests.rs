@@ -49,7 +49,10 @@ fn coordinates_stay_borrowed_while_columns_are_owned() {
     let Some(t) = AtomTable::from_structure(&structure, molframe::ModelIndex::new(0)) else {
         panic!("fixture materializes")
     };
-    assert_eq!(t.coords().slice().as_ptr(), structure.positions().as_ptr());
+    assert_eq!(
+        t.coords().slice().as_ptr(),
+        structure.coordinates().as_ptr()
+    );
 }
 
 #[test]

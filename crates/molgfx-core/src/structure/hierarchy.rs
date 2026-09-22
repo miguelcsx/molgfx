@@ -24,11 +24,22 @@ pub struct Hierarchy {
 }
 
 impl Hierarchy {
+    /// Copies compact offsets from a provider-neutral source once per asset.
+    #[must_use]
+    pub fn from_source(source: &crate::MolecularSource) -> Self {
+        let topology = source.topology();
+        Self {
+            residue_atom_start: topology.residue_atom_start.to_vec(),
+            chain_residue_start: topology.chain_residue_start.to_vec(),
+            model_chain_start: topology.model_chain_start.to_vec(),
+        }
+    }
+
     /// Builds the offset arrays from the parsed structure's topology tables.
     /// `O(residues + chains + models)`.
     #[must_use]
     pub fn from_structure(structure: &molframe::Structure) -> Self {
-        let topology = &structure.data().topology;
+        let topology = &structure.engine().data().topology;
 
         let residue_count = topology.residues.len();
         let mut residue_atom_start = Vec::with_capacity(residue_count + 1);

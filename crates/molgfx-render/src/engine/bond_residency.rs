@@ -10,6 +10,7 @@ use super::{BondChunkPlacement, ChunkPlacementError, ChunkPlacementId, ChunkPlac
 use crate::residency::LazyUploadRing;
 use crate::{RenderError, ResidencyConfig};
 use hashbrown::HashMap;
+use molframe::engine::core as molframe;
 use molgfx_core::{ChunkPayload, ChunkSpan, LogicalRow, ResidencyTicket};
 use molgfx_gpu::{ArenaAllocation, BufferDesc, BufferUsage, Device, FenceValue, PagedArena, Queue};
 use support::{depends_on, endpoints_resident, resolve_endpoint, validate_bond_placements};
