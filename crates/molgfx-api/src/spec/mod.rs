@@ -12,41 +12,6 @@ use crate::science::{
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-/// Fine-grained semantic revisions used by physical cache keys.
-#[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub struct Revisions {
-    /// Molecular topology changed.
-    pub topology: u64,
-    /// Coordinate storage changed.
-    pub coordinates: u64,
-    /// A canonical selection changed.
-    pub selection: u64,
-    /// A runtime scalar-property binding changed.
-    pub property: u64,
-    /// Color, opacity or visual style changed.
-    pub appearance: u64,
-    /// Selected, hovered, focused, muted or hidden state changed.
-    pub interaction: u64,
-    /// An assembly or symmetry placement changed.
-    pub placement: u64,
-    /// Volume brick data changed.
-    pub volume_bricks: u64,
-    /// Custom mesh attributes changed.
-    pub mesh_attributes: u64,
-    /// Density-volume membership or data changed.
-    pub volume_data: u64,
-    /// Annotation membership or presentation changed.
-    pub annotation: u64,
-    /// Measurement membership or presentation changed.
-    pub measurement: u64,
-    /// Scientific interaction membership or presentation changed.
-    pub scientific_interaction: u64,
-    /// Trajectory source or frame data changed.
-    pub trajectory_data: u64,
-    /// Camera and renderer-independent view state changed.
-    pub view: u64,
-}
-
 /// GPU-resident semantic interaction channel.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -81,9 +46,6 @@ pub struct StructureSource {
 pub struct SceneSpec {
     /// Revision used by incremental patches.
     pub revision: u64,
-    /// Independent cache-invalidation revisions.
-    #[serde(default)]
-    pub revisions: Revisions,
     /// Molecular inputs in stable ID order.
     pub structures: BTreeMap<StructureId, StructureSource>,
     /// Scalar-property descriptors; value columns are runtime bindings.
@@ -131,7 +93,6 @@ impl SceneSpec {
     pub(crate) fn empty() -> Self {
         Self {
             revision: 0,
-            revisions: Revisions::default(),
             structures: BTreeMap::new(),
             properties: BTreeMap::new(),
             representations: BTreeMap::new(),
