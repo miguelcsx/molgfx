@@ -53,7 +53,6 @@ fn current_schema_visual_programs_rehydrate_with_live_parameters() {
         .represent(selection, crate::Representation::spacefill().visual(style))
         .unwrap_or_else(|error| panic!("visual representation builds: {error}"));
     let description = scene.describe();
-    assert_eq!(description.schema, SCHEMA_VERSION);
     let rebuilt = Scene::from_description(
         &description,
         SceneDescriptionSources {

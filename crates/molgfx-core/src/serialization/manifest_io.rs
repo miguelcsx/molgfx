@@ -1,6 +1,6 @@
 //! Streaming, content-addressed scene manifests.
 
-use super::{SceneDescription, manifest::SCHEMA_VERSION};
+use super::SceneDescription;
 use crate::Scene;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -111,15 +111,6 @@ impl SceneManifest {
     }
 
     fn validate(&self) -> Result<(), ManifestError> {
-        if self.scene.schema != SCHEMA_VERSION {
-            return Err(ManifestError::UnsupportedSchema {
-                found: self.scene.schema,
-                expected: SCHEMA_VERSION,
-            });
-        }
-        if self.scene.engine != format!("molgfx-scene-{SCHEMA_VERSION}") {
-            return Err(ManifestError::EngineMismatch);
-        }
         if !self.payloads.windows(2).all(|pair| pair[0] <= pair[1]) {
             return Err(ManifestError::NonCanonicalPayloadOrder);
         }
@@ -156,17 +147,6 @@ pub enum ManifestError {
     /// JSON syntax or data did not match the manifest schema.
     #[error("manifest JSON failed: {0}")]
     Json(#[from] serde_json::Error),
-    /// The manifest was produced for another schema.
-    #[error("unsupported manifest schema {found}; expected {expected}")]
-    UnsupportedSchema {
-        /// Schema read from the stream.
-        found: u16,
-        /// Only accepted schema.
-        expected: u16,
-    },
-    /// Engine format identifier did not match the current schema.
-    #[error("manifest engine format does not match the current schema")]
-    EngineMismatch,
     /// Payload references were not in canonical order.
     #[error("manifest payload references are not canonically ordered")]
     NonCanonicalPayloadOrder,
@@ -309,17 +289,13 @@ impl<R: Read> Read for VerifiedPayload<R> {
 fn merkle_root(payloads: &[PayloadReference]) -> ContentAddress {
     let mut level: Vec<ContentAddress> = payloads.iter().map(reference_hash).collect();
     if level.is_empty() {
-        return hash_parts(&[b"molgfx-empty-merkle-v1"]);
+        return hash_parts(&[b"molgfx-empty-merkle"]);
     }
     while level.len() > 1 {
         let mut parents = Vec::with_capacity(level.len().div_ceil(2));
         for pair in level.chunks(2) {
             let right = if pair.len() == 2 { pair[1] } else { pair[0] };
-            parents.push(hash_parts(&[
-                b"molgfx-merkle-node-v1",
-                &pair[0].0,
-                &right.0,
-            ]));
+            parents.push(hash_parts(&[b"molgfx-merkle-node", &pair[0].0, &right.0]));
         }
         level = parents;
     }
@@ -329,7 +305,7 @@ fn merkle_root(payloads: &[PayloadReference]) -> ContentAddress {
 fn reference_hash(reference: &PayloadReference) -> ContentAddress {
     let kind = [reference.kind as u8];
     hash_parts(&[
-        b"molgfx-payload-reference-v1",
+        b"molgfx-payload-reference",
         &kind,
         &reference.dataset.to_le_bytes(),
         &reference.chunk.to_le_bytes(),

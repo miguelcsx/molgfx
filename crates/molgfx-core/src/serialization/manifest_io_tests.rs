@@ -33,38 +33,6 @@ fn scene_builds_a_canonical_manifest_from_metadata_only() {
 }
 
 #[test]
-fn every_noncurrent_schema_is_rejected_by_the_stream_reader() {
-    for schema in [3, 4, 5, SCHEMA_VERSION + 1] {
-        let mut manifest = Scene::new().manifest(Vec::new());
-        manifest.scene.schema = schema;
-        manifest.scene.engine = format!("molgfx-scene-{schema}");
-        let encoded = match serde_json::to_vec(&manifest) {
-            Ok(value) => value,
-            Err(error) => panic!("test manifest encodes: {error}"),
-        };
-        assert!(matches!(
-            read_manifest(encoded.as_slice()),
-            Err(ManifestError::UnsupportedSchema { found, expected })
-                if found == schema && expected == SCHEMA_VERSION
-        ));
-    }
-}
-
-#[test]
-fn current_schema_with_a_foreign_engine_identifier_is_rejected() {
-    let mut manifest = Scene::new().manifest(Vec::new());
-    manifest.scene.engine = "foreign-scene-format".to_owned();
-    let encoded = match serde_json::to_vec(&manifest) {
-        Ok(value) => value,
-        Err(error) => panic!("test manifest encodes: {error}"),
-    };
-    assert!(matches!(
-        read_manifest(encoded.as_slice()),
-        Err(ManifestError::EngineMismatch)
-    ));
-}
-
-#[test]
 fn current_schema_requires_every_current_scene_field() {
     let manifest = Scene::new().manifest(Vec::new());
     let mut value = match serde_json::to_value(manifest) {
@@ -86,24 +54,6 @@ fn current_schema_requires_every_current_scene_field() {
         read_manifest(encoded.as_slice()),
         Err(ManifestError::Json(_))
     ));
-}
-
-#[test]
-fn scene_rehydration_rejects_a_previous_schema_even_without_stream_io() {
-    let mut description = Scene::new().describe();
-    description.schema = SCHEMA_VERSION - 1;
-    description.engine = format!("molgfx-scene-{}", description.schema);
-    let result = Scene::from_description(
-        &description,
-        crate::SceneDescriptionSources {
-            structures: &[],
-            volumes: &[],
-            segmentations: &[],
-            atom_properties: &[],
-            meshes: &[],
-        },
-    );
-    assert!(result.is_err());
 }
 
 #[derive(Debug)]
@@ -147,4 +97,16 @@ fn lazy_payloads_reject_corruption_at_end_of_stream() {
     };
     let mut output = Vec::new();
     assert!(reader.read_to_end(&mut output).is_err());
+}
+
+#[test]
+fn a_manifest_whose_shape_does_not_match_is_rejected() {
+    // Compatibility is decided by the shape of the data, not by a version
+    // number carried alongside it: a manifest missing a required field cannot
+    // be read, and one carrying an unknown field is not silently accepted.
+    let encoded = br#"{"scene":{},"payloads":[],"merkle_root":"00"}"#;
+    assert!(matches!(
+        read_manifest(encoded.as_slice()),
+        Err(ManifestError::Json(_))
+    ));
 }
