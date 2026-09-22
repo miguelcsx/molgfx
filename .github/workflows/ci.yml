@@ -1,0 +1,71 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - run: cargo test --workspace --all-features
+      - run: RUSTDOCFLAGS='-Dwarnings' cargo test --workspace --all-features --doc
+      - run: cargo test -p molgfx-shaders --all-features
+      - run: cargo bench --workspace --no-run
+      - name: Repository policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -rnE '#\[(allow|expect)\b' crates --include='*.rs'; then exit 1; fi
+          if grep -rnE 'level[[:space:]]*=[[:space:]]*"allow"|allow[[:space:]]*=' . --include='*.toml'; then exit 1; fi
+          if grep -rn 'unwrap' crates --include='*.rs' \
+            | grep -v '_tests.rs' \
+            | grep -v '/tests.rs' \
+            | grep -v 'generic_tests/'; then exit 1; fi
+          find crates \( -name '*.rs' -o -name '*.wgsl' \) -print0 \
+            | xargs -0 wc -l \
+            | awk '$1 > 500 && $2 != "total" { print; failed = 1 } END { exit failed }'
+          if grep -rnE '(^|[^A-Za-z_])unsafe([[:space:]]*\{|[[:space:]]+(fn|impl|trait|extern|static|mut))' \
+            crates --include='*.rs' \
+            | grep -v bytemuck; then exit 1; fi
+          # A corpus directory is named in exactly one place: the bench
+          # harness's resolver. Any other hit is a call site building a path.
+          if grep -rn 'benchmarks/' crates --include='*.rs' \
+            | grep -v 'crates/molgfx-bench/src/fixtures.rs'; then exit 1; fi
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check -p molgfx-wasm --target wasm32-unknown-unknown --all-features
+      - run: cargo clippy -p molgfx-wasm --target wasm32-unknown-unknown --all-targets --all-features -- -D warnings
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: python -m pip install --upgrade pip maturin mypy anywidget numpy
+      - run: python -m pip install 'molframe @ git+https://github.com/miguelcsx/molframe@394531e452bc6f7140528b0b883518fac24fdc96'
+      - run: maturin develop -m crates/molgfx-py/Cargo.toml
+      - run: python -m unittest discover -s python/tests
+      - run: python -m mypy.stubtest molgfx._engine
