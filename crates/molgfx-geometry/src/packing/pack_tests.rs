@@ -156,7 +156,7 @@ fn exact_sas_impostors_pack_the_probe_once() {
 }
 
 #[test]
-fn representation_opacity_is_packed_once_for_transparent_shaders() {
+fn representation_opacity_stays_out_of_shared_atom_records() {
     let (mut scene, rep_handle) = scene_table();
     let Some(representation) = scene.representation_mut(rep_handle) else {
         panic!("representation resolves")
@@ -171,11 +171,11 @@ fn representation_opacity_is_packed_once_for_transparent_shaders() {
     let mut atoms = Vec::new();
     pack_atoms(table, representation, &AtomSelection::All, &mut atoms)
         .unwrap_or_else(|error| panic!("{error}"));
-    assert!(atoms.iter().all(|atom| atom.color.a == 102));
+    assert!(atoms.iter().all(|atom| atom.color.a == u8::MAX));
 }
 
 #[test]
-fn a_uniform_scheme_replaces_element_rgb_without_losing_material_opacity() {
+fn a_uniform_scheme_replaces_element_rgb_without_baking_material_opacity() {
     let (mut scene, rep_handle) = scene_table();
     let Some(representation) = scene.representation_mut(rep_handle) else {
         panic!("representation resolves")
@@ -194,7 +194,7 @@ fn a_uniform_scheme_replaces_element_rgb_without_losing_material_opacity() {
     assert!(
         atoms
             .iter()
-            .all(|atom| atom.color == Rgba8::new(12, 34, 56, 128))
+            .all(|atom| atom.color == Rgba8::opaque(12, 34, 56))
     );
 }
 

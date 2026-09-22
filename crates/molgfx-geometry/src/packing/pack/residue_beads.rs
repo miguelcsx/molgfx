@@ -67,7 +67,7 @@ pub fn pack_residue_beads(
             residues.get(first).copied(),
             first,
         );
-        color.a = representation.material.opacity_unorm8();
+        color.a = u8::MAX;
         let source = u64::try_from(first).map_err(|_| PackingError::IndexOverflow {
             resource: "residue bead source",
             index: u64::MAX,

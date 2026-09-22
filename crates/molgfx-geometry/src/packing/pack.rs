@@ -155,7 +155,7 @@ fn pack_atoms_inner(
             residues.get(i).copied(),
             i,
         );
-        color.a = representation.material.opacity_unorm8();
+        color.a = u8::MAX;
         let appearance = atom_appearance(representation.appearance, appearance_property, i);
         if let Some((appearance_opacity, _)) = appearance {
             color.a = multiply_unorm8(color.a, appearance_opacity);
