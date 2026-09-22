@@ -141,15 +141,21 @@ fn inverse_tracks_intermediate_state_for_add_then_remove() {
 }
 
 #[test]
-fn interaction_edits_only_advance_interaction_revision() {
+fn an_interaction_edit_records_the_channel_and_revision() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
-    let before = scene.spec().revisions;
+    let before = scene.revision();
     scene
         .set_interaction(InteractionChannel::Selected, Some(sel::heavy().into()))
         .unwrap_or_else(|error| panic!("{error}"));
-    assert_eq!(scene.spec().revisions.interaction, before.interaction + 1);
-    assert_eq!(scene.spec().revisions.appearance, before.appearance);
-    assert_eq!(scene.spec().revisions.coordinates, before.coordinates);
+    assert!(
+        scene.spec().selected.is_some(),
+        "the channel records the selection it was given"
+    );
+    assert_eq!(
+        scene.revision(),
+        before + 1,
+        "a semantic edit advances the scene"
+    );
 }
 
 #[test]
@@ -192,22 +198,30 @@ fn an_invalid_interaction_query_is_atomic() {
 }
 
 #[test]
-fn a_constant_visual_edit_changes_only_appearance() {
+fn a_constant_visual_edit_only_replaces_that_visual() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let id = scene
         .add(rep::spacefill("all"))
         .unwrap_or_else(|error| panic!("{error}"));
-    let before = scene.spec().revisions;
+    let before = scene.revision();
     let visual = crate::VisualStyle::new(
         crate::Color::rgb(8, 16, 32),
         0.5,
         crate::BoolExpr::Constant(true),
     );
     scene
-        .set_visual(id, Some(visual))
+        .set_visual(id, Some(visual.clone()))
         .unwrap_or_else(|error| panic!("{error}"));
-    assert_eq!(scene.spec().revisions.appearance, before.appearance + 1);
-    assert_eq!(scene.spec().revisions.selection, before.selection);
+    assert_eq!(
+        scene
+            .spec()
+            .representations
+            .get(&id)
+            .and_then(|representation| representation.common.visual.as_ref()),
+        Some(&visual),
+        "the edit lands on the representation it named"
+    );
+    assert_eq!(scene.revision(), before + 1);
 }
 
 #[test]
@@ -252,7 +266,7 @@ fn parameter_edits_keep_the_program_and_change_only_appearance() {
         .get(&id)
         .copied()
         .unwrap_or_else(|| panic!("representation exists"));
-    let before = scene.spec().revisions;
+    let before = scene.revision();
     let program = scene
         .resolved
         .representation(handle)
@@ -271,8 +285,11 @@ fn parameter_edits_keep_the_program_and_change_only_appearance() {
         .unwrap_or_else(|| panic!("visual exists"));
     assert_eq!(visual.program(), &program);
     assert!((visual.parameters()[0][0] - 0.25).abs() < f32::EPSILON);
-    assert_eq!(scene.spec().revisions.appearance, before.appearance + 1);
-    assert_eq!(scene.spec().revisions.selection, before.selection);
+    assert_eq!(
+        scene.revision(),
+        before + 1,
+        "a parameter edit is one semantic change, not a recompile"
+    );
 }
 
 #[test]
@@ -410,9 +427,10 @@ fn color_and_vector_parameters_share_one_transaction_revision() {
 }
 
 #[test]
-fn camera_edits_advance_only_the_view_revision() {
+fn camera_edits_record_the_camera_and_leave_representations_alone() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
-    let before = scene.spec().revisions;
+    let before = scene.revision();
+    let before_representations = scene.spec().representations.clone();
     let camera = molgfx_math::Camera {
         eye: molgfx_math::Vec3::new(1.0, 2.0, 8.0),
         target: molgfx_math::Vec3::new(1.0, 2.0, 3.0),
@@ -428,9 +446,12 @@ fn camera_edits_advance_only_the_view_revision() {
         .set_camera(Some(camera))
         .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(scene.spec().camera, Some(camera));
-    assert_eq!(scene.spec().revisions.view, before.view + 1);
-    assert_eq!(scene.spec().revisions.appearance, before.appearance);
-    assert_eq!(scene.spec().revisions.placement, before.placement);
+    assert_eq!(scene.revision(), before + 1);
+    assert_eq!(
+        scene.spec().representations,
+        before_representations,
+        "a view edit never rewrites a representation"
+    );
 }
 
 #[test]

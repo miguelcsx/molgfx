@@ -11,8 +11,12 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 mod tests;
 
+pub(crate) mod bindings;
 mod builders;
+pub(crate) mod lower;
 mod validation;
+pub(crate) use bindings::ScienceBindings;
+pub use bindings::{ScientificHandles, VolumeBinding};
 pub use builders::{annotation, density, interaction, measurement, trajectory};
 
 /// Portable origin for bulk data stored outside [`crate::SceneSpec`].
@@ -176,19 +180,44 @@ pub enum InteractionKind {
     SaltBridge,
     /// Aromatic ring stacking.
     PiStacking,
-    /// Cation-aromatic contact.
+    /// Cation-aromatic contact. `molframe` has no cation-π class, so this
+    /// authoring kind lowers onto [`Self::PiStacking`], the aromatic-ring
+    /// interaction it specializes.
     CationPi,
     /// Hydrophobic contact.
     Hydrophobic,
-    /// Covalent sulfur-sulfur bridge.
-    Disulfide,
     /// Metal-ligand coordination.
     MetalCoordination,
-    /// Unclassified spatial contact.
+    /// Unclassified spatial contact. `molframe` has no unclassified class, so
+    /// this authoring kind lowers onto [`Self::Hydrophobic`], its non-polar
+    /// contact.
     Contact,
 }
 
-/// Explicit or MolFrame-detected interaction specification.
+impl InteractionKind {
+    /// Nearest `molframe` interaction class this authoring kind lowers onto.
+    ///
+    /// Two authoring kinds have no exact upstream counterpart: `CationPi`
+    /// lowers onto [`molgfx_core::InteractionKind::PiStacking`] and `Contact`
+    /// onto [`molgfx_core::InteractionKind::Hydrophobic`]. A covalent
+    /// disulfide bridge is not a contact interaction at all, so it is not an
+    /// authorable kind rather than being mapped onto a class it contradicts.
+    #[must_use]
+    pub const fn core_kind(self) -> molgfx_core::InteractionKind {
+        match self {
+            Self::HydrogenBond => molgfx_core::InteractionKind::HydrogenBond,
+            Self::SaltBridge => molgfx_core::InteractionKind::SaltBridge,
+            Self::PiStacking | Self::CationPi => molgfx_core::InteractionKind::PiStacking,
+            Self::Hydrophobic | Self::Contact => molgfx_core::InteractionKind::Hydrophobic,
+            Self::MetalCoordination => molgfx_core::InteractionKind::MetalCoordination,
+        }
+    }
+}
+
+/// Caller-supplied scientific interaction specification.
+///
+/// Detection is molecular analysis and belongs to `molframe`; this crate stores
+/// and presents interactions the caller has already resolved.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum ScientificInteractionSpec {
@@ -198,17 +227,6 @@ pub enum ScientificInteractionSpec {
         kind: InteractionKind,
         /// Ordered endpoints.
         endpoints: [Anchor; 2],
-    },
-    /// Interaction detected from one `MolFrame` structure and query.
-    Detected {
-        /// Scientific interaction class.
-        kind: InteractionKind,
-        /// Molecular source on which detection runs.
-        structure: StructureId,
-        /// Candidate atoms or residues.
-        selection: Selection,
-        /// Positive detection cutoff in ångström.
-        cutoff: f32,
     },
 }
 

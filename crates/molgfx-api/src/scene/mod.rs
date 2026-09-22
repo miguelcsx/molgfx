@@ -19,6 +19,8 @@ pub struct Scene {
     visuals: BTreeMap<RepresentationId, crate::visual::ResolvedVisual>,
     property_bindings: BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
     properties: BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
+    science_bindings: crate::science::ScienceBindings,
+    science: crate::science::lower::LoweredScience,
     next_structure: u64,
     next_representation: u64,
 }
@@ -29,6 +31,7 @@ pub(crate) struct Resolution {
     pub(crate) selections: BTreeMap<String, SelectionHandle>,
     pub(crate) visuals: BTreeMap<RepresentationId, crate::visual::ResolvedVisual>,
     pub(crate) properties: BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
+    pub(crate) science: crate::science::lower::LoweredScience,
 }
 
 pub(crate) mod interaction;
@@ -39,6 +42,7 @@ pub(crate) mod properties;
 pub(crate) mod runtime;
 #[cfg(test)]
 mod runtime_tests;
+mod science;
 pub(crate) mod transaction;
 
 impl Scene {
@@ -79,6 +83,8 @@ impl Scene {
             visuals: BTreeMap::new(),
             property_bindings: BTreeMap::new(),
             properties: BTreeMap::new(),
+            science_bindings: crate::science::ScienceBindings::default(),
+            science: crate::science::lower::LoweredScience::default(),
             next_structure: 2,
             next_representation: 1,
         })
@@ -145,7 +151,8 @@ impl Scene {
             }
         }
         spec.validate_selections()?;
-        let resolution = resolve(&spec, &structures, &property_bindings)?;
+        let science_bindings = crate::science::ScienceBindings::default();
+        let resolution = resolve(&spec, &structures, &property_bindings, &science_bindings)?;
         let next_structure = next_structure_id(&spec)?;
         let next_representation = next_representation_id(&spec)?;
         Ok(Self {
@@ -157,6 +164,8 @@ impl Scene {
             visuals: resolution.visuals,
             property_bindings,
             properties: resolution.properties,
+            science_bindings,
+            science: resolution.science,
             next_structure,
             next_representation,
         })
@@ -290,6 +299,11 @@ impl Scene {
 
     /// Adds another provider-neutral source without copying coordinates.
     ///
+    /// Announces the structure through an atomic `AddStructure` patch so the
+    /// patch stream reaches remote scenes and browser viewers. The molecular
+    /// data stays in the local binding map; the patch carries only the portable
+    /// descriptor.
+    ///
     /// # Errors
     ///
     /// Returns an error if the source cannot be adapted or IDs are exhausted.
@@ -301,29 +315,27 @@ impl Scene {
         let next_structure = self.next_structure.checked_add(1).ok_or_else(|| {
             Error::InvalidSpec("structure identity space is exhausted".to_owned())
         })?;
-        let mut candidate_structures = self.structures.clone();
-        let _ = candidate_structures.insert(id, source.clone());
-        let mut candidate = self.spec.clone();
-        let _ = candidate.structures.insert(
-            id,
-            StructureSource {
-                content_hash: structure_hash(source),
-                uri: None,
-                format: None,
-            },
-        );
-        candidate.revision = candidate.revision.wrapping_add(1);
-        candidate.revisions.topology = candidate.revisions.topology.wrapping_add(1);
-        candidate.revisions.coordinates = candidate.revisions.coordinates.wrapping_add(1);
-        let resolution = resolve(&candidate, &candidate_structures, &self.property_bindings)?;
+        let patch = ScenePatch {
+            base_revision: self.revision(),
+            operations: vec![PatchOperation::AddStructure {
+                id,
+                source: StructureSource {
+                    content_hash: structure_hash(source),
+                    uri: None,
+                    format: None,
+                },
+            }],
+        };
+        // The patch plan resolves against this binding map, so the source must
+        // be present while the structural patch is prepared and committed.
+        let mut bound = std::mem::take(&mut self.structures);
+        let _ = bound.insert(id, source.clone());
+        let previous = std::mem::replace(&mut self.structures, bound);
+        if let Err(error) = self.apply(&patch) {
+            self.structures = previous;
+            return Err(error);
+        }
         self.next_structure = next_structure;
-        self.structures = candidate_structures;
-        self.spec = candidate;
-        self.resolved = resolution.scene;
-        self.representations = resolution.representations;
-        self.selections = resolution.selections;
-        self.visuals = resolution.visuals;
-        self.properties = resolution.properties;
         Ok(id)
     }
 

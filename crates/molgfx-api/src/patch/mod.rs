@@ -4,14 +4,15 @@ pub(crate) mod plan;
 pub(crate) mod science_ops;
 
 use crate::id::{
-    AnnotationId, MeasurementId, RepresentationId, ScientificInteractionId, TrajectoryId, VolumeId,
+    AnnotationId, MeasurementId, RepresentationId, ScientificInteractionId, StructureId,
+    TrajectoryId, VolumeId,
 };
 use crate::representation::Selection;
 use crate::representation::form::RepresentationSpec;
 use crate::science::{
     AnnotationSpec, MeasurementSpec, ScientificInteractionSpec, TrajectorySpec, VolumeSpec,
 };
-use crate::spec::{InteractionChannel, SceneSpec};
+use crate::spec::{InteractionChannel, SceneSpec, StructureSource};
 use crate::{ParameterValue, VisualStyle};
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +20,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum PatchOperation {
+    /// Inserts a molecular source under a new ID.
+    ///
+    /// The patch announces the structure; coordinates stay in the runtime
+    /// binding, so applying this operation requires the caller to have bound
+    /// the source for `id` before resolving the scene.
+    AddStructure {
+        /// Stable identity assigned by the authoring scene.
+        id: StructureId,
+        /// Portable source descriptor; coordinates remain a runtime binding.
+        source: StructureSource,
+    },
     /// Inserts a representation under a new ID.
     AddRepresentation {
         /// Stable identity assigned by the authoring scene.
@@ -62,7 +74,7 @@ pub enum PatchOperation {
         /// Measurement to remove.
         id: MeasurementId,
     },
-    /// Inserts an explicit or detected scientific interaction.
+    /// Inserts a caller-supplied scientific interaction.
     AddScientificInteraction {
         /// Stable scientific interaction identity.
         id: ScientificInteractionId,
@@ -225,7 +237,16 @@ fn inverse_operations(operation: &PatchOperation, base: &SceneSpec) -> Inverse {
         return Ok(operations);
     }
     let one = |operation| vec![operation];
+    let structure = |id: StructureId, base: &SceneSpec| {
+        let source = base
+            .structures
+            .get(&id)
+            .cloned()
+            .ok_or(crate::PatchError::MissingId);
+        source.map(|source| vec![PatchOperation::AddStructure { id, source }])
+    };
     Ok(match operation {
+        PatchOperation::AddStructure { id, .. } => structure(*id, base)?,
         PatchOperation::SetFocus { .. } => one(PatchOperation::SetFocus {
             selection: base.focus.clone(),
         }),

@@ -245,10 +245,11 @@ impl Renderer {
     #[must_use]
     pub fn explain(&self, scene: &Scene) -> String {
         format!(
-            "{}\ntarget fps: {}\nquality: {:?}",
+            "{}\ntarget fps: {}\nquality: {:?}\n{}",
             scene.explain(),
             self.profile.target_fps,
-            self.profile.quality
+            self.profile.quality,
+            self.inner.explain()
         )
     }
 }
@@ -295,6 +296,14 @@ fn engine_config(profile: RenderProfile) -> molgfx_render::EngineConfig {
         profile: match profile.quality {
             Quality::Publication => molgfx_render::RenderProfile::illustrative(),
             Quality::Auto | Quality::Interactive => molgfx_render::RenderProfile::inspection(),
+        },
+        // Only the adaptive policy adapts. `Interactive` is an explicit request
+        // for low latency that still renders at one fixed tier, and publication
+        // output must stay reproducible, so neither may hold a tier that
+        // depends on how fast the machine happens to be.
+        adaptive: molgfx_render::AdaptiveQualityConfig {
+            target_fps: profile.target_fps,
+            enabled: profile.quality == Quality::Auto,
         },
         ..molgfx_render::EngineConfig::default()
     }

@@ -1,7 +1,8 @@
 use crate::{
-    Anchor, DataSource, InteractionKind, Scene, ScenePatch, SceneSpec, StructureId, annotation,
-    density, interaction, measurement, trajectory,
+    Anchor, DataSource, InteractionKind, Scene, ScenePatch, SceneSpec, StructureId, VolumeBinding,
+    annotation, density, interaction, measurement, trajectory,
 };
+use std::sync::Arc;
 
 fn structure() -> molframe::Structure {
     const PDB: &str =
@@ -23,6 +24,10 @@ fn anchor() -> Anchor {
     }
 }
 
+fn world() -> Anchor {
+    Anchor::World { position: [0.0; 3] }
+}
+
 #[test]
 fn every_scientific_item_receives_its_own_monotonic_identity() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
@@ -33,16 +38,13 @@ fn every_scientific_item_receives_its_own_monotonic_identity() {
         .add(annotation::label(anchor(), "active site"))
         .unwrap_or_else(|error| panic!("{error}"));
     let distance = scene
-        .add(measurement::distance(
-            anchor(),
-            Anchor::World { position: [0.0; 3] },
-        ))
+        .add(measurement::distance(anchor(), world()))
         .unwrap_or_else(|error| panic!("{error}"));
     let contact = scene
-        .add(interaction::detected(
+        .add(interaction::explicit(
             InteractionKind::Contact,
-            StructureId::new(1),
-            "all",
+            anchor(),
+            world(),
         ))
         .unwrap_or_else(|error| panic!("{error}"));
     let trajectory = scene
@@ -63,6 +65,66 @@ fn every_scientific_item_receives_its_own_monotonic_identity() {
     assert_eq!(scene.spec().measurements.len(), 1);
     assert_eq!(scene.spec().scientific_interactions.len(), 1);
     assert_eq!(scene.spec().trajectories.len(), 1);
+}
+
+#[test]
+fn every_exposed_scientific_capability_reaches_the_renderer() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    let source = DataSource::new("density-hash");
+    let _ = scene
+        .add(density::volume(source.clone(), [2, 2, 2]))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let values: Arc<[f32]> = (0_u16..8).map(f32::from).collect();
+    scene
+        .bind_volume(VolumeBinding::new(source, [2, 2, 2], values))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let _ = scene
+        .add(annotation::label(anchor(), "active site"))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let _ = scene
+        .add(measurement::distance(anchor(), world()))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let _ = scene
+        .add(interaction::explicit(
+            InteractionKind::HydrogenBond,
+            anchor(),
+            world(),
+        ))
+        .unwrap_or_else(|error| panic!("{error}"));
+
+    let handles = scene.scientific_handles();
+    assert_eq!(handles.volumes, 1, "a bound density grid is uploaded");
+    assert_eq!(handles.labels, 1, "a label becomes an annotation");
+    assert_eq!(handles.measurements, 1, "a distance becomes a measurement");
+    assert_eq!(handles.interactions, 1, "an explicit edge becomes an edge");
+}
+
+#[test]
+fn a_volume_without_a_runtime_binding_stays_unresolved() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    let _ = scene
+        .add(density::volume(DataSource::new("unbound-hash"), [2, 2, 2]))
+        .unwrap_or_else(|error| panic!("{error}"));
+
+    assert_eq!(scene.scientific_handles().volumes, 0);
+    assert_eq!(scene.spec().volumes.len(), 1);
+}
+
+#[test]
+fn detected_interactions_are_not_exposed() {
+    let rejected = serde_json::from_str::<crate::ScientificInteractionSpec>(
+        r#"{"mode":"detected","kind":"hydrogen_bond","structure":1,"selection":"all","cutoff":4.0}"#,
+    );
+    assert!(rejected.is_err(), "detected interactions must not decode");
+    let explicit = interaction::explicit(
+        InteractionKind::Contact,
+        world(),
+        Anchor::World {
+            position: [1.0, 0.0, 0.0],
+        },
+    );
+    let encoded = serde_json::to_string(&explicit).unwrap_or_else(|error| panic!("{error}"));
+    assert!(encoded.contains("explicit"), "{encoded}");
 }
 
 #[test]

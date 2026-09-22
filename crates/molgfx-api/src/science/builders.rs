@@ -58,11 +58,9 @@ pub mod measurement {
     }
 }
 
-/// Explicit and MolFrame-detected scientific interactions.
+/// Caller-supplied scientific interactions.
 pub mod interaction {
-    use super::super::{
-        Anchor, InteractionKind, ScientificInteractionSpec, Selection, StructureId,
-    };
+    use super::super::{Anchor, InteractionKind, ScientificInteractionSpec};
 
     /// Declares one known interaction between two semantic anchors.
     #[must_use]
@@ -74,21 +72,6 @@ pub mod interaction {
         ScientificInteractionSpec::Explicit {
             kind,
             endpoints: [first, second],
-        }
-    }
-
-    /// Requests `MolFrame` detection over a structure and candidate selection.
-    #[must_use]
-    pub fn detected(
-        kind: InteractionKind,
-        structure: StructureId,
-        selection: impl Into<Selection>,
-    ) -> ScientificInteractionSpec {
-        ScientificInteractionSpec::Detected {
-            kind,
-            structure,
-            selection: selection.into(),
-            cutoff: 4.0,
         }
     }
 }
