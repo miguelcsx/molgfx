@@ -4,13 +4,18 @@ use crate::Color;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::marker::PhantomData;
+use std::sync::Arc;
 
-#[path = "visual_compile.rs"]
-mod compile;
-#[path = "visual_vector.rs"]
+#[cfg(test)]
+mod tests;
+
+pub(crate) mod compile;
+mod intern;
+pub(crate) mod native;
 mod vector;
 
 pub use compile::{CompiledVisual, VisualStage};
+pub(crate) use compile::{PreparedVisual, ResolvedVisual};
 pub use vector::VectorExpr;
 
 /// Serialized value of one typed dynamic visual parameter.
@@ -95,55 +100,60 @@ impl<T> Parameter<T> {
 pub enum ScalarExpr {
     /// Literal value.
     Constant(f32),
-    /// Named molecular property.
-    Property(Box<str>),
+    /// Scene-bound atom property.
+    Property(crate::ScalarProperty),
+    /// Renderer-provided scalar input such as time or camera distance.
+    Input(Box<str>),
     /// Dynamically updateable uniform.
     Parameter(Parameter<f32>),
     /// Addition.
-    Add(Box<Self>, Box<Self>),
+    Add(Arc<Self>, Arc<Self>),
     /// Multiplication.
-    Multiply(Box<Self>, Box<Self>),
+    Multiply(Arc<Self>, Arc<Self>),
     /// Clamps a value to a closed range.
     Clamp {
         /// Input expression.
-        value: Box<Self>,
+        value: Arc<Self>,
         /// Lower bound.
         minimum: f32,
         /// Upper bound.
         maximum: f32,
     },
     /// Dot product of two vector expressions.
-    VectorDot(Box<VectorExpr>, Box<VectorExpr>),
+    VectorDot(Arc<VectorExpr>, Arc<VectorExpr>),
 }
 
 impl ScalarExpr {
     /// Scalar molecular property.
     #[must_use]
-    pub fn property(name: impl Into<Box<str>>) -> Self {
-        Self::Property(name.into())
+    pub fn property(property: crate::ScalarProperty) -> Self {
+        Self::Property(property)
+    }
+
+    /// Named renderer intrinsic.
+    #[must_use]
+    pub fn input(name: impl Into<Box<str>>) -> Self {
+        Self::Input(name.into())
     }
 
     /// Constant-folded and canonicalized expression.
     #[must_use]
     pub fn canonical(self) -> Self {
         match self {
-            Self::Add(left, right) => fold_binary(*left, *right, true),
-            Self::Multiply(left, right) => fold_binary(*left, *right, false),
+            Self::Add(left, right) => fold_binary(left, right, true),
+            Self::Multiply(left, right) => fold_binary(left, right, false),
             Self::Clamp {
                 value,
                 minimum,
                 maximum,
-            } => {
-                let value = value.canonical();
-                match value {
-                    Self::Constant(value) => Self::Constant(value.clamp(minimum, maximum)),
-                    other => Self::Clamp {
-                        value: Box::new(other),
-                        minimum,
-                        maximum,
-                    },
-                }
-            }
+            } => match value.as_ref() {
+                Self::Constant(value) => Self::Constant(value.clamp(minimum, maximum)),
+                _ => Self::Clamp {
+                    value,
+                    minimum,
+                    maximum,
+                },
+            },
             Self::VectorDot(left, right) => Self::VectorDot(left, right),
             other => other,
         }
@@ -153,7 +163,7 @@ impl ScalarExpr {
     #[must_use]
     pub fn clamp(self, minimum: f32, maximum: f32) -> Self {
         Self::Clamp {
-            value: Box::new(self),
+            value: Arc::new(self),
             minimum,
             maximum,
         }
@@ -163,33 +173,31 @@ impl ScalarExpr {
     /// Less-than comparison.
     #[must_use]
     pub fn less(self, right: impl Into<Self>) -> BoolExpr {
-        BoolExpr::Less(self, right.into()).canonical()
+        BoolExpr::Less(Arc::new(self), Arc::new(right.into())).canonical()
     }
 }
 
-fn fold_binary(left: ScalarExpr, right: ScalarExpr, add: bool) -> ScalarExpr {
-    let left = left.canonical();
-    let right = right.canonical();
-    match (&left, &right) {
+fn fold_binary(left: Arc<ScalarExpr>, right: Arc<ScalarExpr>, add: bool) -> ScalarExpr {
+    match (left.as_ref(), right.as_ref()) {
         (ScalarExpr::Constant(a), ScalarExpr::Constant(b)) => {
             ScalarExpr::Constant(if add { a + b } else { a * b })
         }
-        _ if add => ScalarExpr::Add(Box::new(left), Box::new(right)),
-        _ => ScalarExpr::Multiply(Box::new(left), Box::new(right)),
+        _ if add => ScalarExpr::Add(left, right),
+        _ => ScalarExpr::Multiply(left, right),
     }
 }
 
 impl std::ops::Add for ScalarExpr {
     type Output = Self;
     fn add(self, right: Self) -> Self {
-        Self::Add(Box::new(self), Box::new(right)).canonical()
+        fold_binary(Arc::new(self), Arc::new(right), true)
     }
 }
 
 impl std::ops::Mul for ScalarExpr {
     type Output = Self;
     fn mul(self, right: Self) -> Self {
-        Self::Multiply(Box::new(self), Box::new(right)).canonical()
+        fold_binary(Arc::new(self), Arc::new(right), false)
     }
 }
 
@@ -214,13 +222,13 @@ pub enum BoolExpr {
     /// One GPU-resident interaction channel.
     State(Box<str>),
     /// Less-than comparison.
-    Less(ScalarExpr, ScalarExpr),
+    Less(Arc<ScalarExpr>, Arc<ScalarExpr>),
     /// Boolean conjunction.
-    And(Box<Self>, Box<Self>),
+    And(Arc<Self>, Arc<Self>),
     /// Boolean disjunction.
-    Or(Box<Self>, Box<Self>),
+    Or(Arc<Self>, Arc<Self>),
     /// Boolean negation.
-    Not(Box<Self>),
+    Not(Arc<Self>),
 }
 
 impl BoolExpr {
@@ -234,59 +242,62 @@ impl BoolExpr {
     #[must_use]
     pub fn canonical(self) -> Self {
         match self {
-            Self::Less(left, right) => match (left.canonical(), right.canonical()) {
-                (ScalarExpr::Constant(left), ScalarExpr::Constant(right)) => {
-                    Self::Constant(left < right)
+            Self::Less(left, right) => {
+                if let (ScalarExpr::Constant(left_value), ScalarExpr::Constant(right_value)) =
+                    (left.as_ref(), right.as_ref())
+                {
+                    Self::Constant(left_value < right_value)
+                } else {
+                    Self::Less(left, right)
                 }
-                (left, right) => Self::Less(left, right),
-            },
-            Self::And(left, right) => fold_bool(*left, *right, true),
-            Self::Or(left, right) => fold_bool(*left, *right, false),
-            Self::Not(value) => match value.canonical() {
+            }
+            Self::And(left, right) => fold_bool(left, right, true),
+            Self::Or(left, right) => fold_bool(left, right, false),
+            Self::Not(value) => match value.as_ref() {
                 Self::Constant(value) => Self::Constant(!value),
-                value => Self::Not(Box::new(value)),
+                _ => Self::Not(value),
             },
             other => other,
         }
     }
 }
 
-fn fold_bool(left: BoolExpr, right: BoolExpr, and: bool) -> BoolExpr {
-    let left = left.canonical();
-    let right = right.canonical();
-    match (&left, &right, and) {
+fn fold_bool(left: Arc<BoolExpr>, right: Arc<BoolExpr>, and: bool) -> BoolExpr {
+    match (left.as_ref(), right.as_ref(), and) {
         (BoolExpr::Constant(false), _, true) | (_, BoolExpr::Constant(false), true) => {
             BoolExpr::Constant(false)
         }
-        (BoolExpr::Constant(true), _, true) => right,
-        (_, BoolExpr::Constant(true), true) | (_, BoolExpr::Constant(false), false) => left,
+        (BoolExpr::Constant(true), _, true) => right.as_ref().clone(),
+        (_, BoolExpr::Constant(true), true) | (_, BoolExpr::Constant(false), false) => {
+            left.as_ref().clone()
+        }
         (BoolExpr::Constant(true), _, false) | (_, BoolExpr::Constant(true), false) => {
             BoolExpr::Constant(true)
         }
-        (BoolExpr::Constant(false), _, false) => right,
-        _ if and => BoolExpr::And(Box::new(left), Box::new(right)),
-        _ => BoolExpr::Or(Box::new(left), Box::new(right)),
+        (BoolExpr::Constant(false), _, false) => right.as_ref().clone(),
+        _ if and => BoolExpr::And(left, right),
+        _ => BoolExpr::Or(left, right),
     }
 }
 
 impl std::ops::BitAnd for BoolExpr {
     type Output = Self;
     fn bitand(self, right: Self) -> Self {
-        Self::And(Box::new(self), Box::new(right)).canonical()
+        fold_bool(Arc::new(self), Arc::new(right), true)
     }
 }
 
 impl std::ops::BitOr for BoolExpr {
     type Output = Self;
     fn bitor(self, right: Self) -> Self {
-        Self::Or(Box::new(self), Box::new(right)).canonical()
+        fold_bool(Arc::new(self), Arc::new(right), false)
     }
 }
 
 impl std::ops::Not for BoolExpr {
     type Output = Self;
     fn not(self) -> Self {
-        Self::Not(Box::new(self)).canonical()
+        Self::Not(Arc::new(self)).canonical()
     }
 }
 
@@ -298,19 +309,19 @@ pub enum ColorExpr {
     Constant(Color),
     /// Dynamically updateable uniform color.
     Parameter(Parameter<Color>),
-    /// Conditional color without a runtime interpreter.
+    /// Conditional color in the typed visual program.
     Select {
         /// Branch predicate.
-        condition: BoolExpr,
+        condition: Arc<BoolExpr>,
         /// Color when the predicate is true.
-        yes: Box<Self>,
+        yes: Arc<Self>,
         /// Color when the predicate is false.
-        no: Box<Self>,
+        no: Arc<Self>,
     },
     /// Scientific ramp over an explicit domain.
     Ramp {
         /// Scalar input.
-        value: ScalarExpr,
+        value: Arc<ScalarExpr>,
         /// Scientific palette name.
         palette: Box<str>,
         /// Explicit scalar domain.
@@ -356,6 +367,20 @@ impl VisualStyle {
             opacity: opacity.into(),
             visible,
         }
+    }
+
+    /// Structural identity of this style's three expression graphs.
+    ///
+    /// Folded bottom-up over the graph, so recognizing an unchanged style costs
+    /// a walk rather than a serialization and a digest. This is a cache key, not
+    /// a persisted identity: [`Self::stable_hash`] remains the portable one.
+    pub(crate) fn structural_key(&self) -> [intern::Key; 3] {
+        let mut interner = intern::Interner::default();
+        [
+            interner.color(&self.color),
+            interner.scalar(&self.opacity),
+            interner.boolean(&self.visible),
+        ]
     }
 
     /// Stable SHA-256 key for shader and pipeline caches.

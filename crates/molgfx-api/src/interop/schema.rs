@@ -1,13 +1,13 @@
 //! Exhaustive `MolViewSpec` v1 node classification for adapter diagnostics.
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) enum NodeSupport {
+pub(crate) enum NodeSupport {
     Supported,
     Unsupported,
     Unknown,
 }
 
-pub(super) fn classify(kind: &str) -> NodeSupport {
+pub(crate) fn classify(kind: &str) -> NodeSupport {
     match kind {
         "root"
         | "download"
@@ -44,7 +44,7 @@ pub(super) fn classify(kind: &str) -> NodeSupport {
     }
 }
 
-pub(super) fn molecular_selector(
+pub(crate) fn molecular_selector(
     value: Option<&serde_json::Value>,
 ) -> Result<Box<str>, &'static str> {
     let Some(value) = value else {
@@ -60,7 +60,7 @@ pub(super) fn molecular_selector(
     }
 }
 
-pub(super) fn parse_hex(source: &str) -> Option<crate::Color> {
+pub(crate) fn parse_hex(source: &str) -> Option<crate::Color> {
     let source = source.strip_prefix('#')?;
     if source.len() != 6 {
         return None;
@@ -71,7 +71,3 @@ pub(super) fn parse_hex(source: &str) -> Option<crate::Color> {
         u8::from_str_radix(&source[4..6], 16).ok()?,
     ))
 }
-
-#[cfg(test)]
-#[path = "interop_schema_tests.rs"]
-mod tests;

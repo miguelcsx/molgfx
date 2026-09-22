@@ -1,10 +1,14 @@
 //! Canonical scene specifications and atomic patches.
 
-use crate::color::ColorSpec;
+pub(crate) mod lowering;
+
 use crate::id::{RepresentationId, StructureId};
 pub(crate) use crate::patch::{PatchOperation, ScenePatch};
-use crate::representation::{CartoonStyle, Selection, SurfaceKind, SurfaceStyle};
-use crate::visual::{ParameterValue, VisualStyle};
+use crate::representation::Selection;
+use crate::representation::form::RepresentationSpec;
+use crate::science::{
+    AnnotationSpec, MeasurementSpec, ScientificInteractionSpec, TrajectorySpec, VolumeSpec,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -17,6 +21,8 @@ pub struct Revisions {
     pub coordinates: u64,
     /// A canonical selection changed.
     pub selection: u64,
+    /// A runtime scalar-property binding changed.
+    pub property: u64,
     /// Color, opacity or visual style changed.
     pub appearance: u64,
     /// Selected, hovered, focused, muted or hidden state changed.
@@ -27,6 +33,16 @@ pub struct Revisions {
     pub volume_bricks: u64,
     /// Custom mesh attributes changed.
     pub mesh_attributes: u64,
+    /// Density-volume membership or data changed.
+    pub volume_data: u64,
+    /// Annotation membership or presentation changed.
+    pub annotation: u64,
+    /// Measurement membership or presentation changed.
+    pub measurement: u64,
+    /// Scientific interaction membership or presentation changed.
+    pub scientific_interaction: u64,
+    /// Trajectory source or frame data changed.
+    pub trajectory_data: u64,
     /// Camera and renderer-independent view state changed.
     pub view: u64,
 }
@@ -60,154 +76,9 @@ pub struct StructureSource {
     pub format: Option<Box<str>>,
 }
 
-/// Internal representation form serialized by semantic name, never GPU tag.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum RepresentationForm {
-    Cartoon,
-    BallAndStick,
-    Spacefill,
-    Licorice,
-    Lines,
-    Points,
-    Surface,
-    NucleicAcid,
-    Bases,
-    BasePairs,
-    Glycan,
-}
-
-/// Immutable serializable representation specification.
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct RepresentationSpec {
-    pub(crate) structure: Option<StructureId>,
-    pub(crate) target: Selection,
-    pub(crate) form: RepresentationForm,
-    pub(crate) color: ColorSpec,
-    pub(crate) opacity: f32,
-    pub(crate) radius: Option<f32>,
-    pub(crate) bond_radius: Option<f32>,
-    pub(crate) width: Option<f32>,
-    pub(crate) probe_radius: Option<f32>,
-    pub(crate) isolevel: Option<f32>,
-    pub(crate) cartoon_style: Option<CartoonStyle>,
-    pub(crate) surface_kind: Option<SurfaceKind>,
-    pub(crate) surface_style: Option<SurfaceStyle>,
-    #[serde(default)]
-    pub(crate) visual: Option<VisualStyle>,
-    #[serde(default)]
-    pub(crate) parameters: BTreeMap<Box<str>, ParameterValue>,
-    pub(crate) visible: bool,
-}
-
-impl RepresentationSpec {
-    pub(crate) fn new(target: Selection, form: RepresentationForm) -> Self {
-        Self {
-            structure: None,
-            target,
-            form,
-            color: ColorSpec::default(),
-            opacity: 1.0,
-            radius: None,
-            bond_radius: None,
-            width: None,
-            probe_radius: None,
-            isolevel: None,
-            cartoon_style: None,
-            surface_kind: None,
-            surface_style: None,
-            visual: None,
-            parameters: BTreeMap::new(),
-            visible: true,
-        }
-    }
-
-    /// `MolFrame` query selecting the represented atoms.
-    #[must_use]
-    pub fn selection(&self) -> &str {
-        self.target.source()
-    }
-
-    /// Molecular asset this representation targets after scene insertion.
-    #[must_use]
-    pub const fn structure_id(&self) -> Option<StructureId> {
-        self.structure
-    }
-
-    /// Effective opacity.
-    #[must_use]
-    pub const fn opacity(&self) -> f32 {
-        self.opacity
-    }
-
-    /// Stable content hash used by semantic and shader caches.
-    #[must_use]
-    pub fn stable_hash(&self) -> String {
-        stable_json_hash(self)
-    }
-
-    /// Deterministic representation explanation.
-    #[must_use]
-    pub fn explain(&self) -> String {
-        format!(
-            "Representation\nform: {:?}\nselection: {}\nhash: {}",
-            self.form,
-            self.selection(),
-            self.stable_hash()
-        )
-    }
-
-    pub(crate) fn validate(&self) -> Result<(), crate::Error> {
-        self.color.validate()?;
-        if let Some(visual) = &self.visual {
-            let _ = visual.compile()?;
-            let _ = crate::visual_native::lower(visual, &self.parameters)?;
-        } else if !self.parameters.is_empty() {
-            return Err(crate::Error::InvalidSpec(
-                "visual parameter values require a visual style".to_owned(),
-            ));
-        }
-        if !self.opacity.is_finite() || !(0.0..=1.0).contains(&self.opacity) {
-            return Err(crate::Error::InvalidSpec(
-                "opacity must be finite and between zero and one".to_owned(),
-            ));
-        }
-        for (name, value) in [
-            ("radius", self.radius),
-            ("bond radius", self.bond_radius),
-            ("width", self.width),
-            ("probe radius", self.probe_radius),
-        ] {
-            if value.is_some_and(|number| !number.is_finite() || number <= 0.0) {
-                return Err(crate::Error::InvalidSpec(format!(
-                    "{name} must be finite and positive"
-                )));
-            }
-        }
-        if self.isolevel.is_some_and(|number| !number.is_finite()) {
-            return Err(crate::Error::InvalidSpec(
-                "isolevel must be finite".to_owned(),
-            ));
-        }
-        if self.form != RepresentationForm::Surface
-            && (self.probe_radius.is_some()
-                || self.isolevel.is_some()
-                || self.surface_kind.is_some()
-                || self.surface_style.is_some())
-        {
-            return Err(crate::Error::InvalidSpec(
-                "surface controls require a surface representation".to_owned(),
-            ));
-        }
-        Ok(())
-    }
-}
-
 /// Immutable renderer-independent scene state.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct SceneSpec {
-    /// Wire format version.
-    pub version: u32,
     /// Revision used by incremental patches.
     pub revision: u64,
     /// Independent cache-invalidation revisions.
@@ -215,8 +86,27 @@ pub struct SceneSpec {
     pub revisions: Revisions,
     /// Molecular inputs in stable ID order.
     pub structures: BTreeMap<StructureId, StructureSource>,
+    /// Scalar-property descriptors; value columns are runtime bindings.
+    #[serde(default)]
+    pub properties: BTreeMap<Box<str>, crate::PropertySpec>,
     /// Representations in stable ID order.
     pub representations: BTreeMap<RepresentationId, RepresentationSpec>,
+    /// Density-volume specifications in stable ID order.
+    #[serde(default)]
+    pub volumes: BTreeMap<crate::VolumeId, VolumeSpec>,
+    /// Annotation specifications in stable ID order.
+    #[serde(default)]
+    pub annotations: BTreeMap<crate::AnnotationId, AnnotationSpec>,
+    /// Measurement specifications in stable ID order.
+    #[serde(default)]
+    pub measurements: BTreeMap<crate::MeasurementId, MeasurementSpec>,
+    /// Scientific interactions in stable ID order.
+    #[serde(default)]
+    pub scientific_interactions:
+        BTreeMap<crate::ScientificInteractionId, ScientificInteractionSpec>,
+    /// Trajectory bindings in stable ID order.
+    #[serde(default)]
+    pub trajectories: BTreeMap<crate::TrajectoryId, TrajectorySpec>,
     /// Optional focus selection.
     pub focus: Option<Selection>,
     /// Selected entity query.
@@ -240,11 +130,16 @@ pub struct SceneSpec {
 impl SceneSpec {
     pub(crate) fn empty() -> Self {
         Self {
-            version: 1,
             revision: 0,
             revisions: Revisions::default(),
             structures: BTreeMap::new(),
+            properties: BTreeMap::new(),
             representations: BTreeMap::new(),
+            volumes: BTreeMap::new(),
+            annotations: BTreeMap::new(),
+            measurements: BTreeMap::new(),
+            scientific_interactions: BTreeMap::new(),
+            trajectories: BTreeMap::new(),
             focus: None,
             selected: None,
             hovered: None,
@@ -269,19 +164,11 @@ impl SceneSpec {
     ///
     /// # Errors
     ///
-    /// Returns an error for malformed JSON, unsupported versions, or invalid values.
+    /// Returns an error for malformed JSON or invalid values.
     pub fn from_json(source: &str) -> Result<Self, crate::Error> {
         let value: Self = serde_json::from_str(source)?;
-        if value.version != 1 {
-            return Err(crate::Error::InvalidSpec(format!(
-                "unsupported SceneSpec version {}",
-                value.version
-            )));
-        }
-        for representation in value.representations.values() {
-            representation.validate()?;
-        }
         value.validate_selections()?;
+        value.validate_science()?;
         value.validate_camera()?;
         Ok(value)
     }
@@ -305,7 +192,7 @@ impl SceneSpec {
             }
             .into());
         }
-        crate::scene_runtime::candidate_spec(self, patch)
+        crate::scene::runtime::candidate_spec(self, patch)
     }
 
     pub(crate) fn validate_selections(&self) -> Result<(), crate::Error> {
@@ -324,7 +211,8 @@ impl SceneSpec {
         }
         for representation in self.representations.values() {
             representation.validate()?;
-            let Some(structure) = representation.structure else {
+            let _ = representation.common.target.stable_hash()?;
+            let Some(structure) = representation.common.structure else {
                 return Err(crate::Error::InvalidSpec(
                     "every representation must target a structure".to_owned(),
                 ));
@@ -339,27 +227,47 @@ impl SceneSpec {
     }
 
     pub(crate) fn validate_camera(&self) -> Result<(), crate::Error> {
-        let Some(camera) = self.camera else {
-            return Ok(());
-        };
-        let vectors_are_finite = [camera.eye, camera.target, camera.up]
-            .iter()
-            .all(|value| value.is_finite());
-        if !vectors_are_finite
-            || camera.eye == camera.target
-            || camera.up.length_squared() <= f32::EPSILON
-            || !camera.projection.aspect().is_finite()
-            || camera.projection.aspect() <= 0.0
-        {
-            return Err(crate::Error::InvalidSpec(
-                "camera vectors and projection must be finite and non-degenerate".to_owned(),
-            ));
-        }
-        Ok(())
+        validate_camera(self.camera)
+    }
+
+    pub(crate) fn validate_science(&self) -> Result<(), crate::Error> {
+        self.volumes.values().try_for_each(VolumeSpec::validate)?;
+        self.annotations
+            .values()
+            .try_for_each(|spec| spec.validate(self))?;
+        self.measurements
+            .values()
+            .try_for_each(|spec| spec.validate(self))?;
+        self.scientific_interactions
+            .values()
+            .try_for_each(|spec| spec.validate(self))?;
+        self.trajectories
+            .values()
+            .try_for_each(|spec| spec.validate(self))
     }
 }
 
-fn stable_json_hash(value: &impl Serialize) -> String {
+pub(crate) fn validate_camera(camera: Option<molgfx_math::Camera>) -> Result<(), crate::Error> {
+    let Some(camera) = camera else {
+        return Ok(());
+    };
+    let vectors_are_finite = [camera.eye, camera.target, camera.up]
+        .iter()
+        .all(|value| value.is_finite());
+    if !vectors_are_finite
+        || camera.eye == camera.target
+        || camera.up.length_squared() <= f32::EPSILON
+        || !camera.projection.aspect().is_finite()
+        || camera.projection.aspect() <= 0.0
+    {
+        return Err(crate::Error::InvalidSpec(
+            "camera vectors and projection must be finite and non-degenerate".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn stable_json_hash(value: &impl Serialize) -> String {
     use sha2::Digest as _;
     let bytes = match serde_json::to_vec(value) {
         Ok(bytes) => bytes,

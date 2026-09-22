@@ -20,9 +20,10 @@ pub use molgfx_api::{
 /// Immutable representation specifications and constructors.
 pub mod rep {
     pub use molgfx_api::rep::{
-        AtomRepresentation, Cartoon, CartoonStyle, PointRepresentation, Surface, SurfaceKind,
-        SurfaceStyle, ball_and_stick, base_pairs, bases, cartoon, glycan, licorice, lines,
-        nucleic_acid, points, spacefill, surface,
+        BallAndStick, BasePairs, Bases, Cartoon, CartoonStyle, Glycan, Licorice, Lines,
+        NucleicAcid, PointRepresentation, Spacefill, Surface, SurfaceKind, SurfaceStyle,
+        ball_and_stick, base_pairs, bases, cartoon, glycan, licorice, lines, nucleic_acid, points,
+        spacefill, surface,
     };
 }
 

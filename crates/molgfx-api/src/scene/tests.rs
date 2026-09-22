@@ -1,7 +1,8 @@
 use super::*;
+use crate::PatchError;
 use crate::{rep, sel};
 
-fn structure() -> molframe::Structure {
+pub(super) fn structure() -> molframe::Structure {
     const PDB: &str =
         "ATOM      1  N   ALA A   1      11.104   6.134  -6.504  1.00  0.00           N\nEND\n";
     let result = molframe::read_bytes(
@@ -19,7 +20,7 @@ fn structure() -> molframe::Structure {
 fn transactions_advance_once_and_apply_every_edit() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let id = scene
-        .add(rep::cartoon(sel::protein()))
+        .add(rep::cartoon(sel::all()))
         .unwrap_or_else(|error| panic!("{error}"));
     let revision = scene.revision();
     let patch = scene
@@ -35,7 +36,7 @@ fn transactions_advance_once_and_apply_every_edit() {
         panic!("representation exists")
     };
     assert!((representation.opacity() - 0.4).abs() < f32::EPSILON);
-    assert!(!representation.visible);
+    assert!(!representation.is_visible());
 }
 
 #[test]
@@ -119,9 +120,7 @@ fn inverse_tracks_intermediate_state_for_add_then_remove() {
     let scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let base = scene.to_spec();
     let id = RepresentationId::new(9);
-    let representation = rep::points("all")
-        .structure(StructureId::new(1))
-        .into_spec();
+    let representation = rep::points("all").structure(StructureId::new(1)).into();
     let patch = ScenePatch {
         base_revision: base.revision,
         operations: vec![
@@ -163,6 +162,24 @@ fn equal_queries_share_one_resolved_selection() {
         .add(rep::points(sel::heavy()))
         .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(scene.selections.len(), 1);
+}
+
+#[test]
+fn scientific_additions_do_not_rebuild_molecular_representations() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    let id = scene
+        .add(rep::spacefill("all"))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let Some(before) = scene.representations.get(&id).copied() else {
+        panic!("representation exists")
+    };
+    let _ = scene
+        .add(crate::density::volume(
+            crate::DataSource::new("density-hash"),
+            [2, 2, 2],
+        ))
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(scene.representations.get(&id), Some(&before));
 }
 
 #[test]
@@ -389,7 +406,7 @@ fn color_and_vector_parameters_share_one_transaction_revision() {
         .representations
         .get(&id)
         .unwrap_or_else(|| panic!("representation exists"));
-    assert_eq!(representation.parameters.len(), 2);
+    assert_eq!(representation.common.parameters.len(), 2);
 }
 
 #[test]

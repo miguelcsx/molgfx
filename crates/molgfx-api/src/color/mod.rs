@@ -1,5 +1,8 @@
 //! Immutable scientific color specifications.
 
+#[cfg(test)]
+mod tests;
+
 use molgfx_math::Rgba8;
 use serde::{Deserialize, Serialize};
 
@@ -81,8 +84,8 @@ pub enum ColorSpec {
     },
     /// Scalar property mapped through a named scientific ramp.
     Property {
-        /// Property name resolved from the molecular source.
-        name: Box<str>,
+        /// Typed scene-bound scalar property.
+        property: crate::ScalarProperty,
         /// Palette name such as `viridis`, `plasma` or `coolwarm`.
         ramp: Box<str>,
         /// Explicit numeric domain.
@@ -97,9 +100,12 @@ pub enum ColorSpec {
 impl ColorSpec {
     pub(crate) fn validate(&self) -> Result<(), crate::Error> {
         if let Self::Property {
-            name, ramp, domain, ..
+            property,
+            ramp,
+            domain,
+            ..
         } = self
-            && (name.trim().is_empty()
+            && (property.name().trim().is_empty()
                 || ramp.trim().is_empty()
                 || !domain[0].is_finite()
                 || !domain[1].is_finite()
@@ -109,6 +115,9 @@ impl ColorSpec {
                 "property colors require names and a finite increasing domain".to_owned(),
             ));
         }
+        if let Self::Property { ramp, .. } = self {
+            let _ = palette(ramp)?;
+        }
         Ok(())
     }
 
@@ -116,7 +125,7 @@ impl ColorSpec {
     #[must_use]
     pub fn legend(&self) -> Option<Legend> {
         let Self::Property {
-            name,
+            property,
             ramp,
             domain,
             units,
@@ -125,10 +134,15 @@ impl ColorSpec {
         else {
             return None;
         };
-        let colors = palette(ramp);
+        // A legend is descriptive and infallible; an unvalidated ramp name
+        // describes the default rather than refusing to describe anything.
+        let colors = match palette(ramp) {
+            Ok(colors) => colors,
+            Err(_) => PALETTES[0].1,
+        };
         let middle = domain[0] + (domain[1] - domain[0]) * 0.5;
         Some(Legend {
-            title: name.clone(),
+            title: property.name().into(),
             units: units.clone(),
             stops: vec![
                 LegendStop {
@@ -148,7 +162,11 @@ impl ColorSpec {
         })
     }
 
-    pub(crate) fn native(&self) -> Result<molgfx_core::ColorScheme, crate::Error> {
+    pub(crate) fn native(
+        &self,
+        properties: &std::collections::BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
+        structure: crate::StructureId,
+    ) -> Result<molgfx_core::ColorScheme, crate::Error> {
         self.validate()?;
         Ok(match self {
             Self::Element => molgfx_core::ColorScheme::ByElement,
@@ -156,10 +174,33 @@ impl ColorSpec {
             Self::Residue => molgfx_core::ColorScheme::ByResidue,
             Self::SecondaryStructure => molgfx_core::ColorScheme::BySecondaryStructure,
             Self::Uniform { color } => molgfx_core::ColorScheme::Uniform(color.native()),
-            Self::Property { .. } => {
-                return Err(crate::Error::InvalidSpec(
-                    "property colors require a scene-bound atom property".to_owned(),
-                ));
+            Self::Property {
+                property,
+                ramp,
+                domain,
+                missing,
+                ..
+            } => {
+                if property.structure() != structure {
+                    return Err(crate::Error::InvalidSpec(
+                        "property color belongs to another structure".to_owned(),
+                    ));
+                }
+                let handle = properties.get(property.name()).copied().ok_or_else(|| {
+                    crate::Error::InvalidSpec(format!(
+                        "property '{}' is not bound",
+                        property.name()
+                    ))
+                })?;
+                let colors = palette(ramp)?.map(Color::native);
+                molgfx_core::ColorScheme::ByProperty {
+                    property: handle,
+                    ramp: molgfx_core::ScalarRamp::new(
+                        [domain[0], domain[0].midpoint(domain[1]), domain[1]],
+                        colors,
+                    )?,
+                    missing: missing.native(),
+                }
             }
         })
     }
@@ -198,14 +239,14 @@ pub const fn uniform(color: Color) -> ColorSpec {
 /// Maps a scalar molecular property through an explicit scientific domain.
 #[must_use]
 pub fn property(
-    name: impl Into<Box<str>>,
+    property: crate::ScalarProperty,
     ramp: impl Into<Box<str>>,
     domain: [f32; 2],
     units: Option<Box<str>>,
     missing: Color,
 ) -> ColorSpec {
     ColorSpec::Property {
-        name: name.into(),
+        property,
         ramp: ramp.into(),
         domain,
         units,
@@ -213,22 +254,52 @@ pub fn property(
     }
 }
 
-pub(crate) fn palette(name: &str) -> [Color; 3] {
-    match name {
-        "plasma" => [
-            Color::rgb(13, 8, 135),
-            Color::rgb(203, 71, 120),
-            Color::rgb(240, 249, 33),
-        ],
-        "coolwarm" => [
-            Color::rgb(59, 76, 192),
-            Color::rgb(221, 221, 221),
-            Color::rgb(180, 4, 38),
-        ],
-        _ => [
+/// Every named scalar ramp, in the order the error message lists them.
+const PALETTES: [(&str, [Color; 3]); 3] = [
+    (
+        "viridis",
+        [
             Color::rgb(68, 1, 84),
             Color::rgb(33, 145, 140),
             Color::rgb(253, 231, 37),
         ],
-    }
+    ),
+    (
+        "plasma",
+        [
+            Color::rgb(13, 8, 135),
+            Color::rgb(203, 71, 120),
+            Color::rgb(240, 249, 33),
+        ],
+    ),
+    (
+        "coolwarm",
+        [
+            Color::rgb(59, 76, 192),
+            Color::rgb(221, 221, 221),
+            Color::rgb(180, 4, 38),
+        ],
+    ),
+];
+
+/// Resolves a named ramp. An unknown name is an error, not a silent default:
+/// quietly substituting one palette for another produces a figure whose colors
+/// do not mean what its legend says they mean.
+pub(crate) fn palette(name: &str) -> Result<[Color; 3], crate::Error> {
+    PALETTES
+        .iter()
+        .find(|(known, _)| *known == name)
+        .map_or_else(
+            || {
+                let known = PALETTES
+                    .iter()
+                    .map(|(known, _)| *known)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                Err(crate::Error::InvalidSpec(format!(
+                    "unknown color ramp '{name}'; known ramps are {known}"
+                )))
+            },
+            |(_, colors)| Ok(*colors),
+        )
 }
