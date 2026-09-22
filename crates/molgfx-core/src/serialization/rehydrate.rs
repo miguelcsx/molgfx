@@ -303,6 +303,7 @@ fn rehydrate_selections(
                 StoredSelection {
                     global: None,
                     scoped,
+                    query_fingerprint: None,
                 },
             ),
             "selection identity collision",

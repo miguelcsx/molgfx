@@ -53,7 +53,7 @@ fn quality_hit_opacity(
         let center = vec3f(coords[base], coords[base + 1u], coords[base + 2u]);
         return quality_hit_transparency(
             atom.entity_id,
-            atom_visual_color(atom.entity_id, atom.color),
+            atom_record_color(atom),
             hit,
             normalize(hit - center),
         );
@@ -70,8 +70,8 @@ fn quality_hit_opacity(
     let nearest = local_a + axis * along;
     let entity_id = select(atom_a.entity_id, atom_b.entity_id, along >= 0.5);
     let base_color = mix(
-        atom_visual_color(atom_a.entity_id, atom_a.color),
-        atom_visual_color(atom_b.entity_id, atom_b.color),
+        atom_record_color(atom_a),
+        atom_record_color(atom_b),
         along,
     );
     return quality_hit_transparency(

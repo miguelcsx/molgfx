@@ -26,6 +26,8 @@ mod representation_input;
 mod rows;
 pub(crate) mod segmentation;
 pub(crate) mod selection;
+#[path = "selection_state.rs"]
+pub(crate) mod selection_state;
 pub(crate) mod state;
 mod timeline;
 pub(crate) mod topology;
@@ -41,10 +43,11 @@ mod primitive_tests;
 pub use branch_graph::{TrajectoryBranch, TrajectoryStateGraph};
 pub use representation_input::RepresentationInput;
 pub use rows::{RowDomain, RowEntityRef, SourceNamespace, SourceRows, TemplatePartPick};
+pub(crate) use selection_state::StoredSelection;
 pub use state::Scene;
 pub(crate) use state::{
     BoundOccupancy, StoredAtomProperty, StoredAttribute, StoredRepresentation, StoredSegmentation,
-    StoredSelection, StoredVolume, TemporalAttribute, TemporalInstances, TemporalPoints,
+    StoredVolume, TemporalAttribute, TemporalInstances, TemporalPoints,
 };
 pub use timeline::{PlaybackMode, TimeWarp, Timeline};
 mod branch_graph;

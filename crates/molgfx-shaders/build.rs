@@ -35,7 +35,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         if let Err(diagnostic) = validate(name, &composed) {
             diagnostics.push(diagnostic);
         }
-        fs::write(out_dir.join(name), composed)?;
+        fs::write(out_dir.join(name), &composed)?;
+
+        // A unit that carries the specialization marker also publishes a
+        // sibling whose interpreter is replaced by generated straight-line
+        // code. The placeholder body is a valid stand-in for that code, so a
+        // unit whose surrounding declarations were broken fails here rather
+        // than on the frame that first needs a specialized style.
+        if let Some(specialized) = specialize(&composed) {
+            let specialized_name = specialized_name(name);
+            if let Err(diagnostic) = validate(&specialized_name, &specialized) {
+                diagnostics.push(diagnostic);
+            }
+            fs::write(out_dir.join(specialized_name), specialized)?;
+        }
     }
     if !diagnostics.is_empty() {
         return Err(io::Error::other(diagnostics.join("\n")).into());
@@ -101,6 +114,75 @@ fn compose(path: &Path, root: &Path, included: &mut HashSet<PathBuf>) -> Result<
         }
     }
     Ok(out)
+}
+
+/// The marker a unit carries to request a specialized sibling.
+const SPECIALIZATION_MARKER: &str = "// {{visual_program}}";
+
+/// The stand-in body used to validate a specialized sibling.
+///
+/// It is a real `visual_resolve` with the same interface, so validation checks
+/// everything the generated body will rely on — the gate, the register file,
+/// the shared ladder, and every declaration the surrounding unit supplies —
+/// without depending on any particular program.
+const PLACEHOLDER_RESOLVE: &str = "\
+fn visual_resolve(
+    inputs: VisualEvaluationInputs,
+    fallback: VisualFragmentResult,
+) -> VisualFragmentResult {
+    if !VISUAL_FRAGMENT_ENABLED || visual_config.counts.z == 0u {
+        return fallback;
+    }
+    var registers: array<vec4f, 64>;
+    registers[0] = visual_input(0u, inputs);
+    return visual_resolve_registers(&registers, fallback);
+}";
+
+/// Builds a unit's specialized sibling, when the unit asks for one.
+///
+/// The marker is replaced by a placeholder body and the interpreter — the
+/// included unit that defines the non-specialized `visual_resolve` — is
+/// dropped, leaving exactly one definition of the entry point. A unit that
+/// carries the marker without including the interpreter still gets a sibling,
+/// but keeps its own definition alongside the placeholder; naga then reports
+/// the duplicate, which is the correct outcome for a malformed unit.
+fn specialize(composed: &str) -> Option<String> {
+    if !composed.contains(SPECIALIZATION_MARKER) {
+        return None;
+    }
+    let mut specialized = composed.replace(SPECIALIZATION_MARKER, PLACEHOLDER_RESOLVE);
+    specialized = drop_include(&specialized, "visual/interpreter.wgsl");
+    Some(specialized)
+}
+
+/// Removes one composed include, including the begin/end comments `compose`
+/// writes around it.
+///
+/// The annotation carries the include directive's own relative path, so the
+/// match is on the file name rather than on a reconstructed path.
+fn drop_include(source: &str, include: &str) -> String {
+    let mut out = String::with_capacity(source.len());
+    let mut inside = false;
+    for line in source.lines() {
+        let annotation = line.trim();
+        if annotation.starts_with("// -- begin include:") && annotation.contains(include) {
+            inside = true;
+        } else if annotation.starts_with("// -- end include:") && annotation.contains(include) {
+            inside = false;
+        } else if !inside {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    out
+}
+
+/// The composed-file name of a unit's specialized sibling.
+fn specialized_name(name: &str) -> String {
+    match name.strip_suffix(".wgsl") {
+        Some(stem) => format!("{stem}.specialized.wgsl"),
+        None => format!("{name}.specialized.wgsl"),
+    }
 }
 
 /// Validates one composed unit and returns diagnostics that fail the build.

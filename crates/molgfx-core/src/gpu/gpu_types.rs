@@ -216,7 +216,12 @@ pub struct AtomGpu {
     /// Drawn radius, Ångström (van der Waals radius times the
     /// representation's scale).
     pub radius: f32,
-    /// Resolved display color.
+    /// The element colour, not the representation's colour scheme.
+    ///
+    /// Colour schemes are resolved on the GPU from the packed semantic indices
+    /// below, so changing a scheme never repacks or re-uploads a record. This
+    /// field is what `ByElement` reads and what every other scheme falls back
+    /// to when its own input row is absent.
     pub color: Rgba8,
     /// Interned element id (the atomic number); never a string.
     pub element: u16,
@@ -224,7 +229,10 @@ pub struct AtomGpu {
     pub flags: AtomFlags,
     /// Pickable identity of this atom.
     pub entity_id: EntityId,
-    /// Packed semantic tag: site membership, secondary structure, band.
+    /// Packed semantic tag: site membership, band, edge softness, and the three
+    /// palette indices the GPU colour schemes need.
+    ///
+    /// See [`SemanticTag`] for the bit layout.
     pub semantic: u32,
 }
 

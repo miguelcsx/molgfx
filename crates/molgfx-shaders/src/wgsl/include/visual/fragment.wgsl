@@ -15,6 +15,8 @@ struct VisualFragmentProgram {
 
 @group(2) @binding(17) var<uniform> visual_fragment_program: VisualFragmentProgram;
 @group(2) @binding(19) var<storage, read> visual_properties: array<u32>;
+
+//!include "include/visual/color.wgsl"
 fn visual_instruction(index: u32) -> VisualInstruction {
     return visual_fragment_program.instructions[index];
 }
@@ -24,7 +26,9 @@ fn visual_parameter(index: u32) -> vec4f {
 }
 
 //!include "include/visual/evaluator.wgsl"
-//!include "include/visual/resolve.wgsl"
+// {{visual_program}}
+//!include "include/visual/ladder.wgsl"
+//!include "include/visual/interpreter.wgsl"
 
 fn visual_local_position(world_position: vec3f) -> vec3f {
     return atom_transform_point(model.world_to_model, world_position);

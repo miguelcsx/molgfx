@@ -52,7 +52,7 @@ fn vs_sphere_opaque(
             geometry.center_radius;
 
         out.color =
-            atom_visual_color(atom.entity_id, atom.color);
+            atom_color(atom.color);
 
         out.previous_softness =
             vec4f(
@@ -66,6 +66,9 @@ fn vs_sphere_opaque(
 
         out.entity_id =
             atom.entity_id;
+
+        out.semantic =
+            atom.semantic;
     }
 
     return out;
@@ -97,7 +100,7 @@ fn vs_sphere_transparent(
             geometry.center_radius;
 
         out.color =
-            atom_visual_color(atom.entity_id, atom.color);
+            atom_color(atom.color);
 
         out.previous_softness =
             vec4f(
@@ -112,6 +115,9 @@ fn vs_sphere_transparent(
 
         out.entity_id =
             atom.entity_id;
+
+        out.semantic =
+            atom.semantic;
     }
 
     return out;

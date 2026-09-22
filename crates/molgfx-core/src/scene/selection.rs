@@ -15,6 +15,7 @@ impl Scene {
         SelectionHandle(self.selections.insert(StoredSelection {
             global: Some(selection),
             scoped: Vec::new(),
+            query_fingerprint: None,
         }))
     }
 
@@ -236,13 +237,65 @@ impl Scene {
 
     pub(crate) fn add_scoped_selection(
         &mut self,
+        scoped: Vec<(StructureHandle, AtomSelection)>,
+    ) -> SelectionHandle {
+        self.add_scoped_selection_with_fingerprint(scoped, None)
+    }
+
+    /// Stores per-structure masks together with the query they came from.
+    pub(crate) fn add_scoped_selection_with_fingerprint(
+        &mut self,
         mut scoped: Vec<(StructureHandle, AtomSelection)>,
+        query_fingerprint: Option<u64>,
     ) -> SelectionHandle {
         scoped.sort_unstable_by_key(|(handle, _)| *handle);
         SelectionHandle(self.selections.insert(StoredSelection {
             global: None,
             scoped,
+            query_fingerprint,
         }))
+    }
+
+    /// Fingerprint of the query this selection was evaluated from, when known.
+    ///
+    /// `None` means the mask is not the image of any single normalized query:
+    /// it was built by hand, by a provider, or by set algebra over other masks.
+    #[must_use]
+    pub fn selection_fingerprint(&self, handle: SelectionHandle) -> Option<u64> {
+        self.selections
+            .get(handle.0)
+            .and_then(|stored| stored.query_fingerprint)
+    }
+
+    /// Mean world-space position of the rows a selection covers on one placed
+    /// structure, or `None` when the mask selects nothing there.
+    ///
+    /// Cost is `O(selected)`: the mask is walked once and the structure's
+    /// placement is applied to the mean, so the result is in world space.
+    #[must_use]
+    pub fn selection_centroid(
+        &self,
+        handle: SelectionHandle,
+        structure: StructureHandle,
+    ) -> Option<molgfx_math::Vec3> {
+        let placed = self.structures.get(structure.0)?;
+        let selected = self.selection_for(handle, structure)?;
+        let coordinates = placed.atoms.coords().slice();
+        let mut sum = molgfx_math::Vec3::ZERO;
+        let mut count = 0_u32;
+        selected.for_each(placed.atoms.len(), |row| {
+            if let Some(position) = coordinates.get(row as usize) {
+                sum += molgfx_math::Vec3::from_array(*position);
+                count = count.saturating_add(1);
+            }
+        });
+        if count == 0 {
+            return None;
+        }
+        // A `u32` row count's reciprocal lies in `[2^-32, 1]`, inside `f32`'s
+        // normal range, so the mean cannot overflow or lose the divisor.
+        let mean = sum / count_scalar(count);
+        Some(placed.model_to_world.transform_point3(mean))
     }
 
     /// Selects atoms within `distance` Å of a reference selection.
@@ -391,4 +444,25 @@ fn union_selected(parents: &mut [u32], sizes: &mut [u32], left: u32, right: u32)
     parents[right_root as usize] = left_root;
     sizes[left_root as usize] =
         sizes[left_root as usize].saturating_add(sizes[right_root as usize]);
+}
+
+/// Widens a row count to the renderer's scalar type.
+///
+/// A `u32` count exceeds what `f32` represents exactly, so it is decomposed in
+/// base 65 536: each digit is an exact `u16` conversion and the scale factors
+/// are exact powers of two, so the sum is the exact count whenever `f32` can
+/// hold it and never rounds to zero for a positive count.
+fn count_scalar(count: u32) -> f32 {
+    let mut remaining = count;
+    let mut digit_scale = 1.0_f32;
+    let mut total = 0.0_f32;
+    while remaining > 0 {
+        // The mask already bounds this to sixteen bits, so the narrowing is
+        // exact and there is no error path to express.
+        let digit = (remaining & 0xffff) as u16;
+        total += f32::from(digit) * digit_scale;
+        digit_scale *= 65_536.0;
+        remaining >>= 16;
+    }
+    total.max(1.0)
 }

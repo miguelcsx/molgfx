@@ -74,10 +74,10 @@ fn vs_bond_line(
             );
 
         let color_a =
-            atom_visual_color(atom_a.entity_id, atom_a.color);
+            atom_record_color(atom_a);
 
         let color_b =
-            atom_visual_color(atom_b.entity_id, atom_b.color);
+            atom_record_color(atom_b);
 
         let motion_a =
             screen_motion(

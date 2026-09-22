@@ -1,7 +1,34 @@
 use super::{
-    CULL, GEOMETRY_BOND, GEOMETRY_CARTOON, GEOMETRY_SPHERE, GEOMETRY_SURFACE, SHADOW_RIBBON,
+    CULL, GEOMETRY_BOND, GEOMETRY_BOND_SPECIALIZED, GEOMETRY_CARTOON, GEOMETRY_CARTOON_SPECIALIZED,
+    GEOMETRY_SPHERE, GEOMETRY_SPHERE_SPECIALIZED, GEOMETRY_SURFACE, SHADOW_RIBBON,
     SURFACE_FIELD_NORMAL,
 };
+
+#[test]
+fn specialized_units_replace_the_interpreter_instead_of_adding_to_it() {
+    for (interpreted, specialized) in [
+        (GEOMETRY_SPHERE, GEOMETRY_SPHERE_SPECIALIZED),
+        (GEOMETRY_BOND, GEOMETRY_BOND_SPECIALIZED),
+        (GEOMETRY_CARTOON, GEOMETRY_CARTOON_SPECIALIZED),
+    ] {
+        let interpreter = "// -- begin include: include/visual/interpreter.wgsl";
+
+        // The interpreted unit keeps the loop; the specialized unit does not.
+        assert_eq!(interpreted.matches("fn visual_resolve(").count(), 1);
+        assert_eq!(specialized.matches("fn visual_resolve(").count(), 1);
+        assert_eq!(interpreted.matches(interpreter).count(), 1);
+        assert_eq!(specialized.matches(interpreter).count(), 0);
+        assert!(interpreted.contains("counts.x"));
+        assert!(!specialized.contains("counts.x"));
+
+        // The marker was consumed, and the shared ladder survived in both.
+        assert!(!specialized.contains("{{visual_program}}"));
+        for source in [interpreted, specialized] {
+            assert!(source.contains("fn visual_resolve_registers("));
+            assert!(source.contains("var registers: array<vec4f, 64>"));
+        }
+    }
+}
 
 #[test]
 fn visual_programs_split_cull_critical_and_compacted_shading_work() {

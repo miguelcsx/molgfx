@@ -5,9 +5,9 @@
 
 use super::PackingError;
 use molgfx_core::{
-    AtomGpu, AtomProperty, AtomSelection, AtomTable, ColorScheme, EntityId, EntityKind, Hierarchy,
-    PropertyAppearance, Representation, RepresentationKind, SecondaryStructure, SurfaceKind,
-    SurfaceStyle,
+    AtomGpu, AtomProperty, AtomSelection, AtomTable, CATEGORICAL_COLORS, ColorScheme, EntityId,
+    EntityKind, Hierarchy, PropertyAppearance, Representation, RepresentationKind,
+    SECONDARY_STRUCTURE_COLORS, SecondaryStructure, SemanticTag, SurfaceKind, SurfaceStyle,
 };
 use molgfx_math::Rgba8;
 use rayon::prelude::*;
@@ -36,7 +36,7 @@ pub fn pack_atoms(
     selection: &AtomSelection,
     out: &mut Vec<AtomGpu>,
 ) -> Result<(), PackingError> {
-    pack_atoms_inner(table, None, None, None, representation, selection, out)
+    pack_atoms_inner(table, None, representation, selection, out)
 }
 
 /// Packs atoms with hierarchy-aware representation coloring.
@@ -101,11 +101,10 @@ pub fn pack_atoms_with_properties(
     selection: &AtomSelection,
     out: &mut Vec<AtomGpu>,
 ) -> Result<(), PackingError> {
+    let _ = properties;
     pack_atoms_inner(
         table,
         Some((hierarchy, secondary_structure)),
-        properties.color,
-        properties.appearance,
         representation,
         selection,
         out,
@@ -115,8 +114,6 @@ pub fn pack_atoms_with_properties(
 fn pack_atoms_inner(
     table: &AtomTable,
     hierarchy: Option<(&Hierarchy, &[SecondaryStructure])>,
-    color_property: Option<&AtomProperty>,
-    appearance_property: Option<&AtomProperty>,
     representation: &Representation,
     selection: &AtomSelection,
     out: &mut Vec<AtomGpu>,
@@ -147,19 +144,6 @@ fn pack_atoms_inner(
         ) else {
             return Ok(None);
         };
-        let mut color = representation_color(
-            representation.color,
-            *color,
-            hierarchy,
-            color_property,
-            residues.get(i).copied(),
-            i,
-        );
-        color.a = u8::MAX;
-        let appearance = atom_appearance(representation.appearance, appearance_property, i);
-        if let Some((appearance_opacity, _)) = appearance {
-            color.a = multiply_unorm8(color.a, appearance_opacity);
-        }
         let entity_id =
             EntityId::pack(EntityKind::Atom, u64::from(index)).map_err(PackingError::from)?;
         Ok(Some(AtomGpu {
@@ -168,13 +152,14 @@ fn pack_atoms_inner(
             } else {
                 radius * scale + surface_inflation
             },
-            color,
+            // The record carries the element colour and the indices every
+            // scheme resolves from. The scheme itself is applied on the GPU, so
+            // changing it is a uniform write rather than a repack.
+            color: *color,
             element: *element,
             flags: *flag,
             entity_id,
-            semantic: appearance.map_or(*semantic, |(_, softness)| {
-                pack_softness(*semantic, softness)
-            }),
+            semantic: color_indices(*semantic, hierarchy, residues.get(i).copied()),
         }))
     };
 
@@ -210,41 +195,80 @@ where
             None => Ok(()),
         }
     } else {
-        // Common contiguous encodings feed rayon directly and allocate only
-        // the final record vector. Irregular encodings materialize indices
-        // once because rayon has no indexed iterator over their compressed
-        // representation.
-        let packed = match selection {
-            AtomSelection::All => (0..atom_count)
-                .into_par_iter()
-                .with_min_len(PARALLEL_BLOCK)
-                .filter_map(|index| pack_one(index).transpose())
-                .collect::<Result<Vec<_>, _>>()?,
-            AtomSelection::Range(range) => (range.start..range.end.min(atom_count))
-                .into_par_iter()
-                .with_min_len(PARALLEL_BLOCK)
-                .filter_map(|index| pack_one(index).transpose())
-                .collect::<Result<Vec<_>, _>>()?,
-            AtomSelection::Sparse(indices) => indices
-                .par_iter()
-                .with_min_len(PARALLEL_BLOCK)
-                .filter_map(|&index| pack_one(index).transpose())
-                .collect::<Result<Vec<_>, _>>()?,
+        // Common contiguous encodings feed rayon directly. Irregular encodings
+        // materialize indices once because rayon has no indexed iterator over
+        // their compressed representation.
+        //
+        // Every worker feeds the same pure per-row closure into `par_extend`,
+        // which appends partitions in source order, so records land in `out`
+        // directly — no intermediate record vector, no final memcpy — and the
+        // stream stays byte-identical to the serial one. A rejected row is
+        // filtered out and remembered in a shared cell instead, because the
+        // iterator handed to `par_extend` cannot carry a failure.
+        let packing_error: std::sync::Mutex<Option<PackingError>> = std::sync::Mutex::new(None);
+        let collect = |index: u32| -> Option<AtomGpu> {
+            match pack_one(index) {
+                Ok(record) => record,
+                Err(error) => {
+                    let Ok(mut recorded) = packing_error.lock() else {
+                        return None;
+                    };
+                    if recorded.is_none() {
+                        *recorded = Some(error);
+                    }
+                    None
+                }
+            }
+        };
+        match selection {
+            AtomSelection::All => out.par_extend(
+                (0..atom_count)
+                    .into_par_iter()
+                    .with_min_len(PARALLEL_BLOCK)
+                    .filter_map(&collect),
+            ),
+            AtomSelection::Range(range) => out.par_extend(
+                (range.start..range.end.min(atom_count))
+                    .into_par_iter()
+                    .with_min_len(PARALLEL_BLOCK)
+                    .filter_map(&collect),
+            ),
+            AtomSelection::Sparse(indices) => out.par_extend(
+                indices
+                    .par_iter()
+                    .with_min_len(PARALLEL_BLOCK)
+                    .filter_map(|&index| collect(index)),
+            ),
             _ => {
                 let Ok(count) = usize::try_from(selection.count(atom_count)) else {
                     return Ok(());
                 };
                 let mut indices = Vec::with_capacity(count);
                 selection.for_each(atom_count, |index| indices.push(index));
-                indices
-                    .par_iter()
-                    .with_min_len(PARALLEL_BLOCK)
-                    .filter_map(|&index| pack_one(index).transpose())
-                    .collect::<Result<Vec<_>, _>>()?
+                out.par_extend(
+                    indices
+                        .par_iter()
+                        .with_min_len(PARALLEL_BLOCK)
+                        .filter_map(|&index| collect(index)),
+                );
             }
+        }
+        // Nothing inside the lock can panic, so the cell is never poisoned; a
+        // poisoned one would mean a worker already unwound the pack, and the
+        // unwind is already reporting the failure.
+        let recorded = match packing_error.lock() {
+            Ok(error) => *error,
+            Err(_) => None,
         };
-        out.extend(packed);
-        Ok(())
+        match recorded {
+            // All-or-nothing, exactly as in the serial branch: a rejected row
+            // discards every record packed for the selection.
+            Some(error) => {
+                out.clear();
+                Err(error)
+            }
+            None => Ok(()),
+        }
     }
 }
 
@@ -383,32 +407,56 @@ fn multiply_unorm8(left: u8, right: u8) -> u8 {
         .fold(u8::MAX, |_, value| value)
 }
 
-fn pack_softness(semantic: u32, softness_pixels: f32) -> u32 {
-    if softness_pixels <= 0.0 {
-        return semantic & 0x00ff_ffff;
+/// Packs the three palette indices the GPU colour schemes resolve from.
+///
+/// The chain and residue indices are the values the CPU colour functions
+/// already reduce modulo the palette, and the class is the residue's
+/// secondary-structure assignment, so the shader reproduces the CPU result
+/// exactly rather than approximating it. A missing hierarchy leaves the fields
+/// zero, which is the element-colour fallback.
+fn color_indices(
+    semantic: u32,
+    hierarchy: Option<(&Hierarchy, &[SecondaryStructure])>,
+    residue: Option<u32>,
+) -> u32 {
+    let (chain, residue_index, class) = match (hierarchy, residue) {
+        (Some((hierarchy, styles)), Some(residue)) => {
+            let chain = hierarchy.chain_of_residue(residue).map_or(0, |chain| {
+                u32::try_from(chain).map_or(0, |chain| chain & SemanticTag::FIELD_MAX)
+            });
+            // The palette reduces the residue row modulo its length, so the
+            // packed index is that reduction and nothing is lost.
+            let residue_index = residue & SemanticTag::FIELD_MAX;
+            let class = usize::try_from(residue)
+                .ok()
+                .and_then(|index| styles.get(index).copied())
+                .map_or(0, secondary_class);
+            (chain, residue_index, class)
+        }
+        _ => (0, 0, 0),
+    };
+    let indices = chain << SemanticTag::CHAIN_SHIFT
+        | residue_index << SemanticTag::RESIDUE_SHIFT
+        | class << SemanticTag::SECONDARY_SHIFT;
+    semantic & (SemanticTag::TAG_MASK | SemanticTag::COLOR_MASK) | indices
+}
+
+/// The palette slot a secondary-structure class colours from.
+///
+/// The classes map to the same palette the CPU path uses, expressed as slots so
+/// the shader needs no branch per class.
+const fn secondary_class(value: SecondaryStructure) -> u32 {
+    match value {
+        SecondaryStructure::Unknown => 0,
+        SecondaryStructure::Coil => 1,
+        SecondaryStructure::Helix => 2,
+        SecondaryStructure::Strand => 3,
+        SecondaryStructure::Turn => 4,
     }
-    let quantized = molgfx_math::unorm8(softness_pixels / 8.0);
-    (semantic & 0x00ff_ffff) | (u32::from(quantized) << 24)
 }
 
 fn chain_color(chain: usize) -> Rgba8 {
-    // Colour-vision-deficiency-safe hues chosen against the bright default
-    // ground: every entry clears a 2.9:1 luminance contrast at both stops of
-    // the backdrop sweep. The lighter members of the qualitative sets these
-    // derive from — pale cyan, sand, mid grey — vanish on a lit background, so
-    // they are replaced by their darker siblings rather than kept for
-    // tradition.
-    const PALETTE: [Rgba8; 8] = [
-        Rgba8::opaque(51, 34, 136),
-        Rgba8::opaque(178, 74, 92),
-        Rgba8::opaque(17, 119, 51),
-        Rgba8::opaque(133, 124, 40),
-        Rgba8::opaque(24, 116, 106),
-        Rgba8::opaque(136, 34, 85),
-        Rgba8::opaque(59, 110, 163),
-        Rgba8::opaque(150, 72, 160),
-    ];
-    PALETTE[chain % PALETTE.len()]
+    CATEGORICAL_COLORS[chain % CATEGORICAL_COLORS.len()]
 }
 
 fn categorical_color(index: usize) -> Rgba8 {
@@ -416,11 +464,5 @@ fn categorical_color(index: usize) -> Rgba8 {
 }
 
 fn secondary_color(value: SecondaryStructure) -> Rgba8 {
-    match value {
-        SecondaryStructure::Unknown => Rgba8::opaque(128, 128, 128),
-        SecondaryStructure::Helix => Rgba8::opaque(170, 68, 153),
-        SecondaryStructure::Strand => Rgba8::opaque(190, 110, 0),
-        SecondaryStructure::Turn => Rgba8::opaque(0, 128, 94),
-        SecondaryStructure::Coil => Rgba8::opaque(60, 120, 170),
-    }
+    SECONDARY_STRUCTURE_COLORS[secondary_class(value) as usize]
 }

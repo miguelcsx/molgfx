@@ -13,6 +13,7 @@ use crate::error::CoreError;
 use crate::handle::{RepresentationHandle, SlotMap, StructureHandle, VolumeHandle};
 use crate::placed::PlacedStructure;
 use crate::representation::{Representation, RepresentationKind, RepresentationTarget};
+use crate::scene::StoredSelection;
 use crate::{Column, DatasetId, StructureAsset};
 #[path = "identity.rs"]
 mod identity;
@@ -196,12 +197,6 @@ pub(crate) struct StoredAttribute {
     pub(crate) value: crate::representation::AttributeColumn,
     pub(crate) revision: u64,
     pub(crate) dirty_rows: std::ops::Range<u32>,
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct StoredSelection {
-    pub(crate) global: Option<crate::AtomSelection>,
-    pub(crate) scoped: Vec<(StructureHandle, crate::AtomSelection)>,
 }
 
 impl Scene {

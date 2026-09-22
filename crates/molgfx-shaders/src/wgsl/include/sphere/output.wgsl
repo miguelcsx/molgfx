@@ -18,7 +18,7 @@ fn sphere_opaque_output(
     let visual =
         visual_fragment(
             in.entity_id,
-            vec4f(material.albedo_material.rgb, in.color.a),
+            vec4f(atom_fragment_color(in.color, in.semantic, in.entity_id).rgb, in.color.a),
             visual_local_position(world_hit),
             world_hit,
             visual_world_normal(surface.normal),
@@ -122,7 +122,7 @@ fn sphere_transparent_output(
     let visual =
         visual_fragment(
             in.entity_id,
-            vec4f(material.albedo_material.rgb, in.color.a),
+            vec4f(atom_fragment_color(in.color, in.semantic, in.entity_id).rgb, in.color.a),
             visual_local_position(world_hit),
             world_hit,
             visual_world_normal(surface.normal),

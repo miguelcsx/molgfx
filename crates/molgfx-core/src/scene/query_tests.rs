@@ -101,6 +101,38 @@ fn string_and_builder_queries_execute_through_one_ir() {
 }
 
 #[test]
+fn two_select_str_calls_with_the_same_query_share_a_fingerprint() {
+    let mut scene = scene();
+    let first = scene.select_str("protein or ligand").expect("first query");
+    let second = scene.select_str("protein or ligand").expect("second query");
+    let third = scene.select_str("protein").expect("third query");
+    assert_eq!(
+        scene.selection_fingerprint(first),
+        scene.selection_fingerprint(second),
+        "equal queries must share one normalized fingerprint"
+    );
+    assert_ne!(
+        scene.selection_fingerprint(first),
+        scene.selection_fingerprint(third),
+        "distinct queries must not alias"
+    );
+    let builder = scene.select(Select::protein()).expect("builder query");
+    assert_eq!(
+        scene.selection_fingerprint(builder),
+        None,
+        "a builder query is not a textual query and carries no fingerprint"
+    );
+    let union = scene
+        .union_selections(first, third)
+        .expect("union resolves");
+    assert_eq!(
+        scene.selection_fingerprint(union),
+        None,
+        "set algebra over masks is not any single query"
+    );
+}
+
+#[test]
 fn spatial_ir_uses_bvh_candidates_then_exact_world_distance() {
     let mut scene = scene();
     let selection = match scene.select_str("within 1.1 of ligand") {

@@ -37,10 +37,10 @@ pub use interaction::{
     InteractionPattern, InteractionStyle,
 };
 pub use kinds::{
-    ColorScheme, MAX_VOLUME_TRANSFER_POINTS, Representation, RepresentationKind,
-    RepresentationParams, RepresentationPreset, RepresentationTarget, SurfaceKind, SurfaceStyle,
-    VolumeRegion, VolumeRendering, VolumeSlice, VolumeStyle, VolumeTransferFunction,
-    VolumeTransferPoint,
+    CATEGORICAL_COLORS, ColorScheme, MAX_VOLUME_TRANSFER_POINTS, Representation,
+    RepresentationKind, RepresentationParams, RepresentationPreset, RepresentationTarget,
+    SECONDARY_STRUCTURE_COLORS, SurfaceKind, SurfaceStyle, VolumeRegion, VolumeRendering,
+    VolumeSlice, VolumeStyle, VolumeTransferFunction, VolumeTransferPoint,
 };
 pub use material::{Material, MaterialModel};
 pub use mesh::{FaceVisibility, MAX_MESH_VERTICES, Mesh, MeshTopology, MeshVertex};
@@ -60,8 +60,9 @@ pub use tube_radius::TubeRadiusMapping;
 pub use visual::{
     BoolExpr, ColorExpr, ColorParameter, MAX_VISUAL_INSTRUCTIONS, MAX_VISUAL_PARAMETERS,
     MAX_VISUAL_PROPERTIES, ScalarExpr, ScalarParameter, VectorExpr, VectorParameter,
-    VisualAttributeRef, VisualColumnKey, VisualCompatibility, VisualError, VisualEvaluation,
-    VisualInputs, VisualInstructionGpu, VisualOutput, VisualProgram, VisualProgramBuilder,
-    VisualStage, VisualStyle,
+    VisualAttributeRef, VisualColumnKey, VisualCompatibility, VisualEmitError, VisualError,
+    VisualEvaluation, VisualInputs, VisualInstructionGpu, VisualOutput, VisualPipeline,
+    VisualProgram, VisualProgramBuilder, VisualStage, VisualStyle, emit_resolve, is_specializable,
+    is_supported, opcode_name, unsupported, visual_pipeline,
 };
 pub use visual_descriptor::VisualDescriptor;

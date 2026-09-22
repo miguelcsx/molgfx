@@ -63,7 +63,9 @@ fn visual_parameter(index: u32) -> vec4f {
 }
 
 //!include "include/visual/evaluator.wgsl"
-//!include "include/visual/resolve.wgsl"
+// {{visual_program}}
+//!include "include/visual/ladder.wgsl"
+//!include "include/visual/interpreter.wgsl"
 
 fn generic_point_position(index: u32) -> vec3f {
     let base = index * 3u;
