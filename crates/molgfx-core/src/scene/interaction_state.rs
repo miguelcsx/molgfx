@@ -1,6 +1,6 @@
 //! Dense semantic interaction state shared by every representation.
 
-use crate::{Column, CoreError, Scene, StructureHandle};
+use crate::{AtomSelection, Column, CoreError, Scene, StructureHandle};
 
 /// One bit in the per-atom semantic interaction word.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -51,6 +51,63 @@ impl Scene {
     #[must_use]
     pub const fn interaction_state_revision(&self) -> u64 {
         self.interaction_state_revision
+    }
+
+    /// Applies one channel's new bit set, retiring the one already stored.
+    ///
+    /// A channel edit is not a rebuild. Rebuilding every column re-evaluates
+    /// every declared query and walks the whole molecule per channel, so the
+    /// edit an application performs per frame — the hover that moves between
+    /// atoms — would cost the size of the structure. Clearing first and then
+    /// setting exactly the rows the new query selects costs the molecule once
+    /// per edit, not once per channel.
+    ///
+    /// The column itself is the authority on which rows used to carry the bit,
+    /// so retiring it needs no query and no second selection: the previous
+    /// query is not re-evaluated, which keeps an edit to a single evaluation
+    /// however the channel moved.
+    ///
+    /// # Errors
+    ///
+    /// Returns a stale-handle or row-count error without changing the scene.
+    pub fn update_interaction_channel(
+        &mut self,
+        handle: StructureHandle,
+        mask: u32,
+        rows: Option<&AtomSelection>,
+    ) -> Result<(), CoreError> {
+        let placed = self.structure(handle).ok_or(CoreError::StaleHandle)?;
+        let atom_count = placed.atoms.len();
+        let column = self
+            .interaction_states
+            .get_mut(&handle)
+            .ok_or(CoreError::StaleHandle)?;
+        let words = column.values_mut();
+        if words.len() != atom_count as usize {
+            return Err(CoreError::InvalidSelection {
+                reason: "interaction-state row count does not match its structure",
+            });
+        }
+        let mut changed = false;
+        for word in words.iter_mut() {
+            let cleared = *word & !mask;
+            changed |= cleared != *word;
+            *word = cleared;
+        }
+        if let Some(rows) = rows {
+            rows.for_each(atom_count, |row| {
+                if let Some(word) = words.get_mut(row as usize)
+                    && *word & mask == 0
+                {
+                    *word |= mask;
+                    changed = true;
+                }
+            });
+        }
+        if changed {
+            self.interaction_state_revision = self.interaction_state_revision.wrapping_add(1);
+        }
+        Ok(())
     }
 
     /// Atomically replaces structure-scoped semantic state columns.

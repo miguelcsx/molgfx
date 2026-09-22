@@ -10,7 +10,7 @@ use crate::error::Error;
 use crate::property::registry::StateChannel;
 use crate::selection::Selection;
 use crate::spec::SceneSpec;
-use molgfx_core::{Scene, StructureHandle};
+use molgfx_core::{AtomSelection, Scene, StructureHandle};
 
 /// Dense per-structure state words, ready to install.
 pub(crate) type States = Vec<(StructureHandle, Vec<u32>)>;
@@ -132,6 +132,46 @@ fn apply(
                 *word |= mask;
             }
         });
+    }
+    Ok(())
+}
+
+/// Moves one channel to the query it now has.
+///
+/// The channel's previous bit set is retired from the column itself and the new
+/// query is evaluated once, so the cost of an edit is one query evaluation plus
+/// the molecule walk that clears the bit — never a rebuild of every channel, and
+/// never a second evaluation to work out what the previous query had covered.
+///
+/// # Errors
+///
+/// Returns an error if the query fails to evaluate, or if the scene has no state
+/// column for a structure.
+pub(crate) fn update_channel(
+    scene: &mut Scene,
+    channel: StateChannel,
+    selection: Option<&Selection>,
+) -> Result<(), Error> {
+    let mask = channel.mask()?;
+    let handle = match selection {
+        Some(selection) => Some(scene.select_str(selection.source())?),
+        None => None,
+    };
+    let targets: Vec<(StructureHandle, Option<AtomSelection>)> = scene
+        .structures()
+        .map(|(structure, _)| {
+            let rows = handle
+                .and_then(|handle| scene.selection_for(handle, structure))
+                .cloned();
+            (structure, rows)
+        })
+        .collect();
+    for (structure, rows) in targets {
+        scene
+            .update_interaction_channel(structure, mask, rows.as_ref())
+            .map_err(|error| {
+                Error::InvalidSpec(format!("interaction state did not apply: {error}"))
+            })?;
     }
     Ok(())
 }
