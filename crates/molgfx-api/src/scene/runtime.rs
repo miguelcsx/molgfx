@@ -3,59 +3,95 @@
 use crate::error::{Error, PatchError};
 use crate::id::{RepresentationId, StructureId};
 use crate::scene::Resolution;
-use crate::spec::{InteractionChannel, PatchOperation, ScenePatch, SceneSpec};
+use crate::spec::{InteractionChannel, PatchOperation, ScenePatch, SceneSpec, StructureSource};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
-pub(crate) fn structure_hash(structure: &molgfx_core::MolecularSource) -> Box<str> {
+/// Content digest of one molecular source: coordinates, topology and the
+/// parser's own labels.
+///
+/// Published in the specification as `content_hash`, exported through
+/// `MolViewSpec` and verified when a specification is reimported, so the value
+/// a contract: a change to it invalidates every saved scene.
+#[must_use]
+pub fn structure_hash(structure: &molgfx_core::MolecularSource) -> Box<str> {
     let mut hash = Sha256::new();
+    // One `update` per logical group rather than one per 4-byte field. The
+    // digest is identical either way — chunking is not part of SHA-256's output
+    // — but a per-lane `update` costs a call and a buffered copy per field,
+    // which dominated scene construction on large structures.
     hash.update(structure.coordinates().len().to_le_bytes());
-    for coordinate in structure.coordinates() {
+    hash_coordinate_lanes(&mut hash, structure.coordinates());
+    hash_atoms(&mut hash, &structure.topology().atoms);
+    hash_bonds(&mut hash, &structure.topology().bonds);
+    if let Some(native) = structure.molframe() {
+        hash_native_text(&mut hash, native);
+    }
+    format!("{digest:x}", digest = hash.finalize()).into_boxed_str()
+}
+
+/// Feeds every coordinate lane as one contiguous run.
+fn hash_coordinate_lanes(hash: &mut Sha256, coordinates: &[[f32; 3]]) {
+    let mut lanes = Vec::with_capacity(coordinates.len() * 12);
+    for coordinate in coordinates {
         for lane in coordinate {
-            hash.update(lane.to_bits().to_le_bytes());
+            lanes.extend_from_slice(&lane.to_bits().to_le_bytes());
         }
     }
-    for atom in structure.topology().atoms.iter() {
-        hash.update([atom.element]);
-        hash.update(atom.residue.to_le_bytes());
+    hash.update(&lanes);
+}
+
+/// Feeds every atom's element and residue as one run.
+fn hash_atoms(hash: &mut Sha256, atoms: &[molgfx_core::SourceAtom]) {
+    let mut bytes = Vec::with_capacity(atoms.len() * 5);
+    for atom in atoms {
+        bytes.push(atom.element);
+        bytes.extend_from_slice(&atom.residue.to_le_bytes());
     }
-    for bond in structure.topology().bonds.iter() {
-        hash.update(bond.atoms[0].to_le_bytes());
-        hash.update(bond.atoms[1].to_le_bytes());
-        hash.update([u8::from(bond.aromatic)]);
+    hash.update(&bytes);
+}
+
+/// Feeds every bond's endpoints and aromaticity as one run.
+fn hash_bonds(hash: &mut Sha256, bonds: &[molgfx_core::SourceBond]) {
+    let mut bytes = Vec::with_capacity(bonds.len() * 9);
+    for bond in bonds {
+        bytes.extend_from_slice(&bond.atoms[0].to_le_bytes());
+        bytes.extend_from_slice(&bond.atoms[1].to_le_bytes());
+        bytes.push(u8::from(bond.aromatic));
     }
-    if let Some(native) = structure.molframe() {
-        for chain in native.chains() {
-            hash_text(&mut hash, chain.label());
-            hash_text(&mut hash, chain.auth_label());
-            for residue in chain.residues() {
-                hash_text(&mut hash, residue.name());
-                hash_text(&mut hash, residue.auth_name());
-                hash_text(&mut hash, residue.ins_code());
-                hash.update(
-                    residue
-                        .label_seq_id()
-                        .into_iter()
-                        .fold(i32::MIN, |_, value| value)
-                        .to_le_bytes(),
-                );
-                hash.update(
-                    residue
-                        .auth_seq_id()
-                        .into_iter()
-                        .fold(i32::MIN, |_, value| value)
-                        .to_le_bytes(),
-                );
-                hash.update([u8::from(residue.is_het())]);
-                for atom in residue.atoms() {
-                    hash_text(&mut hash, atom.name());
-                    hash_text(&mut hash, atom.auth_name());
-                    hash_text(&mut hash, atom.alt_label());
-                }
+    hash.update(&bytes);
+}
+
+/// Feeds the parser's own labels, keeping the per-field length prefix that
+/// distinguishes an absent label from an empty one.
+fn hash_native_text(hash: &mut Sha256, native: &molframe::Structure) {
+    for chain in native.chains() {
+        hash_text(hash, chain.label());
+        hash_text(hash, chain.auth_label());
+        for residue in chain.residues() {
+            hash_text(hash, residue.name());
+            hash_text(hash, residue.auth_name());
+            hash_text(hash, residue.ins_code());
+            hash_seq_id(hash, residue.label_seq_id());
+            hash_seq_id(hash, residue.auth_seq_id());
+            hash.update([u8::from(residue.is_het())]);
+            for atom in residue.atoms() {
+                hash_text(hash, atom.name());
+                hash_text(hash, atom.auth_name());
+                hash_text(hash, atom.alt_label());
             }
         }
     }
-    format!("{digest:x}", digest = hash.finalize()).into_boxed_str()
+}
+
+/// Feeds one sequence identifier, or `i32::MIN` when absent.
+fn hash_seq_id(hash: &mut Sha256, value: Option<i32>) {
+    hash.update(
+        value
+            .into_iter()
+            .fold(i32::MIN, |_, value| value)
+            .to_le_bytes(),
+    );
 }
 
 fn hash_text(hash: &mut Sha256, value: Option<&str>) {
@@ -70,7 +106,6 @@ pub(crate) fn candidate_spec(current: &SceneSpec, patch: &ScenePatch) -> Result<
         apply_operation(&mut candidate, operation)?;
     }
     validate_touched_domains(&candidate, &patch.operations)?;
-    advance_domain_revisions(&mut candidate, &patch.operations);
     if !patch.operations.is_empty() {
         candidate.revision = candidate.revision.wrapping_add(1);
     }
@@ -106,6 +141,14 @@ pub(crate) fn apply_operation(
             }
         },
         PatchOperation::SetCamera { camera } => candidate.camera = *camera,
+        PatchOperation::AddStructure { id, source } => {
+            let descriptor = StructureSource {
+                content_hash: source.content_hash.clone(),
+                uri: None,
+                format: None,
+            };
+            insert_unique(&mut candidate.structures, *id, descriptor, "structure")?;
+        }
         PatchOperation::AddRepresentation { .. }
         | PatchOperation::RemoveRepresentation { .. }
         | PatchOperation::ReplaceRepresentation { .. }
@@ -247,6 +290,7 @@ fn validate_touched_domains(
             }
             PatchOperation::SetCamera { .. } => candidate.validate_camera()?,
             PatchOperation::RemoveRepresentation { .. }
+            | PatchOperation::AddStructure { .. }
             | PatchOperation::AddVolume { .. }
             | PatchOperation::RemoveVolume { .. }
             | PatchOperation::AddAnnotation { .. }
@@ -266,97 +310,11 @@ fn validate_touched_domains(
     Ok(())
 }
 
-pub(crate) fn advance_domain_revisions(candidate: &mut SceneSpec, operations: &[PatchOperation]) {
-    let structural = operations.iter().any(|operation| {
-        matches!(
-            operation,
-            PatchOperation::AddRepresentation { .. }
-                | PatchOperation::RemoveRepresentation { .. }
-                | PatchOperation::ReplaceRepresentation { .. }
-        )
-    });
-    let selection = structural
-        || operations
-            .iter()
-            .any(|operation| matches!(operation, PatchOperation::SetVisibility { .. }));
-    let appearance = structural
-        || operations.iter().any(|operation| {
-            matches!(
-                operation,
-                PatchOperation::SetOpacity { .. }
-                    | PatchOperation::SetVisual { .. }
-                    | PatchOperation::SetParameter { .. }
-            )
-        });
-    let interaction = operations.iter().any(|operation| {
-        matches!(
-            operation,
-            PatchOperation::SetFocus { .. } | PatchOperation::SetInteraction { .. }
-        )
-    });
-    let view = operations
-        .iter()
-        .any(|operation| matches!(operation, PatchOperation::SetCamera { .. }));
-    if selection {
-        candidate.revisions.selection = candidate.revisions.selection.wrapping_add(1);
-    }
-    if appearance {
-        candidate.revisions.appearance = candidate.revisions.appearance.wrapping_add(1);
-    }
-    if interaction {
-        candidate.revisions.interaction = candidate.revisions.interaction.wrapping_add(1);
-    }
-    if view {
-        candidate.revisions.view = candidate.revisions.view.wrapping_add(1);
-    }
-    if operations.iter().any(|operation| {
-        matches!(
-            operation,
-            PatchOperation::AddVolume { .. } | PatchOperation::RemoveVolume { .. }
-        )
-    }) {
-        candidate.revisions.volume_data = candidate.revisions.volume_data.wrapping_add(1);
-    }
-    if operations.iter().any(|operation| {
-        matches!(
-            operation,
-            PatchOperation::AddAnnotation { .. } | PatchOperation::RemoveAnnotation { .. }
-        )
-    }) {
-        candidate.revisions.annotation = candidate.revisions.annotation.wrapping_add(1);
-    }
-    if operations.iter().any(|operation| {
-        matches!(
-            operation,
-            PatchOperation::AddMeasurement { .. } | PatchOperation::RemoveMeasurement { .. }
-        )
-    }) {
-        candidate.revisions.measurement = candidate.revisions.measurement.wrapping_add(1);
-    }
-    if operations.iter().any(|operation| {
-        matches!(
-            operation,
-            PatchOperation::AddScientificInteraction { .. }
-                | PatchOperation::RemoveScientificInteraction { .. }
-        )
-    }) {
-        candidate.revisions.scientific_interaction =
-            candidate.revisions.scientific_interaction.wrapping_add(1);
-    }
-    if operations.iter().any(|operation| {
-        matches!(
-            operation,
-            PatchOperation::AddTrajectory { .. } | PatchOperation::RemoveTrajectory { .. }
-        )
-    }) {
-        candidate.revisions.trajectory_data = candidate.revisions.trajectory_data.wrapping_add(1);
-    }
-}
-
 pub(crate) fn resolve(
     spec: &SceneSpec,
     structures: &BTreeMap<StructureId, molgfx_core::MolecularSource>,
     property_bindings: &BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
+    science_bindings: &crate::science::ScienceBindings,
 ) -> Result<Resolution, Error> {
     let Some((_, first)) = structures.first_key_value() else {
         return Err(Error::InvalidSpec(
@@ -420,6 +378,14 @@ pub(crate) fn resolve(
             let _ = visuals.insert(*id, visual);
         }
     }
+    let mut science_lowering = crate::science::lower::SciLowering {
+        scene: &mut scene,
+        structures,
+        handles: &structure_handles,
+        selections: &mut selections,
+        bindings: science_bindings,
+    };
+    let science = crate::science::lower::lower(spec, &mut science_lowering)?;
     crate::scene::interaction::write_states(&mut scene, spec)?;
     Ok(Resolution {
         scene,
@@ -427,6 +393,7 @@ pub(crate) fn resolve(
         selections,
         visuals,
         properties,
+        science,
     })
 }
 

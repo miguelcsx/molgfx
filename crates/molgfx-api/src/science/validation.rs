@@ -47,7 +47,7 @@ impl VolumeSpec {
             .spacing
             .iter()
             .all(|value| value.is_finite() && *value > 0.0);
-        if self.dimensions.contains(&0)
+        if self.dimensions.iter().any(|dimension| *dimension < 2)
             || !spacing_is_valid
             || !self.origin.iter().all(|value| value.is_finite())
             || !self.isovalue.is_finite()
@@ -87,25 +87,6 @@ impl ScientificInteractionSpec {
             Self::Explicit { endpoints, .. } => endpoints
                 .iter()
                 .try_for_each(|anchor| anchor.validate(scene)),
-            Self::Detected {
-                structure,
-                selection,
-                cutoff,
-                ..
-            } => {
-                if !scene.structures.contains_key(structure) {
-                    return Err(Error::InvalidSpec(
-                        "interaction targets an unknown structure".to_owned(),
-                    ));
-                }
-                if !cutoff.is_finite() || *cutoff <= 0.0 {
-                    return Err(Error::InvalidSpec(
-                        "interaction cutoff must be finite and positive".to_owned(),
-                    ));
-                }
-                let _ = selection.fingerprint()?;
-                Ok(())
-            }
         }
     }
 }

@@ -37,7 +37,6 @@ impl Scene {
         let _ = self.spec.properties.insert(name.clone(), spec);
         let _ = self.properties.insert(name.clone(), handle);
         let _ = self.property_bindings.insert(name, binding);
-        self.spec.revisions.property = self.spec.revisions.property.wrapping_add(1);
         self.spec.revision = self.spec.revision.wrapping_add(1);
         Ok(reference)
     }

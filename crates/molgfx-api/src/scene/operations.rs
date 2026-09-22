@@ -30,6 +30,7 @@ impl Scene {
                 properties: &self.properties,
                 structures: &self.structures,
                 property_bindings: &self.property_bindings,
+                science_bindings: &self.science_bindings,
             },
             patch,
         )?;
@@ -41,6 +42,7 @@ impl Scene {
                     selections,
                     visuals,
                     properties,
+                    science,
                 } = *resolution;
                 self.spec = *spec;
                 self.resolved = scene;
@@ -48,6 +50,7 @@ impl Scene {
                 self.selections = selections;
                 self.visuals = visuals;
                 self.properties = properties;
+                self.science = science;
                 self.next_representation = next_representation_id(&self.spec)?;
             }
             PatchPlan::Local(plan) => {

@@ -13,7 +13,7 @@ pub mod property;
 mod render;
 mod representation;
 mod scene;
-mod science;
+pub mod science;
 mod selection;
 pub mod source;
 mod spec;
@@ -42,12 +42,13 @@ pub use render::{PickKind, PickResult};
 pub use representation::RepresentationSpec;
 pub use representation::{SceneItem, Selection};
 pub use scene::Scene;
+pub use scene::runtime::structure_hash;
 pub use scene::transaction::SceneTransaction;
 pub use science::{
-    Anchor, AnnotationSpec, DataSource, InteractionKind, MeasurementSpec,
-    ScientificInteractionSpec, TrajectorySpec, VolumeSpec,
+    Anchor, AnnotationSpec, DataSource, InteractionKind, MeasurementSpec, ScientificHandles,
+    ScientificInteractionSpec, TrajectorySpec, VolumeBinding, VolumeSpec,
 };
-pub use spec::{InteractionChannel, Revisions, SceneSpec, StructureSource};
+pub use spec::{InteractionChannel, SceneSpec, StructureSource};
 pub use visual::{
     BoolExpr, ColorExpr, Parameter, ParameterType, ParameterValue, ScalarExpr, VectorExpr,
     VisualStyle,
