@@ -23,18 +23,21 @@ fn fallback<T>(candidate: impl IntoIterator<Item = T>, fallback: T) -> T {
 mod testing;
 
 pub use engine::{
-    AttributeChunkWindow, BackdropStyle, BloomStyle, BondChunkPlacement, ChunkPlacementError,
-    ChunkPlacementId, ChunkPlacementStatus, ChunkRepresentation, ChunkResidencyError,
-    ChunkResidencyMetrics, DepthOfField, DerivedCacheBudget, DerivedCacheUsage, DisplayGamut,
-    DisplayTransform, EffectLayer, Engine, EngineConfig, FocusTarget, FrameCompleteness,
-    FrameDegradation, FrameMetrics, FrameReport, FrameStatus, FrameTiming, HdrImage,
-    IllustrationStyle, Image, ImageConfig, InstanceChunkPlacement, InstanceChunkWindow,
-    LigandPoseStats, LightingEnvironment, MotionBlur, Pick, PickEntity, PointChunkPlacement,
-    PresentationEffect, RelationChunkPlacement, RenderMode, RenderProfile, RenderSession,
-    ResidentGenericChunk, ResidentStructureChunk, ResidentTrajectoryChunk, ResolvedRenderPlan,
-    StructureChunkPlacement, ToneMapping, TrajectoryChunkWindow, TransferFunction,
+    AdaptiveQuality, AdaptiveQualityConfig, AttributeChunkWindow, BackdropStyle, BloomStyle,
+    BondChunkPlacement, ChunkPlacementError, ChunkPlacementId, ChunkPlacementStatus,
+    ChunkRepresentation, ChunkResidencyError, ChunkResidencyMetrics, DepthOfField,
+    DerivedCacheBudget, DerivedCacheUsage, DisplayGamut, DisplayTransform, EffectLayer, Engine,
+    EngineConfig, FocusTarget, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport,
+    FrameStatus, FrameTiming, HdrImage, IllustrationStyle, Image, ImageConfig,
+    InstanceChunkPlacement, InstanceChunkWindow, LigandPoseStats, LightingEnvironment, MotionBlur,
+    Pick, PickEntity, PointChunkPlacement, PresentationEffect, QualityTier, RelationChunkPlacement,
+    RenderMode, RenderProfile, RenderSession, ResidentGenericChunk, ResidentStructureChunk,
+    ResidentTrajectoryChunk, ResolvedRenderPlan, StructureChunkPlacement, ToneMapping,
+    TrajectoryChunkWindow, TransferFunction,
 };
-pub(crate) use engine::{DerivedCache, DerivedFootprint, MaterializationPlan};
+pub(crate) use engine::{
+    DerivedCache, DerivedCacheClass, DerivedCacheKey, DerivedFootprint, MaterializationPlan,
+};
 #[cfg(not(target_arch = "wasm32"))]
 pub use engine::{FrameTicket, SequenceConfig, SequenceFrame, SequenceRenderer};
 pub use error::RenderError;

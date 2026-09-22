@@ -205,7 +205,7 @@ impl<D: Device> ChunkGpuResidency<D> {
         scene.sync_paged_chunks(crate::scene_gpu::paged_chunks::PagedChunkSceneSync {
             device,
             queue,
-            display_coordinates: &self.display_buffer,
+            display_coordinates: self.coordinate_source(),
             frame_coordinates: &self.frame_buffer,
             clusters: &self.cluster_buffer,
             plan: &self.draw_plan,
@@ -234,7 +234,7 @@ impl<D: Device> ChunkGpuResidency<D> {
         scene.sync_paged_relations(crate::scene_gpu::PagedRelationsSync {
             device,
             queue,
-            display_source: &self.display_buffer,
+            display_source: self.coordinate_source(),
             generic_source: &self.buffer,
             plans: &self.relation_plan,
             instance_plans: &self.instance_plan,
@@ -245,13 +245,12 @@ impl<D: Device> ChunkGpuResidency<D> {
             resolve: |anchor| residency.resolve_spatial_anchor(anchor),
             resolve_attribute: |ticket| residency.resident_visual_attribute_column(ticket),
         })?;
-        self.bonds.sync_scene(
-            scene,
-            device,
-            queue,
-            &self.display_buffer,
-            self.binding_revision,
-        )
+        // The bond residency reads its coordinates from the same canonical
+        // backing the paged chunks do; the split borrow lives in the helper.
+        let revision = self.binding_revision;
+        self.sync_bonds_with_coordinates(revision, |coordinates, revision, bonds| {
+            bonds.sync_scene(scene, device, queue, coordinates, revision)
+        })
     }
 
     fn relation_dependencies_resident(

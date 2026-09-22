@@ -12,6 +12,7 @@ use crate::passes::{
     DEPTH_RESOURCE, FrameBindings, OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE, SEGMENT_LABEL_RESOURCE,
     SEGMENT_VOLUME_RESOURCE,
 };
+use crate::scene_gpu::DrawFamily;
 use crate::scene_gpu::{GENERIC_INSTANCE_CAPSULE, GENERIC_INSTANCE_SPHERE};
 use molgfx_gpu::{
     BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, CommandEncoder as _,
@@ -199,7 +200,11 @@ impl<D: Device> OitPass<D> {
     }
 
     pub(crate) fn cartoons(ctx: &mut PassContext<'_, D>) {
-        if ctx.scene.cartoon_draws(true).next().is_some()
+        if ctx
+            .scene
+            .cartoon_draws(true, DrawFamily::Cartoon)
+            .next()
+            .is_some()
             || ctx.scene.mesh_draws(true).next().is_some()
         {
             record(ctx, Primitive::Cartoons);
@@ -335,36 +340,40 @@ fn record<D: Device>(ctx: &mut PassContext<'_, D>, primitive: Primitive) {
         Primitive::Spheres => record_spheres(ctx.passes, ctx.scene, &mut pass),
         Primitive::Bonds => {
             let mut bound = None;
-            for (group, args, shading) in ctx.scene.bond_draws(true) {
-                if bound != Some(shading) {
-                    pass.set_pipeline(if shading.wire() {
-                        ctx.passes.oit.wire.get(shading)
-                    } else {
-                        ctx.passes.oit.bond.get(shading)
-                    });
-                    bound = Some(shading);
+            if let Some(arena) = ctx.scene.indirect_args() {
+                for (group, offset, shading, _) in ctx.scene.bond_draws(true) {
+                    if bound != Some(shading) {
+                        pass.set_pipeline(if shading.wire() {
+                            ctx.passes.oit.wire.get(shading)
+                        } else {
+                            ctx.passes.oit.bond.get(shading)
+                        });
+                        bound = Some(shading);
+                    }
+                    pass.set_bind_group(2, group, &[]);
+                    pass.draw_indirect(arena, offset);
                 }
-                pass.set_bind_group(2, group, &[]);
-                pass.draw_indirect(args, 0);
             }
         }
         Primitive::Points => {
             let mut bound = None;
-            for (group, args, shading) in ctx.scene.point_draws(true) {
-                if bound != Some(shading) {
-                    pass.set_pipeline(ctx.passes.oit.point.get(shading));
-                    bound = Some(shading);
+            if let Some(arena) = ctx.scene.indirect_args() {
+                for (group, offset, shading, _) in ctx.scene.point_draws(true) {
+                    if bound != Some(shading) {
+                        pass.set_pipeline(ctx.passes.oit.point.get(shading));
+                        bound = Some(shading);
+                    }
+                    pass.set_bind_group(2, group, &[]);
+                    pass.draw_indirect(arena, offset);
                 }
-                pass.set_bind_group(2, group, &[]);
-                pass.draw_indirect(args, 0);
             }
             record_generic_points(ctx.passes, ctx.scene, &mut pass);
         }
         Primitive::Cartoons => {
             let mut bound = None;
-            for (group, args, shading) in ctx
+            for (group, args, shading, _) in ctx
                 .scene
-                .cartoon_draws(true)
+                .cartoon_draws(true, DrawFamily::Cartoon)
                 .chain(ctx.scene.mesh_draws(true))
             {
                 if bound != Some(shading) {

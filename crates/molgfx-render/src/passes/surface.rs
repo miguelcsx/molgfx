@@ -68,6 +68,46 @@ impl<D: Device> SurfacePass<D> {
         })
     }
 
+    /// Compiles a surface tracing built from the generated sibling.
+    ///
+    /// # Errors
+    ///
+    /// Shader compilation or pipeline creation failed.
+    pub(crate) fn build_specialized(
+        device: &D,
+        group0: &D::BindGroupLayout,
+        group2: &D::BindGroupLayout,
+        grid: bool,
+    ) -> Result<D::Pipeline, RenderError> {
+        let (label, fs_entry) = if grid {
+            ("specialized field molecular surfaces", "fs_surface_grid")
+        } else {
+            (
+                "specialized analytic molecular surfaces",
+                "fs_surface_union",
+            )
+        };
+        let shader = device.create_shader_module(&ShaderModuleDesc {
+            label: "surface generated",
+            wgsl: molgfx_shaders::GEOMETRY_SURFACE_SPECIALIZED,
+        })?;
+        Ok(device.create_render_pipeline(&RenderPipelineDesc {
+            label,
+            layouts: &[Some(group0), None, Some(group2)],
+            shader: &shader,
+            vs_entry: "vs_surface",
+            fs_entry: Some(fs_entry),
+            color_targets: &gbuffer_targets(),
+            depth: Some(DepthState {
+                format: TextureFormat::Depth32Float,
+                write: true,
+                compare: CompareFunction::GreaterEqual,
+            }),
+            constants: &constants(true),
+            topology: PrimitiveTopology::TriangleList,
+        })?)
+    }
+
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let (Some(albedo), Some(normal), Some(entity), Some(structure), Some(motion), Some(depth)) = (
             ctx.resources.view(ALBEDO_RESOURCE),
@@ -99,18 +139,24 @@ impl<D: Device> SurfacePass<D> {
             timestamps: ctx.timestamps,
         });
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
-        let mut bound = None;
-        for (group, args, shading) in ctx.scene.surface_draws(false) {
-            if bound != Some(shading) {
-                pass.set_pipeline(if shading.surface_grid() {
-                    ctx.passes.surface.grid_surface.get(shading)
+        let mut bound: Option<*const D::Pipeline> = None;
+        if let Some(arena) = ctx.scene.indirect_args() {
+            for (group, offset, shading, specialized) in ctx.scene.surface_draws(false) {
+                let pipeline = if shading.surface_grid() {
+                    ctx.passes.surface.grid_surface.select(shading, specialized)
                 } else {
-                    ctx.passes.surface.union_surface.get(shading)
-                });
-                bound = Some(shading);
+                    ctx.passes
+                        .surface
+                        .union_surface
+                        .select(shading, specialized)
+                };
+                if bound != Some(std::ptr::from_ref(pipeline)) {
+                    pass.set_pipeline(pipeline);
+                    bound = Some(std::ptr::from_ref(pipeline));
+                }
+                pass.set_bind_group(2, group, &[]);
+                pass.draw_indirect(arena, offset);
             }
-            pass.set_bind_group(2, group, &[]);
-            pass.draw_indirect(args, 0);
         }
     }
 }

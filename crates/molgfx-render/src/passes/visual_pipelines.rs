@@ -3,6 +3,12 @@
 //! Built-in, entity-only and fragment-dependent styles are separate GPU
 //! pipelines. The common built-in path therefore contains no interpreter
 //! branch or visual storage access after override specialization.
+//!
+//! Each set additionally holds an optional fourth pipeline built from the
+//! unit's specialized sibling, which replaces the interpreter with
+//! straight-line code emitted from one exact program. A set without one is the
+//! normal state for a pass whose style never specializes, and selection then
+//! behaves exactly as it did before specialization existed.
 
 use crate::scene_gpu::SlotShading;
 use molgfx_gpu::Device;
@@ -37,6 +43,24 @@ impl<D: Device> VisualPipelineSet<D> {
             &self.entity
         } else {
             &self.built_in
+        }
+    }
+
+    /// Selects the draw's pipeline, preferring generated code when the caller
+    /// resolved a specialized pipeline and the shading asks for one.
+    ///
+    /// A specialized pipeline only ever replaces the fragment stage, because
+    /// only that stage's unit carries the marker; every other shading keeps the
+    /// unconditional selection so a caller cannot route an entity or built-in
+    /// draw onto generated code by mistake.
+    pub(super) fn select<'s>(
+        &'s self,
+        shading: SlotShading,
+        specialized: Option<&'s D::Pipeline>,
+    ) -> &'s D::Pipeline {
+        match specialized {
+            Some(pipeline) if shading.fragment_visual() => pipeline,
+            _ => self.get(shading),
         }
     }
 }

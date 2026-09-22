@@ -7,6 +7,7 @@ use crate::passes::ligand_pose_pipelines::LigandPosePipelineSet;
 use crate::passes::primitive_pipelines::PRIMITIVE_QUAD_VERTICES;
 use crate::passes::primitive_shadow_pipelines::PrimitiveShadowPipelineSet;
 use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
+use crate::scene_gpu::DrawFamily;
 use molgfx_gpu::{
     CommandEncoder as _, CompareFunction, DepthAttachment, DepthLoadOp, DepthState, Device,
     PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _, RenderPipelineDesc,
@@ -102,6 +103,85 @@ impl<D: Device> ShadowPass<D> {
         })
     }
 
+    /// Compiles an analytic shadow pipeline built from the generated sibling.
+    ///
+    /// The sphere and bond units share one source but no entry point, so each
+    /// is built from its own call rather than one shared family.
+    ///
+    /// # Errors
+    ///
+    /// Shader compilation or pipeline creation failed.
+    pub(crate) fn build_specialized(
+        device: &D,
+        group0: &D::BindGroupLayout,
+        group2: &D::BindGroupLayout,
+        bond: bool,
+    ) -> Result<D::Pipeline, RenderError> {
+        let (label, vertex, fragment) = if bond {
+            (
+                "specialized bond shadow map",
+                "vs_shadow_bond",
+                "fs_shadow_bond",
+            )
+        } else {
+            (
+                "specialized sphere shadow map",
+                "vs_shadow_sphere",
+                "fs_shadow_sphere",
+            )
+        };
+        let shader = device.create_shader_module(&ShaderModuleDesc {
+            label: "analytic molecular shadows generated",
+            wgsl: molgfx_shaders::SHADOW_SPECIALIZED,
+        })?;
+        Ok(device.create_render_pipeline(&RenderPipelineDesc {
+            label,
+            layouts: &[Some(group0), None, Some(group2)],
+            shader: &shader,
+            vs_entry: vertex,
+            fs_entry: Some(fragment),
+            color_targets: &[],
+            depth: Some(DepthState {
+                format: TextureFormat::Depth32Float,
+                write: true,
+                compare: CompareFunction::GreaterEqual,
+            }),
+            constants: &constants(true),
+            topology: PrimitiveTopology::TriangleList,
+        })?)
+    }
+
+    /// Compiles the ribbon shadow pipeline built from the generated sibling.
+    ///
+    /// # Errors
+    ///
+    /// Shader compilation or pipeline creation failed.
+    pub(crate) fn build_specialized_ribbon(
+        device: &D,
+        group0: &D::BindGroupLayout,
+        ribbon: &D::BindGroupLayout,
+    ) -> Result<D::Pipeline, RenderError> {
+        let shader = device.create_shader_module(&ShaderModuleDesc {
+            label: "cartoon ribbon shadows generated",
+            wgsl: molgfx_shaders::SHADOW_RIBBON_SPECIALIZED,
+        })?;
+        Ok(device.create_render_pipeline(&RenderPipelineDesc {
+            label: "specialized ribbon shadow map",
+            layouts: &[Some(group0), None, Some(ribbon)],
+            shader: &shader,
+            vs_entry: "vs_shadow_ribbon",
+            fs_entry: Some("fs_shadow_ribbon"),
+            color_targets: &[],
+            depth: Some(DepthState {
+                format: TextureFormat::Depth32Float,
+                write: true,
+                compare: CompareFunction::GreaterEqual,
+            }),
+            constants: &constants(true),
+            topology: PrimitiveTopology::TriangleList,
+        })?)
+    }
+
     /// Records one depth pass over the GPU-cull-selected opaque streams.
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.is_massive_points_only() {
@@ -121,33 +201,40 @@ impl<D: Device> ShadowPass<D> {
             timestamps: ctx.timestamps,
         });
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
-        let mut bound = None;
-        for (group, args, shading) in ctx.scene.shadow_atom_draws(ctx.quality) {
-            if bound != Some(shading) {
-                pass.set_pipeline(ctx.passes.shadow.sphere.get(shading));
-                bound = Some(shading);
+        let mut bound: Option<*const D::Pipeline> = None;
+        if let Some(arena) = ctx.scene.indirect_args() {
+            for (group, offset, shading, specialized) in ctx.scene.shadow_atom_draws(ctx.quality) {
+                let pipeline = ctx.passes.shadow.sphere.select(shading, specialized);
+                if bound != Some(std::ptr::from_ref(pipeline)) {
+                    pass.set_pipeline(pipeline);
+                    bound = Some(std::ptr::from_ref(pipeline));
+                }
+                pass.set_bind_group(2, group, &[]);
+                pass.draw_indirect(arena, offset);
             }
-            pass.set_bind_group(2, group, &[]);
-            pass.draw_indirect(args, 0);
         }
         bound = None;
-        for (group, args, shading) in ctx.scene.shadow_bond_draws(ctx.quality) {
-            if bound != Some(shading) {
-                pass.set_pipeline(ctx.passes.shadow.bond.get(shading));
-                bound = Some(shading);
+        if let Some(arena) = ctx.scene.indirect_args() {
+            for (group, offset, shading, specialized) in ctx.scene.shadow_bond_draws(ctx.quality) {
+                let pipeline = ctx.passes.shadow.bond.select(shading, specialized);
+                if bound != Some(std::ptr::from_ref(pipeline)) {
+                    pass.set_pipeline(pipeline);
+                    bound = Some(std::ptr::from_ref(pipeline));
+                }
+                pass.set_bind_group(2, group, &[]);
+                pass.draw_indirect(arena, offset);
             }
-            pass.set_bind_group(2, group, &[]);
-            pass.draw_indirect(args, 0);
         }
         bound = None;
-        for (group, args, shading) in ctx
+        for (group, args, shading, specialized) in ctx
             .scene
-            .cartoon_draws(false)
+            .cartoon_draws(false, DrawFamily::ShadowRibbon)
             .chain(ctx.scene.mesh_draws(false))
         {
-            if bound != Some(shading) {
-                pass.set_pipeline(ctx.passes.shadow.ribbon.get(shading));
-                bound = Some(shading);
+            let pipeline = ctx.passes.shadow.ribbon.select(shading, specialized);
+            if bound != Some(std::ptr::from_ref(pipeline)) {
+                pass.set_pipeline(pipeline);
+                bound = Some(std::ptr::from_ref(pipeline));
             }
             pass.set_bind_group(2, group, &[]);
             pass.draw_indirect(args, 0);

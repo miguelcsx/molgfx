@@ -1,5 +1,5 @@
 use super::{
-    atom_cull_entries, bond_cull_entries, quality_entries, relation_cull_entries,
+    all_stages, atom_cull_entries, bond_cull_entries, quality_entries, relation_cull_entries,
     relation_resolve_entries, representation_entries, storage_counts, validate_storage_limit,
     visual_cull_entries,
 };
@@ -92,13 +92,58 @@ fn layout_contract_returns_a_typed_error_before_backend_validation() {
 }
 
 #[test]
-fn fragment_program_is_uniform_and_not_counted_as_storage() {
+fn every_representation_binding_is_declared_in_both_layouts() {
+    // A slot builds one group2 and binds it to whichever pipeline a draw
+    // selects, so a binding present in only one layout is a validation failure
+    // the moment that draw is recorded in that mode.
+    let representation: Vec<u32> = representation_entries()
+        .iter()
+        .map(|entry| entry.binding)
+        .collect();
+    assert_eq!(
+        representation,
+        vec![
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19, 20
+        ],
+        "the representation layout's bindings are fixed by the group2 a slot builds"
+    );
+    // The quality layout reuses the same group2, so it must declare every
+    // binding that group carries. Its only addition is the quality hierarchy,
+    // which no raster draw reads.
+    for entry in quality_entries() {
+        // A quality frame binds a smaller group2 than a raster frame, so it
+        // declares a subset. Its one addition is the shared quality hierarchy,
+        // which no raster draw reads.
+        assert!(
+            entry.binding == 21 || representation.contains(&entry.binding),
+            "the quality layout binds {} which the representation layout does not declare; \
+             a slot builds one group2 and binds it in both modes",
+            entry.binding
+        );
+    }
+}
+
+#[test]
+fn the_uniform_only_bindings_are_uniform_and_not_counted_as_storage() {
+    // The visual program and the colour scheme block are a uniform and a small
+    // palette; neither belongs in the storage-buffer budget, which is fully
+    // spent on the buffers that need it.
     let entries = representation_entries();
     let fragment_program = entries.iter().find(|entry| entry.binding == 17);
-
-    assert!(fragment_program.is_some_and(|entry| {
-        entry.visibility == ShaderStages::FRAGMENT
-            && matches!(entry.ty, molgfx_gpu::BindingType::Uniform)
-    }));
-    assert!(entries.iter().all(|entry| entry.binding != 18));
+    assert!(
+        fragment_program.is_some_and(|entry| {
+            entry.visibility == ShaderStages::FRAGMENT
+                && matches!(entry.ty, molgfx_gpu::BindingType::Uniform)
+        }),
+        "the visual program is a fragment uniform: only that stage interprets one"
+    );
+    let color = entries.iter().find(|entry| entry.binding == 18);
+    assert!(
+        color.is_some_and(|entry| {
+            // The vertex stage resolves an atom's colour, because it writes the
+            // per-instance payload the fragment stage shades.
+            entry.visibility == all_stages() && matches!(entry.ty, molgfx_gpu::BindingType::Uniform)
+        }),
+        "the colour scheme block is a uniform every drawing stage can read"
+    );
 }

@@ -183,9 +183,11 @@ fn provider_frames_interpolate_through_one_bounded_gpu_window() {
         panic!("paged trajectory must render: {error}");
     }
     let frame_buffer = buffer_id(&engine, "resident trajectory frames");
+    // A trajectory window is the one case that needs the second coordinate
+    // backing: the interpolation pass writes through it.
     let display_buffer = buffer_id(&engine, "resident display coordinates");
     assert_ne!(frame_buffer, u32::MAX);
-    assert_ne!(display_buffer, u32::MAX);
+    assert_ne!(display_buffer, u32::MAX, "a trajectory window allocates it");
     let writes_before = buffer_write_count(&engine, frame_buffer);
     let advanced = match TrajectoryChunkWindow::new(structure, start, end, 0.75) {
         Ok(value) => value,
@@ -328,4 +330,110 @@ fn assert_global_pick(engine: &mut Engine<MockDevice>, dataset: u64, chunk: u64,
     assert_eq!(identity.dataset(), DatasetId::new(dataset));
     assert_eq!(identity.chunk(), ChunkId::new(chunk));
     assert_eq!(identity.row().get(), 1);
+}
+
+#[test]
+fn a_burst_of_chunks_produces_a_bounded_number_of_submissions() {
+    // One epoch, one submission: N chunks staged together must not cost N
+    // queue submissions. Each chunk's own `upload_chunk_into` flush is the
+    // only submission it may add, and a frame's own submit is separate.
+    let mut engine = engine();
+    let mut output = ResidencyOutput::default();
+    let before = match engine.device.log.submits.lock() {
+        Ok(submits) => *submits,
+        Err(error) => panic!("submit log lock: {error}"),
+    };
+    let mut tickets = Vec::new();
+    for (dataset, chunk) in [(41_u64, 51_u64), (42, 52), (43, 53), (44, 54)] {
+        let source = fixture(dataset, chunk, 1);
+        let (ticket, _, _) =
+            super::chunk_residency_tests::request_and_deliver(&mut engine, source, &mut output);
+        tickets.push(ticket);
+    }
+    for ticket in tickets {
+        super::chunk_residency_tests::upload(&mut engine, ticket, &mut output);
+    }
+    let after = match engine.device.log.submits.lock() {
+        Ok(submits) => *submits,
+        Err(error) => panic!("submit log lock: {error}"),
+    };
+    assert!(
+        after - before <= 4,
+        "four chunks staged in one epoch issued {} submissions; uploads are batched by frame",
+        after - before
+    );
+}
+
+#[test]
+fn no_coordinate_payload_is_written_twice() {
+    // The refactor removed the second write of the same bytes into a separate
+    // display buffer, so identical non-empty coordinate payloads must not
+    // appear twice in one upload.
+    let mut engine = engine();
+    let mut output = ResidencyOutput::default();
+    let source = super::chunk_residency_tests::fixture(61, 71, 1);
+    let (ticket, _, expected) =
+        super::chunk_residency_tests::request_and_deliver(&mut engine, source, &mut output);
+    super::chunk_residency_tests::upload(&mut engine, ticket, &mut output);
+    let Ok(payloads) = engine.device.log.write_payloads.lock() else {
+        panic!("payload log lock")
+    };
+    let coordinate_payloads: Vec<&Vec<u8>> = payloads
+        .iter()
+        .filter(|bytes| bytes.starts_with(&expected))
+        .collect();
+    assert_eq!(
+        coordinate_payloads.len(),
+        1,
+        "the coordinate bytes reach the device once, not once per consumer"
+    );
+}
+
+#[test]
+fn stable_frames_do_not_allocate_or_rewrite_resident_chunk_storage() {
+    let mut engine = engine();
+    let mut output = ResidencyOutput::default();
+    let (ticket, _, _) = request_and_deliver(&mut engine, fixture(51, 61, 1), &mut output);
+    upload(&mut engine, ticket, &mut output);
+    complete(&mut engine, &mut output);
+    let before = engine.chunk_residency_metrics();
+    let structure_buffer = match engine.device.log.buffers.lock() {
+        Ok(buffers) => buffers
+            .iter()
+            .find(|(_, label, _)| *label == "resident structure chunks")
+            .map(|(id, _, _)| *id),
+        Err(_) => None,
+    };
+    let Some(structure_buffer) = structure_buffer else {
+        panic!("structure arena buffer must exist")
+    };
+    let writes_before = structure_write_count(&engine, structure_buffer);
+    let scene = molgfx_core::Scene::new();
+    let camera = super::tests::camera();
+    for _ in 0..2 {
+        if let Err(error) = engine.render(&scene, &camera) {
+            panic!("stable frame must render: {error}");
+        }
+    }
+    let after = engine.chunk_residency_metrics();
+    assert_eq!(
+        after.arena.host_allocation_events,
+        before.arena.host_allocation_events
+    );
+    assert_eq!(
+        after.uploads.host_allocation_events,
+        before.uploads.host_allocation_events
+    );
+    assert_eq!(after.tracked_capacity, before.tracked_capacity);
+    assert_eq!(
+        structure_write_count(&engine, structure_buffer),
+        writes_before
+    );
+}
+
+fn structure_write_count(engine: &Engine<MockDevice>, buffer: u32) -> usize {
+    match engine.device.log.writes.lock() {
+        Ok(writes) => writes.iter().filter(|(id, _, _, _)| *id == buffer).count(),
+        Err(_) => 0,
+    }
 }

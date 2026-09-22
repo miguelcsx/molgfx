@@ -10,7 +10,7 @@
 
 use super::{
     Engine, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport, FrameStatus,
-    MotionBlur, RenderMode, TemporalOptions,
+    MotionBlur, QualityTier, RenderMode, TemporalOptions,
 };
 use crate::error::RenderError;
 use crate::graph::{DisplayEncoding, PassContext, ResourceTable, TransientPool, plan_aliases};
@@ -19,28 +19,21 @@ use molgfx_core::Scene;
 use molgfx_gpu::Queue as _;
 use molgfx_gpu::{Device, Surface as _, SurfaceError, SurfaceFrame as _};
 use molgfx_math::Camera;
+// Uses the host monotonic clock on both native and browser targets, matching
+// the profiling path so the two frame-time sources stay comparable.
+use web_time::Instant;
 
 impl<D: Device> Engine<D> {
-    /// Renders one frame of the scene to the presentation surface.
+    /// Uploads everything the scene changed since the previous frame.
     ///
-    /// A lost or outdated surface reconfigures and returns
-    /// [`FrameStatus::Skipped`]; the next frame recovers. Nothing panics on
-    /// conditions a caller can hit.
-    ///
-    /// # Errors
-    ///
-    /// Device loss beyond surface recovery, or graph reconstruction
-    /// failures.
-    pub fn render(&mut self, scene: &Scene, camera: &Camera) -> Result<FrameReport, RenderError> {
-        self.device.check_errors()?;
-        self.chunk_residency.begin_epoch();
-        self.scene_gpu.begin_frame();
-        // Sync: upload only what changed since the last frame.
+    /// Returns whether any of it changed, and restarts temporal accumulation
+    /// when it did or while uploads are still in flight.
+    fn sync_scene(&mut self, scene: &Scene) -> Result<bool, RenderError> {
         let scene_changed = self.scene_gpu.sync(crate::scene_gpu::SceneSync {
             device: &self.device,
             queue: &self.queue,
             scene,
-            quality: self.mode == RenderMode::Cinematic,
+            quality: self.tier() >= QualityTier::Standard,
             extent: [self.width, self.height],
             ray_query_layout: self.passes.ambient_occlusion.ray_query_layout(),
             derived_cache: &mut self.derived_cache,
@@ -57,13 +50,39 @@ impl<D: Device> Engine<D> {
         if scene_changed || self.chunk_residency.metrics().uploads.active_tickets != 0 {
             self.temporal.invalidate_convergence();
         }
+        Ok(scene_changed)
+    }
+
+    /// Renders one frame of the scene to the presentation surface.
+    ///
+    /// A lost or outdated surface reconfigures and returns
+    /// [`FrameStatus::Skipped`]; the next frame recovers. Nothing panics on
+    /// conditions a caller can hit.
+    ///
+    /// # Errors
+    ///
+    /// Device loss beyond surface recovery, or graph reconstruction
+    /// failures.
+    pub fn render(&mut self, scene: &Scene, camera: &Camera) -> Result<FrameReport, RenderError> {
+        let frame_start = Instant::now();
+        self.sync_quality_tier();
+        self.device.check_errors()?;
+        self.chunk_residency.begin_epoch();
+        self.scene_gpu.begin_frame();
+        // Sync: upload only what changed since the last frame.
+        let scene_changed = self.sync_scene(scene)?;
 
         // Build: (re)allocate the transient pool when the size changed.
         let rebuild = self.rebuild_pool_if_needed()?;
+        // Settle: every generated pipeline this frame will draw is resolved
+        // before any pass opens a render pass, so recording only reads what
+        // this phase compiled.
+        self.scene_gpu
+            .settle_specializations(&self.device, scene, &self.passes);
         let camera_changed = self.temporal.camera_changed(camera);
         let identity = scene.cache_identity();
         let scene_reset = self.temporal_scene_identity.replace(identity) != Some(identity);
-        let cinematic = self.mode == RenderMode::Cinematic;
+        let cinematic = self.tier() >= QualityTier::Standard;
         let optics = self.resolve_optics(scene, camera)?;
         let shadow =
             self.shadow_bound
@@ -103,6 +122,8 @@ impl<D: Device> Engine<D> {
 
         // Record every pass in schedule order into one encoder.
         let mut encoder = self.device.create_command_encoder();
+        self.scene_gpu
+            .settle_specializations(&self.device, scene, &self.passes);
         self.record_scene_compute(&mut encoder, cinematic);
         let Some(pool) = &self.pool else {
             return Ok(self.frame_report(FrameStatus::Skipped));
@@ -135,7 +156,21 @@ impl<D: Device> Engine<D> {
         self.queue.submit(encoder);
         self.device.check_errors()?;
         frame.present();
-        Ok(self.frame_report(FrameStatus::Presented))
+        // The report describes the frame that was just rendered, so it is
+        // captured before the loop advances.
+        let report = self.frame_report(FrameStatus::Presented);
+        // Close the loop: this frame's real duration decides the tier the next
+        // frame builds at. That frame republishes the tier at its top, which is
+        // also where a move restarts accumulation.
+        // Kept in u64 throughout: a frame that outruns u64 nanoseconds is
+        // already slower than any tier can act on, so the arithmetic saturates.
+        let frame_time = frame_start.elapsed();
+        let elapsed = frame_time
+            .as_secs()
+            .saturating_mul(1_000_000_000)
+            .saturating_add(u64::from(frame_time.subsec_nanos()));
+        self.adaptive.observe(elapsed);
+        Ok(report)
     }
 
     fn record_scene_compute(&mut self, encoder: &mut D::CommandEncoder, cinematic: bool) {
@@ -204,7 +239,8 @@ impl<D: Device> Engine<D> {
                 || pending != 0
                 || self
                     .temporal
-                    .needs_another_frame(self.mode == RenderMode::Cinematic),
+                    .needs_another_frame(self.tier().temporal_samples()),
+            quality_tier: self.tier(),
         }
     }
 

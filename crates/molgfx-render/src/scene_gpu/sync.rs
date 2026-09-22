@@ -16,8 +16,14 @@ mod scene_identity;
 mod segmentations;
 pub(super) mod selection_bounds;
 mod semantic_tables;
+mod shared_caches;
+mod slot_reconcile;
+mod slot_sync;
+mod specialize;
+mod surface_resolve;
 mod trajectories;
 mod upload_scratch;
+mod volume_reconcile;
 mod volumes;
 use super::asset::GpuAsset;
 use super::asset_arena::AssetArena;
@@ -33,7 +39,7 @@ use super::picking_pages::PickPages;
 use super::point_batch_table::GpuPointBatches;
 use super::primitive_table::GpuPrimitives;
 use super::segmentation_slot::{GpuSegmentationResource, GpuSegmentationSlot};
-use super::slot_types::{SlotKey, SlotPlan, SlotSync};
+use super::slot_types::SlotPlan;
 use super::slots::GpuSlot;
 use super::structure::GpuStructure;
 use super::uniforms::FrameUniforms;
@@ -49,6 +55,7 @@ use molgfx_core::{
 };
 use molgfx_gpu::{ArenaAllocation, Device, UploadTicket};
 use semantic_tables::SemanticSync;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug)]
@@ -110,6 +117,10 @@ pub(crate) struct GpuScene<D: Device> {
     pub overlay_layout: D::BindGroupLayout,
     pub trajectory_layout: D::BindGroupLayout,
     pub occupancy_layout: D::BindGroupLayout,
+    /// The scene-wide implicit-surface field cache. Fields are shared by
+    /// geometry and sampling policy, so two surfaces differing only in
+    /// appearance generate one field.
+    surface_fields: crate::scene_gpu::surface_cache::SurfaceFieldCache<D>,
     _surface_field_fallback_texture: D::Texture,
     surface_field_fallback: D::TextureView,
     _surface_normal_fallback_texture: D::Texture,
@@ -137,10 +148,21 @@ pub(crate) struct GpuScene<D: Device> {
     pub(super) picking_pages: PickPages,
     paged_instance_pick_scratch: Vec<super::picking_pages::ChunkPickPlan>,
     paged_relation_pick_scratch: Vec<super::picking_pages::ChunkPickPlan>,
+    records: super::record_cache::RecordCache<D>,
+    visibility: super::visibility_cache::VisibilityCache<D>,
+    acceleration: super::acceleration_cache::AccelerationCache<D>,
+    indirect: super::indirect_arena::IndirectArgsArena<D>,
+    /// Argument-slot offsets per record key, resolved in the record pass.
+    argument_offsets: BTreeMap<super::RecordKey, (u64, u64, u64)>,
     visual_properties: VisualPropertyTable<D>,
     visual_programs: VisualProgramTable<D>,
     visual_parameters: VisualParameterTable<D>,
     visual_fallback: VisualFallback<D>,
+    /// Generated pipelines, one per style, stage and drawable family.
+    ///
+    /// Settled once per frame before any pass records, then read through a
+    /// shared borrow while draws are recorded.
+    pub(super) specialized: crate::engine::pipeline_cache::SpecializedPipelines<D>,
     paged_visual_time_seconds: f32,
     paged_visual_time_revision: u64,
     scene_identity: Option<u64>,
@@ -298,8 +320,18 @@ impl<D: Device> GpuScene<D> {
             derived_frame,
         })?;
         changed |= self.sync_volume_resources(device, queue, scene)?;
+        self.sync_records(
+            device,
+            queue,
+            scene,
+            requires_bvh,
+            derived_cache,
+            derived_frame,
+        )?;
+        self.prepare_surface_fields(device, queue, scene, quality)?;
         changed |=
             self.sync_representation_slots(device, queue, scene, quality, ray_query_layout)?;
+        self.retain_surface_fields(derived_cache, derived_frame);
         self.release_upload_scratch();
         changed |= self.sync_volume_slots(device, queue, scene)?;
         changed |= self.sync_mesh_slots(device, queue, scene)?;
@@ -307,112 +339,12 @@ impl<D: Device> GpuScene<D> {
         Ok(changed)
     }
 
-    fn sync_representation_slots(
-        &mut self,
-        device: &D,
-        queue: &D::Queue,
-        scene: &Scene,
-        quality: bool,
-        ray_query_layout: Option<&D::BindGroupLayout>,
-    ) -> Result<bool, RenderError> {
-        let mut changed = false;
-        for (slot_index, slot) in self.slots.iter_mut().enumerate() {
-            let Some(placed) = scene.structure(slot.key.structure) else {
-                continue;
-            };
-            let Some(representation) = scene.representation(slot.key.representation) else {
-                continue;
-            };
-            let Some(selection_handle) = representation.selection() else {
-                continue;
-            };
-            let Some(selection) = scene.selection_for(selection_handle, slot.key.structure) else {
-                continue;
-            };
-            let Some(representation_revision) =
-                scene.representation_content_revision(slot.key.representation)
-            else {
-                continue;
-            };
-            let Some(structure_gpu) = self.structures.get(slot.structure_index) else {
-                continue;
-            };
-            let (color_property, appearance_property, property_revisions) =
-                properties::resolve(scene, representation, slot.key.structure);
-            let (_, visual_property_revisions) =
-                properties::resolve_visual(scene, representation, slot.key.structure);
-            let visual_attributes = self.visual_properties.offsets(
-                scene,
-                slot.key.structure,
-                representation.visual.as_ref(),
-            );
-            let visual_program_offset = representation
-                .visual
-                .as_ref()
-                .and_then(|style| self.visual_programs.offset(style.program()))
-                .into_iter()
-                .fold(0, |_, offset| offset);
-            let (overlay_volume, overlay_view, overlay_binding_revision) =
-                super::scalar_overlay::resolve(
-                    &self.volume_resources,
-                    scene,
-                    representation,
-                    &self.surface_field_fallback,
-                );
-            changed |= slot.sync(SlotSync {
-                device,
-                queue,
-                layout: &self.group2_layout,
-                quality_layout: &self.quality_layout,
-                ray_query_layout,
-                ribbon_layout: &self.ribbon_layout,
-                atom_cull_layout: &self.atom_cull_layout,
-                bond_cull_layout: &self.bond_cull_layout,
-                visual_cull_layout: &self.visual_cull_layout,
-                surface_field_output_layout: &self.surface_field_output_layout,
-                surface_field_input_layout: &self.surface_field_input_layout,
-                surface_field_erosion_layout: &self.surface_field_erosion_layout,
-                surface_field_normal_layout: &self.surface_field_normal_layout,
-                surface_component_layout: &self.surface_component_layout,
-                surface_field_fallback: &self.surface_field_fallback,
-                surface_normal_fallback: &self.surface_normal_fallback,
-                overlay_volume,
-                overlay_view,
-                overlay_binding_revision,
-                quality,
-                frame: &self.frame_uniforms,
-                cull_tiles: &self.cull_tiles,
-                cull_binding_revision: self.cull_binding_revision,
-                structure_gpu,
-                asset_arena: &self.asset_arena,
-                placed,
-                representation,
-                representation_revision,
-                selection,
-                color_property,
-                appearance_property,
-                property_revisions,
-                visual_property_buffer: self.visual_properties.buffer(),
-                visual_program_buffer: self.visual_programs.buffer(),
-                visual_program_offset,
-                visual_program_binding_revision: self.visual_programs.binding_revision(),
-                visual_parameter_buffer: self.visual_parameters.buffer(),
-                visual_parameter_offset: VisualParameterTable::<D>::offset(slot_index),
-                visual_parameter_binding_revision: self.visual_parameters.binding_revision(),
-                visual_property_offsets: visual_attributes.offsets,
-                visual_attribute_layouts: visual_attributes.layouts,
-                visual_state_offset: self.visual_properties.state_offset(slot.key.structure),
-                visual_property_binding_revision: self.visual_properties.binding_revision(),
-                visual_property_revisions,
-                visual_time_seconds: scene.presentation_time_seconds(),
-                visual_time_revision: scene.presentation_revision(),
-                atoms: &mut self.atom_scratch,
-                bonds: &mut self.bond_scratch,
-                compaction: &mut self.compaction_scratch,
-                ribbon: &mut self.ribbon_scratch,
-            })?;
-        }
-        Ok(changed)
+    /// The scene-wide indirect-argument arena every draw reads from.
+    ///
+    /// A pass gets this from its context rather than from per-draw arguments,
+    /// because the arena is scene state, not draw state.
+    pub(crate) fn indirect_args(&self) -> Option<&D::Buffer> {
+        self.indirect.buffer()
     }
 
     fn ensure_cull_tiles(&mut self, device: &D, extent: [u32; 2]) -> Result<(), RenderError> {
@@ -426,75 +358,4 @@ impl<D: Device> GpuScene<D> {
         }
         Ok(())
     }
-
-    fn reconcile_slots(&mut self, scene: &Scene) {
-        let revision = scene.representation_membership_revision();
-        if self.representation_membership_revision == Some(revision)
-            && self.slot_structure_revision == Some(scene.structure_revision())
-        {
-            return;
-        }
-        self.representation_scratch.clear();
-        self.representation_scratch.extend(
-            scene
-                .representations()
-                .filter(|(_, rep)| rep.selection().is_some())
-                .map(|(handle, rep)| (rep.order, handle)),
-        );
-        self.representation_scratch.sort_unstable();
-        self.plan_scratch.clear();
-        for (_, representation) in &self.representation_scratch {
-            for (structure_index, structure) in self.structures.iter().enumerate() {
-                let Some(value) = scene.representation(*representation) else {
-                    continue;
-                };
-                let Some(selection) = value.selection() else {
-                    continue;
-                };
-                let Some(selection) = scene.selection_for(selection, structure.handle) else {
-                    continue;
-                };
-                let Some(placed) = scene.structure(structure.handle) else {
-                    continue;
-                };
-                if selection.count(placed.atoms.len()) == 0 {
-                    continue;
-                }
-                self.plan_scratch.push(SlotPlan {
-                    key: SlotKey {
-                        structure: structure.handle,
-                        representation: *representation,
-                    },
-                    structure_index,
-                    draw_order: self.plan_scratch.len(),
-                    visible: value.visible,
-                });
-            }
-        }
-        let mut old = std::mem::take(&mut self.slots);
-        old.sort_unstable_by_key(|slot| slot.key);
-        self.plan_scratch.sort_unstable_by_key(|plan| plan.key);
-        let mut old = old.into_iter().peekable();
-        for plan in &self.plan_scratch {
-            while old.peek().is_some_and(|slot| slot.key < plan.key) {
-                let _ = old.next();
-            }
-            if old.peek().is_some_and(|slot| slot.key == plan.key) {
-                let Some(mut slot) = old.next() else {
-                    continue;
-                };
-                slot.structure_index = plan.structure_index;
-                slot.draw_order = plan.draw_order;
-                slot.visible = plan.visible;
-                self.slots.push(slot);
-            } else {
-                self.slots.push(GpuSlot::new(*plan));
-            }
-        }
-        self.slots.sort_unstable_by_key(|slot| slot.draw_order);
-        self.representation_membership_revision = Some(revision);
-        self.slot_structure_revision = Some(scene.structure_revision());
-    }
 }
-
-include!("sync/volume_reconcile.rs");

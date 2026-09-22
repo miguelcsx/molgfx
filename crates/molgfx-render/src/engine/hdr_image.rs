@@ -1,8 +1,9 @@
 //! Scene-linear HDR readback without a second full-resolution render target.
 
-use super::image::{ImageLayout, QUALITY_IMAGE_SAMPLES, REALTIME_IMAGE_SAMPLES};
+use super::image::ImageLayout;
+use super::image::{ImagePurpose, PUBLICATION_IMAGE_SAMPLES};
 use super::shadow::ShadowMatrices;
-use super::{Engine, ImageConfig, MotionBlur, RenderMode, TemporalOptions};
+use super::{Engine, ImageConfig, MotionBlur, QualityTier, TemporalOptions};
 use crate::error::RenderError;
 use crate::graph::ResourceId;
 use crate::passes::{DOF_RESOURCE, HISTORY_A_RESOURCE, HISTORY_B_RESOURCE, MOTION_BLUR_RESOURCE};
@@ -122,7 +123,7 @@ impl<D: Device> Engine<D> {
         let layout = ImageLayout::new(config, 8)?;
         self.width = config.width;
         self.height = config.height;
-        let preparation = self.prepare_image(scene)?;
+        let preparation = self.prepare_image(scene, ImagePurpose::Publication)?;
         self.temporal.reset();
         self.temporal_scene_identity = None;
         let optics = self.resolve_optics(scene, camera)?;
@@ -131,10 +132,10 @@ impl<D: Device> Engine<D> {
             size: layout.buffer_size,
             usage: BufferUsage::COPY_DST.union(BufferUsage::MAP_READ),
         })?;
-        let samples = match self.mode {
-            RenderMode::Realtime => REALTIME_IMAGE_SAMPLES,
-            RenderMode::Cinematic => QUALITY_IMAGE_SAMPLES,
-        };
+        // A scene-linear export is a deterministic artifact, so it keeps the
+        // full publication budget: a tier must never silently reduce the
+        // fidelity of a caller's readback.
+        let samples = PUBLICATION_IMAGE_SAMPLES;
         let shadow = self.shadow_bound.fit(
             scene,
             camera,
@@ -143,7 +144,7 @@ impl<D: Device> Engine<D> {
         );
         for sample in 0..samples {
             self.scene_gpu.begin_frame();
-            let quality = self.mode == RenderMode::Cinematic;
+            let quality = self.tier() >= QualityTier::Standard;
             self.prepare_hdr_sample(camera, sample, quality, optics, shadow)?;
             let source = self.scene_linear_resource();
             let Some(pool) = &self.pool else {

@@ -72,6 +72,11 @@ impl<D: Device> GpuStructure<D> {
         true
     }
 
+    /// Identity of the immutable asset this placement borrows.
+    pub(super) fn asset_identity(&self) -> super::asset::GpuAssetIdentity {
+        self.asset.identity
+    }
+
     pub(super) fn pick_page(&self, kind: molgfx_core::EntityKind) -> u32 {
         self.pick_pages[super::picking_pages::kind_index(kind)]
     }

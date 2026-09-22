@@ -1,5 +1,5 @@
 //! Off-screen rendering and mapped publication images.
-use super::{Engine, MotionBlur, RenderMode, TemporalOptions};
+use super::{Engine, MotionBlur, QualityTier, TemporalOptions};
 use crate::error::RenderError;
 use crate::graph::{PassContext, ResourceTable};
 use molgfx_core::Scene;
@@ -11,10 +11,10 @@ use molgfx_math::Camera;
 #[path = "image/layout.rs"]
 mod layout;
 pub(super) use layout::ImageLayout;
-pub(super) const REALTIME_IMAGE_SAMPLES: u32 = 16;
-pub(super) const QUALITY_IMAGE_SAMPLES: u32 = 64;
+/// Publication samples that no tier refines any further.
+pub(crate) const PUBLICATION_IMAGE_SAMPLES: u32 = 64;
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum ImagePurpose {
+pub(crate) enum ImagePurpose {
     Publication,
     #[cfg(not(target_arch = "wasm32"))]
     SequenceFrame,
@@ -183,7 +183,7 @@ impl<D: Device> Engine<D> {
         let layout = ImageLayout::new(config, 4)?;
         self.width = config.width;
         self.height = config.height;
-        let preparation = self.prepare_image(scene)?;
+        let preparation = self.prepare_image(scene, purpose)?;
         let identity = scene.cache_identity();
         let scene_reset = self.temporal_scene_identity.replace(identity) != Some(identity);
         if purpose == ImagePurpose::Publication {
@@ -207,11 +207,11 @@ impl<D: Device> Engine<D> {
             size: layout.buffer_size,
             usage: BufferUsage::COPY_DST.union(BufferUsage::MAP_READ),
         })?;
-        let samples = match (purpose, self.mode) {
+        let samples = match purpose {
+            // A sequence frame is one deterministic exposure per output frame.
             #[cfg(not(target_arch = "wasm32"))]
-            (ImagePurpose::SequenceFrame, _) => 1,
-            (ImagePurpose::Publication, RenderMode::Realtime) => REALTIME_IMAGE_SAMPLES,
-            (ImagePurpose::Publication, RenderMode::Cinematic) => QUALITY_IMAGE_SAMPLES,
+            ImagePurpose::SequenceFrame => 1,
+            ImagePurpose::Publication => self.tier().image_samples(),
         };
         let shadow = self.shadow_bound.fit(
             scene,
@@ -222,7 +222,7 @@ impl<D: Device> Engine<D> {
         let mut completion = FenceValue::default();
         for sample in 0..samples {
             self.scene_gpu.begin_frame();
-            let cinematic = self.mode == RenderMode::Cinematic;
+            let cinematic = self.tier() >= QualityTier::Standard;
             let uniforms = self.temporal.prepare(
                 camera,
                 &TemporalOptions {
@@ -321,14 +321,28 @@ impl<D: Device> Engine<D> {
         self.scene_gpu.record_quality_hardware(encoder, quality);
     }
 
-    pub(super) fn prepare_image(&mut self, scene: &Scene) -> Result<ImagePreparation, RenderError> {
+    /// Prepares the off-screen frame: scene sync, tier publication and pool
+    /// rebuild.
+    ///
+    /// The adaptive loop is pinned only for publication. A sequence frame is a
+    /// deterministic exposure of a caller-driven timeline, but the engine that
+    /// renders it is still an interactive one, so its tiers keep adapting.
+    pub(super) fn prepare_image(
+        &mut self,
+        scene: &Scene,
+        purpose: ImagePurpose,
+    ) -> Result<ImagePreparation, RenderError> {
         self.device.check_errors()?;
+        if purpose == ImagePurpose::Publication {
+            self.adaptive.set_publication(true);
+        }
+        self.sync_quality_tier();
         self.chunk_residency.begin_epoch();
         let scene_changed = self.scene_gpu.sync(crate::scene_gpu::SceneSync {
             device: &self.device,
             queue: &self.queue,
             scene,
-            quality: self.mode == RenderMode::Cinematic,
+            quality: self.tier() >= QualityTier::Standard,
             extent: [self.width, self.height],
             ray_query_layout: self.passes.ambient_occlusion.ray_query_layout(),
             derived_cache: &mut self.derived_cache,
@@ -343,6 +357,8 @@ impl<D: Device> Engine<D> {
         )?;
         self.derived_frame = self.derived_frame.wrapping_add(1);
         let rebuild = self.rebuild_pool_if_needed()?;
+        self.scene_gpu
+            .settle_specializations(&self.device, scene, &self.passes);
         self.device.check_errors()?;
         Ok(ImagePreparation {
             scene_changed,

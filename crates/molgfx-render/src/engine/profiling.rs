@@ -1,6 +1,7 @@
 //! Capability-gated whole-graph GPU and CPU frame timing.
 
-use super::{Engine, ImageConfig, MotionBlur, RenderMode, TemporalOptions};
+use super::image::ImagePurpose;
+use super::{Engine, ImageConfig, MotionBlur, QualityTier, TemporalOptions};
 use crate::ResidencyMetrics;
 use crate::error::RenderError;
 use molgfx_core::Scene;
@@ -270,11 +271,11 @@ impl<D: Device> Engine<D> {
         let cpu_start = Instant::now();
         self.width = config.width;
         self.height = config.height;
-        let preparation = self.prepare_image(scene)?;
+        let preparation = self.prepare_image(scene, ImagePurpose::Publication)?;
         let identity = scene.cache_identity();
         let scene_reset = self.temporal_scene_identity.replace(identity) != Some(identity);
         let camera_changed = self.temporal.camera_changed(camera);
-        let quality = self.mode == RenderMode::Cinematic;
+        let quality = self.tier() >= QualityTier::Standard;
         let optics = self.resolve_optics(scene, camera)?;
         let shadow = self.shadow_bound.fit(
             scene,
@@ -288,7 +289,7 @@ impl<D: Device> Engine<D> {
                 extent: [self.width, self.height],
                 reset: scene_reset
                     || preparation.rebuild
-                    || (self.mode == RenderMode::Cinematic && camera_changed),
+                    || (self.tier() >= QualityTier::Standard && camera_changed),
                 quality,
                 publication: false,
                 illustration: self.resolved_plan.illustration(),

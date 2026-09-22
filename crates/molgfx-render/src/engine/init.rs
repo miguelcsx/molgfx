@@ -2,8 +2,8 @@
 
 use super::graph_setup::{realtime_nodes, realtime_resources};
 use super::{
-    DerivedCache, EngineConfig, FocusTracker, GpuProfiler, PassRegistry, Picker, RenderMode,
-    RenderProfile, ResolvedRenderPlan, ShadowBoundCache, TemporalState,
+    AdaptiveQuality, DerivedCache, EngineConfig, FocusTracker, GpuProfiler, PassRegistry, Picker,
+    RenderMode, RenderProfile, ResolvedRenderPlan, ShadowBoundCache, TemporalState,
     chunk_residency::ChunkGpuResidency,
 };
 use crate::error::RenderError;
@@ -40,11 +40,13 @@ pub struct Engine<D: Device> {
     pub(crate) temporal: TemporalState,
     pub(crate) temporal_scene_identity: Option<u64>,
     pub(crate) mode: RenderMode,
+    /// The closed adaptive-quality loop: frame time in, quality tier out.
+    pub(crate) adaptive: AdaptiveQuality,
     pub(crate) profile: RenderProfile,
     pub(crate) resolved_plan: ResolvedRenderPlan,
     pub(crate) focus_tracker: FocusTracker,
     pub(crate) shadow_bound: ShadowBoundCache,
-    pub(super) derived_cache: DerivedCache,
+    pub(crate) derived_cache: DerivedCache,
     pub(super) derived_frame: u64,
     pub(crate) host_working_set: molgfx_core::HostWorkingSet,
     pub(super) chunk_residency: ChunkGpuResidency<D>,
@@ -255,6 +257,7 @@ impl<D: Device> Engine<D> {
             temporal: TemporalState::default(),
             temporal_scene_identity: None,
             mode: config.mode,
+            adaptive: AdaptiveQuality::new(config.adaptive, config.mode == RenderMode::Cinematic),
             profile,
             resolved_plan,
             focus_tracker: FocusTracker::default(),

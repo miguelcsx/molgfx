@@ -83,6 +83,47 @@ impl<D: Device> BondPass<D> {
         })
     }
 
+    /// Compiles the bond pipeline built from the generated sibling.
+    ///
+    /// # Errors
+    ///
+    /// Shader compilation or pipeline creation failed.
+    pub(crate) fn build_specialized(
+        device: &D,
+        group0: &D::BindGroupLayout,
+        group2: &D::BindGroupLayout,
+        wire: bool,
+    ) -> Result<D::Pipeline, RenderError> {
+        let (label, vertex, fragment) = if wire {
+            ("specialized bond wires", "vs_bond_line", "fs_bond_line")
+        } else {
+            (
+                "specialized bond capsules",
+                "vs_bond_capsule",
+                "fs_bond_capsule",
+            )
+        };
+        let shader = device.create_shader_module(&ShaderModuleDesc {
+            label: "bond generated",
+            wgsl: molgfx_shaders::GEOMETRY_BOND_SPECIALIZED,
+        })?;
+        Ok(device.create_render_pipeline(&RenderPipelineDesc {
+            label,
+            layouts: &[Some(group0), None, Some(group2)],
+            shader: &shader,
+            vs_entry: vertex,
+            fs_entry: Some(fragment),
+            color_targets: &gbuffer_targets(),
+            depth: Some(DepthState {
+                format: TextureFormat::Depth32Float,
+                write: true,
+                compare: CompareFunction::GreaterEqual,
+            }),
+            constants: &constants(true),
+            topology: PrimitiveTopology::TriangleList,
+        })?)
+    }
+
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let (Some(albedo), Some(normal), Some(entity), Some(structure), Some(motion), Some(depth)) = (
             ctx.resources.view(ALBEDO_RESOURCE),
@@ -94,7 +135,7 @@ impl<D: Device> BondPass<D> {
         ) else {
             return;
         };
-        if ctx.scene.bond_draws(false).next().is_none() && ctx.scene.paged_bond_draw().is_none() {
+        if !ctx.scene.has_bond_draws(false) && ctx.scene.paged_bond_draw().is_none() {
             return;
         }
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
@@ -128,19 +169,22 @@ impl<D: Device> BondPass<D> {
             }),
             timestamps: ctx.timestamps,
         });
-        let mut bound = None;
+        let mut bound: Option<*const D::Pipeline> = None;
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
-        for (group2, args, shading) in ctx.scene.bond_draws(false) {
-            if bound != Some(shading) {
-                pass.set_pipeline(if shading.wire() {
-                    ctx.passes.bond.wire.get(shading)
+        if let Some(arena) = ctx.scene.indirect_args() {
+            for (group2, offset, shading, specialized) in ctx.scene.bond_draws(false) {
+                let pipeline = if shading.wire() {
+                    ctx.passes.bond.wire.select(shading, specialized)
                 } else {
-                    ctx.passes.bond.capsule.get(shading)
-                });
-                bound = Some(shading);
+                    ctx.passes.bond.capsule.select(shading, specialized)
+                };
+                if bound != Some(std::ptr::from_ref(pipeline)) {
+                    pass.set_pipeline(pipeline);
+                    bound = Some(std::ptr::from_ref(pipeline));
+                }
+                pass.set_bind_group(2, group2, &[]);
+                pass.draw_indirect(arena, offset);
             }
-            pass.set_bind_group(2, group2, &[]);
-            pass.draw_indirect(args, 0);
         }
         if let Some((group, args)) = ctx.scene.paged_bond_draw() {
             pass.set_pipeline(&ctx.passes.bond.paged);

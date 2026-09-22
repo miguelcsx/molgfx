@@ -14,9 +14,9 @@ fn appearance_is_evicted_before_static_endpoints() {
         cpu_bytes: 0,
         gpu_bytes: 20,
     });
-    assert!(cache.retain(20, DerivedCacheClass::StaticEndpoints, TEN_GPU, 1));
-    assert!(cache.retain(10, DerivedCacheClass::Appearance, TEN_GPU, 2));
-    assert!(cache.retain(30, DerivedCacheClass::StaticEndpoints, TEN_GPU, 3));
+    assert!(cache.retain(20, DerivedCacheClass::Acceleration, TEN_GPU, 1));
+    assert!(cache.retain(10, DerivedCacheClass::RecordSet, TEN_GPU, 2));
+    assert!(cache.retain(30, DerivedCacheClass::Acceleration, TEN_GPU, 3));
 
     assert!(cache.contains(key(20)));
     assert!(cache.contains(key(30)));
@@ -47,9 +47,9 @@ fn frame_then_stable_key_decide_eviction_not_insertion_order() {
         cpu_bytes: 0,
         gpu_bytes: 20,
     });
-    assert!(cache.retain(9, DerivedCacheClass::Appearance, TEN_GPU, 4));
-    assert!(cache.retain(3, DerivedCacheClass::Appearance, TEN_GPU, 4));
-    assert!(cache.retain(7, DerivedCacheClass::Appearance, TEN_GPU, 5));
+    assert!(cache.retain(9, DerivedCacheClass::RecordSet, TEN_GPU, 4));
+    assert!(cache.retain(3, DerivedCacheClass::RecordSet, TEN_GPU, 4));
+    assert!(cache.retain(7, DerivedCacheClass::RecordSet, TEN_GPU, 5));
 
     assert!(!cache.contains(key(3)));
     assert!(cache.contains(key(7)));
@@ -68,7 +68,7 @@ fn impossible_item_is_rejected_without_exceeding_or_changing_peak() {
     });
     assert!(!cache.retain(
         1,
-        DerivedCacheClass::Appearance,
+        DerivedCacheClass::RecordSet,
         DerivedFootprint {
             cpu_bytes: 5,
             gpu_bytes: 0,

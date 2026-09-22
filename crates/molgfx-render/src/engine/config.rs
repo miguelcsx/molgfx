@@ -1,6 +1,6 @@
 //! Engine configuration and frame outcomes.
 
-use super::{DerivedCacheBudget, RenderProfile};
+use super::{AdaptiveQualityConfig, DerivedCacheBudget, QualityTier, RenderProfile};
 use crate::ResidencyConfig;
 use molgfx_core::ResidencyBudget;
 use molgfx_gpu::PowerPreference;
@@ -85,6 +85,8 @@ pub struct FrameReport {
     /// True while temporal convergence, streaming, or surface recovery needs
     /// another caller-scheduled frame.
     pub needs_another_frame: bool,
+    /// The adaptive quality tier this frame rendered at.
+    pub quality_tier: QualityTier,
 }
 
 /// Which rendering mode the engine runs.
@@ -109,6 +111,9 @@ pub struct EngineConfig {
     pub height: u32,
     /// Rendering strategy. Backend selection remains capability-driven.
     pub mode: RenderMode,
+    /// Adaptive quality policy. A configuration that disables adaptation
+    /// holds one tier, so converged output stays reproducible.
+    pub adaptive: AdaptiveQualityConfig,
     /// Reusable presentation recipe resolved once during engine construction.
     pub profile: RenderProfile,
     /// Fixed page, staging, command and lifecycle capacities.
@@ -130,6 +135,7 @@ impl Default for EngineConfig {
             width: 1280,
             height: 800,
             mode: RenderMode::Realtime,
+            adaptive: AdaptiveQualityConfig::default(),
             profile: RenderProfile::inspection(),
             residency: ResidencyConfig::default(),
             source_budget: ResidencyBudget::default(),

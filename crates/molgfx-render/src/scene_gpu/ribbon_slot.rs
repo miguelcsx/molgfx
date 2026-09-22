@@ -184,10 +184,6 @@ impl<D: Device> RibbonSlot<D> {
         }));
     }
 
-    pub(super) fn clear(&mut self) {
-        self.index_count = 0;
-    }
-
     pub(super) fn draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
         (self.index_count > 0).then_some((self.group.as_ref()?, self.args.as_ref()?))
     }

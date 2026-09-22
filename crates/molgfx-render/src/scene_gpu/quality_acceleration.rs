@@ -1,7 +1,6 @@
 //! Persistent bond acceleration used by publication-quality ray traversal.
 
 use super::buffers::upload_grow;
-use super::quality_hardware::HardwareQuality;
 use crate::error::RenderError;
 use molgfx_core::{AtomGpu, BondGpu, EntityKind, PlacedStructure};
 use molgfx_gpu::Device;
@@ -35,7 +34,6 @@ pub(super) struct QualityAcceleration<D: Device> {
     upload_indices: Vec<u32>,
     upload_words: Vec<u32>,
     counts: HierarchyCounts,
-    hardware: HardwareQuality<D>,
 }
 
 impl<D: Device> QualityAcceleration<D> {
@@ -50,7 +48,6 @@ impl<D: Device> QualityAcceleration<D> {
             upload_indices: Vec::new(),
             upload_words: Vec::new(),
             counts: HierarchyCounts::default(),
-            hardware: HardwareQuality::new(),
         }
     }
 
@@ -62,16 +59,10 @@ impl<D: Device> QualityAcceleration<D> {
         self.counts
     }
 
-    pub(super) fn hardware_group(&self) -> Option<&D::BindGroup> {
-        self.hardware.group()
-    }
-
-    pub(super) fn record_hardware(&mut self, encoder: &mut D::CommandEncoder) {
-        self.hardware.record(encoder);
-    }
-
-    pub(super) fn sync_placement(&mut self, device: &D, placed: &PlacedStructure) {
-        self.hardware.sync_placement(device, placed.model_to_world);
+    /// Resident device bytes of the packed bond hierarchy.
+    #[must_use]
+    pub(super) fn resident_bytes(&self) -> u64 {
+        self.nodes_capacity
     }
 
     pub(super) fn sync_topology(
@@ -81,7 +72,6 @@ impl<D: Device> QualityAcceleration<D> {
         atoms: &[AtomGpu],
         bonds: &[BondGpu],
         placed: &PlacedStructure,
-        ray_layout: Option<&D::BindGroupLayout>,
     ) -> Result<(), RenderError> {
         self.primitives.clear();
         self.primitives.extend(bonds.iter().filter_map(|bond| {
@@ -96,23 +86,6 @@ impl<D: Device> QualityAcceleration<D> {
             })
         }));
         self.rebuild(device, queue, bonds, placed)?;
-        self.hardware
-            .sync_geometry(device, queue, ray_layout, atoms, bonds, placed);
-        Ok(())
-    }
-
-    pub(super) fn sync_coordinates(
-        &mut self,
-        device: &D,
-        queue: &D::Queue,
-        placed: &PlacedStructure,
-        atoms: &[AtomGpu],
-        bonds: &[BondGpu],
-        ray_layout: Option<&D::BindGroupLayout>,
-    ) -> Result<(), RenderError> {
-        self.rebuild(device, queue, bonds, placed)?;
-        self.hardware
-            .sync_geometry(device, queue, ray_layout, atoms, bonds, placed);
         Ok(())
     }
 

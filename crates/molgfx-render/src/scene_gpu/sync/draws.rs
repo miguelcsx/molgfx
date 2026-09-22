@@ -4,55 +4,88 @@ use super::GpuScene;
 use crate::passes::ParticleMotionPass;
 use crate::passes::{SurfaceComponentPass, SurfaceFieldPass};
 use crate::scene_gpu::mesh_slot::GpuMeshSlot;
-use crate::scene_gpu::slot_types::{CullDispatch, QualityDraw, SlotShading};
+use crate::scene_gpu::slot_types::{
+    CullDispatch, DrawArgs, DrawFamily, QualityDraw, RibbonDraw, SlotShading,
+};
 use crate::scene_gpu::slots::GpuSlot;
 use crate::scene_gpu::volume_slot::GpuVolumeSlot;
 use molgfx_gpu::Device;
 
 impl<D: Device> GpuScene<D> {
-    pub(crate) fn atom_draws(
-        &self,
-        translucent: bool,
-    ) -> impl Iterator<Item = (&D::BindGroup, &D::Buffer, SlotShading)> {
-        self.slots
-            .iter()
-            .filter_map(move |slot| slot.atom_draw(translucent))
+    /// Whether any slot would draw atoms, independent of the argument arena.
+    ///
+    /// A pass needs this before it decides to open a render pass: the arena is
+    /// only allocated once a slot has records, so the draw list itself cannot
+    /// answer "is there anything to draw" on the frame that creates it.
+    pub(crate) fn has_atom_draws(&self, translucent: bool) -> bool {
+        self.slots.iter().any(|slot| slot.draws_atoms(translucent))
     }
 
-    pub(crate) fn bond_draws(
-        &self,
-        translucent: bool,
-    ) -> impl Iterator<Item = (&D::BindGroup, &D::Buffer, SlotShading)> {
-        self.slots
-            .iter()
-            .filter_map(move |slot| slot.bond_draw(translucent))
+    /// Whether any slot would draw bonds.
+    pub(crate) fn has_bond_draws(&self, translucent: bool) -> bool {
+        self.slots.iter().any(|slot| slot.draws_bonds(translucent))
     }
 
-    pub(crate) fn shadow_atom_draws(
-        &self,
-        quality: bool,
-    ) -> impl Iterator<Item = (&D::BindGroup, &D::Buffer, SlotShading)> {
-        self.slots
-            .iter()
-            .filter_map(move |slot| slot.shadow_atom_draw(quality))
+    pub(crate) fn atom_draws(&self, translucent: bool) -> impl Iterator<Item = DrawArgs<'_, D>> {
+        self.slots.iter().filter_map(move |slot| {
+            let (group, offset, shading) = slot.atom_draw(translucent)?;
+            let family = slot.sphere_family();
+            Some((
+                group,
+                offset,
+                shading,
+                self.specialized_pipeline(slot.specialization(family)),
+            ))
+        })
     }
 
-    pub(crate) fn shadow_bond_draws(
-        &self,
-        quality: bool,
-    ) -> impl Iterator<Item = (&D::BindGroup, &D::Buffer, SlotShading)> {
-        self.slots
-            .iter()
-            .filter_map(move |slot| slot.shadow_bond_draw(quality))
+    pub(crate) fn bond_draws(&self, translucent: bool) -> impl Iterator<Item = DrawArgs<'_, D>> {
+        self.slots.iter().filter_map(move |slot| {
+            let (group, offset, shading) = slot.bond_draw(translucent)?;
+            let family = slot.bond_family();
+            Some((
+                group,
+                offset,
+                shading,
+                self.specialized_pipeline(slot.specialization(family)),
+            ))
+        })
     }
 
-    pub(crate) fn point_draws(
-        &self,
-        translucent: bool,
-    ) -> impl Iterator<Item = (&D::BindGroup, &D::Buffer, SlotShading)> {
-        self.slots
-            .iter()
-            .filter_map(move |slot| slot.point_draw(translucent))
+    pub(crate) fn shadow_atom_draws(&self, quality: bool) -> impl Iterator<Item = DrawArgs<'_, D>> {
+        self.slots.iter().filter_map(move |slot| {
+            let (group, offset, shading) = slot.shadow_atom_draw(quality)?;
+            Some((
+                group,
+                offset,
+                shading,
+                self.specialized_pipeline(slot.specialization(DrawFamily::ShadowSphere)),
+            ))
+        })
+    }
+
+    pub(crate) fn shadow_bond_draws(&self, quality: bool) -> impl Iterator<Item = DrawArgs<'_, D>> {
+        self.slots.iter().filter_map(move |slot| {
+            let (group, offset, shading) = slot.shadow_bond_draw(quality)?;
+            Some((
+                group,
+                offset,
+                shading,
+                self.specialized_pipeline(slot.specialization(DrawFamily::ShadowBond)),
+            ))
+        })
+    }
+
+    pub(crate) fn point_draws(&self, translucent: bool) -> impl Iterator<Item = DrawArgs<'_, D>> {
+        self.slots.iter().filter_map(move |slot| {
+            let (group, offset, shading) = slot.point_draw(translucent)?;
+            Some((
+                group,
+                offset,
+                shading,
+                self.specialized_pipeline(slot.specialization(DrawFamily::Point)),
+            ))
+        })
     }
 
     pub(crate) fn generic_point_draws(
@@ -112,35 +145,56 @@ impl<D: Device> GpuScene<D> {
     pub(crate) fn cartoon_draws(
         &self,
         translucent: bool,
-    ) -> impl Iterator<Item = (&D::BindGroup, &D::Buffer, SlotShading)> {
-        self.slots
-            .iter()
-            .filter_map(move |slot| slot.cartoon_draw(translucent))
+        family: DrawFamily,
+    ) -> impl Iterator<Item = RibbonDraw<'_, D>> {
+        self.slots.iter().filter_map(move |slot| {
+            let (group, args, shading) = slot.cartoon_draw(translucent)?;
+            Some((
+                group,
+                args,
+                shading,
+                self.specialized_pipeline(slot.specialization(family)),
+            ))
+        })
     }
 
     /// Caller meshes draw with the cartoon pipeline: same vertex layout, same
     /// bind group, so they simply extend that pass's draw list.
-    pub(crate) fn mesh_draws(
-        &self,
-        translucent: bool,
-    ) -> impl Iterator<Item = (&D::BindGroup, &D::Buffer, SlotShading)> {
+    pub(crate) fn mesh_draws(&self, translucent: bool) -> impl Iterator<Item = RibbonDraw<'_, D>> {
         self.mesh_slots
             .iter()
             .filter_map(move |slot| slot.draw(translucent))
-            .map(|(group, args)| (group, args, SlotShading::default()))
+            // A caller mesh carries no style, so it never has a generated
+            // pipeline and always draws through the interpreted unit.
+            .map(|(group, args)| (group, args, SlotShading::default(), None))
     }
 
-    pub(crate) fn surface_draws(
+    pub(crate) fn surface_draws(&self, translucent: bool) -> impl Iterator<Item = DrawArgs<'_, D>> {
+        self.slots.iter().filter_map(move |slot| {
+            let (group, offset, shading) = slot.surface_draw(translucent)?;
+            let family = slot.surface_family();
+            Some((
+                group,
+                offset,
+                shading,
+                self.specialized_pipeline(slot.specialization(family)),
+            ))
+        })
+    }
+
+    pub(crate) fn quality_draws(
         &self,
-        translucent: bool,
-    ) -> impl Iterator<Item = (&D::BindGroup, &D::Buffer, SlotShading)> {
-        self.slots
-            .iter()
-            .filter_map(move |slot| slot.surface_draw(translucent))
-    }
-
-    pub(crate) fn quality_draws(&self) -> impl Iterator<Item = QualityDraw<'_, D>> {
-        self.slots.iter().filter_map(GpuSlot::quality_draw)
+        family: DrawFamily,
+    ) -> impl Iterator<Item = QualityDraw<'_, D>> {
+        self.slots.iter().filter_map(move |slot| {
+            let (group, hardware, shading, _) = slot.quality_draw()?;
+            Some((
+                group,
+                hardware,
+                shading,
+                self.specialized_pipeline(slot.specialization(family)),
+            ))
+        })
     }
 
     pub(crate) fn record_quality_hardware(
@@ -151,6 +205,7 @@ impl<D: Device> GpuScene<D> {
         if !enabled {
             return;
         }
+        self.acceleration.record_hardware(encoder);
         for slot in &mut self.slots {
             slot.record_quality_hardware(encoder);
         }
@@ -220,13 +275,30 @@ impl<D: Device> GpuScene<D> {
             || self.instance_batches.has_translucency()
     }
 
+    /// One cull dispatch per shared visibility key.
+    ///
+    /// Two representations over the same records and the same cull policy read
+    /// exactly the same visible set, so the second dispatch would recompute the
+    /// first one's answer. The groups all belong to the same shared set, so any
+    /// member of a group is equivalent.
     pub(crate) fn cull_dispatches(&self) -> impl Iterator<Item = CullDispatch<'_, D>> {
         let tile_groups =
             super::super::dispatch::workgroups_2d(u64::from(self.cull_tile_count).div_ceil(64));
         let fast_tile_lod = self.cull_tile_count < 262_143;
+        let mut seen: Vec<super::super::VisibilityKey> = Vec::new();
         self.slots
             .iter()
             .filter_map(move |slot| slot.cull(tile_groups, fast_tile_lod))
+            .filter(move |dispatch| match dispatch.key {
+                Some(key) => {
+                    if seen.contains(&key) {
+                        return false;
+                    }
+                    seen.push(key);
+                    true
+                }
+                None => true,
+            })
     }
 
     pub(crate) fn record_surface_fields(
@@ -235,8 +307,14 @@ impl<D: Device> GpuScene<D> {
         pass: &SurfaceFieldPass<D>,
         components: &SurfaceComponentPass<D>,
     ) {
-        for slot in &mut self.slots {
-            slot.record_surface_field(encoder, pass, components);
+        // The debt lives on the shared field, so a field four surfaces agree
+        // on is generated once, by whichever surface reaches it first.
+        let keys: Vec<_> = self.slots.iter().filter_map(GpuSlot::surface_key).collect();
+        for key in keys {
+            let Some(field) = self.surface_fields.get_mut(key) else {
+                continue;
+            };
+            crate::scene_gpu::surface_slot::record_generation(encoder, pass, components, field);
         }
     }
 
@@ -280,7 +358,10 @@ impl<D: Device> GpuScene<D> {
             && !self.interactions.has_visible()
             && self.atom_draws(false).next().is_none()
             && self.bond_draws(false).next().is_none()
-            && self.cartoon_draws(false).next().is_none()
+            && self
+                .cartoon_draws(false, DrawFamily::Cartoon)
+                .next()
+                .is_none()
             && self.surface_draws(false).next().is_none()
             && self.mesh_draws(false).next().is_none()
             && self.primitive.groups().is_none()

@@ -50,7 +50,7 @@ fn engine_creation_keeps_every_registered_layout_within_the_portable_storage_lim
         }
     }
 }
-pub(super) fn structure() -> molframe::Structure {
+pub(crate) fn structure() -> molframe::Structure {
     let cif = "\
 data_test
 loop_
@@ -328,7 +328,9 @@ fn changing_a_clip_plane_updates_only_representation_state() {
         panic!("log lock")
     };
     let changed = &writes[before..];
-    assert_eq!(changed.len(), 2, "frame and representation uniforms change");
+    // Frame, representation and colour blocks: all fixed size, none of them the
+    // coordinate column.
+    assert_eq!(changed.len(), 3, "only fixed-size uniforms change");
     assert!(
         changed.iter().all(|write| write.3 != coordinate_pointer),
         "clipping never re-uploads borrowed coordinates"

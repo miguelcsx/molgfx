@@ -77,15 +77,15 @@ fn caller_scheduling_stops_after_each_mode_reaches_its_sample_budget() {
     for _ in 0..8 {
         let _ = realtime.prepare(&camera(), &options(false));
     }
-    assert!(!realtime.needs_another_frame(false));
+    assert!(!realtime.needs_another_frame(8));
 
     let mut quality = TemporalState::default();
     for _ in 0..63 {
         let _ = quality.prepare(&camera(), &options(true));
     }
-    assert!(quality.needs_another_frame(true));
+    assert!(quality.needs_another_frame(64));
     let _ = quality.prepare(&camera(), &options(true));
-    assert!(!quality.needs_another_frame(true));
+    assert!(!quality.needs_another_frame(64));
 }
 
 #[test]
@@ -98,11 +98,11 @@ fn a_small_camera_move_restarts_refinement_without_discarding_reprojectable_hist
     moved.eye.x += 0.01;
     let first = state.prepare(&moved, &options(false));
     assert_ne!(first.temporal[0].to_bits(), 0.0_f32.to_bits());
-    assert!(state.needs_another_frame(false));
+    assert!(state.needs_another_frame(8));
     for _ in 0..7 {
         state.prepare(&moved, &options(false));
     }
-    assert!(!state.needs_another_frame(false));
+    assert!(!state.needs_another_frame(8));
     state.invalidate_convergence();
-    assert!(state.needs_another_frame(false));
+    assert!(state.needs_another_frame(8));
 }

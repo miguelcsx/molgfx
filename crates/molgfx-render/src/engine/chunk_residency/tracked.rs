@@ -11,7 +11,9 @@ pub(super) enum TrackedChunk {
         cluster_allocation: ArenaAllocation,
         cluster_count: u32,
         span: ChunkSpan,
-        fence: FenceValue,
+        /// Fence of the epoch submission carrying the staged bytes; `None`
+        /// until the epoch is flushed.
+        fence: Option<FenceValue>,
         local_rows: u32,
         coordinate_bytes: u64,
         radius_base: u32,

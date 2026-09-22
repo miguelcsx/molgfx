@@ -7,7 +7,7 @@
 use super::{ChunkGpuResidency, ticket_key};
 use crate::engine::{ChunkResidencyError, ResidentTrajectoryChunk};
 use molgfx_core::{ChunkData, ChunkPayload, ChunkSpan, LogicalRow, ResidencyKey, ResidencyTicket};
-use molgfx_gpu::{ArenaAllocation, Device, FenceValue, Queue};
+use molgfx_gpu::{ArenaAllocation, Device, FenceValue};
 
 #[derive(Clone, Copy, Debug)]
 pub(super) enum TrackedFrame {
@@ -52,34 +52,31 @@ impl<D: Device> ChunkGpuResidency<D> {
         if frame.positions().is_empty() {
             return Err(ChunkResidencyError::EmptyChunk);
         }
+        // A trajectory frame is what makes the interpolation target necessary:
+        // the paged draw reads the second backing only while a window exists.
         self.ensure_frame_buffer(device)?;
+        self.ensure_display_buffer(device)?;
         let bytes = bytemuck::cast_slice(frame.positions());
         let byte_len = u64::try_from(bytes.len()).map_err(|_| ChunkResidencyError::SizeOverflow)?;
         let allocation = self.frame_arena.allocate(byte_len)?;
-        let reservation = match self.uploads.ensure()?.reserve(bytes.len()) {
-            Ok(value) => value,
-            Err(error) => {
-                self.frame_arena.release(allocation)?;
-                return Err(error.into());
-            }
-        };
-        let uploads = self.uploads.ensure()?;
-        uploads.bytes_mut(reservation)?.copy_from_slice(bytes);
-        uploads.commit(reservation.ticket())?;
-        if let Err(error) = uploads.ensure_submittable(reservation.ticket()) {
-            uploads.cancel(reservation.ticket())?;
-            self.frame_arena.release(allocation)?;
-            return Err(error.into());
-        }
-        let start = reservation.offset();
-        let end = start + reservation.len();
-        queue.write_buffer(
-            &self.frame_buffer,
+        // A frame stages like every other payload: the bytes land in the host
+        // ring here and reach the device in the frame's one epoch flush, so a
+        // burst of frames costs one submission rather than one each.
+        let segments = [(
+            bytes,
+            crate::engine::chunk_residency::CopyTarget::Frame,
             allocation.byte_offset(),
-            &uploads.staging_bytes()[start..end],
-        );
-        let fence = queue.submit_tracked(device.create_command_encoder());
-        uploads.submit(reservation.ticket(), fence)?;
+        )];
+        if let Err(error) = crate::engine::chunk_residency::stage_segments(
+            &mut self.uploads,
+            &mut self.staged,
+            ticket,
+            &segments,
+        ) {
+            self.frame_arena.release(allocation)?;
+            return Err(error);
+        }
+        let _ = queue;
         self.insert_frame(TrackedFrame::Uploading {
             ticket,
             allocation,
@@ -87,7 +84,7 @@ impl<D: Device> ChunkGpuResidency<D> {
                 LogicalRow::new(frame.descriptor().logical_start().get()),
                 frame.descriptor().rows(),
             )?,
-            fence,
+            fence: FenceValue::default(),
             byte_len,
             cancelled: false,
         });

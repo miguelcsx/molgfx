@@ -11,17 +11,20 @@ use molgfx_math::{Mat4, Rgba8};
 use std::sync::Arc;
 
 #[test]
-fn unused_paging_reserves_only_five_small_placeholder_buffers() {
+fn unused_paging_reserves_only_four_small_placeholder_buffers() {
+    // Four placeholders, not five: the display-coordinate backing is only
+    // allocated when a trajectory window exists, so an idle scene never pays
+    // for a second coordinate buffer.
     let engine = engine();
     let buffers = engine.device.log.buffers.lock().expect("buffer log");
     let placeholders: Vec<_> = buffers
         .iter()
         .filter(|(_, label, _)| label.starts_with("unused resident "))
         .collect();
-    assert_eq!(placeholders.len(), 5);
+    assert_eq!(placeholders.len(), 4);
     assert_eq!(
         placeholders.iter().map(|(_, _, bytes)| *bytes).sum::<u64>(),
-        1_280
+        1_024
     );
 }
 
@@ -36,9 +39,15 @@ fn frame_payload_allocates_only_the_trajectory_backing() {
         engine.chunk_residency.buffer.label,
         "unused resident structure chunks"
     );
+    // A frame payload is what makes the interpolation target necessary, so
+    // both trajectory backings appear together.
     assert_eq!(
-        engine.chunk_residency.display_buffer.label,
-        "unused resident display coordinates"
+        engine
+            .chunk_residency
+            .display_buffer
+            .as_ref()
+            .map(|buffer| buffer.label),
+        Some("resident display coordinates")
     );
     assert_eq!(
         engine.chunk_residency.frame_buffer.label,
@@ -60,7 +69,9 @@ fn generic_points_upload_exact_coordinates_into_the_drawable_backing() {
     let mut output = ResidencyOutput::default();
     let (request, data) = generic_fixtures().remove(0);
     request_deliver_upload(&mut engine, &mut output, request, data);
-    let display = engine.chunk_residency.display_buffer.id;
+    // Paged chunks read the canonical backing unless a trajectory window
+    // exists, so the payload lands in that buffer.
+    let display = engine.chunk_residency.buffer.id;
     let writes = engine.device.log.writes.lock().expect("write log");
     let index = writes
         .iter()
@@ -143,7 +154,6 @@ fn backing_reset_rebinds_every_paged_consumer_without_an_intermediate_frame() {
     sync_attributes(&mut engine, plan);
     assert_current_bindings(&engine);
     let old_source = engine.chunk_residency.buffer.id;
-    let old_display = engine.chunk_residency.display_buffer.id;
     engine.chunk_device_lost_into(&mut output).expect("reset");
     for ticket in tickets {
         upload(&mut engine, ticket, &mut output);
@@ -166,7 +176,6 @@ fn backing_reset_rebinds_every_paged_consumer_without_an_intermediate_frame() {
     engine.render(&scene, &camera).expect("restored frame");
     sync_attributes(&mut engine, plan);
     assert_ne!(engine.chunk_residency.buffer.id, old_source);
-    assert_ne!(engine.chunk_residency.display_buffer.id, old_display);
     assert_current_bindings(&engine);
 }
 
@@ -188,7 +197,13 @@ fn sync_attributes(
 
 fn assert_current_bindings(engine: &Engine<MockDevice>) {
     let source = engine.chunk_residency.buffer.id;
-    let display = engine.chunk_residency.display_buffer.id;
+    // Paged chunks read whichever coordinate backing is current: the
+    // interpolation target while a trajectory window exists, the canonical
+    // arena otherwise.
+    let display = match engine.chunk_residency.display_buffer.as_ref() {
+        Some(buffer) => buffer.id,
+        None => source,
+    };
     let bindings = engine.device.log.buffer_bindings.lock().expect("bindings");
     for (label, slot, expected) in [
         ("paged structure chunks", 0, display),

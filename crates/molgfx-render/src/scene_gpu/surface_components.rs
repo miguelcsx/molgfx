@@ -1,6 +1,6 @@
 //! Persistent working-set scratch for sampled-surface component filtering.
 
-use super::surface_slot::FieldTexture;
+use super::surface_field::FieldTexture;
 use crate::error::RenderError;
 use molgfx_core::{SurfaceComponentPolicy, SurfaceComponentThreshold};
 use molgfx_gpu::{

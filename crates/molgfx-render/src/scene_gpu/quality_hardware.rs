@@ -1,16 +1,20 @@
-//! Optional hardware acceleration for quality AO and shadows.
+//! Shared hardware acceleration geometry for quality AO and shadows.
 //!
-//! The CPU BVHs remain resident and authoritative. Hardware acceleration is
-//! an opportunistic traversal backend over the same analytic spheres and
-//! capsules; any capability, allocation, build or device failure disables it
-//! and leaves the compute path ready for the same frame.
+//! The bottom-level structure covers the packed records and is therefore a
+//! function of the record key, not of a placement: every representation that
+//! draws the same records traverses the same BLAS. Only the top-level instance,
+//! which carries the model transform, is per placement
+//! ([`super::placement_acceleration`]).
+//!
+//! Hardware traversal is opportunistic. Any capability, allocation, build or
+//! device failure disables it and leaves the compute path ready for the same
+//! frame.
 
 use molgfx_core::{AtomGpu, BondGpu, EntityKind, PlacedStructure};
 use molgfx_gpu::{
-    AabbGeometry, AabbGeometrySize, AccelerationGeometryFlags, AccelerationStructureBinding,
-    AccelerationStructureFlags, AccelerationStructureUpdateMode, BlasBuildDesc, BlasDesc,
-    BlasGeometries, BlasGeometrySizes, BufferDesc, BufferUsage, CommandEncoder, Device, GpuError,
-    Queue, RayQueryBindGroupDesc, TlasDesc, TlasInstance,
+    AabbGeometry, AabbGeometrySize, AccelerationGeometryFlags, AccelerationStructureFlags,
+    AccelerationStructureUpdateMode, BlasBuildDesc, BlasDesc, BlasGeometries, BlasGeometrySizes,
+    BufferDesc, BufferUsage, CommandEncoder, Device, GpuError, Queue,
 };
 use molgfx_math::{Aabb, Mat4, Vec3};
 
@@ -24,7 +28,7 @@ pub(super) enum HardwareFailure {
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct RayAabb {
+pub(super) struct RayAabb {
     lower: [f32; 3],
     upper: [f32; 3],
 }
@@ -38,114 +42,94 @@ impl From<Aabb> for RayAabb {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum PendingBuild {
-    None,
-    Tlas,
-    BlasAndTlas,
-}
-
 #[derive(Debug)]
-struct HardwareResources<D: Device> {
-    aabbs: D::Buffer,
+pub(super) struct QualityBlas<D: Device> {
+    aabbs: Option<D::Buffer>,
     aabb_capacity: u64,
     primitive_count: u32,
     size: AabbGeometrySize,
-    blas: D::Blas,
-    tlas: D::Tlas,
-    group: D::BindGroup,
-    pending: PendingBuild,
-}
-
-#[derive(Debug)]
-pub(super) struct HardwareQuality<D: Device> {
-    resources: Option<HardwareResources<D>>,
-    scratch: Vec<RayAabb>,
+    blas: Option<D::Blas>,
+    pending: bool,
     failure: Option<HardwareFailure>,
 }
 
-impl<D: Device> HardwareQuality<D> {
+impl<D: Device> QualityBlas<D> {
     pub(super) const fn new() -> Self {
         Self {
-            resources: None,
-            scratch: Vec::new(),
+            aabbs: None,
+            aabb_capacity: 0,
+            primitive_count: 0,
+            size: AabbGeometrySize {
+                primitive_count: 0,
+                flags: AccelerationGeometryFlags::empty(),
+            },
+            blas: None,
+            pending: false,
             failure: None,
         }
     }
 
-    pub(super) fn group(&self) -> Option<&D::BindGroup> {
-        self.resources.as_ref().map(|resources| &resources.group)
+    pub(super) fn blas(&self) -> Option<&D::Blas> {
+        self.blas.as_ref()
     }
 
-    #[cfg(test)]
-    pub(super) const fn failure(&self) -> Option<HardwareFailure> {
-        self.failure
+    #[must_use]
+    pub(super) const fn resident_bytes(&self) -> u64 {
+        self.aabb_capacity
     }
 
-    pub(super) fn sync_geometry(
+    /// Rebuilds the AABB list and bottom-level structure for one record set.
+    pub(super) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
-        layout: Option<&D::BindGroupLayout>,
         atoms: &[AtomGpu],
         bonds: &[BondGpu],
         placed: &PlacedStructure,
     ) {
-        let Some(layout) = layout else {
-            self.disable(HardwareFailure::Unavailable);
-            return;
-        };
         if !device.capabilities().ray_query() {
             self.disable(HardwareFailure::Unavailable);
             return;
         }
-        self.scratch.clear();
-        self.scratch.extend(
+        let mut boxes = Vec::with_capacity(atoms.len().saturating_add(bonds.len()));
+        boxes.extend(
             atoms
                 .iter()
                 .map(|atom| RayAabb::from(atom_bound(atom, placed))),
         );
-        self.scratch.extend(
+        boxes.extend(
             bonds
                 .iter()
                 .map(|bond| RayAabb::from(bond_bound(bond, atoms, placed))),
         );
-        if self.scratch.is_empty() {
+        if boxes.is_empty() {
             self.disable(HardwareFailure::Unavailable);
             return;
         }
-        if let Err(error) = self.rebuild(device, queue, layout, placed.model_to_world) {
+        if let Err(error) = self.rebuild(device, queue, &boxes) {
             self.disable(classify(&error));
         }
-    }
-
-    pub(super) fn sync_placement(&mut self, device: &D, transform: Mat4) {
-        let Some(resources) = &mut self.resources else {
-            return;
-        };
-        let instance = TlasInstance {
-            blas: &resources.blas,
-            transform: affine_rows(transform),
-            custom_data: 0,
-            mask: u8::MAX,
-        };
-        if let Err(error) = device.set_tlas_instance(&mut resources.tlas, 0, Some(instance)) {
-            self.disable(classify(&error));
-            return;
-        }
-        resources.pending = match resources.pending {
-            PendingBuild::BlasAndTlas => PendingBuild::BlasAndTlas,
-            PendingBuild::None | PendingBuild::Tlas => PendingBuild::Tlas,
-        };
     }
 
     pub(super) fn record(&mut self, encoder: &mut D::CommandEncoder) {
-        let result = match &mut self.resources {
-            Some(resources) => record_resources(encoder, resources),
-            None => return,
+        if !self.pending {
+            return;
+        }
+        let (Some(blas), Some(aabbs)) = (self.blas.as_ref(), self.aabbs.as_ref()) else {
+            return;
         };
-        if let Err(error) = result {
-            self.disable(classify(&error));
+        let geometry = AabbGeometry {
+            size: &self.size,
+            buffer: aabbs,
+            offset: 0,
+            stride: std::mem::size_of::<RayAabb>() as u64,
+        };
+        match encoder.build_blas(&BlasBuildDesc {
+            blas,
+            geometries: BlasGeometries::Aabbs(std::slice::from_ref(&geometry)),
+        }) {
+            Ok(()) => self.pending = false,
+            Err(error) => self.disable(classify(&error)),
         }
     }
 
@@ -153,145 +137,78 @@ impl<D: Device> HardwareQuality<D> {
         &mut self,
         device: &D,
         queue: &D::Queue,
-        layout: &D::BindGroupLayout,
-        transform: Mat4,
+        bounds: &[RayAabb],
     ) -> Result<(), GpuError> {
-        let primitive_count =
-            u32::try_from(self.scratch.len()).map_err(|_| GpuError::LimitExceeded {
-                resource: "quality ray-query primitives",
-                limit: u64::from(u32::MAX),
-            })?;
+        let primitive_count = u32::try_from(bounds.len()).map_err(|_| GpuError::LimitExceeded {
+            resource: "quality ray-query primitives",
+            limit: u64::from(u32::MAX),
+        })?;
         let limits = device.ray_query_limits()?;
-        if primitive_count > limits.max_blas_primitives
-            || limits.max_blas_geometries == 0
-            || limits.max_tlas_instances == 0
-            || limits.max_bindings_per_shader_stage == 0
-        {
+        if primitive_count > limits.max_blas_primitives || limits.max_blas_geometries == 0 {
             return Err(GpuError::LimitExceeded {
                 resource: "quality ray-query acceleration",
                 limit: u64::from(limits.max_blas_primitives),
             });
         }
-        let bytes = bytemuck::cast_slice(self.scratch.as_slice());
+        let bytes = bytemuck::cast_slice(bounds);
         let needed = bytes.len() as u64;
-        let recreate = self
-            .resources
-            .as_ref()
-            .is_none_or(|resources| needed > resources.aabb_capacity);
-        if recreate {
-            self.resources = Some(create_resources(device, layout, primitive_count, needed)?);
+        if self.aabbs.is_none() || needed > self.aabb_capacity {
+            // A byte count that cannot round up is already at the ceiling, so
+            // the unrounded value is the only safe capacity.
+            let capacity = match needed.checked_next_power_of_two() {
+                Some(rounded) => rounded,
+                None => needed,
+            }
+            .max(256);
+            self.aabbs = Some(device.create_buffer(&BufferDesc {
+                label: "quality analytic ray AABBs",
+                size: capacity,
+                usage: BufferUsage::COPY_DST.union(BufferUsage::BLAS_INPUT),
+            })?);
+            self.aabb_capacity = capacity;
+            self.blas = Some(device.create_blas(&BlasDesc {
+                label: "quality analytic BLAS",
+                flags: AccelerationStructureFlags::ALLOW_UPDATE
+                    | AccelerationStructureFlags::PREFER_FAST_TRACE,
+                update_mode: AccelerationStructureUpdateMode::PreferUpdate,
+                geometries: BlasGeometrySizes::Aabbs(std::slice::from_ref(&self.size)),
+            })?);
         }
-        let Some(resources) = &mut self.resources else {
+        let Some(aabbs) = self.aabbs.as_ref() else {
             return Err(GpuError::DeviceLost);
         };
-        resources.primitive_count = primitive_count;
-        resources.size.primitive_count = primitive_count;
-        queue.write_buffer(&resources.aabbs, 0, bytes);
-        let instance = TlasInstance {
-            blas: &resources.blas,
-            transform: affine_rows(transform),
-            custom_data: 0,
-            mask: u8::MAX,
-        };
-        device.set_tlas_instance(&mut resources.tlas, 0, Some(instance))?;
-        resources.pending = PendingBuild::BlasAndTlas;
+        self.primitive_count = primitive_count;
+        self.size.primitive_count = primitive_count;
+        queue.write_buffer(aabbs, 0, bytes);
+        self.pending = true;
         self.failure = None;
         Ok(())
     }
 
     fn disable(&mut self, failure: HardwareFailure) {
-        self.resources = None;
+        self.aabbs = None;
+        self.aabb_capacity = 0;
+        self.blas = None;
+        self.pending = false;
         self.failure = Some(failure);
     }
 }
 
-fn create_resources<D: Device>(
-    device: &D,
-    layout: &D::BindGroupLayout,
-    primitive_count: u32,
-    needed: u64,
-) -> Result<HardwareResources<D>, GpuError> {
-    let capacity = match needed.checked_next_power_of_two() {
-        Some(value) => value,
-        None => needed,
+pub(super) fn classify(error: &GpuError) -> HardwareFailure {
+    match error {
+        GpuError::Capability { .. } => HardwareFailure::Unavailable,
+        GpuError::LimitExceeded { .. } => HardwareFailure::Limit,
+        GpuError::DeviceLost => HardwareFailure::DeviceLost,
+        _ => HardwareFailure::Backend,
     }
-    .max(256);
-    let aabbs = device.create_buffer(&BufferDesc {
-        label: "quality analytic ray AABBs",
-        size: capacity,
-        usage: BufferUsage::COPY_DST.union(BufferUsage::BLAS_INPUT),
-    })?;
-    let size = AabbGeometrySize {
-        primitive_count,
-        flags: AccelerationGeometryFlags::empty(),
-    };
-    let blas = device.create_blas(&BlasDesc {
-        label: "quality analytic BLAS",
-        flags: AccelerationStructureFlags::ALLOW_UPDATE
-            | AccelerationStructureFlags::PREFER_FAST_TRACE,
-        update_mode: AccelerationStructureUpdateMode::PreferUpdate,
-        geometries: BlasGeometrySizes::Aabbs(std::slice::from_ref(&size)),
-    })?;
-    let mut tlas = device.create_tlas(&TlasDesc {
-        label: "quality placement TLAS",
-        max_instances: 1,
-        flags: AccelerationStructureFlags::ALLOW_UPDATE
-            | AccelerationStructureFlags::PREFER_FAST_TRACE,
-        update_mode: AccelerationStructureUpdateMode::PreferUpdate,
-    })?;
-    device.set_tlas_instance(
-        &mut tlas,
-        0,
-        Some(TlasInstance {
-            blas: &blas,
-            transform: affine_rows(Mat4::IDENTITY),
-            custom_data: 0,
-            mask: u8::MAX,
-        }),
-    )?;
-    let group = device.create_ray_query_bind_group(&RayQueryBindGroupDesc {
-        label: "group3: quality ray-query scene",
-        layout,
-        entries: &[],
-        acceleration_structures: &[AccelerationStructureBinding {
-            binding: 0,
-            tlas: &tlas,
-        }],
-    })?;
-    Ok(HardwareResources {
-        aabbs,
-        aabb_capacity: capacity,
-        primitive_count,
-        size,
-        blas,
-        tlas,
-        group,
-        pending: PendingBuild::BlasAndTlas,
-    })
 }
 
-fn record_resources<D: Device>(
-    encoder: &mut D::CommandEncoder,
-    resources: &mut HardwareResources<D>,
-) -> Result<(), GpuError> {
-    if resources.pending == PendingBuild::None {
-        return Ok(());
-    }
-    if resources.pending == PendingBuild::BlasAndTlas {
-        let geometry = AabbGeometry {
-            size: &resources.size,
-            buffer: &resources.aabbs,
-            offset: 0,
-            stride: std::mem::size_of::<RayAabb>() as u64,
-        };
-        encoder.build_blas(&BlasBuildDesc {
-            blas: &resources.blas,
-            geometries: BlasGeometries::Aabbs(std::slice::from_ref(&geometry)),
-        })?;
-    }
-    encoder.build_tlas(&resources.tlas)?;
-    resources.pending = PendingBuild::None;
-    Ok(())
+pub(super) fn affine_rows(transform: Mat4) -> [f32; 12] {
+    let x = transform.x_axis;
+    let y = transform.y_axis;
+    let z = transform.z_axis;
+    let w = transform.w_axis;
+    [x.x, y.x, z.x, w.x, x.y, y.y, z.y, w.y, x.z, y.z, z.z, w.z]
 }
 
 fn atom_bound(atom: &AtomGpu, placed: &PlacedStructure) -> Aabb {
@@ -329,22 +246,5 @@ fn extend_source(bound: &mut Aabb, placed: &PlacedStructure, source: u32, radius
         }
     } else if let Some(position) = placed.atoms.coords().slice().get(source as usize) {
         bound.extend_sphere(Vec3::from_array(*position), radius);
-    }
-}
-
-fn affine_rows(transform: Mat4) -> [f32; 12] {
-    let x = transform.x_axis;
-    let y = transform.y_axis;
-    let z = transform.z_axis;
-    let w = transform.w_axis;
-    [x.x, y.x, z.x, w.x, x.y, y.y, z.y, w.y, x.z, y.z, z.z, w.z]
-}
-
-fn classify(error: &GpuError) -> HardwareFailure {
-    match error {
-        GpuError::Capability { .. } => HardwareFailure::Unavailable,
-        GpuError::LimitExceeded { .. } => HardwareFailure::Limit,
-        GpuError::DeviceLost => HardwareFailure::DeviceLost,
-        _ => HardwareFailure::Backend,
     }
 }

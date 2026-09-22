@@ -1,6 +1,9 @@
 //! Bounded GPU residency state and allocation initialization.
 
-use super::{generic::TrackedGenericChunk, tracked::TrackedChunk, trajectory::TrackedFrame};
+use super::{
+    generic::TrackedGenericChunk, tracked::TrackedChunk, trajectory::TrackedFrame,
+    upload_batch::StagedCopy,
+};
 use crate::ResidencyConfig;
 use crate::engine::bond_draw_plan::ResidentAtomPage;
 use crate::engine::bond_residency::BondGpuResidency;
@@ -36,9 +39,13 @@ pub(in crate::engine) struct ChunkGpuResidency<D: Device> {
     pub(super) cluster_arena: PagedArena,
     pub(super) uploads: LazyUploadRing,
     pub(super) buffer: D::Buffer,
-    pub(super) display_buffer: D::Buffer,
+    pub(super) display_buffer: Option<D::Buffer>,
     pub(super) frame_buffer: D::Buffer,
     pub(super) cluster_buffer: D::Buffer,
+    pub(super) staging_buffer: Option<D::Buffer>,
+    pub(super) staging_bytes: u64,
+    pub(super) staging: Vec<u8>,
+    pub(super) staged: Vec<StagedCopy>,
     source_backing: PhysicalBacking,
     display_backing: PhysicalBacking,
     frame_backing: PhysicalBacking,
@@ -94,8 +101,8 @@ impl<D: Device> ChunkGpuResidency<D> {
         )?;
         let uploads = LazyUploadRing::new(config.uploads)?;
         let buffer = create_coordinate_buffer(device, 256, "unused resident structure chunks")?;
-        let display_buffer =
-            create_coordinate_buffer(device, 256, "unused resident display coordinates")?;
+        // Only a trajectory window needs a separate interpolation target; the
+        // canonical arena is the single backing until then.
         let frame_buffer =
             create_coordinate_buffer(device, 256, "unused resident trajectory frames")?;
         let cluster_buffer =
@@ -108,9 +115,13 @@ impl<D: Device> ChunkGpuResidency<D> {
             cluster_arena,
             uploads,
             buffer,
-            display_buffer,
+            display_buffer: None,
             frame_buffer,
             cluster_buffer,
+            staging_buffer: None,
+            staging_bytes: 0,
+            staging: Vec::new(),
+            staged: Vec::with_capacity(config.uploads.ticket_capacity),
             source_backing: PhysicalBacking::Placeholder,
             display_backing: PhysicalBacking::Placeholder,
             frame_backing: PhysicalBacking::Placeholder,
@@ -166,17 +177,62 @@ impl<D: Device> ChunkGpuResidency<D> {
         Ok(())
     }
 
+    /// Allocates the trajectory-interpolation target on first use.
+    ///
+    /// Without a window, every coordinate binding resolves to the canonical
+    /// arena, so this buffer holds no duplicated payload bytes.
     pub(super) fn ensure_display_buffer(&mut self, device: &D) -> Result<(), ChunkResidencyError> {
         if self.display_backing == PhysicalBacking::Placeholder {
-            self.display_buffer = create_coordinate_buffer(
+            self.display_buffer = Some(create_coordinate_buffer(
                 device,
                 self.arena.capacity_bytes(),
                 "resident display coordinates",
-            )?;
+            )?);
             self.display_backing = PhysicalBacking::Resident;
             self.bump_binding_revision();
         }
         Ok(())
+    }
+
+    /// The buffer every paged coordinate binding resolves to.
+    ///
+    /// The trajectory-interpolation dispatch only runs while a window exists,
+    /// so its `read_write` binding never writes through the canonical arena.
+    pub(super) fn coordinate_source(&self) -> &D::Buffer {
+        match &self.display_buffer {
+            Some(display) => display,
+            None => &self.buffer,
+        }
+    }
+
+    /// Runs `sync` with the canonical coordinate buffer and the bond table
+    /// borrowed at once.
+    ///
+    /// The two borrows come from different fields, so they cannot overlap in
+    /// the caller: this is where that split is expressed.
+    pub(super) fn sync_bonds_with_coordinates<F>(
+        &mut self,
+        binding_revision: u64,
+        sync: F,
+    ) -> Result<(), crate::RenderError>
+    where
+        F: FnOnce(
+            &D::Buffer,
+            u64,
+            &mut crate::engine::bond_residency::BondGpuResidency<D>,
+        ) -> Result<(), crate::RenderError>,
+    {
+        let Self {
+            display_buffer,
+            buffer,
+            bonds,
+            ..
+        } = self;
+        let source = match display_buffer {
+            Some(display) => display,
+            None => buffer,
+        };
+        sync(source, binding_revision, bonds)
     }
 
     pub(super) fn ensure_frame_buffer(&mut self, device: &D) -> Result<(), ChunkResidencyError> {

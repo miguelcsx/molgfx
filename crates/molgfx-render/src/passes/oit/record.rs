@@ -15,17 +15,19 @@ pub(super) fn record_spheres<D: Device, P: RenderPassEncoder<D>>(
     pass: &mut P,
 ) {
     let mut bound = None;
-    for (group, args, shading) in scene.atom_draws(true) {
-        if bound != Some(shading) {
-            pass.set_pipeline(if shading.clipped() {
-                passes.oit.sphere_clipped.get(shading)
-            } else {
-                passes.oit.sphere.get(shading)
-            });
-            bound = Some(shading);
+    if let Some(arena) = scene.indirect_args() {
+        for (group, offset, shading, _) in scene.atom_draws(true) {
+            if bound != Some(shading) {
+                pass.set_pipeline(if shading.clipped() {
+                    passes.oit.sphere_clipped.get(shading)
+                } else {
+                    passes.oit.sphere.get(shading)
+                });
+                bound = Some(shading);
+            }
+            pass.set_bind_group(2, group, &[]);
+            pass.draw_indirect(arena, offset);
         }
-        pass.set_bind_group(2, group, &[]);
-        pass.draw_indirect(args, 0);
     }
 }
 
@@ -37,17 +39,19 @@ pub(super) fn record_surfaces<D: Device, P: RenderPassEncoder<D>>(
     pass: &mut P,
 ) {
     let mut bound = None;
-    for (group, args, shading) in scene.surface_draws(true) {
-        if bound != Some(shading) {
-            pass.set_pipeline(if shading.surface_grid() {
-                passes.oit.grid_surface.get(shading)
-            } else {
-                passes.oit.union_surface.get(shading)
-            });
-            bound = Some(shading);
+    if let Some(arena) = scene.indirect_args() {
+        for (group, offset, shading, _) in scene.surface_draws(true) {
+            if bound != Some(shading) {
+                pass.set_pipeline(if shading.surface_grid() {
+                    passes.oit.grid_surface.get(shading)
+                } else {
+                    passes.oit.union_surface.get(shading)
+                });
+                bound = Some(shading);
+            }
+            pass.set_bind_group(2, group, &[]);
+            pass.draw_indirect(arena, offset);
         }
-        pass.set_bind_group(2, group, &[]);
-        pass.draw_indirect(args, 0);
     }
 }
 
