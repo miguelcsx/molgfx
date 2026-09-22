@@ -49,7 +49,7 @@ fn vs_shadow_sphere(
             center,
             radius * radius,
         ),
-        atom_visual_color(atom.entity_id, atom.color),
+        atom_color(atom.color),
         atom.entity_id,
     );
 }
@@ -219,8 +219,8 @@ fn vs_shadow_bond(
         endpoint_b,
         radius,
         vec2u(atom_a.entity_id, atom_b.entity_id),
-        atom_visual_color(atom_a.entity_id, atom_a.color),
-        atom_visual_color(atom_b.entity_id, atom_b.color),
+        atom_color(atom_a.color),
+        atom_color(atom_b.color),
     );
 }
 

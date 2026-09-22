@@ -155,21 +155,7 @@ fn atom_color(packed: u32) -> vec4f {
     return unpack4x8unorm(packed);
 }
 
-/// Resolves the optional entity result while retaining the byte-identical
-/// built-in path when no visual style is attached.
-fn atom_visual_color(entity_id: u32, packed: u32) -> vec4f {
-    var fallback = atom_color(packed);
-    fallback.a *= representation.presentation.x;
-    if visual_counts.visual_enabled == 0u {
-        return fallback;
-    }
-    fallback = visual_uniform_base_color(fallback);
-    return unpack4x8unorm(visual_result_word(
-        atom_source_index(entity_id),
-        VISUAL_RESULT_COLOR,
-        pack4x8unorm(fallback),
-    ));
-}
+
 
 fn atom_visual_response(entity_id: u32) -> vec4f {
     if visual_counts.visual_enabled == 0u {

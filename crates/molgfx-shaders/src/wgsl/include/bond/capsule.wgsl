@@ -90,10 +90,10 @@ fn vs_bond_capsule(
             endpoint_a;
 
         let color_a =
-            atom_visual_color(atom_a.entity_id, atom_a.color);
+            atom_color(atom_a.color);
 
         let color_b =
-            atom_visual_color(atom_b.entity_id, atom_b.color);
+            atom_color(atom_b.color);
 
         let motion_a =
             screen_motion(

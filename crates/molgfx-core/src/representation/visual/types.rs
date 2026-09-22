@@ -424,6 +424,11 @@ impl Instruction {
         self.kind.code()
     }
 
+    /// Value kind this instruction produces.
+    pub(crate) const fn kind(&self) -> ValueKind {
+        self.kind
+    }
+
     pub(crate) fn from_serialized(
         opcode: u32,
         kind: u8,

@@ -11,6 +11,7 @@ use crate::{
 use molgfx_math::Rgba8;
 #[path = "color_scheme.rs"]
 mod color_scheme;
+pub use color_scheme::{CATEGORICAL_COLORS, SECONDARY_STRUCTURE_COLORS};
 #[path = "kind_names.rs"]
 mod kind_names;
 #[path = "volume_types.rs"]

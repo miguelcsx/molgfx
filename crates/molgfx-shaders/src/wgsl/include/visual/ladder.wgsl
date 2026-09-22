@@ -1,4 +1,11 @@
-// Shared fragment-output resolution for every drawable family.
+// Output resolution shared by both evaluation strategies.
+//
+// A specialized unit and the interpreter build the same register file from the
+// same uniform, so everything downstream of that computation — the per-output
+// finite/fallback ladder, the clamp ranges, the emission-enable flag — lives
+// here once and is reached through `visual_resolve_registers` by both. Only the
+// register computation itself differs between the two, which is what keeps a
+// specialized pipeline pixel-identical to an interpreted one.
 
 struct VisualFragmentResult {
     color: vec4f,
@@ -22,24 +29,13 @@ fn visual_fragment_value(
     return (*registers)[slot];
 }
 
-fn visual_resolve(
-    inputs: VisualEvaluationInputs,
+fn visual_resolve_registers(
+    registers: ptr<function, array<vec4f, 64>>,
     fallback: VisualFragmentResult,
 ) -> VisualFragmentResult {
-    if !VISUAL_FRAGMENT_ENABLED || visual_config.counts.z == 0u {
-        return fallback;
-    }
-    var registers: array<vec4f, 64>;
-    for (var index = 0u; index < visual_config.counts.x; index++) {
-        registers[index] = visual_evaluate_instruction(
-            visual_instruction(index),
-            inputs,
-            &registers,
-        );
-    }
     let color = clamp(
         visual_finite_or(
-            visual_fragment_value(&registers, visual_config.outputs0.x, fallback.color),
+            visual_fragment_value(registers, visual_config.outputs0.x, fallback.color),
             fallback.color,
         ),
         vec4f(0.0),
@@ -47,7 +43,7 @@ fn visual_resolve(
     );
     let opacity = clamp(
         visual_scalar_or(
-            visual_fragment_value(&registers, visual_config.outputs0.y, fallback.color).x,
+            visual_fragment_value(registers, visual_config.outputs0.y, fallback.color).x,
             fallback.color.a,
         ),
         0.0,
@@ -55,7 +51,7 @@ fn visual_resolve(
     );
     let emission = clamp(
         visual_finite_or(
-            visual_fragment_value(&registers, visual_config.outputs0.z, vec4f(fallback.emission, 0.0)),
+            visual_fragment_value(registers, visual_config.outputs0.z, vec4f(fallback.emission, 0.0)),
             vec4f(fallback.emission, 0.0),
         ).rgb,
         vec3f(0.0),
@@ -63,7 +59,7 @@ fn visual_resolve(
     );
     let roughness = clamp(
         visual_scalar_or(
-            visual_fragment_value(&registers, visual_config.outputs0.w, vec4f(fallback.roughness)).x,
+            visual_fragment_value(registers, visual_config.outputs0.w, vec4f(fallback.roughness)).x,
             fallback.roughness,
         ),
         0.05,
@@ -71,7 +67,7 @@ fn visual_resolve(
     );
     let specular = clamp(
         visual_scalar_or(
-            visual_fragment_value(&registers, visual_config.outputs1.x, vec4f(fallback.specular)).x,
+            visual_fragment_value(registers, visual_config.outputs1.x, vec4f(fallback.specular)).x,
             fallback.specular,
         ),
         0.0,
@@ -79,7 +75,7 @@ fn visual_resolve(
     );
     let strength = clamp(
         visual_scalar_or(
-            visual_fragment_value(&registers, visual_config.outputs1.y, vec4f(fallback.material_strength)).x,
+            visual_fragment_value(registers, visual_config.outputs1.y, vec4f(fallback.material_strength)).x,
             fallback.material_strength,
         ),
         0.0,
@@ -87,14 +83,14 @@ fn visual_resolve(
     );
     let visible = visual_truth(
         visual_fragment_value(
-            &registers,
+            registers,
             visual_config.outputs1.z,
             vec4f(select(0.0, 1.0, fallback.visible)),
         ),
     );
     let softness = clamp(
         visual_scalar_or(
-            visual_fragment_value(&registers, visual_config.outputs1.w, vec4f(fallback.softness_pixels)).x,
+            visual_fragment_value(registers, visual_config.outputs1.w, vec4f(fallback.softness_pixels)).x,
             fallback.softness_pixels,
         ),
         0.0,

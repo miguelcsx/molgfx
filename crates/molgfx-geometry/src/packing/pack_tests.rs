@@ -175,8 +175,27 @@ fn representation_opacity_stays_out_of_shared_atom_records() {
 }
 
 #[test]
-fn a_uniform_scheme_replaces_element_rgb_without_baking_material_opacity() {
+fn no_colour_scheme_reaches_the_shared_atom_records() {
+    // The record carries the element colour so that changing a scheme is a
+    // uniform write rather than a repack. A uniform scheme must therefore leave
+    // the records byte-identical to the element-coloured ones.
     let (mut scene, rep_handle) = scene_table();
+    let mut element_colored = Vec::new();
+    {
+        let Some(table) = scene.first_atoms() else {
+            panic!("scene has atoms")
+        };
+        let Some(representation) = scene.representation(rep_handle) else {
+            panic!("representation resolves")
+        };
+        pack_atoms(
+            table,
+            representation,
+            &AtomSelection::All,
+            &mut element_colored,
+        )
+        .unwrap_or_else(|error| panic!("{error}"));
+    }
     let Some(representation) = scene.representation_mut(rep_handle) else {
         panic!("representation resolves")
     };
@@ -191,15 +210,14 @@ fn a_uniform_scheme_replaces_element_rgb_without_baking_material_opacity() {
     let mut atoms = Vec::new();
     pack_atoms(table, representation, &AtomSelection::All, &mut atoms)
         .unwrap_or_else(|error| panic!("{error}"));
-    assert!(
-        atoms
-            .iter()
-            .all(|atom| atom.color == Rgba8::opaque(12, 34, 56))
-    );
+    assert_eq!(atoms, element_colored, "a scheme change must not repack");
+    assert!(atoms.iter().all(|atom| atom.color.a == u8::MAX));
 }
 
 #[test]
-fn caller_property_colors_are_reversible_and_preserve_missing_values() {
+fn a_property_colour_scheme_leaves_records_element_coloured() {
+    // The ramp is applied in the shader against the property arena, so packing
+    // under a property scheme must not bake ramp colours into the records.
     let (mut scene, rep_handle) = scene_table();
     let Some((owner, _)) = scene.structures().next() else {
         panic!("structure exists")
@@ -219,9 +237,6 @@ fn caller_property_colors_are_reversible_and_preserve_missing_values() {
         panic!("property resolves")
     };
     let scheme = ColorScheme::property(property_handle, property);
-    let ColorScheme::ByProperty { ramp, missing, .. } = scheme else {
-        panic!("property constructor selects a property scheme")
-    };
     let Some(representation) = scene.representation_mut(rep_handle) else {
         panic!("representation resolves")
     };
@@ -232,26 +247,27 @@ fn caller_property_colors_are_reversible_and_preserve_missing_values() {
     let Some(representation) = scene.representation(rep_handle) else {
         panic!("representation resolves")
     };
-    let property = scene.atom_property(property_handle);
     let mut atoms = Vec::new();
     pack_atoms_with_hierarchy(
         &placed.atoms,
         &placed.hierarchy,
         placed.secondary_structure.values(),
-        property,
+        scene.atom_property(property_handle),
         representation,
         &AtomSelection::All,
         &mut atoms,
     )
     .unwrap_or_else(|error| panic!("{error}"));
-    let colors = ramp.colors();
-    assert_eq!(atoms[0].color, colors[0]);
-    assert_eq!(atoms[1].color, colors[2]);
-    assert_eq!(atoms[2].color, missing);
+    let elements = placed.atoms.color().values();
+    for (atom, element) in atoms.iter().zip(elements) {
+        assert_eq!(atom.color, *element, "records stay element-coloured");
+    }
 }
 
 #[test]
-fn confidence_appearance_packs_reversible_opacity_and_analytic_softness() {
+fn a_property_appearance_leaves_records_element_coloured() {
+    // Opacity and edge softness are presentation uniforms; only the element
+    // colour belongs in the shared record.
     let (mut scene, rep_handle) = scene_table();
     let Some((owner, _)) = scene.structures().next() else {
         panic!("structure exists")
@@ -279,7 +295,6 @@ fn confidence_appearance_packs_reversible_opacity_and_analytic_softness() {
     let Some(representation) = scene.representation(rep_handle) else {
         panic!("representation resolves")
     };
-    let property = scene.atom_property(property_handle);
     let mut atoms = Vec::new();
     pack_atoms_with_properties(
         &placed.atoms,
@@ -287,17 +302,19 @@ fn confidence_appearance_packs_reversible_opacity_and_analytic_softness() {
         placed.secondary_structure.values(),
         PropertyColumns {
             color: None,
-            appearance: property,
+            appearance: scene.atom_property(property_handle),
         },
         representation,
         &AtomSelection::All,
         &mut atoms,
     )
     .unwrap_or_else(|error| panic!("{error}"));
-    assert!(atoms[0].color.a < atoms[1].color.a);
-    assert!(atoms[0].semantic >> 24 > atoms[1].semantic >> 24);
-    assert!(atoms[2].color.a < atoms[0].color.a);
-    assert_ne!(atoms[2].semantic >> 24, 0);
+    let elements = placed.atoms.color().values();
+    for (atom, element) in atoms.iter().zip(elements) {
+        assert_eq!(atom.color, *element);
+        assert_eq!(atom.color.a, u8::MAX, "opacity is not baked in");
+        assert_eq!(atom.semantic >> 24, 0, "softness is not baked in");
+    }
 }
 
 #[test]

@@ -11,21 +11,47 @@ pub const AMBIENT_OCCLUSION: &str =
 /// Progressive shared-BVH cavity occlusion and area-light shadows.
 pub const QUALITY_AO: &str = include_str!(concat!(env!("OUT_DIR"), "/quality_ao.wgsl"));
 
+/// [`QUALITY_AO`] with the visual resolver replaced by generated code.
+pub const QUALITY_AO_SPECIALIZED: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/quality_ao.specialized.wgsl"));
+
 /// Progressive analytic AO/shadows using hardware ray queries for traversal.
 pub const QUALITY_AO_RAY_QUERY: &str =
     include_str!(concat!(env!("OUT_DIR"), "/quality_ao_ray_query.wgsl"));
 
+/// [`QUALITY_AO_RAY_QUERY`] with the visual resolver replaced by generated code.
+pub const QUALITY_AO_RAY_QUERY_SPECIALIZED: &str = include_str!(concat!(
+    env!("OUT_DIR"),
+    "/quality_ao_ray_query.specialized.wgsl"
+));
+
 /// Gbuffer sphere impostors.
 pub const GEOMETRY_SPHERE: &str = include_str!(concat!(env!("OUT_DIR"), "/sphere.wgsl"));
+
+/// [`GEOMETRY_SPHERE`] with the visual resolver replaced by generated code.
+pub const GEOMETRY_SPHERE_SPECIALIZED: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/sphere.specialized.wgsl"));
 
 /// Gbuffer analytic bond capsules.
 pub const GEOMETRY_BOND: &str = include_str!(concat!(env!("OUT_DIR"), "/bond.wgsl"));
 
+/// [`GEOMETRY_BOND`] with the visual resolver replaced by generated code.
+pub const GEOMETRY_BOND_SPECIALIZED: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/bond.specialized.wgsl"));
+
 /// Transport-frame cartoon geometry.
 pub const GEOMETRY_CARTOON: &str = include_str!(concat!(env!("OUT_DIR"), "/cartoon.wgsl"));
 
+/// [`GEOMETRY_CARTOON`] with the visual resolver replaced by generated code.
+pub const GEOMETRY_CARTOON_SPECIALIZED: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/cartoon.specialized.wgsl"));
+
 /// BVH-bounded implicit molecular surfaces.
 pub const GEOMETRY_SURFACE: &str = include_str!(concat!(env!("OUT_DIR"), "/surface.wgsl"));
+
+/// [`GEOMETRY_SURFACE`] with the visual resolver replaced by generated code.
+pub const GEOMETRY_SURFACE_SPECIALIZED: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/surface.specialized.wgsl"));
 
 /// Analytic caller-authored ellipsoids, carbohydrate symbols and planes.
 pub const GEOMETRY_PRIMITIVE: &str = include_str!(concat!(env!("OUT_DIR"), "/primitive.wgsl"));
@@ -36,6 +62,10 @@ pub const GEOMETRY_LIGAND_POSE: &str = include_str!(concat!(env!("OUT_DIR"), "/l
 /// Scene-fit analytic primitive shadow map.
 pub const SHADOW: &str = include_str!(concat!(env!("OUT_DIR"), "/shadow.wgsl"));
 
+/// [`SHADOW`] with the visual resolver replaced by generated code.
+pub const SHADOW_SPECIALIZED: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/shadow.specialized.wgsl"));
+
 /// Depth-only compact ligand-pose impostors.
 pub const LIGAND_POSE_SHADOW: &str =
     include_str!(concat!(env!("OUT_DIR"), "/ligand_pose_shadow.wgsl"));
@@ -43,11 +73,23 @@ pub const LIGAND_POSE_SHADOW: &str =
 /// Depth-only cartoon-ribbon shadow caster, pulled from ribbon storage.
 pub const SHADOW_RIBBON: &str = include_str!(concat!(env!("OUT_DIR"), "/shadow_ribbon.wgsl"));
 
+/// [`SHADOW_RIBBON`] with the visual resolver replaced by generated code.
+pub const SHADOW_RIBBON_SPECIALIZED: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/shadow_ribbon.specialized.wgsl"));
+
 /// Pixel-stable circular atom points.
 pub const GEOMETRY_POINT: &str = include_str!(concat!(env!("OUT_DIR"), "/point.wgsl"));
 
+/// [`GEOMETRY_POINT`] with the visual resolver replaced by generated code.
+pub const GEOMETRY_POINT_SPECIALIZED: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/point.specialized.wgsl"));
+
 /// Generic analytic points over tightly packed caller positions.
 pub const GENERIC_POINT: &str = include_str!(concat!(env!("OUT_DIR"), "/generic_point.wgsl"));
+
+/// [`GENERIC_POINT`] with the visual resolver replaced by generated code.
+pub const GENERIC_POINT_SPECIALIZED: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/generic_point.specialized.wgsl"));
 
 /// Generic point culling and indirect argument generation.
 pub const GENERIC_POINT_CULL: &str =
@@ -55,6 +97,12 @@ pub const GENERIC_POINT_CULL: &str =
 
 /// Shared analytic templates expanded from compact rigid transforms.
 pub const GENERIC_INSTANCE: &str = include_str!(concat!(env!("OUT_DIR"), "/generic_instance.wgsl"));
+
+/// [`GENERIC_INSTANCE`] with the visual resolver replaced by generated code.
+pub const GENERIC_INSTANCE_SPECIALIZED: &str = include_str!(concat!(
+    env!("OUT_DIR"),
+    "/generic_instance.specialized.wgsl"
+));
 
 /// Rigid-instance culling and indirect analytic draw generation.
 pub const GENERIC_INSTANCE_CULL: &str =

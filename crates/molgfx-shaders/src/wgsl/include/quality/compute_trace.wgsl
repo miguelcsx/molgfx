@@ -38,7 +38,7 @@ fn trace_transmittance(world_origin: vec3f, world_direction: vec3f, maximum: f32
                 let hit = origin + direction * distance;
                 transmittance *= quality_hit_transparency(
                     atom.entity_id,
-                    atom_visual_color(atom.entity_id, atom.color),
+                    atom_record_color(atom),
                     hit,
                     normalize(hit - center),
                 );
@@ -83,8 +83,8 @@ fn trace_transmittance(world_origin: vec3f, world_direction: vec3f, maximum: f32
                 let nearest = local_a + axis * along;
                 let entity_id = select(atom_a.entity_id, atom_b.entity_id, along >= 0.5);
                 let base_color = mix(
-                    atom_visual_color(atom_a.entity_id, atom_a.color),
-                    atom_visual_color(atom_b.entity_id, atom_b.color),
+                    atom_record_color(atom_a),
+                    atom_record_color(atom_b),
                     along,
                 );
                 transmittance *= quality_hit_transparency(

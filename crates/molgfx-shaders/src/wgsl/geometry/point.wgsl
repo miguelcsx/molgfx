@@ -182,7 +182,7 @@ fn vs_point(
 
     if flat {
         out.color =
-            atom_visual_color(atom.entity_id, atom.color);
+            atom_color(atom.color);
 
         // Current clip XYW already exists; do not project current_world again.
         out.motion =
@@ -315,9 +315,8 @@ fn vs_point_transparent(
             geometry.view_position;
 
         out.color =
-            atom_visual_color(
-                atom.entity_id,
-                atom.color
+            atom_record_color(
+                atom
             );
 
         out.softness_pixels =

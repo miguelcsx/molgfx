@@ -59,6 +59,19 @@ pub trait MolecularProvider: fmt::Debug + Send + Sync {
     /// Returns an error when the query is invalid or cannot be evaluated.
     fn select(&self, source: &str) -> Result<AtomSelection, CoreError>;
 
+    /// Evaluates an already-compiled query.
+    ///
+    /// Providers that retain a native `MolFrame` structure override this so a
+    /// query compiled once is not recompiled per placed structure. The default
+    /// path is correct for providers that only expose textual evaluation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query cannot be evaluated.
+    fn select_compiled(&self, query: &molframe::Query) -> Result<AtomSelection, CoreError> {
+        self.select(query.source())
+    }
+
     /// Native `MolFrame` source when this provider originated in Rust.
     fn molframe(&self) -> Option<&molframe::Structure> {
         None
@@ -125,6 +138,15 @@ impl MolecularSource {
         self.0.select(source)
     }
 
+    /// Evaluation of an already-compiled query.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query cannot be evaluated.
+    pub fn select_compiled(&self, query: &molframe::Query) -> Result<AtomSelection, CoreError> {
+        self.0.select_compiled(query)
+    }
+
     /// Native source when available.
     #[must_use]
     pub fn molframe(&self) -> Option<&molframe::Structure> {
@@ -173,21 +195,33 @@ impl MolecularProvider for MolframeProvider {
     }
 
     fn select(&self, source: &str) -> Result<AtomSelection, CoreError> {
-        let selection = self
-            .structure
-            .select(source, &molframe::AnalysisPolicy::default())
-            .map_err(|_| CoreError::InvalidSelection {
-                reason: "MolFrame query evaluation failed",
-            })?;
-        let rows = selection
-            .atoms()
-            .map(|atom| atom.index().get())
-            .collect::<RoaringBitmap>();
-        Ok(adaptive(rows, self.structure.atom_count()))
+        let query = molframe::Query::compile(source).map_err(|_| CoreError::InvalidSelection {
+            reason: "MolFrame query evaluation failed",
+        })?;
+        self.select_compiled_query(&query)
+    }
+
+    fn select_compiled(&self, query: &molframe::Query) -> Result<AtomSelection, CoreError> {
+        self.select_compiled_query(query)
     }
 
     fn molframe(&self) -> Option<&molframe::Structure> {
         Some(&self.structure)
+    }
+}
+
+impl MolframeProvider {
+    fn select_compiled_query(&self, query: &molframe::Query) -> Result<AtomSelection, CoreError> {
+        let selection = molframe::QueryStructure::select_query(
+            &self.structure,
+            query,
+            &molframe::AnalysisPolicy::default(),
+        )
+        .map_err(|_| CoreError::InvalidSelection {
+            reason: "MolFrame query evaluation failed",
+        })?;
+        let rows = selection.selection.iter().collect::<RoaringBitmap>();
+        Ok(adaptive(rows, self.structure.atom_count()))
     }
 }
 

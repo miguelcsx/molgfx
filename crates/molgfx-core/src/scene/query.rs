@@ -43,11 +43,15 @@ impl Scene {
     /// Returns [`CoreError::InvalidSelection`] for malformed syntax, unknown
     /// keywords or invalid spatial distances.
     pub fn select_str(&mut self, source: &str) -> Result<SelectionHandle, CoreError> {
+        let query = molframe::Query::compile(source).map_err(|_| CoreError::InvalidSelection {
+            reason: "MolFrame query evaluation failed",
+        })?;
+        let fingerprint = query.fingerprint().get();
         let mut scoped = Vec::with_capacity(self.structures.len());
         for (raw, placed) in self.structures.iter() {
-            scoped.push((StructureHandle(raw), placed.source.select(source)?));
+            scoped.push((StructureHandle(raw), placed.source.select_compiled(&query)?));
         }
-        Ok(self.add_scoped_selection(scoped))
+        Ok(self.add_scoped_selection_with_fingerprint(scoped, Some(fingerprint)))
     }
 }
 

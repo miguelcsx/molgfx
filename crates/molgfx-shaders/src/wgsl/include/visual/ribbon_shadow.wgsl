@@ -20,7 +20,9 @@ fn visual_parameter(index: u32) -> vec4f {
 }
 
 //!include "include/visual/evaluator.wgsl"
-//!include "include/visual/resolve.wgsl"
+// {{visual_program}}
+//!include "include/visual/ladder.wgsl"
+//!include "include/visual/interpreter.wgsl"
 
 fn ribbon_shadow_source(entity_id: u32) -> u32 {
     return entity_id & VISUAL_ENTITY_MASK;

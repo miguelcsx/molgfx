@@ -197,7 +197,7 @@ fn surface_opaque_output(
         atoms[hit.compact_index];
 
     let color =
-        atom_visual_color(atom.entity_id, atom.color);
+        atom_record_color(atom);
 
     let mapped =
         scalar_overlay_color(
@@ -328,7 +328,7 @@ fn surface_transparent_output(
         atoms[hit.compact_index];
 
     let color =
-        atom_visual_color(atom.entity_id, atom.color);
+        atom_record_color(atom);
 
     let mapped =
         scalar_overlay_color(

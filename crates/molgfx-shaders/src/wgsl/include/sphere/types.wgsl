@@ -36,6 +36,10 @@ struct SphereVsOut {
     @location(4) @interpolate(flat, first) material: vec4f,
 
     @location(5) @interpolate(flat, first) entity_id: u32,
+
+    // The packed semantic word: the three colour-scheme palette indices, the
+    // caller's own tags and the record's packed softness.
+    @location(6) @interpolate(flat, first) semantic: u32,
 }
 
 struct SphereGeometry {
@@ -189,6 +193,9 @@ fn sphere_vertex_output(
         vec4f(0.0);
 
     out.entity_id =
+        0u;
+
+    out.semantic =
         0u;
 
     return out;
