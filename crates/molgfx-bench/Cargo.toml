@@ -7,6 +7,10 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 autobins = false
+# A benchmark harness is not a published artifact. It also depends on the
+# facade by path only, which Cargo refuses to package, so publishing cannot
+# succeed for it even by accident.
+publish = false
 
 [dependencies]
 thiserror.workspace = true

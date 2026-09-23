@@ -20,7 +20,10 @@ async function buildScene(model) {
     throw new Error("structure transport columns have different lengths");
   }
   for (let index = 0; index < ids.length; index += 1) {
-    scene.bindStructure(ids[index], sourceBytes(payloads[index]), names[index]);
+    // The binding's identity parameter is a Rust `u64`, which wasm-bindgen
+    // maps to a JavaScript BigInt rather than a Number, so the transported
+    // integer has to be widened before the call.
+    scene.bindStructure(BigInt(ids[index]), sourceBytes(payloads[index]), names[index]);
   }
   scene.resolve();
   return scene;

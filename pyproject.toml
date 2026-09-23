@@ -19,4 +19,10 @@ jupyter = ["anywidget>=0.9"]
 manifest-path = "crates/molgfx-py/Cargo.toml"
 python-source = "python"
 module-name = "molgfx._engine"
-features = ["pyo3/extension-module"]
+# The stable ABI, matching molframe's own binding crate. `pyo3/extension-module`
+# disables linking libpython for every target, which is what breaks `cargo test`
+# in this workspace; maturin sets `PYO3_BUILD_EXTENSION_MODULE` for extension
+# builds, so the extension-module behaviour is still in force without the
+# feature. Keeping abi3 here is what lets one wheel cover CPython 3.13 and
+# later instead of one wheel per minor version.
+features = ["pyo3/abi3-py313"]
