@@ -65,8 +65,14 @@ molgfx-semantic = { version = "0.1.0", path = "crates/molgfx-semantic" }
 molgfx-api = { version = "0.1.0", path = "crates/molgfx-api" }
 
 # The structural model and every detection the engine consumes.
-# Pinned to the published revision carrying the `molframe-*` package names.
-molframe = { git = "https://github.com/miguelcsx/molframe", rev = "ad77571a50e8126d7ea9a48016915b7a7483db04", default-features = false, features = ["mmcif", "bcif", "pdb"] }
+#
+# `version` is what makes these publishable: a git-only dependency has no
+# registry requirement, so Cargo refuses to package any crate that carries one
+# ("all dependencies must have a version requirement specified when packaging").
+# The registry requirement is used for a published build; the `rev` pin keeps
+# local development and CI on the exact revision this workspace was written
+# against.
+molframe = { git = "https://github.com/miguelcsx/molframe", rev = "ad77571a50e8126d7ea9a48016915b7a7483db04", version = "0.1.0", default-features = false, features = ["mmcif", "bcif", "pdb"] }
 # The provider's Python bridge names its library target `_native`, so the
 # dependency is renamed back to the package name for `molframe_py::` to resolve.
 molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "ad77571a50e8126d7ea9a48016915b7a7483db04", default-features = false }
