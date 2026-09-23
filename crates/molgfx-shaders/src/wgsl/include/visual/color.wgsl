@@ -57,9 +57,21 @@ fn color_property_sample(atom_index: u32) -> f32 {
     let offset = color_uniforms.selector.z;
     let stride = color_uniforms.selector.w;
     if offset == 0u {
-        return bitcast<f32>(0x7fc00000u);
+        return missing_sample();
     }
     return bitcast<f32>(visual_properties[offset + atom_index * stride]);
+}
+
+/// The quiet NaN a "no value" sample carries.
+///
+/// ORed with a masked uniform word rather than written as a bare
+/// `bitcast<f32>(0x7fc00000u)`. A constant `NaN` is rejected by the browser's
+/// WGSL implementation — "value nan cannot be represented as 'f32'" — while
+/// naga accepts it, so the constant form validates at build time and then fails
+/// on the first frame of every viewer. The mask folds to zero at run time, so
+/// the bits are exactly the quiet NaN this shader means to carry.
+fn missing_sample() -> f32 {
+    return bitcast<f32>(0x7fc00000u | (color_uniforms.selector.z & 0u));
 }
 
 /// Applies a three-stop ramp to a scalar, matching the CPU ramp exactly.
