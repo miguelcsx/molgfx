@@ -78,7 +78,7 @@ def opacity_patch(scene, representation, opacity=0.25):
             "operations": [
                 {
                     "op": "set_opacity",
-                    "id": int(str(representation).split("(")[-1].rstrip(")")),
+                    "id": int(representation),
                     "opacity": opacity,
                 }
             ],
@@ -248,8 +248,13 @@ class _LocalPage:
 
 
 PAGE = """<!doctype html>
-<html><body style="margin:0">
-<div id="root" style="width:320px;height:240px"></div>
+<html><head>
+<!-- The committed widget ships its stylesheet beside its module, and the host
+     loads both; the canvas sizes itself from the element it is given, so a
+     page without the stylesheet would test an unstyled canvas instead. -->
+<link rel="stylesheet" href="./widget.css">
+</head><body style="margin:0">
+<div id="root" style="width:100%;height:240px"></div>
 <script type="module">
 import {render} from "./widget.js";
 
@@ -324,13 +329,26 @@ class ViewerPageTests(unittest.TestCase):
         cls._browser = cls._playwright.chromium.launch(
             args=["--enable-unsafe-webgpu", "--use-angle=swiftshader"]
         )
-        cls.page = cls._browser.new_page()
-        cls.page.goto(f"http://127.0.0.1:{cls._local.port}/_viewer_test_page.html")
-        cls.page.wait_for_function("window.__molgfx.cleanup !== undefined")
+
+    def setUp(self):
+        """Give every test the pristine page its fixtures describe.
+
+        The page is live mutable state: one test rebuilds the scene from two
+        structures and another resizes the viewport, so a page shared across
+        tests would carry the previous test's revision and structure columns
+        into the next one. Each test drives its own page over the same
+        committed assets instead.
+        """
+        self.page = self._browser.new_page()
+        self.page.goto(f"http://127.0.0.1:{self._local.port}/_viewer_test_page.html")
+        self.page.wait_for_function("window.__molgfx.cleanup !== undefined")
+
+    def tearDown(self):
+        self.page.evaluate("window.__molgfx.cleanup && window.__molgfx.cleanup()")
+        self.page.close()
 
     @classmethod
     def tearDownClass(cls):
-        cls.page.evaluate("window.__molgfx.cleanup && window.__molgfx.cleanup()")
         cls._browser.close()
         cls._playwright.stop()
         cls._local.__exit__(None, None, None)
@@ -350,14 +368,14 @@ class ViewerPageTests(unittest.TestCase):
         self.assertIsNotNone(self.page.evaluate("document.querySelector('canvas')"))
 
     def test_one_patch_reaches_the_page_and_applies(self):
-        values = self.runtime()
+        self.runtime()
         self.page.evaluate(
             """(patch) => {
                 window.__molgfx.values.scene_patch = patch;
                 window.__molgfx.values.patch_sequence += 1;
                 window.__molgfx.emit("change:patch_sequence");
             }""",
-            opacity_patch(_Scene(), 0.4),
+            opacity_patch(_Scene(), 1, 0.4),
         )
         self.page.wait_for_timeout(300)
         values = self.page.evaluate("window.__molgfx.values")
@@ -382,7 +400,7 @@ class ViewerPageTests(unittest.TestCase):
         values = self.page.evaluate("window.__molgfx.values")
         self.assertEqual(values["error"], "")
         self.assertEqual(before, 1)
-        self.assertEqual(values["structure_payloads"].length, 2)
+        self.assertEqual(len(values["structure_payloads"]), 2)
 
     def test_resize_reconfigures_the_canvas(self):
         self.runtime()

@@ -103,6 +103,7 @@ pub struct Scene {
     pub(crate) spatial_traversal: Vec<u32>,
     pub(crate) spatial_candidates: Vec<u32>,
     pub(crate) spatial_result: roaring::RoaringBitmap,
+    next_dataset: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -203,9 +204,11 @@ impl Scene {
     /// An empty scene.
     #[must_use]
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            next_dataset: 1,
+            ..Self::default()
+        }
     }
-
     /// Builds a scene containing one structure and no representations.
     ///
     /// # Errors
@@ -223,7 +226,7 @@ impl Scene {
     ///
     /// Fails when source tables exceed renderer address limits.
     pub fn from_source(source: crate::MolecularSource) -> Result<Self, CoreError> {
-        let asset = StructureAsset::from_source(DatasetId::LEGACY, source)
+        let asset = StructureAsset::from_source(DatasetId::new(1), source)
             .map_err(|error| structure_asset_error(&error))?;
         Ok(Self::from_asset(&asset))
     }
@@ -245,7 +248,8 @@ impl Scene {
         &mut self,
         structure: &molframe::Structure,
     ) -> Result<StructureHandle, CoreError> {
-        let asset = StructureAsset::new(DatasetId::LEGACY, structure)
+        let dataset = self.allocate_dataset();
+        let asset = StructureAsset::new(dataset, structure)
             .map_err(|error| structure_asset_error(&error))?;
         Ok(self.add_asset(&asset))
     }
@@ -259,7 +263,8 @@ impl Scene {
         &mut self,
         source: crate::MolecularSource,
     ) -> Result<StructureHandle, CoreError> {
-        let asset = StructureAsset::from_source(DatasetId::LEGACY, source)
+        let dataset = self.allocate_dataset();
+        let asset = StructureAsset::from_source(dataset, source)
             .map_err(|error| structure_asset_error(&error))?;
         Ok(self.add_asset(&asset))
     }
@@ -267,6 +272,7 @@ impl Scene {
     /// Places a shared structure asset at the identity transform.
     pub fn add_asset(&mut self, asset: &StructureAsset) -> StructureHandle {
         let placed = PlacedStructure::from_asset(asset);
+        self.reserve_dataset(asset.dataset_id());
         let atom_count = placed.atoms.len() as usize;
         self.structure_revision = self.structure_revision.wrapping_add(1);
         let handle = StructureHandle(self.structures.insert(placed));
