@@ -24,10 +24,28 @@ pub use molgfx_api::{annotation, density, interaction, measurement, trajectory};
 
 /// Binding caller-owned molecular storage, for language bindings and embedders.
 pub mod source {
+    pub use molgfx_api::molframe::Structure;
     pub use molgfx_api::source::{
         AtomSelection, CoreError, MolecularProvider, MolecularSource, SourceAtom, SourceBond,
         SourceTopology, topology_identity,
     };
+
+    /// Re-parses a transported molecular payload into the structural model.
+    ///
+    /// A scene's content identity is recomputed by whoever receives the
+    /// molecule, so a publisher must digest exactly the bytes it ships. A
+    /// binding whose provider cannot see the payload's structure — because the
+    /// payload crosses an extension boundary that carries no Rust values — uses
+    /// this to obtain the view its consumer will take.
+    ///
+    /// Returns `None` when the payload is not a supported structure.
+    #[must_use]
+    pub fn structure_from_payload(bytes: &[u8], name: &str) -> Option<Structure> {
+        let options = molgfx_api::molframe::ReadOptions::new();
+        molgfx_api::molframe::read_bytes(bytes.to_vec(), Some(name), &options)
+            .ok()
+            .map(|(structure, _)| structure)
+    }
 }
 
 /// Low-level wire-schema values.

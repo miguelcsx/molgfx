@@ -1,18 +1,27 @@
 //! Inward-facing adapter from `MolFrame`'s capsule ABI to renderer storage.
 
 use molgfx::source::{
-    AtomSelection, CoreError, MolecularProvider, SourceAtom, SourceBond, SourceTopology,
+    AtomSelection, CoreError, MolecularProvider, SourceAtom, SourceBond, SourceTopology, Structure,
     topology_identity,
 };
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 #[derive(Clone, Debug)]
 pub(super) struct NativeProvider {
     source: molframe_py::NativeStructureSource,
     topology: SourceTopology,
     identity: u64,
+    /// The structure this provider's own transported payload decodes to.
+    ///
+    /// A scene's content identity is recomputed by whoever receives the
+    /// molecule, so the producer must digest the same structure the consumer
+    /// builds. The capsule deliberately carries no Rust values across the
+    /// extension boundary, so the only view both sides share is the payload
+    /// itself; decoding it here — once, lazily — is what keeps the published
+    /// descriptor verifiable by its own consumer.
+    decoded: Arc<OnceLock<Option<Structure>>>,
 }
 
 impl NativeProvider {
@@ -48,6 +57,7 @@ impl NativeProvider {
             source,
             topology,
             identity,
+            decoded: Arc::new(OnceLock::new()),
         })
     }
 
@@ -81,6 +91,23 @@ impl MolecularProvider for NativeProvider {
                 reason: "MolFrame query evaluation failed",
             })?;
         Ok(compact(rows, self.coordinates().len()))
+    }
+
+    /// The structure this provider's own payload decodes to.
+    ///
+    /// The capsule carries no Rust values across the extension boundary, so the
+    /// consumer re-parses the transferred bytes while the producer cannot see
+    /// its own structure directly. Decoding the payload here — once, lazily —
+    /// gives both sides the same molecule to digest, which is what makes the
+    /// published content identity verifiable by its own consumer.
+    fn molframe(&self) -> Option<&Structure> {
+        self.decoded
+            .get_or_init(|| {
+                self.browser_bytes().ok().and_then(|bytes| {
+                    molgfx::source::structure_from_payload(&bytes, "structure.bcif")
+                })
+            })
+            .as_ref()
     }
 }
 
