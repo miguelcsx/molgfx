@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "molgfx"
 version = "0.1.0"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 dependencies = ["molframe>=0.1"]
 # PEP 639. maturin gained full support for the SPDX expression and
 # `license-files` in 1.9.0, which the build requirement below already covers.
