@@ -33,11 +33,7 @@ pub fn structure_hash(structure: &molgfx_core::MolecularSource) -> Box<str> {
     // descriptor that a wasm32 consumer verifies — and `usize::to_le_bytes`
     // writes eight bytes on one side and four on the other, so the two could
     // never agree. Every field in this digest is width-explicit for that reason.
-    hash.update(
-        u64::try_from(structure.coordinates().len())
-            .unwrap_or(u64::MAX)
-            .to_le_bytes(),
-    );
+    hash.update(hashed_length(structure.coordinates().len()));
     hash_coordinate_lanes(&mut hash, structure.coordinates());
     hash_atoms(&mut hash, &structure.topology().atoms);
     hash_bonds(&mut hash, &structure.topology().bonds);
@@ -144,6 +140,25 @@ fn hash_text(hash: &mut Sha256, value: Option<&str>) {
     // Width-explicit for the same reason as the coordinate count: a label
     // length written as `usize` differs between the publishing host and a
     // wasm32 consumer.
-    hash.update(u64::try_from(value.len()).unwrap_or(u64::MAX).to_le_bytes());
+    hash.update(hashed_length(value.len()));
     hash.update(value);
+}
+
+/// One length as the eight little-endian bytes this digest is defined over.
+///
+/// The digest crosses a process and an architecture boundary, so a length that
+/// encoded itself at the platform's pointer width would differ between the
+/// 64-bit host that publishes a scene and the wasm32 consumer that verifies it:
+/// `usize::to_le_bytes` writes eight bytes on one side and four on the other.
+/// The conversion is written out rather than folded through a default, because
+/// the caller decides what an unrepresentable length means here.
+fn hashed_length(length: usize) -> [u8; 8] {
+    match u64::try_from(length) {
+        Ok(width) => width.to_le_bytes(),
+        // No allocation reaches this digest on a target whose address space is
+        // narrower than `u64`, so this is unreachable in practice; it is a
+        // distinct value rather than a silent truncation, which would make two
+        // different structures share one digest.
+        Err(_) => u64::MAX.to_le_bytes(),
+    }
 }
