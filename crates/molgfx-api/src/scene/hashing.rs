@@ -28,7 +28,16 @@ pub fn structure_hash(structure: &molgfx_core::MolecularSource) -> Box<str> {
     // digest is identical either way — chunking is not part of SHA-256's output
     // — but a per-lane `update` costs a call and a buffered copy per field,
     // which dominated scene construction on large structures.
-    hash.update(structure.coordinates().len().to_le_bytes());
+    // A fixed 64-bit width, not `usize`. This digest crosses a process and an
+    // architecture boundary — a Python binding on a 64-bit host publishes the
+    // descriptor that a wasm32 consumer verifies — and `usize::to_le_bytes`
+    // writes eight bytes on one side and four on the other, so the two could
+    // never agree. Every field in this digest is width-explicit for that reason.
+    hash.update(
+        u64::try_from(structure.coordinates().len())
+            .unwrap_or(u64::MAX)
+            .to_le_bytes(),
+    );
     hash_coordinate_lanes(&mut hash, structure.coordinates());
     hash_atoms(&mut hash, &structure.topology().atoms);
     hash_bonds(&mut hash, &structure.topology().bonds);
@@ -132,6 +141,9 @@ fn hash_seq_id(hash: &mut Sha256, value: Option<i32>) {
 
 fn hash_text(hash: &mut Sha256, value: Option<&str>) {
     let value = value.map_or(&[][..], str::as_bytes);
-    hash.update(value.len().to_le_bytes());
+    // Width-explicit for the same reason as the coordinate count: a label
+    // length written as `usize` differs between the publishing host and a
+    // wasm32 consumer.
+    hash.update(u64::try_from(value.len()).unwrap_or(u64::MAX).to_le_bytes());
     hash.update(value);
 }
