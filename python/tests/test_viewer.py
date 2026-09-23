@@ -405,10 +405,16 @@ class ViewerPageTests(unittest.TestCase):
     def test_resize_reconfigures_the_canvas(self):
         self.runtime()
         before = self.page.evaluate("document.querySelector('canvas').width")
+
         self.page.set_viewport_size({"width": 900, "height": 600})
-        self.page.wait_for_timeout(300)
-        self.assertNotEqual(
-            self.page.evaluate("document.querySelector('canvas').width"), before
+
+        # Wait for the observable change rather than sleeping a fixed span: the
+        # canvas reconfigures from a `ResizeObserver` callback, so how soon it
+        # observes the new viewport is the browser's business, and a fixed wait
+        # is a race that a slow runner loses.
+        self.page.wait_for_function(
+            "(before) => document.querySelector('canvas').width !== before",
+            arg=before,
         )
 
     def test_an_interaction_event_round_trips(self):
