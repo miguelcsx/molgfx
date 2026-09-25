@@ -9,6 +9,7 @@ simulate, or open a window; those are out of scope or the caller's job.
 
 ## Stack and tooling
 
+- **Nix** is the build system and package manager, use it over `cargo`, use `nix develop` to set up the development environment.
 - **Rust edition 2024**, stable toolchain (pinned in `rust-toolchain.toml`). No
   nightly.
 - **wgpu + WGSL** is the GPU backend; `glam` for math; `bytemuck` for GPU casts.
