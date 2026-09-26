@@ -34,6 +34,7 @@ from ._engine import (
     ScalarParameter,
     ScientificInteraction,
     SpecError,
+    system_info,
     Trajectory,
     VisualStyle,
     VectorExpr,
@@ -99,6 +100,7 @@ __all__ = [
     "profile",
     "rep",
     "sel",
+    "system_info",
     "trajectory",
     "visual",
 ]

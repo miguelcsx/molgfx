@@ -1,0 +1,21 @@
+{
+  "name": "molgfx-wasm",
+  "type": "module",
+  "description": "Thin browser bindings for molgfx over WebGPU.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/miguelcsx/molgfx"
+  },
+  "files": [
+    "molgfx_wasm_bg.wasm",
+    "molgfx_wasm.js",
+    "molgfx_wasm.d.ts"
+  ],
+  "main": "molgfx_wasm.js",
+  "types": "molgfx_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

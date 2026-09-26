@@ -123,7 +123,7 @@ impl molgfx_gpu::Device for WgpuDevice {
                         .await
                         .map_err(|software| GpuError::NoAdapter {
                             detail: format!(
-                                "requested {requested_power:?}: {primary}; fallback {fallback_power:?}: {fallback}; software fallback: {software}"
+                                "requested {requested_power:?}: {primary}; other power {fallback_power:?}: {fallback}; fallback adapter: {software}. No usable graphics API was found; on Linux install Mesa (`mesa-vulkan-drivers` or `libgl1-mesa-dri`), and see `molgfx.system_info()`"
                             ),
                         })?,
                     }

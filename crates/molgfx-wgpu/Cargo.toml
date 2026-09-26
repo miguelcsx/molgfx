@@ -26,8 +26,16 @@ wgpu = { workspace = true, features = ["std", "parking_lot", "metal", "wgsl"] }
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 wgpu = { workspace = true, features = ["std", "webgpu", "wgsl"] }
 
-[target.'cfg(not(any(target_vendor = "apple", all(target_arch = "wasm32", target_os = "unknown"))))'.dependencies]
+[target.'cfg(windows)'.dependencies]
 wgpu = { workspace = true, features = ["std", "parking_lot", "vulkan", "dx12", "wgsl"] }
+
+# Vulkan is not a given on Linux: a container, a CI runner or a hosted notebook
+# often exposes a GPU for compute only, with no Vulkan ICD. `gles` lets wgpu
+# fall back to EGL/OpenGL there (Mesa's llvmpipe included), so a wheel does not
+# assume the one API it happened to be built for. `dx12` does not exist off
+# Windows and is not requested.
+[target.'cfg(not(any(target_vendor = "apple", windows, all(target_arch = "wasm32", target_os = "unknown"))))'.dependencies]
+wgpu = { workspace = true, features = ["std", "parking_lot", "vulkan", "gles", "wgsl"] }
 
 [dev-dependencies]
 molgfx-core.workspace = true

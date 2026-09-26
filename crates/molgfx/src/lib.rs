@@ -10,6 +10,8 @@
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_api::Image;
 pub use molgfx_api::Renderer;
+#[cfg(not(target_arch = "wasm32"))]
+pub use molgfx_api::{AdapterReport, SystemInfo, system_info};
 pub use molgfx_api::{
     Anchor, AnnotationId, AnnotationSpec, Camera, Color, ColorSpec, Error, InteractionChannel,
     InteractionKind, Legend, LegendStop, MeasurementId, MeasurementSpec, Parameter, ParameterType,

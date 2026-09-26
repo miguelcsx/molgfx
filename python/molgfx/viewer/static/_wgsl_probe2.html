@@ -1,0 +1,26 @@
+<!doctype html><html><body><script>
+window.probe = async () => {
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) return {error: "no adapter"};
+  const device = await adapter.requestDevice();
+  const results = {};
+  for (const [name, body] of Object.entries({"constant": "(bitcast<f32>(0x7fc00000u)).x", "masked_by_uniform": "(bitcast<vec4f>(vec4u(0x7fc00000u | (words.x & 0u), 0u, 0u, 0u))).x", "select_on_uniform": "select(0.0, bitcast<f32>(0x7fc00000u), words.x == 0xffffffffu)", "division_at_runtime": "f32(words.x) / f32(words.x)"})) {
+    const src = `
+@group(0) @binding(0) var<uniform> words: vec4u;
+fn quiet_nan() -> f32 { return ${body}; }
+@fragment fn fs() -> @location(0) vec4f {
+  return vec4f(quiet_nan(), 0.0, 0.0, 1.0);
+}`;
+    device.pushErrorScope("validation");
+    const module = device.createShaderModule({code: src, label: name});
+    const info = await module.getCompilationInfo();
+    const messages = info.messages.map((m) => `${m.type}:${m.lineNum}: ${m.message}`);
+    const scopeError = await device.popErrorScope();
+    results[name] = {
+      compileMessages: messages,
+      error: scopeError ? String(scopeError.message).slice(0, 80) : "",
+    };
+  }
+  return results;
+};
+</script></body></html>
