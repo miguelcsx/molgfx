@@ -43,6 +43,10 @@ harness = false
 name = "scaling"
 harness = false
 
+[[bench]]
+name = "command"
+harness = false
+
 [[bin]]
 name = "focus_profile"
 path = "src/bin/focus_profile.rs"
