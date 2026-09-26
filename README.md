@@ -237,4 +237,4 @@ Those responsibilities belong to MolFrame or the embedding viewer.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/miguelcsx/molgfx/blob/main/LICENSE).

@@ -5,6 +5,29 @@ build-backend = "maturin"
 [project]
 name = "molgfx"
 version = "0.1.2"
+description = "Semantic, GPU-native molecular rendering, with interactive notebook viewers and a command console"
+readme = "README.md"
+authors = [{ name = "Miguel Cárdenas", email = "miguelecsx@gmail.com" }]
+keywords = ["molecular-visualization", "structural-biology", "webgpu", "jupyter", "rendering", "protein"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Framework :: Jupyter",
+    "Typing :: Typed",
+]
 requires-python = ">=3.12"
 dependencies = ["molframe>=0.1.2"]
 # PEP 639. maturin gained full support for the SPDX expression and
@@ -14,6 +37,12 @@ license-files = ["LICENSE"]
 
 [project.optional-dependencies]
 jupyter = ["anywidget>=0.9"]
+
+[project.urls]
+Homepage = "https://github.com/miguelcsx/molgfx"
+Repository = "https://github.com/miguelcsx/molgfx"
+Issues = "https://github.com/miguelcsx/molgfx/issues"
+Documentation = "https://github.com/miguelcsx/molgfx#readme"
 
 [tool.maturin]
 manifest-path = "crates/molgfx-py/Cargo.toml"
