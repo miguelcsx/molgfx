@@ -1,0 +1,166 @@
+# Publish the Python distribution to PyPI from a single dispatched version.
+#
+# Separate from `release.yml` on purpose: PyPI is a different registry with a
+# different trusted publisher and a different failure domain, so the two are
+# dispatched independently and either can be re-run alone.
+#
+# Authentication is OIDC via PyPI's trusted publisher (owner `miguelcsx`,
+# repository `molgfx`, workflow `release-python.yml`, environment `release`),
+# so no token is stored here.
+#
+# The Jupyter widget loads a wasm-bindgen bundle that is built, not committed.
+# It is built once, here, and dropped into every wheel, so a wheel never ships
+# a loader with nothing to load.
+
+name: Release Python
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, without the leading v (e.g. 0.1.1)"
+        required: true
+        type: string
+      dry-run:
+        description: "Build and check every wheel, then stop before uploading"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-python
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify the version input
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          declared=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')
+          manifest=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml","rb"))["workspace"]["package"]["version"])')
+          if [ "$INPUT_VERSION" != "$declared" ] || [ "$INPUT_VERSION" != "$manifest" ]; then
+            echo "::error::input $INPUT_VERSION, pyproject.toml $declared and Cargo.toml $manifest must agree"
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Python tests
+        run: |
+          set -euo pipefail
+          python -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip maturin mypy anywidget numpy 'molframe>=0.1.1'
+          maturin develop -m crates/molgfx-py/Cargo.toml
+          python -m unittest discover -s python/tests
+          python -m mypy.stubtest molgfx._engine
+
+  wasm:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Build the browser runtime
+        run: |
+          set -euo pipefail
+          cargo install wasm-pack --locked
+          wasm-pack build crates/molgfx-wasm --release --target web \
+            --out-dir ../../python/molgfx/viewer/static --out-name molgfx_wasm
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: browser-runtime
+          path: |
+            python/molgfx/viewer/static/molgfx_wasm.js
+            python/molgfx/viewer/static/molgfx_wasm_bg.wasm
+
+  wheels:
+    needs: wasm
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            label: linux-x86_64
+          - runner: ubuntu-24.04-arm
+            label: linux-aarch64
+          - runner: macos-15-intel
+            label: macos-x86_64
+          - runner: macos-14
+            label: macos-aarch64
+          - runner: windows-latest
+            label: windows-x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: browser-runtime
+          path: python/molgfx/viewer/static
+
+      # The wheels are abi3-py313, so the interpreter that installs them must
+      # be at least 3.13; a runner's default python is not guaranteed to be.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Build the wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          args: --release --out dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.label }}
+          path: dist
+
+      # A wheel that installs but cannot import, or that lost the browser
+      # runtime, is the failure this catches.
+      - name: Install and import
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv .venv
+          if [ -d .venv/Scripts ]; then py=.venv/Scripts/python; else py=.venv/bin/python; fi
+          "$py" -m pip install dist/*.whl
+          "$py" -c 'import molgfx; print("molgfx imports")'
+          listing=$("$py" -m zipfile -l dist/*.whl)
+          if ! printf '%s\n' "$listing" | grep 'viewer/static/molgfx_wasm_bg.wasm' >/dev/null; then
+            echo "::error::the wheel does not carry the browser runtime"
+            exit 1
+          fi
+
+  publish:
+    needs: wheels
+    if: ${{ !inputs.dry-run }}
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
+
+      - name: List the distribution
+        run: ls -la dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
