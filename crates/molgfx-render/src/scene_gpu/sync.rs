@@ -53,7 +53,7 @@ use crate::{ResidencyMachine, ResidencyTicket, ResidencyWorkspace};
 use molgfx_core::{
     AtomGpu, BondGpu, RepresentationHandle, Scene, SegmentationHandle, VolumeHandle,
 };
-use molgfx_gpu::{ArenaAllocation, Device, UploadTicket};
+use molgfx_gpu::{ArenaAllocation, Device, TextureFormat, UploadTicket};
 use semantic_tables::SemanticSync;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -116,7 +116,7 @@ pub(crate) struct GpuScene<D: Device> {
     pub label_render_layout: D::BindGroupLayout,
     pub overlay_layout: D::BindGroupLayout,
     pub trajectory_layout: D::BindGroupLayout,
-    pub occupancy_layout: D::BindGroupLayout,
+    pub occupancy: Option<(D::BindGroupLayout, TextureFormat)>,
     /// The scene-wide implicit-surface field cache. Fields are shared by
     /// geometry and sampling policy, so two surfaces differing only in
     /// appearance generate one field.

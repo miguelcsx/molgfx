@@ -15,6 +15,7 @@ impl<D: Device> GpuScene<D> {
         queue: &D::Queue,
         scene: &Scene,
     ) -> Result<bool, RenderError> {
+        let occupancy_bounds_format = self.occupancy.as_ref().map(|(_, format)| *format);
         let mut changed = false;
         let structures = &self.structures;
         for resource in &mut self.volume_resources {
@@ -33,10 +34,21 @@ impl<D: Device> GpuScene<D> {
                 let Some(revision) = scene.volume_content_revision(resource.handle) else {
                     continue;
                 };
+                let Some((layout, _)) = self.occupancy.as_ref() else {
+                    return Err(molgfx_gpu::GpuError::Capability {
+                        name: "temporal occupancy runtime",
+                    }
+                    .into());
+                };
                 changed |= resource.sync_occupancy(&OccupancySync {
                     device,
                     queue,
-                    layout: &self.occupancy_layout,
+                    layout,
+                    bounds_format: occupancy_bounds_format.ok_or(
+                        molgfx_gpu::GpuError::Capability {
+                            name: "temporal occupancy bounds format",
+                        },
+                    )?,
                     stream,
                     selected_rows,
                     placed,
@@ -120,8 +132,11 @@ impl<D: Device> GpuScene<D> {
     pub(crate) fn record_occupancies(
         &mut self,
         encoder: &mut D::CommandEncoder,
-        pipelines: &OccupancyPass<D>,
+        pipelines: Option<&OccupancyPass<D>>,
     ) {
+        let Some(pipelines) = pipelines else {
+            return;
+        };
         if !self
             .volume_resources
             .iter()

@@ -55,6 +55,7 @@ pub(super) struct OccupancySync<'a, D: Device> {
     pub(super) device: &'a D,
     pub(super) queue: &'a D::Queue,
     pub(super) layout: &'a D::BindGroupLayout,
+    pub(super) bounds_format: TextureFormat,
     pub(super) stream: &'a OccupancyStream,
     pub(super) selected_rows: &'a [u32],
     pub(super) placed: &'a PlacedStructure,

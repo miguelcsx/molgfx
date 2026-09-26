@@ -312,7 +312,7 @@ impl<D: Device> Engine<D> {
             structure_coordinates_changed || paged_coordinates_changed || point_coordinates_changed,
         );
         self.scene_gpu
-            .record_occupancies(encoder, &self.passes.occupancy);
+            .record_occupancies(encoder, self.passes.occupancy.as_ref());
         self.scene_gpu.record_surface_fields(
             encoder,
             &self.passes.surface_field,
@@ -332,6 +332,7 @@ impl<D: Device> Engine<D> {
         scene: &Scene,
         purpose: ImagePurpose,
     ) -> Result<ImagePreparation, RenderError> {
+        self.ensure_occupancy(scene)?;
         self.device.check_errors()?;
         if purpose == ImagePurpose::Publication {
             self.adaptive.set_publication(true);

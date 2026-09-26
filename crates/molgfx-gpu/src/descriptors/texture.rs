@@ -21,6 +21,8 @@ pub enum TextureFormat {
     Rg16Float,
     /// Two 32-bit float channels; conservative scalar-volume min/max pairs.
     Rg32Float,
+    /// Four 32-bit float channels; portable storage fallback for volume bounds.
+    Rgba32Float,
     /// Single 8-bit channel; ambient-occlusion and masks.
     R8Unorm,
     /// Single 32-bit unsigned integer; the entity-id channel.

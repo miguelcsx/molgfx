@@ -50,6 +50,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             fs::write(out_dir.join(specialized_name), specialized)?;
         }
     }
+    let occupancy = fs::read_to_string(wgsl_dir.join("compute/occupancy.wgsl"))?;
+    let occupancy_rgba = occupancy.replace(
+        "texture_storage_3d<rg32float, write>",
+        "texture_storage_3d<rgba32float, write>",
+    );
+    if let Err(diagnostic) = validate("occupancy_rgba.wgsl", &occupancy_rgba) {
+        diagnostics.push(diagnostic);
+    }
+    fs::write(out_dir.join("occupancy_rgba.wgsl"), occupancy_rgba)?;
+
     if !diagnostics.is_empty() {
         return Err(io::Error::other(diagnostics.join("\n")).into());
     }

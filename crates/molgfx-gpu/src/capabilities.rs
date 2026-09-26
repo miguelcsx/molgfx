@@ -21,6 +21,15 @@ bitflags::bitflags! {
     }
 }
 
+/// Renderer-relevant usage support for one texture format.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub struct TextureFormatCapabilities {
+    /// The format may be bound as a sampled texture.
+    pub sampled: bool,
+    /// The format may be bound as a write-only storage texture.
+    pub storage_write: bool,
+}
+
 /// What the opened device can do beyond the baseline.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct Capabilities {
@@ -34,6 +43,12 @@ pub struct Capabilities {
     pub max_texture_dim: u32,
     /// Largest 3-D texture dimension, texels.
     pub max_texture_dim_3d: u32,
+    /// `r32float` sampling and storage-write support.
+    pub r32float: TextureFormatCapabilities,
+    /// `rg32float` sampling and storage-write support.
+    pub rg32float: TextureFormatCapabilities,
+    /// `rgba32float` sampling and storage-write support.
+    pub rgba32float: TextureFormatCapabilities,
 }
 
 /// Device ceilings relevant to acceleration-structure allocation.

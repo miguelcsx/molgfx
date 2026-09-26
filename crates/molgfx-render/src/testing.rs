@@ -121,6 +121,18 @@ impl Default for MockDevice {
                 max_storage_buffers_per_shader_stage: 8,
                 max_texture_dim: 16_384,
                 max_texture_dim_3d: 2_048,
+                r32float: molgfx_gpu::TextureFormatCapabilities {
+                    sampled: true,
+                    storage_write: true,
+                },
+                rg32float: molgfx_gpu::TextureFormatCapabilities {
+                    sampled: true,
+                    storage_write: true,
+                },
+                rgba32float: molgfx_gpu::TextureFormatCapabilities {
+                    sampled: true,
+                    storage_write: true,
+                },
             },
             next_id: Arc::new(AtomicU32::new(0)),
         }

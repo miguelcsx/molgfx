@@ -127,6 +127,7 @@ pub(crate) fn texture_bytes(desc: &TextureDesc) -> Result<u64, GpuError> {
         | molgfx_gpu::TextureFormat::R32Float
         | molgfx_gpu::TextureFormat::Depth32Float => 4,
         molgfx_gpu::TextureFormat::Rgba16Float | molgfx_gpu::TextureFormat::Rg32Float => 8,
+        molgfx_gpu::TextureFormat::Rgba32Float => 16,
     };
     u64::from(desc.width.max(1))
         .checked_mul(u64::from(desc.height.max(1)))

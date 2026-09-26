@@ -18,7 +18,7 @@ mod queue;
 mod residency;
 mod surface;
 
-pub use capabilities::{Capabilities, CapabilityFlags, RayQueryLimits};
+pub use capabilities::{Capabilities, CapabilityFlags, RayQueryLimits, TextureFormatCapabilities};
 pub use descriptors::{
     AabbGeometry, AabbGeometrySize, AccelerationGeometryFlags, AccelerationIndexFormat,
     AccelerationStructureBinding, AccelerationStructureFlags, AccelerationStructureLayoutEntry,

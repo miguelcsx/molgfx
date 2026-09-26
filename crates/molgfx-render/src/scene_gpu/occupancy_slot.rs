@@ -79,7 +79,7 @@ impl<D: Device> GpuOccupancy<D> {
         let structure = input.structure;
         let asset_arena = input.asset_arena;
         let shape = occupancy_shape(device, stream.dimensions(), selected_rows.len())?;
-        let resources = create_resources(device, &shape)?;
+        let resources = create_resources(device, &shape, input.bounds_format)?;
         if !selected_rows.is_empty() {
             queue.write_buffer(
                 &resources.selected_rows,
@@ -251,6 +251,7 @@ fn occupancy_shape<D: Device>(
 fn create_resources<D: Device>(
     device: &D,
     shape: &OccupancyShape,
+    bounds_format: TextureFormat,
 ) -> Result<OccupancyResources<D>, RenderError> {
     let accumulator = device.create_buffer(&BufferDesc {
         label: "temporal occupancy fixed-point grid",
@@ -278,7 +279,7 @@ fn create_resources<D: Device>(
         device,
         "temporal occupancy bounds",
         shape.macro_dimensions,
-        TextureFormat::Rg32Float,
+        bounds_format,
     )?;
     let bounds_view = device.create_texture_view(&bounds_texture, &TextureViewDesc::default());
     Ok(OccupancyResources {

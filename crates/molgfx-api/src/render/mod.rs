@@ -71,6 +71,12 @@ pub struct Image(molgfx_render::Image);
 
 #[cfg(not(target_arch = "wasm32"))]
 impl Image {
+    /// Row-major RGBA8 pixels with no row padding.
+    #[must_use]
+    pub fn pixels(&self) -> &[u8] {
+        &self.0.pixels
+    }
+
     /// Encodes the image as PNG.
     ///
     /// # Errors

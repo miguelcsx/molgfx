@@ -50,7 +50,7 @@ pub(crate) use interaction::InteractionPass;
 pub(crate) use label::LabelPass;
 pub(crate) use lighting::LightingPass;
 pub(crate) use motion_blur::MotionBlurPass;
-pub(crate) use occupancy::OccupancyPass;
+pub(crate) use occupancy::{OccupancyBoundsFormat, OccupancyPass};
 pub(crate) use oit::OitPass;
 pub(crate) use oit_composite::OitCompositePass;
 pub(crate) use overlay::OverlayPass;

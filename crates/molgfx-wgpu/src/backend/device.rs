@@ -15,7 +15,7 @@ use super::resource::{ResourceLedger, WgpuBuffer, WgpuTexture, texture_bytes};
 
 #[path = "device/adapter.rs"]
 mod adapter;
-use adapter::{opposite_power, request_adapter, wgpu_power};
+use adapter::{opposite_power, request_adapter, select_headless_adapter, wgpu_power};
 
 #[cfg(test)]
 use super::device_caps::REQUIRED_STORAGE_BUFFERS_PER_STAGE;
@@ -42,6 +42,51 @@ impl WgpuDevice {
             });
         }
         Ok(())
+    }
+
+    async fn finish_open(
+        desc: &DeviceDesc,
+        adapter: wgpu::Adapter,
+        surface: Option<wgpu::Surface<'static>>,
+    ) -> Result<Opened<Self>, GpuError> {
+        let features = adapter.features();
+        let supported_limits = adapter.limits();
+        Self::validate_required_limits(&supported_limits)?;
+        let required_features = Self::negotiated_features(features);
+        let ray_query = required_features.contains(wgpu::Features::EXPERIMENTAL_RAY_QUERY);
+        let (device, queue) = adapter
+            .request_device(&wgpu::DeviceDescriptor {
+                label: Some("molgfx"),
+                required_features,
+                required_limits: Self::required_limits(&supported_limits, ray_query),
+                ..Default::default()
+            })
+            .await
+            .map_err(|error| GpuError::DeviceRequest {
+                detail: error.to_string(),
+            })?;
+        let capabilities =
+            Self::probe_adapter_capabilities(&adapter, device.features(), &device.limits());
+        let errors = DeviceErrors::attach(&device);
+        let surface = surface.map(|surface| {
+            let mut surface = WgpuSurface::new(surface, &adapter, &device);
+            surface.attach_queue(queue.clone());
+            surface
+        });
+        Ok(Opened {
+            device: Self {
+                device,
+                capabilities,
+                resources: Arc::new(ResourceLedger::new(desc.resource_memory_limit_bytes)),
+                errors,
+            },
+            queue: crate::queue::WgpuQueue {
+                queue,
+                next_fence: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
+                completed_fence: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            },
+            surface,
+        })
     }
 }
 
@@ -105,74 +150,37 @@ impl molgfx_gpu::Device for WgpuDevice {
                 None => None,
             };
 
-            let requested_power = wgpu_power(power);
-            let requested =
-                request_adapter(&instance, surface.as_ref(), requested_power, false).await;
-            let adapter = match requested {
-                Ok(adapter) => adapter,
-                Err(primary) => {
-                    let fallback_power = opposite_power(requested_power);
-                    match request_adapter(&instance, surface.as_ref(), fallback_power, false).await {
-                        Ok(adapter) => adapter,
-                        Err(fallback) => request_adapter(
-                            &instance,
-                            surface.as_ref(),
-                            wgpu::PowerPreference::LowPower,
-                            true,
-                        )
-                        .await
-                        .map_err(|software| GpuError::NoAdapter {
-                            detail: format!(
-                                "requested {requested_power:?}: {primary}; other power {fallback_power:?}: {fallback}; fallback adapter: {software}. No usable graphics API was found; on Linux install Mesa (`mesa-vulkan-drivers` or `libgl1-mesa-dri`), and see `molgfx.system_info()`"
-                            ),
-                        })?,
+            let adapter = if surface.is_none() {
+                select_headless_adapter(&instance, power)
+                    .await
+                    .map_err(|detail| GpuError::NoAdapter { detail })?
+            } else {
+                let requested_power = wgpu_power(power);
+                let requested =
+                    request_adapter(&instance, surface.as_ref(), requested_power, false).await;
+                match requested {
+                    Ok(adapter) => adapter,
+                    Err(primary) => {
+                        let fallback_power = opposite_power(requested_power);
+                        match request_adapter(&instance, surface.as_ref(), fallback_power, false).await {
+                            Ok(adapter) => adapter,
+                            Err(fallback) => request_adapter(
+                                &instance,
+                                surface.as_ref(),
+                                wgpu::PowerPreference::LowPower,
+                                true,
+                            )
+                            .await
+                            .map_err(|software| GpuError::NoAdapter {
+                                detail: format!(
+                                    "requested {requested_power:?}: {primary}; other power {fallback_power:?}: {fallback}; fallback adapter: {software}. No usable graphics API was found; see molgfx.system_info()"
+                                ),
+                            })?,
+                        }
                     }
                 }
             };
-
-            let features = adapter.features();
-            let supported_limits = adapter.limits();
-            Self::validate_required_limits(&supported_limits)?;
-            let required_features = Self::negotiated_features(features);
-            let ray_query = required_features.contains(wgpu::Features::EXPERIMENTAL_RAY_QUERY);
-
-            let (device, queue) = adapter
-                .request_device(&wgpu::DeviceDescriptor {
-                    label: Some("molgfx"),
-                    required_features,
-                    required_limits: Self::required_limits(&supported_limits, ray_query),
-                    ..Default::default()
-                })
-                .await
-                .map_err(|error| GpuError::DeviceRequest {
-                    detail: error.to_string(),
-                })?;
-            // Capabilities describe the opened device, not merely features the
-            // adapter could expose if requested. Reporting adapter-only ray
-            // queries or subgroups would let callers select an unusable path.
-            let capabilities = Self::probe_capabilities(device.features(), &device.limits());
-            let errors = DeviceErrors::attach(&device);
-
-            let surface = surface.map(|surface| {
-                let mut surface = WgpuSurface::new(surface, &adapter, &device);
-                surface.attach_queue(queue.clone());
-                surface
-            });
-
-            Ok(Opened {
-                device: Self {
-                    device,
-                    capabilities,
-                    resources: Arc::new(ResourceLedger::new(desc.resource_memory_limit_bytes)),
-                    errors,
-                },
-                queue: crate::queue::WgpuQueue {
-                    queue,
-                    next_fence: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
-                    completed_fence: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
-                },
-                surface,
-            })
+            Self::finish_open(desc, adapter, surface).await
         }
     }
 
