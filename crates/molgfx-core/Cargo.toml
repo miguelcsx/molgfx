@@ -29,5 +29,10 @@ rayon.workspace = true
 proptest.workspace = true
 molframe = { workspace = true, features = ["mmcif"] }
 
+# The assembly backend is GNU-syntax only, so MSVC cannot build it; every other
+# native target keeps the faster digest.
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+sha2 = { workspace = true, features = ["asm"] }
+
 [lints]
 workspace = true
