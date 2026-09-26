@@ -7,6 +7,7 @@ as a kernel does, so a page that loads here loads in Jupyter and Colab.
 """
 
 import base64
+import gzip
 import json
 from pathlib import Path
 import shutil
@@ -47,6 +48,15 @@ def _values(bench):
         "_runtime_wasm": base64.b64encode(data).decode("ascii"),
         "_runtime_key": key,
     }
+
+
+@unittest.skipUnless(_runtime()[2], "the browser runtime is not built")
+class RuntimeTransportTests(unittest.TestCase):
+    def test_the_runtime_travels_compressed_and_inflates_to_the_packaged_binary(self):
+        _code, data, _key = _runtime()
+        packaged = (STATIC / "molgfx_wasm_bg.wasm").read_bytes()
+        self.assertEqual(gzip.decompress(data), packaged)
+        self.assertLess(len(data), len(packaged) // 2)
 
 
 @unittest.skipUnless(sync_playwright is not None, "playwright is not installed")
@@ -98,6 +108,34 @@ class WorkbenchPageTests(unittest.TestCase):
             }"""
         )
         self.assertEqual(exports, ["Scene", "ScenePatch", "Renderer", "Session"])
+
+    def test_a_view_into_a_larger_buffer_decodes_to_its_own_bytes(self):
+        decoded = self.page.evaluate(
+            """async () => {
+                const {sourceBytes} = await import("./widget.js");
+                const buffer = new Uint8Array([9, 9, 1, 2, 3, 9]).buffer;
+                return [
+                    Array.from(sourceBytes(new DataView(buffer, 2, 3))),
+                    Array.from(sourceBytes(new Uint8Array(buffer, 2, 3))),
+                    Array.from(sourceBytes(buffer)),
+                ];
+            }"""
+        )
+        self.assertEqual(decoded, [[1, 2, 3], [1, 2, 3], [9, 9, 1, 2, 3, 9]])
+
+    def test_a_browser_without_webgpu_says_so_and_names_the_static_path(self):
+        page = self._browser.new_page()
+        try:
+            page.add_init_script("delete Navigator.prototype.gpu;")
+            page.goto(f"http://127.0.0.1:{self._local.port}/page.html")
+            page.wait_for_function("window.__molgfx.setupError !== ''")
+            message = page.evaluate("window.__molgfx.setupError")
+            self.assertIn("does not expose WebGPU", message)
+            self.assertIn("render_image", message)
+            self.assertIn("does not expose WebGPU", page.inner_text(".molgfx-failure"))
+            self.assertIn("does not expose WebGPU", page.evaluate("window.__molgfx.values.error"))
+        finally:
+            page.close()
 
     def test_the_same_grammar_runs_in_the_page(self):
         answer = self.page.evaluate(

@@ -1,6 +1,7 @@
 """AnyWidget transport for MolGFX's direct browser WebGPU runtime."""
 
 from functools import lru_cache
+import gzip
 from hashlib import sha256
 from pathlib import Path
 import json
@@ -18,7 +19,10 @@ def _runtime():
 
     A notebook frontend loads the widget module from a blob URL, where the
     runtime beside it cannot be imported by a relative path, so both parts are
-    sent as widget state. A checkout without a built runtime sends nothing and
+    sent as widget state. The binary travels gzip-compressed -- a quarter of
+    its size, which is what a hosted kernel such as Colab's sends over the
+    network for every view -- and the page inflates it with the browser's own
+    `DecompressionStream`. A checkout without a built runtime sends nothing and
     the page falls back to importing it beside the module.
     """
     glue = _STATIC / "molgfx_wasm.js"
@@ -27,7 +31,7 @@ def _runtime():
         return "", b"", ""
     code = glue.read_text(encoding="utf-8")
     data = binary.read_bytes()
-    return code, data, sha256(data).hexdigest()[:16]
+    return code, gzip.compress(data, mtime=0), sha256(data).hexdigest()[:16]
 
 
 class Viewer(anywidget.AnyWidget):

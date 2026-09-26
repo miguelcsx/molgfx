@@ -14,7 +14,7 @@ export function loadRuntime(model) {
         const url = URL.createObjectURL(new Blob([glue], {type: "text/javascript"}));
         try {
           const runtime = await import(url);
-          await runtime.default({module_or_path: sourceBytes(model.get("_runtime_wasm"))});
+          await runtime.default({module_or_path: await inflate(sourceBytes(model.get("_runtime_wasm")))});
           return runtime;
         } finally {
           URL.revokeObjectURL(url);
@@ -35,8 +35,44 @@ function dimensions(canvas) {
   return [width, height];
 }
 
-function sourceBytes(value) {
-  return value instanceof Uint8Array ? value : new Uint8Array(value.buffer || value);
+/// The bytes of a synced `Bytes` trait, whichever view the frontend delivers.
+///
+/// JupyterLab hands over a `DataView`, other widget managers an `ArrayBuffer`
+/// or a typed array. A view may cover only part of its buffer, so its offset
+/// and length are kept rather than reading the whole underlying buffer.
+export function sourceBytes(value) {
+  if (value instanceof Uint8Array) return value;
+  if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  throw new Error(`expected binary widget state, received ${Object.prototype.toString.call(value)}`);
+}
+
+/// The runtime binary, inflated from the gzip stream the kernel sends.
+async function inflate(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+/// Fails early, and says what to do, where the browser has no WebGPU.
+///
+/// The interactive viewer draws with WebGPU in the page. A browser without it
+/// would otherwise fail deep inside the runtime with a message that names
+/// neither the cause nor a way around it.
+async function requireWebGPU() {
+  const fallback = "A static image needs no browser GPU: molgfx.Renderer().render_image(scene) renders in the kernel.";
+  if (!("gpu" in navigator)) {
+    throw new Error(
+      "this browser does not expose WebGPU, which the interactive viewer needs. "
+      + "Use a current Chrome, Edge or Safari, or Firefox 141 or later; on Linux, Chrome may need "
+      + "chrome://flags/#enable-unsafe-webgpu. " + fallback,
+    );
+  }
+  if ((await navigator.gpu.requestAdapter()) === null) {
+    throw new Error(
+      "WebGPU is present but no GPU adapter is available (it may be disabled, or blocklisted for this GPU "
+      + "driver; chrome://gpu shows why). " + fallback,
+    );
+  }
 }
 
 async function buildScene(model, {Scene}) {
@@ -100,6 +136,7 @@ async function mount({model, el}) {
   canvas.className = "molgfx-canvas";
   el.appendChild(canvas);
   const detach = model.get("workbench") ? mountConsole(model, el) : () => {};
+  await requireWebGPU();
   const runtime = await loadRuntime(model);
   const {Renderer, ScenePatch} = runtime;
 
