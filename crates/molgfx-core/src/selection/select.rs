@@ -1,11 +1,7 @@
-//! Typed selection IR and its compact string front-end.
+//! Typed selection IR for world-space and topology predicates.
 
 use crate::{CoreError, SecondaryStructure};
 use molgfx_math::Vec3;
-use std::str::FromStr;
-
-#[path = "parser.rs"]
-mod parser;
 
 #[cfg(test)]
 #[path = "select_tests.rs"]
@@ -339,14 +335,6 @@ impl Select {
     #[must_use]
     pub fn negate(self) -> Self {
         Self(SelectExpr::Not(Box::new(self.0)))
-    }
-}
-
-impl FromStr for Select {
-    type Err = CoreError;
-
-    fn from_str(source: &str) -> Result<Self, Self::Err> {
-        parser::parse(source)
     }
 }
 
