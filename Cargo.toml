@@ -45,7 +45,7 @@ native-only-targets = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.98.1"
 license = "MIT"
@@ -55,24 +55,24 @@ categories = ["science", "rendering", "visualization"]
 
 [workspace.dependencies]
 # Internal crates (layered; a crate depends only on lower layers).
-molgfx = { version = "0.1.0", path = "crates/molgfx" }
-molgfx-math = { version = "0.1.0", path = "crates/molgfx-math" }
-molgfx-core = { version = "0.1.0", path = "crates/molgfx-core" }
-molgfx-gpu = { version = "0.1.0", path = "crates/molgfx-gpu" }
-molgfx-wgpu = { version = "0.1.0", path = "crates/molgfx-wgpu" }
-molgfx-shaders = { version = "0.1.0", path = "crates/molgfx-shaders" }
-molgfx-geometry = { version = "0.1.0", path = "crates/molgfx-geometry" }
-molgfx-render = { version = "0.1.0", path = "crates/molgfx-render" }
-molgfx-semantic = { version = "0.1.0", path = "crates/molgfx-semantic" }
-molgfx-api = { version = "0.1.0", path = "crates/molgfx-api" }
+molgfx = { version = "0.1.1", path = "crates/molgfx" }
+molgfx-math = { version = "0.1.1", path = "crates/molgfx-math" }
+molgfx-core = { version = "0.1.1", path = "crates/molgfx-core" }
+molgfx-gpu = { version = "0.1.1", path = "crates/molgfx-gpu" }
+molgfx-wgpu = { version = "0.1.1", path = "crates/molgfx-wgpu" }
+molgfx-shaders = { version = "0.1.1", path = "crates/molgfx-shaders" }
+molgfx-geometry = { version = "0.1.1", path = "crates/molgfx-geometry" }
+molgfx-render = { version = "0.1.1", path = "crates/molgfx-render" }
+molgfx-semantic = { version = "0.1.1", path = "crates/molgfx-semantic" }
+molgfx-api = { version = "0.1.1", path = "crates/molgfx-api" }
 
 # The structural model and every detection the engine consumes, from crates.io.
 # The publishable crates must resolve `molframe` from the registry, so this is a
 # plain version requirement; a git pin would make Cargo refuse to package them.
-molframe = { version = "0.1.0", default-features = false, features = ["mmcif", "bcif", "pdb"] }
+molframe = { version = "0.1.2", default-features = false, features = ["mmcif", "bcif", "pdb"] }
 # The provider's Python bridge names its library target `_native`, so the
 # dependency is renamed back to the package name for `molframe_py::` to resolve.
-molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "3a4521e07a6d66f8dce4443342183cfed7754d71", default-features = false }
+molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "c5205ded8f063f5a94b18c05e277eab461077c77", default-features = false }
 
 # Python ABI shared by the thin binding crate and the sibling molframe bridge.
 pyo3 = "0.29"
@@ -142,4 +142,4 @@ lto = "thin"
 # match. `[patch]` only applies to this workspace's own builds; the published
 # crates still resolve `molframe` from the registry.
 [patch.crates-io]
-molframe = { git = "https://github.com/miguelcsx/molframe", rev = "3a4521e07a6d66f8dce4443342183cfed7754d71" }
+molframe = { git = "https://github.com/miguelcsx/molframe", rev = "c5205ded8f063f5a94b18c05e277eab461077c77" }

@@ -1,7 +1,10 @@
 use super::*;
 
 fn scene() -> Scene {
-    let source = "\
+    scene_from(SOURCE)
+}
+
+const SOURCE: &str = "\
 data_query
 loop_
 _entity.id
@@ -35,6 +38,8 @@ ATOM 1 C CA GLY A 1 1 0 0 0
 HETATM 2 C C1 LIG L 2 . 1 0 0
 HETATM 3 O O HOH W 3 . 5 0 0
 ";
+
+fn scene_from(source: &str) -> Scene {
     let structure = match molframe::read_bytes(
         source.as_bytes().to_vec(),
         Some("query.cif"),
@@ -77,8 +82,23 @@ fn entity_queries_follow_declared_pdbx_semantics() {
 }
 
 #[test]
-fn absent_polymer_classification_is_never_guessed_from_component_names() {
+fn a_declared_polypeptide_is_protein() {
     let mut scene = scene();
+    let protein = match scene.select(Select::protein()) {
+        Ok(selection) => selection,
+        Err(error) => panic!("protein query executes: {error}"),
+    };
+    assert_eq!(rows(&scene, protein), vec![0]);
+}
+
+#[test]
+fn absent_polymer_classification_is_never_guessed_from_component_names() {
+    let undeclared = SOURCE.replace(
+        "loop_\n_entity_poly.entity_id\n_entity_poly.type\n1 polypeptide(L)\n",
+        "",
+    );
+    assert_ne!(undeclared, SOURCE, "the fixture declares a polymer type");
+    let mut scene = scene_from(&undeclared);
     let protein = match scene.select(Select::protein()) {
         Ok(selection) => selection,
         Err(error) => panic!("protein query executes: {error}"),
