@@ -84,7 +84,9 @@ Python uses the same contract and MolFrame selection objects:
 import molframe
 import molgfx
 
-structure = molframe.read("structure.cif")
+# mmCIF lists only the bonds between residues and ligands; inferring the rest
+# gives ball-and-stick, licorice and lines their sticks.
+structure = molframe.read("structure.cif").infer_bonds()
 scene = molgfx.Scene(structure)
 scene.add(molgfx.rep.cartoon(target=molgfx.sel.protein()))
 scene.add(molgfx.rep.ball_and_stick(target=molgfx.sel.ligands()))
@@ -151,7 +153,7 @@ the canvas:
 import molframe, molgfx
 from molgfx.viewer import Workbench
 
-bench = Workbench(molframe.read("4hhb.cif"))
+bench = Workbench(molframe.read("4hhb.cif").infer_bonds())
 bench.execute("show cartoon, protein; select heme, resname HEM; show spacefill, $heme")
 bench  # type more commands in the page; Tab completes, arrow keys recall
 ```

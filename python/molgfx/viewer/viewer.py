@@ -50,6 +50,11 @@ class Viewer(anywidget.AnyWidget):
     selection = traitlets.Unicode().tag(sync=True)
     camera = traitlets.Dict().tag(sync=True)
     error = traitlets.Unicode().tag(sync=True)
+    # The scene revision the kernel has published. A view that mounts after
+    # patches went by -- displayed late, displayed twice, or reloaded -- sees
+    # that it is behind and asks for the current specification once.
+    revision = traitlets.Int(0).tag(sync=True)
+    sync_request = traitlets.Int(0).tag(sync=True)
 
     def __init__(self, scene, **kwargs):
         """Bind a scene and its compact BinaryCIF sources to the browser."""
@@ -62,6 +67,7 @@ class Viewer(anywidget.AnyWidget):
             _runtime_wasm=data,
             _runtime_key=key,
             scene_spec=scene.to_json(),
+            revision=json.loads(scene.to_json()).get("revision", 0),
             structure_ids=list(self._structures),
             structure_names=[entry[0] for entry in self._structures.values()],
             structure_payloads=[entry[1] for entry in self._structures.values()],
@@ -69,6 +75,11 @@ class Viewer(anywidget.AnyWidget):
         )
         self._subscription = weakref.WeakMethod(self._on_scene_patch)
         scene._subscribe(self._subscription)
+        self.observe(self._on_sync_request, names="sync_request")
+
+    def _on_sync_request(self, _change):
+        """Send the current specification to a view that fell behind."""
+        self.scene_spec = self._scene.to_json()
 
     def _materialize(self, sources):
         """Record each structure's payload the first time it is announced."""
@@ -93,7 +104,10 @@ class Viewer(anywidget.AnyWidget):
 
     def _on_scene_patch(self, patch_json):
         """Forward one already-committed semantic patch to the browser."""
-        operations = json.loads(patch_json).get("operations", [])
+        patch = json.loads(patch_json)
+        operations = patch.get("operations", [])
+        if operations:
+            self.revision = patch.get("base_revision", 0) + 1
         if any(operation.get("op") == "add_structure" for operation in operations):
             self._resync_structures()
             return

@@ -11,6 +11,8 @@ class Viewer:
     selection: str
     camera: dict[str, object]
     error: str
+    revision: int
+    sync_request: int
     def __init__(self, scene: Scene, **kwargs: object) -> None: ...
     def apply(self, patch: ScenePatch) -> None: ...
 

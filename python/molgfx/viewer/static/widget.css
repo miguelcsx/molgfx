@@ -49,3 +49,11 @@
 }
 .molgfx-status { margin: 0; padding: 2px 10px 6px; color: #6b7385; white-space: pre-wrap; }
 .molgfx-status.molgfx-error { color: #ebcb8b; }
+
+.molgfx-failure {
+  margin: 0;
+  padding: 8px 10px;
+  color: #bf616a;
+  background: #11141b;
+  white-space: pre-wrap;
+}

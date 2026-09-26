@@ -57,6 +57,11 @@ async function buildScene(model, {Scene}) {
   return scene;
 }
 
+function requestSync(model) {
+  model.set("sync_request", (model.get("sync_request") || 0) + 1);
+  model.save_changes();
+}
+
 function report(model, error) {
   model.set("error", error instanceof Error ? error.message : String(error));
   model.save_changes();
@@ -90,7 +95,7 @@ function publishCamera(model, camera) {
   model.save_changes();
 }
 
-export async function render({model, el}) {
+async function mount({model, el}) {
   const canvas = document.createElement("canvas");
   canvas.className = "molgfx-canvas";
   el.appendChild(canvas);
@@ -100,6 +105,9 @@ export async function render({model, el}) {
 
   let scene = await buildScene(model, runtime);
   const renderer = await Renderer.create(canvas);
+  // Patches that went by before this view mounted are not replayed; a view
+  // that is behind asks the kernel for the current specification instead.
+  const behind = () => Number(scene.revision) !== model.get("revision");
   let camera;
   const draw = () => {
     const [width, height] = dimensions(canvas);
@@ -136,6 +144,10 @@ export async function render({model, el}) {
   const patch = () => {
     try {
       const encoded = model.get("scene_patch");
+      if (JSON.parse(encoded).base_revision !== Number(scene.revision)) {
+        requestSync(model);
+        return;
+      }
       scene.apply(new ScenePatch(encoded));
       const operations = JSON.parse(encoded).operations;
       if (operations.some((operation) => operation.op === "set_camera")) {
@@ -191,6 +203,7 @@ export async function render({model, el}) {
   canvas.addEventListener("pointerup", pointerUp);
   canvas.addEventListener("wheel", wheel, {passive: false});
   draw();
+  if (behind()) requestSync(model);
 
   return () => {
     detach();
@@ -204,6 +217,25 @@ export async function render({model, el}) {
     canvas.removeEventListener("wheel", wheel);
   };
 }
+
+/// Mounts the viewer, and makes any failure visible.
+///
+/// A failure while starting — no WebGPU adapter, a runtime that will not
+/// instantiate, a structure that will not decode — would otherwise leave an
+/// empty canvas, with the reason only in the browser console. It is written
+/// into the output and into the `error` trait, where the kernel can read it.
+async function render({model, el}) {
+  try {
+    return await mount({model, el});
+  } catch (error) {
+    report(model, error);
+    const message = element("pre", "molgfx-failure", `MolGFX viewer could not start: ${error instanceof Error ? error.message : String(error)}`);
+    el.appendChild(message);
+    throw error;
+  }
+}
+
+export default {render};
 
 // ---------------------------------------------------------------------------
 // Command console (Workbench only)
