@@ -26,5 +26,10 @@ zip.workspace = true
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 web-sys.workspace = true
 
+# The assembly backend is GNU-syntax only, so MSVC cannot build it; every other
+# native target keeps the faster digest.
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+sha2 = { workspace = true, features = ["asm"] }
+
 [lints]
 workspace = true
