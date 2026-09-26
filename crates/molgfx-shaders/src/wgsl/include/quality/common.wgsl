@@ -14,7 +14,7 @@
 //!include "include/visual/fragment.wgsl"
 //!include "include/quality/analytic.wgsl"
 
-@group(1) @binding(0) var depth_texture: texture_depth_2d;
+@group(1) @binding(0) var depth_texture: texture_2d<f32>;
 @group(1) @binding(1) var normal_texture: texture_2d<f32>;
 @group(2) @binding(21) var<storage, read> quality_bond_data: array<u32>;
 
@@ -135,7 +135,7 @@ fn box_interval(origin: vec3f, inverse_direction: vec3f, lower: vec3f, upper: ve
 fn fs_quality_ao(in: FullscreenOut) -> @location(0) vec4f {
     let dimensions = vec2i(textureDimensions(depth_texture));
     let pixel = clamp(vec2i(in.position.xy), vec2i(0), dimensions - 1);
-    let depth = textureLoad(depth_texture, pixel, 0);
+    let depth = textureLoad(depth_texture, pixel, 0).x;
     if depth <= 0.0 {
         return vec4f(0.0);
     }

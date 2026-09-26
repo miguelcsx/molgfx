@@ -17,9 +17,9 @@ struct GenericPointConfig {
 struct GenericPointVertex {
     @builtin(position) position: vec4f,
     @location(0) ray_xy: vec2f,
-    @location(1) @interpolate(flat, first) center_radius: vec4f,
-    @location(2) @interpolate(flat, first) color: vec4f,
-    @location(3) @interpolate(flat, first) identity: vec3u,
+    @location(1) @interpolate(flat, either) center_radius: vec4f,
+    @location(2) @interpolate(flat, either) color: vec4f,
+    @location(3) @interpolate(flat, either) identity: vec3u,
 }
 
 struct GenericPointOutput {

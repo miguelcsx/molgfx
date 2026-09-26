@@ -17,26 +17,26 @@ const BOND_CAP_MATERIAL: f32 = 0.05;
 struct BondLineVsOut {
     @builtin(position) position: vec4f,
 
-    @location(0) @interpolate(flat, first) endpoint_a: vec3f,
-    @location(1) @interpolate(flat, first) endpoint_axis: vec3f,
+    @location(0) @interpolate(flat, either) endpoint_a: vec3f,
+    @location(1) @interpolate(flat, either) endpoint_axis: vec3f,
 
     // xy = pixel A, zw = pixel-space axis.
-    @location(2) @interpolate(flat, first) pixel_a_axis: vec4f,
+    @location(2) @interpolate(flat, either) pixel_a_axis: vec4f,
 
-    @location(3) @interpolate(flat, first) color_a: vec4f,
-    @location(4) @interpolate(flat, first) color_delta: vec4f,
+    @location(3) @interpolate(flat, either) color_a: vec4f,
+    @location(4) @interpolate(flat, either) color_delta: vec4f,
 
     // xy = motion A, zw = motion delta.
-    @location(5) @interpolate(flat, first) motion_a_delta: vec4f,
+    @location(5) @interpolate(flat, either) motion_a_delta: vec4f,
 
     // x = roughness
     // y = inverse pixel-axis length squared
     // z = half-width squared
     // w = material payload
-    @location(6) @interpolate(flat, first) aux: vec4f,
+    @location(6) @interpolate(flat, either) aux: vec4f,
 
-    @location(7) @interpolate(flat, first) entity_id: u32,
-    @location(8) @interpolate(flat, first) atom_entities: vec2u,
+    @location(7) @interpolate(flat, either) entity_id: u32,
+    @location(8) @interpolate(flat, either) atom_entities: vec2u,
 }
 
 struct BondCapsuleVsOut {
@@ -46,23 +46,23 @@ struct BondCapsuleVsOut {
     @location(0) ray_xy: vec2f,
 
     // xyz = endpoint A, w = radius.
-    @location(1) @interpolate(flat, first) endpoint_a_radius: vec4f,
+    @location(1) @interpolate(flat, either) endpoint_a_radius: vec4f,
 
     // xyz = endpoint B, w = inverse axis length squared.
-    @location(2) @interpolate(flat, first) endpoint_b_inv_axis_sq: vec4f,
+    @location(2) @interpolate(flat, either) endpoint_b_inv_axis_sq: vec4f,
 
-    @location(3) @interpolate(flat, first) color_a: vec4f,
-    @location(4) @interpolate(flat, first) color_delta: vec4f,
-    @location(5) @interpolate(flat, first) motion_a_delta: vec4f,
+    @location(3) @interpolate(flat, either) color_a: vec4f,
+    @location(4) @interpolate(flat, either) color_delta: vec4f,
+    @location(5) @interpolate(flat, either) motion_a_delta: vec4f,
 
     // x = regular roughness
     // y = clipping-cap roughness
     // z = inverse radius
     // w = regular material payload
-    @location(6) @interpolate(flat, first) aux: vec4f,
+    @location(6) @interpolate(flat, either) aux: vec4f,
 
-    @location(7) @interpolate(flat, first) entity_id: u32,
-    @location(8) @interpolate(flat, first) atom_entities: vec2u,
+    @location(7) @interpolate(flat, either) entity_id: u32,
+    @location(8) @interpolate(flat, either) atom_entities: vec2u,
 }
 
 struct BondLineHit {

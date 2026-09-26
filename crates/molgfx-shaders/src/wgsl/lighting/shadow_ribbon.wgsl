@@ -41,7 +41,7 @@ struct ShadowRibbonOut {
     @location(1) world_position: vec3f,
     @location(2) world_normal: vec3f,
     @location(3) color: vec4f,
-    @location(4) @interpolate(flat) entity_id: u32,
+    @location(4) @interpolate(flat, either) entity_id: u32,
 }
 
 @vertex

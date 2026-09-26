@@ -21,25 +21,25 @@ struct SphereVsOut {
 
     // xyz = view-space center
     // w   = radius
-    @location(1) @interpolate(flat, first) center_radius: vec4f,
+    @location(1) @interpolate(flat, either) center_radius: vec4f,
 
-    @location(2) @interpolate(flat, first) color: vec4f,
+    @location(2) @interpolate(flat, either) color: vec4f,
 
     // xyz = previous world-center offset
     // w   = transparent edge softness in pixels
-    @location(3) @interpolate(flat, first) previous_softness: vec4f,
+    @location(3) @interpolate(flat, either) previous_softness: vec4f,
 
     // x = regular roughness
     // y = clipping-cap roughness
     // z = regular material payload
     // w = inverse radius
-    @location(4) @interpolate(flat, first) material: vec4f,
+    @location(4) @interpolate(flat, either) material: vec4f,
 
-    @location(5) @interpolate(flat, first) entity_id: u32,
+    @location(5) @interpolate(flat, either) entity_id: u32,
 
     // The packed semantic word: the three colour-scheme palette indices, the
     // caller's own tags and the record's packed softness.
-    @location(6) @interpolate(flat, first) semantic: u32,
+    @location(6) @interpolate(flat, either) semantic: u32,
 }
 
 struct SphereGeometry {

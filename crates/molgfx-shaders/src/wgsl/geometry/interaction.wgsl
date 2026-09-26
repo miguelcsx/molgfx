@@ -26,22 +26,22 @@ struct InteractionVsOut {
     @builtin(position) position: vec4f,
 
     // xy = pixel start, zw = normalized screen axis.
-    @location(0) @interpolate(flat) pixel_start_axis: vec4f,
+    @location(0) @interpolate(flat, either) pixel_start_axis: vec4f,
 
     // x = length, y = inverse length, z = radius, w = phase / period.
-    @location(1) @interpolate(flat) metrics: vec4f,
+    @location(1) @interpolate(flat, either) metrics: vec4f,
 
     // x = inverse period, y = duty, z = arrow size, w = length / period.
-    @location(2) @interpolate(flat) style: vec4f,
+    @location(2) @interpolate(flat, either) style: vec4f,
 
     // x = start NDC depth, y = end-start NDC depth.
-    @location(3) @interpolate(flat) depth_zw: vec4f,
+    @location(3) @interpolate(flat, either) depth_zw: vec4f,
 
     // Alpha already includes the glyph opacity multiplier.
-    @location(4) @interpolate(flat) color: vec4f,
+    @location(4) @interpolate(flat, either) color: vec4f,
 
     // x = entity, y = structure, z = pattern, w = directional.
-    @location(5) @interpolate(flat) metadata: vec4u,
+    @location(5) @interpolate(flat, either) metadata: vec4u,
 }
 
 struct InteractionHit {

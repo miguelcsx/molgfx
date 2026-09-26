@@ -160,11 +160,11 @@ fn cull_paged_bonds(
 struct PagedBondVertex {
     @builtin(position) position: vec4f,
     @location(0) ray_xy: vec2f,
-    @location(1) @interpolate(flat) endpoint_a_radius: vec4f,
-    @location(2) @interpolate(flat) endpoint_b_inv_axis_sq: vec4f,
-    @location(3) @interpolate(flat) color: u32,
-    @location(4) @interpolate(flat) local_row: u32,
-    @location(5) @interpolate(flat) pick_page: u32,
+    @location(1) @interpolate(flat, either) endpoint_a_radius: vec4f,
+    @location(2) @interpolate(flat, either) endpoint_b_inv_axis_sq: vec4f,
+    @location(3) @interpolate(flat, either) color: u32,
+    @location(4) @interpolate(flat, either) local_row: u32,
+    @location(5) @interpolate(flat, either) pick_page: u32,
 }
 
 @vertex

@@ -64,7 +64,7 @@ fn illustration_cues_active(
                 depth_texture,
                 sample_pixel,
                 0,
-            );
+            ).x;
 
         if sample_depth <= 0.0 {
             if need_edge {

@@ -142,8 +142,12 @@ pub(crate) fn binding_type(ty: BindingType) -> wgpu::BindingType {
             format: texture_format(format),
             view_dimension: wgpu::TextureViewDimension::D3,
         },
+        // Depth is read raw, never compared, so it binds as an unfilterable
+        // float texture: a depth format accepts that sample type, and a raw
+        // load from it translates to every shading language, whereas a load
+        // from a depth-typed texture has no GLSL equivalent.
         BindingType::DepthTexture => wgpu::BindingType::Texture {
-            sample_type: wgpu::TextureSampleType::Depth,
+            sample_type: wgpu::TextureSampleType::Float { filterable: false },
             view_dimension: wgpu::TextureViewDimension::D2,
             multisampled: false,
         },

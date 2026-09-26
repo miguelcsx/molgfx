@@ -159,7 +159,7 @@ fn opaque_distance(
             oit_depth_texture,
             pixel,
             0,
-        );
+        ).x;
 
     if depth <= 0.0 ||
         abs(ray.view_direction_z) <=

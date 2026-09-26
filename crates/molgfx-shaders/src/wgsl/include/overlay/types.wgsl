@@ -47,8 +47,8 @@ struct GlyphVsOut {
     @builtin(position) position: vec4f,
 
     @location(0) local_point: vec2f,
-    @location(1) @interpolate(flat, first) color: vec4f,
-    @location(2) @interpolate(flat, first) bits: vec2u,
+    @location(1) @interpolate(flat, either) color: vec4f,
+    @location(2) @interpolate(flat, either) bits: vec2u,
 }
 
 struct GradientVsOut {
@@ -60,7 +60,7 @@ struct LineVsOut {
     @builtin(position) position: vec4f,
 
     @location(0) across: f32,
-    @location(1) @interpolate(flat, first) color: vec4f,
+    @location(1) @interpolate(flat, either) color: vec4f,
 }
 
 /// Returns triangle-list coordinates in [0, 1].

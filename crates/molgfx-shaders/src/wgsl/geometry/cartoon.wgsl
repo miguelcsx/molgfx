@@ -69,7 +69,7 @@ struct CartoonVsOut {
     @location(1) color: vec4f,
     @location(2) view_position: vec3f,
     @location(3) motion: vec2f,
-    @location(4) @interpolate(flat) entity_id: u32,
+    @location(4) @interpolate(flat, either) entity_id: u32,
 
     // Signed distance to each clip plane; an inactive plane stays positive.
     @location(5) clip: vec4f,
@@ -84,7 +84,7 @@ struct CartoonFsIn {
     @location(1) color: vec4f,
     @location(2) view_position: vec3f,
     @location(3) motion: vec2f,
-    @location(4) @interpolate(flat) entity_id: u32,
+    @location(4) @interpolate(flat, either) entity_id: u32,
 
     @location(5) clip: vec4f,
 }

@@ -12,7 +12,7 @@ fn subject_coverage(
             depth_texture,
             pixel,
             0,
-        );
+        ).x;
 
     let opaque =
         select(

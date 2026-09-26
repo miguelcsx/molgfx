@@ -12,5 +12,11 @@ categories.workspace = true
 [build-dependencies]
 naga.workspace = true
 
+[dev-dependencies]
+# The OpenGL backend translates every WGSL unit to GLSL through naga at
+# pipeline creation. Doing the same translation in a test catches a construct
+# that backend rejects without needing a GL driver.
+naga = { workspace = true, features = ["glsl-out"] }
+
 [lints]
 workspace = true

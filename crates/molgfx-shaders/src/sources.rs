@@ -209,3 +209,7 @@ pub const MOTION_BLUR: &str = include_str!(concat!(env!("OUT_DIR"), "/motion_blu
 #[cfg(test)]
 #[path = "sources_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "sources_gl_tests.rs"]
+mod gl_tests;
