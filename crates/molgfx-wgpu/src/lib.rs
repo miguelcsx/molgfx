@@ -10,6 +10,8 @@ mod backend;
 
 pub(crate) use backend::{convert, device, encoder, queue, surface};
 
+#[cfg(not(target_arch = "wasm32"))]
+pub use backend::{AdapterReport, SystemInfo, system_info};
 pub use backend::{
     WgpuBuffer, WgpuCommandEncoder, WgpuDevice, WgpuQueue, WgpuSurface, WgpuTexture,
 };

@@ -3,7 +3,7 @@
 use crate::binding::error;
 use crate::scene_binding::PyScene;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyBytes, PyModule};
+use pyo3::types::{PyAny, PyBytes, PyDict, PyList, PyModule};
 
 #[derive(Clone, Debug)]
 #[pyclass(name = "PickResult", frozen, skip_from_py_object)]
@@ -118,7 +118,28 @@ impl PyRenderer {
     }
 }
 
+/// What the build carries and what the host offers, for diagnosing a failed
+/// `Renderer()`.
+#[pyfunction]
+fn system_info(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
+    let info = py.detach(molgfx::system_info);
+    let adapters = PyList::empty(py);
+    for adapter in &info.adapters {
+        let entry = PyDict::new(py);
+        entry.set_item("name", &adapter.name)?;
+        entry.set_item("backend", adapter.backend)?;
+        entry.set_item("type", adapter.device_type)?;
+        adapters.append(entry)?;
+    }
+    let report = PyDict::new(py);
+    report.set_item("platform", info.platform)?;
+    report.set_item("compiled_backends", info.compiled_backends)?;
+    report.set_item("available_adapters", adapters)?;
+    Ok(report)
+}
+
 pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_function(wrap_pyfunction!(system_info, module)?)?;
     module.add_class::<PyPickResult>()?;
     module.add_class::<PyImage>()?;
     module.add_class::<PyRenderer>()

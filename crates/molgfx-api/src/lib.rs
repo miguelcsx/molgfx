@@ -32,6 +32,8 @@ pub use id::{
     TrajectoryId, VolumeId,
 };
 pub use interop::{Diagnostic, MvsDocument, MvsImport, from_mvsj, from_mvsx, to_mvsj, to_mvsx};
+#[cfg(not(target_arch = "wasm32"))]
+pub use molgfx_wgpu::{AdapterReport, SystemInfo, system_info};
 pub use patch::{PatchOperation, ScenePatch};
 pub use profile::{Quality, RenderProfile};
 pub use property::{PropertySpec, ScalarProperty, ScalarPropertyBinding};

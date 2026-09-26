@@ -74,6 +74,28 @@ jobs:
       - run: python -m unittest discover -s python/tests
       - run: python -m mypy.stubtest molgfx._engine
 
+  # Builds the extension in release form and renders a PNG on a host with no
+  # GPU, through Mesa's software Vulkan/GL: `import molgfx` alone would not
+  # notice a build without a usable graphics backend.
+  headless-render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libvulkan1 mesa-vulkan-drivers libgl1-mesa-dri libegl1
+      - run: |
+          python -m venv .venv
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+      - run: python -m pip install --upgrade pip maturin anywidget numpy 'molframe>=0.1.2'
+      - run: maturin develop --release -m crates/molgfx-py/Cargo.toml
+      - run: python python/tests/headless_render.py
+
   browser:
     runs-on: ubuntu-latest
     steps:
