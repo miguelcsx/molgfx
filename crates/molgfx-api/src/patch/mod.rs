@@ -1,11 +1,17 @@
 //! Atomic revision-checked semantic scene edits.
 
+pub(crate) mod appearance_ops;
+mod inverse;
 pub(crate) mod plan;
 pub(crate) mod science_ops;
+#[cfg(test)]
+mod tests;
 
+use crate::appearance::AppearanceRuleSpec;
+use crate::color::ColorSpec;
 use crate::id::{
-    AnnotationId, MeasurementId, RepresentationId, ScientificInteractionId, StructureId,
-    TrajectoryId, VolumeId,
+    AnnotationId, AppearanceRuleId, MeasurementId, RepresentationId, ScientificInteractionId,
+    StructureId, TrajectoryId, VolumeId,
 };
 use crate::representation::Selection;
 use crate::representation::form::RepresentationSpec;
@@ -110,6 +116,45 @@ pub enum PatchOperation {
         /// Complete replacement value.
         representation: RepresentationSpec,
     },
+    /// Changes the molecular query a representation draws.
+    ///
+    /// Membership changes, so the representation's geometry is rebuilt; its
+    /// appearance, identity and every other representation are untouched.
+    SetRepresentationTarget {
+        /// Representation to retarget.
+        id: RepresentationId,
+        /// New `MolFrame` query over the representation's structure.
+        target: Selection,
+    },
+    /// Changes only a representation's base colour.
+    ///
+    /// Selection-scoped appearance rules still take precedence over it for the
+    /// atoms they cover.
+    SetColor {
+        /// Representation to recolour.
+        id: RepresentationId,
+        /// New base colour.
+        color: ColorSpec,
+    },
+    /// Adds a selection-scoped colour rule under a new ID.
+    AddAppearanceRule {
+        /// Stable identity; a higher identity wins where rules overlap.
+        id: AppearanceRuleId,
+        /// Complete rule value.
+        rule: AppearanceRuleSpec,
+    },
+    /// Replaces a colour rule in place, keeping its precedence.
+    ReplaceAppearanceRule {
+        /// Rule to replace.
+        id: AppearanceRuleId,
+        /// Complete replacement value.
+        rule: AppearanceRuleSpec,
+    },
+    /// Removes a colour rule, restoring whatever it covered.
+    RemoveAppearanceRule {
+        /// Rule to remove.
+        id: AppearanceRuleId,
+    },
     /// Changes only visibility.
     SetVisibility {
         /// Representation to change.
@@ -212,7 +257,7 @@ impl ScenePatch {
         let mut state = base.clone();
         let mut operation_groups = Vec::with_capacity(self.operations.len());
         for operation in &self.operations {
-            operation_groups.push(inverse_operations(operation, &state)?);
+            operation_groups.push(inverse::inverse_operations(operation, &state)?);
             crate::scene::runtime::apply_operation(&mut state, operation)?;
         }
         let operations = operation_groups.into_iter().rev().flatten().collect();
@@ -224,202 +269,5 @@ impl ScenePatch {
             },
             operations,
         })
-    }
-}
-
-type Inverse = Result<Vec<PatchOperation>, crate::Error>;
-
-fn inverse_operations(operation: &PatchOperation, base: &SceneSpec) -> Inverse {
-    if let Some(operations) = inverse_science(operation, base)? {
-        return Ok(operations);
-    }
-    if let Some(operations) = inverse_representation(operation, base)? {
-        return Ok(operations);
-    }
-    let one = |operation| vec![operation];
-    let structure = |id: StructureId, base: &SceneSpec| {
-        let source = base
-            .structures
-            .get(&id)
-            .cloned()
-            .ok_or(crate::PatchError::MissingId);
-        source.map(|source| vec![PatchOperation::AddStructure { id, source }])
-    };
-    Ok(match operation {
-        PatchOperation::AddStructure { id, .. } => structure(*id, base)?,
-        PatchOperation::SetFocus { .. } => one(PatchOperation::SetFocus {
-            selection: base.focus.clone(),
-        }),
-        PatchOperation::SetInteraction { channel, .. } => one(PatchOperation::SetInteraction {
-            channel: channel.clone(),
-            selection: interaction(base, channel).cloned(),
-        }),
-        PatchOperation::SetCamera { .. } => one(PatchOperation::SetCamera {
-            camera: base.camera,
-        }),
-        _ => {
-            return Err(crate::Error::InvalidSpec(
-                "patch inversion was not dispatched".to_owned(),
-            ));
-        }
-    })
-}
-
-fn inverse_representation(
-    operation: &PatchOperation,
-    base: &SceneSpec,
-) -> Result<Option<Vec<PatchOperation>>, crate::Error> {
-    let one = |operation| Some(vec![operation]);
-    Ok(match operation {
-        PatchOperation::AddRepresentation { id, .. } => {
-            one(PatchOperation::RemoveRepresentation { id: *id })
-        }
-        PatchOperation::RemoveRepresentation { id } => one(PatchOperation::AddRepresentation {
-            id: *id,
-            representation: base
-                .representations
-                .get(id)
-                .cloned()
-                .ok_or(crate::PatchError::MissingId)?,
-        }),
-        PatchOperation::ReplaceRepresentation { id, .. } => {
-            one(PatchOperation::ReplaceRepresentation {
-                id: *id,
-                representation: base
-                    .representations
-                    .get(id)
-                    .cloned()
-                    .ok_or(crate::PatchError::MissingId)?,
-            })
-        }
-        PatchOperation::SetVisibility { id, .. } => one(PatchOperation::SetVisibility {
-            id: *id,
-            visible: base
-                .representations
-                .get(id)
-                .ok_or(crate::PatchError::MissingId)?
-                .common
-                .visible,
-        }),
-        PatchOperation::SetOpacity { id, .. } => one(PatchOperation::SetOpacity {
-            id: *id,
-            opacity: base
-                .representations
-                .get(id)
-                .ok_or(crate::PatchError::MissingId)?
-                .opacity(),
-        }),
-        PatchOperation::SetVisual { id, .. } => {
-            let representation = base
-                .representations
-                .get(id)
-                .ok_or(crate::PatchError::MissingId)?;
-            let mut operations = Vec::with_capacity(representation.common.parameters.len() + 1);
-            operations.push(PatchOperation::SetVisual {
-                id: *id,
-                visual: representation.common.visual.clone(),
-            });
-            operations.extend(
-                representation
-                    .common
-                    .parameters
-                    .iter()
-                    .map(|(name, value)| PatchOperation::SetParameter {
-                        id: *id,
-                        name: name.clone(),
-                        value: Some(value.clone()),
-                    }),
-            );
-            Some(operations)
-        }
-        PatchOperation::SetParameter { id, name, .. } => one(PatchOperation::SetParameter {
-            id: *id,
-            name: name.clone(),
-            value: base
-                .representations
-                .get(id)
-                .ok_or(crate::PatchError::MissingId)?
-                .common
-                .parameters
-                .get(name)
-                .cloned(),
-        }),
-        _ => None,
-    })
-}
-
-fn inverse_science(
-    operation: &PatchOperation,
-    base: &SceneSpec,
-) -> Result<Option<Vec<PatchOperation>>, crate::Error> {
-    let one = |operation| Some(vec![operation]);
-    Ok(match operation {
-        PatchOperation::AddVolume { id, .. } => one(PatchOperation::RemoveVolume { id: *id }),
-        PatchOperation::RemoveVolume { id } => one(PatchOperation::AddVolume {
-            id: *id,
-            volume: base
-                .volumes
-                .get(id)
-                .cloned()
-                .ok_or(crate::PatchError::MissingId)?,
-        }),
-        PatchOperation::AddAnnotation { id, .. } => {
-            one(PatchOperation::RemoveAnnotation { id: *id })
-        }
-        PatchOperation::RemoveAnnotation { id } => one(PatchOperation::AddAnnotation {
-            id: *id,
-            annotation: base
-                .annotations
-                .get(id)
-                .cloned()
-                .ok_or(crate::PatchError::MissingId)?,
-        }),
-        PatchOperation::AddMeasurement { id, .. } => {
-            one(PatchOperation::RemoveMeasurement { id: *id })
-        }
-        PatchOperation::RemoveMeasurement { id } => one(PatchOperation::AddMeasurement {
-            id: *id,
-            measurement: base
-                .measurements
-                .get(id)
-                .cloned()
-                .ok_or(crate::PatchError::MissingId)?,
-        }),
-        PatchOperation::AddScientificInteraction { id, .. } => {
-            one(PatchOperation::RemoveScientificInteraction { id: *id })
-        }
-        PatchOperation::RemoveScientificInteraction { id } => {
-            one(PatchOperation::AddScientificInteraction {
-                id: *id,
-                interaction: base
-                    .scientific_interactions
-                    .get(id)
-                    .cloned()
-                    .ok_or(crate::PatchError::MissingId)?,
-            })
-        }
-        PatchOperation::AddTrajectory { id, .. } => {
-            one(PatchOperation::RemoveTrajectory { id: *id })
-        }
-        PatchOperation::RemoveTrajectory { id } => one(PatchOperation::AddTrajectory {
-            id: *id,
-            trajectory: base
-                .trajectories
-                .get(id)
-                .cloned()
-                .ok_or(crate::PatchError::MissingId)?,
-        }),
-        _ => None,
-    })
-}
-
-fn interaction<'a>(scene: &'a SceneSpec, channel: &InteractionChannel) -> Option<&'a Selection> {
-    match channel {
-        InteractionChannel::Selected => scene.selected.as_ref(),
-        InteractionChannel::Hovered => scene.hovered.as_ref(),
-        InteractionChannel::Focused => scene.focus.as_ref(),
-        InteractionChannel::Muted => scene.muted.as_ref(),
-        InteractionChannel::Hidden => scene.hidden.as_ref(),
-        InteractionChannel::Custom(name) => scene.custom_interactions.get(name),
     }
 }

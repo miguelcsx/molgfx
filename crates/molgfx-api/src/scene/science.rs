@@ -77,6 +77,7 @@ impl Scene {
             &self.structures,
             &self.property_bindings,
             &self.science_bindings,
+            &self.rows,
         )?;
         self.install_resolution(resolution);
         Ok(())
@@ -101,5 +102,6 @@ impl Scene {
         self.visuals = resolution.visuals;
         self.properties = resolution.properties;
         self.science = resolution.science;
+        self.appearance = resolution.appearance;
     }
 }

@@ -103,6 +103,47 @@ impl RepresentationSpec {
         self.common.target.source()
     }
 
+    /// The query selecting the represented atoms.
+    #[must_use]
+    pub const fn target(&self) -> &Selection {
+        &self.common.target
+    }
+
+    /// Base colour; selection-scoped appearance rules take precedence over it.
+    #[must_use]
+    pub const fn color(&self) -> &ColorSpec {
+        &self.common.color
+    }
+
+    /// Stable identity of the drawn geometry: the form and its geometric
+    /// controls, without target, colour, opacity, visibility or visual style.
+    ///
+    /// Two representations with equal geometry keys over the same structure
+    /// and target draw the same shapes, which is what makes it the right key
+    /// for deciding whether a requested representation already exists.
+    #[must_use]
+    pub fn geometry_key(&self) -> String {
+        crate::spec::stable_json_hash(&self.form)
+    }
+
+    /// Form name, as the wire format spells it.
+    #[must_use]
+    pub const fn form_name(&self) -> &'static str {
+        match &self.form {
+            RepresentationFormSpec::Cartoon { .. } => "cartoon",
+            RepresentationFormSpec::BallAndStick { .. } => "ball_and_stick",
+            RepresentationFormSpec::Spacefill { .. } => "spacefill",
+            RepresentationFormSpec::Licorice { .. } => "licorice",
+            RepresentationFormSpec::Lines { .. } => "lines",
+            RepresentationFormSpec::Points { .. } => "points",
+            RepresentationFormSpec::Surface { .. } => "surface",
+            RepresentationFormSpec::NucleicAcid { .. } => "nucleic_acid",
+            RepresentationFormSpec::Bases { .. } => "bases",
+            RepresentationFormSpec::BasePairs { .. } => "base_pairs",
+            RepresentationFormSpec::Glycan { .. } => "glycan",
+        }
+    }
+
     /// Molecular asset this representation targets after scene insertion.
     #[must_use]
     pub const fn structure_id(&self) -> Option<StructureId> {

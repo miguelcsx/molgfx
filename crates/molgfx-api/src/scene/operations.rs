@@ -4,7 +4,7 @@ use super::Scene;
 use crate::ScenePatch;
 use crate::SceneTransaction;
 use crate::error::{Error, PatchError};
-use crate::patch::plan::{PatchInputs, PatchPlan};
+use crate::patch::plan::{CommitTarget, PatchInputs, PatchPlan};
 use crate::scene::runtime::{canonical_selection_count, next_representation_id};
 
 impl Scene {
@@ -32,6 +32,7 @@ impl Scene {
                 property_bindings: &self.property_bindings,
                 science_bindings: &self.science_bindings,
                 structure_assets: &self.structure_assets,
+                rows: &self.rows,
             },
             patch,
         )?;
@@ -45,7 +46,14 @@ impl Scene {
                 self.next_representation = next_representation_id(&self.spec)?;
             }
             PatchPlan::Local(plan) => {
-                plan.commit(&mut self.spec, &mut self.resolved, &mut self.visuals)?;
+                plan.commit(CommitTarget {
+                    spec: &mut self.spec,
+                    scene: &mut self.resolved,
+                    visuals: &mut self.visuals,
+                    selections: &mut self.selections,
+                    appearance: &mut self.appearance,
+                    handles: &self.representations,
+                })?;
             }
         }
         Ok(())
@@ -60,11 +68,29 @@ impl Scene {
     where
         F: FnOnce(&mut SceneTransaction) -> Result<(), Error>,
     {
-        let mut transaction = SceneTransaction {
-            patch: ScenePatch::empty(self.revision()),
-        };
+        let mut transaction = self.begin();
         edit(&mut transaction)?;
-        let patch = transaction.patch;
+        self.commit(transaction)
+    }
+
+    /// Begins a transaction against the current revision.
+    ///
+    /// The scene is not borrowed while edits are staged, so a caller can stage
+    /// edits, inspect the staged specification, and commit or abandon them.
+    #[must_use]
+    pub fn begin(&self) -> SceneTransaction {
+        SceneTransaction::begin(&self.spec)
+    }
+
+    /// Applies every edit a transaction staged as one revision.
+    ///
+    /// # Errors
+    ///
+    /// Returns a revision conflict when the scene moved since the transaction
+    /// began, the first deferred staging error, or an application error; the
+    /// scene is unchanged in every case.
+    pub fn commit(&mut self, transaction: SceneTransaction) -> Result<ScenePatch, Error> {
+        let patch = transaction.into_patch()?;
         self.apply(&patch)?;
         Ok(patch)
     }
@@ -90,6 +116,15 @@ impl Scene {
 
     pub(crate) const fn resolved(&self) -> &molgfx_core::Scene {
         &self.resolved
+    }
+
+    /// The physical handle a semantic representation resolved to.
+    #[cfg(test)]
+    pub(crate) fn representation_handle(
+        &self,
+        id: crate::RepresentationId,
+    ) -> Option<molgfx_core::RepresentationHandle> {
+        self.representations.get(&id).copied()
     }
 
     /// Camera framing the focused subject, or the whole scene when none is set.

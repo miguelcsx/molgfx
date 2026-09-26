@@ -40,3 +40,7 @@ semantic_id!(
     "Identity of a scientific interaction in one scene."
 );
 semantic_id!(TrajectoryId, "Identity of a trajectory in one scene.");
+semantic_id!(
+    AppearanceRuleId,
+    "Identity of a selection-scoped appearance rule in one scene. A higher identity takes precedence where rules overlap."
+);

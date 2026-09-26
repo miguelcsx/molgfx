@@ -25,6 +25,10 @@ pub struct Scene {
     /// Structure assets of the current resolution, so a later resolution over
     /// the same sources reuses their atom tables instead of rebuilding them.
     structure_assets: crate::scene::runtime::StructureAssets,
+    /// Evaluated rows by query and molecule identity, shared by every edit.
+    rows: crate::scene::selection_rows::SelectionRows,
+    /// Each structure's appearance class column, for structures with rules.
+    appearance: crate::scene::appearance::AppearanceColumns,
     next_structure: u64,
     next_representation: u64,
 }
@@ -36,9 +40,12 @@ pub(crate) struct Resolution {
     pub(crate) visuals: BTreeMap<RepresentationId, crate::visual::ResolvedVisual>,
     pub(crate) properties: BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
     pub(crate) science: crate::science::lower::LoweredScience,
+    pub(crate) appearance: crate::scene::appearance::AppearanceColumns,
 }
 
+pub(crate) mod appearance;
 pub(crate) mod hashing;
+mod insertion;
 pub(crate) mod interaction;
 #[cfg(test)]
 mod interaction_tests;
@@ -48,6 +55,7 @@ pub(crate) mod runtime;
 #[cfg(test)]
 mod runtime_tests;
 mod science;
+pub(crate) mod selection_rows;
 pub(crate) mod transaction;
 
 impl Scene {
@@ -91,6 +99,8 @@ impl Scene {
             science_bindings: crate::science::ScienceBindings::default(),
             structure_assets: crate::scene::runtime::StructureAssets::default(),
             science: crate::science::lower::LoweredScience::default(),
+            rows: crate::scene::selection_rows::SelectionRows::default(),
+            appearance: BTreeMap::new(),
             next_structure: 2,
             next_representation: 1,
         })
@@ -158,7 +168,14 @@ impl Scene {
         }
         spec.validate_selections()?;
         let science_bindings = crate::science::ScienceBindings::default();
-        let resolution = resolve(&spec, &structures, &property_bindings, &science_bindings)?;
+        let rows = crate::scene::selection_rows::SelectionRows::default();
+        let resolution = resolve(
+            &spec,
+            &structures,
+            &property_bindings,
+            &science_bindings,
+            &rows,
+        )?;
         let next_structure = next_structure_id(&spec)?;
         let next_representation = next_representation_id(&spec)?;
         let structure_assets =
@@ -175,6 +192,8 @@ impl Scene {
             science_bindings,
             science: resolution.science,
             structure_assets,
+            rows,
+            appearance: resolution.appearance,
             next_structure,
             next_representation,
         })
@@ -206,93 +225,6 @@ impl Scene {
         self.apply(&ScenePatch {
             base_revision: self.revision(),
             operations: vec![PatchOperation::AddRepresentation { id, representation }],
-        })?;
-        Ok(id)
-    }
-
-    pub(crate) fn insert_volume(
-        &mut self,
-        volume: crate::VolumeSpec,
-    ) -> Result<crate::VolumeId, Error> {
-        let id = crate::VolumeId(next_id_for(
-            self.spec.volumes.last_key_value().map(|(id, _)| id.get()),
-            "volume",
-        )?);
-        self.apply(&ScenePatch {
-            base_revision: self.revision(),
-            operations: vec![PatchOperation::AddVolume { id, volume }],
-        })?;
-        Ok(id)
-    }
-
-    pub(crate) fn insert_annotation(
-        &mut self,
-        annotation: crate::AnnotationSpec,
-    ) -> Result<crate::AnnotationId, Error> {
-        let id = crate::AnnotationId(next_id_for(
-            self.spec
-                .annotations
-                .last_key_value()
-                .map(|(id, _)| id.get()),
-            "annotation",
-        )?);
-        self.apply(&ScenePatch {
-            base_revision: self.revision(),
-            operations: vec![PatchOperation::AddAnnotation { id, annotation }],
-        })?;
-        Ok(id)
-    }
-
-    pub(crate) fn insert_measurement(
-        &mut self,
-        measurement: crate::MeasurementSpec,
-    ) -> Result<crate::MeasurementId, Error> {
-        let id = crate::MeasurementId(next_id_for(
-            self.spec
-                .measurements
-                .last_key_value()
-                .map(|(id, _)| id.get()),
-            "measurement",
-        )?);
-        self.apply(&ScenePatch {
-            base_revision: self.revision(),
-            operations: vec![PatchOperation::AddMeasurement { id, measurement }],
-        })?;
-        Ok(id)
-    }
-
-    pub(crate) fn insert_scientific_interaction(
-        &mut self,
-        interaction: crate::ScientificInteractionSpec,
-    ) -> Result<crate::ScientificInteractionId, Error> {
-        let id = crate::ScientificInteractionId(next_id_for(
-            self.spec
-                .scientific_interactions
-                .last_key_value()
-                .map(|(id, _)| id.get()),
-            "scientific interaction",
-        )?);
-        self.apply(&ScenePatch {
-            base_revision: self.revision(),
-            operations: vec![PatchOperation::AddScientificInteraction { id, interaction }],
-        })?;
-        Ok(id)
-    }
-
-    pub(crate) fn insert_trajectory(
-        &mut self,
-        trajectory: crate::TrajectorySpec,
-    ) -> Result<crate::TrajectoryId, Error> {
-        let id = crate::TrajectoryId(next_id_for(
-            self.spec
-                .trajectories
-                .last_key_value()
-                .map(|(id, _)| id.get()),
-            "trajectory",
-        )?);
-        self.apply(&ScenePatch {
-            base_revision: self.revision(),
-            operations: vec![PatchOperation::AddTrajectory { id, trajectory }],
         })?;
         Ok(id)
     }
@@ -474,12 +406,6 @@ impl Scene {
             operations: vec![PatchOperation::SetCamera { camera }],
         })
     }
-}
-
-fn next_id_for(last: Option<u64>, kind: &str) -> Result<u64, Error> {
-    crate::fallback(last, 0)
-        .checked_add(1)
-        .ok_or_else(|| Error::InvalidSpec(format!("{kind} identity space is exhausted")))
 }
 
 #[cfg(test)]

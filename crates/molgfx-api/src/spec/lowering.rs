@@ -48,6 +48,26 @@ impl RepresentationSpec {
         Ok((native, resolved))
     }
 
+    /// The physical base colour alone, for an edit that changes only colour.
+    ///
+    /// A constant colour in the visual program still wins over the base
+    /// colour, exactly as it does when the whole representation lowers.
+    pub(crate) fn native_color(
+        &self,
+        lowering: Lowering<'_>,
+    ) -> Result<molgfx_core::ColorScheme, crate::Error> {
+        self.validate_values()?;
+        let structure = self.common.structure.ok_or_else(|| {
+            crate::Error::InvalidSpec("representation has no structure target".to_owned())
+        })?;
+        visual_color(
+            self.common.visual.as_ref(),
+            &self.common.color,
+            lowering.properties,
+            structure,
+        )
+    }
+
     pub(crate) fn prepare_appearance(
         &self,
         lowering: Lowering<'_>,
