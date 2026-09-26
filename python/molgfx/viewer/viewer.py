@@ -1,5 +1,7 @@
 """AnyWidget transport for MolGFX's direct browser WebGPU runtime."""
 
+from functools import lru_cache
+from hashlib import sha256
 from pathlib import Path
 import json
 import weakref
@@ -7,12 +9,36 @@ import weakref
 import anywidget
 import traitlets
 
+_STATIC = Path(__file__).parent / "static"
+
+
+@lru_cache(maxsize=1)
+def _runtime():
+    """The packaged browser runtime: its module text, binary and a content key.
+
+    A notebook frontend loads the widget module from a blob URL, where the
+    runtime beside it cannot be imported by a relative path, so both parts are
+    sent as widget state. A checkout without a built runtime sends nothing and
+    the page falls back to importing it beside the module.
+    """
+    glue = _STATIC / "molgfx_wasm.js"
+    binary = _STATIC / "molgfx_wasm_bg.wasm"
+    if not (glue.is_file() and binary.is_file()):
+        return "", b"", ""
+    code = glue.read_text(encoding="utf-8")
+    data = binary.read_bytes()
+    return code, data, sha256(data).hexdigest()[:16]
+
 
 class Viewer(anywidget.AnyWidget):
     """A canvas backed by the same versioned scene contract as Rust and Python."""
 
-    _esm = Path(__file__).parent / "static" / "widget.js"
-    _css = Path(__file__).parent / "static" / "widget.css"
+    _esm = _STATIC / "widget.js"
+    _css = _STATIC / "widget.css"
+
+    _runtime_js = traitlets.Unicode("").tag(sync=True)
+    _runtime_wasm = traitlets.Bytes(b"").tag(sync=True)
+    _runtime_key = traitlets.Unicode("").tag(sync=True)
 
     scene_spec = traitlets.Unicode().tag(sync=True)
     scene_patch = traitlets.Unicode().tag(sync=True)
@@ -30,7 +56,11 @@ class Viewer(anywidget.AnyWidget):
         self._scene = scene
         self._structures = {}
         self._materialize(scene._browser_sources())
+        code, data, key = _runtime()
         super().__init__(
+            _runtime_js=code,
+            _runtime_wasm=data,
+            _runtime_key=key,
             scene_spec=scene.to_json(),
             structure_ids=list(self._structures),
             structure_names=[entry[0] for entry in self._structures.values()],

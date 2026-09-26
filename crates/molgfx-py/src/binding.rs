@@ -262,6 +262,8 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     crate::render_binding::register(module)?;
     crate::science_binding::register(module)?;
     crate::visual_binding::register(module)?;
+    crate::command_binding::register(module)?;
+    crate::session_binding::register(module)?;
     let rep = PyModule::new(module.py(), "rep")?;
     rep.add_function(wrap_pyfunction!(cartoon, &rep)?)?;
     rep.add_function(wrap_pyfunction!(ball_and_stick, &rep)?)?;

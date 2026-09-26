@@ -8,6 +8,9 @@ from ._engine import (
     Camera,
     ColorExpr,
     ColorParameter,
+    Command,
+    CommandError,
+    CommandResult,
     DataSource,
     AnnotationId,
     MeasurementId,
@@ -33,6 +36,7 @@ from ._engine import (
     ScalarProperty,
     ScalarParameter,
     ScientificInteraction,
+    Session,
     SpecError,
     system_info,
     Trajectory,
@@ -51,6 +55,7 @@ from ._engine import (
     rep,
     trajectory,
     visual,
+    vocabulary,
 )
 
 __all__ = [
@@ -59,6 +64,9 @@ __all__ = [
     "Camera",
     "ColorExpr",
     "ColorParameter",
+    "Command",
+    "CommandError",
+    "CommandResult",
     "DataSource",
     "AnnotationId",
     "MeasurementId",
@@ -84,6 +92,7 @@ __all__ = [
     "ScalarProperty",
     "ScalarParameter",
     "ScientificInteraction",
+    "Session",
     "SpecError",
     "Trajectory",
     "VisualStyle",
@@ -103,4 +112,5 @@ __all__ = [
     "system_info",
     "trajectory",
     "visual",
+    "vocabulary",
 ]

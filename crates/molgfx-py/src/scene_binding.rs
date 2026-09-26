@@ -24,6 +24,11 @@ struct BrowserSource {
 }
 
 impl PyScene {
+    /// A scene over one Python `molframe` structure.
+    pub(super) fn for_structure(structure: &Bound<'_, PyAny>) -> PyResult<Self> {
+        Self::new(structure)
+    }
+
     pub(super) fn stage_or_apply(
         &mut self,
         py: Python<'_>,
@@ -69,7 +74,11 @@ fn deliver_subscribers(
 }
 
 /// Announces one patch to subscribers without holding a borrow of the scene.
-fn deliver(slf: &Bound<'_, PyScene>, py: Python<'_>, patch: &molgfx::ScenePatch) -> PyResult<()> {
+pub(super) fn deliver(
+    slf: &Bound<'_, PyScene>,
+    py: Python<'_>,
+    patch: &molgfx::ScenePatch,
+) -> PyResult<()> {
     let mut subscribers = {
         let mut this = slf.borrow_mut();
         std::mem::take(&mut this.subscribers)
