@@ -13,7 +13,7 @@ fn shadow_compare(
             shadow_texture,
             coordinate,
             0,
-        );
+        ).x;
 
     return select(
         0.0,

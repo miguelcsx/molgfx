@@ -10,12 +10,12 @@ struct ShadowPrimitiveVsOut {
 
     @location(0) @interpolate(linear) light_xy: vec2f,
 
-    @location(1) @interpolate(flat, first) world_center: vec3f,
-    @location(2) @interpolate(flat, first) orientation: vec4f,
-    @location(3) @interpolate(flat, first) size: vec3f,
-    @location(4) @interpolate(flat, first) inverse_primary: vec4f,
-    @location(5) @interpolate(flat, first) inverse_cross: vec4f,
-    @location(6) @interpolate(flat, first) shape: u32,
+    @location(1) @interpolate(flat, either) world_center: vec3f,
+    @location(2) @interpolate(flat, either) orientation: vec4f,
+    @location(3) @interpolate(flat, either) size: vec3f,
+    @location(4) @interpolate(flat, either) inverse_primary: vec4f,
+    @location(5) @interpolate(flat, either) inverse_cross: vec4f,
+    @location(6) @interpolate(flat, either) shape: u32,
 }
 
 @vertex

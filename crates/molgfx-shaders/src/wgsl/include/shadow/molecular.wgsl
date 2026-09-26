@@ -10,9 +10,9 @@ struct ShadowSphereVsOut {
     @location(0) @interpolate(linear) light_xy: vec2f,
 
     // xyz = light-space center, w = radius².
-    @location(1) @interpolate(flat, first) center_radius_sq: vec4f,
-    @location(2) @interpolate(flat, first) color: vec4f,
-    @location(3) @interpolate(flat, first) entity_id: u32,
+    @location(1) @interpolate(flat, either) center_radius_sq: vec4f,
+    @location(2) @interpolate(flat, either) color: vec4f,
+    @location(3) @interpolate(flat, either) entity_id: u32,
 }
 
 @vertex
@@ -142,12 +142,12 @@ struct ShadowBondVsOut {
 
     @location(0) @interpolate(linear) light_xy: vec2f,
 
-    @location(1) @interpolate(flat, first) endpoint_a: vec3f,
-    @location(2) @interpolate(flat, first) endpoint_b: vec3f,
-    @location(3) @interpolate(flat, first) radius: f32,
-    @location(4) @interpolate(flat, first) atom_entities: vec2u,
-    @location(5) @interpolate(flat, first) color_a: vec4f,
-    @location(6) @interpolate(flat, first) color_b: vec4f,
+    @location(1) @interpolate(flat, either) endpoint_a: vec3f,
+    @location(2) @interpolate(flat, either) endpoint_b: vec3f,
+    @location(3) @interpolate(flat, either) radius: f32,
+    @location(4) @interpolate(flat, either) atom_entities: vec2u,
+    @location(5) @interpolate(flat, either) color_a: vec4f,
+    @location(6) @interpolate(flat, either) color_b: vec4f,
 }
 
 @vertex

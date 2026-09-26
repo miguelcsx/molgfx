@@ -39,9 +39,9 @@ struct PointOpaqueVsOut {
 
     @location(0) @interpolate(linear) corner: vec2f,
 
-    @location(1) @interpolate(flat, first) color: vec4f,
-    @location(2) @interpolate(flat, first) motion: vec2f,
-    @location(3) @interpolate(flat, first) entity_id: u32,
+    @location(1) @interpolate(flat, either) color: vec4f,
+    @location(2) @interpolate(flat, either) motion: vec2f,
+    @location(3) @interpolate(flat, either) entity_id: u32,
 }
 
 struct PointTransparentVsOut {
@@ -49,10 +49,10 @@ struct PointTransparentVsOut {
 
     @location(0) @interpolate(linear) corner: vec2f,
 
-    @location(1) @interpolate(flat, first) view_position: vec3f,
-    @location(2) @interpolate(flat, first) color: vec4f,
-    @location(3) @interpolate(flat, first) softness_pixels: f32,
-    @location(4) @interpolate(flat, first) entity_id: u32,
+    @location(1) @interpolate(flat, either) view_position: vec3f,
+    @location(2) @interpolate(flat, either) color: vec4f,
+    @location(3) @interpolate(flat, either) softness_pixels: f32,
+    @location(4) @interpolate(flat, either) entity_id: u32,
 }
 
 struct PointFsOut {

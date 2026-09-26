@@ -40,7 +40,7 @@ fn fs_lighting(
             depth_texture,
             pixel,
             0,
-        );
+        ).x;
 
     if depth <= 0.0 {
         return vec4f(

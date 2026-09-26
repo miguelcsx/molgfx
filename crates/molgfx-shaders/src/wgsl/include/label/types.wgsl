@@ -54,39 +54,39 @@ struct ProjectedPoint {
 struct GlyphVsOut {
     @builtin(position) position: vec4f,
 
-    @location(0) @interpolate(flat) center: vec2f,
-    @location(1) @interpolate(flat) color: vec4f,
+    @location(0) @interpolate(flat, either) center: vec2f,
+    @location(1) @interpolate(flat, either) color: vec4f,
 
     // x = entity, y = structure, z/w = glyph bits.
-    @location(2) @interpolate(flat) metadata: vec4u,
+    @location(2) @interpolate(flat, either) metadata: vec4u,
 }
 
 struct GuideVsOut {
     @builtin(position) position: vec4f,
 
     // xy = pixel start, zw = pixel axis.
-    @location(0) @interpolate(flat) start_axis: vec4f,
+    @location(0) @interpolate(flat, either) start_axis: vec4f,
 
     // x = inverse axis length squared
     // y = stroke width
     // z = start depth
     // w = depth delta
-    @location(1) @interpolate(flat) metrics: vec4f,
+    @location(1) @interpolate(flat, either) metrics: vec4f,
 
-    @location(2) @interpolate(flat) color: vec4f,
-    @location(3) @interpolate(flat) ids: vec2u,
+    @location(2) @interpolate(flat, either) color: vec4f,
+    @location(3) @interpolate(flat, either) ids: vec2u,
 }
 
 struct MarkerVsOut {
     @builtin(position) position: vec4f,
 
     // xy = center, z = radius.
-    @location(0) @interpolate(flat) center_radius: vec3f,
+    @location(0) @interpolate(flat, either) center_radius: vec3f,
 
-    @location(1) @interpolate(flat) color: vec4f,
+    @location(1) @interpolate(flat, either) color: vec4f,
 
     // x = entity, y = structure, z = shape.
-    @location(2) @interpolate(flat) metadata: vec3u,
+    @location(2) @interpolate(flat, either) metadata: vec3u,
 }
 
 struct LabelOutput {

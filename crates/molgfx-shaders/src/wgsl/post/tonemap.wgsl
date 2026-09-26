@@ -10,7 +10,7 @@
 //!include "include/tonemap/present.wgsl"
 
 @group(1) @binding(0) var hdr_texture: texture_2d<f32>;
-@group(1) @binding(1) var depth_texture: texture_depth_2d;
+@group(1) @binding(1) var depth_texture: texture_2d<f32>;
 @group(1) @binding(2) var revealage_texture: texture_2d<f32>;
 @group(1) @binding(3) var bloom_texture: texture_2d<f32>;
 

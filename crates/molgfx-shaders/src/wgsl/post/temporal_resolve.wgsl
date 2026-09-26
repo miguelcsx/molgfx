@@ -10,7 +10,7 @@
 //!include "include/fullscreen.wgsl"
 
 @group(1) @binding(0) var current_hdr: texture_2d<f32>;
-@group(1) @binding(1) var current_depth: texture_depth_2d;
+@group(1) @binding(1) var current_depth: texture_2d<f32>;
 @group(1) @binding(2) var history_hdr_depth: texture_2d<f32>;
 @group(1) @binding(3) var history_sampler: sampler;
 @group(1) @binding(4) var motion_vectors: texture_2d<f32>;
@@ -34,7 +34,7 @@ fn fs_temporal_resolve(
             current_depth,
             pixel,
             0,
-        );
+        ).x;
 
     let current =
         textureLoad(

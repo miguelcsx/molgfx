@@ -79,10 +79,10 @@ struct DofPolygonParams {
     boundary: f32,
 }
 
-@group(1) @binding(0) var classify_depth: texture_depth_2d;
+@group(1) @binding(0) var classify_depth: texture_2d<f32>;
 
 @group(2) @binding(0) var resolved_hdr: texture_2d<f32>;
-@group(2) @binding(1) var resolved_depth: texture_depth_2d;
+@group(2) @binding(1) var resolved_depth: texture_2d<f32>;
 @group(2) @binding(2) var tile_coc: texture_2d<f32>;
 
 fn dof_view_depth_params(

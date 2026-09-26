@@ -54,15 +54,15 @@ struct PrimitiveVsOut {
 
     @location(0) view_position: vec3f,
 
-    @location(1) @interpolate(flat, first) world_center: vec3f,
-    @location(2) @interpolate(flat, first) radius: f32,
-    @location(3) @interpolate(flat, first) orientation: vec4f,
-    @location(4) @interpolate(flat, first) size: vec3f,
-    @location(5) @interpolate(flat, first) inverse_primary: vec4f,
-    @location(6) @interpolate(flat, first) inverse_cross: vec4f,
-    @location(7) @interpolate(flat, first) color: vec4f,
-    @location(8) @interpolate(flat, first) metadata: vec4u,
-    @location(9) @interpolate(flat, first) previous_world_center: vec3f,
+    @location(1) @interpolate(flat, either) world_center: vec3f,
+    @location(2) @interpolate(flat, either) radius: f32,
+    @location(3) @interpolate(flat, either) orientation: vec4f,
+    @location(4) @interpolate(flat, either) size: vec3f,
+    @location(5) @interpolate(flat, either) inverse_primary: vec4f,
+    @location(6) @interpolate(flat, either) inverse_cross: vec4f,
+    @location(7) @interpolate(flat, either) color: vec4f,
+    @location(8) @interpolate(flat, either) metadata: vec4u,
+    @location(9) @interpolate(flat, either) previous_world_center: vec3f,
 }
 
 struct PrimitiveHit {

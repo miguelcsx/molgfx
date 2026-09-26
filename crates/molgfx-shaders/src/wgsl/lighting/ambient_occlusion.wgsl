@@ -13,7 +13,7 @@
 //!include "include/fullscreen.wgsl"
 //!include "include/surface_frame.wgsl"
 
-@group(1) @binding(0) var depth_texture: texture_depth_2d;
+@group(1) @binding(0) var depth_texture: texture_2d<f32>;
 @group(1) @binding(1) var normal_texture: texture_2d<f32>;
 
 const VIEW_W_EPSILON: f32 = 1.0e-7;
@@ -201,7 +201,7 @@ fn contact_shadow(
                         depth_texture,
                         sample_pixel,
                         0,
-                    );
+                    ).x;
 
                 if sample_depth > 0.0 {
                     let surface_z =
@@ -242,7 +242,7 @@ fn ambient_occlusion_sample(
             depth_texture,
             pixel,
             0,
-        );
+        ).x;
 
     if depth <= 0.0 {
         return 0.0;
@@ -340,7 +340,7 @@ fn fs_ambient_occlusion(
             depth_texture,
             pixel,
             0,
-        );
+        ).x;
 
     if center_depth <= 0.0 {
         return vec4f(1.0);

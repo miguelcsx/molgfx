@@ -48,7 +48,10 @@ pub enum BindingType {
         /// Portable storage format shared by the layout and texture.
         format: crate::TextureFormat,
     },
-    /// A depth texture sampled for comparison or raw reads.
+    /// A depth texture read texel by texel, never compared or filtered.
+    ///
+    /// Shaders declare it as `texture_2d<f32>` and read the depth from the
+    /// first channel of a `textureLoad`.
     DepthTexture,
     /// A sampler.
     Sampler {

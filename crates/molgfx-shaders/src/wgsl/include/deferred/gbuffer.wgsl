@@ -6,9 +6,9 @@
 
 @group(1) @binding(0) var albedo_texture: texture_2d<f32>;
 @group(1) @binding(1) var normal_texture: texture_2d<f32>;
-@group(1) @binding(2) var depth_texture: texture_depth_2d;
+@group(1) @binding(2) var depth_texture: texture_2d<f32>;
 @group(1) @binding(3) var ao_texture: texture_2d<f32>;
-@group(1) @binding(4) var shadow_texture: texture_depth_2d;
+@group(1) @binding(4) var shadow_texture: texture_2d<f32>;
 
 const ILLUSTRATION_OFFSETS: array<vec2i, 4> = array<vec2i, 4>(
     vec2i(1, 0),

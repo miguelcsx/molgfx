@@ -83,7 +83,7 @@ fn fs_classify_dof(
                     classify_depth,
                     origin + vec2i(x, y),
                     0,
-                );
+                ).x;
 
             if raw_depth > 0.0 {
                 let depth =
@@ -176,7 +176,7 @@ fn fs_resolve_dof(
             resolved_depth,
             pixel,
             0,
-        );
+        ).x;
 
     if center_raw_depth <= 0.0 {
         return vec4f(
@@ -263,7 +263,7 @@ fn fs_resolve_dof(
                 resolved_depth,
                 sample_pixel,
                 0,
-            );
+            ).x;
 
         if sample_raw_depth <= 0.0 {
             continue;
