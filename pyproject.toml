@@ -26,3 +26,10 @@ module-name = "molgfx._engine"
 # feature. Keeping abi3 here is what lets one wheel cover CPython 3.13 and
 # later instead of one wheel per minor version.
 features = ["pyo3/abi3-py313"]
+# The browser runtime is built by wasm-pack into the viewer's static directory
+# and is not committed, so it is named here rather than left to discovery:
+# without it the Jupyter widget ships a loader with nothing to load.
+include = [
+    { path = "python/molgfx/viewer/static/molgfx_wasm.js", format = "wheel" },
+    { path = "python/molgfx/viewer/static/molgfx_wasm_bg.wasm", format = "wheel" },
+]
