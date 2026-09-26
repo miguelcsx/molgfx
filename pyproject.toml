@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "molgfx"
 version = "0.1.2"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = ["molframe>=0.1.2"]
 # PEP 639. maturin gained full support for the SPDX expression and
 # `license-files` in 1.9.0, which the build requirement below already covers.
@@ -23,9 +23,10 @@ module-name = "molgfx._engine"
 # disables linking libpython for every target, which is what breaks `cargo test`
 # in this workspace; maturin sets `PYO3_BUILD_EXTENSION_MODULE` for extension
 # builds, so the extension-module behaviour is still in force without the
-# feature. Keeping abi3 here is what lets one wheel cover CPython 3.13 and
-# later instead of one wheel per minor version.
-features = ["pyo3/abi3-py313"]
+# feature. Keeping abi3 here is what lets one wheel cover CPython 3.12 and
+# later instead of one wheel per minor version; the floor is 3.12 because that
+# is what Google Colab runs.
+features = ["pyo3/abi3-py312"]
 # The browser runtime is built by wasm-pack into the viewer's static directory
 # and is not committed, so it is named here rather than left to discovery:
 # without it the Jupyter widget ships a loader with nothing to load.
