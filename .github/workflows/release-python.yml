@@ -245,6 +245,9 @@ jobs:
     needs: [wheels, headless-render]
     if: ${{ !inputs.dry-run }}
     runs-on: ubuntu-latest
+    # Part of the identity PyPI's trusted publisher checks: without it the
+    # OIDC token names no environment and PyPI finds no matching publisher.
+    environment: release
     steps:
       - uses: actions/download-artifact@v4
         with:
