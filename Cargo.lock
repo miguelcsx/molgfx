@@ -946,6 +946,7 @@ name = "molgfx"
 version = "0.1.2"
 dependencies = [
  "molgfx-api",
+ "molgfx-command",
 ]
 
 [[package]]
@@ -982,6 +983,17 @@ dependencies = [
  "serde",
  "serde_json",
  "stats_alloc",
+ "thiserror",
+]
+
+[[package]]
+name = "molgfx-command"
+version = "0.1.2"
+dependencies = [
+ "molframe",
+ "molgfx-api",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

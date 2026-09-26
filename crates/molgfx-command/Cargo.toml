@@ -1,6 +1,6 @@
 [package]
-name = "molgfx"
-description = "Curated declarative molecular-rendering API."
+name = "molgfx-command"
+description = "The typed authoring command language and session for MolGFX scenes."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,7 +11,10 @@ categories.workspace = true
 
 [dependencies]
 molgfx-api.workspace = true
-molgfx-command.workspace = true
+molframe = { workspace = true, features = ["query"] }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true

@@ -14,6 +14,7 @@ default-members = [
     "crates/molgfx-render",
     "crates/molgfx-semantic",
     "crates/molgfx-api",
+    "crates/molgfx-command",
 ]
 resolver = "3"
 
@@ -27,6 +28,7 @@ portable-crates = [
     "molgfx-geometry",
     "molgfx-render",
     "molgfx-semantic",
+    "molgfx-command",
     "molgfx",
     "molgfx-wasm",
 ]
@@ -65,6 +67,7 @@ molgfx-geometry = { version = "0.1.2", path = "crates/molgfx-geometry" }
 molgfx-render = { version = "0.1.2", path = "crates/molgfx-render" }
 molgfx-semantic = { version = "0.1.2", path = "crates/molgfx-semantic" }
 molgfx-api = { version = "0.1.2", path = "crates/molgfx-api" }
+molgfx-command = { version = "0.1.2", path = "crates/molgfx-command" }
 
 # The structural model and every detection the engine consumes, from crates.io.
 # The publishable crates must resolve `molframe` from the registry, so this is a

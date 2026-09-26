@@ -55,6 +55,7 @@ everywhere; the only `unsafe` is `bytemuck` POD casts for GPU upload.
 | `molgfx-render` | Render graph; realtime + quality modes |
 | `molgfx-semantic` | The semantic layer: focus+context, materials, LOD, interactions |
 | `molgfx-api` | Declarative values, semantic IDs, patches, resolved-scene lowering |
+| `molgfx-command` | The authoring command language: typed commands, parser, session, undo/redo |
 | `molgfx` | Curated facade: `Scene`, `Renderer`, specs, values, and explicit namespaces |
 | `molgfx-py` | PyO3 type adapters and registration over the facade |
 | `molgfx-wasm` | Browser bindings over the same declarative scene and engine |
@@ -137,5 +138,5 @@ benchmark fixtures resolve data only through the harness.
 
 ## Commit scopes
 
-One of: `math core gpu wgpu shaders geometry render semantic facade py wasm bench
-spec repo ci`.
+One of: `math core gpu wgpu shaders geometry render semantic api command facade py
+wasm bench spec repo ci`.

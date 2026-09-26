@@ -117,6 +117,18 @@ pub mod interop {
     };
 }
 
+/// The authoring command language: typed commands, their text form, and the
+/// session that plans them into atomic scene patches.
+pub mod command {
+    pub use molgfx_command::registry;
+    pub use molgfx_command::{
+        ColorValue, Command, CommandError, CommandErrors, Completion, ErrorKind, Finite, Form,
+        FormKind, InvalidName, LayerSpec, Name, Opacity, OptionError, OptionInfo, OptionKind,
+        Outcome, Positive, Program, QueryText, RuleSpec, Session, SessionSpec, Show, Span,
+        Statement, Target,
+    };
+}
+
 /// Ordinary imports for authoring and rendering a scene.
 pub mod prelude {
     pub use crate::Renderer;
