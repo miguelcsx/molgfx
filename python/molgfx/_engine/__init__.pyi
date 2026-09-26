@@ -399,6 +399,7 @@ __all__ = [
     "PickResult",
     "Image",
     "Renderer",
+    "system_info",
     "ScalarExpr",
     "ScalarProperty",
     "ScalarParameter",
