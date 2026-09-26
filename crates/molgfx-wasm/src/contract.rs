@@ -4,7 +4,7 @@ use num_traits::ToPrimitive as _;
 use std::collections::BTreeMap;
 use wasm_bindgen::prelude::*;
 
-fn javascript_error(error: impl std::fmt::Display) -> JsError {
+pub(crate) fn javascript_error(error: impl std::fmt::Display) -> JsError {
     JsError::new(&error.to_string())
 }
 
@@ -106,9 +106,9 @@ impl WebScenePatch {
 #[derive(Debug)]
 /// Resolved browser scene retaining parsed molecular storage by shared ownership.
 pub struct WebScene {
-    spec: molgfx::SceneSpec,
+    pub(crate) spec: molgfx::SceneSpec,
     structures: BTreeMap<molgfx::StructureId, molframe::Structure>,
-    resolved: Option<molgfx::Scene>,
+    pub(crate) resolved: Option<molgfx::Scene>,
 }
 
 #[wasm_bindgen(js_class = Scene)]
