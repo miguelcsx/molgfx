@@ -131,6 +131,16 @@ impl<D: Device> GpuScene<D> {
         let prepared = Prepared::create(device, config, residency.frame_resident_bytes)?;
         assemble(device, config, prepared, residency, picking_page_capacity)
     }
+    pub(crate) fn ensure_occupancy_layout(
+        &mut self,
+        device: &D,
+        bounds_format: molgfx_gpu::TextureFormat,
+    ) -> &D::BindGroupLayout {
+        &self
+            .occupancy
+            .get_or_insert_with(|| (occupancy_layout(device, bounds_format), bounds_format))
+            .0
+    }
 }
 
 /// Assembles the persistent scene state from its prepared pieces.
@@ -181,7 +191,7 @@ fn assemble<D: Device>(
         label_render_layout: prepared.layouts.tail.label_render,
         overlay_layout: prepared.layouts.tail.overlay,
         trajectory_layout: prepared.layouts.tail.trajectory,
-        occupancy_layout: prepared.layouts.tail.occupancy,
+        occupancy: None,
         surface_fields: crate::scene_gpu::surface_cache::SurfaceFieldCache::new(),
         _surface_field_fallback_texture: prepared.surface.field_texture,
         surface_field_fallback: prepared.surface.field,
@@ -262,8 +272,8 @@ fn initial_layouts<D: Device>(device: &D) -> Result<InitialLayouts<D>, RenderErr
 }
 
 /// Layouts belonging to no representation: the relation families and the
-/// overlay, label, trajectory and occupancy families. Grouped because they
-/// share one creation step and one binding frequency.
+/// overlay, label, and trajectory families. Grouped because they share one
+/// creation step and binding frequency.
 struct TailLayouts<D: Device> {
     relations: RelationLayouts<D>,
     ligand_pose: D::BindGroupLayout,
@@ -271,7 +281,6 @@ struct TailLayouts<D: Device> {
     label_render: D::BindGroupLayout,
     overlay: D::BindGroupLayout,
     trajectory: D::BindGroupLayout,
-    occupancy: D::BindGroupLayout,
 }
 
 /// One layout per relation-resolver stage.
@@ -304,7 +313,6 @@ impl<D: Device> TailLayouts<D> {
             label_render: label_render_layout(device),
             overlay: overlay_layout(device),
             trajectory: trajectory_layout(device),
-            occupancy: occupancy_layout(device),
         }
     }
 }

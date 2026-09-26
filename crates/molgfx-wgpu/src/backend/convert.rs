@@ -73,6 +73,7 @@ pub(crate) fn texture_format(format: TextureFormat) -> wgpu::TextureFormat {
         TextureFormat::Rgba16Float => wgpu::TextureFormat::Rgba16Float,
         TextureFormat::Rg16Float => wgpu::TextureFormat::Rg16Float,
         TextureFormat::Rg32Float => wgpu::TextureFormat::Rg32Float,
+        TextureFormat::Rgba32Float => wgpu::TextureFormat::Rgba32Float,
         TextureFormat::R8Unorm => wgpu::TextureFormat::R8Unorm,
         TextureFormat::R32Uint => wgpu::TextureFormat::R32Uint,
         TextureFormat::R32Float => wgpu::TextureFormat::R32Float,

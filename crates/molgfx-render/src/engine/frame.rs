@@ -29,6 +29,7 @@ impl<D: Device> Engine<D> {
     /// Returns whether any of it changed, and restarts temporal accumulation
     /// when it did or while uploads are still in flight.
     fn sync_scene(&mut self, scene: &Scene) -> Result<bool, RenderError> {
+        self.ensure_occupancy(scene)?;
         let scene_changed = self.scene_gpu.sync(crate::scene_gpu::SceneSync {
             device: &self.device,
             queue: &self.queue,
@@ -199,7 +200,7 @@ impl<D: Device> Engine<D> {
             structure_coordinates_changed || paged_coordinates_changed || point_coordinates_changed,
         );
         self.scene_gpu
-            .record_occupancies(encoder, &self.passes.occupancy);
+            .record_occupancies(encoder, self.passes.occupancy.as_ref());
         self.scene_gpu.record_surface_fields(
             encoder,
             &self.passes.surface_field,

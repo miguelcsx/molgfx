@@ -5,6 +5,7 @@ workflow provides, and it must run against the wheel, not a development build.
 """
 
 import json
+import os
 import sys
 
 import molframe
@@ -35,9 +36,16 @@ print(json.dumps(info, indent=2))
 if sys.platform.startswith("linux") and "gl" not in info["compiled_backends"]:
     sys.exit("the Linux wheel was built without the OpenGL backend")
 
+expected_backend = os.environ.get("WGPU_BACKEND")
+if expected_backend:
+    discovered = {adapter["backend"] for adapter in info["available_adapters"]}
+    assert discovered == {expected_backend}, (expected_backend, discovered)
+
 scene = molgfx.Scene(molframe.read(MMCIF, name="one.cif"))
 scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()))
 image = molgfx.Renderer().render_image(scene, size=(64, 64))
 assert (image.width, image.height) == (64, 64)
+pixels = image.pixels()
+assert any(pixel != 0 for pixel in pixels), "render output is entirely transparent black"
 assert image.png_bytes().startswith(b"\x89PNG")
-print("rendered a 64x64 PNG")
+print("rendered a non-empty 64x64 PNG")

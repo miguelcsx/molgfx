@@ -1,6 +1,9 @@
 // Shared portable binding constructors.
 
-pub(super) fn occupancy_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(super) fn occupancy_layout<D: Device>(
+    device: &D,
+    bounds_format: molgfx_gpu::TextureFormat,
+) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "temporal occupancy accumulation",
         entries: &[
@@ -19,7 +22,7 @@ pub(super) fn occupancy_layout<D: Device>(device: &D) -> D::BindGroupLayout {
                 binding: 5,
                 visibility: ShaderStages::COMPUTE,
                 ty: BindingType::StorageTexture3dWrite {
-                    format: molgfx_gpu::TextureFormat::Rg32Float,
+                    format: bounds_format,
                 },
             },
         ],

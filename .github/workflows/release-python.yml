@@ -194,6 +194,17 @@ jobs:
   # device is caught here. Mesa supplies software Vulkan (lavapipe) and GL.
   headless-render:
     needs: wheels
+    name: headless-render (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: default
+            backend: ""
+          - name: vulkan
+            backend: vulkan
+          - name: gl
+            backend: gl
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -217,13 +228,16 @@ jobs:
           set -euo pipefail
           python -m venv .venv
           .venv/bin/python -m pip install dist/*.whl 'molframe>=0.1.2'
-          .venv/bin/python python/tests/headless_render.py
+          if [ "${{ matrix.name }}" = default ]; then
+            env -u WGPU_BACKEND .venv/bin/python python/tests/headless_render.py
+          else
+            WGPU_BACKEND="${{ matrix.backend }}" .venv/bin/python python/tests/headless_render.py
+          fi
 
   publish:
     needs: [wheels, headless-render]
     if: ${{ !inputs.dry-run }}
     runs-on: ubuntu-latest
-    environment: release
     steps:
       - uses: actions/download-artifact@v4
         with:

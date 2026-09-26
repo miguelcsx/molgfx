@@ -176,7 +176,8 @@ pub const TRAJECTORY: &str = include_str!(concat!(env!("OUT_DIR"), "/trajectory.
 
 /// GPU-resident temporal occupancy accumulation and volume resolution.
 pub const OCCUPANCY: &str = include_str!(concat!(env!("OUT_DIR"), "/occupancy.wgsl"));
-
+/// Occupancy shader specialized for an RGBA32 bounds texture.
+pub const OCCUPANCY_RGBA: &str = include_str!(concat!(env!("OUT_DIR"), "/occupancy_rgba.wgsl"));
 /// Fixed-step caller-supplied visual particle advection.
 pub const PARTICLE_ADVECTION: &str =
     include_str!(concat!(env!("OUT_DIR"), "/particle_advection.wgsl"));

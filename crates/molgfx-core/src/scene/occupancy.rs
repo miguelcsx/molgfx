@@ -75,6 +75,14 @@ impl Scene {
         Some((&value.stream, value.structure, &value.atom_rows))
     }
 
+    /// Whether this scene requests temporal occupancy accumulation.
+    #[must_use]
+    pub fn has_occupancy_stream(&self) -> bool {
+        self.volumes
+            .iter()
+            .any(|(_, volume)| volume.occupancy.is_some())
+    }
+
     /// Removes a dynamic occupancy stream and invalidates its volume handle.
     pub fn remove_occupancy_stream(&mut self, handle: VolumeHandle) -> bool {
         let Some(stored) = self.volumes.get(handle.0) else {

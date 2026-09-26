@@ -65,6 +65,10 @@ impl PyImage {
     fn height(&self) -> u32 {
         self.0.height()
     }
+    fn pixels<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, self.0.pixels())
+    }
+
     fn png_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let bytes = py.detach(|| self.0.png_bytes()).map_err(error)?;
         Ok(PyBytes::new(py, &bytes))
@@ -129,6 +133,15 @@ fn system_info(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
         entry.set_item("name", &adapter.name)?;
         entry.set_item("backend", adapter.backend)?;
         entry.set_item("type", adapter.device_type)?;
+        entry.set_item(
+            "max_storage_buffers_per_shader_stage",
+            adapter.max_storage_buffers_per_shader_stage,
+        )?;
+        entry.set_item("max_texture_dim_3d", adapter.max_texture_dim_3d)?;
+        entry.set_item("renderer_core_compatible", adapter.renderer_core_compatible)?;
+        entry.set_item("incompatibility_reasons", &adapter.incompatibility_reasons)?;
+        entry.set_item("occupancy_rg32_storage", adapter.occupancy_rg32_storage)?;
+        entry.set_item("occupancy_rgba32_storage", adapter.occupancy_rgba32_storage)?;
         adapters.append(entry)?;
     }
     let report = PyDict::new(py);

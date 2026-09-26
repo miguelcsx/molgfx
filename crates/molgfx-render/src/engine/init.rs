@@ -11,9 +11,9 @@ use crate::graph::{self, PassNode, ResourceDesc, TransientPool};
 use crate::passes::{
     AmbientOcclusionPass, AoDenoisePass, BloomPass, BondPass, CartoonPass, CullPass,
     DepthOfFieldPass, FrameBindings, InteractionPass, LabelPass, LightingPass, MotionBlurPass,
-    OccupancyPass, OitCompositePass, OitPass, OverlayPass, ParticleMotionPass, PointPass,
-    PrimitivePass, RelationResolvePass, ShadowPass, SpherePass, SurfaceComponentPass,
-    SurfaceFieldPass, SurfacePass, TemporalPass, TonemapPass, TrajectoryPass,
+    OccupancyBoundsFormat, OccupancyPass, OitCompositePass, OitPass, OverlayPass,
+    ParticleMotionPass, PointPass, PrimitivePass, RelationResolvePass, ShadowPass, SpherePass,
+    SurfaceComponentPass, SurfaceFieldPass, SurfacePass, TemporalPass, TonemapPass, TrajectoryPass,
 };
 use crate::scene_gpu::GpuScene;
 use molgfx_gpu::{Device, DeviceDesc, Opened, TextureFormat, WindowTarget};
@@ -172,12 +172,26 @@ fn realtime_passes<D: Device>(
             &scene.overlay_layout,
         )?,
         trajectory: TrajectoryPass::new(device, &scene.trajectory_layout)?,
-        occupancy: OccupancyPass::new(device, &scene.occupancy_layout)?,
+        occupancy: None,
         particle_motion: ParticleMotionPass::new(device, &scene.primitive_motion_layout)?,
     })
 }
 
 impl<D: Device> Engine<D> {
+    pub(super) fn ensure_occupancy(
+        &mut self,
+        scene: &molgfx_core::Scene,
+    ) -> Result<(), RenderError> {
+        if !scene.has_occupancy_stream() || self.passes.occupancy.is_some() {
+            return Ok(());
+        }
+        let format = OccupancyBoundsFormat::resolve(self.device.capabilities())?;
+        let layout = self
+            .scene_gpu
+            .ensure_occupancy_layout(&self.device, format.texture_format());
+        self.passes.occupancy = Some(OccupancyPass::new(&self.device, layout, format)?);
+        Ok(())
+    }
     /// Asynchronously opens a device and builds the realtime graph. Pass a
     /// window to render to screen; none for off-screen rendering.
     ///

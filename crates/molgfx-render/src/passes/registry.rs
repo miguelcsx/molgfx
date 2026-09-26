@@ -64,7 +64,7 @@ pub(crate) struct PassRegistry<D: Device> {
     /// Topology-stable coordinate interpolation.
     pub(crate) trajectory: TrajectoryPass<D>,
     /// GPU-resident temporal occupancy accumulation.
-    pub(crate) occupancy: OccupancyPass<D>,
+    pub(crate) occupancy: Option<OccupancyPass<D>>,
     /// Fixed-step caller-supplied visual particle advection.
     pub(crate) particle_motion: ParticleMotionPass<D>,
 }

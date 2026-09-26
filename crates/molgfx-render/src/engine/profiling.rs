@@ -375,7 +375,7 @@ impl<D: Device> Engine<D> {
             timestamps_started || paged_coordinates_changed || point_coordinates_changed,
         );
         self.scene_gpu
-            .record_occupancies(&mut encoder, &self.passes.occupancy);
+            .record_occupancies(&mut encoder, self.passes.occupancy.as_ref());
         self.scene_gpu.record_surface_fields(
             &mut encoder,
             &self.passes.surface_field,

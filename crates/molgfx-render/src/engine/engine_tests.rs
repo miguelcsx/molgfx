@@ -41,6 +41,12 @@ fn engine_creation_keeps_every_registered_layout_within_the_portable_storage_lim
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             assert!(!layouts.is_empty());
+            assert!(
+                layouts
+                    .iter()
+                    .all(|(label, _)| *label != "temporal occupancy accumulation"),
+                "ordinary renderer construction does not prepare occupancy"
+            );
             for (label, counts) in layouts.iter() {
                 assert!(
                     counts.iter().all(|count| *count <= 8),
