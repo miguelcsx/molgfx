@@ -104,7 +104,7 @@ jobs:
           set -euo pipefail
           python -m venv .venv
           . .venv/bin/activate
-          python -m pip install --upgrade pip maturin mypy anywidget numpy 'molframe>=0.1.2'
+          python -m pip install --upgrade pip maturin mypy anywidget numpy 'molframe>=0.2.0'
           maturin develop -m crates/molgfx-py/Cargo.toml
           python -m unittest discover -s python/tests
           python -m mypy.stubtest molgfx._engine
@@ -234,7 +234,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m venv .venv
-          .venv/bin/python -m pip install dist/*.whl 'molframe>=0.1.2'
+          .venv/bin/python -m pip install dist/*.whl 'molframe>=0.2.0'
           if [ "${{ matrix.name }}" = default ]; then
             env -u WGPU_BACKEND .venv/bin/python python/tests/headless_render.py
           else
