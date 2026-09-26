@@ -226,6 +226,7 @@ fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), Rend
             molgfx_geometry::PropertyColumns {
                 color: input.color_property,
                 appearance: input.appearance_property,
+                overlay: input.overlay,
             },
             molgfx_geometry::RibbonColoring {
                 color: input.representation.color,
@@ -353,4 +354,6 @@ pub(super) struct RibbonSync<'a, D: Device> {
     pub(super) mesh: &'a mut RibbonMesh,
     pub(super) color_property: Option<&'a molgfx_core::AtomProperty>,
     pub(super) appearance_property: Option<&'a molgfx_core::AtomProperty>,
+    /// Selection-scoped schemes overriding the representation's own.
+    pub(super) overlay: Option<molgfx_geometry::OverlayColumn<'a>>,
 }

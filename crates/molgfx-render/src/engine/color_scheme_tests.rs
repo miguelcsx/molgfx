@@ -138,7 +138,7 @@ fn the_gpu_scheme_palette_matches_the_cpu_palette() {
     let Some(value) = scene.representation(representation) else {
         panic!("representation resolves")
     };
-    let uniforms = crate::scene_gpu::color_uniforms::ColorUniforms::new(value, [0, 1]);
+    let uniforms = crate::scene_gpu::color_uniforms::ColorUniforms::new(value, [0, 1], [0, 1]);
     let palette = uniforms.palette_probe();
     for (index, color) in molgfx_core::CATEGORICAL_COLORS.into_iter().enumerate() {
         assert_eq!(
@@ -231,4 +231,49 @@ fn the_colour_block_is_written_with_the_active_scheme() {
         u32::from_le_bytes([12, 34, 56, 255]),
         "the colour travels packed"
     );
+}
+
+#[test]
+fn an_overlay_packs_its_column_and_scheme_table_for_the_shader() {
+    let mut scene = represented_scene(1, 1);
+    let Some((structure, placed)) = scene.structures().next() else {
+        panic!("fixture has a structure")
+    };
+    let atoms = placed.atoms.len() as usize;
+    let classes = match molgfx_core::AtomProperty::new(
+        structure,
+        std::sync::Arc::<str>::from("classes"),
+        vec![0.0; atoms].into(),
+        molgfx_core::AtomPropertyMeaning::Generic,
+        molgfx_core::ScalarFieldSemantics::UncalibratedRank,
+    ) {
+        Ok(property) => property,
+        Err(error) => panic!("class column builds: {error}"),
+    };
+    let Ok(handle) = scene.add_atom_property(classes) else {
+        panic!("class column binds")
+    };
+    let red = molgfx_math::Rgba8::opaque(255, 0, 0);
+    let Ok(overlay) =
+        molgfx_core::ColorOverlay::new(handle, &[ColorScheme::ByChain, ColorScheme::Uniform(red)])
+    else {
+        panic!("overlay builds")
+    };
+    let Some((representation, _)) = scene.representations().next() else {
+        panic!("fixture has a representation")
+    };
+    let Some(value) = scene.representation_mut(representation) else {
+        panic!("representation resolves")
+    };
+    value.color_overlay = Some(overlay);
+    let packed = crate::scene_gpu::color_uniforms::ColorUniforms::new(value, [0, 1], [40, 1]);
+    let (header, table) = packed.overlay_probe();
+    assert_eq!(header, [40, 1, 2, 0]);
+    // Class one is the chain scheme, class two the packed uniform red.
+    assert_eq!(table[0][0], 1);
+    assert_eq!(table[0][2], 5);
+    assert_eq!(table[0][3], u32::from_le_bytes([255, 0, 0, 255]));
+    // An unplanned column disables the overlay instead of reading offset zero.
+    let disabled = crate::scene_gpu::color_uniforms::ColorUniforms::new(value, [0, 1], [0, 1]);
+    assert_eq!(disabled.overlay_probe().0[0], 0);
 }

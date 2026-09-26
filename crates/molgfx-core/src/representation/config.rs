@@ -15,6 +15,7 @@ use crate::{
 pub struct RepresentationConfig {
     pub(crate) kind: RepresentationKind,
     pub(crate) color: ColorScheme,
+    color_overlay: Option<crate::ColorOverlay>,
     pub(crate) material: Material,
     pub(crate) params: RepresentationParams,
     pub(crate) clipping: ClipSet,
@@ -34,6 +35,7 @@ impl RepresentationConfig {
         Self {
             kind,
             color: ColorScheme::default(),
+            color_overlay: None,
             material: Material::default(),
             params: super::kinds::params_for_kind(kind),
             clipping: ClipSet::default(),
@@ -57,6 +59,13 @@ impl RepresentationConfig {
     #[must_use]
     pub const fn color(mut self, color: ColorScheme) -> Self {
         self.color = color;
+        self
+    }
+
+    /// Lets selection-scoped schemes override `color` for some atoms.
+    #[must_use]
+    pub const fn color_overlay(mut self, overlay: Option<crate::ColorOverlay>) -> Self {
+        self.color_overlay = overlay;
         self
     }
 
@@ -247,6 +256,7 @@ impl RepresentationConfig {
     pub(crate) fn bind(self, target: RepresentationTarget) -> Representation {
         let mut representation = Representation::new(target, self.kind);
         representation.color = self.color;
+        representation.color_overlay = self.color_overlay;
         representation.material = self.material;
         representation.params = self.params;
         representation.clipping = self.clipping;

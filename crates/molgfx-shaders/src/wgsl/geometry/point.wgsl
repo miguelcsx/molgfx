@@ -42,6 +42,8 @@ struct PointOpaqueVsOut {
     @location(1) @interpolate(flat, either) color: vec4f,
     @location(2) @interpolate(flat, either) motion: vec2f,
     @location(3) @interpolate(flat, either) entity_id: u32,
+    // Palette indices for the colour scheme, resolved per fragment.
+    @location(4) @interpolate(flat, either) semantic: u32,
 }
 
 struct PointTransparentVsOut {
@@ -53,6 +55,8 @@ struct PointTransparentVsOut {
     @location(2) @interpolate(flat, either) color: vec4f,
     @location(3) @interpolate(flat, either) softness_pixels: f32,
     @location(4) @interpolate(flat, either) entity_id: u32,
+    // Palette indices for the colour scheme, resolved per fragment.
+    @location(5) @interpolate(flat, either) semantic: u32,
 }
 
 struct PointFsOut {
@@ -172,6 +176,9 @@ fn vs_point(
     out.entity_id =
         0u;
 
+    out.semantic =
+        0u;
+
     if POINT_CLIPPING_ENABLED &&
         !representation_visible(world_position) {
         out.position =
@@ -197,6 +204,9 @@ fn vs_point(
 
         out.entity_id =
             atom.entity_id;
+
+        out.semantic =
+            atom.semantic;
     }
 
     return out;
@@ -213,7 +223,7 @@ fn fs_point(
     let world_position = atom_position(in.entity_id);
     let visual = visual_fragment(
         in.entity_id,
-        in.color,
+        point_scheme_color(in.semantic, in.entity_id, in.color),
         visual_local_position(world_position),
         world_position,
         visual_world_normal(POINT_NORMAL),
@@ -302,6 +312,9 @@ fn vs_point_transparent(
     out.entity_id =
         0u;
 
+    out.semantic =
+        0u;
+
     if POINT_CLIPPING_ENABLED &&
         !representation_visible(world_position) {
         out.position =
@@ -326,6 +339,9 @@ fn vs_point_transparent(
 
         out.entity_id =
             atom.entity_id;
+
+        out.semantic =
+            atom.semantic;
     }
 
     return out;
@@ -348,7 +364,7 @@ fn fs_point_transparent(
     let world_position = atom_position(in.entity_id);
     let visual = visual_fragment(
         in.entity_id,
-        in.color,
+        point_scheme_color(in.semantic, in.entity_id, in.color),
         visual_local_position(world_position),
         world_position,
         visual_world_normal(POINT_NORMAL),
@@ -398,4 +414,13 @@ fn fs_point_transparent(
         visual.color.a * coverage,
         in.position.z,
     );
+}
+
+/// A point's colour under the representation's scheme and overlay.
+///
+/// The vertex stage forwards the record's element colour and palette indices;
+/// the scheme is applied here, where the overlay's class column is visible.
+fn point_scheme_color(semantic: u32, entity_id: u32, element: vec4f) -> vec4f {
+    let color = atom_scheme_color(semantic, atom_source_index(entity_id), vec4f(element.rgb, 1.0));
+    return vec4f(color.rgb, element.a);
 }

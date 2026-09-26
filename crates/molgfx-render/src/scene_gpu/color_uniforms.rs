@@ -52,6 +52,11 @@ pub(crate) struct ColorUniforms {
     appearance: [f32; 4],
     /// The softness response in `xy` and the missing-value response in `zw`.
     softness: [f32; 4],
+    /// The selection-scoped overlay: the class column's arena offset (zero
+    /// when none applies), its stride in words, and the number of classes.
+    overlay: [u32; 4],
+    /// Two (scheme tag, packed colour) pairs per row, class one first.
+    overlay_table: [[u32; 4]; 8],
 }
 
 impl ColorUniforms {
@@ -60,7 +65,14 @@ impl ColorUniforms {
     /// `column` is the colour property column's arena offset and stride, or
     /// zero when no column was planned: a scheme that samples a missing column
     /// resolves every value to the missing colour rather than reading garbage.
-    pub(crate) fn new(representation: &Representation, column: [u32; 2]) -> Self {
+    ///
+    /// `overlay_column` is the arena offset and stride of the representation's
+    /// overlay class column; a zero offset disables the overlay in the shader.
+    pub(crate) fn new(
+        representation: &Representation,
+        column: [u32; 2],
+        overlay_column: [u32; 2],
+    ) -> Self {
         let mut palette = [[0.0; 4]; PALETTE_SLOTS];
         for (class, color) in SECONDARY_STRUCTURE_COLORS.into_iter().enumerate() {
             palette[SECONDARY_BASE + class] = lanes(color);
@@ -68,6 +80,7 @@ impl ColorUniforms {
         for (index, color) in CATEGORICAL_COLORS.into_iter().enumerate() {
             palette[CATEGORICAL_BASE + index] = lanes(color);
         }
+        let (overlay, overlay_table) = overlay_block(representation, overlay_column);
         let (selector, packed) = match representation.color {
             ColorScheme::ByChain => (SCHEME_CHAIN, 0),
             ColorScheme::ByResidue => (SCHEME_RESIDUE, 0),
@@ -110,6 +123,8 @@ impl ColorUniforms {
             selector: [selector, packed, column[0], column[1]],
             appearance,
             softness,
+            overlay,
+            overlay_table,
         }
     }
 
@@ -119,9 +134,53 @@ impl ColorUniforms {
         self.palette
     }
 
+    /// The overlay header and table, for tests that pin the shader's layout.
+    #[cfg(test)]
+    pub(crate) const fn overlay_probe(&self) -> ([u32; 4], [[u32; 4]; 8]) {
+        (self.overlay, self.overlay_table)
+    }
+
     /// Writes this block into its buffer.
     pub(super) fn write<D: Device>(self, queue: &D::Queue, buffer: &D::Buffer) {
         queue.write_buffer(buffer, 0, bytemuck::bytes_of(&self));
+    }
+}
+
+/// The overlay header and table for one representation.
+///
+/// An overlay whose column was not planned into the arena is disabled rather
+/// than pointed at offset zero, so the shader never reads an unrelated column.
+fn overlay_block(representation: &Representation, column: [u32; 2]) -> ([u32; 4], [[u32; 4]; 8]) {
+    let mut table = [[0; 4]; 8];
+    let Some(overlay) = representation.color_overlay else {
+        return ([0, 1, 0, 0], table);
+    };
+    if column[0] == 0 {
+        return ([0, 1, 0, 0], table);
+    }
+    let mut count = 0_u32;
+    for (index, scheme) in overlay.schemes().iter().enumerate() {
+        let (tag, packed) = scheme_words(*scheme);
+        let row = &mut table[index / 2];
+        let lane = (index % 2) * 2;
+        row[lane] = tag;
+        row[lane + 1] = packed;
+        count += 1;
+    }
+    ([column[0], column[1], count, 0], table)
+}
+
+/// The shader tag and packed colour one overriding scheme resolves to.
+///
+/// A property scheme cannot appear in an overlay, whose constructor refuses
+/// it, so it falls back to the element tag like any unknown scheme.
+const fn scheme_words(scheme: ColorScheme) -> (u32, u32) {
+    match scheme {
+        ColorScheme::ByChain => (SCHEME_CHAIN, 0),
+        ColorScheme::ByResidue => (SCHEME_RESIDUE, 0),
+        ColorScheme::BySecondaryStructure => (SCHEME_SECONDARY, 0),
+        ColorScheme::Uniform(color) => (SCHEME_UNIFORM, pack(color)),
+        _ => (SCHEME_ELEMENT, 0),
     }
 }
 

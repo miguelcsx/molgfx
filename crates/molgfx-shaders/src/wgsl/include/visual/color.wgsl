@@ -23,12 +23,20 @@ const COLOR_RESIDUE_SHIFT: u32 = 13u;
 const COLOR_SECONDARY_SHIFT: u32 = 16u;
 const COLOR_FIELD_MASK: u32 = 7u;
 
+/// The most overriding schemes one overlay table holds.
+const COLOR_OVERLAY_CLASSES: u32 = 15u;
+
 /// The colour palette and selector block the representation uploads.
 struct ColorUniforms {
     palette: array<vec4f, 17>,
     selector: vec4u,
     appearance: vec4f,
     softness: vec4f,
+    /// The selection-scoped overlay: the class column's arena offset (zero
+    /// when no overlay applies), its stride in words, and the class count.
+    overlay: vec4u,
+    /// Two (scheme tag, packed colour) pairs per row, class one first.
+    overlay_table: array<vec4u, 8>,
 }
 
 @group(2) @binding(18)
@@ -161,13 +169,50 @@ fn atom_fragment_color(
     ));
 }
 
+/// The overlay class of one atom row, or zero when its scheme is not
+/// overridden.
+///
+/// The class column holds whole numbers as scalars; a missing, non-finite or
+/// out-of-table value keeps the representation's own scheme.
+fn color_overlay_class(atom_index: u32) -> u32 {
+    let offset = color_uniforms.overlay.x;
+    if offset == 0u {
+        return 0u;
+    }
+    let value = bitcast<f32>(
+        visual_properties[offset + atom_index * color_uniforms.overlay.y],
+    );
+    let count = min(color_uniforms.overlay.z, COLOR_OVERLAY_CLASSES);
+    if !(value >= 1.0) || value > f32(count) {
+        return 0u;
+    }
+    return u32(value);
+}
+
+/// The (scheme tag, packed colour) pair one non-zero overlay class selects.
+fn color_overlay_entry(overlay_class: u32) -> vec2u {
+    let slot = overlay_class - 1u;
+    let row = color_uniforms.overlay_table[min(slot / 2u, 7u)];
+    if (slot & 1u) == 0u {
+        return row.xy;
+    }
+    return row.zw;
+}
+
 /// Resolves one atom's display colour under the active scheme.
 ///
 /// `element_color` is the element colour the shared record carries, which every
 /// fallback path returns: a scheme whose own input row is absent shows the
 /// element colour rather than an arbitrary palette entry.
 fn atom_scheme_color(semantic: u32, atom_index: u32, element_color: vec4f) -> vec4f {
-    let scheme = color_uniforms.selector.x;
+    var scheme = color_uniforms.selector.x;
+    var packed = color_uniforms.selector.y;
+    let overlay_class = color_overlay_class(atom_index);
+    if overlay_class != 0u {
+        let entry = color_overlay_entry(overlay_class);
+        scheme = entry.x;
+        packed = entry.y;
+    }
     if scheme == COLOR_SCHEME_CHAIN {
         return color_palette_slot(
             COLOR_CATEGORICAL_BASE + color_indices(semantic).x,
@@ -189,7 +234,7 @@ fn atom_scheme_color(semantic: u32, atom_index: u32, element_color: vec4f) -> ve
         return color_ramp(color_property_sample(atom_index));
     }
     if scheme == COLOR_SCHEME_UNIFORM {
-        return unpack4x8unorm(color_uniforms.selector.y);
+        return unpack4x8unorm(packed);
     }
     return element_color;
 }

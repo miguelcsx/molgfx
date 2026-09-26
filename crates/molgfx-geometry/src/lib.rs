@@ -17,7 +17,7 @@ pub use cartoon::{
     extract_glycosidic_traces, extract_polymer_traces, solve_offsets, variable_tube_radius,
 };
 pub use packing::{
-    PackingError, PropertyColumns, RibbonColoring, build_compaction_map,
+    OverlayColumn, PackingError, PropertyColumns, RibbonColoring, build_compaction_map,
     build_selection_compaction, pack_atoms, pack_atoms_with_hierarchy, pack_atoms_with_properties,
     pack_bonds, pack_residue_beads, recolor_ribbon, recolor_ribbon_with_appearance,
 };

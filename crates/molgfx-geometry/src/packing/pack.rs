@@ -60,6 +60,7 @@ pub fn pack_atoms_with_hierarchy(
         PropertyColumns {
             color: property,
             appearance: None,
+            overlay: None,
         },
         representation,
         selection,
@@ -74,6 +75,8 @@ pub struct PropertyColumns<'a> {
     pub color: Option<&'a AtomProperty>,
     /// Opacity and edge-softness source.
     pub appearance: Option<&'a AtomProperty>,
+    /// Selection-scoped schemes overriding the representation's own.
+    pub overlay: Option<super::OverlayColumn<'a>>,
 }
 
 /// Compact representation state used while recolouring generated splines.
@@ -340,6 +343,7 @@ pub fn recolor_ribbon(
         PropertyColumns {
             color: property,
             appearance: None,
+            overlay: None,
         },
         RibbonColoring {
             color: scheme,
@@ -370,8 +374,12 @@ pub fn recolor_ribbon_with_appearance(
         let Some(&element) = element_colors.get(index) else {
             continue;
         };
+        let scheme = match properties.overlay {
+            Some(overlay) => overlay.scheme(style.color, index),
+            None => style.color,
+        };
         let mut color = representation_color(
-            style.color,
+            scheme,
             element,
             Some((hierarchy, secondary_structure)),
             properties.color,

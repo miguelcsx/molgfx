@@ -17,24 +17,7 @@ impl<D: Device> VisualPropertyTable<D> {
         derived_cache: &mut DerivedCache,
         frame: u64,
     ) -> Result<bool, RenderError> {
-        self.handle_scratch.clear();
-        for (_, representation) in scene.representations() {
-            // A colour scheme reads one scalar column; it is planned here so
-            // the shader can sample it from the same arena visual programs use.
-            if let Some(handle) = representation.color.property_handle() {
-                self.handle_scratch
-                    .push(VisualAttributeRef::LegacyScalar(handle));
-            }
-            let Some(style) = &representation.visual else {
-                continue;
-            };
-            self.handle_scratch
-                .extend_from_slice(style.program().attributes());
-        }
-        for (_, descriptor) in scene.domain_visuals() {
-            self.handle_scratch
-                .extend_from_slice(descriptor.style().program().attributes());
-        }
+        collect_attribute_references(scene, &mut self.handle_scratch);
         self.handle_scratch.sort_unstable();
         self.handle_scratch.dedup();
         if !force && self.handle_scratch == self.planned_handles {
@@ -197,5 +180,33 @@ impl<D: Device> VisualPropertyTable<D> {
                 group: &timeline.group,
                 groups: timeline.groups,
             })
+    }
+}
+
+/// Every attribute column a frame of `scene` samples from the arena.
+///
+/// Colour schemes, selection-scoped overlays, visual programs and domain
+/// visuals all read their columns from the one arena, so their references are
+/// planned together; the caller sorts and deduplicates them.
+fn collect_attribute_references(scene: &Scene, references: &mut Vec<VisualAttributeRef>) {
+    references.clear();
+    for (_, representation) in scene.representations() {
+        // A colour scheme reads one scalar column; it is planned here so
+        // the shader can sample it from the same arena visual programs use.
+        if let Some(handle) = representation.color.property_handle() {
+            references.push(VisualAttributeRef::LegacyScalar(handle));
+        }
+        // A selection-scoped overlay reads its class column from the same
+        // arena, so it is planned alongside the scheme's own column.
+        if let Some(overlay) = representation.color_overlay {
+            references.push(VisualAttributeRef::LegacyScalar(overlay.classes()));
+        }
+        let Some(style) = &representation.visual else {
+            continue;
+        };
+        references.extend_from_slice(style.program().attributes());
+    }
+    for (_, descriptor) in scene.domain_visuals() {
+        references.extend_from_slice(descriptor.style().program().attributes());
     }
 }
