@@ -72,7 +72,7 @@ molgfx-api = { version = "0.1.2", path = "crates/molgfx-api" }
 molframe = { version = "0.1.2", default-features = false, features = ["mmcif", "bcif", "pdb"] }
 # The provider's Python bridge names its library target `_native`, so the
 # dependency is renamed back to the package name for `molframe_py::` to resolve.
-molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "c5205ded8f063f5a94b18c05e277eab461077c77", default-features = false }
+molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "eb2ead73639a33a20a09a377a4834d44a57e5e1d", default-features = false }
 
 # Python ABI shared by the thin binding crate and the sibling molframe bridge.
 pyo3 = "0.29"
@@ -142,4 +142,4 @@ lto = "thin"
 # match. `[patch]` only applies to this workspace's own builds; the published
 # crates still resolve `molframe` from the registry.
 [patch.crates-io]
-molframe = { git = "https://github.com/miguelcsx/molframe", rev = "c5205ded8f063f5a94b18c05e277eab461077c77" }
+molframe = { git = "https://github.com/miguelcsx/molframe", rev = "eb2ead73639a33a20a09a377a4834d44a57e5e1d" }
