@@ -100,9 +100,67 @@ The public exception hierarchy is `MolgfxError`, `SpecError`, and
 
 Notebook interaction uses `molgfx.viewer.Viewer`. The AnyWidget sends the
 canonical scene JSON, compact BinaryCIF source buffers, and subsequent patches
-to the packaged `molgfx-wasm` module. That module parses the same contract and
+to the packaged `molgfx-wasm` module, which travels with the widget's own state
+so it loads in Jupyter, JupyterLab, VS Code and Colab alike. That module parses the same contract and
 renders directly into a browser canvas with WebGPU. Resize remains local to the
 browser and no rendered frame pixels travel back through the Python kernel.
+
+## Commands
+
+Scenes can also be authored with a small command language. Molecular
+selections are MolFrame queries, handed to MolFrame exactly as written, so
+there is one query language and its diagnostics point into your text. Named
+selections are written `$name`; a layer is written `@name`.
+
+```text
+select pocket, byres (within 5 of resname HEM)
+show cartoon, protein
+show ball_and_stick radius=0.3 as site, $pocket
+color red, chain A           # a rule: chain A is red in every layer
+color chain, @cartoon         # a layer's own colour
+select pocket, byres (within 8 of resname HEM)   # @site follows the new definition
+undo
+```
+
+A `Session` resolves names and plans each program into one atomic
+`ScenePatch`: every statement applies or none does, and a colour or visibility
+change is a local edit that never rebuilds geometry. `show` is idempotent —
+asking again for the same form over the same target reuses the layer unless
+`duplicate` is given. Errors are typed values with a byte span, the MolFrame
+diagnostic code for a query error, and a nearest-spelling suggestion.
+
+```rust,no_run
+use molgfx::Scene;
+use molgfx::command::Session;
+
+# fn run(structure: &molframe::Structure) -> Result<(), Box<dyn std::error::Error>> {
+let mut scene = Scene::from_structure(structure)?;
+let mut session = Session::new(&scene);
+let outcome = session.execute_text(&mut scene, "show cartoon, protein; color red, chain A")?;
+let patch = outcome.patch; // send this to a viewer
+# let _ = patch;
+# Ok(())
+# }
+```
+
+In Python the session edits the same live scene a viewer shows, and
+`molgfx.viewer.Workbench` adds a command line, history and error panel under
+the canvas:
+
+```python
+import molframe, molgfx
+from molgfx.viewer import Workbench
+
+bench = Workbench(molframe.read("4hhb.cif"))
+bench.execute("show cartoon, protein; select heme, resname HEM; show spacefill, $heme")
+bench  # type more commands in the page; Tab completes, arrow keys recall
+```
+
+Typed commands are available as `molgfx.Command` (`Command.show("cartoon",
+"protein", width=2)`), `session.completions(text)` lists what fits at a cursor,
+and `session.to_json()` saves names, layers and rules with the targets as
+declared, `$name` references included. The browser bindings expose the same
+`Session`, compiled from the same Rust grammar.
 
 ## Wire contract and interoperability
 
