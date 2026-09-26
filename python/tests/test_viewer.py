@@ -190,6 +190,21 @@ class ViewerTransportTests(unittest.TestCase):
         self.assertEqual(sorted(spec["structures"]), ["1", "2"])
         self.assertEqual(len(scene._browser_sources()), 2)
 
+    def test_the_published_revision_follows_every_patch(self):
+        scene, viewer, representation = viewer_with_representation()
+        before = viewer.revision
+        scene._scene.set_opacity(representation, 0.5)
+        self.assertEqual(viewer.revision, before + 1)
+        self.assertEqual(viewer.revision, scene._scene.revision)
+
+    def test_a_view_that_fell_behind_receives_the_current_spec(self):
+        scene, viewer, representation = viewer_with_representation()
+        scene._scene.set_opacity(representation, 0.25)
+        self.assertNotIn('"opacity":0.25', viewer.scene_spec)
+        viewer.sync_request += 1
+        self.assertIn('"opacity":0.25', viewer.scene_spec)
+        self.assertEqual(json.loads(viewer.scene_spec)["revision"], viewer.revision)
+
     def test_no_frame_is_transported_as_png_or_base64(self):
         scene, viewer, representation = viewer_with_representation()
         scene._scene.set_opacity(representation, 0.25)
@@ -256,7 +271,8 @@ PAGE = """<!doctype html>
 </head><body style="margin:0">
 <div id="root" style="width:100%;height:240px"></div>
 <script type="module">
-import {render} from "./widget.js";
+import widget from "./widget.js";
+const {render} = widget;
 
 const listeners = new Map();
 const saved = [];
@@ -318,6 +334,8 @@ class ViewerPageTests(unittest.TestCase):
             "selection": "",
             "camera": {},
             "error": "",
+            "revision": scene.revision,
+            "sync_request": 0,
         }
         (STATIC / "_viewer_test_page.html").write_text(
             PAGE.replace("__VALUES__", json.dumps(values))
@@ -382,6 +400,21 @@ class ViewerPageTests(unittest.TestCase):
         self.assertEqual(values["error"], "")
         self.assertEqual(values["patch_sequence"], 1)
         self.assertIn("set_opacity", values["scene_patch"])
+
+    def test_a_patch_the_page_cannot_follow_asks_for_the_current_spec(self):
+        self.runtime()
+        self.page.evaluate(
+            """(patch) => {
+                window.__molgfx.values.scene_patch = patch;
+                window.__molgfx.values.patch_sequence += 1;
+                window.__molgfx.emit("change:patch_sequence");
+            }""",
+            opacity_patch(_Scene(), 1, 0.4).replace('"base_revision": 1', '"base_revision": 7'),
+        )
+        self.page.wait_for_timeout(300)
+        values = self.page.evaluate("window.__molgfx.values")
+        self.assertEqual(values["error"], "")
+        self.assertEqual(values["sync_request"], 1)
 
     def test_a_rebuilt_scene_transports_each_payload_once(self):
         self.runtime()

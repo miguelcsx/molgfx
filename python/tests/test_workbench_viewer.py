@@ -37,6 +37,8 @@ def _values(bench):
         "selection": "",
         "camera": {},
         "error": "",
+        "revision": bench.scene.revision,
+        "sync_request": 0,
         "workbench": True,
         "history": [],
         "command_request": {},
