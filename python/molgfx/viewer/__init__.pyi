@@ -1,4 +1,4 @@
-from molgfx import Scene, ScenePatch
+from molgfx import CommandResult, Scene, ScenePatch, Session
 
 class Viewer:
     scene_spec: str
@@ -13,3 +13,14 @@ class Viewer:
     error: str
     def __init__(self, scene: Scene, **kwargs: object) -> None: ...
     def apply(self, patch: ScenePatch) -> None: ...
+
+class Workbench(Viewer):
+    workbench: bool
+    history: list[str]
+    command_request: dict[str, object]
+    command_reply: dict[str, object]
+    session: Session
+    def __init__(self, source: Session | Scene | object, **kwargs: object) -> None: ...
+    @property
+    def scene(self) -> Scene: ...
+    def execute(self, text: str) -> CommandResult: ...

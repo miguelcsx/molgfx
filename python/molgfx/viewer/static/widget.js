@@ -1,4 +1,32 @@
-import init, {Renderer, Scene, ScenePatch} from "./molgfx_wasm.js";
+// The runtime is a wasm-bindgen ES module plus its WebAssembly binary. A
+// notebook frontend loads this file from a blob URL, where a relative import
+// has nothing to resolve against, so the kernel ships both parts as widget
+// state and they are instantiated from memory. A page that serves this file
+// beside the runtime (the browser tests) imports it relatively instead.
+const runtimes = new Map();
+
+export function loadRuntime(model) {
+  const glue = model.get("_runtime_js");
+  const key = glue ? model.get("_runtime_key") || "inline" : "static";
+  if (!runtimes.has(key)) {
+    runtimes.set(key, (async () => {
+      if (glue) {
+        const url = URL.createObjectURL(new Blob([glue], {type: "text/javascript"}));
+        try {
+          const runtime = await import(url);
+          await runtime.default({module_or_path: sourceBytes(model.get("_runtime_wasm"))});
+          return runtime;
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      }
+      const runtime = await import("./molgfx_wasm.js");
+      await runtime.default({module_or_path: new URL("./molgfx_wasm_bg.wasm", import.meta.url)});
+      return runtime;
+    })());
+  }
+  return runtimes.get(key);
+}
 
 function dimensions(canvas) {
   const ratio = window.devicePixelRatio || 1;
@@ -11,7 +39,7 @@ function sourceBytes(value) {
   return value instanceof Uint8Array ? value : new Uint8Array(value.buffer || value);
 }
 
-async function buildScene(model) {
+async function buildScene(model, {Scene}) {
   const scene = new Scene(model.get("scene_spec"));
   const ids = model.get("structure_ids");
   const names = model.get("structure_names");
@@ -66,9 +94,11 @@ export async function render({model, el}) {
   const canvas = document.createElement("canvas");
   canvas.className = "molgfx-canvas";
   el.appendChild(canvas);
-  await init(new URL("./molgfx_wasm_bg.wasm", import.meta.url));
+  const detach = model.get("workbench") ? mountConsole(model, el) : () => {};
+  const runtime = await loadRuntime(model);
+  const {Renderer, ScenePatch} = runtime;
 
-  let scene = await buildScene(model);
+  let scene = await buildScene(model, runtime);
   const renderer = await Renderer.create(canvas);
   let camera;
   const draw = () => {
@@ -96,7 +126,7 @@ export async function render({model, el}) {
 
   const replace = async () => {
     try {
-      scene = await buildScene(model);
+      scene = await buildScene(model, runtime);
       camera = undefined;
       draw();
     } catch (error) {
@@ -163,6 +193,7 @@ export async function render({model, el}) {
   draw();
 
   return () => {
+    detach();
     resizeObserver.disconnect();
     model.off("change:scene_spec", replace);
     model.off("change:patch_sequence", patch);
@@ -171,5 +202,150 @@ export async function render({model, el}) {
     canvas.removeEventListener("pointermove", pointerMove);
     canvas.removeEventListener("pointerup", pointerUp);
     canvas.removeEventListener("wheel", wheel);
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Command console (Workbench only)
+// ---------------------------------------------------------------------------
+
+function element(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+/// A command line, history and error panel under the canvas.
+///
+/// Requests travel as the `command_request` trait and answers come back as
+/// `command_reply`; commands run in the kernel, and their effect reaches the
+/// canvas as ordinary scene patches, never as pixels.
+function mountConsole(model, el) {
+  const panel = element("div", "molgfx-console");
+  const log = element("ol", "molgfx-log");
+  const row = element("div", "molgfx-prompt");
+  const prompt = element("span", "molgfx-caret", "›");
+  const input = element("input", "molgfx-input");
+  input.type = "text";
+  input.spellcheck = false;
+  input.autocomplete = "off";
+  input.placeholder = "show cartoon, protein   (Tab completes, ↑↓ history)";
+  const menu = element("ul", "molgfx-completions");
+  const status = element("pre", "molgfx-status");
+  row.append(prompt, input);
+  panel.append(log, row, menu, status);
+  el.appendChild(panel);
+
+  let sequence = 0;
+  let recall = -1;
+  const pending = new Map();
+
+  const request = (payload) => {
+    sequence += 1;
+    const id = `${Date.now()}-${sequence}`;
+    pending.set(id, payload.type);
+    model.set("command_request", {...payload, id});
+    model.save_changes();
+    return id;
+  };
+
+  const entry = (text, ok, detail) => {
+    const item = element("li", ok ? "molgfx-ok" : "molgfx-failed");
+    item.append(element("code", "", text));
+    if (detail) item.append(element("div", "molgfx-detail", detail));
+    log.append(item);
+    log.scrollTop = log.scrollHeight;
+  };
+
+  const showCompletions = (items) => {
+    menu.replaceChildren();
+    if (items.length === 1) {
+      replaceWord(items[0].text);
+      return;
+    }
+    for (const item of items.slice(0, 12)) {
+      const option = element("li", "", item.text);
+      option.title = item.detail || item.kind;
+      option.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        replaceWord(item.text);
+        menu.replaceChildren();
+      });
+      menu.append(option);
+    }
+  };
+
+  const replaceWord = (text) => {
+    const cursor = input.selectionStart ?? input.value.length;
+    const before = input.value.slice(0, cursor);
+    const start = Math.max(before.lastIndexOf(" "), before.lastIndexOf(","), before.lastIndexOf(";")) + 1;
+    input.value = before.slice(0, start) + text + input.value.slice(cursor);
+    const caret = start + text.length;
+    input.setSelectionRange(caret, caret);
+    input.focus();
+  };
+
+  const reply = () => {
+    const answer = model.get("command_reply") || {};
+    const kind = pending.get(answer.id);
+    if (kind === undefined) return;
+    pending.delete(answer.id);
+    if (answer.type === "completions") {
+      showCompletions(answer.items || []);
+      return;
+    }
+    if (answer.type !== "result") return;
+    if (answer.ok) {
+      entry(answer.text, true, (answer.messages || []).join("\n"));
+      status.textContent = `revision ${answer.revision}`;
+      status.className = "molgfx-status";
+    } else {
+      entry(answer.text, false, (answer.errors || []).map((error) => error.message).join("\n"));
+      status.textContent = answer.rendered || "";
+      status.className = "molgfx-status molgfx-error";
+    }
+  };
+
+  const keydown = (event) => {
+    const history = model.get("history") || [];
+    if (event.key === "Enter" && input.value.trim() !== "") {
+      event.preventDefault();
+      menu.replaceChildren();
+      request({type: "execute", text: input.value});
+      input.value = "";
+      recall = -1;
+    } else if (event.key === "Tab") {
+      event.preventDefault();
+      request({type: "complete", text: input.value, cursor: input.selectionStart ?? input.value.length});
+    } else if (event.key === "ArrowUp" && history.length > 0) {
+      event.preventDefault();
+      recall = recall < 0 ? history.length - 1 : Math.max(0, recall - 1);
+      input.value = history[recall];
+    } else if (event.key === "ArrowDown" && recall >= 0) {
+      event.preventDefault();
+      recall += 1;
+      input.value = recall < history.length ? history[recall] : "";
+      if (recall >= history.length) recall = -1;
+    } else if (event.key === "Escape") {
+      menu.replaceChildren();
+    }
+  };
+
+  // Keys typed into the console belong to the console, not the notebook.
+  const isolate = (event) => event.stopPropagation();
+  input.addEventListener("keydown", keydown);
+  input.addEventListener("keydown", isolate);
+  input.addEventListener("keypress", isolate);
+  input.addEventListener("keyup", isolate);
+  model.on("change:command_reply", reply);
+
+  return () => {
+    model.off("change:command_reply", reply);
+    input.removeEventListener("keydown", keydown);
+    input.removeEventListener("keydown", isolate);
+    input.removeEventListener("keypress", isolate);
+    input.removeEventListener("keyup", isolate);
+    panel.remove();
   };
 }

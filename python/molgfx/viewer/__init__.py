@@ -17,8 +17,12 @@ Viewer(scene)
 The widget rides on ``anywidget`` (installed with ``pip install
 "molgfx[jupyter]"``) and renders on demand with the packaged MolGFX WASM
 runtime.
+
+``Workbench`` adds a command line to the same canvas: commands run against a
+``molgfx.Session`` in the kernel and reach the page as ordinary patches.
 """
 
 from .viewer import Viewer
+from .workbench import Workbench
 
-__all__ = ["Viewer"]
+__all__ = ["Viewer", "Workbench"]
