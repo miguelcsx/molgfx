@@ -6,7 +6,7 @@
 //! layout in one place is what lets the packer and the shaders agree without
 //! either restating it.
 
-/// Bit layout of [`AtomGpu::semantic`].
+/// Bit layout of [`AtomGpu::semantic`](super::AtomGpu::semantic).
 ///
 /// The low 24 bits carry caller site and band tags; the top byte carries
 /// quantized edge softness, which the point and sphere shaders decode. The

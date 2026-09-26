@@ -232,7 +232,7 @@ pub struct AtomGpu {
     /// Packed semantic tag: site membership, band, edge softness, and the three
     /// palette indices the GPU colour schemes need.
     ///
-    /// See [`SemanticTag`] for the bit layout.
+    /// See [`SemanticTag`](super::SemanticTag) for the bit layout.
     pub semantic: u32,
 }
 
