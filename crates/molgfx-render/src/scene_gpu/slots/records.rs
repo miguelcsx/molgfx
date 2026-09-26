@@ -16,6 +16,11 @@ impl<D: Device> GpuSlot<D> {
         self.color_column = column;
     }
 
+    /// Records the overlay class column's arena offset and stride.
+    pub(in crate::scene_gpu) const fn adopt_overlay_column(&mut self, column: [u32; 2]) {
+        self.overlay_column = column;
+    }
+
     /// Reserves the per-representation uniform buffer the first time it syncs.
     pub(super) fn ensure_uniforms(&mut self, device: &D) -> Result<(), RenderError> {
         if self.representation_uniforms.is_none() {

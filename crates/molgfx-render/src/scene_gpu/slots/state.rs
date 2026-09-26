@@ -27,6 +27,15 @@ pub(super) fn synced_state<D: Device>(input: &SlotSync<'_, D>) -> SlotSynced {
         flags: table.flags().revision().get(),
         semantic: table.semantic().revision().get(),
         properties: input.property_revisions,
+        color_overlay: (
+            input.representation.color_overlay,
+            input
+                .representation
+                .color_overlay
+                .and_then(|overlay| input.scene.property_content_revision(overlay.classes()))
+                .into_iter()
+                .fold(0, |_, revision| revision),
+        ),
         visual_program: input
             .representation
             .visual

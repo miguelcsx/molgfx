@@ -232,6 +232,11 @@ pub struct Representation {
     pub kind: RepresentationKind,
     /// Coloring rule.
     pub color: ColorScheme,
+    /// Selection-scoped schemes that override `color` for some atoms.
+    ///
+    /// Shared with the structure's other representations; `None` colours
+    /// every atom with `color`.
+    pub color_overlay: Option<crate::ColorOverlay>,
     /// Optional reversible scalar-to-opacity-and-softness encoding.
     pub appearance: Option<PropertyAppearance>,
     /// Surface response.
@@ -272,6 +277,7 @@ impl Representation {
             target,
             kind,
             color: ColorScheme::default(),
+            color_overlay: None,
             appearance: None,
             material,
             params: params_for_kind(kind),

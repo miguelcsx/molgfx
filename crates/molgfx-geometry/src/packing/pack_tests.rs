@@ -303,6 +303,7 @@ fn a_property_appearance_leaves_records_element_coloured() {
         PropertyColumns {
             color: None,
             appearance: scene.atom_property(property_handle),
+            overlay: None,
         },
         representation,
         &AtomSelection::All,

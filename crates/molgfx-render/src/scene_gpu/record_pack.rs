@@ -35,6 +35,7 @@ pub(super) fn pack_records<D: Device>(
         molgfx_geometry::PropertyColumns {
             color: input.color_property,
             appearance: input.appearance_property,
+            overlay: None,
         },
         input.representation,
         input.selection,

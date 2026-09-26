@@ -39,6 +39,8 @@ pub(super) struct GpuSlot<D: Device> {
     color_uniforms: Option<D::Buffer>,
     /// The colour property column's arena offset and stride in words.
     color_column: [u32; 2],
+    /// The overlay class column's arena offset and stride.
+    overlay_column: [u32; 2],
     pub(in crate::scene_gpu) surface: SurfaceSlot,
     group2: Option<D::BindGroup>,
     quality_group: Option<D::BindGroup>,
@@ -76,6 +78,7 @@ impl<D: Device> GpuSlot<D> {
             representation_uniforms: None,
             color_uniforms: None,
             color_column: [0, 1],
+            overlay_column: [0, 1],
             surface: SurfaceSlot::new(),
             group2: None,
             quality_group: None,
@@ -349,6 +352,7 @@ impl<D: Device> GpuSlot<D> {
         let geometry_changed = self.synced.is_none_or(|old| {
             old.ribbon != current.ribbon
                 || old.properties != current.properties
+                || old.color_overlay != current.color_overlay
                 || old.secondary_structure != current.secondary_structure
                 || old.record_key != current.record_key
         });
@@ -362,6 +366,12 @@ impl<D: Device> GpuSlot<D> {
                 mesh: input.ribbon,
                 color_property: input.color_property,
                 appearance_property: input.appearance_property,
+                overlay: input.representation.color_overlay.and_then(|overlay| {
+                    input
+                        .scene
+                        .property_for_structure(overlay.classes(), input.structure_gpu.handle)
+                        .map(|classes| molgfx_geometry::OverlayColumn::new(overlay, classes))
+                }),
             })?;
         } else {
             if representation_changed {
@@ -390,6 +400,8 @@ impl<D: Device> GpuSlot<D> {
                 || old.spatial_bounds != current.spatial_bounds
                 || old.structure_binding != current.structure_binding
                 || old.overlay_binding != current.overlay_binding
+                || old.visual_property_binding != current.visual_property_binding
+                || old.color_overlay != current.color_overlay
         });
         if is_spline(self.kind) || (!representation_changed && !resource_changed) {
             return;
@@ -408,8 +420,12 @@ impl<D: Device> GpuSlot<D> {
         // state: writing it here is what keeps a scheme change off the record
         // path entirely.
         if let Some(color) = &self.color_uniforms {
-            super::color_uniforms::ColorUniforms::new(input.representation, self.color_column)
-                .write::<D>(input.queue, color);
+            super::color_uniforms::ColorUniforms::new(
+                input.representation,
+                self.color_column,
+                self.overlay_column,
+            )
+            .write::<D>(input.queue, color);
         }
     }
 

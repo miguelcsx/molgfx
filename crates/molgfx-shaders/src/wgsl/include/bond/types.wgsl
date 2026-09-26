@@ -37,6 +37,8 @@ struct BondLineVsOut {
 
     @location(7) @interpolate(flat, either) entity_id: u32,
     @location(8) @interpolate(flat, either) atom_entities: vec2u,
+    // The two endpoint records, for colour resolved in the fragment stage.
+    @location(9) @interpolate(flat, either) atom_records: vec2u,
 }
 
 struct BondCapsuleVsOut {
@@ -63,6 +65,8 @@ struct BondCapsuleVsOut {
 
     @location(7) @interpolate(flat, either) entity_id: u32,
     @location(8) @interpolate(flat, either) atom_entities: vec2u,
+    // The two endpoint records, for colour resolved in the fragment stage.
+    @location(9) @interpolate(flat, either) atom_records: vec2u,
 }
 
 struct BondLineHit {
@@ -229,6 +233,38 @@ fn bond_color(
         vec4f(along),
         start,
     );
+}
+
+/// A bond's colour at `along` under the representation's scheme and overlay.
+///
+/// The vertex stage forwards the endpoints' element colours, which is exactly
+/// what the element scheme without an overlay shows, so that common case costs
+/// nothing more. Any other scheme, or a selection-scoped overlay, is resolved
+/// here per endpoint, because only the fragment stage sees the property arena
+/// an overlay's class column lives in.
+fn bond_scheme_color(
+    records: vec2u,
+    start: vec4f,
+    delta: vec4f,
+    along: f32,
+) -> vec4f {
+    if color_uniforms.selector.x == COLOR_SCHEME_ELEMENT
+        && color_uniforms.overlay.x == 0u {
+        return bond_color(start, delta, along);
+    }
+    let atom_a = atoms[records.x];
+    let atom_b = atoms[records.y];
+    let color_a = atom_scheme_color(
+        atom_a.semantic,
+        atom_source_index(atom_a.entity_id),
+        atom_color(atom_a.color),
+    );
+    let color_b = atom_scheme_color(
+        atom_b.semantic,
+        atom_source_index(atom_b.entity_id),
+        atom_color(atom_b.color),
+    );
+    return bond_color(color_a, color_b - color_a, along);
 }
 
 fn bond_motion(

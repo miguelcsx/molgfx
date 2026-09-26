@@ -159,6 +159,9 @@ fn vs_bond_capsule(
 
         out.atom_entities =
             vec2u(atom_a.entity_id, atom_b.entity_id);
+
+        out.atom_records =
+            vec2u(bond.atom_a, bond.atom_b);
     }
 
     return out;
@@ -321,7 +324,8 @@ fn fs_bond_capsule(
     }
 
     let color =
-        bond_color(
+        bond_scheme_color(
+            in.atom_records,
             in.color_a,
             in.color_delta,
             hit.along,
@@ -396,7 +400,8 @@ fn fs_bond_capsule_transparent(
     }
 
     let color =
-        bond_color(
+        bond_scheme_color(
+            in.atom_records,
             in.color_a,
             in.color_delta,
             hit.along,

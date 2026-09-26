@@ -3,6 +3,7 @@
 pub(crate) mod annotation;
 pub(crate) mod atom_property;
 mod attribute;
+mod color_overlay;
 mod config;
 pub(crate) mod guide;
 pub(crate) mod interaction;
@@ -30,6 +31,7 @@ pub use atom_property::{
     AtomProperty, AtomPropertyMeaning, PropertyAppearance, PropertyAppearanceSample, PropertyLegend,
 };
 pub use attribute::{AttributeColumn, AttributeDescriptor, AttributeKind, AttributeValues};
+pub use color_overlay::{ColorOverlay, MAX_COLOR_OVERLAY_CLASSES};
 pub use config::RepresentationConfig;
 pub use guide::{Guide, GuideCap, GuideStyle, PolylineKind};
 pub use interaction::{

@@ -88,6 +88,11 @@ impl<D: Device> GpuScene<D> {
             if let Some(handle) = representation.color.property_handle() {
                 slot.adopt_color_column(self.visual_properties.color_column(handle));
             }
+            // The overlay's class column rides in the same arena.
+            slot.adopt_overlay_column(match representation.color_overlay {
+                Some(overlay) => self.visual_properties.color_column(overlay.classes()),
+                None => [0, 1],
+            });
             slot.surface
                 .resolve_key(&uniforms, representation, record_key.geometry(), atom_count);
             let Some(key) = slot.surface.key() else {

@@ -158,6 +158,9 @@ pub(super) struct SlotSynced {
     pub(super) flags: u64,
     pub(super) semantic: u64,
     pub(super) properties: [u64; 2],
+    /// The selection-scoped overlay and its class column's content revision:
+    /// either changing rewrites the colour block and recolours ribbons.
+    pub(super) color_overlay: (Option<molgfx_core::ColorOverlay>, u64),
     pub(super) visual_program: u64,
     pub(super) visual_parameters: u64,
     pub(super) visual_properties: [u64; 4],
