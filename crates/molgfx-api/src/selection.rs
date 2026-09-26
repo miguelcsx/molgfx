@@ -2,13 +2,19 @@
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::hash::{Hash, Hasher};
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
+
+type Compiled = Result<Arc<molframe::Query>, Box<str>>;
 
 /// A canonical `MolFrame` query carried by a declarative specification.
+///
+/// The text is the portable identity; the compiled query is derived from it at
+/// most once per value and shared by every clone, so evaluating the same
+/// selection again never re-parses it.
 #[derive(Debug)]
 pub struct Selection {
     source: Box<str>,
-    fingerprint: OnceLock<Result<molframe::QueryFingerprint, Box<str>>>,
+    compiled: Arc<OnceLock<Compiled>>,
 }
 
 impl Selection {
@@ -18,22 +24,31 @@ impl Selection {
         &self.source
     }
 
-    /// Canonical fingerprint of `MolFrame`'s normalized query plan.
+    /// The compiled `MolFrame` query, compiled on first use and then shared.
     ///
     /// # Errors
     ///
     /// Returns an invalid-specification error when the query cannot compile.
-    pub fn fingerprint(&self) -> Result<molframe::QueryFingerprint, crate::Error> {
-        self.fingerprint
+    pub fn compiled(&self) -> Result<Arc<molframe::Query>, crate::Error> {
+        self.compiled
             .get_or_init(|| {
                 molframe::Query::compile(&self.source)
-                    .map(|query| query.fingerprint())
+                    .map(Arc::new)
                     .map_err(|diagnostics| format!("{diagnostics:?}").into_boxed_str())
             })
             .clone()
             .map_err(|diagnostics| {
                 crate::Error::InvalidSpec(format!("selection diagnostics: {diagnostics}"))
             })
+    }
+
+    /// Canonical fingerprint of `MolFrame`'s normalized query plan.
+    ///
+    /// # Errors
+    ///
+    /// Returns an invalid-specification error when the query cannot compile.
+    pub fn fingerprint(&self) -> Result<molframe::QueryFingerprint, crate::Error> {
+        Ok(self.compiled()?.fingerprint())
     }
 
     /// Stable textual cache key for the normalized query plan.
@@ -58,25 +73,29 @@ impl Selection {
         ))
     }
 
-    fn from_query(query: &molframe::Query) -> Self {
-        let fingerprint = OnceLock::new();
-        let _already_initialized = fingerprint.set(Ok(query.fingerprint()));
+    fn from_query(query: molframe::Query) -> Self {
+        let source = query.source().into();
+        let compiled = OnceLock::new();
+        let _already_initialized = compiled.set(Ok(Arc::new(query)));
         Self {
-            source: query.source().into(),
-            fingerprint,
+            source,
+            compiled: Arc::new(compiled),
+        }
+    }
+
+    fn from_source(source: Box<str>) -> Self {
+        Self {
+            source,
+            compiled: Arc::new(OnceLock::new()),
         }
     }
 }
 
 impl Clone for Selection {
     fn clone(&self) -> Self {
-        let fingerprint = OnceLock::new();
-        if let Some(value) = self.fingerprint.get() {
-            let _already_initialized = fingerprint.set(value.clone());
-        }
         Self {
             source: self.source.clone(),
-            fingerprint,
+            compiled: Arc::clone(&self.compiled),
         }
     }
 }
@@ -121,31 +140,24 @@ impl<'de> Deserialize<'de> for Selection {
 
 impl From<&str> for Selection {
     fn from(source: &str) -> Self {
-        Self {
-            source: source.into(),
-            fingerprint: OnceLock::new(),
-        }
+        Self::from_source(source.into())
     }
 }
 
 impl From<String> for Selection {
     fn from(source: String) -> Self {
-        Self {
-            source: source.into_boxed_str(),
-            fingerprint: OnceLock::new(),
-        }
+        Self::from_source(source.into_boxed_str())
     }
 }
 
 impl From<molframe::Query> for Selection {
     fn from(query: molframe::Query) -> Self {
-        Self::from_query(&query)
+        Self::from_query(query)
     }
 }
 
 impl From<molframe::query::Builder> for Selection {
     fn from(builder: molframe::query::Builder) -> Self {
-        let query = molframe::Query::from(builder);
-        Self::from_query(&query)
+        Self::from_query(molframe::Query::from(builder))
     }
 }

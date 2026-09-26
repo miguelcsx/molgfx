@@ -1,23 +1,37 @@
 //! Prepared atomic updates for the live semantic and physical scene.
+//!
+//! A patch is prepared in full — every query evaluated, every value validated,
+//! every physical record computed — against the unchanged scene, and only then
+//! committed. A patch that changes which representations or scientific items
+//! exist re-resolves the scene; everything else, including recolouring,
+//! retargeting a representation and editing appearance rules, is applied in
+//! place to the representations and columns it touches.
 
 use crate::error::{Error, PatchError};
 use crate::id::{RepresentationId, StructureId};
 use crate::representation::form::RepresentationSpec;
 use crate::scene::Resolution;
 use crate::scene::runtime::candidate_spec;
+use crate::scene::selection_rows::SelectionRows;
 use crate::spec::{PatchOperation, ScenePatch, SceneSpec};
 use crate::{
     AnnotationId, AnnotationSpec, MeasurementId, MeasurementSpec, ScientificInteractionId,
     ScientificInteractionSpec, TrajectoryId, TrajectorySpec, VolumeId, VolumeSpec,
 };
 use interactions::InteractionUpdates;
-use molgfx_core::{Representation, RepresentationHandle};
+use molgfx_core::{Representation, RepresentationHandle, StructureHandle};
 use routing::is_structural;
 use std::collections::{BTreeMap, BTreeSet};
 
+mod appearance;
+mod commit;
 mod interactions;
+mod lower;
 mod routing;
 mod science;
+mod targets;
+
+pub(crate) use commit::CommitTarget;
 
 pub(crate) enum PatchPlan {
     Structural {
@@ -38,14 +52,29 @@ pub(crate) struct PatchInputs<'a> {
     pub(crate) property_bindings: &'a BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
     pub(crate) science_bindings: &'a crate::science::ScienceBindings,
     pub(crate) structure_assets: &'a crate::scene::runtime::StructureAssets,
+    pub(crate) rows: &'a SelectionRows,
+}
+
+impl PatchInputs<'_> {
+    /// The core handle of every bound structure, keyed by semantic identity.
+    fn structure_handles(&self) -> BTreeMap<StructureId, StructureHandle> {
+        self.structures
+            .keys()
+            .copied()
+            .zip(self.scene.structures().map(|(handle, _)| handle))
+            .collect()
+    }
 }
 
 pub(crate) struct LocalPatchPlan {
     representations: BTreeMap<RepresentationId, RepresentationSpec>,
-    physical: Vec<(RepresentationHandle, Representation)>,
+    physical: Vec<(RepresentationId, RepresentationHandle, Representation)>,
     visual_updates: BTreeMap<RepresentationId, Option<crate::visual::ResolvedVisual>>,
     visual_replacements: BTreeSet<RepresentationId>,
     parameter_updates: BTreeMap<RepresentationId, BTreeSet<Box<str>>>,
+    color_updates: BTreeSet<RepresentationId>,
+    targets: targets::TargetUpdates,
+    appearance: appearance::AppearanceUpdates,
     interactions: InteractionUpdates,
     science: ScienceDomains,
     camera: Change<molgfx_math::Camera>,
@@ -79,12 +108,14 @@ impl PatchPlan {
             let candidate = candidate_spec(inputs.spec, patch)?;
             // A structural patch in this planner only ever adds, removes or
             // replaces representations and scientific items; the molecules are
-            // untouched, so their atom tables are reused rather than rebuilt.
+            // untouched, so their atom tables are reused rather than rebuilt,
+            // and unchanged queries come from the evaluated-rows cache.
             let resolution = crate::scene::runtime::resolve_reusing(
                 &candidate,
                 inputs.structures,
                 inputs.property_bindings,
                 inputs.science_bindings,
+                inputs.rows,
                 Some(inputs.structure_assets),
             )
             .map_err(|error| Error::InvalidSpec(format!("patch could not be resolved: {error}")))?;
@@ -94,40 +125,31 @@ impl PatchPlan {
             });
         }
         Ok(Self::Local(Box::new(LocalPatchPlan::prepare(
-            inputs.spec,
-            inputs.scene,
-            inputs.handles,
-            inputs.visuals,
-            inputs.properties,
-            patch,
+            inputs, patch,
         )?)))
     }
 }
 
 impl LocalPatchPlan {
-    fn prepare(
-        spec: &SceneSpec,
-        scene: &molgfx_core::Scene,
-        handles: &BTreeMap<RepresentationId, RepresentationHandle>,
-        visuals: &BTreeMap<RepresentationId, crate::visual::ResolvedVisual>,
-        properties: &BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
-        patch: &ScenePatch,
-    ) -> Result<Self, Error> {
+    fn prepare(inputs: PatchInputs<'_>, patch: &ScenePatch) -> Result<Self, Error> {
         let mut plan = Self {
             representations: BTreeMap::new(),
             physical: Vec::new(),
             visual_updates: BTreeMap::new(),
             visual_replacements: BTreeSet::new(),
             parameter_updates: BTreeMap::new(),
+            color_updates: BTreeSet::new(),
+            targets: targets::TargetUpdates::default(),
+            appearance: appearance::AppearanceUpdates::default(),
             interactions: InteractionUpdates::default(),
             science: ScienceDomains::default(),
             camera: Change::Unchanged,
             touched: !patch.operations.is_empty(),
         };
         for operation in &patch.operations {
-            plan.apply_semantic_operation(spec, operation)?;
+            plan.apply_semantic_operation(inputs.spec, operation)?;
         }
-        plan.validate_and_lower(spec, scene, handles, visuals, properties)?;
+        plan.validate_and_lower(inputs)?;
         Ok(plan)
     }
 
@@ -136,7 +158,7 @@ impl LocalPatchPlan {
         spec: &SceneSpec,
         operation: &PatchOperation,
     ) -> Result<(), Error> {
-        if self.science.apply(spec, operation)? {
+        if self.science.apply(spec, operation)? || self.appearance.apply(spec, operation)? {
             return Ok(());
         }
         match operation {
@@ -151,6 +173,16 @@ impl LocalPatchPlan {
                     .into());
                 }
                 self.representation(spec, *id)?.common.opacity = *opacity;
+            }
+            PatchOperation::SetColor { id, color } => {
+                color.validate()?;
+                self.representation(spec, *id)?.common.color = color.clone();
+                let _ = self.color_updates.insert(*id);
+            }
+            PatchOperation::SetRepresentationTarget { id, target } => {
+                let _ = target.fingerprint()?;
+                self.representation(spec, *id)?.common.target = target.clone();
+                self.targets.mark(*id);
             }
             PatchOperation::SetVisual { id, visual } => {
                 let representation = self.representation(spec, *id)?;
@@ -198,9 +230,12 @@ impl LocalPatchPlan {
             | PatchOperation::AddScientificInteraction { .. }
             | PatchOperation::RemoveScientificInteraction { .. }
             | PatchOperation::AddTrajectory { .. }
-            | PatchOperation::RemoveTrajectory { .. } => {
+            | PatchOperation::RemoveTrajectory { .. }
+            | PatchOperation::AddAppearanceRule { .. }
+            | PatchOperation::ReplaceAppearanceRule { .. }
+            | PatchOperation::RemoveAppearanceRule { .. } => {
                 return Err(Error::InvalidSpec(
-                    "scientific operation was not prepared".to_owned(),
+                    "domain operation was not prepared".to_owned(),
                 ));
             }
         }
@@ -222,153 +257,6 @@ impl LocalPatchPlan {
         }
         self.representations.get_mut(&id).ok_or(Error::MissingId)
     }
-
-    fn validate_and_lower(
-        &mut self,
-        base: &SceneSpec,
-        scene: &molgfx_core::Scene,
-        handles: &BTreeMap<RepresentationId, RepresentationHandle>,
-        visuals: &BTreeMap<RepresentationId, crate::visual::ResolvedVisual>,
-        properties: &BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
-    ) -> Result<(), Error> {
-        for selection in self.interactions.selections() {
-            let _ = selection.fingerprint()?;
-        }
-        if let Change::Set(camera) = &self.camera {
-            crate::spec::validate_camera(*camera)?;
-        }
-        let channels = self.interactions.channel_names(base);
-        self.physical.reserve(self.representations.len());
-        for (id, spec) in &self.representations {
-            let handle = handles.get(id).copied().ok_or(Error::MissingId)?;
-            let mut representation = scene
-                .representation(handle)
-                .cloned()
-                .ok_or(Error::MissingId)?;
-            if self.visual_replacements.contains(id) {
-                let appearance = spec.prepare_appearance(crate::spec::lowering::Lowering {
-                    properties,
-                    channels: &channels,
-                })?;
-                let resolved = appearance.apply(&mut representation);
-                let _ = self.visual_updates.insert(*id, resolved);
-            } else {
-                representation.material.opacity = spec.common.opacity;
-                self.apply_parameters(*id, spec, visuals, &mut representation)?;
-            }
-            representation.visible = spec.common.visible;
-            self.physical.push((handle, representation));
-        }
-        Ok(())
-    }
-
-    fn apply_parameters(
-        &self,
-        id: RepresentationId,
-        spec: &RepresentationSpec,
-        visuals: &BTreeMap<RepresentationId, crate::visual::ResolvedVisual>,
-        representation: &mut Representation,
-    ) -> Result<(), Error> {
-        let Some(names) = self.parameter_updates.get(&id) else {
-            return Ok(());
-        };
-        let source =
-            spec.common.visual.as_ref().ok_or_else(|| {
-                Error::InvalidSpec("visual parameters require a visual style".into())
-            })?;
-        let resolved = visuals
-            .get(&id)
-            .filter(|value| value.matches(source))
-            .ok_or_else(|| {
-                Error::InvalidSpec("resolved visual metadata does not match its source".into())
-            })?;
-        let style = representation.visual.as_mut().ok_or_else(|| {
-            Error::InvalidSpec("resolved representation has no visual style".into())
-        })?;
-        for name in names {
-            let binding = resolved.parameter(name).ok_or_else(|| {
-                Error::InvalidSpec(format!("visual parameter '{name}' is not declared"))
-            })?;
-            let mut value = &binding.default;
-            if let Some(replacement) = spec.common.parameters.get(name) {
-                value = replacement;
-            }
-            apply_parameter(style, binding.slot, value)?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn commit(
-        self,
-        spec: &mut SceneSpec,
-        scene: &mut molgfx_core::Scene,
-        visuals: &mut BTreeMap<RepresentationId, crate::visual::ResolvedVisual>,
-    ) -> Result<(), Error> {
-        // Channel queries were already validated during preparation, so this
-        // evaluates known-good queries against the scene that owns the columns.
-        if self.interactions.touched() {
-            // Only the channels this patch actually re-stated need writing. The
-            // dense column already carries every other channel's bits, so a
-            // rebuild would re-evaluate queries the edit never mentioned.
-            let touched = self.interactions.restated_channels(spec);
-            if touched.is_empty() {
-                let channels = self.interactions.channels(spec);
-                let states = crate::scene::interaction::resolve_states(scene, &channels)?;
-                crate::scene::interaction::install(scene, states)?;
-            } else {
-                for (channel, next) in touched {
-                    crate::scene::interaction::update_channel(scene, channel, next.as_ref())?;
-                }
-            }
-        }
-        scene.replace_representations(self.physical)?;
-        for (id, representation) in self.representations {
-            let _ = spec.representations.insert(id, representation);
-        }
-        for (id, visual) in self.visual_updates {
-            if let Some(visual) = visual {
-                let _ = visuals.insert(id, visual);
-            } else {
-                let _ = visuals.remove(&id);
-            }
-        }
-        self.interactions.commit(spec);
-        self.science.commit(spec);
-        assign(&mut spec.camera, self.camera);
-        if self.touched {
-            spec.revision = spec.revision.wrapping_add(1);
-        }
-        Ok(())
-    }
-}
-
-fn apply_parameter(
-    style: &mut molgfx_core::VisualStyle,
-    slot: usize,
-    value: &crate::ParameterValue,
-) -> Result<(), Error> {
-    let invalid = || Error::InvalidSpec(format!("visual parameter slot {slot} has the wrong type"));
-    match value {
-        crate::ParameterValue::Scalar(value) => {
-            let parameter = style.program().scalar_parameter(slot).ok_or_else(invalid)?;
-            style
-                .set_scalar(parameter, *value)
-                .map_err(molgfx_core::CoreError::from)?;
-        }
-        crate::ParameterValue::Color(value) => {
-            let parameter = style.program().color_parameter(slot).ok_or_else(invalid)?;
-            style
-                .set_color(parameter, value.to_linear_f32())
-                .map_err(molgfx_core::CoreError::from)?;
-        }
-        crate::ParameterValue::Vector(value) => {
-            let parameter = style.program().vector_parameter(slot).ok_or_else(invalid)?;
-            style
-                .set_vector(parameter, *value)
-                .map_err(molgfx_core::CoreError::from)?;
-        }
-    }
-    Ok(())
 }
 
 impl<T> Change<T> {

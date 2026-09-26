@@ -69,6 +69,10 @@ pub struct SceneSpec {
     /// Trajectory bindings in stable ID order.
     #[serde(default)]
     pub trajectories: BTreeMap<crate::TrajectoryId, TrajectorySpec>,
+    /// Selection-scoped colour rules. Where rules overlap, the higher identity
+    /// wins; a rule always wins over a representation's own colour.
+    #[serde(default)]
+    pub appearance: BTreeMap<crate::AppearanceRuleId, crate::AppearanceRuleSpec>,
     /// Optional focus selection.
     pub focus: Option<Selection>,
     /// Selected entity query.
@@ -101,6 +105,7 @@ impl SceneSpec {
             measurements: BTreeMap::new(),
             scientific_interactions: BTreeMap::new(),
             trajectories: BTreeMap::new(),
+            appearance: BTreeMap::new(),
             focus: None,
             selected: None,
             hovered: None,
@@ -169,6 +174,9 @@ impl SceneSpec {
         .chain(self.custom_interactions.values())
         {
             let _ = selection.stable_hash()?;
+        }
+        for rule in self.appearance.values() {
+            crate::patch::appearance_ops::validate(self, rule)?;
         }
         for representation in self.representations.values() {
             representation.validate()?;

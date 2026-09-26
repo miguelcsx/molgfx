@@ -2,6 +2,7 @@
 
 #![forbid(unsafe_code)]
 
+mod appearance;
 pub mod camera;
 pub mod color;
 mod error;
@@ -25,11 +26,12 @@ fn fallback<T>(candidate: impl IntoIterator<Item = T>, fallback: T) -> T {
     candidate.into_iter().fold(fallback, |_, value| value)
 }
 
+pub use appearance::{AppearanceRuleSpec, MAX_APPEARANCE_CLASSES};
 pub use color::{Color, ColorSpec, Legend, LegendStop};
 pub use error::{Error, PatchError};
 pub use id::{
-    AnnotationId, MeasurementId, RepresentationId, ScientificInteractionId, StructureId,
-    TrajectoryId, VolumeId,
+    AnnotationId, AppearanceRuleId, MeasurementId, RepresentationId, ScientificInteractionId,
+    StructureId, TrajectoryId, VolumeId,
 };
 pub use interop::{Diagnostic, MvsDocument, MvsImport, from_mvsj, from_mvsx, to_mvsj, to_mvsx};
 #[cfg(not(target_arch = "wasm32"))]

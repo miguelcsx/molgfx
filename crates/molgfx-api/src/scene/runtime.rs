@@ -25,6 +25,9 @@ pub(crate) fn apply_operation(
     if crate::patch::science_ops::apply(candidate, operation)? {
         return Ok(());
     }
+    if crate::patch::appearance_ops::apply(candidate, operation)? {
+        return Ok(());
+    }
     if apply_representation_operation(candidate, operation)? {
         return Ok(());
     }
@@ -58,6 +61,11 @@ pub(crate) fn apply_operation(
         PatchOperation::AddRepresentation { .. }
         | PatchOperation::RemoveRepresentation { .. }
         | PatchOperation::ReplaceRepresentation { .. }
+        | PatchOperation::SetRepresentationTarget { .. }
+        | PatchOperation::SetColor { .. }
+        | PatchOperation::AddAppearanceRule { .. }
+        | PatchOperation::ReplaceAppearanceRule { .. }
+        | PatchOperation::RemoveAppearanceRule { .. }
         | PatchOperation::SetVisibility { .. }
         | PatchOperation::SetOpacity { .. }
         | PatchOperation::SetVisual { .. }
@@ -103,6 +111,14 @@ fn apply_representation_operation(
         } => {
             value.validate()?;
             *representation_mut(candidate, *id)? = value.clone();
+        }
+        PatchOperation::SetRepresentationTarget { id, target } => {
+            let _ = target.fingerprint()?;
+            representation_mut(candidate, *id)?.common.target = target.clone();
+        }
+        PatchOperation::SetColor { id, color } => {
+            color.validate()?;
+            representation_mut(candidate, *id)?.common.color = color.clone();
         }
         PatchOperation::SetVisibility { id, visible } => {
             representation_mut(candidate, *id)?.common.visible = *visible;
@@ -168,7 +184,7 @@ pub(crate) fn remove_existing<K: Ord, V>(values: &mut BTreeMap<K, V>, id: &K) ->
     Ok(())
 }
 
-fn validate_touched_domains(
+pub(crate) fn validate_touched_domains(
     candidate: &SceneSpec,
     operations: &[PatchOperation],
 ) -> Result<(), Error> {
@@ -210,7 +226,12 @@ fn validate_touched_domains(
             | PatchOperation::SetVisibility { .. }
             | PatchOperation::SetOpacity { .. }
             | PatchOperation::SetVisual { .. }
-            | PatchOperation::SetParameter { .. } => {}
+            | PatchOperation::SetParameter { .. }
+            | PatchOperation::SetRepresentationTarget { .. }
+            | PatchOperation::SetColor { .. }
+            | PatchOperation::AddAppearanceRule { .. }
+            | PatchOperation::ReplaceAppearanceRule { .. }
+            | PatchOperation::RemoveAppearanceRule { .. } => {}
         }
     }
     Ok(())
@@ -275,8 +296,16 @@ pub(crate) fn resolve(
     structures: &BTreeMap<StructureId, molgfx_core::MolecularSource>,
     property_bindings: &BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
     science_bindings: &crate::science::ScienceBindings,
+    rows: &crate::scene::selection_rows::SelectionRows,
 ) -> Result<Resolution, Error> {
-    resolve_reusing(spec, structures, property_bindings, science_bindings, None)
+    resolve_reusing(
+        spec,
+        structures,
+        property_bindings,
+        science_bindings,
+        rows,
+        None,
+    )
 }
 
 /// Resolves a specification, reusing earlier structure assets when they match.
@@ -300,6 +329,7 @@ pub(crate) fn resolve_reusing(
     structures: &BTreeMap<StructureId, molgfx_core::MolecularSource>,
     property_bindings: &BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
     science_bindings: &crate::science::ScienceBindings,
+    rows: &crate::scene::selection_rows::SelectionRows,
     reusable: Option<&StructureAssets>,
 ) -> Result<Resolution, Error> {
     let Some((_, first)) = structures.first_key_value() else {
@@ -307,25 +337,7 @@ pub(crate) fn resolve_reusing(
             "a renderable scene requires a bound structure".to_owned(),
         ));
     };
-    let reused = reusable.and_then(|assets| assets.matches(structures));
-    let mut scene = match reused {
-        // Every asset's atom table, hierarchy and source are already built.
-        Some([]) => molgfx_core::Scene::new(),
-        Some(assets) => {
-            let mut scene = molgfx_core::Scene::new();
-            for asset in assets {
-                let _ = scene.add_asset(asset);
-            }
-            scene
-        }
-        None => {
-            let mut scene = molgfx_core::Scene::from_source(first.clone())?;
-            for (_, structure) in structures.iter().skip(1) {
-                let _ = scene.add_source(structure.clone())?;
-            }
-            scene
-        }
-    };
+    let mut scene = base_scene(first, structures, reusable)?;
     let structure_handles = structures
         .keys()
         .copied()
@@ -339,6 +351,15 @@ pub(crate) fn resolve_reusing(
         &structure_handles,
         &mut scene,
     )?;
+    let prepared = crate::scene::appearance::prepare(
+        &spec.appearance,
+        &crate::scene::appearance::ruled_structures(spec),
+        structures,
+        &structure_handles,
+        rows,
+    )?;
+    let mut appearance = BTreeMap::new();
+    let installed = crate::scene::appearance::install(&mut scene, &mut appearance, prepared)?;
     let mut handles = BTreeMap::new();
     let mut selections = BTreeMap::new();
     let mut visuals = BTreeMap::new();
@@ -357,12 +378,15 @@ pub(crate) fn resolve_reusing(
         let selection = if let Some(selection) = selections.get(&selection_key).copied() {
             selection
         } else {
-            let all_structures = scene.select_str(representation.selection())?;
-            let rows = scene
-                .selection_for(all_structures, core_structure)
-                .cloned()
-                .ok_or_else(|| Error::InvalidSpec("selection did not resolve".to_owned()))?;
-            let selection = scene.add_structure_selection(core_structure, rows)?;
+            // Only this representation's structure is evaluated, and an
+            // unchanged query over an unchanged molecule comes from the cache.
+            let source = structures.get(&structure).ok_or_else(|| {
+                Error::InvalidSpec("representation structure is not bound".to_owned())
+            })?;
+            let (rows, fingerprint) =
+                rows.rows(structure, source, &representation.common.target)?;
+            let selection =
+                scene.add_query_selection(core_structure, (*rows).clone(), fingerprint)?;
             let _ = selections.insert(selection_key, selection);
             selection
         };
@@ -370,6 +394,8 @@ pub(crate) fn resolve_reusing(
             properties: &properties,
             channels: &channels,
         })?;
+        let overlay = installed.overlays.get(&structure).copied().flatten();
+        let native = native.color_overlay(overlay);
         let handle = scene.represent(selection, native)?;
         if !representation.common.visible {
             scene.hide(handle);
@@ -395,6 +421,35 @@ pub(crate) fn resolve_reusing(
         visuals,
         properties,
         science,
+        appearance,
+    })
+}
+
+/// A core scene holding every bound structure, built from earlier assets
+/// when they were made from the same structure set.
+fn base_scene(
+    first: &molgfx_core::MolecularSource,
+    structures: &BTreeMap<StructureId, molgfx_core::MolecularSource>,
+    reusable: Option<&StructureAssets>,
+) -> Result<molgfx_core::Scene, Error> {
+    let reused = reusable.and_then(|assets| assets.matches(structures));
+    Ok(match reused {
+        // Every asset's atom table, hierarchy and source are already built.
+        Some([]) => molgfx_core::Scene::new(),
+        Some(assets) => {
+            let mut scene = molgfx_core::Scene::new();
+            for asset in assets {
+                let _ = scene.add_asset(asset);
+            }
+            scene
+        }
+        None => {
+            let mut scene = molgfx_core::Scene::from_source(first.clone())?;
+            for (_, structure) in structures.iter().skip(1) {
+                let _ = scene.add_source(structure.clone())?;
+            }
+            scene
+        }
     })
 }
 

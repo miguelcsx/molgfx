@@ -13,8 +13,9 @@ pub use molgfx_api::Renderer;
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_api::{AdapterReport, SystemInfo, system_info};
 pub use molgfx_api::{
-    Anchor, AnnotationId, AnnotationSpec, Camera, Color, ColorSpec, Error, InteractionChannel,
-    InteractionKind, Legend, LegendStop, MeasurementId, MeasurementSpec, Parameter, ParameterType,
+    Anchor, AnnotationId, AnnotationSpec, AppearanceRuleId, AppearanceRuleSpec, Camera, Color,
+    ColorSpec, Error, InteractionChannel, InteractionKind, Legend, LegendStop,
+    MAX_APPEARANCE_CLASSES, MeasurementId, MeasurementSpec, Parameter, ParameterType,
     ParameterValue, PatchError, PickKind, PickResult, Quality, RenderProfile, RepresentationId,
     RepresentationSpec, ScalarProperty, ScalarPropertyBinding, Scene, SceneItem, ScenePatch,
     SceneSpec, SceneTransaction, ScientificInteractionId, ScientificInteractionSpec, Selection,
