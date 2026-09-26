@@ -45,7 +45,7 @@ native-only-targets = [
 ]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 rust-version = "1.98.1"
 license = "MIT"
@@ -55,16 +55,16 @@ categories = ["science", "rendering", "visualization"]
 
 [workspace.dependencies]
 # Internal crates (layered; a crate depends only on lower layers).
-molgfx = { version = "0.1.1", path = "crates/molgfx" }
-molgfx-math = { version = "0.1.1", path = "crates/molgfx-math" }
-molgfx-core = { version = "0.1.1", path = "crates/molgfx-core" }
-molgfx-gpu = { version = "0.1.1", path = "crates/molgfx-gpu" }
-molgfx-wgpu = { version = "0.1.1", path = "crates/molgfx-wgpu" }
-molgfx-shaders = { version = "0.1.1", path = "crates/molgfx-shaders" }
-molgfx-geometry = { version = "0.1.1", path = "crates/molgfx-geometry" }
-molgfx-render = { version = "0.1.1", path = "crates/molgfx-render" }
-molgfx-semantic = { version = "0.1.1", path = "crates/molgfx-semantic" }
-molgfx-api = { version = "0.1.1", path = "crates/molgfx-api" }
+molgfx = { version = "0.1.2", path = "crates/molgfx" }
+molgfx-math = { version = "0.1.2", path = "crates/molgfx-math" }
+molgfx-core = { version = "0.1.2", path = "crates/molgfx-core" }
+molgfx-gpu = { version = "0.1.2", path = "crates/molgfx-gpu" }
+molgfx-wgpu = { version = "0.1.2", path = "crates/molgfx-wgpu" }
+molgfx-shaders = { version = "0.1.2", path = "crates/molgfx-shaders" }
+molgfx-geometry = { version = "0.1.2", path = "crates/molgfx-geometry" }
+molgfx-render = { version = "0.1.2", path = "crates/molgfx-render" }
+molgfx-semantic = { version = "0.1.2", path = "crates/molgfx-semantic" }
+molgfx-api = { version = "0.1.2", path = "crates/molgfx-api" }
 
 # The structural model and every detection the engine consumes, from crates.io.
 # The publishable crates must resolve `molframe` from the registry, so this is a
