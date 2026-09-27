@@ -18,7 +18,7 @@ export function LiveDemo() {
 
     const script = document.createElement('script');
     script.type = 'module';
-    script.textContent = `import { mount } from '/molgfx/demo/workbench.js'; window[${JSON.stringify(key)}](mount);`;
+    script.textContent = `import { mount } from '/molgfx/demo/workbench.js'; const handler = window[${JSON.stringify(key)}]; if (typeof handler === 'function') handler(mount);`;
     document.head.append(script);
 
     return () => {
