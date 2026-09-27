@@ -55,7 +55,7 @@ function rotate(camera, dx, dy) {
   camera.position = [
     camera.target[0] + horizontal * Math.sin(yaw),
     camera.target[1] + radius * Math.sin(pitch),
-    camera.target[2] + horizontal * Math.cos(pitch),
+    camera.target[2] + horizontal * Math.cos(yaw),
   ];
 }
 
@@ -120,6 +120,33 @@ export function mount(root) {
     );
   };
 
+  // A failed frame is reported, never left as a blank canvas. GPU validation
+  // errors arrive after the frame that caused them and surface on the next
+  // one, so every frame is followed by one quiet check frame.
+  let settling;
+  // A pick holds the renderer across its GPU readback; a frame requested
+  // meanwhile would reenter it, so it is drawn once the pick completes.
+  let picking = false;
+  let redrawAfterPick = false;
+  const frame = (followUp = true) => {
+    if (picking) {
+      redrawAfterPick = true;
+      return;
+    }
+    try {
+      draw();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      details.textContent = message;
+      report(`MolGFX could not draw: ${message}`, true);
+      return;
+    }
+    if (followUp) {
+      clearTimeout(settling);
+      settling = setTimeout(() => frame(false), 250);
+    }
+  };
+
   const execute = (text) => {
     const answer = JSON.parse(session.execute(scene, text));
     if (!answer.ok) {
@@ -129,7 +156,7 @@ export function mount(root) {
     }
     details.textContent = answer.messages?.join("\n") || `revision ${answer.revision}`;
     report(`Rendered revision ${answer.revision}.`);
-    draw();
+    frame();
   };
 
   const loadBytes = async (bytes, name) => {
@@ -161,9 +188,7 @@ export function mount(root) {
     }
   };
 
-  const resize = new ResizeObserver(() => {
-    try { draw(); } catch (error) { report(String(error), true); }
-  });
+  const resize = new ResizeObserver(() => frame());
   resize.observe(canvas);
   file.addEventListener("change", loadSelected);
   void loadBytes(new TextEncoder().encode(examplePdb), "alanine-helix.pdb");
@@ -187,7 +212,7 @@ export function mount(root) {
     if (!pointer || !camera) return;
     rotate(camera, event.clientX - pointer[0], event.clientY - pointer[1]);
     pointer = [event.clientX, event.clientY];
-    draw();
+    frame();
   });
   canvas.addEventListener("pointerup", (event) => {
     pointer = undefined;
@@ -197,19 +222,31 @@ export function mount(root) {
     if (!camera) return;
     event.preventDefault();
     zoom(camera, event.deltaY);
-    draw();
+    frame();
   }, { passive: false });
   canvas.addEventListener("click", async (event) => {
-    if (!renderer) return;
+    if (!renderer || picking) return;
     const bounds = canvas.getBoundingClientRect();
-    const result = await renderer.pick(
-      Math.floor((event.clientX - bounds.left) * canvas.width / bounds.width),
-      Math.floor((event.clientY - bounds.top) * canvas.height / bounds.height),
-    );
-    details.textContent = result ?? "Background";
+    picking = true;
+    try {
+      const result = await renderer.pick(
+        Math.floor((event.clientX - bounds.left) * canvas.width / bounds.width),
+        Math.floor((event.clientY - bounds.top) * canvas.height / bounds.height),
+      );
+      details.textContent = result ?? "Background";
+    } catch (error) {
+      report(`Picking failed: ${error instanceof Error ? error.message : String(error)}`, true);
+    } finally {
+      picking = false;
+      if (redrawAfterPick) {
+        redrawAfterPick = false;
+        frame();
+      }
+    }
   });
 
   return () => {
+    clearTimeout(settling);
     resize.disconnect();
     root.replaceChildren();
   };
