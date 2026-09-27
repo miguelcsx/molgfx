@@ -28,11 +28,24 @@ export function loadRuntime(model) {
   return runtimes.get(key);
 }
 
-function dimensions(canvas) {
-  const ratio = window.devicePixelRatio || 1;
-  const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
-  const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
-  return [width, height];
+// The most device pixels a frame renders. Every full-screen pass -- lighting,
+// ambient occlusion, shadows, temporal resolve -- scales with this, and a
+// full-width canvas on a high-density display is 7-8 million pixels, twice
+// what a smooth interactive frame can afford. Smaller canvases are unaffected.
+export const PIXEL_BUDGET = 2560 * 1600;
+
+/// The canvas's device-pixel size, within the pixel budget.
+export function dimensions(canvas) {
+  const cssWidth = Math.max(1, canvas.clientWidth);
+  const cssHeight = Math.max(1, canvas.clientHeight);
+  const ratio = Math.min(
+    window.devicePixelRatio || 1,
+    Math.sqrt(PIXEL_BUDGET / (cssWidth * cssHeight)),
+  );
+  return [
+    Math.max(1, Math.round(cssWidth * ratio)),
+    Math.max(1, Math.round(cssHeight * ratio)),
+  ];
 }
 
 /// The bytes of a synced `Bytes` trait, whichever view the frontend delivers.
@@ -198,7 +211,26 @@ async function mount({model, el}) {
     }
   };
 
-  const resizeObserver = new ResizeObserver(() => frame());
+  // Input events only request a frame; it is drawn once per display refresh.
+  // Drawing on every pointer or wheel event queues frames faster than a busy
+  // GPU finishes them, and the lag then grows for as long as the user drags.
+  let scheduled = 0;
+  const requestFrame = () => {
+    if (scheduled === 0) {
+      scheduled = requestAnimationFrame(() => {
+        scheduled = 0;
+        frame();
+      });
+    }
+  };
+  // The kernel hears the camera once an interaction settles, not per event.
+  let publishing;
+  const publishSoon = () => {
+    clearTimeout(publishing);
+    publishing = setTimeout(() => publishCamera(model, camera), 200);
+  };
+
+  const resizeObserver = new ResizeObserver(() => requestFrame());
   resizeObserver.observe(canvas);
 
   const replace = async () => {
@@ -262,19 +294,20 @@ async function mount({model, el}) {
     if (pointer === undefined) return;
     rotateCamera(camera, event.clientX - pointer[0], event.clientY - pointer[1]);
     pointer = [event.clientX, event.clientY];
-    frame();
+    requestFrame();
   };
   const pointerUp = (event) => {
     if (pointer === undefined) return;
     pointer = undefined;
     canvas.releasePointerCapture(event.pointerId);
+    clearTimeout(publishing);
     publishCamera(model, camera);
   };
   const wheel = (event) => {
     event.preventDefault();
     zoomCamera(camera, event.deltaY);
-    frame();
-    publishCamera(model, camera);
+    requestFrame();
+    publishSoon();
   };
   canvas.addEventListener("click", pick);
   canvas.addEventListener("pointerdown", pointerDown);
@@ -286,6 +319,8 @@ async function mount({model, el}) {
 
   return () => {
     clearTimeout(settling);
+    clearTimeout(publishing);
+    cancelAnimationFrame(scheduled);
     detach();
     resizeObserver.disconnect();
     model.off("change:scene_spec", replace);
