@@ -133,12 +133,12 @@ impl WebScene {
     /// Parses local molecular bytes and starts a resolved one-structure scene.
     ///
     /// The bytes never leave the browser. The parser recognizes the formats
-    /// compiled into the browser runtime, including mmCIF, BinaryCIF, and PDB.
+    /// compiled into the browser runtime, including mmCIF, `BinaryCIF`, and PDB.
     ///
     /// # Errors
     ///
     /// Returns a JavaScript error when the data cannot be parsed or adapted
-    /// into a MolGFX scene.
+    /// into a `MolGFX` scene.
     #[wasm_bindgen(js_name = fromStructureBytes)]
     pub fn from_structure_bytes(bytes: Vec<u8>, name: Option<String>) -> Result<WebScene, JsError> {
         let name = name
