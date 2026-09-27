@@ -1,6 +1,7 @@
 {
   "title": "Commands",
   "pages": [
+    "queries",
     "visual-selections",
     "sessions"
   ]

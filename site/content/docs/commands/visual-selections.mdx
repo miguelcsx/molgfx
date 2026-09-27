@@ -3,7 +3,7 @@ title: Query-driven visualization
 description: Turn MolFrame queries into named visual selections, representations, color, and focus in a live MolGFX scene.
 ---
 
-MolGFX does not define a second selection language. Every representation target and Workbench `select` statement uses a [MolFrame query](https://miguelcsx.github.io/molframe/docs/query-language/) unchanged.
+MolGFX does not define a second selection language. Every representation target and Workbench `select` statement uses a MolFrame query unchanged; see [Writing queries and commands](/docs/commands/queries).
 
 Use a raw query for a one-off representation. Use a named selection when several visual operations should follow the same molecular region.
 
@@ -54,7 +54,7 @@ A multi-statement program is validated as one atomic scene edit. If one statemen
 
 ## Work efficiently in the console
 
-- **Tab** asks the session for a completion. After a command comma, it offers common MolFrame query terms and named selections.
+- **Tab** asks the session for a completion. After a command comma, it offers MolFrame query keywords and your named selections (not yet the values in the structure, such as residue names).
 - **Enter** runs the program in the current command input.
 - **Up/Down** walk Workbench command history.
 - **Undo/redo** reverse or restore a complete successful program.
