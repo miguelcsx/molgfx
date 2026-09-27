@@ -1,0 +1,45 @@
+---
+title: Installation
+description: Install MolGFX for Python, Jupyter, or Rust.
+---
+
+## Python
+
+MolGFX requires Python 3.12 or newer. Install the base package with MolFrame:
+
+```bash
+python -m pip install --upgrade molgfx
+```
+
+For the notebook viewer and Workbench, install the Jupyter extra:
+
+```bash
+python -m pip install --upgrade "molgfx[jupyter]>=0.2.0"
+```
+
+The package depends on `molframe>=0.2.0`. Import both at the top of molecular workflows:
+
+```python
+import molframe
+import molgfx
+```
+
+## Rust
+
+Add the facade crate and MolFrame to `Cargo.toml`:
+
+```toml
+[dependencies]
+molgfx = "0.2"
+molframe = "0.2"
+```
+
+Use `molgfx` rather than an internal renderer crate. The facade exposes `Scene`, `Renderer`, `rep`, `sel`, `color`, and the public command API.
+
+## Browser requirements
+
+The Jupyter viewer renders in the browser with WebGPU. Use a current Chrome or Edge. Safari and Firefox need WebGPU enabled. The notebook widget reports an actionable error when WebGPU is unavailable.
+
+<Callout type="warn" title="Colab">
+In Google Colab, enable the custom widget manager once before displaying the viewer. The full command is in the [Workbench guide](/docs/jupyter/viewer-workbench).
+</Callout>

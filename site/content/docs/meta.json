@@ -1,0 +1,12 @@
+{
+  "title": "MolGFX",
+  "pages": [
+    "index",
+    "getting-started",
+    "jupyter",
+    "representations",
+    "scene",
+    "commands",
+    "rendering"
+  ]
+}

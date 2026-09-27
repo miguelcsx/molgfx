@@ -1,0 +1,28 @@
+---
+title: Troubleshooting
+description: Resolve common structure, browser, command, and device issues.
+---
+
+## The viewer says WebGPU is unavailable
+
+Use current Chrome or Edge. Safari and Firefox require WebGPU to be enabled. The Jupyter viewer is browser-rendered; changing the Python kernel does not add browser WebGPU support.
+
+## Atoms appear without sticks
+
+Infer bonds after reading an mmCIF when you need ball-and-stick, licorice, or lines:
+
+```python
+structure = molframe.read("structure.cif").infer_bonds()
+```
+
+## A command fails
+
+Catch `molgfx.CommandError` and inspect its located errors. A multi-statement program is atomic, so correct the bad statement and run the program again rather than recovering a partly changed scene.
+
+## The scene is blank or too broad
+
+Start from `protein`, `ligands`, or a named ligand selection. Use `scene.focus("resname HEM")` or a Workbench `focus` command to direct attention to a local region. Check the query in the [MolFrame documentation](https://miguelcsx.github.io/molframe/) when no atoms match.
+
+## Native image rendering cannot open a device
+
+Call `molgfx.system_info()` and inspect `available_adapters`. Update the platform graphics driver or render on a machine with a compatible adapter. Do not assume browser WebGPU availability implies that a headless native environment can open the same device.

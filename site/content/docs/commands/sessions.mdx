@@ -1,0 +1,48 @@
+---
+title: Commands, undo, and sessions
+description: Author repeatable scene edits with the Workbench command language.
+---
+
+A `Session` owns named selections, layer names, color rules, and history for one live scene. A text program is validated as one atomic edit: if a statement fails, the scene does not change.
+
+```python
+session = molgfx.Session(structure)
+session.execute("""
+select heme, resname HEM
+select pocket, byres (within 5 of $heme) and protein
+show cartoon, protein
+show ball_and_stick radius=0.25 as pocket, $pocket
+color orange, $pocket
+""")
+```
+
+- Named selections use `$name`.
+- Layers use `@name`.
+- `show` is idempotent for the same form and target unless `duplicate` is requested.
+- Redefining a named selection retargets dependent layers and rules.
+
+## History, errors, and completion
+
+```python
+session.undo()
+session.redo()
+items = session.completions("show cartoon, $po")
+saved = session.to_json()
+restored = molgfx.Session.from_json(session.scene, saved)
+```
+
+`CommandError.errors` gives located diagnostics, including a source span and a spelling suggestion where available.
+
+## Typed commands
+
+Use typed values when a text command is not the right UI contract:
+
+```python
+from molgfx import Command
+
+session.execute([
+    Command.show("licorice", "resname HEM", layer="heme_sticks", bond_radius=0.15),
+    Command.color("#ff3366", "@heme_sticks"),
+    Command.opacity(0.6, "cartoon"),
+])
+```

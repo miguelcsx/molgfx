@@ -1,0 +1,31 @@
+---
+title: Surfaces, nucleic acids, and glycans
+description: Use specialized representations where molecular context needs a different shape language.
+---
+
+## Surface
+
+`surface` has a molecular surface kind and a presentation style. The current public values are `van_der_waals`, `solvent_accessible`, `solvent_excluded`, and `gaussian`; styles are `solid`, `contour`, `dots`, `filled_contour`, and `mesh`.
+
+```python
+scene.add(molgfx.rep.surface(
+    target="chain A",
+    kind="solvent_accessible",
+    style="mesh",
+    probe_radius=1.6,
+    opacity=0.55,
+    color=(49, 104, 142),
+))
+```
+
+Use a focused selection rather than an entire large assembly when the scientific question is local.
+
+## Nucleic acids and glycans
+
+```python
+scene.add(molgfx.rep.nucleic_acid(target="nucleic", width=1.4))
+scene.add(molgfx.rep.bases(target="nucleic_base", radius=0.3))
+scene.add(molgfx.rep.glycan(target="glycans", width=1.5))
+```
+
+`base_pairs` adds paired base context; `glycan` uses the glycosidic-tree representation. These target expressions come from MolFrame. Link out to [MolFrame selections](https://miguelcsx.github.io/molframe/) for query composition and structure-specific vocabulary.

@@ -42,7 +42,7 @@ jupyter = ["anywidget>=0.9"]
 Homepage = "https://github.com/miguelcsx/molgfx"
 Repository = "https://github.com/miguelcsx/molgfx"
 Issues = "https://github.com/miguelcsx/molgfx/issues"
-Documentation = "https://github.com/miguelcsx/molgfx#readme"
+Documentation = "https://miguelcsx.github.io/molgfx/"
 
 [tool.maturin]
 manifest-path = "crates/molgfx-py/Cargo.toml"

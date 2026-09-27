@@ -1,0 +1,24 @@
+---
+title: Focus, interaction, and picking
+description: Direct attention to a molecular region and recover semantic picks.
+---
+
+`Scene.focus()` records a target of interest. It is useful for a pocket, ligand, or chain when a viewer or renderer frames the scene.
+
+```python
+scene.focus("resname HEM")
+```
+
+Interaction channels attach molecular targets to presentation state:
+
+```python
+scene.set_interaction(channel="selected", target="resname HEM")
+scene.set_interaction(channel="hovered", target="chain A")
+scene.set_interaction(channel="custom", name="active_site", target="resname HEM")
+```
+
+The browser viewer reports canvas clicks through `Viewer.pick` or `Workbench.pick`. Native off-screen workflows can call `renderer.pick(x, y)` after rendering. A `PickResult` carries a semantic kind plus optional dataset, chunk, row, and volume-label provenance—not a renderer-private handle.
+
+<Callout type="info" title="Keep state and style separate">
+Interaction channels describe *what* is selected or hovered. A visual style describes *how* that state should look. This separation lets the same scene state drive a browser viewer and an application-specific UI.
+</Callout>
