@@ -154,6 +154,62 @@ class WorkbenchPageTests(unittest.TestCase):
         self.assertIn("the GPU rejected a shader", notice.inner_text())
         self.assertIn("the GPU rejected a shader", self.page.evaluate("window.__molgfx.values.error"))
 
+    def test_a_high_density_canvas_renders_within_the_pixel_budget(self):
+        sizes = self.page.evaluate(
+            """async () => {
+                const {dimensions, PIXEL_BUDGET} = await import("./widget.js");
+                Object.defineProperty(window, "devicePixelRatio", {value: 2, configurable: true});
+                return {
+                    budget: PIXEL_BUDGET,
+                    wide: dimensions({clientWidth: 1960, clientHeight: 980}),
+                    small: dimensions({clientWidth: 600, clientHeight: 400}),
+                };
+            }"""
+        )
+        width, height = sizes["wide"]
+        self.assertLessEqual(width * height, sizes["budget"] * 1.01)
+        self.assertAlmostEqual(width / height, 2.0, places=2)
+        self.assertEqual(sizes["small"], [1200, 800])
+
+    def test_a_burst_of_pointer_events_draws_once_per_display_frame(self):
+        draws = self.page.evaluate(
+            """async () => {
+                const {loadRuntime} = await import("./widget.js");
+                const runtime = await loadRuntime(window.__molgfx.model);
+                const render = runtime.Renderer.prototype.renderCamera;
+                let count = 0;
+                runtime.Renderer.prototype.renderCamera = function (...args) {
+                    count += 1;
+                    return render.apply(this, args);
+                };
+                const canvas = document.querySelector(".molgfx-canvas");
+                const at = (x) => ({clientX: x, clientY: 50, pointerId: 1, bubbles: true});
+                canvas.dispatchEvent(new PointerEvent("pointerdown", at(10)));
+                for (let x = 11; x < 60; x += 1) canvas.dispatchEvent(new PointerEvent("pointermove", at(x)));
+                await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                canvas.dispatchEvent(new PointerEvent("pointerup", at(60)));
+                runtime.Renderer.prototype.renderCamera = render;
+                return count;
+            }"""
+        )
+        self.assertGreaterEqual(draws, 1)
+        self.assertLessEqual(draws, 2)
+
+    def test_the_kernel_hears_the_camera_once_after_a_wheel_burst(self):
+        saved = self.page.evaluate(
+            """async () => {
+                const before = window.__molgfx.saved.length;
+                const canvas = document.querySelector(".molgfx-canvas");
+                for (let step = 0; step < 20; step += 1) {
+                    canvas.dispatchEvent(new WheelEvent("wheel", {deltaY: 20, bubbles: true, cancelable: true}));
+                }
+                const during = window.__molgfx.saved.length - before;
+                await new Promise((resolve) => setTimeout(resolve, 400));
+                return [during, window.__molgfx.saved.length - before];
+            }"""
+        )
+        self.assertEqual(saved, [0, 1])
+
     def test_the_same_grammar_runs_in_the_page(self):
         answer = self.page.evaluate(
             """async () => {

@@ -26,6 +26,10 @@ const examplePdb = [
 
 const initialProgram = "show cartoon, protein; show spacefill, all; color chain, @cartoon";
 
+// The most device pixels a frame renders: every full-screen pass scales with
+// it, and a wide canvas on a high-density display is 7-8 million pixels.
+const PIXEL_BUDGET = 2560 * 1600;
+
 function create(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -103,9 +107,11 @@ export function mount(root) {
 
   const draw = () => {
     if (!renderer || !scene || !camera) return;
-    const ratio = window.devicePixelRatio || 1;
-    const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
-    const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
+    const cssWidth = Math.max(1, canvas.clientWidth);
+    const cssHeight = Math.max(1, canvas.clientHeight);
+    const ratio = Math.min(window.devicePixelRatio || 1, Math.sqrt(PIXEL_BUDGET / (cssWidth * cssHeight)));
+    const width = Math.max(1, Math.round(cssWidth * ratio));
+    const height = Math.max(1, Math.round(cssHeight * ratio));
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
@@ -188,7 +194,19 @@ export function mount(root) {
     }
   };
 
-  const resize = new ResizeObserver(() => frame());
+  // Input only requests a frame; one is drawn per display refresh, so a busy
+  // GPU never accumulates a queue of frames behind a drag.
+  let scheduled = 0;
+  const requestFrame = () => {
+    if (scheduled === 0) {
+      scheduled = requestAnimationFrame(() => {
+        scheduled = 0;
+        frame();
+      });
+    }
+  };
+
+  const resize = new ResizeObserver(() => requestFrame());
   resize.observe(canvas);
   file.addEventListener("change", loadSelected);
   void loadBytes(new TextEncoder().encode(examplePdb), "alanine-helix.pdb");
@@ -212,7 +230,7 @@ export function mount(root) {
     if (!pointer || !camera) return;
     rotate(camera, event.clientX - pointer[0], event.clientY - pointer[1]);
     pointer = [event.clientX, event.clientY];
-    frame();
+    requestFrame();
   });
   canvas.addEventListener("pointerup", (event) => {
     pointer = undefined;
@@ -222,7 +240,7 @@ export function mount(root) {
     if (!camera) return;
     event.preventDefault();
     zoom(camera, event.deltaY);
-    frame();
+    requestFrame();
   }, { passive: false });
   canvas.addEventListener("click", async (event) => {
     if (!renderer || picking) return;
@@ -247,6 +265,7 @@ export function mount(root) {
 
   return () => {
     clearTimeout(settling);
+    cancelAnimationFrame(scheduled);
     resize.disconnect();
     root.replaceChildren();
   };
