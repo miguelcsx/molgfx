@@ -1,4 +1,30 @@
-const initialProgram = "show cartoon, protein; color chain, @cartoon";
+const examplePdb = [
+  "ATOM      1  N   ALA A   1       0.000   0.000   0.000  1.00 20.00           N",
+  "ATOM      2  CA  ALA A   1       1.458   0.000   0.000  1.00 20.00           C",
+  "ATOM      3  C   ALA A   1       2.008   1.410   0.000  1.00 20.00           C",
+  "ATOM      4  N   ALA A   2       3.358   1.640   0.420  1.00 20.00           N",
+  "ATOM      5  CA  ALA A   2       3.988   2.964   0.510  1.00 20.00           C",
+  "ATOM      6  C   ALA A   2       3.220   3.880   1.470  1.00 20.00           C",
+  "ATOM      7  N   ALA A   3       3.862   5.070   1.810  1.00 20.00           N",
+  "ATOM      8  CA  ALA A   3       3.260   6.018   2.760  1.00 20.00           C",
+  "ATOM      9  C   ALA A   3       1.816   6.330   2.390  1.00 20.00           C",
+  "ATOM     10  N   ALA A   4       1.340   7.606   2.470  1.00 20.00           N",
+  "ATOM     11  CA  ALA A   4      -0.046   7.932   2.170  1.00 20.00           C",
+  "ATOM     12  C   ALA A   4      -0.836   6.878   1.390  1.00 20.00           C",
+  "ATOM     13  N   ALA A   5      -2.168   7.150   1.170  1.00 20.00           N",
+  "ATOM     14  CA  ALA A   5      -3.038   6.194   0.460  1.00 20.00           C",
+  "ATOM     15  C   ALA A   5      -2.538   4.765   0.740  1.00 20.00           C",
+  "ATOM     16  N   ALA A   6      -3.492   3.900   0.280  1.00 20.00           N",
+  "ATOM     17  CA  ALA A   6      -3.136   2.520   0.290  1.00 20.00           C",
+  "ATOM     18  C   ALA A   6      -1.750   2.218  -0.270  1.00 20.00           C",
+  "ATOM     19  N   ALA A   7      -1.430   0.900  -0.400  1.00 20.00           N",
+  "ATOM     20  CA  ALA A   7      -0.120   0.508  -0.910  1.00 20.00           C",
+  "ATOM     21  C   ALA A   7       0.640   1.624  -1.580  1.00 20.00           C",
+  "TER",
+  "END",
+].join("\n");
+
+const initialProgram = "show cartoon, protein; show spacefill, all; color chain, @cartoon";
 
 function create(tag, className, text) {
   const node = document.createElement(tag);
@@ -42,12 +68,12 @@ export function mount(root) {
   root.replaceChildren();
   const shell = create("section", "molgfx-demo");
   const toolbar = create("div", "molgfx-demo-toolbar");
-  const label = create("label", "molgfx-demo-file", "Open local structure");
+  const label = create("label", "molgfx-demo-file", "Replace structure");
   const file = document.createElement("input");
   file.type = "file";
   file.accept = ".cif,.mmcif,.bcif,.pdb";
   label.append(file);
-  const status = create("output", "molgfx-demo-status", "Choose a local mmCIF, BinaryCIF, or PDB file. The file stays in this browser.");
+  const status = create("output", "molgfx-demo-status", "Opening example…");
   toolbar.append(label, status);
 
   const canvas = create("canvas", "molgfx-demo-canvas");
@@ -106,16 +132,13 @@ export function mount(root) {
     draw();
   };
 
-  const load = async () => {
-    const selected = file.files?.[0];
-    if (!selected) return;
+  const loadBytes = async (bytes, name) => {
     try {
-      file.disabled = true;
-      report(`Loading ${selected.name}…`);
+      report(`Loading ${name}…`);
       await requireWebGPU();
       runtime ??= await import("./molgfx_wasm.js");
       await runtime.default();
-      scene = runtime.Scene.fromStructureBytes(new Uint8Array(await selected.arrayBuffer()), selected.name);
+      scene = runtime.Scene.fromStructureBytes(bytes, name);
       renderer ??= await runtime.Renderer.create(canvas);
       session = new runtime.Session(scene);
       camera = cameraFor(scene, canvas);
@@ -124,6 +147,15 @@ export function mount(root) {
       const message = error instanceof Error ? error.message : String(error);
       details.textContent = message;
       report(message, true);
+    }
+  };
+
+  const loadSelected = async () => {
+    const selected = file.files?.[0];
+    if (!selected) return;
+    file.disabled = true;
+    try {
+      await loadBytes(new Uint8Array(await selected.arrayBuffer()), selected.name);
     } finally {
       file.disabled = false;
     }
@@ -133,7 +165,8 @@ export function mount(root) {
     try { draw(); } catch (error) { report(String(error), true); }
   });
   resize.observe(canvas);
-  file.addEventListener("change", load);
+  file.addEventListener("change", loadSelected);
+  void loadBytes(new TextEncoder().encode(examplePdb), "alanine-helix.pdb");
   consolePanel.addEventListener("submit", (event) => {
     event.preventDefault();
     if (session) execute(command.value);
