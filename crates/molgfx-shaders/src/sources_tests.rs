@@ -300,3 +300,15 @@ fn diagnostic_directives_precede_every_declaration() {
         }
     }
 }
+
+#[test]
+fn the_unit_list_is_exactly_the_composed_library() {
+    let composed = composed_units();
+    assert_eq!(super::UNITS.len(), composed.len());
+    for (name, source) in composed {
+        assert!(
+            super::UNITS.iter().any(|(_, unit)| *unit == source),
+            "{name} is composed but missing from UNITS"
+        );
+    }
+}
