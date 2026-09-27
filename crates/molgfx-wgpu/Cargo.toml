@@ -39,6 +39,9 @@ wgpu = { workspace = true, features = ["std", "parking_lot", "vulkan", "gles", "
 
 [dev-dependencies]
 molgfx-core.workspace = true
+molgfx-shaders.workspace = true
+# The reference the override scan is checked against, for every shader unit.
+naga.workspace = true
 molgfx-math.workspace = true
 molgfx-render.workspace = true
 molframe.workspace = true

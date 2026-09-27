@@ -95,7 +95,7 @@ impl molgfx_gpu::Device for WgpuDevice {
     type Texture = WgpuTexture;
     type TextureView = wgpu::TextureView;
     type Sampler = wgpu::Sampler;
-    type ShaderModule = wgpu::ShaderModule;
+    type ShaderModule = super::stage_constants::WgpuShaderModule;
     type BindGroupLayout = wgpu::BindGroupLayout;
     type BindGroup = wgpu::BindGroup;
     type Pipeline = crate::encoder::WgpuPipeline;
@@ -248,7 +248,7 @@ impl molgfx_gpu::Device for WgpuDevice {
     fn create_shader_module(
         &self,
         desc: &ShaderModuleDesc<'_>,
-    ) -> Result<wgpu::ShaderModule, GpuError> {
+    ) -> Result<super::stage_constants::WgpuShaderModule, GpuError> {
         self.validated(desc.label, || {
             self.device
                 .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -256,6 +256,7 @@ impl molgfx_gpu::Device for WgpuDevice {
                     source: wgpu::ShaderSource::Wgsl(desc.wgsl.into()),
                 })
         })
+        .map(|raw| super::stage_constants::WgpuShaderModule::new(raw, desc.wgsl))
     }
 
     fn create_bind_group_layout(&self, desc: &BindGroupLayoutDesc<'_>) -> wgpu::BindGroupLayout {
@@ -338,28 +339,34 @@ impl molgfx_gpu::Device for WgpuDevice {
                 })
             })
             .collect();
-        // Both stages share the override values: an entry point that does not
-        // declare one simply ignores it, and splitting them would let the
-        // vertex and fragment halves of one pipeline specialize differently.
-        let compilation_options = wgpu::PipelineCompilationOptions {
-            constants: desc.constants,
-            ..Default::default()
-        };
+        // Each stage carries only the override values its entry point uses:
+        // Safari fails a stage given one it does not reach. Both come from the
+        // one list, so the two halves still specialize alike.
+        let vertex_constants = desc.shader.stage_constants(desc.vs_entry, desc.constants);
+        let fragment_constants = desc.fs_entry.map_or_else(Vec::new, |entry| {
+            desc.shader.stage_constants(entry, desc.constants)
+        });
         self.validated(desc.label, || {
             self.device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some(desc.label),
                     layout: Some(&layout),
                     vertex: wgpu::VertexState {
-                        module: desc.shader,
+                        module: &desc.shader.raw,
                         entry_point: Some(desc.vs_entry),
-                        compilation_options: compilation_options.clone(),
+                        compilation_options: wgpu::PipelineCompilationOptions {
+                            constants: &vertex_constants,
+                            ..Default::default()
+                        },
                         buffers: &[],
                     },
                     fragment: desc.fs_entry.map(|entry| wgpu::FragmentState {
-                        module: desc.shader,
+                        module: &desc.shader.raw,
                         entry_point: Some(entry),
-                        compilation_options: compilation_options.clone(),
+                        compilation_options: wgpu::PipelineCompilationOptions {
+                            constants: &fragment_constants,
+                            ..Default::default()
+                        },
                         targets: &targets,
                     }),
                     primitive: wgpu::PrimitiveState {
@@ -398,7 +405,7 @@ impl molgfx_gpu::Device for WgpuDevice {
                 .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                     label: Some(desc.label),
                     layout: Some(&layout),
-                    module: desc.shader,
+                    module: &desc.shader.raw,
                     entry_point: Some(desc.entry),
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                     cache: None,
