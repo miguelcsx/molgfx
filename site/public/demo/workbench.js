@@ -72,12 +72,15 @@ export function mount(root) {
   root.replaceChildren();
   const shell = create("section", "molgfx-demo");
   const toolbar = create("div", "molgfx-demo-toolbar");
-  const label = create("label", "molgfx-demo-file", "Replace structure");
+  const label = create("label", "molgfx-demo-file");
+  const fileLabel = create("span", "molgfx-demo-file-label", "Open structure");
+  const fileHint = create("span", "molgfx-demo-file-hint", "PDB · mmCIF · BCIF");
   const file = document.createElement("input");
   file.type = "file";
   file.accept = ".cif,.mmcif,.bcif,.pdb";
-  label.append(file);
-  const status = create("output", "molgfx-demo-status", "Opening example…");
+  file.setAttribute("aria-label", "Choose a molecular structure file");
+  label.append(fileLabel, fileHint, file);
+  const status = create("output", "molgfx-demo-status", "Loading example…");
   toolbar.append(label, status);
 
   const canvas = create("canvas", "molgfx-demo-canvas");
@@ -86,8 +89,8 @@ export function mount(root) {
   command.type = "text";
   command.spellcheck = false;
   command.autocomplete = "off";
-  command.placeholder = "show cartoon, protein";
-  const run = create("button", "molgfx-demo-run", "Run");
+  command.placeholder = "e.g. color chain, all";
+  const run = create("button", "molgfx-demo-run", "Apply");
   run.type = "submit";
   const details = create("pre", "molgfx-demo-details");
   consolePanel.append(command, run, details);
@@ -160,8 +163,8 @@ export function mount(root) {
       report("Command failed. Read the diagnostic below.", true);
       return;
     }
-    details.textContent = answer.messages?.join("\n") || `revision ${answer.revision}`;
-    report(`Rendered revision ${answer.revision}.`);
+    details.textContent = answer.messages?.join("\n") || "";
+    report("Structure ready.");
     frame();
   };
 

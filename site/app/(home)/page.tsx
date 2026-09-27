@@ -61,17 +61,17 @@ export default function HomePage() {
           </div>
         </section>
         <section className="mt-16 grid gap-4 border-t border-fd-border pt-8 sm:grid-cols-3">
-          <Link href="/docs/guides/getting-started" className="home-path-card">
+          <Link href="/docs/getting-started/first-scene" className="home-path-card">
             <span className="font-mono text-xs text-teal-700 dark:text-teal-300">01 · START</span>
             <strong>Load a structure</strong>
             <span>Build the first scene from coordinates and topology.</span>
           </Link>
-          <Link href="/docs/guides/representations" className="home-path-card">
+          <Link href="/docs/representations/overview" className="home-path-card">
             <span className="font-mono text-xs text-teal-700 dark:text-teal-300">02 · DESIGN</span>
             <strong>Choose a representation</strong>
             <span>Atoms, bonds, ribbons, and material controls.</span>
           </Link>
-          <Link href="/docs/guides/export" className="home-path-card">
+          <Link href="/docs/rendering/images" className="home-path-card">
             <span className="font-mono text-xs text-teal-700 dark:text-teal-300">03 · EXPORT</span>
             <strong>Produce a frame</strong>
             <span>Render deterministic images for your workflow.</span>
