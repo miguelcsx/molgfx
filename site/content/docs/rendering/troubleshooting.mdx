@@ -21,7 +21,7 @@ Catch `molgfx.CommandError` and inspect its located errors. A multi-statement pr
 
 ## The scene is blank or too broad
 
-Start from `protein`, `ligands`, or a named ligand selection. Use `scene.focus("resname HEM")` or a Workbench `focus` command to direct attention to a local region. Check the query in the [MolFrame documentation](https://miguelcsx.github.io/molframe/) when no atoms match.
+Start from `protein`, `ligand`, or a named ligand selection. Use `scene.focus("resname HEM")` or a Workbench `focus` command to direct attention to a local region. When no atoms match, test the query alone with `len(structure.select(...))` and see [Writing queries and commands](/docs/commands/queries).
 
 ## Native image rendering cannot open a device
 

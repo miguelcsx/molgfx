@@ -34,6 +34,21 @@ Use `molgfx.viewer.Workbench` in Jupyter for a browser WebGPU canvas, selection
 commands, completion, history, and undo/redo. See the
 [Workbench notebook](examples/workbench.ipynb) for haemoglobin (PDB 4HHB).
 
+Targets are MolFrame queries, and the Workbench console speaks a small command
+language around them:
+
+```text
+show cartoon, protein
+select pocket, byres (within 5 of resname HEM) and protein
+show licorice, $pocket
+color orange, $pocket
+```
+
+[Writing queries and commands](https://miguelcsx.github.io/molgfx/docs/commands/queries)
+walks through both, and the
+[MolFrame query reference](https://miguelcsx.github.io/molframe/docs/query-language/)
+lists every keyword.
+
 ## Status
 
 Beta. Public APIs are available through the `molgfx` facade; MolFrame provides

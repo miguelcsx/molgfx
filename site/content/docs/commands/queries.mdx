@@ -1,0 +1,154 @@
+---
+title: Writing queries and commands
+description: How to pick atoms with a MolFrame query, and how the Workbench command language uses them.
+---
+
+Two small languages work together in MolGFX:
+
+- A **query** picks atoms: `resname HEM`, `protein and chain A`,
+  `byres (within 5 of resname HEM) and protein`. It is MolFrame's selection
+  language, used unchanged.
+- A **command** does something with a query: `show cartoon, protein`,
+  `color orange, $pocket`. Commands are what you type in the Workbench console
+  or pass to `Session.execute()`.
+
+In a command, the query always comes **after the comma**:
+
+```text
+show cartoon, protein
+│    │        └─ query: which atoms
+│    └─ form: how to draw them
+└─ verb: what to do
+```
+
+## Try it
+
+In a notebook, open a Workbench and type in the console under the canvas
+(**Enter** runs, **Tab** completes, **↑/↓** recall):
+
+```python
+import molframe
+from molgfx.viewer import Workbench
+
+structure = molframe.read("4hhb.cif").infer_bonds()
+bench = Workbench(structure)
+bench
+```
+
+```text
+show cartoon
+show spacefill, resname HEM
+select pocket, byres (within 5 of resname HEM) and protein
+show licorice, $pocket
+color orange, $pocket
+```
+
+The same program runs from Python with `bench.execute("...")`. To test a
+query without drawing anything, ask MolFrame how many atoms it selects:
+
+```python
+len(structure.select("byres (within 5 of resname HEM) and protein"))   # 758
+```
+
+## Queries at a glance
+
+| You want | Write |
+|---|---|
+| Everything | `all` (or leave the target out: `show cartoon`) |
+| A kind of molecule | `protein`, `nucleic`, `water`, `ligand`, `polymer`, `hetero` |
+| Residues by name | `resname HEM`, `resname HIS HEM` |
+| A chain | `chain A`, `chain A B` |
+| Residue numbers | `resid 87`, `resid 1:10` |
+| Atoms by name | `name CA`, `name N CA C O`, `name C*` |
+| Elements | `element Fe`, `element C N` |
+| A numeric condition | `bfactor > 50` |
+| Both / either / not | `protein and chain A`, `water or ligand`, `not water` |
+| Near something | `within 5 of resname HEM`, `around 5 resname HEM` |
+| Whole residues | `byres (within 5 of resname HEM)` |
+| A selection you named | `$pocket` |
+
+Keywords are case-insensitive; values such as residue names are not
+(`resname HEM`, not `hem`). `not` binds tightest, then `and`, then `or`; add
+parentheses whenever you mix `and` and `or`. Every keyword, column and
+operator is in the
+**[MolFrame query reference](https://miguelcsx.github.io/molframe/docs/query-language/)**.
+
+## Names: `$selection` and `@layer`
+
+- `select pocket, QUERY` names a **selection**. Refer to it as `$pocket` in any
+  later query. It is a definition, not a frozen list of atoms: redefining it
+  moves everything that uses it.
+- `show FORM as pocket, QUERY` names a **layer** (one drawn representation).
+  Refer to it as `@pocket` in `hide`, `remove`, `opacity` and `color`.
+
+```text
+select heme, resname HEM
+select pocket, byres (within 5 of $heme) and protein
+show ball_and_stick as pocket, $pocket
+opacity 0.5, @pocket
+select pocket, byres (within 8 of $heme) and protein   # @pocket follows
+```
+
+Without `as`, a layer is named after its form: `show cartoon` makes
+`@cartoon`.
+
+## Recipes
+
+| Goal | Program |
+|---|---|
+| Protein as cartoon, ligands as sticks | `show cartoon, protein; show licorice, ligand` |
+| A binding pocket | `select pocket, byres (within 5 of resname HEM) and protein` then `show licorice, $pocket` |
+| One chain only | `show cartoon, chain A` |
+| Backbone trace | `show licorice, protein and name N CA C O` |
+| Side chains of a residue range | `show licorice, protein and resid 50:60 and not name N CA C O` |
+| Hide the waters | `show spacefill, water` then `hide @spacefill` |
+| Colour by chain, highlight one residue | `color chain, @cartoon; color yellow, resid 87` |
+| Frame the ligand | `focus resname HEM` |
+
+## Commands
+
+| Command | Does |
+|---|---|
+| `select NAME, QUERY` | define or redefine `$NAME`; everything using it follows |
+| `unselect NAME` | remove a named selection nothing uses |
+| `show FORM [control=value]... [duplicate] [as LAYER] [in STRUCTURE] [, QUERY]` | draw a query with a form (all atoms when the query is left out) |
+| `show @LAYER` | reveal a hidden layer |
+| `hide @LAYER`, `remove @LAYER` | hide a layer, or remove it |
+| `color COLOR [in STRUCTURE] [, TARGET]` | colour a layer (`@name`) or the atoms of a query in every layer |
+| `uncolor [in STRUCTURE] [, QUERY]` | remove colour rules |
+| `opacity VALUE, @LAYER` | set a layer's opacity, 0 to 1 |
+| `focus TARGET`, `unfocus` | highlight and frame a target, or clear it |
+| `undo`, `redo` | step through history |
+
+Separate statements with `;` or new lines. A program runs as one edit: if any
+statement fails, nothing changes.
+
+**Forms and their controls:** `cartoon` (`width`, `style`),
+`ball_and_stick` (`radius`, `bond_radius`), `spacefill` (`radius`),
+`licorice` (`radius`, `bond_radius`), `lines` (`width`), `points` (`size`),
+`surface` (`kind`, `style`, `probe_radius`, `isolevel`), `nucleic_acid`
+(`width`), `bases` (`radius`), `base_pairs` (`radius`, `bond_radius`),
+`glycan` (`width`). Every form also takes `color=` and `opacity=`:
+`show licorice bond_radius=0.2 color=orange, ligand`.
+
+**Colours:** a scheme (`element`, `chain`, `residue`, `secondary_structure`),
+a name (`red`, `orange`, `slate`, …), or `#rrggbb`.
+
+## When something goes wrong
+
+Errors point at the problem and suggest a fix:
+
+```text
+error: 'shwo' is not a command; did you mean 'show'?
+  --> line 1, column 1
+   | shwo cartoon, protein
+   | ^^^^
+```
+
+| Symptom | Likely cause |
+|---|---|
+| `'protein' is not a form` | the query went where the form belongs: `show cartoon, protein` |
+| `unknown selection keyword` | a typo in the query, such as `resnam HEM` |
+| `selection requires data this structure does not carry` | `backbone`, `sidechain`, `ion`, … need chemistry annotations; write `protein and name N CA C O` instead of `backbone` |
+| A query matches nothing | check the case of values (`HEM`, not `hem`), and try it alone with `len(structure.select(...))` |
+| Sticks without bonds | mmCIF lists only the bonds between residues; call `structure.infer_bonds()` |

@@ -24,7 +24,15 @@ const examplePdb = [
   "END",
 ].join("\n");
 
-const initialProgram = "show cartoon, protein; show spacefill, all; color chain, @cartoon";
+const initialProgram = "show cartoon, protein; color chain, @cartoon; show spacefill, ligand";
+
+// The structure the demo opens with: oxyhaemoglobin, fetched from the RCSB
+// by the visitor's browser. Offline, or if the archive is unreachable, the
+// small helix above stands in so the demo still starts.
+const defaultStructure = {
+  url: "https://files.rcsb.org/download/1HHO.cif",
+  name: "1hho.cif",
+};
 
 // The most device pixels a frame renders: every full-screen pass scales with
 // it, and a wide canvas on a high-density display is 7-8 million pixels.
@@ -212,7 +220,17 @@ export function mount(root) {
   const resize = new ResizeObserver(() => requestFrame());
   resize.observe(canvas);
   file.addEventListener("change", loadSelected);
-  void loadBytes(new TextEncoder().encode(examplePdb), "alanine-helix.pdb");
+  const loadDefault = async () => {
+    try {
+      report("Fetching 1HHO from the RCSB…");
+      const response = await fetch(defaultStructure.url, {signal: AbortSignal.timeout(15000)});
+      if (!response.ok) throw new Error(`the RCSB answered ${response.status}`);
+      await loadBytes(new Uint8Array(await response.arrayBuffer()), defaultStructure.name);
+    } catch {
+      await loadBytes(new TextEncoder().encode(examplePdb), "alanine-helix.pdb");
+    }
+  };
+  void loadDefault();
   consolePanel.addEventListener("submit", (event) => {
     event.preventDefault();
     if (session) execute(command.value);
