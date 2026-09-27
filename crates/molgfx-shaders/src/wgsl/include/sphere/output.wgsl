@@ -4,6 +4,12 @@
 // never evaluates coverage weighting, and the transparent path never writes
 // the gbuffer attachments it cannot use.
 
+// Derivatives here follow non-uniform intersection tests. The filter is a
+// module-level directive, not a function attribute, because Safari does not
+// accept @diagnostic on a function; composition hoists it above every
+// declaration of the shader that includes this file.
+diagnostic(off, derivative_uniformity);
+
 /// Writes one opaque sphere surface into the shared gbuffer.
 fn sphere_opaque_output(
     in: SphereVsOut,
@@ -73,7 +79,6 @@ fn sphere_opaque_output(
 
 /// Computes transparent edge coverage from quadratic data already produced
 /// during intersection.
-@diagnostic(off, derivative_uniformity)
 fn sphere_transparent_coverage(
     surface: SphereSurface,
     radius: f32,

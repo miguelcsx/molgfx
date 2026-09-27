@@ -143,6 +143,10 @@ fn generic_instance_geometry(index: u32) -> vec4f {
 }
 
 var<workgroup> visible_count: atomic<u32>;
+// The count every invocation reads once all of them have counted. Safari
+// does not yet accept workgroupUniformLoad on an atomic, so one invocation
+// copies the atomic into this plain value and the rest load that.
+var<workgroup> visible_total: u32;
 var<workgroup> output_base: u32;
 
 fn instance_visible(index: u32) -> bool {
@@ -212,7 +216,11 @@ fn cull_generic_instances(
     if keep {
         local = atomicAdd(&visible_count, 1u);
     }
-    let count = workgroupUniformLoad(&visible_count);
+    workgroupBarrier();
+    if local_id.x == 0u {
+        visible_total = atomicLoad(&visible_count);
+    }
+    let count = workgroupUniformLoad(&visible_total);
     if local_id.x == 0u && count != 0u {
         if instance_config.counts.y != 0u {
             let expanded = atomicAdd(

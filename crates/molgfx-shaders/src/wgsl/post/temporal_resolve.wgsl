@@ -6,6 +6,12 @@
 //
 // Rejected history needs only the five-tap spatial cross.
 
+// Derivatives here follow non-uniform intersection tests. The filter is a
+// module-level directive, not a function attribute, because Safari does not
+// accept @diagnostic on a function; composition hoists it above every
+// declaration of the shader that includes this file.
+diagnostic(off, derivative_uniformity);
+
 //!include "include/camera.wgsl"
 //!include "include/fullscreen.wgsl"
 
@@ -18,7 +24,6 @@
 //!include "include/post/temporal_sampling.wgsl"
 
 @fragment
-@diagnostic(off, derivative_uniformity)
 fn fs_temporal_resolve(
     in: FullscreenOut,
 ) -> @location(0) vec4f {

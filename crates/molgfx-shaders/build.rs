@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             );
         };
         let mut included = HashSet::new();
-        let composed = compose(&path, &wgsl_dir, &mut included)?;
+        let composed = hoist_directives(&compose(&path, &wgsl_dir, &mut included)?);
         if let Err(diagnostic) = validate(name, &composed) {
             diagnostics.push(diagnostic);
         }
@@ -124,6 +124,35 @@ fn compose(path: &Path, root: &Path, included: &mut HashSet<PathBuf>) -> Result<
         }
     }
     Ok(out)
+}
+
+/// Moves every `diagnostic(...)` directive to the top of a composed unit.
+///
+/// WGSL accepts directives only before the first declaration, but an include
+/// lands wherever its `//!include` line is. A directive an include states for
+/// its own functions is therefore hoisted, once, above the whole unit. (The
+/// function-attribute form would need no hoisting, but Safari rejects it.)
+fn hoist_directives(composed: &str) -> String {
+    let mut directives: Vec<&str> = Vec::new();
+    let mut body = String::with_capacity(composed.len());
+    for line in composed.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("diagnostic(") && trimmed.ends_with(';') {
+            if !directives.contains(&trimmed) {
+                directives.push(trimmed);
+            }
+        } else {
+            body.push_str(line);
+            body.push('\n');
+        }
+    }
+    let mut out = String::with_capacity(composed.len());
+    for directive in directives {
+        out.push_str(directive);
+        out.push('\n');
+    }
+    out.push_str(&body);
+    out
 }
 
 /// The marker a unit carries to request a specialized sibling.
