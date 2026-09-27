@@ -37,7 +37,7 @@ pub const VERBS: &[VerbInfo] = &[
     },
     VerbInfo {
         name: "show",
-        synopsis: "show FORM [control=value]... [duplicate] [as LAYER] [in STRUCTURE], TARGET | show @LAYER",
+        synopsis: "show FORM [control=value]... [duplicate] [as LAYER] [in STRUCTURE] [, TARGET] | show @LAYER",
         summary: "draw a target with a form, reusing an identical layer, or reveal a layer",
     },
     VerbInfo {
@@ -52,7 +52,7 @@ pub const VERBS: &[VerbInfo] = &[
     },
     VerbInfo {
         name: "color",
-        synopsis: "color COLOR [in STRUCTURE], TARGET",
+        synopsis: "color COLOR [in STRUCTURE] [, TARGET]",
         summary: "colour a layer, or the atoms of a query in every layer",
     },
     VerbInfo {
