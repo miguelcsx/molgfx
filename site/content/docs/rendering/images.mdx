@@ -1,0 +1,32 @@
+---
+title: Rendering images
+description: Create deterministic off-screen PNG output from a semantic scene.
+---
+
+`Renderer` opens a compatible native graphics device and renders a scene to an `Image`. Use `publication()` when a saved image matters more than interactive adaptation.
+
+```python
+renderer = molgfx.Renderer(profile=molgfx.profile.publication())
+image = renderer.render_image(scene, size=(1920, 1080))
+image.save("figure.png")
+```
+
+`Image` exposes `width`, `height`, RGBA `pixels()`, and `png_bytes()` when you need to pass the output to another system instead of saving it.
+
+## Camera
+
+`render_image` uses a framing camera. For a repeatable viewpoint, set a validated camera on the scene first:
+
+```python
+scene.set_camera(molgfx.Camera(
+    position=(40.0, 30.0, 80.0),
+    target=(0.0, 0.0, 0.0),
+    aspect=16 / 9,
+))
+```
+
+Choose coordinates from your structure and keep `near`, `far`, and camera vectors physically meaningful. The camera constructor rejects degenerate and invalid values.
+
+<Callout type="warn" title="Device availability">
+Renderer initialization can fail when the platform has no compatible graphics device. Use `molgfx.system_info()` to inspect compiled backends and visible adapters when diagnosing a native environment.
+</Callout>

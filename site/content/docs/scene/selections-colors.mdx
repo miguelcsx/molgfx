@@ -1,0 +1,43 @@
+---
+title: Selections and color
+description: Target biology with MolFrame queries and make it legible with color mappings.
+---
+
+MolGFX consumes MolFrame selections. The simplest target is a query string:
+
+```python
+heme = "resname HEM"
+pocket = "byres (within 5 of resname HEM) and protein"
+scene.add(molgfx.rep.spacefill(target=heme))
+scene.add(molgfx.rep.ball_and_stick(target=pocket, radius=0.25))
+```
+
+For advanced query syntax, see the [MolFrame query documentation](https://miguelcsx.github.io/molframe/). MolGFX preserves that exact language rather than translating it.
+
+## Color mappings
+
+```python
+scene.add(molgfx.rep.cartoon(
+    target="protein",
+    color=molgfx.color.chain(),
+))
+scene.add(molgfx.rep.ball_and_stick(
+    target="resname HEM",
+    color=molgfx.color.element(),
+))
+```
+
+Available mappings are `uniform`, `element`, `chain`, `residue`, `secondary_structure`, and `property`. `property` takes a bound scalar property, a supported ramp, and an explicit domain. Its `ColorSpec.legend_json()` provides legend data for an application UI.
+
+## Opacity and visual state
+
+A representation ID gives direct scene controls:
+
+```python
+layer = scene.add(molgfx.rep.cartoon(target="protein"))
+scene.set_opacity(layer, 0.65)
+scene.set_visible(layer, True)
+scene.focus("resname HEM")
+```
+
+For reactive appearance, `scene.set_interaction` supports `selected`, `hovered`, `focused`, `muted`, `hidden`, and named `custom` channels. Pair a channel with a `molgfx.visual.style` only when your application needs state-dependent styling.

@@ -1,0 +1,50 @@
+---
+title: Quickstart
+description: Render haemoglobin and show its heme pocket in Python.
+---
+
+This workflow intentionally starts with biology: a haemoglobin cartoon gives global context; the heme and its local protein pocket get atomic detail.
+
+## Load 4HHB with MolFrame
+
+```python
+import urllib.request
+
+import molframe
+import molgfx
+
+cif = urllib.request.urlopen("https://files.rcsb.org/download/4HHB.cif").read()
+# Infer bonds so atom-and-bond representations have sticks to draw.
+structure = molframe.read(cif, name="4hhb.cif").infer_bonds()
+```
+
+## Build a scene
+
+```python
+scene = molgfx.Scene(structure)
+scene.add(molgfx.rep.cartoon(target=molgfx.sel.protein(), color=molgfx.color.chain()))
+scene.add(molgfx.rep.spacefill(target="resname HEM"))
+scene.add(molgfx.rep.ball_and_stick(
+    target="byres (within 5 of resname HEM) and protein",
+    radius=0.25,
+    color=(255, 165, 0),
+))
+```
+
+<img src="/molgfx/images/haemoglobin-pocket.png" alt="Haemoglobin rendered by MolGFX with heme groups and an orange local protein pocket" />
+
+*The render shown here is produced by the same MolGFX scene described above.*
+
+## Render an image
+
+```python
+renderer = molgfx.Renderer(profile=molgfx.profile.publication())
+renderer.render_image(scene, size=(1600, 1000)).save("4hhb-pocket.png")
+```
+
+`render_image` frames the scene for the requested size. For an interactive version of the same scene, use `Workbench` in a notebook.
+
+<Cards>
+  <Card title="Your first scene" href="/docs/getting-started/first-scene" description="Learn the Scene → representation → renderer model." />
+  <Card title="Workbench" href="/docs/jupyter/viewer-workbench" description="Use the same selections interactively." />
+</Cards>

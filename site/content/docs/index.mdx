@@ -1,0 +1,27 @@
+---
+title: MolGFX
+description: Semantic molecular visualization for Python, Rust, and WebGPU.
+---
+
+MolGFX renders a [MolFrame](https://miguelcsx.github.io/molframe/) structure as an interactive scene or a deterministic image. It is a rendering library: MolFrame reads structures and provides the selection language; MolGFX decides how they look.
+
+<Callout type="info" title="Start with a real structure">
+The quickstart uses haemoglobin (PDB 4HHB), cartoon context, and a space-filling heme pocket. It is the same workflow as the runnable [Workbench notebook](https://github.com/miguelcsx/molgfx/blob/main/examples/workbench.ipynb).
+</Callout>
+
+## Choose a path
+
+<Cards>
+  <Card title="Python quickstart" href="/docs/getting-started/quickstart" description="Load a structure, add representations, and save an image." />
+  <Card title="Jupyter Workbench" href="/docs/jupyter/viewer-workbench" description="Use the WebGPU canvas and command console in a notebook." />
+  <Card title="Representations" href="/docs/representations/overview" description="Choose cartoon, atoms and bonds, points, or surface." />
+  <Card title="Commands and sessions" href="/docs/commands/sessions" description="Author repeatable edits, completion, undo, and persistence." />
+</Cards>
+
+## What MolGFX owns
+
+- **MolFrame**: structure input, molecular selections, and bond inference.
+- **MolGFX**: scenes, representations, appearance, interaction state, rendering, and browser transport.
+- **Your application**: where structures come from, when to render, and where images or widgets are displayed.
+
+That division keeps the selection syntax consistent. Pass a MolFrame query object or its query text to a MolGFX target; consult the [MolFrame documentation](https://miguelcsx.github.io/molframe/) for the full query language.

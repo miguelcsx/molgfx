@@ -130,6 +130,34 @@ impl WebScene {
         })
     }
 
+    /// Parses local molecular bytes and starts a resolved one-structure scene.
+    ///
+    /// The bytes never leave the browser. The parser recognizes the formats
+    /// compiled into the browser runtime, including mmCIF, BinaryCIF, and PDB.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JavaScript error when the data cannot be parsed or adapted
+    /// into a MolGFX scene.
+    #[wasm_bindgen(js_name = fromStructureBytes)]
+    pub fn from_structure_bytes(bytes: Vec<u8>, name: Option<String>) -> Result<WebScene, JsError> {
+        let name = name
+            .into_iter()
+            .fold("structure".to_owned(), |_, value| value);
+        let (structure, _) =
+            molframe::read_bytes(bytes, Some(&name), &molframe::ReadOptions::new())
+                .map_err(javascript_error)?;
+        let resolved = molgfx::Scene::from_structure(&structure).map_err(javascript_error)?;
+        let spec = resolved.to_spec();
+        let mut structures = BTreeMap::new();
+        let _ = structures.insert(molgfx::StructureId::new(1), structure);
+        Ok(Self {
+            spec,
+            structures,
+            resolved: Some(resolved),
+        })
+    }
+
     /// Parses and binds one molecular source to its semantic identity.
     ///
     /// # Errors

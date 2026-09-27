@@ -1,0 +1,34 @@
+---
+title: Molecular representations
+description: Choose the depiction that answers the structural question.
+---
+
+Every representation is created in `molgfx.rep` and targets a MolFrame selection. Add several representations to combine overview and detail.
+
+<div className="figure-grid">
+<figure className="figure-card"><img src="/molgfx/images/cartoon.png" alt="MolGFX cartoon rendering of a protein" /><figcaption><strong>Cartoon</strong>Protein fold and secondary-structure context.</figcaption></figure>
+<figure className="figure-card"><img src="/molgfx/images/ball-and-stick.png" alt="MolGFX ball-and-stick rendering" /><figcaption><strong>Ball and stick</strong>Bond geometry in a selected pocket.</figcaption></figure>
+<figure className="figure-card"><img src="/molgfx/images/spacefill.png" alt="MolGFX space-filling rendering" /><figcaption><strong>Spacefill</strong>Atomic volume and steric context.</figcaption></figure>
+<figure className="figure-card"><img src="/molgfx/images/surface.png" alt="MolGFX molecular surface rendering" /><figcaption><strong>Surface</strong>Shape, access, and binding envelopes.</figcaption></figure>
+</div>
+
+## Core forms
+
+| Representation | Use it for | Main controls |
+| --- | --- | --- |
+| `cartoon` | protein or polymer context | `width`, `style` |
+| `ball_and_stick` | local contacts and bonds | `radius`, `bond_radius` |
+| `spacefill` | atomic volume | `radius` |
+| `licorice` | uniform-radius atoms and bonds | `radius`, `bond_radius` |
+| `lines` | compact bond overview | `width` |
+| `points` | dense atom clouds | `size` |
+| `surface` | molecular envelope | `kind`, `style`, `probe_radius`, `isolevel` |
+
+All forms accept `target`, `opacity`, and `color`. `nucleic_acid`, `bases`, `base_pairs`, and `glycan` are also available for their respective molecular targets.
+
+```python
+scene.add(molgfx.rep.cartoon(target="protein", color=molgfx.color.secondary_structure()))
+scene.add(molgfx.rep.licorice(target="resname HEM", bond_radius=0.15))
+```
+
+For ball-and-stick, licorice, and lines, call `structure.infer_bonds()` after reading mmCIF when the source does not contain all bonds.

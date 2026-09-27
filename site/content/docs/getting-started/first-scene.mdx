@@ -1,0 +1,36 @@
+---
+title: Your first scene
+description: The smallest useful Scene, representation, and Renderer workflow.
+---
+
+A `Scene` attaches semantic items to a MolFrame structure. `scene.add()` returns a stable representation ID, which you can later use to adjust visibility, opacity, or a visual style.
+
+```python
+scene = molgfx.Scene(structure)
+cartoon = scene.add(molgfx.rep.cartoon(target="protein"))
+scene.set_opacity(cartoon, 0.85)
+scene.set_visible(cartoon, True)
+
+image = molgfx.Renderer().render_image(scene, size=(1200, 800))
+image.save("protein.png")
+```
+
+All target arguments accept MolFrame query text. Python also accepts a MolFrame query object. Keep selection meaning in MolFrame; MolGFX does not define a second query language.
+
+## Python, Jupyter, and Rust
+
+- **Python** is the fastest path for scripts and images.
+- **Jupyter** adds `Viewer` or `Workbench` for a browser WebGPU canvas.
+- **Rust** uses the same scene vocabulary and is useful when embedding MolGFX in an application.
+
+```rust
+use molgfx::{Renderer, Scene, color, rep, sel};
+
+# fn run(structure: &molframe::Structure) -> Result<(), molgfx::Error> {
+let mut scene = Scene::from_structure(structure)?;
+scene.add(rep::cartoon(sel::protein()).color(color::chain()))?;
+let mut renderer = Renderer::new()?;
+renderer.render_image(&scene, (1600, 1000))?.save("protein.png")?;
+# Ok(())
+# }
+```

@@ -1,0 +1,54 @@
+---
+title: Jupyter viewer and Workbench
+description: Explore a live scene in a browser WebGPU canvas and edit it with commands.
+---
+
+`Viewer` displays an existing `Scene`. `Workbench` adds a command console, history, completion, and error panel over one live `Session`.
+
+```python
+from molgfx.viewer import Workbench
+
+bench = Workbench(structure)
+bench.execute("show cartoon, protein; color chain, @cartoon")
+bench
+```
+
+The browser receives the structure once and then receives semantic scene patches. No rendered frame pixels travel through the Python kernel.
+
+## Browser-only local-file demo
+
+The [local-file Workbench demo](/demo) runs the same browser runtime without a Python kernel. It parses a local mmCIF, BinaryCIF, or PDB file in the browser and never uploads the selected bytes.
+
+## Build a local pocket
+
+Type this into the Workbench console, or pass it to `bench.execute`:
+
+```text
+select heme, resname HEM
+show spacefill, $heme
+select pocket, byres (within 5 of $heme) and protein
+show ball_and_stick radius=0.25 as pocket, $pocket
+color orange, $pocket
+focus $heme
+```
+
+- **Enter** runs the current program.
+- **Tab** requests completion.
+- **Up/Down** recall command history.
+- Clicking the canvas reports the picked entity in `bench.pick`.
+
+## Colab
+
+Run this once before displaying a third-party widget in Colab:
+
+```python
+try:
+    from google.colab import output
+    output.enable_custom_widget_manager()
+except ImportError:
+    pass
+```
+
+<Callout type="warn" title="WebGPU is required">
+The widget needs WebGPU in the browser. Update Chrome or Edge first; Safari and Firefox require WebGPU to be enabled. Use `Renderer.render_image` for native, off-screen output instead of a notebook canvas.
+</Callout>
