@@ -1,0 +1,74 @@
+---
+title: Query-driven visualization
+description: Turn MolFrame queries into named visual selections, representations, color, and focus in a live MolGFX scene.
+---
+
+MolGFX does not define a second selection language. Every representation target and Workbench `select` statement uses a [MolFrame query](https://miguelcsx.github.io/molframe/docs/query-language/) unchanged.
+
+Use a raw query for a one-off representation. Use a named selection when several visual operations should follow the same molecular region.
+
+```python
+scene.add(molgfx.rep.cartoon(target="protein"))
+scene.add(molgfx.rep.spacefill(target="resname HEM"))
+```
+
+## Name a visual selection
+
+In a `Session` or `Workbench`, `select NAME, QUERY` stores the query under `$NAME`. It is a declarative definition, not a frozen list of atom rows.
+
+```text
+select heme, resname HEM
+select pocket, byres (within 5 of $heme) and protein
+```
+
+Use the named selection in visual commands:
+
+```text
+show spacefill, $heme
+show ball_and_stick radius=0.25 as pocket, $pocket
+color orange, $pocket
+focus $heme
+```
+
+- `$heme` and `$pocket` name selections.
+- `@pocket` names the layer created by `as pocket`.
+- `show` creates or reveals a representation; `color` changes its appearance; `focus` records the region a viewer should frame.
+
+Redefining `select pocket, …` retargets visual layers and color rules that use `$pocket`. The scene stays coherent without reconstructing unrelated representations.
+
+## Build a pocket in the Workbench
+
+Paste this program into the Workbench console or pass it to `Session.execute()`:
+
+```text
+select heme, resname HEM
+select pocket, byres (within 5 of $heme) and protein
+show cartoon, protein
+show spacefill color=orange, $heme
+show ball_and_stick radius=0.25 as pocket, $pocket
+color chain, @pocket
+focus $heme
+```
+
+A multi-statement program is validated as one atomic scene edit. If one statement is invalid, the scene does not change.
+
+## Work efficiently in the console
+
+- **Tab** asks the session for a completion. After a command comma, it offers common MolFrame query terms and named selections.
+- **Enter** runs the program in the current command input.
+- **Up/Down** walk Workbench command history.
+- **Undo/redo** reverse or restore a complete successful program.
+- Errors identify their source span and may offer a spelling suggestion.
+
+The current Workbench console is the authoring interface for visual queries. Clicking the canvas reports the semantic entity under the pointer through `Workbench.pick`; it does not create or edit a selection. Application-specific click, lasso, or selection-editor UI belongs above the MolGFX scene API.
+
+## Use state for reactive appearance
+
+`Scene.set_interaction()` records a MolFrame target in a state channel such as `selected`, `hovered`, or `focused`. Pair that state with a visual style when an application needs feedback beyond a static representation.
+
+```python
+scene.set_interaction(channel="selected", target="resname HEM")
+scene.set_interaction(channel="hovered", target="chain A")
+```
+
+See [Focus, interaction, and picking](/docs/scene/interaction) for the scene-state boundary, and [Commands, undo, and sessions](/docs/commands/sessions) for persistence and typed command APIs.
