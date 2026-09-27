@@ -137,6 +137,23 @@ class WorkbenchPageTests(unittest.TestCase):
         finally:
             page.close()
 
+    def test_a_frame_that_fails_is_reported_under_the_canvas(self):
+        self.assertTrue(self.page.locator(".molgfx-canvas + .molgfx-failure").is_hidden())
+        self.page.evaluate(
+            """async () => {
+                const {loadRuntime} = await import("./widget.js");
+                const runtime = await loadRuntime(window.__molgfx.model);
+                runtime.Renderer.prototype.renderCamera = () => {
+                    throw new Error("the GPU rejected a shader");
+                };
+                document.getElementById("root").style.width = "70%";
+            }"""
+        )
+        notice = self.page.locator(".molgfx-canvas + .molgfx-failure")
+        notice.wait_for(state="visible")
+        self.assertIn("the GPU rejected a shader", notice.inner_text())
+        self.assertIn("the GPU rejected a shader", self.page.evaluate("window.__molgfx.values.error"))
+
     def test_the_same_grammar_runs_in_the_page(self):
         answer = self.page.evaluate(
             """async () => {

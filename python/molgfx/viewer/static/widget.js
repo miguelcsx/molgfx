@@ -164,16 +164,48 @@ async function mount({model, el}) {
     );
   };
 
-  const resizeObserver = new ResizeObserver(() => {
-    try { draw(); } catch (error) { report(model, error); }
-  });
+  // A frame that fails is reported under the canvas, not only in the
+  // `error` trait: a blank canvas with the reason hidden in the kernel is
+  // what a GPU that rejects a shader otherwise looks like.
+  const notice = element("pre", "molgfx-failure");
+  notice.hidden = true;
+  canvas.after(notice);
+  let settling;
+  // A pick holds the renderer across its GPU readback; a frame requested
+  // meanwhile would reenter it, so it is drawn once the pick completes.
+  let picking = false;
+  let redrawAfterPick = false;
+  const frame = (followUp = true) => {
+    if (picking) {
+      redrawAfterPick = true;
+      return;
+    }
+    try {
+      draw();
+      notice.hidden = true;
+    } catch (error) {
+      report(model, error);
+      notice.textContent = `MolGFX could not draw: ${error instanceof Error ? error.message : String(error)}`;
+      notice.hidden = false;
+      return;
+    }
+    // GPU validation errors arrive after the frame that caused them and
+    // surface on the next one, so one quiet follow-up frame turns a frame
+    // that silently failed on this GPU into a reported one.
+    if (followUp) {
+      clearTimeout(settling);
+      settling = setTimeout(() => frame(false), 250);
+    }
+  };
+
+  const resizeObserver = new ResizeObserver(() => frame());
   resizeObserver.observe(canvas);
 
   const replace = async () => {
     try {
       scene = await buildScene(model, runtime);
       camera = undefined;
-      draw();
+      frame();
     } catch (error) {
       report(model, error);
     }
@@ -190,7 +222,7 @@ async function mount({model, el}) {
       if (operations.some((operation) => operation.op === "set_camera")) {
         camera = undefined;
       }
-      draw();
+      frame();
     } catch (error) {
       report(model, error);
     }
@@ -203,7 +235,17 @@ async function mount({model, el}) {
       const bounds = canvas.getBoundingClientRect();
       const x = Math.floor((event.clientX - bounds.left) * canvas.width / bounds.width);
       const y = Math.floor((event.clientY - bounds.top) * canvas.height / bounds.height);
-      const result = await renderer.pick(x, y);
+      picking = true;
+      let result;
+      try {
+        result = await renderer.pick(x, y);
+      } finally {
+        picking = false;
+        if (redrawAfterPick) {
+          redrawAfterPick = false;
+          frame();
+        }
+      }
       model.set("pick", result === undefined ? {} : JSON.parse(result));
       model.set("selection", result === undefined ? "" : result);
       model.save_changes();
@@ -220,7 +262,7 @@ async function mount({model, el}) {
     if (pointer === undefined) return;
     rotateCamera(camera, event.clientX - pointer[0], event.clientY - pointer[1]);
     pointer = [event.clientX, event.clientY];
-    draw();
+    frame();
   };
   const pointerUp = (event) => {
     if (pointer === undefined) return;
@@ -231,7 +273,7 @@ async function mount({model, el}) {
   const wheel = (event) => {
     event.preventDefault();
     zoomCamera(camera, event.deltaY);
-    draw();
+    frame();
     publishCamera(model, camera);
   };
   canvas.addEventListener("click", pick);
@@ -239,10 +281,11 @@ async function mount({model, el}) {
   canvas.addEventListener("pointermove", pointerMove);
   canvas.addEventListener("pointerup", pointerUp);
   canvas.addEventListener("wheel", wheel, {passive: false});
-  draw();
+  frame();
   if (behind()) requestSync(model);
 
   return () => {
+    clearTimeout(settling);
     detach();
     resizeObserver.disconnect();
     model.off("change:scene_spec", replace);
