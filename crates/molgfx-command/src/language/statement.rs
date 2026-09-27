@@ -3,7 +3,7 @@
 use super::arguments::{Arguments, color_value, layer_word, name_word, target};
 use super::words::{Word, first_comma, trim, words};
 use crate::error::{CommandError, ErrorKind, Span};
-use crate::ir::{Command, Form, FormKind, Opacity, OptionError, QueryText, Show};
+use crate::ir::{Command, Form, FormKind, Opacity, OptionError, QueryText, Show, Target};
 use crate::registry;
 
 /// Parses the statement at `span`.
@@ -113,20 +113,22 @@ fn show(
         });
     }
     let Some(kind) = FormKind::from_name(first.text) else {
-        return Err(CommandError::new(
-            ErrorKind::Syntax,
-            format!("'{}' is not a form", first.text),
-        )
-        .at(first.span)
-        .suggest(registry::suggest(first.text, registry::form_names())));
+        // `show protein` names a target where the form belongs; say how the
+        // statement is written rather than only that the word is no form.
+        let message = if tail.is_none() {
+            format!(
+                "'{}' is not a form; write the form first and the target after a comma: show cartoon, {}",
+                first.text, first.text
+            )
+        } else {
+            format!("'{}' is not a form", first.text)
+        };
+        return Err(CommandError::new(ErrorKind::Syntax, message)
+            .at(first.span)
+            .suggest(registry::suggest(first.text, registry::form_names())));
     };
-    let Some(tail) = tail.filter(|tail| tail.start < tail.end) else {
-        return Err(syntax(
-            format!("show {} needs a target after a comma", kind.name()),
-            first.span,
-        ));
-    };
-    let mut show = Show::new(Form::new(kind), target(source, tail)?);
+    let target = optional_target(source, tail, first.span, &format!("show {}", kind.name()))?;
+    let mut show = Show::new(Form::new(kind), target);
     let mut rest = words[1..].iter().copied();
     while let Some(word) = rest.next() {
         match word.text {
@@ -209,14 +211,34 @@ fn color(
             return Err(syntax(format!("unexpected '{}'", word.text), word.span));
         }
     }
-    let Some(tail) = tail.filter(|tail| tail.start < tail.end) else {
-        return Err(syntax("color needs a target after a comma", first.span));
-    };
     Ok(Command::Color {
         color,
-        target: target(source, tail)?,
+        target: optional_target(source, tail, first.span, "color")?,
         structure,
     })
+}
+
+/// The target after a statement's comma, or everything when there is no comma.
+///
+/// As in `PyMOL`, `show cartoon` and `color red` apply to all atoms. A comma
+/// with nothing after it is still an error: it reads as a target left out by
+/// mistake, not as a request for everything.
+fn optional_target(
+    source: &str,
+    tail: Option<Span>,
+    anchor: Span,
+    statement: &str,
+) -> Result<Target, CommandError> {
+    match tail {
+        None => QueryText::compile("all")
+            .map(Target::Query)
+            .map_err(|diagnostics| super::arguments::query_error(&diagnostics, anchor)),
+        Some(tail) if tail.start < tail.end => target(source, tail),
+        Some(_) => Err(syntax(
+            format!("{statement} needs a target after the comma"),
+            anchor,
+        )),
+    }
 }
 
 fn uncolor(
