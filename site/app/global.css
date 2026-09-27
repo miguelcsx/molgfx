@@ -9,7 +9,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
 html > body[data-scroll-locked] { margin-right: 0 !important; --removed-body-scroll-bar-size: 0 !important; }
 .family-switcher { display:flex; gap:.45rem; align-items:center; font-size:.75rem; color:var(--fd-muted-foreground); text-decoration:none; }
 .family-switcher strong { color:var(--fd-foreground); font-weight:600; }
-.molgfx-hero { background: radial-gradient(circle at 75% 0%, color-mix(in srgb, var(--fd-primary) 14%, transparent), transparent 38%); }
+.hero-grid { background-image: linear-gradient(color-mix(in srgb, var(--fd-border) 45%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--fd-border) 45%, transparent) 1px, transparent 1px); background-size: 28px 28px; }
 .figure-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin:1.5rem 0; }
 .figure-card { border:1px solid var(--fd-border); border-radius:1rem; overflow:hidden; background:var(--fd-card); }
 .figure-card img { width:100%; height:auto; display:block; background:#071d25; }
