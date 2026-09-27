@@ -5,8 +5,8 @@ import { LiveDemo } from '@/components/live-demo';
 export default function HomePage() {
   return (
     <main className="hero-grid min-h-screen">
-      <div className="mx-auto max-w-6xl px-6 py-16 sm:py-24">
-        <header className="mb-16 flex items-center justify-between text-sm">
+      <div className="mx-auto max-w-6xl px-6 py-8 sm:py-12">
+        <header className="mb-14 flex items-center justify-between text-sm">
           <span className="flex items-center gap-2 font-semibold">
             <span className="text-lg text-teal-600">◉</span>
             MolGFX
@@ -15,31 +15,67 @@ export default function HomePage() {
             MolFrame ↗
           </a>
         </header>
-        <section className="max-w-3xl">
-          <p className="mb-5 font-mono text-sm text-teal-700 dark:text-teal-300">
-            MOLECULAR VISUALIZATION · PYTHON + RUST + WEBGPU
-          </p>
-          <h1 className="text-5xl font-semibold tracking-tight sm:text-6xl">
-            Render molecular structure with scientific intent.
-          </h1>
-          <p className="mt-7 max-w-2xl text-lg leading-8 text-fd-muted-foreground">
-            MolGFX turns MolFrame structures into interactive WebGPU scenes and deterministic images.
-          </p>
-          <div className="mt-9 flex flex-wrap gap-3">
-            <Link href="/docs" className="rounded-lg bg-fd-primary px-5 py-3 font-medium text-fd-primary-foreground">
-              Read the docs
-            </Link>
-            <a href="https://github.com/miguelcsx/molgfx" className="rounded-lg border border-fd-border px-5 py-3 font-medium">
-              View on GitHub
-            </a>
+        <section className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-16">
+          <div className="max-w-xl">
+            <p className="mb-5 font-mono text-sm text-teal-700 dark:text-teal-300">
+              MOLECULAR VISUALIZATION · PYTHON + RUST + WEBGPU
+            </p>
+            <h1 className="text-5xl font-semibold tracking-tight sm:text-6xl">
+              Molecular structure, rendered with intent.
+            </h1>
+            <p className="mt-7 max-w-lg text-lg leading-8 text-fd-muted-foreground">
+              MolGFX turns MolFrame structures into interactive WebGPU scenes and deterministic images.
+            </p>
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Link href="/docs" className="rounded-lg bg-fd-primary px-5 py-3 font-medium text-fd-primary-foreground">
+                Read the docs
+              </Link>
+              <a href="https://github.com/miguelcsx/molgfx" className="rounded-lg border border-fd-border px-5 py-3 font-medium">
+                View on GitHub
+              </a>
+            </div>
+            <dl className="mt-12 grid grid-cols-3 gap-4 border-t border-fd-border pt-5 text-sm">
+              <div>
+                <dt className="font-mono text-xs text-fd-muted-foreground">BACKEND</dt>
+                <dd className="mt-1 font-medium">WebGPU</dd>
+              </div>
+              <div>
+                <dt className="font-mono text-xs text-fd-muted-foreground">INPUT</dt>
+                <dd className="mt-1 font-medium">PDB / mmCIF</dd>
+              </div>
+              <div>
+                <dt className="font-mono text-xs text-fd-muted-foreground">OUTPUT</dt>
+                <dd className="mt-1 font-medium">Interactive</dd>
+              </div>
+            </dl>
+          </div>
+          <div className="workbench-shell">
+            <div className="workbench-shell-bar">
+              <div>
+                <p className="font-mono text-xs font-medium tracking-wider text-teal-700 dark:text-teal-300">LIVE WORKBENCH</p>
+                <p className="mt-1 text-sm text-fd-muted-foreground">Inspect the bundled structure, then load your own.</p>
+              </div>
+              <span className="workbench-shell-status"><span aria-hidden="true" /> WebGPU</span>
+            </div>
+            <LiveDemo />
           </div>
         </section>
-        <section className="mt-20" aria-labelledby="workbench-title">
-          <div className="mb-5 max-w-3xl">
-            <p className="font-mono text-sm text-teal-700 dark:text-teal-300">BROWSER WORKBENCH</p>
-            <h2 id="workbench-title" className="mt-2 text-3xl font-semibold tracking-tight">Explore an example, or replace it with your structure.</h2>
-          </div>
-          <LiveDemo />
+        <section className="mt-16 grid gap-4 border-t border-fd-border pt-8 sm:grid-cols-3">
+          <Link href="/docs/guides/getting-started" className="home-path-card">
+            <span className="font-mono text-xs text-teal-700 dark:text-teal-300">01 · START</span>
+            <strong>Load a structure</strong>
+            <span>Build the first scene from coordinates and topology.</span>
+          </Link>
+          <Link href="/docs/guides/representations" className="home-path-card">
+            <span className="font-mono text-xs text-teal-700 dark:text-teal-300">02 · DESIGN</span>
+            <strong>Choose a representation</strong>
+            <span>Atoms, bonds, ribbons, and material controls.</span>
+          </Link>
+          <Link href="/docs/guides/export" className="home-path-card">
+            <span className="font-mono text-xs text-teal-700 dark:text-teal-300">03 · EXPORT</span>
+            <strong>Produce a frame</strong>
+            <span>Render deterministic images for your workflow.</span>
+          </Link>
         </section>
       </div>
     </main>
