@@ -230,3 +230,73 @@ fn paged_trajectory_interpolates_provider_frames_into_shared_coordinates() {
     assert!(source.contains("trajectory_frames"));
     assert!(source.contains("paged_coordinates[output] = mix"));
 }
+
+/// Every composed unit, exactly as the build wrote it.
+fn composed_units() -> Vec<(String, String)> {
+    let directory = match std::fs::read_dir(env!("OUT_DIR")) {
+        Ok(directory) => directory,
+        Err(error) => panic!("the composed shader directory should be readable: {error}"),
+    };
+    let mut units = Vec::new();
+    for entry in directory.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("wgsl") {
+            continue;
+        }
+        match std::fs::read_to_string(&path) {
+            Ok(source) => units.push((path.display().to_string(), source)),
+            Err(error) => panic!("{} should be readable: {error}", path.display()),
+        }
+    }
+    assert!(units.len() > 20, "expected the whole composed library");
+    units
+}
+
+#[test]
+fn no_composed_unit_uses_a_construct_safari_rejects() {
+    for (name, source) in composed_units() {
+        // Safari does not accept `@diagnostic` on a function.
+        assert!(
+            !source.contains("@diagnostic("),
+            "{name} uses a @diagnostic attribute"
+        );
+        // Nor `workgroupUniformLoad` of an atomic.
+        for (offset, _) in source.match_indices("workgroupUniformLoad(&") {
+            let rest = &source[offset + "workgroupUniformLoad(&".len()..];
+            let variable = rest.split(')').next().unwrap_or_default();
+            let declaration = format!("var<workgroup> {variable}: ");
+            let Some(at) = source.find(&declaration) else {
+                panic!("{name}: {variable} is not a workgroup variable");
+            };
+            let kind = source[at + declaration.len()..]
+                .split(';')
+                .next()
+                .unwrap_or_default();
+            assert!(
+                !kind.contains("atomic"),
+                "{name} loads atomic {variable} uniformly"
+            );
+        }
+    }
+}
+
+#[test]
+fn diagnostic_directives_precede_every_declaration() {
+    for (name, source) in composed_units() {
+        let mut declarations_started = false;
+        for line in source.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with("//") {
+                continue;
+            }
+            if trimmed.starts_with("diagnostic(") {
+                assert!(
+                    !declarations_started,
+                    "{name}: a directive follows a declaration"
+                );
+            } else {
+                declarations_started = true;
+            }
+        }
+    }
+}

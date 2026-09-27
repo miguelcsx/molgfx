@@ -57,6 +57,10 @@ struct AtomProjection {
 @group(0) @binding(15) var<uniform> visual_config: VisualConfig;
 
 var<workgroup> visible_count: atomic<u32>;
+// The count every invocation reads once all of them have counted. Safari
+// does not yet accept workgroupUniformLoad on an atomic, so one invocation
+// copies the atomic into this plain value and the rest load that.
+var<workgroup> visible_total: u32;
 var<workgroup> output_base: u32;
 
 /// Resolves the streamed position for an atom.
@@ -209,7 +213,11 @@ fn compact_slot(
         local = atomicAdd(&visible_count, 1u);
     }
 
-    let count = workgroupUniformLoad(&visible_count);
+    workgroupBarrier();
+    if local_index == 0u {
+        visible_total = atomicLoad(&visible_count);
+    }
+    let count = workgroupUniformLoad(&visible_total);
 
     if local_index == 0u && count != 0u {
         if atoms {

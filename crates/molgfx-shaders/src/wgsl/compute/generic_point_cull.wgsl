@@ -157,6 +157,10 @@ fn generic_point_geometry(index: u32) -> vec4f {
 }
 
 var<workgroup> visible_count: atomic<u32>;
+// The count every invocation reads once all of them have counted. Safari
+// does not yet accept workgroupUniformLoad on an atomic, so one invocation
+// copies the atomic into this plain value and the rest load that.
+var<workgroup> visible_total: u32;
 var<workgroup> output_base: u32;
 
 const POINT_TILE_SIZE: u32 = 8u;
@@ -275,7 +279,11 @@ fn bin_generic_points(
     if keep {
         local = atomicAdd(&visible_count, 1u);
     }
-    let count = workgroupUniformLoad(&visible_count);
+    workgroupBarrier();
+    if local_id.x == 0u {
+        visible_total = atomicLoad(&visible_count);
+    }
+    let count = workgroupUniformLoad(&visible_total);
     if local_id.x == 0u && count != 0u {
         output_base = atomicAdd(&point_output.args.instance_count, count);
     }
@@ -301,7 +309,11 @@ fn compact_generic_point_tiles(
     if keep {
         local = atomicAdd(&visible_count, 1u);
     }
-    let count = workgroupUniformLoad(&visible_count);
+    workgroupBarrier();
+    if local_id.x == 0u {
+        visible_total = atomicLoad(&visible_count);
+    }
+    let count = workgroupUniformLoad(&visible_total);
     if local_id.x == 0u && count != 0u {
         output_base = atomicAdd(&point_output.args.instance_count, count);
     }

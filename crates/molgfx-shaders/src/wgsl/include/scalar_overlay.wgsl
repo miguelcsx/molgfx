@@ -9,6 +9,12 @@
 // SCALAR_OVERLAY_ENABLED allows the entire overlay path to be compiled out
 // for representations that do not use scalar overlays.
 
+// Derivatives here follow non-uniform intersection tests. The filter is a
+// module-level directive, not a function attribute, because Safari does not
+// accept @diagnostic on a function; composition hoists it above every
+// declaration of the shader that includes this file.
+diagnostic(off, derivative_uniformity);
+
 override SCALAR_OVERLAY_ENABLED: bool = true;
 
 const OVERLAY_NORMAL_EPSILON_SQ: f32 = 1.0e-12;
@@ -180,7 +186,6 @@ fn overlay_ramp(value: f32) -> vec3f {
 }
 
 /// Applies the scalar overlay and optional derivative-antialiased contours.
-@diagnostic(off, derivative_uniformity)
 fn scalar_overlay_color(
     local_position: vec3f,
     local_normal: vec3f,

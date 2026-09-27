@@ -4,6 +4,12 @@
 // each carrying its own, so the deferred and forward paths cannot drift
 // apart in appearance.
 
+// Derivatives here follow non-uniform intersection tests. The filter is a
+// module-level directive, not a function attribute, because Safari does not
+// accept @diagnostic on a function; composition hoists it above every
+// declaration of the shader that includes this file.
+diagnostic(off, derivative_uniformity);
+
 // Display-referred colour bytes decoded to the scene-linear space the lighting
 // works in.
 //
@@ -28,7 +34,6 @@ fn srgb_to_linear(color: vec3f) -> vec3f {
     );
 }
 
-@diagnostic(off, derivative_uniformity)
 fn shade_surface(
     albedo: vec3f,
     normal: vec3f,

@@ -146,6 +146,10 @@ fn style_relation(global: u32, logical: u32) -> bool {
 }
 
 var<workgroup> visible_count: atomic<u32>;
+// The count every invocation reads once all of them have counted. Safari
+// does not yet accept workgroupUniformLoad on an atomic, so one invocation
+// copies the atomic into this plain value and the rest load that.
+var<workgroup> visible_total: u32;
 var<workgroup> output_base: u32;
 
 @compute @workgroup_size(64)
@@ -173,7 +177,11 @@ fn cull_relations(
     if keep {
         local = atomicAdd(&visible_count, 1u);
     }
-    let count = workgroupUniformLoad(&visible_count);
+    workgroupBarrier();
+    if local_id.x == 0u {
+        visible_total = atomicLoad(&visible_count);
+    }
+    let count = workgroupUniformLoad(&visible_total);
     if local_id.x == 0u && count != 0u {
         output_base = atomicAdd(&relation_args.instance_count, count);
     }
