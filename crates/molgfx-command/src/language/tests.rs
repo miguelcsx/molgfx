@@ -170,3 +170,53 @@ fn a_rendered_error_underlines_its_span() {
     assert!(rendered.contains("line 2, column 6"), "{rendered}");
     assert!(rendered.contains("^^^^^^^"), "{rendered}");
 }
+
+#[test]
+fn a_form_or_colour_without_a_target_applies_to_everything() {
+    let parsed = commands("show cartoon; show licorice bond_radius=0.2; color red");
+    let [
+        Command::Show(cartoon),
+        Command::Show(licorice),
+        Command::Color { target, .. },
+    ] = parsed.as_slice()
+    else {
+        panic!("two shows and a color: {parsed:?}")
+    };
+    for target in [&cartoon.target, &licorice.target, target] {
+        assert!(
+            matches!(target, Target::Query(query) if query.source() == "all"),
+            "{target:?}"
+        );
+    }
+    assert_eq!(
+        parsed[0].to_string(),
+        commands("show cartoon, all")[0].to_string()
+    );
+}
+
+#[test]
+fn a_comma_with_nothing_after_it_is_still_an_error() {
+    let error = first_error("show cartoon,");
+    assert!(
+        error.message.contains("needs a target after the comma"),
+        "{}",
+        error.message
+    );
+    let error = first_error("color red,");
+    assert!(
+        error.message.contains("needs a target after the comma"),
+        "{}",
+        error.message
+    );
+}
+
+#[test]
+fn a_target_where_the_form_belongs_says_how_show_is_written() {
+    let error = first_error("show protein");
+    assert_eq!(error.kind, ErrorKind::Syntax);
+    assert!(
+        error.message.contains("show cartoon, protein"),
+        "{}",
+        error.message
+    );
+}
