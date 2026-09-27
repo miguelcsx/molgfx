@@ -1125,6 +1125,8 @@ dependencies = [
  "molgfx-gpu",
  "molgfx-math",
  "molgfx-render",
+ "molgfx-shaders",
+ "naga",
  "pollster",
  "raw-window-handle",
  "wgpu",

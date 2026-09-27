@@ -10,6 +10,7 @@ pub(crate) mod encoder;
 pub(crate) mod queue;
 pub(crate) mod ray_query;
 pub(crate) mod resource;
+pub(crate) mod stage_constants;
 pub(crate) mod surface;
 
 pub use device::WgpuDevice;
@@ -18,4 +19,5 @@ pub use diagnostics::{AdapterReport, SystemInfo, system_info};
 pub use encoder::WgpuCommandEncoder;
 pub use queue::WgpuQueue;
 pub use resource::{WgpuBuffer, WgpuTexture};
+pub use stage_constants::WgpuShaderModule;
 pub use surface::WgpuSurface;
