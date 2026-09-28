@@ -234,7 +234,7 @@ pub enum PatchOperation {
     /// Retains a portable scene snapshot for host restoration.
     SetSnapshot {
         /// Snapshot, or None to clear it.
-        snapshot: Option<SceneSnapshot>,
+        snapshot: Box<Option<SceneSnapshot>>,
     },
 }
 

@@ -30,10 +30,7 @@ fn pending_frame_submissions<D: Device>(engine: &Engine<D>) -> u32 {
 /// overflow.
 #[inline]
 fn duration_ns(duration: std::time::Duration) -> u64 {
-    match u64::try_from(duration.as_nanos()) {
-        Ok(nanos) => nanos,
-        Err(_) => u64::MAX,
-    }
+    u64::try_from(duration.as_nanos()).unwrap_or(u64::MAX)
 }
 
 impl<D: Device> Engine<D> {
@@ -156,8 +153,11 @@ impl<D: Device> Engine<D> {
         // CPU encoding/submission cost for the native adaptive loop. This is
         // not device execution time; GPU time needs timestamp queries.
         #[cfg(not(target_arch = "wasm32"))]
-        self.adaptive
-            .observe(duration_ns(self.clock_origin.elapsed() - render_started_at));
+        self.adaptive.observe(duration_ns(
+            self.clock_origin
+                .elapsed()
+                .saturating_sub(render_started_at),
+        ));
 
         Ok(self.frame_report(FrameStatus::Presented, false))
     }

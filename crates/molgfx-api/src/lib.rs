@@ -46,6 +46,10 @@ pub use render::Renderer;
 pub use render::{PickKind, PickResult};
 pub use representation::RepresentationSpec;
 pub use representation::{SceneItem, Selection};
+pub use scene::domains::{
+    AssemblyChoice, MovieExportRequest as DomainMovieExportRequest,
+    SceneSnapshot as DomainSceneSnapshot,
+};
 pub use scene::hashing::structure_hash;
 pub use scene::transaction::SceneTransaction;
 pub use scene::{ResidueMetadata, ResolvedAtomPick, ResolvedPick, Scene};

@@ -1,8 +1,9 @@
 //! Deterministic renderer-control benchmarks. These exercise scheduling policy,
 //! not GPU work, so results never masquerade as device measurements.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use molgfx_render::{AdaptiveQuality, AdaptiveQualityConfig, QualityTier};
+use std::hint::black_box;
 
 const BUDGET_NS: u64 = 16_666_666;
 
@@ -40,7 +41,6 @@ fn representative_layers(c: &mut Criterion) {
                 let tier = match layers {
                     1 => QualityTier::Reduced,
                     2 => QualityTier::Standard,
-                    3 => QualityTier::High,
                     _ => QualityTier::High,
                 };
                 black_box((layers, tier.temporal_samples(), tier.image_samples()))

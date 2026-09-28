@@ -178,7 +178,10 @@ impl TemporalState {
         self.settled_frames = self.settled_frames.saturating_add(1);
         uniforms
     }
-
+    #[cfg(test)]
+    pub(crate) fn needs_another_frame(&self, sample_budget: u8) -> bool {
+        self.settled_frames < sample_budget
+    }
     pub(crate) const fn write_index(&self) -> usize {
         self.write_index
     }

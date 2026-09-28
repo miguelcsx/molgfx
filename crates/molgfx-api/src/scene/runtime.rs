@@ -157,7 +157,7 @@ fn apply_domain_operation(
             }
         }
         PatchOperation::SetSnapshot { snapshot } => {
-            if let Some(value) = snapshot {
+            if let Some(value) = &**snapshot {
                 value.clone().restore().map_err(Error::InvalidSpec)?;
                 (
                     "molgfx.snapshot",

@@ -12,33 +12,52 @@ use std::collections::BTreeMap;
 /// Metadata for one residue observed in a bound molecular structure.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct ResidueMetadata {
+    /// Chain identifier.
     pub chain: Option<String>,
+    /// Author-provided chain identifier.
     pub auth_chain: Option<String>,
+    /// Entity identifier.
     pub entity: Option<u32>,
+    /// One-letter residue code.
     pub one_letter: Option<String>,
+    /// Component identifier.
     pub component: Option<String>,
+    /// Author-provided component identifier.
     pub auth_component: Option<String>,
+    /// Author-provided residue number.
     pub auth_number: Option<i32>,
+    /// Label residue number.
     pub label_number: Option<i32>,
+    /// Insertion code.
     pub insertion_code: Option<String>,
+    /// Whether the residue was observed.
     pub observed: bool,
+    /// Zero-based residue index.
     pub residue_index: u32,
+    /// Inclusive atom range.
     pub atom_range: Option<[u32; 2]>,
 }
 /// A molecular atom resolved against the exact structure and topology owned by a scene.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ResolvedAtomPick {
+    /// Structure identifier.
     pub structure: StructureId,
+    /// Dataset identifier.
     pub dataset: u64,
+    /// Chunk identifier.
     pub chunk: u64,
+    /// Topology revision identifier.
     pub topology_revision: u64,
+    /// Atom index within the topology.
     pub atom_index: u32,
 }
 
 /// Result of resolving a renderer pick against a live semantic scene.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ResolvedPick {
+    /// An atom resolved to stable scene coordinates.
     Atom(ResolvedAtomPick),
+    /// A non-atom renderer pick.
     NonAtom(crate::PickResult),
 }
 

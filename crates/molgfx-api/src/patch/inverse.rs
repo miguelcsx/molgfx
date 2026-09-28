@@ -260,10 +260,12 @@ fn inverse_domain(
                 .map_err(crate::Error::from)?,
         }),
         PatchOperation::SetSnapshot { .. } => one(PatchOperation::SetSnapshot {
-            snapshot: restore("molgfx.snapshot")
-                .map(serde_json::from_value)
-                .transpose()
-                .map_err(crate::Error::from)?,
+            snapshot: Box::new(
+                restore("molgfx.snapshot")
+                    .map(serde_json::from_value)
+                    .transpose()
+                    .map_err(crate::Error::from)?,
+            ),
         }),
         _ => None,
     })

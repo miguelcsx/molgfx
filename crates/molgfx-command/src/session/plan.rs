@@ -70,7 +70,7 @@ impl Planner<'_> {
                 request: request.clone(),
             }),
             Command::Snapshot { snapshot } => self.domain(PatchOperation::SetSnapshot {
-                snapshot: snapshot.clone(),
+                snapshot: Box::new(snapshot.as_deref().cloned()),
             }),
             Command::Unfocus => {
                 self.transaction
