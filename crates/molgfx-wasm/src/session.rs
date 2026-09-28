@@ -63,6 +63,11 @@ impl WebSession {
         serde_json::to_string(&answer).map_err(javascript_error)
     }
     /// Samples a resident trajectory interval without recording an authoring command.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JavaScript error when the scene is unresolved or the trajectory
+    /// sample is invalid.
     #[wasm_bindgen(js_name = setTrajectoryTime)]
     pub fn set_trajectory_time(
         &mut self,
@@ -73,6 +78,11 @@ impl WebSession {
         scene.set_trajectory_time(structure, sample_seconds)
     }
 
+    /// Returns completion candidates for the supplied editor text as JSON.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JavaScript error when the candidates cannot be encoded.
     pub fn completions(&self, text: &str, cursor: usize) -> Result<String, JsError> {
         serde_json::to_string(&self.inner.completions(text, cursor)).map_err(javascript_error)
     }
