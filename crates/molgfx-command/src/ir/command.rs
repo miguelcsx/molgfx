@@ -10,7 +10,7 @@ use super::form::Form;
 use super::name::Name;
 use super::target::{QueryText, Target};
 use super::value::Opacity;
-use molgfx_api::interop::SceneSnapshot;
+use molgfx_api::DomainSceneSnapshot as SceneSnapshot;
 use molgfx_api::{
     AssemblySpec, FitResult, MovieExportRequest, ScientificInteractionSpec, ValidationFinding,
 };
@@ -140,15 +140,30 @@ pub enum Command {
         interaction: ScientificInteractionSpec,
     },
     /// Retains crystallographic assembly and unit-cell metadata.
-    Assembly { assembly: Option<AssemblySpec> },
+    Assembly {
+        /// Crystallographic assembly metadata.
+        assembly: Option<AssemblySpec>,
+    },
     /// Retains a validated native fitting result.
-    Fitting { fitting: Option<FitResult> },
+    Fitting {
+        /// Validated fitting result.
+        fitting: Option<FitResult>,
+    },
     /// Retains caller-computed validation findings.
-    Validation { findings: Vec<ValidationFinding> },
+    Validation {
+        /// Caller-computed validation findings.
+        findings: Vec<ValidationFinding>,
+    },
     /// Retains a deterministic native movie export request.
-    MovieExport { request: Option<MovieExportRequest> },
+    MovieExport {
+        /// Deterministic movie export request.
+        request: Option<MovieExportRequest>,
+    },
     /// Retains a validated portable snapshot for host restoration.
-    Snapshot { snapshot: Option<SceneSnapshot> },
+    Snapshot {
+        /// Portable snapshot to restore.
+        snapshot: Option<Box<SceneSnapshot>>,
+    },
     /// Clears the focus.
     Unfocus,
     /// Undoes the most recent edit.
