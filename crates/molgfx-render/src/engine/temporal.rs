@@ -130,6 +130,10 @@ impl TemporalState {
         self.settled_frames = 0;
     }
 
+    pub(crate) fn needs_another_frame(&self, budget: u32) -> bool {
+        u32::from(self.settled_frames) < budget
+    }
+
     pub(crate) fn prepare(&mut self, camera: &Camera, options: &TemporalOptions) -> FrameUniforms {
         let camera_changed = self.camera_changed(camera);
         if camera_changed {
