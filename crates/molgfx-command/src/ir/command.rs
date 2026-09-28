@@ -10,6 +10,10 @@ use super::form::Form;
 use super::name::Name;
 use super::target::{QueryText, Target};
 use super::value::Opacity;
+use molgfx_api::interop::SceneSnapshot;
+use molgfx_api::{
+    AssemblySpec, FitResult, MovieExportRequest, ScientificInteractionSpec, ValidationFinding,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -127,6 +131,24 @@ pub enum Command {
         /// What to focus.
         target: Target,
     },
+    /// Adds a caller-supplied explicit scientific interaction.
+    ///
+    /// The interaction is already resolved by the caller; command execution
+    /// only validates and stages its scene patch.
+    Interaction {
+        /// The explicit interaction specification.
+        interaction: ScientificInteractionSpec,
+    },
+    /// Retains crystallographic assembly and unit-cell metadata.
+    Assembly { assembly: Option<AssemblySpec> },
+    /// Retains a validated native fitting result.
+    Fitting { fitting: Option<FitResult> },
+    /// Retains caller-computed validation findings.
+    Validation { findings: Vec<ValidationFinding> },
+    /// Retains a deterministic native movie export request.
+    MovieExport { request: Option<MovieExportRequest> },
+    /// Retains a validated portable snapshot for host restoration.
+    Snapshot { snapshot: Option<SceneSnapshot> },
     /// Clears the focus.
     Unfocus,
     /// Undoes the most recent edit.
@@ -149,6 +171,12 @@ impl Command {
             Self::Uncolor { .. } => "uncolor",
             Self::Opacity { .. } => "opacity",
             Self::Focus { .. } => "focus",
+            Self::Interaction { .. } => "interaction",
+            Self::Assembly { .. } => "assembly",
+            Self::Fitting { .. } => "fitting",
+            Self::Validation { .. } => "validation",
+            Self::MovieExport { .. } => "movie_export",
+            Self::Snapshot { .. } => "snapshot",
             Self::Unfocus => "unfocus",
             Self::Undo => "undo",
             Self::Redo => "redo",
@@ -216,6 +244,36 @@ impl fmt::Display for Command {
             }
             Self::Opacity { value, layer } => write!(formatter, "opacity {value}, @{layer}"),
             Self::Focus { target } => write!(formatter, "focus {target}"),
+            Self::Interaction { interaction } => write!(
+                formatter,
+                "interaction {}",
+                serde_json::to_string(interaction).unwrap_or_else(|_| "{}".to_owned())
+            ),
+            Self::Assembly { assembly } => write!(
+                formatter,
+                "assembly {}",
+                serde_json::to_string(assembly).unwrap_or_else(|_| "null".to_owned())
+            ),
+            Self::Fitting { fitting } => write!(
+                formatter,
+                "fitting {}",
+                serde_json::to_string(fitting).unwrap_or_else(|_| "null".to_owned())
+            ),
+            Self::Validation { findings } => write!(
+                formatter,
+                "validation {}",
+                serde_json::to_string(findings).unwrap_or_else(|_| "[]".to_owned())
+            ),
+            Self::MovieExport { request } => write!(
+                formatter,
+                "movie_export {}",
+                serde_json::to_string(request).unwrap_or_else(|_| "null".to_owned())
+            ),
+            Self::Snapshot { snapshot } => write!(
+                formatter,
+                "snapshot {}",
+                serde_json::to_string(snapshot).unwrap_or_else(|_| "null".to_owned())
+            ),
             Self::Unfocus => formatter.write_str("unfocus"),
             Self::Undo => formatter.write_str("undo"),
             Self::Redo => formatter.write_str("redo"),

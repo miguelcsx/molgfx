@@ -187,6 +187,18 @@ impl WebScene {
         Ok(())
     }
 
+    /// Updates the resident trajectory sample without recording a command.
+    pub fn set_trajectory_time(
+        &mut self,
+        structure: u64,
+        sample_seconds: f32,
+    ) -> Result<(), JsError> {
+        self.resolved
+            .as_mut()
+            .ok_or_else(|| JsError::new("scene must be resolved before trajectory updates"))?
+            .set_trajectory_time(molgfx::StructureId::new(structure), sample_seconds)
+            .map_err(javascript_error)
+    }
     /// Validates all bindings and creates the physical renderer scene.
     ///
     /// # Errors
@@ -225,6 +237,18 @@ impl WebScene {
     #[wasm_bindgen(getter, js_name = isReady)]
     pub fn is_ready(&self) -> bool {
         self.resolved.is_some()
+    }
+    #[wasm_bindgen(js_name = residueMetadataJSON)]
+    pub fn residue_metadata_json(&self, structure: u64) -> Result<String, JsError> {
+        self.resolved
+            .as_ref()
+            .ok_or_else(|| JsError::new("scene must be resolved before residue metadata"))?
+            .residue_metadata(molgfx::StructureId::new(structure))
+            .and_then(|metadata| {
+                serde_json::to_string(&metadata)
+                    .map_err(|error| molgfx::Error::InvalidSpec(error.to_string()))
+            })
+            .map_err(javascript_error)
     }
 
     /// Returns the inferred or explicitly authored camera for a canvas aspect.
@@ -299,7 +323,7 @@ impl WebRenderer {
     /// # Errors
     ///
     /// Returns a JavaScript error if the scene is unresolved or rendering fails.
-    pub fn render(&mut self, scene: &WebScene) -> Result<(), JsError> {
+    pub fn render(&mut self, scene: &WebScene) -> Result<bool, JsError> {
         let resolved = scene
             .resolved
             .as_ref()
@@ -315,6 +339,7 @@ impl WebRenderer {
         let camera = resolved.framing_camera(width / height);
         self.inner
             .present(resolved, &camera)
+            .map(|report| report.needs_another_frame)
             .map_err(javascript_error)
     }
 
@@ -330,7 +355,7 @@ impl WebRenderer {
         position: &js_sys::Float32Array,
         target: &js_sys::Float32Array,
         up: &js_sys::Float32Array,
-    ) -> Result<(), JsError> {
+    ) -> Result<bool, JsError> {
         let resolved = scene
             .resolved
             .as_ref()
@@ -362,6 +387,7 @@ impl WebRenderer {
         .map_err(javascript_error)?;
         self.inner
             .present(resolved, &camera)
+            .map(|report| report.needs_another_frame)
             .map_err(javascript_error)
     }
 

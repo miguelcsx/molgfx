@@ -17,6 +17,9 @@ pub(super) fn inverse_operations(operation: &PatchOperation, base: &SceneSpec) -
     if let Some(operations) = inverse_appearance(operation, base)? {
         return Ok(operations);
     }
+    if let Some(operations) = inverse_domain(operation, base)? {
+        return Ok(operations);
+    }
     let one = |operation| vec![operation];
     let structure = |id: StructureId, base: &SceneSpec| {
         let source = base
@@ -166,6 +169,14 @@ fn inverse_science(
                 .cloned()
                 .ok_or(crate::PatchError::MissingId)?,
         }),
+        PatchOperation::SetVolumeIsovalue { id, .. } => one(PatchOperation::SetVolumeIsovalue {
+            id: *id,
+            isovalue: base
+                .volumes
+                .get(id)
+                .ok_or(crate::PatchError::MissingId)?
+                .isovalue,
+        }),
         PatchOperation::AddAnnotation { id, .. } => {
             one(PatchOperation::RemoveAnnotation { id: *id })
         }
@@ -216,6 +227,48 @@ fn inverse_science(
     })
 }
 
+fn inverse_domain(
+    operation: &PatchOperation,
+    base: &SceneSpec,
+) -> Result<Option<Vec<PatchOperation>>, crate::Error> {
+    let restore = |key: &str| base.extensions.get(key).cloned();
+    let one = |operation| Some(vec![operation]);
+    Ok(match operation {
+        PatchOperation::SetAssembly { .. } => one(PatchOperation::SetAssembly {
+            assembly: restore("molgfx.assembly")
+                .map(serde_json::from_value)
+                .transpose()
+                .map_err(crate::Error::from)?,
+        }),
+        PatchOperation::SetFitting { .. } => one(PatchOperation::SetFitting {
+            fitting: restore("molgfx.fitting")
+                .map(serde_json::from_value)
+                .transpose()
+                .map_err(crate::Error::from)?,
+        }),
+        PatchOperation::SetValidation { .. } => one(PatchOperation::SetValidation {
+            findings: restore("molgfx.validation")
+                .map(serde_json::from_value)
+                .transpose()
+                .map_err(crate::Error::from)?
+                .unwrap_or_default(),
+        }),
+        PatchOperation::SetMovieExport { .. } => one(PatchOperation::SetMovieExport {
+            request: restore("molgfx.movie_export")
+                .map(serde_json::from_value)
+                .transpose()
+                .map_err(crate::Error::from)?,
+        }),
+        PatchOperation::SetSnapshot { .. } => one(PatchOperation::SetSnapshot {
+            snapshot: restore("molgfx.snapshot")
+                .map(serde_json::from_value)
+                .transpose()
+                .map_err(crate::Error::from)?,
+        }),
+        _ => None,
+    })
+}
+
 fn inverse_appearance(
     operation: &PatchOperation,
     base: &SceneSpec,
@@ -254,5 +307,36 @@ fn interaction<'a>(scene: &'a SceneSpec, channel: &InteractionChannel) -> Option
         InteractionChannel::Muted => scene.muted.as_ref(),
         InteractionChannel::Hidden => scene.hidden.as_ref(),
         InteractionChannel::Custom(name) => scene.custom_interactions.get(name),
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::inverse_operations;
+    use crate::{Color, DataSource, PatchOperation, SceneSpec, VolumeSpec};
+
+    #[test]
+    fn set_isovalue_inverse_restores_the_base_value() {
+        let id = crate::VolumeId::new(1);
+        let mut base = SceneSpec::empty();
+        base.volumes.insert(
+            id,
+            VolumeSpec {
+                source: DataSource::new("density"),
+                dimensions: [2, 2, 2],
+                spacing: [1.0; 3],
+                origin: [0.0; 3],
+                isovalue: 1.25,
+                color: Color::rgb(1, 2, 3),
+            },
+        );
+        let inverse = inverse_operations(
+            &PatchOperation::SetVolumeIsovalue { id, isovalue: 2.5 },
+            &base,
+        )
+        .unwrap_or_else(|error| panic!("{error}"));
+        assert_eq!(
+            inverse,
+            vec![PatchOperation::SetVolumeIsovalue { id, isovalue: 1.25 }]
+        );
     }
 }

@@ -28,6 +28,9 @@ pub(crate) fn apply_operation(
     if crate::patch::appearance_ops::apply(candidate, operation)? {
         return Ok(());
     }
+    if apply_domain_operation(candidate, operation)? {
+        return Ok(());
+    }
     if apply_representation_operation(candidate, operation)? {
         return Ok(());
     }
@@ -72,13 +75,19 @@ pub(crate) fn apply_operation(
         | PatchOperation::SetParameter { .. }
         | PatchOperation::AddVolume { .. }
         | PatchOperation::RemoveVolume { .. }
+        | PatchOperation::SetVolumeIsovalue { .. }
         | PatchOperation::AddAnnotation { .. }
         | PatchOperation::RemoveAnnotation { .. }
-        | PatchOperation::AddMeasurement { .. }
         | PatchOperation::RemoveMeasurement { .. }
+        | PatchOperation::AddMeasurement { .. }
         | PatchOperation::AddScientificInteraction { .. }
         | PatchOperation::RemoveScientificInteraction { .. }
         | PatchOperation::AddTrajectory { .. }
+        | PatchOperation::SetAssembly { .. }
+        | PatchOperation::SetFitting { .. }
+        | PatchOperation::SetValidation { .. }
+        | PatchOperation::SetMovieExport { .. }
+        | PatchOperation::SetSnapshot { .. }
         | PatchOperation::RemoveTrajectory { .. } => {
             return Err(Error::InvalidSpec(
                 "scientific patch operation was not dispatched".to_owned(),
@@ -88,6 +97,88 @@ pub(crate) fn apply_operation(
     Ok(())
 }
 
+fn apply_domain_operation(
+    candidate: &mut SceneSpec,
+    operation: &PatchOperation,
+) -> Result<bool, Error> {
+    let (key, value) = match operation {
+        PatchOperation::SetAssembly { assembly } => {
+            if let Some(value) = assembly {
+                value.validate()?;
+                (
+                    "molgfx.assembly",
+                    Some(
+                        serde_json::to_value(value)
+                            .map_err(|error| Error::InvalidSpec(error.to_string()))?,
+                    ),
+                )
+            } else {
+                ("molgfx.assembly", None)
+            }
+        }
+        PatchOperation::SetFitting { fitting } => {
+            if let Some(value) = fitting {
+                value.validate()?;
+                (
+                    "molgfx.fitting",
+                    Some(
+                        serde_json::to_value(value)
+                            .map_err(|error| Error::InvalidSpec(error.to_string()))?,
+                    ),
+                )
+            } else {
+                ("molgfx.fitting", None)
+            }
+        }
+        PatchOperation::SetValidation { findings } => {
+            for finding in findings {
+                finding.validate()?;
+            }
+            (
+                "molgfx.validation",
+                Some(
+                    serde_json::to_value(findings)
+                        .map_err(|error| Error::InvalidSpec(error.to_string()))?,
+                ),
+            )
+        }
+        PatchOperation::SetMovieExport { request } => {
+            if let Some(value) = request {
+                value.validate()?;
+                (
+                    "molgfx.movie_export",
+                    Some(
+                        serde_json::to_value(value)
+                            .map_err(|error| Error::InvalidSpec(error.to_string()))?,
+                    ),
+                )
+            } else {
+                ("molgfx.movie_export", None)
+            }
+        }
+        PatchOperation::SetSnapshot { snapshot } => {
+            if let Some(value) = snapshot {
+                value.clone().restore().map_err(Error::InvalidSpec)?;
+                (
+                    "molgfx.snapshot",
+                    Some(
+                        serde_json::to_value(value)
+                            .map_err(|error| Error::InvalidSpec(error.to_string()))?,
+                    ),
+                )
+            } else {
+                ("molgfx.snapshot", None)
+            }
+        }
+        _ => return Ok(false),
+    };
+    if let Some(value) = value {
+        candidate.extensions.insert(key.into(), value);
+    } else {
+        candidate.extensions.remove(key);
+    }
+    Ok(true)
+}
 fn apply_representation_operation(
     candidate: &mut SceneSpec,
     operation: &PatchOperation,
@@ -215,10 +306,11 @@ pub(crate) fn validate_touched_domains(
             | PatchOperation::AddStructure { .. }
             | PatchOperation::AddVolume { .. }
             | PatchOperation::RemoveVolume { .. }
+            | PatchOperation::SetVolumeIsovalue { .. }
             | PatchOperation::AddAnnotation { .. }
             | PatchOperation::RemoveAnnotation { .. }
-            | PatchOperation::AddMeasurement { .. }
             | PatchOperation::RemoveMeasurement { .. }
+            | PatchOperation::AddMeasurement { .. }
             | PatchOperation::AddScientificInteraction { .. }
             | PatchOperation::RemoveScientificInteraction { .. }
             | PatchOperation::AddTrajectory { .. }
@@ -231,7 +323,12 @@ pub(crate) fn validate_touched_domains(
             | PatchOperation::SetColor { .. }
             | PatchOperation::AddAppearanceRule { .. }
             | PatchOperation::ReplaceAppearanceRule { .. }
-            | PatchOperation::RemoveAppearanceRule { .. } => {}
+            | PatchOperation::RemoveAppearanceRule { .. }
+            | PatchOperation::SetAssembly { .. }
+            | PatchOperation::SetFitting { .. }
+            | PatchOperation::SetValidation { .. }
+            | PatchOperation::SetMovieExport { .. }
+            | PatchOperation::SetSnapshot { .. } => {}
         }
     }
     Ok(())

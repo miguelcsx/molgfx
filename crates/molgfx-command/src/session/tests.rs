@@ -355,6 +355,32 @@ fn a_session_spec_round_trips_through_json() {
 }
 
 #[test]
+fn caller_supplied_interaction_is_staged_without_analysis() {
+    let mut scene = scene();
+    let mut session = Session::new(&scene);
+    let command: Command = serde_json::from_value(serde_json::json!({
+        "command": "interaction",
+        "interaction": {
+            "mode": "explicit",
+            "kind": "hydrogen_bond",
+            "endpoints": [
+                { "kind": "world", "position": [0.0, 0.0, 0.0] },
+                { "kind": "world", "position": [1.0, 0.0, 0.0] }
+            ]
+        }
+    }))
+    .unwrap_or_else(|error| panic!("interaction decodes: {error}"));
+    let outcome = session
+        .run(&mut scene, command)
+        .unwrap_or_else(|errors| panic!("interaction stages: {errors}"));
+    assert_eq!(
+        outcome.patch.as_ref().map(|patch| patch.operations.len()),
+        Some(1)
+    );
+    assert_eq!(scene.spec().scientific_interactions.len(), 1);
+}
+
+#[test]
 fn typed_commands_run_without_text() {
     let mut scene = scene();
     let mut session = Session::new(&scene);

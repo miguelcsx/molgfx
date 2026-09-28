@@ -31,6 +31,19 @@ fn a_frame_time_inside_the_band_never_moves_the_tier() {
         );
     }
 }
+#[test]
+fn idle_convergence_reaches_high_and_stays_there() {
+    let mut quality = controller();
+    for _ in 0..400 {
+        quality.observe(BUDGET_NS / 2);
+    }
+    assert_eq!(quality.tier(), QualityTier::High);
+    let smoothed = quality.smoothed_ns();
+    for _ in 0..400 {
+        assert_eq!(quality.observe(BUDGET_NS / 2), QualityTier::High);
+    }
+    assert_eq!(quality.smoothed_ns(), smoothed);
+}
 
 #[test]
 fn sustained_overrun_steps_down_and_sustained_headroom_steps_back_up() {

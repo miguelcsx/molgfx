@@ -281,7 +281,7 @@ window.__molgfx = {
   saved,
   setupError: "",
   model: null,
-  emit: (event) => { const callback = listeners.get(event); if (callback) callback(); },
+  emit: (event) => { for (const callback of listeners.get(event) ?? []) callback(); },
   bytes: (encoded) => encoded.map((text) => {
     const raw = atob(text);
     const bytes = new Uint8Array(raw.length);
@@ -297,8 +297,17 @@ window.__molgfx.model = {
   get: (name) => window.__molgfx.values[name],
   set: (name, value) => { window.__molgfx.values[name] = value; },
   save_changes: () => { saved.push(snapshot()); },
-  on: (event, callback) => { listeners.set(event, callback); },
-  off: (event) => { listeners.delete(event); },
+  // Real anywidget models support several subscribers per event; the page
+  // mounts the console and the science controls beside each other.
+  on: (event, callback) => {
+    const list = listeners.get(event);
+    if (list) list.push(callback); else listeners.set(event, [callback]);
+  },
+  off: (event, callback) => {
+    const list = listeners.get(event) ?? [];
+    const index = list.indexOf(callback);
+    if (index >= 0) list.splice(index, 1);
+  },
 };
 try {
   window.__molgfx.cleanup = await render({

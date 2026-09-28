@@ -10,11 +10,17 @@
 //! Publication rendering never adapts. Converged output must be reproducible,
 //! so the controller holds a constant tier whenever the caller requests it.
 //!
-//! Frame times arrive as host wall-clock nanoseconds covering one complete
-//! `Engine::render` call, submission and presentation included. That is the
-//! only per-frame duration the normal path can observe: the presentation path
-//! records no timestamp queries, and a query readback would charge a blocking
-//! map to every interactive frame.
+//! Native rendering feeds the controller CPU frame duration — the elapsed time
+//! of one `render` call, synchronization, recording and submission included.
+//! Queue submission is asynchronous on native, so host time is the honest
+//! per-frame CPU cost; a fence sample there would double-count the same frame.
+//! Browser rendering instead samples elapsed time from tracked submission to
+//! fence completion, observed on a later frame poll: submission returns
+//! immediately in the browser, so measuring the `render` call would classify
+//! queued GPU work as free. Neither source measures GPU execution time; the
+//! browser sample additionally includes host callback-dispatch latency, and
+//! exact device time requires timestamp queries through the profiling path.
+//! Completion samples never read pixels or wait synchronously.
 
 /// Frame-time smoothing weight: the previous average keeps seven eighths.
 const EMA_KEEP: u64 = 7;
@@ -232,8 +238,14 @@ impl AdaptiveQuality {
         }
     }
 
-    /// Feeds one completed frame's wall-clock duration and returns the tier
-    /// the next frame presents at.
+    /// Feeds one frame's wall-clock duration and returns the tier the next
+    /// frame presents at.
+    ///
+    /// The caller chooses the sample source per target: the native `render`
+    /// call duration (CPU encoding/submission) or the browser
+    /// submission-to-fence-completion elapsed time. Both are host-clock
+    /// durations, neither is GPU execution time, and each frame feeds exactly
+    /// one sample from exactly one source.
     pub const fn observe(&mut self, frame_ns: u64) -> QualityTier {
         if !self.enabled() {
             return self.tier;

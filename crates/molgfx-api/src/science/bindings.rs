@@ -2,6 +2,7 @@
 
 use crate::{DataSource, Error, VolumeSpec};
 use molgfx_math::Vec3;
+use num_traits::ToPrimitive as _;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -99,6 +100,69 @@ impl VolumeBinding {
             Vec3::from_array(self.spacing),
             Arc::clone(&self.values),
         )?)
+    }
+}
+
+/// Statistics recorded for a density map, used to convert sigma controls into values.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct VolumeStatistics {
+    /// Mean value of the density map.
+    /// Mean value of the density map.
+    pub mean: f32,
+    /// Population standard deviation of the density map.
+    pub sigma: f32,
+}
+
+impl VolumeBinding {
+    /// Computes finite mean and population standard deviation once at acquisition time.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the volume has no voxels or its statistics are not
+    /// finite.
+    pub fn statistics(&self) -> Result<VolumeStatistics, Error> {
+        if self.values.is_empty() {
+            return Err(Error::InvalidSpec("density map has no voxels".to_owned()));
+        }
+        let count = u32::try_from(self.values.len()).map_err(|_| {
+            Error::InvalidSpec("density map has too many voxels for statistics".to_owned())
+        })?;
+        let count = count.to_f32().ok_or_else(|| {
+            Error::InvalidSpec("density map voxel count is too large for statistics".to_owned())
+        })?;
+        let mean = self.values.iter().copied().sum::<f32>() / count;
+        let variance = self
+            .values
+            .iter()
+            .map(|value| {
+                let delta = *value - mean;
+                delta * delta
+            })
+            .sum::<f32>()
+            / count;
+        let sigma = variance.sqrt();
+        if !mean.is_finite() || !sigma.is_finite() {
+            return Err(Error::InvalidSpec(
+                "density map statistics are not finite".to_owned(),
+            ));
+        }
+        Ok(VolumeStatistics { mean, sigma })
+    }
+
+    /// Converts a sigma multiplier to an absolute map value without relabeling units.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the sigma multiplier is non-finite or the volume
+    /// has invalid statistics.
+    pub fn value_at_sigma(&self, sigma: f32) -> Result<f32, Error> {
+        if !sigma.is_finite() {
+            return Err(Error::InvalidSpec(
+                "density sigma must be finite".to_owned(),
+            ));
+        }
+        let stats = self.statistics()?;
+        Ok(stats.mean + sigma * stats.sigma)
     }
 }
 

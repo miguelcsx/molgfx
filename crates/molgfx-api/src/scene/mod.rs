@@ -9,6 +9,39 @@ use crate::spec::{InteractionChannel, PatchOperation, ScenePatch, SceneSpec, Str
 use molgfx_core::{RepresentationHandle, SelectionHandle};
 use std::collections::BTreeMap;
 
+/// Metadata for one residue observed in a bound molecular structure.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct ResidueMetadata {
+    pub chain: Option<String>,
+    pub auth_chain: Option<String>,
+    pub entity: Option<u32>,
+    pub one_letter: Option<String>,
+    pub component: Option<String>,
+    pub auth_component: Option<String>,
+    pub auth_number: Option<i32>,
+    pub label_number: Option<i32>,
+    pub insertion_code: Option<String>,
+    pub observed: bool,
+    pub residue_index: u32,
+    pub atom_range: Option<[u32; 2]>,
+}
+/// A molecular atom resolved against the exact structure and topology owned by a scene.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ResolvedAtomPick {
+    pub structure: StructureId,
+    pub dataset: u64,
+    pub chunk: u64,
+    pub topology_revision: u64,
+    pub atom_index: u32,
+}
+
+/// Result of resolving a renderer pick against a live semantic scene.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ResolvedPick {
+    Atom(ResolvedAtomPick),
+    NonAtom(crate::PickResult),
+}
+
 /// Mutable scene state backed by one resolved renderer scene.
 #[derive(Debug)]
 pub struct Scene {
@@ -44,6 +77,7 @@ pub(crate) struct Resolution {
 }
 
 pub(crate) mod appearance;
+pub(crate) mod domains;
 pub(crate) mod hashing;
 mod insertion;
 pub(crate) mod interaction;
@@ -59,6 +93,144 @@ pub(crate) mod selection_rows;
 pub(crate) mod transaction;
 
 impl Scene {
+    /// Resolves a physical pick against this scene's exact dataset and topology.
+    ///
+    /// The dataset-to-structure mapping is derived explicitly from each placed
+    /// structure's authoritative metadata: a placed source proves its semantic
+    /// owner by shared storage with exactly one bound structure. A dataset that
+    /// maps to several structures is rejected as ambiguous, and one that maps
+    /// to none is rejected as stale, instead of trusting positional order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::AmbiguousPick`] when a dataset or source identity maps
+    /// to multiple structures, [`Error::StalePick`] when no bound structure
+    /// proves ownership, and [`Error::InvalidSpec`] for malformed picks.
+    pub fn resolve_pick(&self, pick: &crate::PickResult) -> Result<ResolvedPick, Error> {
+        let Some(dataset) = pick.dataset else {
+            return Ok(ResolvedPick::NonAtom(pick.clone()));
+        };
+        let Some(chunk) = pick.chunk else {
+            return Err(Error::InvalidSpec(
+                "pick is missing its chunk identity".to_owned(),
+            ));
+        };
+        let Some(row) = pick.row else {
+            return Err(Error::InvalidSpec(
+                "pick is missing its logical row".to_owned(),
+            ));
+        };
+        let mut placed = None;
+        for candidate in self.resolved.structures().map(|(_, placed)| placed) {
+            if candidate.dataset_id().get() != dataset {
+                continue;
+            }
+            if placed.is_some() {
+                return Err(Error::AmbiguousPick { dataset });
+            }
+            placed = Some(candidate);
+        }
+        let placed = placed.ok_or(Error::StalePick { dataset })?;
+        let structure = self.structure_for_source(&placed.source, dataset)?;
+        let atom_index = u32::try_from(row).map_err(|_| {
+            Error::InvalidSpec(format!("pick row {row} is outside the atom index space"))
+        })?;
+        if pick.kind == crate::PickKind::Atom
+            && usize::try_from(atom_index)
+                .ok()
+                .is_none_or(|index| index >= placed.atoms.len() as usize)
+        {
+            return Err(Error::InvalidSpec(format!(
+                "pick row {row} is outside structure topology"
+            )));
+        }
+        if pick.kind == crate::PickKind::Atom {
+            Ok(ResolvedPick::Atom(ResolvedAtomPick {
+                structure,
+                dataset,
+                chunk,
+                topology_revision: self.resolved.structure_revision(),
+                atom_index,
+            }))
+        } else {
+            Ok(ResolvedPick::NonAtom(pick.clone()))
+        }
+    }
+    /// Resolves the semantic structure that owns one placed physical source.
+    ///
+    /// Ownership is proven by shared provider storage with a bound structure,
+    /// never by iteration position. Two bindings sharing one source cannot be
+    /// told apart, so the mapping is ambiguous rather than positional.
+    fn structure_for_source(
+        &self,
+        source: &molgfx_core::MolecularSource,
+        dataset: u64,
+    ) -> Result<StructureId, Error> {
+        let mut owner = None;
+        for (identity, bound) in &self.structures {
+            if !bound.shares_storage_with(source) {
+                continue;
+            }
+            if owner.is_some() {
+                return Err(Error::AmbiguousPick { dataset });
+            }
+            owner = Some(*identity);
+        }
+        owner.ok_or(Error::StalePick { dataset })
+    }
+    /// Returns typed metadata for residues observed in one structure.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the structure is unknown, is not backed by
+    /// `MolFrame` data, or its residue index space cannot be represented.
+    pub fn residue_metadata(&self, structure: StructureId) -> Result<Vec<ResidueMetadata>, Error> {
+        let source = self
+            .structures
+            .get(&structure)
+            .ok_or_else(|| Error::InvalidSpec(format!("unknown structure {}", structure.get())))?;
+        let Some(input) = source.molframe() else {
+            return Err(Error::InvalidSpec(
+                "residue metadata requires a MolFrame-backed structure".to_owned(),
+            ));
+        };
+        let topology = source.topology();
+        let mut metadata = Vec::with_capacity(input.residue_count());
+        for (chain_index, chain) in input.chains().iter().enumerate() {
+            let chain_start = topology
+                .chain_residue_start
+                .get(chain_index)
+                .copied()
+                .unwrap_or_default();
+            for (local_residue, residue) in chain.residues().enumerate() {
+                let local_residue = u32::try_from(local_residue).map_err(|_| {
+                    Error::InvalidSpec("residue index exceeds the supported range".to_owned())
+                })?;
+                let residue_index = chain_start.checked_add(local_residue).ok_or_else(|| {
+                    Error::InvalidSpec("residue index exceeds the supported range".to_owned())
+                })?;
+                let atom_range = topology
+                    .residue_atom_start
+                    .get(residue_index as usize..residue_index as usize + 2)
+                    .and_then(|range| (range.len() == 2).then_some([range[0], range[1]]));
+                metadata.push(ResidueMetadata {
+                    chain: chain.label().map(str::to_owned),
+                    auth_chain: chain.auth_label().map(str::to_owned),
+                    entity: chain.entity().map(molframe::EntityIndex::get),
+                    one_letter: None,
+                    component: residue.name().map(str::to_owned),
+                    auth_component: residue.auth_name().map(str::to_owned),
+                    auth_number: residue.auth_seq_id(),
+                    label_number: residue.label_seq_id(),
+                    insertion_code: residue.ins_code().map(str::to_owned),
+                    observed: true,
+                    residue_index,
+                    atom_range,
+                });
+            }
+        }
+        Ok(metadata)
+    }
     /// Builds a scene over a shared immutable `MolFrame` snapshot.
     ///
     /// # Errors

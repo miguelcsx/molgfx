@@ -12,6 +12,7 @@ mod import;
 mod schema;
 #[cfg(test)]
 mod schema_tests;
+mod snapshot;
 
 /// Information that could not be represented exactly during interchange.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -46,6 +47,8 @@ pub struct MvsDocument {
     /// Required root node.
     pub root: MvsNode,
 }
+
+pub use snapshot::SceneSnapshot;
 
 /// Imported scene plus loss diagnostics.
 #[derive(Clone, PartialEq, Debug)]

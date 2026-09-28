@@ -22,3 +22,8 @@ The browser viewer reports canvas clicks through `Viewer.pick` or `Workbench.pic
 <Callout type="info" title="Keep state and style separate">
 Interaction channels describe *what* is selected or hovered. A visual style describes *how* that state should look. This separation lets the same scene state drive a browser viewer and an application-specific UI.
 </Callout>
+## Semantic interaction contract
+
+The Session is the durable selection authority. Browser scene state is a revisioned projection and must carry the scene-instance token, topology generation, source revision, event id, target granularity, and operation. Unknown or stale mappings are rejected with a resynchronization result; equal row numbers from different structures are never interchangeable. Atom, residue, chain, entity, bond, and volume picks remain typed, so a volume or bond row cannot be used as an atom for a measurement.
+
+This contract is implemented at the native/semantic boundary, but the actual browser and notebook interaction matrix is not certified by this page. No browser or Python scenario is claimed as passed; modifier precedence, rapid Shift clicks, stale readbacks, replacement, hover isolation, and cross-host round trips remain unverified.

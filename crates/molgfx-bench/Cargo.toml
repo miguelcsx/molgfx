@@ -30,6 +30,10 @@ criterion.workspace = true
 molgfx-core = { path = "../molgfx-core" }
 molgfx-api = { path = "../molgfx-api" }
 molgfx-geometry = { path = "../molgfx-geometry" }
+molgfx-render = { path = "../molgfx-render" }
+[[bench]]
+name = "engine"
+harness = false
 
 [[bench]]
 name = "kernels"

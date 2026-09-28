@@ -57,6 +57,7 @@
 
                 # Browser runtime
                 pkgs.wasm-pack
+                pkgs.nodejs_22
 
                 # Repository utilities
                 pkgs.git

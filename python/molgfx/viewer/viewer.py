@@ -1,41 +1,19 @@
-"""AnyWidget transport for MolGFX's direct browser WebGPU runtime."""
+"""AnyWidget transport adapter for the molgfx-viewer frontend."""
 
-from functools import lru_cache
-import gzip
-from hashlib import sha256
-from pathlib import Path
 import json
+from pathlib import Path
 import weakref
 
 import anywidget
 import traitlets
 
+from ._runtime import load_runtime
+
 _STATIC = Path(__file__).parent / "static"
 
 
-@lru_cache(maxsize=1)
-def _runtime():
-    """The packaged browser runtime: its module text, binary and a content key.
-
-    A notebook frontend loads the widget module from a blob URL, where the
-    runtime beside it cannot be imported by a relative path, so both parts are
-    sent as widget state. The binary travels gzip-compressed -- a quarter of
-    its size, which is what a hosted kernel such as Colab's sends over the
-    network for every view -- and the page inflates it with the browser's own
-    `DecompressionStream`. A checkout without a built runtime sends nothing and
-    the page falls back to importing it beside the module.
-    """
-    glue = _STATIC / "molgfx_wasm.js"
-    binary = _STATIC / "molgfx_wasm_bg.wasm"
-    if not (glue.is_file() and binary.is_file()):
-        return "", b"", ""
-    code = glue.read_text(encoding="utf-8")
-    data = binary.read_bytes()
-    return code, gzip.compress(data, mtime=0), sha256(data).hexdigest()[:16]
-
-
 class Viewer(anywidget.AnyWidget):
-    """A canvas backed by the same versioned scene contract as Rust and Python."""
+    """A scene transport backed by the shared molgfx-viewer frontend."""
 
     _esm = _STATIC / "widget.js"
     _css = _STATIC / "widget.css"
@@ -52,11 +30,17 @@ class Viewer(anywidget.AnyWidget):
     structure_payloads = traitlets.List(traitlets.Bytes()).tag(sync=True)
     pick = traitlets.Dict().tag(sync=True)
     selection = traitlets.Unicode().tag(sync=True)
+    # Canonical typed interaction event; pick and selection remain compatibility projections.
+    interaction = traitlets.Dict().tag(sync=True)
     camera = traitlets.Dict().tag(sync=True)
     error = traitlets.Unicode().tag(sync=True)
-    # The scene revision the kernel has published. A view that mounts after
-    # patches went by -- displayed late, displayed twice, or reloaded -- sees
-    # that it is behind and asks for the current specification once.
+    interaction_event = traitlets.Dict().tag(sync=True)
+    sequence_intervals = traitlets.Dict().tag(sync=True)
+    focus_preset = traitlets.Unicode("").tag(sync=True)
+    measurement_request = traitlets.Dict().tag(sync=True)
+    volume_sigma = traitlets.Dict().tag(sync=True)
+    trajectory_frame = traitlets.Dict().tag(sync=True)
+    trajectory_time = traitlets.Dict().tag(sync=True)
     revision = traitlets.Int(0).tag(sync=True)
     sync_request = traitlets.Int(0).tag(sync=True)
 
@@ -65,16 +49,18 @@ class Viewer(anywidget.AnyWidget):
         self._scene = scene
         self._structures = {}
         self._materialize(scene._browser_sources())
-        code, data, key = _runtime()
+        runtime = load_runtime()
+        ids, names, payloads = self._structure_columns()
+        scene_spec = scene.to_json()
         super().__init__(
-            _runtime_js=code,
-            _runtime_wasm=data,
-            _runtime_key=key,
-            scene_spec=scene.to_json(),
-            revision=json.loads(scene.to_json()).get("revision", 0),
-            structure_ids=list(self._structures),
-            structure_names=[entry[0] for entry in self._structures.values()],
-            structure_payloads=[entry[1] for entry in self._structures.values()],
+            _runtime_js=runtime.glue,
+            _runtime_wasm=runtime.wasm_gzip,
+            _runtime_key=runtime.key,
+            scene_spec=scene_spec,
+            revision=json.loads(scene_spec).get("revision", 0),
+            structure_ids=ids,
+            structure_names=names,
+            structure_payloads=payloads,
             **kwargs,
         )
         self._subscription = weakref.WeakMethod(self._on_scene_patch)
@@ -83,27 +69,47 @@ class Viewer(anywidget.AnyWidget):
 
     def _on_sync_request(self, _change):
         """Send the current specification to a view that fell behind."""
-        self.scene_spec = self._scene.to_json()
+        self._resync_structures()
 
     def _materialize(self, sources):
         """Record each structure's payload the first time it is announced."""
         for identity, name, payload in sources:
-            if identity not in self._structures:
-                self._structures[identity] = (name, bytes(payload))
+            encoded = bytes(payload)
+            if self._structures.get(identity) != (name, encoded):
+                self._structures[identity] = (name, encoded)
+
+    def _release_unreferenced(self, sources):
+        """Drop materialized payloads the scene no longer declares.
+
+        Structure replacement and removal leave bytes in this cache that no
+        current structure references; keeping them would pin megabytes of
+        coordinate payload for the widget's lifetime. A re-announced identity
+        whose encoding changed is refreshed by ``_materialize`` instead.
+        """
+        declared = {identity for identity, _, _ in sources}
+        for identity in [key for key in self._structures if key not in declared]:
+            del self._structures[identity]
+
+    def _structure_columns(self):
+        """The materialized structures as the three parallel transport columns."""
+        ids = list(self._structures)
+        names = [entry[0] for entry in self._structures.values()]
+        payloads = [entry[1] for entry in self._structures.values()]
+        return ids, names, payloads
 
     def _resync_structures(self):
         """Transfer every structure the scene now declares, each exactly once.
 
-        The page rebuilds from ``scene_spec`` because binding a source is a
+        The page rebuilds from scene_spec because binding a source is a
         resolve-time operation: the widget binds every transported structure and
         then resolves, so one spec replacement already carries the addition.
         """
-        self._materialize(self._scene._browser_sources())
-        if len(self._structures) == len(self.structure_ids):
-            return
-        self.structure_ids = list(self._structures)
-        self.structure_names = [entry[0] for entry in self._structures.values()]
-        self.structure_payloads = [entry[1] for entry in self._structures.values()]
+        sources = self._scene._browser_sources()
+        self._release_unreferenced(sources)
+        self._materialize(sources)
+        self.structure_ids, self.structure_names, self.structure_payloads = (
+            self._structure_columns()
+        )
         self.scene_spec = self._scene.to_json()
 
     def _on_scene_patch(self, patch_json):
@@ -112,7 +118,13 @@ class Viewer(anywidget.AnyWidget):
         operations = patch.get("operations", [])
         if operations:
             self.revision = patch.get("base_revision", 0) + 1
-        if any(operation.get("op") == "add_structure" for operation in operations):
+        # A structure change is not patchable onto a resolved page: binding is
+        # resolve-time, so the page rebuilds from a full spec replacement. That
+        # replacement may also drop payloads for removed or replaced sources.
+        if any(
+            operation.get("op") in ("add_structure", "replace_structure", "remove_structure")
+            for operation in operations
+        ):
             self._resync_structures()
             return
         self.scene_patch = patch_json

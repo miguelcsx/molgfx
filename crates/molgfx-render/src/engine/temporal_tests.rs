@@ -72,6 +72,16 @@ fn any_camera_motion_blocks_quality_until_a_stable_frame() {
 }
 
 #[test]
+fn camera_motion_uses_an_unjittered_projection() {
+    let mut state = TemporalState::default();
+    let _ = state.prepare(&camera(), &options(false));
+    let mut moved = camera();
+    moved.eye.x += 0.01;
+    let frame = state.prepare(&moved, &options(false));
+    assert_eq!(frame.proj, moved.projection.matrix());
+}
+
+#[test]
 fn caller_scheduling_stops_after_each_mode_reaches_its_sample_budget() {
     let mut realtime = TemporalState::default();
     for _ in 0..8 {

@@ -39,19 +39,20 @@ pub use molgfx_wgpu::{AdapterReport, SystemInfo, system_info};
 pub use patch::{PatchOperation, ScenePatch};
 pub use profile::{Quality, RenderProfile};
 pub use property::{PropertySpec, ScalarProperty, ScalarPropertyBinding};
+pub use render::FrameReport;
 #[cfg(not(target_arch = "wasm32"))]
 pub use render::Image;
 pub use render::Renderer;
 pub use render::{PickKind, PickResult};
 pub use representation::RepresentationSpec;
 pub use representation::{SceneItem, Selection};
-pub use scene::Scene;
 pub use scene::hashing::structure_hash;
 pub use scene::transaction::SceneTransaction;
+pub use scene::{ResidueMetadata, ResolvedAtomPick, ResolvedPick, Scene};
 pub use science::{
-    Anchor, AnnotationSpec, DataSource, InteractionKind, MeasurementSpec, ScientificHandles,
-    ScientificInteractionSpec, TrajectoryBinding, TrajectoryFrame, TrajectorySpec, VolumeBinding,
-    VolumeSpec,
+    Anchor, AnnotationSpec, AssemblySpec, DataSource, FitResult, InteractionKind, MeasurementSpec,
+    MovieExportRequest, ScientificHandles, ScientificInteractionSpec, TrajectoryBinding,
+    TrajectoryFrame, TrajectorySpec, ValidationFinding, VolumeBinding, VolumeSpec,
 };
 pub use spec::{InteractionChannel, SceneSpec, StructureSource};
 pub use visual::{

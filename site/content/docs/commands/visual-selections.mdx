@@ -61,6 +61,12 @@ A multi-statement program is validated as one atomic scene edit. If one statemen
 - Errors identify their source span and may offer a spelling suggestion.
 
 The current Workbench console is the authoring interface for visual queries. Clicking the canvas reports the semantic entity under the pointer through `Workbench.pick`; it does not create or edit a selection. Application-specific click, lasso, or selection-editor UI belongs above the MolGFX scene API.
+## Interaction and verification boundary
+
+Dollar-prefixed selection references are dynamic MolFrame query dependencies; at-prefixed layer references identify retained visual layers. They are intentionally distinct. Selection mutations belong to the Session transaction/history path, while hover is local, latest-only presentation state and must not enter undo history or Python communication. A semantic pick carries structure/topology identity, instance provenance, and generation checks; stale or non-atom picks must be rejected rather than reinterpreted as atom rows. Shift adds, Alt removes (Alt takes precedence when both are held), a plain click replaces, and Escape or a background click clears.
+
+The query and command examples above remain documentation examples. No browser, Python, or Workbench scenario is claimed as passed here; rapid modifier clicks, duplicate/out-of-order events, replacement during readback, hover traffic, and selective selection invalidation require end-to-end verification.
+
 
 ## Use state for reactive appearance
 

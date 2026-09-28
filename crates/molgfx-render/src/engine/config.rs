@@ -57,6 +57,22 @@ pub struct FrameMetrics {
     pub tracked_chunks: usize,
     /// Upload bytes still protected by GPU fences.
     pub upload_in_flight_bytes: u64,
+    /// Presentation submissions not yet reported complete by the GPU.
+    pub pending_frame_submissions: u32,
+    /// Monotonic identifier for the most recently submitted frame.
+    pub last_submission_id: u64,
+    /// Submission timestamp in the engine monotonic clock, in nanoseconds:
+    /// host time when the frame's encoder reached the queue. CPU cost of the
+    /// frame is separately observable as the duration of the native `render`
+    /// call; this is not device execution time.
+    pub submission_timestamp_ns: u64,
+    /// Host timestamp when the last submission's fence was observed complete,
+    /// in the same monotonic clock. `None` while the frame is pending, and
+    /// `None` on native backends because the engine only observes the fence on
+    /// the browser path; even when set, this is host-observation latency, not
+    /// exact device completion or GPU execution time. GPU execution time
+    /// requires timestamp queries via the profiling path.
+    pub completion_timestamp_ns: Option<u64>,
     /// Retained recomputable device bytes.
     pub derived_cache_gpu_bytes: u64,
     /// Peak recomputable device bytes since engine construction.

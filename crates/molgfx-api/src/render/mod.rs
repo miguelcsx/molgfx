@@ -1,6 +1,7 @@
 //! Physical renderer wrapper with target-sized rendering.
 
 use crate::{Error, Quality, RenderProfile, Scene};
+pub use molgfx_render::FrameReport;
 #[cfg(not(target_arch = "wasm32"))]
 use num_traits::ToPrimitive as _;
 
@@ -166,9 +167,14 @@ impl Renderer {
     /// # Errors
     ///
     /// Returns a typed surface, device, or scene synchronization error.
-    pub fn present(&mut self, scene: &Scene, camera: &molgfx_math::Camera) -> Result<(), Error> {
-        let _ = self.inner.render(scene.resolved(), camera)?;
-        Ok(())
+    pub fn present(
+        &mut self,
+        scene: &Scene,
+        camera: &molgfx_math::Camera,
+    ) -> Result<FrameReport, Error> {
+        self.inner
+            .render(scene.resolved(), camera)
+            .map_err(Error::from)
     }
 
     /// Asynchronously resolves the entity under one target pixel.

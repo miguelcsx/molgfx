@@ -87,6 +87,32 @@ fn a_layer_target_is_written_with_an_at_sign() {
 }
 
 #[test]
+fn focus_accepts_one_target_and_rejects_extra_or_trailing_targets() {
+    assert!(matches!(
+        commands("focus $pocket").as_slice(),
+        [Command::Focus {
+            target: Target::Query(query)
+        }] if query.source() == "$pocket"
+    ));
+    assert!(matches!(
+        commands("focus @main").as_slice(),
+        [Command::Focus {
+            target: Target::Layer(layer)
+        }] if layer.as_str() == "main"
+    ));
+
+    for source in ["focus $pocket, chain A", "focus $pocket,"] {
+        let error = first_error(source);
+        assert_eq!(error.kind, ErrorKind::Syntax);
+        assert!(
+            error.message.contains("focus takes no target"),
+            "{}",
+            error.message
+        );
+    }
+}
+
+#[test]
 fn canonical_text_parses_back_to_the_same_command() {
     for source in [
         "select pocket, byres (within 5 of resname HEM)",

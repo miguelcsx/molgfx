@@ -49,3 +49,6 @@ except ImportError:
 <Callout type="warn" title="WebGPU is required">
 The widget needs WebGPU in the browser. Update Chrome or Edge first; Safari and Firefox require WebGPU to be enabled. Use `Renderer.render_image` for native, off-screen output instead of a notebook canvas.
 </Callout>
+## Verification status
+
+This guide documents the intended notebook contract, not a passing notebook run. The browser receives semantic patches rather than frame pixels, but Jupyter, Colab, and VS Code round trips were not exercised for this update. The observed MolGFX Python run reported 65 tests with one failure at `molgfx/python/tests/test_workbench_viewer.py:325`: `test_a_settled_scene_does_not_schedule_more_browser_frames` observed two frames where zero were expected. Treat browser screenshots, WebGPU capability checks, and Python viewer behavior as unverified until those scenarios are run.

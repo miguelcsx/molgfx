@@ -2,10 +2,11 @@
 //!
 //! A patch is prepared in full — every query evaluated, every value validated,
 //! every physical record computed — against the unchanged scene, and only then
-//! committed. A patch that changes which representations or scientific items
-//! exist re-resolves the scene; everything else, including recolouring,
-//! retargeting a representation and editing appearance rules, is applied in
-//! place to the representations and columns it touches.
+//! committed. Operations that change retained scene domains or which
+//! representations/scientific items exist re-resolve the scene; everything
+//! else, including recolouring, retargeting a representation and editing
+//! appearance rules, is applied in place to the representations and columns it
+//! touches.
 
 use crate::error::{Error, PatchError};
 use crate::id::{RepresentationId, StructureId};
@@ -222,8 +223,9 @@ impl LocalPatchPlan {
                 ));
             }
             PatchOperation::AddVolume { .. }
-            | PatchOperation::RemoveVolume { .. }
+            | PatchOperation::SetVolumeIsovalue { .. }
             | PatchOperation::AddAnnotation { .. }
+            | PatchOperation::RemoveVolume { .. }
             | PatchOperation::RemoveAnnotation { .. }
             | PatchOperation::AddMeasurement { .. }
             | PatchOperation::RemoveMeasurement { .. }
@@ -233,6 +235,11 @@ impl LocalPatchPlan {
             | PatchOperation::RemoveTrajectory { .. }
             | PatchOperation::AddAppearanceRule { .. }
             | PatchOperation::ReplaceAppearanceRule { .. }
+            | PatchOperation::SetAssembly { .. }
+            | PatchOperation::SetFitting { .. }
+            | PatchOperation::SetValidation { .. }
+            | PatchOperation::SetMovieExport { .. }
+            | PatchOperation::SetSnapshot { .. }
             | PatchOperation::RemoveAppearanceRule { .. } => {
                 return Err(Error::InvalidSpec(
                     "domain operation was not prepared".to_owned(),

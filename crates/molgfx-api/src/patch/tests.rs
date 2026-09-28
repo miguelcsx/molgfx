@@ -1,5 +1,9 @@
 use crate::appearance::tests::two_chains;
-use crate::{Color, ColorSpec, Error, PatchError, PatchOperation, Scene, ScenePatch, color, rep};
+use crate::{
+    Color, ColorSpec, DataSource, Error, PatchError, PatchOperation, Scene, ScenePatch,
+    VolumeBinding, color, density, rep,
+};
+use std::sync::Arc;
 
 fn scene_with_cartoon() -> (Scene, crate::RepresentationId) {
     let Ok(mut scene) = Scene::from_structure(&two_chains()) else {
@@ -8,6 +12,22 @@ fn scene_with_cartoon() -> (Scene, crate::RepresentationId) {
     let Ok(id) = scene.add(rep::cartoon("protein")) else {
         panic!("cartoon adds")
     };
+    (scene, id)
+}
+fn scene_with_bound_volume() -> (Scene, crate::VolumeId) {
+    let Ok(mut scene) = Scene::from_structure(&two_chains()) else {
+        panic!("scene builds")
+    };
+    let source = DataSource::new("density-hash");
+    let Ok(id) = scene.add(density::volume(source.clone(), [2, 2, 2])) else {
+        panic!("volume adds")
+    };
+    let values: Arc<[f32]> = (0_u8..8).map(f32::from).collect();
+    assert!(
+        scene
+            .bind_volume(VolumeBinding::new(source, [2, 2, 2], values))
+            .is_ok()
+    );
     (scene, id)
 }
 
@@ -206,4 +226,51 @@ fn a_candidate_spec_applies_the_new_operations_without_a_renderer() {
     };
     assert_eq!(candidate.revision, scene.revision() + 1);
     assert_eq!(candidate.appearance.len(), 1);
+}
+#[test]
+fn set_volume_isovalue_validates_applies_and_inverts() {
+    let (mut scene, id) = scene_with_bound_volume();
+    let base = scene.to_spec();
+    let edit = patch(
+        &scene,
+        vec![PatchOperation::SetVolumeIsovalue { id, isovalue: 2.5 }],
+    );
+    let inverse = edit
+        .inverse(&base)
+        .unwrap_or_else(|error| panic!("{error}"));
+
+    assert!(scene.apply(&edit).is_ok());
+    assert_eq!(
+        scene.spec().volumes.get(&id).map(|volume| volume.isovalue),
+        Some(2.5)
+    );
+    assert_eq!(scene.scientific_handles().volumes, 1);
+    assert!(scene.apply(&inverse).is_ok());
+    let restored = scene.spec();
+    assert_eq!(
+        restored.volumes.get(&id).map(|volume| volume.isovalue),
+        base.volumes.get(&id).map(|volume| volume.isovalue)
+    );
+    assert_eq!(restored.structures, base.structures);
+    assert_eq!(restored.representations, base.representations);
+    assert_eq!(scene.scientific_handles().volumes, 1);
+}
+
+#[test]
+fn set_volume_isovalue_rejects_nonfinite_and_missing_ids_without_mutation() {
+    let (mut scene, id) = scene_with_bound_volume();
+    let before = scene.to_spec();
+    for operation in [
+        PatchOperation::SetVolumeIsovalue {
+            id,
+            isovalue: f32::NAN,
+        },
+        PatchOperation::SetVolumeIsovalue {
+            id: crate::VolumeId::new(id.get() + 1),
+            isovalue: 2.5,
+        },
+    ] {
+        assert!(scene.apply(&patch(&scene, vec![operation])).is_err());
+        assert_eq!(scene.spec(), &before);
+    }
 }

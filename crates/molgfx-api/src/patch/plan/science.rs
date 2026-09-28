@@ -23,6 +23,18 @@ impl ScienceDomains {
             PatchOperation::RemoveVolume { id } => {
                 remove(self.volumes.get_or_insert_with(|| spec.volumes.clone()), id)?;
             }
+            PatchOperation::SetVolumeIsovalue { id, isovalue } => {
+                if !isovalue.is_finite() {
+                    return Err(Error::InvalidSpec(
+                        "volume isovalue must be finite".to_owned(),
+                    ));
+                }
+                self.volumes
+                    .get_or_insert_with(|| spec.volumes.clone())
+                    .get_mut(id)
+                    .ok_or(PatchError::MissingId)?
+                    .isovalue = *isovalue;
+            }
             PatchOperation::AddAnnotation { id, annotation } => {
                 annotation.validate(spec)?;
                 insert_new(

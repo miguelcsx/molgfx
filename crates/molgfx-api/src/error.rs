@@ -9,6 +9,18 @@ pub enum Error {
     /// An identifier is absent from the current scene revision.
     #[error("scene identifier does not exist")]
     MissingId,
+    /// A physical pick's dataset identity maps to several bound structures.
+    #[error("pick dataset {dataset} maps to multiple structures; the owner is ambiguous")]
+    AmbiguousPick {
+        /// Dataset identity carried by the rejected pick.
+        dataset: u64,
+    },
+    /// A physical pick's dataset identity maps to no bound structure.
+    #[error("pick dataset {dataset} is stale or unknown")]
+    StalePick {
+        /// Dataset identity carried by the rejected pick.
+        dataset: u64,
+    },
     /// The resolved scene rejected a semantically valid authoring operation.
     #[error(transparent)]
     Core(#[from] molgfx_core::CoreError),
