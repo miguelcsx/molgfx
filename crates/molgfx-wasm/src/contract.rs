@@ -188,6 +188,11 @@ impl WebScene {
     }
 
     /// Updates the resident trajectory sample without recording a command.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JavaScript error when the scene is unresolved or the trajectory
+    /// sample is invalid.
     pub fn set_trajectory_time(
         &mut self,
         structure: u64,
@@ -238,6 +243,12 @@ impl WebScene {
     pub fn is_ready(&self) -> bool {
         self.resolved.is_some()
     }
+    /// Returns residue metadata for a resolved structure as JSON.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JavaScript error when the scene is unresolved, the structure is
+    /// unknown, or the metadata cannot be encoded.
     #[wasm_bindgen(js_name = residueMetadataJSON)]
     pub fn residue_metadata_json(&self, structure: u64) -> Result<String, JsError> {
         self.resolved
