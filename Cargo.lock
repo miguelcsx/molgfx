@@ -2263,28 +2263,28 @@ dependencies = [
 
 [[package]]
 name = "molframe"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
  "molframe-adapters",
  "molframe-analysis",
  "molframe-audit",
- "molframe-bcif 0.2.0",
- "molframe-chem 0.2.0",
- "molframe-cif 0.2.0",
+ "molframe-bcif",
+ "molframe-chem",
+ "molframe-cif",
  "molframe-compare",
- "molframe-core 0.2.0",
- "molframe-engine 0.2.0",
+ "molframe-core",
+ "molframe-engine",
  "molframe-fx",
  "molframe-geom",
  "molframe-ic",
  "molframe-interop",
  "molframe-modelcif",
- "molframe-pdb 0.2.0",
- "molframe-query 0.2.0",
+ "molframe-pdb",
+ "molframe-query",
  "molframe-seq",
- "molframe-spatial 0.2.0",
- "molframe-surface 0.2.0",
+ "molframe-spatial",
+ "molframe-surface",
  "molframe-traj",
  "molframe-validate",
  "molframe-xtal",
@@ -2295,33 +2295,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "molframe"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c3287954560b1ac0a9b4c5c89da0616bfefb331128335427f3a7d1a2ec3098c"
-dependencies = [
- "molframe-bcif 0.2.1",
- "molframe-chem 0.2.1",
- "molframe-cif 0.2.1",
- "molframe-core 0.2.1",
- "molframe-engine 0.2.1",
- "molframe-pdb 0.2.1",
- "molframe-query 0.2.1",
- "molframe-spatial 0.2.1",
- "molframe-surface 0.2.1",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "toml",
-]
-
-[[package]]
 name = "molframe-adapters"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-chem 0.2.0",
- "molframe-core 0.2.0",
+ "molframe-chem",
+ "molframe-core",
  "reqwest",
  "sha2",
  "thiserror 2.0.21",
@@ -2329,16 +2308,16 @@ dependencies = [
 
 [[package]]
 name = "molframe-analysis"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
  "faer",
- "molframe-chem 0.2.0",
- "molframe-cif 0.2.0",
- "molframe-core 0.2.0",
+ "molframe-chem",
+ "molframe-cif",
+ "molframe-core",
  "molframe-geom",
- "molframe-spatial 0.2.0",
- "molframe-surface 0.2.0",
+ "molframe-spatial",
+ "molframe-surface",
  "molframe-traj",
  "nalgebra",
  "num-traits",
@@ -2347,38 +2326,21 @@ dependencies = [
 
 [[package]]
 name = "molframe-audit"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-core 0.2.0",
+ "molframe-core",
  "num-traits",
 ]
 
 [[package]]
 name = "molframe-bcif"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
  "indexmap 2.14.2",
- "molframe-cif 0.2.0",
- "molframe-core 0.2.0",
- "num-traits",
- "rmp-serde",
- "serde",
- "serde_bytes",
- "serde_repr",
- "wide",
-]
-
-[[package]]
-name = "molframe-bcif"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e48d2fa51a54bee863f98d4b9bc28118f212d460e46a8169883a89462b89262c"
-dependencies = [
- "indexmap 2.14.2",
- "molframe-cif 0.2.1",
- "molframe-core 0.2.1",
+ "molframe-cif",
+ "molframe-core",
  "num-traits",
  "rmp-serde",
  "serde",
@@ -2389,47 +2351,22 @@ dependencies = [
 
 [[package]]
 name = "molframe-chem"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-cif 0.2.0",
- "molframe-core 0.2.0",
- "num-traits",
-]
-
-[[package]]
-name = "molframe-chem"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92e76dfbd05f0097949f001389fb4de80293bcac6a3f47fa21e9db9777a7c9fa"
-dependencies = [
- "molframe-cif 0.2.1",
- "molframe-core 0.2.1",
+ "molframe-cif",
+ "molframe-core",
  "num-traits",
 ]
 
 [[package]]
 name = "molframe-cif"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
  "indexmap 2.14.2",
  "memchr",
- "molframe-core 0.2.0",
- "num-traits",
- "quick-xml",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "molframe-cif"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "716cc94e7b4c024cd3ba10f3c278ee92b76d011c7bb13d685bc5c77397a4162d"
-dependencies = [
- "indexmap 2.14.2",
- "memchr",
- "molframe-core 0.2.1",
+ "molframe-core",
  "num-traits",
  "quick-xml",
  "thiserror 2.0.21",
@@ -2437,23 +2374,23 @@ dependencies = [
 
 [[package]]
 name = "molframe-compare"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-chem 0.2.0",
- "molframe-core 0.2.0",
+ "molframe-chem",
+ "molframe-core",
  "molframe-geom",
  "molframe-seq",
- "molframe-spatial 0.2.0",
- "molframe-surface 0.2.0",
+ "molframe-spatial",
+ "molframe-surface",
  "num-traits",
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "molframe-core"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
  "bytemuck",
  "flate2",
@@ -2467,45 +2404,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "molframe-core"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73f334a56e77a8775a978266ce799d5b481db0ae35a1094509a04fdfa99a36a4"
-dependencies = [
- "bytemuck",
- "hashbrown 0.16.1",
- "num-traits",
- "rayon",
- "smallvec",
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "molframe-engine"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-core 0.2.0",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "molframe-engine"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97ec4d679014723122be2195e218335f8622dd9bff1f38502d147abac9429c79"
-dependencies = [
- "molframe-core 0.2.1",
+ "molframe-core",
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "molframe-fx"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-chem 0.2.0",
- "molframe-core 0.2.0",
+ "molframe-chem",
+ "molframe-core",
  "molframe-geom",
  "num-traits",
  "serde",
@@ -2516,34 +2429,34 @@ dependencies = [
 
 [[package]]
 name = "molframe-geom"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-core 0.2.0",
+ "molframe-core",
  "num-traits",
  "wide",
 ]
 
 [[package]]
 name = "molframe-ic"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-core 0.2.0",
+ "molframe-core",
  "molframe-geom",
  "num-traits",
 ]
 
 [[package]]
 name = "molframe-interop"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
  "arrow",
  "molframe-analysis",
- "molframe-core 0.2.0",
+ "molframe-core",
  "molframe-seq",
- "molframe-spatial 0.2.0",
+ "molframe-spatial",
  "num-traits",
  "parquet",
  "serde",
@@ -2553,8 +2466,8 @@ dependencies = [
 
 [[package]]
 name = "molframe-mmap"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
  "memmap2",
  "tempfile",
@@ -2562,33 +2475,20 @@ dependencies = [
 
 [[package]]
 name = "molframe-modelcif"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-cif 0.2.0",
- "molframe-core 0.2.0",
+ "molframe-cif",
+ "molframe-core",
  "num-traits",
 ]
 
 [[package]]
 name = "molframe-pdb"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-core 0.2.0",
- "num-traits",
- "rmp-serde",
- "serde",
- "serde_bytes",
-]
-
-[[package]]
-name = "molframe-pdb"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6de35a7cc097fbbba4613f92187d4a0b2f876ad39969075a85e7acc78e33077f"
-dependencies = [
- "molframe-core 0.2.1",
+ "molframe-core",
  "num-traits",
  "rmp-serde",
  "serde",
@@ -2597,58 +2497,35 @@ dependencies = [
 
 [[package]]
 name = "molframe-py"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe 0.2.0",
+ "molframe",
  "numpy",
  "pyo3",
 ]
 
 [[package]]
 name = "molframe-query"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-chem 0.2.0",
- "molframe-core 0.2.0",
-]
-
-[[package]]
-name = "molframe-query"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e349ef28f72b66cca5c7dbd7b16888d072bd54f4b99cbaf8a0119e785a1493cf"
-dependencies = [
- "molframe-chem 0.2.1",
- "molframe-core 0.2.1",
+ "molframe-chem",
+ "molframe-core",
 ]
 
 [[package]]
 name = "molframe-seq"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 
 [[package]]
 name = "molframe-spatial"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-core 0.2.0",
- "molframe-query 0.2.0",
- "num-traits",
- "thiserror 2.0.21",
- "wide",
-]
-
-[[package]]
-name = "molframe-spatial"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b417b8846097f12f153f0c4cf8ead96d486cf99dc0cf5840f1345e72031fb42f"
-dependencies = [
- "molframe-core 0.2.1",
- "molframe-query 0.2.1",
+ "molframe-core",
+ "molframe-query",
  "num-traits",
  "thiserror 2.0.21",
  "wide",
@@ -2656,39 +2533,28 @@ dependencies = [
 
 [[package]]
 name = "molframe-surface"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-core 0.2.0",
- "molframe-spatial 0.2.0",
- "num-traits",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "molframe-surface"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c9fb27b4d13fdcf04cf4e818bd7b9a95caf52a5782d09b9ae926f1631f82595"
-dependencies = [
- "molframe-core 0.2.1",
- "molframe-spatial 0.2.1",
+ "molframe-core",
+ "molframe-spatial",
  "num-traits",
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "molframe-traj"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
+ "bytemuck",
  "hdf5-reader",
  "hdf5-writer",
  "hoomd-gsd",
- "molframe-core 0.2.0",
+ "molframe-core",
  "molframe-geom",
- "molframe-query 0.2.0",
- "molframe-spatial 0.2.0",
+ "molframe-query",
+ "molframe-spatial",
  "molly",
  "nalgebra",
  "netcdf-reader",
@@ -2702,14 +2568,14 @@ dependencies = [
 
 [[package]]
 name = "molframe-validate"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
  "molframe-analysis",
- "molframe-chem 0.2.0",
- "molframe-core 0.2.0",
+ "molframe-chem",
+ "molframe-core",
  "molframe-geom",
- "molframe-spatial 0.2.0",
+ "molframe-spatial",
  "molframe-xtal",
  "num-traits",
  "thiserror 2.0.21",
@@ -2717,13 +2583,13 @@ dependencies = [
 
 [[package]]
 name = "molframe-xtal"
-version = "0.2.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=e7a2b8005e234d13f206593b047b9327536b7bc0#e7a2b8005e234d13f206593b047b9327536b7bc0"
+version = "0.3.0"
+source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c#0c8724c748c20bd725fb8e538f322febaf92fd1e"
 dependencies = [
- "molframe-cif 0.2.0",
- "molframe-core 0.2.0",
+ "molframe-cif",
+ "molframe-core",
  "molframe-geom",
- "molframe-spatial 0.2.0",
+ "molframe-spatial",
  "num-traits",
  "thiserror 2.0.21",
 ]
@@ -2740,7 +2606,7 @@ dependencies = [
 name = "molgfx-api"
 version = "0.3.0"
 dependencies = [
- "molframe 0.2.1",
+ "molframe",
  "molgfx-core",
  "molgfx-gpu",
  "molgfx-math",
@@ -2760,7 +2626,7 @@ name = "molgfx-bench"
 version = "0.3.0"
 dependencies = [
  "criterion",
- "molframe 0.2.1",
+ "molframe",
  "molgfx",
  "molgfx-api",
  "molgfx-core",
@@ -2778,7 +2644,7 @@ dependencies = [
 name = "molgfx-command"
 version = "0.3.0"
 dependencies = [
- "molframe 0.2.1",
+ "molframe",
  "molgfx-api",
  "serde",
  "serde_json",
@@ -2791,7 +2657,7 @@ version = "0.3.0"
 dependencies = [
  "bytemuck",
  "hashbrown 0.17.1",
- "molframe 0.2.1",
+ "molframe",
  "molgfx-math",
  "num-traits",
  "proptest",
@@ -2809,7 +2675,7 @@ name = "molgfx-geometry"
 version = "0.3.0"
 dependencies = [
  "bytemuck",
- "molframe 0.2.1",
+ "molframe",
  "molgfx-core",
  "molgfx-math",
  "proptest",
@@ -2855,7 +2721,7 @@ version = "0.3.0"
 dependencies = [
  "bytemuck",
  "hashbrown 0.17.1",
- "molframe 0.2.1",
+ "molframe",
  "molgfx-core",
  "molgfx-geometry",
  "molgfx-gpu",
@@ -2875,7 +2741,7 @@ dependencies = [
 name = "molgfx-semantic"
 version = "0.3.0"
 dependencies = [
- "molframe 0.2.1",
+ "molframe",
  "molgfx-core",
  "molgfx-math",
  "thiserror 2.0.21",
@@ -2893,7 +2759,7 @@ name = "molgfx-wasm"
 version = "0.3.0"
 dependencies = [
  "js-sys",
- "molframe 0.2.1",
+ "molframe",
  "molgfx",
  "molgfx-math",
  "num-traits",
@@ -2908,7 +2774,7 @@ name = "molgfx-wgpu"
 version = "0.3.0"
 dependencies = [
  "futures-channel",
- "molframe 0.2.1",
+ "molframe",
  "molgfx-core",
  "molgfx-gpu",
  "molgfx-math",
