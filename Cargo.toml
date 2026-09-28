@@ -72,10 +72,10 @@ molgfx-command = { version = "0.3.0", path = "crates/molgfx-command" }
 # The structural model and every detection the engine consumes, from crates.io.
 # The publishable crates must resolve `molframe` from the registry, so this is a
 # plain version requirement; a git pin would make Cargo refuse to package them.
-molframe = { version = "0.2.1", default-features = false, features = ["mmcif", "bcif", "pdb"] }
+molframe = { version = "0.3.0", default-features = false, features = ["mmcif", "bcif", "pdb"] }
 # The provider's Python bridge names its library target `_native`, so the
 # dependency is renamed back to the package name for `molframe_py::` to resolve.
-molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "e7a2b8005e234d13f206593b047b9327536b7bc0", default-features = false, features = ["full"] }
+molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "0c8724c", default-features = false, features = ["full"] }
 
 # Python ABI shared by the thin binding crate and the sibling molframe bridge.
 pyo3 = "0.29"
@@ -145,4 +145,4 @@ lto = "thin"
 # match. `[patch]` only applies to this workspace's own builds; the published
 # crates still resolve `molframe` from the registry.
 [patch.crates-io]
-molframe = { git = "https://github.com/miguelcsx/molframe", rev = "e7a2b8005e234d13f206593b047b9327536b7bc0" }
+molframe = { git = "https://github.com/miguelcsx/molframe", rev = "0c8724c" }
