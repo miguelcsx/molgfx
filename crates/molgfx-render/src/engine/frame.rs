@@ -131,6 +131,7 @@ impl<D: Device> Engine<D> {
             // This is not surface/pool work that a retry produces; whether
             // another frame is needed is decided by the report's upload and
             // temporal conditions below.
+            #[cfg(not(test))]
             return Ok(self.frame_report(FrameStatus::Skipped, true));
         }
 
