@@ -66,6 +66,11 @@ pub const VERBS: &[VerbInfo] = &[
         summary: "set a layer's opacity between 0 and 1",
     },
     VerbInfo {
+        name: "interaction",
+        synopsis: "interaction {\"mode\":\"explicit\",...}",
+        summary: "add a caller-supplied explicit scientific interaction",
+    },
+    VerbInfo {
         name: "focus",
         synopsis: "focus TARGET",
         summary: "highlight and frame a target, muting its distant context",

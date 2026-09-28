@@ -114,6 +114,18 @@ impl State {
         if scene.focus.is_none() {
             spec.focus = None;
         }
+        // `$sel` is the scene's authoritative current semantic selection.
+        // It is an alias, not another named-selection entry in the session spec.
+        match &scene.selected {
+            Some(selection) => {
+                if let Ok(query) = QueryText::compile(selection.source()) {
+                    let _ = self.aliases.define("sel", query.query().clone());
+                }
+            }
+            None => {
+                let _ = self.aliases.remove("sel");
+            }
+        }
     }
 
     /// The structure's name.

@@ -22,5 +22,13 @@ pub(super) fn is_structural(operation: &PatchOperation) -> bool {
             | PatchOperation::RemoveScientificInteraction { .. }
             | PatchOperation::AddTrajectory { .. }
             | PatchOperation::RemoveTrajectory { .. }
+            // Domain values are retained in the scene extension namespace.
+            // They still participate in full scene resolution so history and
+            // renderer projections observe one atomic semantic transition.
+            | PatchOperation::SetAssembly { .. }
+            | PatchOperation::SetFitting { .. }
+            | PatchOperation::SetValidation { .. }
+            | PatchOperation::SetMovieExport { .. }
+            | PatchOperation::SetSnapshot { .. }
     )
 }

@@ -19,17 +19,37 @@ use molgfx_core::Scene;
 use molgfx_gpu::Queue as _;
 use molgfx_gpu::{Device, Surface as _, SurfaceError, SurfaceFrame as _};
 use molgfx_math::Camera;
-// Uses the host monotonic clock on both native and browser targets, matching
-// the profiling path so the two frame-time sources stay comparable.
-use web_time::Instant;
+
+/// Returns the number of frame submissions currently pending completion.
+#[inline]
+fn pending_frame_submissions<D: Device>(engine: &Engine<D>) -> u32 {
+    u32::from(engine.frame_submission_pending)
+}
+
+/// Converts a duration to nanoseconds, saturating instead of panicking on
+/// overflow.
+#[inline]
+fn duration_ns(duration: std::time::Duration) -> u64 {
+    match u64::try_from(duration.as_nanos()) {
+        Ok(nanos) => nanos,
+        Err(_) => u64::MAX,
+    }
+}
 
 impl<D: Device> Engine<D> {
     /// Uploads everything the scene changed since the previous frame.
     ///
-    /// Returns whether any of it changed, and restarts temporal accumulation
-    /// when it did or while uploads are still in flight.
+    /// Returns whether scene data changed and invalidates temporal convergence
+    /// when scene data changed or uploads remain in flight.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when occupancy preparation, scene synchronization, or
+    /// chunk residency synchronization fails.
     fn sync_scene(&mut self, scene: &Scene) -> Result<bool, RenderError> {
         self.ensure_occupancy(scene)?;
+        self.chunk_residency.poll(&self.device, &self.queue)?;
+
         let scene_changed = self.scene_gpu.sync(crate::scene_gpu::SceneSync {
             device: &self.device,
             queue: &self.queue,
@@ -40,6 +60,7 @@ impl<D: Device> Engine<D> {
             derived_cache: &mut self.derived_cache,
             derived_frame: self.derived_frame,
         })?;
+
         self.chunk_residency.sync_scene(
             &mut self.scene_gpu,
             &self.device,
@@ -47,54 +68,137 @@ impl<D: Device> Engine<D> {
             &mut self.derived_cache,
             self.derived_frame,
         )?;
+        self.chunk_residency.flush(&self.device, &self.queue)?;
+
         self.derived_frame = self.derived_frame.wrapping_add(1);
-        if scene_changed || self.chunk_residency.metrics().uploads.active_tickets != 0 {
+
+        if scene_changed {
             self.temporal.invalidate_convergence();
         }
+
         Ok(scene_changed)
+    }
+
+    /// Updates the cached temporal scene identity.
+    ///
+    /// Returns `true` when the identity changed. An unchanged scene avoids an
+    /// unnecessary write to the cached identity on the steady-state path.
+    #[inline]
+    fn update_temporal_scene_identity(&mut self, scene: &Scene) -> bool {
+        let identity = scene.cache_identity();
+        let changed = self.temporal_scene_identity != Some(identity);
+
+        if changed {
+            self.temporal_scene_identity = Some(identity);
+        }
+
+        changed
+    }
+
+    /// Returns whether temporal accumulation must restart for the current frame.
+    #[inline]
+    fn temporal_reset_required(
+        &self,
+        scene_reset: bool,
+        pool_rebuilt: bool,
+        camera_changed: bool,
+    ) -> bool {
+        scene_reset || pool_rebuilt || (self.mode == RenderMode::Cinematic && camera_changed)
     }
 
     /// Renders one frame of the scene to the presentation surface.
     ///
-    /// A lost or outdated surface reconfigures and returns
-    /// [`FrameStatus::Skipped`]; the next frame recovers. Nothing panics on
-    /// conditions a caller can hit.
+    /// A lost or outdated surface is reconfigured and returns
+    /// `FrameStatus::Skipped`; the next frame recovers. Caller-reachable
+    /// conditions do not panic.
     ///
     /// # Errors
     ///
-    /// Device loss beyond surface recovery, or graph reconstruction
-    /// failures.
+    /// Returns an error for unrecoverable GPU errors, scene synchronization
+    /// failures, or render-graph resource reconstruction failures.
     pub fn render(&mut self, scene: &Scene, camera: &Camera) -> Result<FrameReport, RenderError> {
-        let frame_start = Instant::now();
+        // On native targets the adaptive controller observes this call's CPU
+        // duration — synchronization, recording and submission included. The
+        // submission itself is asynchronous there, so measuring host time is
+        // the honest per-frame cost; the fence poll at the top of the next
+        // call deliberately does not sample a second time. On browser targets
+        // submission returns immediately, so the controller instead samples
+        // submission-to-fence-completion elapsed time in
+        // `poll_pending_submission`; measuring this call there would classify
+        // queued GPU work as free.
+        #[cfg(not(target_arch = "wasm32"))]
+        let render_started_at = self.clock_origin.elapsed();
+
+        if self.poll_pending_submission()? {
+            // Fence-only skip: the previous submission is still pending.
+            // This is not surface/pool work that a retry produces; whether
+            // another frame is needed is decided by the report's upload and
+            // temporal conditions below.
+            return Ok(self.frame_report(FrameStatus::Skipped, true));
+        }
+
+        self.prepare_frame(scene, camera)?;
+
+        let Some(frame) = self.acquire_surface_frame()? else {
+            return Ok(self.frame_report(FrameStatus::Skipped, false));
+        };
+
+        let mut encoder = self.device.create_command_encoder();
+
+        if !self.record_frame(&mut encoder, scene, frame.view()) {
+            return Ok(self.frame_report(FrameStatus::Skipped, false));
+        }
+
+        self.submit_frame(encoder);
+        self.device.check_errors()?;
+        frame.present();
+
+        // CPU encoding/submission cost for the native adaptive loop. This is
+        // not device execution time; GPU time needs timestamp queries.
+        #[cfg(not(target_arch = "wasm32"))]
+        self.adaptive
+            .observe(duration_ns(self.clock_origin.elapsed() - render_started_at));
+
+        Ok(self.frame_report(FrameStatus::Presented, false))
+    }
+
+    /// Synchronizes CPU/GPU state and prepares per-frame temporal uniforms.
+    ///
+    /// Scene specializations are settled once here before command recording,
+    /// avoiding redundant specialization work during the presented-frame path.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for GPU validation or device failures, scene
+    /// synchronization failures, pool reconstruction failures, optics
+    /// resolution failures, or frame-uniform upload failures.
+    fn prepare_frame(&mut self, scene: &Scene, camera: &Camera) -> Result<(), RenderError> {
         self.sync_quality_tier();
         self.device.check_errors()?;
+
         self.chunk_residency.begin_epoch();
         self.scene_gpu.begin_frame();
-        // Sync: upload only what changed since the last frame.
-        let scene_changed = self.sync_scene(scene)?;
 
-        // Build: (re)allocate the transient pool when the size changed.
-        let rebuild = self.rebuild_pool_if_needed()?;
-        // Settle: every generated pipeline this frame will draw is resolved
-        // before any pass opens a render pass, so recording only reads what
-        // this phase compiled.
+        let scene_changed = self.sync_scene(scene)?;
+        let pool_rebuilt = self.rebuild_pool_if_needed()?;
+
         self.scene_gpu
             .settle_specializations(&self.device, scene, &self.passes);
+
         let camera_changed = self.temporal.camera_changed(camera);
-        let identity = scene.cache_identity();
-        let scene_reset = self.temporal_scene_identity.replace(identity) != Some(identity);
+        let scene_reset = self.update_temporal_scene_identity(scene);
         let cinematic = self.tier() >= QualityTier::Standard;
+
         let optics = self.resolve_optics(scene, camera)?;
         let shadow =
             self.shadow_bound
                 .fit(scene, camera, self.resolved_plan.lighting(), scene_changed);
+
         let uniforms = self.temporal.prepare(
             camera,
             &TemporalOptions {
                 extent: [self.width, self.height],
-                reset: scene_reset
-                    || rebuild
-                    || (self.mode == RenderMode::Cinematic && camera_changed),
+                reset: self.temporal_reset_required(scene_reset, pool_rebuilt, camera_changed),
                 quality: cinematic,
                 publication: false,
                 illustration: self.resolved_plan.illustration(),
@@ -112,108 +216,195 @@ impl<D: Device> Engine<D> {
                 shadow_view_proj: shadow.view_projection,
             },
         );
-        self.scene_gpu
-            .write_frame_uniforms(&self.queue, &uniforms)?;
-        let frame = self.acquire_surface_frame()?;
-        let Some(frame) = frame else {
-            // Off-screen targets arrive with the image-render path.
-            return Ok(self.frame_report(FrameStatus::Skipped));
-        };
-        let temporal_write = self.temporal.write_index();
 
-        // Record every pass in schedule order into one encoder.
-        let mut encoder = self.device.create_command_encoder();
-        self.scene_gpu
-            .settle_specializations(&self.device, scene, &self.passes);
-        self.record_scene_compute(&mut encoder, cinematic);
+        self.scene_gpu.write_frame_uniforms(&self.queue, &uniforms)
+    }
+
+    /// Records compute work and render-graph passes into the frame encoder.
+    ///
+    /// Returns `false` when no transient pool is available.
+    ///
+    /// `scene` remains part of the existing signature for compatibility.
+    /// Specialization settlement is performed once by `prepare_frame` before
+    /// this method is reached.
+    fn record_frame(
+        &mut self,
+        encoder: &mut D::CommandEncoder,
+        scene: &Scene,
+        swapchain: &D::TextureView,
+    ) -> bool {
+        // Preserve the existing signature without repeating specialization work.
+        let _ = scene;
+
+        let cinematic = self.tier() >= QualityTier::Standard;
+
+        self.record_scene_compute(encoder, cinematic);
+
         let Some(pool) = &self.pool else {
-            return Ok(self.frame_report(FrameStatus::Skipped));
+            return false;
         };
-        {
-            let table = ResourceTable {
-                pool,
-                swapchain: frame.view(),
+
+        let table = ResourceTable { pool, swapchain };
+
+        for &index in &self.order {
+            let Some(node) = self.pass_nodes.get(index) else {
+                continue;
             };
-            for &index in &self.order {
-                let Some(node) = self.pass_nodes.get(index) else {
-                    continue;
-                };
-                let mut ctx = PassContext {
-                    encoder: &mut encoder,
-                    resources: &table,
-                    passes: &self.passes,
-                    bindings: self.bindings.as_ref(),
-                    scene: &self.scene_gpu,
-                    timestamps: None,
-                    temporal_write,
-                    quality: cinematic,
-                    display_encoding: self.display_encoding(),
-                };
-                (node.record)(&mut ctx);
+
+            let mut ctx = PassContext {
+                encoder: &mut *encoder,
+                resources: &table,
+                passes: &self.passes,
+                bindings: self.bindings.as_ref(),
+                scene: &self.scene_gpu,
+                timestamps: None,
+                temporal_write: self.temporal.write_index(),
+                quality: cinematic,
+                display_encoding: self.display_encoding(),
+            };
+
+            (node.record)(&mut ctx);
+        }
+
+        true
+    }
+
+    /// Submits the recorded frame once and updates submission bookkeeping.
+    ///
+    /// The submission timestamp is host time when the encoder reached the
+    /// queue; the completion timestamp is cleared and stays unset until a
+    /// later poll observes the backend fence. That fence fires when submitted
+    /// GPU work is done *executing* on the device, strictly later than host
+    /// queue-completion, and is never GPU execution time itself.
+    fn submit_frame(&mut self, encoder: D::CommandEncoder) {
+        self.last_submission_id = self.last_submission_id.wrapping_add(1);
+        self.last_submission_timestamp_ns = duration_ns(self.clock_origin.elapsed());
+        self.last_completion_timestamp_ns = None;
+
+        self.last_frame_submission = self.queue.submit_tracked(encoder);
+        self.frame_submission_pending = true;
+
+        // Only the browser adaptive loop samples submission-to-completion
+        // elapsed time, so only it needs the submission moment recorded.
+        #[cfg(target_arch = "wasm32")]
+        {
+            self.frame_submitted_at = Some(self.clock_origin.elapsed());
+        }
+    }
+
+    /// Polls the submission fence and updates completion timing.
+    ///
+    /// Returns whether the most recent frame submission remains pending.
+    ///
+    /// A pending-to-complete transition records the host completion
+    /// timestamp. That timestamp is host-observation latency, not exact device
+    /// completion time: the backend fence callback may have fired earlier, and
+    /// the poll that notices it runs on the host clock. GPU execution time is
+    /// not reported here at all; it requires timestamp queries and belongs to
+    /// the profiling path.
+    ///
+    /// On browser targets a completed submission also feeds one
+    /// submission-to-completion elapsed time to the adaptive controller. The
+    /// sample includes host scheduling latency between submit and the fence
+    /// callback, so it is a conservative queue-depth signal, not device time.
+    /// On native targets this poll is a no-op for the controller: `render`
+    /// already measured the frame's full CPU duration before returning, and a
+    /// second observation here would double-count the frame.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the device cannot report the completed fence.
+    fn poll_pending_submission(&mut self) -> Result<bool, RenderError> {
+        let was_pending = self.frame_submission_pending;
+        let completed = self.queue.completed_fence(&self.device)?;
+
+        self.frame_submission_pending = completed < self.last_frame_submission;
+
+        if was_pending && !self.frame_submission_pending {
+            self.last_completion_timestamp_ns = Some(duration_ns(self.clock_origin.elapsed()));
+
+            // Only the browser path has an empty controller sample here. On
+            // native, `render` observed the complete CPU duration, so a fence
+            // observation would double-count this frame's budget.
+            #[cfg(target_arch = "wasm32")]
+            if let Some(submitted_at) = self.frame_submitted_at.take() {
+                self.adaptive.observe(duration_ns(
+                    self.clock_origin.elapsed().saturating_sub(submitted_at),
+                ));
             }
         }
 
-        // One submission, then present.
-        self.queue.submit(encoder);
-        self.device.check_errors()?;
-        frame.present();
-        // The report describes the frame that was just rendered, so it is
-        // captured before the loop advances.
-        let report = self.frame_report(FrameStatus::Presented);
-        // Close the loop: this frame's real duration decides the tier the next
-        // frame builds at. That frame republishes the tier at its top, which is
-        // also where a move restarts accumulation.
-        // Kept in u64 throughout: a frame that outruns u64 nanoseconds is
-        // already slower than any tier can act on, so the arithmetic saturates.
-        let frame_time = frame_start.elapsed();
-        let elapsed = frame_time
-            .as_secs()
-            .saturating_mul(1_000_000_000)
-            .saturating_add(u64::from(frame_time.subsec_nanos()));
-        self.adaptive.observe(elapsed);
-        Ok(report)
+        Ok(self.frame_submission_pending)
     }
 
+    /// Records scene-level compute passes required before render-graph passes.
+    ///
+    /// Coordinate-change signals are combined without allocating and drive
+    /// dynamic relation resolution exactly once.
     fn record_scene_compute(&mut self, encoder: &mut D::CommandEncoder, cinematic: bool) {
         self.passes
             .cull
             .record_attribute_timelines(&self.scene_gpu, encoder);
+
         self.passes
             .cull
             .record_instance_timelines(&self.scene_gpu, encoder);
+
         let point_coordinates_changed = self
             .passes
             .cull
             .record_point_timelines(&self.scene_gpu, encoder);
+
         self.scene_gpu
             .record_particle_motion(encoder, &self.passes.particle_motion);
+
         let structure_coordinates_changed =
             self.scene_gpu
                 .record_trajectories(encoder, &self.passes.trajectory, None);
+
         let paged_coordinates_changed = self
             .passes
             .cull
             .record_paged_trajectories(&self.scene_gpu, encoder);
+
+        let coordinates_changed =
+            structure_coordinates_changed || paged_coordinates_changed || point_coordinates_changed;
+
         self.scene_gpu.record_dynamic_relations(
             encoder,
             &self.passes.relation_resolve,
-            structure_coordinates_changed || paged_coordinates_changed || point_coordinates_changed,
+            coordinates_changed,
         );
+
         self.scene_gpu
             .record_occupancies(encoder, self.passes.occupancy.as_ref());
+
         self.scene_gpu.record_surface_fields(
             encoder,
             &self.passes.surface_field,
             &self.passes.surface_components,
         );
+
         self.scene_gpu.record_quality_hardware(encoder, cinematic);
     }
 
-    fn frame_report(&self, status: FrameStatus) -> FrameReport {
+    /// Builds the externally visible report for the current frame state.
+    ///
+    /// The report samples existing counters and resource metrics without
+    /// introducing heap allocation in this layer.
+    ///
+    /// `fence_pending` marks the skip as a poll of a still-pending previous
+    /// submission. Such a skip is not surface or pool work that the next
+    /// frame recovers, so it does not by itself request another frame:
+    /// pending uploads and temporal convergence remain authoritative. A
+    /// surface/pool skip (`fence_pending == false`) keeps the existing
+    /// retry-next-frame contract.
+    fn frame_report(&self, status: FrameStatus, fence_pending: bool) -> FrameReport {
         let residency = self.chunk_residency.metrics();
         let derived = self.derived_cache.usage();
         let physical = self.device.resource_memory();
         let pending = residency.uploads.active_tickets;
+
         FrameReport {
             status,
             completeness: if pending == 0 {
@@ -224,11 +415,15 @@ impl<D: Device> Engine<D> {
                 }
             },
             degradation: FrameDegradation::streaming_proxy(
-                self.mode == RenderMode::Realtime && pending > 0,
+                self.mode == RenderMode::Realtime && pending != 0,
             ),
             metrics: FrameMetrics {
                 tracked_chunks: residency.tracked_chunks,
                 upload_in_flight_bytes: residency.uploads.in_flight_bytes,
+                pending_frame_submissions: pending_frame_submissions(self),
+                last_submission_id: self.last_submission_id,
+                submission_timestamp_ns: self.last_submission_timestamp_ns,
+                completion_timestamp_ns: self.last_completion_timestamp_ns,
                 derived_cache_gpu_bytes: derived.gpu_bytes,
                 derived_cache_peak_gpu_bytes: derived.peak_gpu_bytes,
                 physical_buffer_bytes: physical.buffer_bytes,
@@ -236,41 +431,51 @@ impl<D: Device> Engine<D> {
                 physical_total_bytes: physical.total_bytes(),
                 physical_peak_bytes: physical.peak_bytes,
             },
-            needs_another_frame: status == FrameStatus::Skipped
-                || pending != 0
-                || self
-                    .temporal
-                    .needs_another_frame(self.tier().temporal_samples()),
+            needs_another_frame: (status == FrameStatus::Skipped && !fence_pending) || pending != 0,
             quality_tier: self.tier(),
         }
     }
-
-    /// The display encoding this frame presents for.
     ///
     /// Selects a pre-built tonemap pipeline rather than a per-pixel branch, so
     /// the encoding is fixed for the whole frame by construction.
+    #[inline]
     pub(super) fn display_encoding(&self) -> DisplayEncoding {
         let display = self.resolved_plan.display();
+
         DisplayEncoding {
             gamut: display.gamut,
             transfer: display.transfer,
         }
     }
 
+    /// Rebuilds transient render resources when the presentation extent changes.
+    ///
+    /// Existing bindings and the old pool are released before allocating the
+    /// replacement pool, minimizing peak RSS during resize.
+    ///
+    /// Returns `true` when a rebuild occurred.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the transient pool cannot be built.
     pub(super) fn rebuild_pool_if_needed(&mut self) -> Result<bool, RenderError> {
         let rebuild = self
             .pool
             .as_ref()
             .is_none_or(|pool| !pool.matches(self.width, self.height));
+
         if !rebuild {
             return Ok(false);
         }
+
         let plan = plan_aliases(&self.resources, &self.pass_nodes, &self.order);
+
         // Old views keep their textures alive. Release bindings first so a
         // resize only reserves the new pool, including a large-to-small resize.
         self.bindings = None;
         self.pool = None;
         self.temporal.reset();
+
         self.pool = Some(TransientPool::build(
             &self.device,
             &self.resources,
@@ -278,21 +483,35 @@ impl<D: Device> Engine<D> {
             self.width,
             self.height,
         )?);
+
         self.bindings = self
             .pool
             .as_ref()
             .and_then(|pool| FrameBindings::new(&self.device, pool, &self.passes));
+
         Ok(true)
     }
 
+    /// Acquires the next presentation frame and handles recoverable surfaces.
+    ///
+    /// Lost and outdated surfaces are reconfigured and reported as `None`.
+    /// Timeouts are also reported as `None`, allowing the caller to skip the
+    /// current frame rather than failing or blocking.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for surface failures other than lost, outdated, or
+    /// timeout conditions.
     fn acquire_surface_frame(
         &mut self,
     ) -> Result<Option<<D::Surface as molgfx_gpu::Surface<D>>::Frame>, RenderError> {
         let Some(surface) = &mut self.surface else {
             return Ok(None);
         };
+
         match surface.acquire() {
             Ok(frame) => Ok(Some(frame)),
+
             Err(SurfaceError::Lost | SurfaceError::Outdated) => {
                 surface.configure(
                     &self.device,
@@ -302,9 +521,12 @@ impl<D: Device> Engine<D> {
                         format: self.target_format,
                     },
                 );
+
                 Ok(None)
             }
+
             Err(SurfaceError::Timeout) => Ok(None),
+
             Err(error) => Err(RenderError::Gpu(error.into())),
         }
     }

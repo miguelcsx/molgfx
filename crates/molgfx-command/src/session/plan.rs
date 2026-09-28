@@ -9,8 +9,10 @@ use super::state::{LayerSpec, RuleSpec, State};
 use crate::error::{CommandError, ErrorKind, Span};
 use crate::ir::{ColorValue, Command, Look, Name, QueryText, Show, Target};
 use crate::registry;
-use molgfx_api::{AppearanceRuleSpec, PatchOperation, SceneTransaction, StructureId};
-
+use molgfx_api::{
+    AppearanceRuleSpec, PatchOperation, SceneTransaction, ScientificInteractionId,
+    ScientificInteractionSpec, StructureId,
+};
 pub(crate) struct Planner<'a> {
     pub(crate) state: State,
     pub(crate) transaction: SceneTransaction,
@@ -54,6 +56,22 @@ impl Planner<'_> {
                 self.state.spec.focus = Some(declared);
                 Ok(())
             }
+            Command::Interaction { interaction } => self.interaction(interaction),
+            Command::Assembly { assembly } => self.domain(PatchOperation::SetAssembly {
+                assembly: assembly.clone(),
+            }),
+            Command::Fitting { fitting } => self.domain(PatchOperation::SetFitting {
+                fitting: fitting.clone(),
+            }),
+            Command::Validation { findings } => self.domain(PatchOperation::SetValidation {
+                findings: findings.clone(),
+            }),
+            Command::MovieExport { request } => self.domain(PatchOperation::SetMovieExport {
+                request: request.clone(),
+            }),
+            Command::Snapshot { snapshot } => self.domain(PatchOperation::SetSnapshot {
+                snapshot: snapshot.clone(),
+            }),
             Command::Unfocus => {
                 self.transaction
                     .stage(PatchOperation::SetFocus { selection: None })
@@ -68,6 +86,43 @@ impl Planner<'_> {
         }
     }
 
+    fn domain(&mut self, operation: PatchOperation) -> Result<(), CommandError> {
+        self.transaction
+            .stage(operation)
+            .map_err(|error| scene_error(&error))
+    }
+    fn interaction(&mut self, interaction: &ScientificInteractionSpec) -> Result<(), CommandError> {
+        // The command path accepts only the API's explicit variant. The API
+        // validates anchors against the scene when this patch is staged; no
+        // chemistry or MolFrame analysis occurs here.
+        if !matches!(interaction, ScientificInteractionSpec::Explicit { .. }) {
+            return Err(CommandError::new(
+                ErrorKind::Scene,
+                "scientific interactions must be explicit caller-supplied values",
+            ));
+        }
+        let next = self
+            .transaction
+            .spec()
+            .scientific_interactions
+            .keys()
+            .next_back()
+            .map_or(Some(1), |id| id.get().checked_add(1));
+        let Some(next) = next else {
+            return Err(CommandError::new(
+                ErrorKind::Scene,
+                "scientific interaction identity space is exhausted",
+            ));
+        };
+        let id = ScientificInteractionId::new(next);
+        self.transaction
+            .stage(PatchOperation::AddScientificInteraction {
+                id,
+                interaction: interaction.clone(),
+            })
+            .map_err(|error| scene_error(&error))
+    }
+
     fn resolver(&self) -> Resolver<'_> {
         Resolver {
             state: &self.state,
@@ -76,6 +131,12 @@ impl Planner<'_> {
     }
 
     fn select(&mut self, name: &Name, query: &QueryText) -> Result<(), CommandError> {
+        if name.as_str() == "sel" {
+            return Err(CommandError::new(
+                ErrorKind::Conflict,
+                "'sel' is reserved for the current semantic selection",
+            ));
+        }
         let resolver = self.resolver();
         resolver.check_references(query)?;
         if let Some(path) = query
@@ -100,6 +161,7 @@ impl Planner<'_> {
             .state
             .aliases
             .define(name.as_str(), query.query().clone());
+        self.resolver().selection(query)?;
         if previous.is_some() {
             self.follow(name)?;
         }
@@ -192,14 +254,18 @@ impl Planner<'_> {
         if !show.duplicate
             && let Some((name, id)) = self.existing(structure, &declared, show)
         {
-            self.transaction.set_visible(id, true);
+            self.transaction
+                .stage(PatchOperation::SetVisibility { id, visible: true })
+                .map_err(|error| scene_error(&error))?;
             if let Some(color) = color {
                 self.transaction
                     .set_color(id, color)
                     .map_err(|error| scene_error(&error))?;
             }
             if let Some(opacity) = opacity {
-                self.transaction.set_opacity(id, opacity);
+                self.transaction
+                    .stage(PatchOperation::SetOpacity { id, opacity })
+                    .map_err(|error| scene_error(&error))?;
             }
             self.messages
                 .push(format!("layer '@{name}' already draws this; it is shown"));
@@ -274,7 +340,9 @@ impl Planner<'_> {
 
     fn visibility(&mut self, layer: &Name, visible: bool) -> Result<(), CommandError> {
         let id = self.layer(layer)?.id;
-        self.transaction.set_visible(id, visible);
+        self.transaction
+            .stage(PatchOperation::SetVisibility { id, visible })
+            .map_err(|error| scene_error(&error))?;
         Ok(())
     }
 

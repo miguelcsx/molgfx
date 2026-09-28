@@ -9,15 +9,24 @@ use crate::{Color, Error, Scene, SceneItem};
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
+#[path = "surfaces_tests.rs"]
+mod surfaces_tests;
+#[cfg(test)]
 mod tests;
 
 pub(crate) mod bindings;
 mod builders;
 pub(crate) mod lower;
+mod surfaces;
 mod validation;
 pub(crate) use bindings::ScienceBindings;
-pub use bindings::{ScientificHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding};
+pub use bindings::{
+    ScientificHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding, VolumeStatistics,
+};
 pub use builders::{annotation, density, interaction, measurement, trajectory};
+pub use surfaces::{
+    AssemblyInstance, AssemblySpec, FitResult, MovieExportRequest, UnitCellSpec, ValidationFinding,
+};
 
 /// Portable origin for bulk data stored outside [`crate::SceneSpec`].
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]

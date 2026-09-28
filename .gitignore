@@ -28,6 +28,9 @@ target
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# The browser runtime wasm-bindgen writes into the viewer's static directory;
-# releases build it and place it in every wheel.
+# molgfx-viewer/scripts/build.mjs assembles this directory from the wasm-pack
+# runtime and the bundled widget; releases build it and place it in every wheel.
 python/molgfx/viewer/static/molgfx_wasm*
+python/molgfx/viewer/static/widget.js
+python/molgfx/viewer/static/widget.js.map
+python/molgfx/viewer/static/widget.css

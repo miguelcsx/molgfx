@@ -24,4 +24,7 @@ The quickstart uses haemoglobin (PDB 4HHB), cartoon context, and a space-filling
 - **MolGFX**: scenes, representations, appearance, interaction state, rendering, and browser transport.
 - **Your application**: where structures come from, when to render, and where images or widgets are displayed.
 
-That division keeps the selection syntax consistent. Pass a MolFrame query object or its query text to a MolGFX target; start with [Writing queries and commands](/docs/commands/queries), and see the [MolFrame query reference](https://miguelcsx.github.io/molframe/docs/query-language/) for the full language.
+That division keeps the selection syntax consistent. Pass a MolFrame query object or its query text to a MolGFX target; consult the [MolFrame documentation](https://miguelcsx.github.io/molframe/) for the full query language.
+## Verification status
+
+The documented ownership boundary is implemented: MolFrame owns structure identity and query evaluation, while MolGFX owns scene state, representations, interaction, rendering, and transport. This page does not certify an end-to-end browser, Python, notebook, or WebGPU run. The observed MolGFX Python run contained 65 tests and one known failure in `test_workbench_viewer.py:325` (`test_a_settled_scene_does_not_schedule_more_browser_frames`: two frames were observed instead of zero). Browser screenshots, Firefox/WebKit coverage, Jupyter/Colab round trips, and unsupported-hardware behavior remain unverified.

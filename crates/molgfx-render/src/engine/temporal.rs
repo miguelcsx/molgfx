@@ -131,7 +131,8 @@ impl TemporalState {
     }
 
     pub(crate) fn prepare(&mut self, camera: &Camera, options: &TemporalOptions) -> FrameUniforms {
-        if self.camera_changed(camera) {
+        let camera_changed = self.camera_changed(camera);
+        if camera_changed {
             self.invalidate_convergence();
         }
         if options.reset
@@ -141,7 +142,14 @@ impl TemporalState {
         {
             self.reset();
         }
-        let jitter = JITTER[(self.frame_index as usize) % JITTER.len()];
+        // Camera motion is already changing the image every frame. Sampling a
+        // different projection then creates visible subpixel swimming instead
+        // of useful convergence, so only stable frames use the Halton sequence.
+        let jitter = if camera_changed {
+            [0.0; 2]
+        } else {
+            JITTER[(self.frame_index as usize) % JITTER.len()]
+        };
         let uniforms = FrameUniforms::new(
             camera,
             options.extent[0],
@@ -180,10 +188,6 @@ impl TemporalState {
             Some(previous) => previous != *camera,
             None => true,
         }
-    }
-
-    pub(crate) const fn needs_another_frame(&self, sample_budget: u8) -> bool {
-        self.settled_frames < sample_budget
     }
 }
 

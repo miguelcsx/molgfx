@@ -15,8 +15,10 @@ use crate::id::{
 };
 use crate::representation::Selection;
 use crate::representation::form::RepresentationSpec;
+use crate::scene::domains::SceneSnapshot;
 use crate::science::{
-    AnnotationSpec, MeasurementSpec, ScientificInteractionSpec, TrajectorySpec, VolumeSpec,
+    AnnotationSpec, AssemblySpec, FitResult, MeasurementSpec, MovieExportRequest,
+    ScientificInteractionSpec, TrajectorySpec, ValidationFinding, VolumeSpec,
 };
 use crate::spec::{InteractionChannel, SceneSpec, StructureSource};
 use crate::{ParameterValue, VisualStyle};
@@ -56,7 +58,14 @@ pub enum PatchOperation {
         /// Volume to remove.
         id: VolumeId,
     },
-    /// Inserts a semantic annotation.
+    /// Changes the isovalue used to present a density volume.
+    SetVolumeIsovalue {
+        /// Volume to update.
+        id: VolumeId,
+        /// New finite density isovalue.
+        isovalue: f32,
+    },
+    /// Inserts an annotation.
     AddAnnotation {
         /// Stable annotation identity.
         id: AnnotationId,
@@ -199,8 +208,33 @@ pub enum PatchOperation {
     },
     /// Replaces renderer-independent view state.
     SetCamera {
-        /// New explicit camera, or `None` to restore automatic framing.
+        /// New explicit camera, or None to restore automatic framing.
         camera: Option<molgfx_math::Camera>,
+    },
+    /// Replaces the retained crystallographic assembly and unit-cell state.
+    SetAssembly {
+        /// Assembly metadata, or None to clear the choice.
+        assembly: Option<AssemblySpec>,
+    },
+    /// Replaces the retained native fitting result.
+    SetFitting {
+        /// Fitting result, or None to clear it.
+        fitting: Option<FitResult>,
+    },
+    /// Replaces caller-computed validation findings.
+    SetValidation {
+        /// Findings in deterministic source order.
+        findings: Vec<ValidationFinding>,
+    },
+    /// Replaces the deterministic movie export request.
+    SetMovieExport {
+        /// Request, or None to clear it.
+        request: Option<MovieExportRequest>,
+    },
+    /// Retains a portable scene snapshot for host restoration.
+    SetSnapshot {
+        /// Snapshot, or None to clear it.
+        snapshot: Option<SceneSnapshot>,
     },
 }
 

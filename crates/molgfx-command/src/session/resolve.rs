@@ -17,7 +17,7 @@ impl Resolver<'_> {
         match query
             .references()
             .into_iter()
-            .find(|reference| self.state.selection(reference).is_none())
+            .find(|reference| *reference != "sel" && self.state.selection(reference).is_none())
         {
             Some(missing) => Err(self.unknown_selection(missing)),
             None => Ok(()),

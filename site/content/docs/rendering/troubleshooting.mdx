@@ -26,3 +26,10 @@ Start from `protein`, `ligand`, or a named ligand selection. Use `scene.focus("r
 ## Native image rendering cannot open a device
 
 Call `molgfx.system_info()` and inspect `available_adapters`. Update the platform graphics driver or render on a machine with a compatible adapter. Do not assume browser WebGPU availability implies that a headless native environment can open the same device.
+## Completion metrics are not interchangeable
+
+Frame reports distinguish submission, callback-recorded host completion, and device timestamp execution when the backend supports GPU timestamps. Browser callback latency is not exact GPU execution time, and unsupported timestamp queries are unavailable rather than zero. A settled scene should not continue submitting frames merely to poll completion; completion callbacks wake only work that is pending.
+
+## Verification status
+
+The renderer lifecycle contract above is documented for the current workbench effort. No browser or native performance run is claimed here. The known settled-scene regression remains recorded as observed in the Python run: `test_a_settled_scene_does_not_schedule_more_browser_frames` at `molgfx/python/tests/test_workbench_viewer.py:325` saw two frames instead of zero. Cross-engine WebGPU capability, idle RAF/submission counts, queue bounds, timestamp support, high-DPI picking, and before/after frame-path measurements remain unverified.

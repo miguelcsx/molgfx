@@ -3,7 +3,7 @@
 use crate::{ChunkId, ChunkSpan, DatasetId, EntityKind, LocalRow, LogicalRow, PickingError};
 
 /// Global, collision-free provenance of one picked entity.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct GlobalPickIdentity {
     dataset: DatasetId,
     chunk: ChunkId,
@@ -53,7 +53,7 @@ impl GlobalPickIdentity {
     }
 }
 
-/// Provenance shared by every local row in one resident picking page.
+/// Describes the chunk-local row range represented by one resident page.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PickPageDescriptor {
     dataset: DatasetId,

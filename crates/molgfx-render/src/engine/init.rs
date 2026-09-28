@@ -1,5 +1,4 @@
 //! Engine construction: device open, pass creation, graph declaration.
-
 use super::graph_setup::{realtime_nodes, realtime_resources};
 use super::{
     AdaptiveQuality, DerivedCache, EngineConfig, FocusTracker, GpuProfiler, PassRegistry, Picker,
@@ -16,8 +15,10 @@ use crate::passes::{
     SurfaceComponentPass, SurfaceFieldPass, SurfacePass, TemporalPass, TonemapPass, TrajectoryPass,
 };
 use crate::scene_gpu::GpuScene;
-use molgfx_gpu::{Device, DeviceDesc, Opened, TextureFormat, WindowTarget};
 
+use molgfx_gpu::FenceValue;
+use molgfx_gpu::{Device, DeviceDesc, Opened, TextureFormat, WindowTarget};
+use web_time::Instant;
 /// The rendering engine, generic over the device with no dynamic dispatch
 /// on the frame path.
 #[derive(Debug)]
@@ -50,6 +51,22 @@ pub struct Engine<D: Device> {
     pub(super) derived_frame: u64,
     pub(crate) host_working_set: molgfx_core::HostWorkingSet,
     pub(super) chunk_residency: ChunkGpuResidency<D>,
+    /// Monotonic origin used to make submission/completion timestamps
+    /// comparable without exposing platform-specific clock epochs.
+    pub(crate) clock_origin: Instant,
+    pub(crate) last_submission_id: u64,
+    pub(crate) last_submission_timestamp_ns: u64,
+    pub(crate) last_completion_timestamp_ns: Option<u64>,
+
+    pub(crate) last_frame_submission: FenceValue,
+
+    pub(crate) frame_submission_pending: bool,
+
+    /// Elapsed time at the most recent tracked submission, used only on
+    /// browser targets where the adaptive controller samples
+    /// submission-to-fence-completion instead of the render call.
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) frame_submitted_at: Option<std::time::Duration>,
 }
 
 fn cull_pass<D: Device>(device: &D, scene: &GpuScene<D>) -> Result<CullPass<D>, RenderError> {
@@ -280,6 +297,17 @@ impl<D: Device> Engine<D> {
             derived_frame: 0,
             host_working_set: molgfx_core::HostWorkingSet::new(config.source_budget),
             chunk_residency,
+            clock_origin: Instant::now(),
+            last_submission_id: 0,
+            last_submission_timestamp_ns: 0,
+            last_completion_timestamp_ns: None,
+
+            last_frame_submission: FenceValue::default(),
+
+            frame_submission_pending: false,
+
+            #[cfg(target_arch = "wasm32")]
+            frame_submitted_at: None,
         })
     }
 }

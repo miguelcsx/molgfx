@@ -16,7 +16,7 @@ import unittest
 
 import molgfx
 from molgfx.viewer import Workbench
-from molgfx.viewer.viewer import _runtime
+from molgfx.viewer._runtime import load_runtime
 
 from test_viewer import PAGE, STATIC, _LocalPage, structure, sync_playwright
 
@@ -24,7 +24,7 @@ from test_viewer import PAGE, STATIC, _LocalPage, structure, sync_playwright
 def _values(bench):
     """The synchronized state a frontend receives for ``bench``."""
     sources = bench.scene._browser_sources()
-    code, data, key = _runtime()
+    runtime = load_runtime()
     return {
         "scene_spec": bench.scene.to_json(),
         "scene_patch": "",
@@ -43,24 +43,31 @@ def _values(bench):
         "workbench": True,
         "history": [],
         "command_request": {},
+        "interaction_event": {},
+        "sequence_intervals": {},
+        "focus_preset": "",
+        "measurement_request": {},
+        "volume_sigma": {},
+        "trajectory_frame": {},
+        "trajectory_time": {},
         "command_reply": {},
-        "_runtime_js": code,
-        "_runtime_wasm": base64.b64encode(data).decode("ascii"),
-        "_runtime_key": key,
+        "_runtime_js": runtime.glue,
+        "_runtime_wasm": base64.b64encode(runtime.wasm_gzip).decode("ascii"),
+        "_runtime_key": runtime.key,
     }
 
 
-@unittest.skipUnless(_runtime()[2], "the browser runtime is not built")
+@unittest.skipUnless(load_runtime().key, "the browser runtime is not built")
 class RuntimeTransportTests(unittest.TestCase):
     def test_the_runtime_travels_compressed_and_inflates_to_the_packaged_binary(self):
-        _code, data, _key = _runtime()
+        data = load_runtime().wasm_gzip
         packaged = (STATIC / "molgfx_wasm_bg.wasm").read_bytes()
         self.assertEqual(gzip.decompress(data), packaged)
         self.assertLess(len(data), len(packaged) // 2)
 
 
 @unittest.skipUnless(sync_playwright is not None, "playwright is not installed")
-@unittest.skipUnless(_runtime()[2], "the browser runtime is not built")
+@unittest.skipUnless(load_runtime().key, "the browser runtime is not built")
 class WorkbenchPageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -98,6 +105,13 @@ class WorkbenchPageTests(unittest.TestCase):
 
     def tearDown(self):
         self.page.close()
+
+    def runtime(self):
+        """The page's live widget state, skipping when the GPU runtime is absent."""
+        setup_error = self.page.evaluate("window.__molgfx.setupError")
+        if setup_error:
+            self.skipTest(f"the browser runtime is unavailable: {setup_error}")
+        return self.page.evaluate("window.__molgfx.values")
 
     def test_the_runtime_loads_from_widget_state_alone(self):
         exports = self.page.evaluate(
@@ -183,7 +197,7 @@ class WorkbenchPageTests(unittest.TestCase):
                     return render.apply(this, args);
                 };
                 const canvas = document.querySelector(".molgfx-canvas");
-                const at = (x) => ({clientX: x, clientY: 50, pointerId: 1, bubbles: true});
+                const at = (x) => ({clientX: x, clientY: 50, pointerId: 1, isPrimary: true, bubbles: true});
                 canvas.dispatchEvent(new PointerEvent("pointerdown", at(10)));
                 for (let x = 11; x < 60; x += 1) canvas.dispatchEvent(new PointerEvent("pointermove", at(x)));
                 await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -194,6 +208,128 @@ class WorkbenchPageTests(unittest.TestCase):
         )
         self.assertGreaterEqual(draws, 1)
         self.assertLessEqual(draws, 2)
+    def test_hover_pick_requests_are_coalesced_and_bounded(self):
+        result = self.page.evaluate(
+            """async () => {
+                const {loadRuntime} = await import("./widget.js");
+                const runtime = await loadRuntime(window.__molgfx.model);
+                let active = 0;
+                let maximum = 0;
+                let calls = 0;
+                const pending = [];
+                runtime.Renderer.prototype.pick = function (x, y) {
+                    calls += 1;
+                    active += 1;
+                    maximum = Math.max(maximum, active);
+                    return new Promise((resolve) => pending.push(() => {
+                        active -= 1;
+                        resolve(JSON.stringify({x, y}));
+                    }));
+                };
+                const canvas = document.querySelector(".molgfx-canvas");
+                const move = (x) => canvas.dispatchEvent(new PointerEvent("pointermove", {
+                    clientX: x, clientY: 50, pointerId: 1, bubbles: true,
+                }));
+                for (let x = 10; x < 110; x += 1) move(x);
+                await new Promise((resolve) => requestAnimationFrame(resolve));
+                const beforeRelease = [calls, maximum, pending.length];
+                pending.shift()();
+                await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                while (pending.length) pending.shift()();
+                return {beforeRelease, calls, maximum};
+            }"""
+        )
+        self.assertLessEqual(result["maximum"], 1)
+        self.assertLessEqual(result["beforeRelease"][0], 1)
+        self.assertGreaterEqual(result["calls"], 2)
+
+    def test_hover_does_not_save_changes_to_the_kernel(self):
+        saved = self.page.evaluate(
+            """async () => {
+                const {loadRuntime} = await import("./widget.js");
+                const runtime = await loadRuntime(window.__molgfx.model);
+                runtime.Renderer.prototype.pick = () => Promise.resolve(JSON.stringify({hover: true}));
+                const before = window.__molgfx.saved.length;
+                document.querySelector(".molgfx-canvas").dispatchEvent(new PointerEvent("pointermove", {
+                    clientX: 30, clientY: 50, pointerId: 1, bubbles: true,
+                }));
+                await new Promise((resolve) => setTimeout(resolve, 50));
+                return window.__molgfx.saved.length - before;
+            }"""
+        )
+        self.assertEqual(saved, 0)
+
+    def test_pointerleave_discards_a_stale_hover_pick_result(self):
+        result = self.page.evaluate(
+            """async () => {
+                const {loadRuntime} = await import("./widget.js");
+                const runtime = await loadRuntime(window.__molgfx.model);
+                let resolvePick;
+                runtime.Renderer.prototype.pick = () => new Promise((resolve) => {
+                    resolvePick = resolve;
+                });
+                const canvas = document.querySelector(".molgfx-canvas");
+                canvas.dispatchEvent(new PointerEvent("pointermove", {
+                    clientX: 30, clientY: 50, pointerId: 1, bubbles: true,
+                }));
+                await new Promise((resolve) => requestAnimationFrame(resolve));
+                canvas.dispatchEvent(new PointerEvent("pointerleave", {bubbles: true}));
+                resolvePick(JSON.stringify({stale: true}));
+                await new Promise((resolve) => setTimeout(resolve, 25));
+                return [window.__molgfx.values.pick, window.__molgfx.values.selection];
+            }"""
+        )
+        self.assertEqual(result, [{}, ""])
+    def test_a_pick_returns_semantic_provenance_not_a_gpu_token(self):
+        before = self.page.evaluate("window.__molgfx.saved.length")
+        self.page.evaluate("""() => { const canvas = document.querySelector('.molgfx-canvas'); const b = canvas.getBoundingClientRect(); canvas.dispatchEvent(new MouseEvent('click', {clientX: b.left + b.width / 2, clientY: b.top + b.height / 2, bubbles: true})); }""")
+        self.page.wait_for_function("(before) => window.__molgfx.saved.length > before", arg=before)
+        pick = self.page.evaluate("window.__molgfx.values.pick")
+        self.assertEqual(pick["kind"], "atom")
+        self.assertEqual(pick["dataset"], 1)
+        self.assertIsInstance(pick["chunk"], int)
+        self.assertIsInstance(pick["row"], int)
+        self.assertIsNone(pick["volume_label"])
+
+    def test_resize_reconfigures_the_canvas_in_device_pixels(self):
+        sizes = self.page.evaluate("""async () => { const canvas = document.querySelector('.molgfx-canvas'); const before = [canvas.width, canvas.height]; document.getElementById('root').style.width = '320px'; await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))); return {before, after: [canvas.width, canvas.height], css: [canvas.clientWidth, canvas.clientHeight]}; }""")
+        self.assertNotEqual(sizes["before"], sizes["after"])
+        self.assertEqual(sizes["after"], sizes["css"])
+    def test_resize_tracks_device_pixel_ratio_without_gpu_measurements(self):
+        sizes = self.page.evaluate("""async () => {
+            const canvas = document.querySelector('.molgfx-canvas');
+            Object.defineProperty(window, 'devicePixelRatio', {configurable: true, value: 2});
+            document.getElementById('root').style.width = '280px';
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            return {canvas: [canvas.width, canvas.height], css: [canvas.clientWidth, canvas.clientHeight]};
+        }""")
+        self.assertEqual(sizes["canvas"], [2 * value for value in sizes["css"]])
+
+    def test_camera_publication_is_accepted_as_finite_vec3_state(self):
+        camera = self.page.evaluate("""async () => { const canvas = document.querySelector('.molgfx-canvas'); canvas.dispatchEvent(new WheelEvent('wheel', {deltaY: 20, bubbles: true, cancelable: true})); await new Promise((resolve) => setTimeout(resolve, 250)); return window.__molgfx.values.camera; }""")
+        for name in ("position", "target", "up"):
+            self.assertEqual(len(camera[name]), 3)
+            self.assertTrue(all(isinstance(value, (int, float)) and value == value for value in camera[name]))
+
+    def test_a_settled_scene_does_not_schedule_more_browser_frames(self):
+        self.runtime()
+        frames = self.page.evaluate(
+            """async () => {
+                const {loadRuntime} = await import("./widget.js");
+                const runtime = await loadRuntime(window.__molgfx.model);
+                const render = runtime.Renderer.prototype.renderCamera;
+                await new Promise((resolve) => setTimeout(resolve, 500));
+                let count = 0;
+                runtime.Renderer.prototype.renderCamera = function (...args) {
+                    count += 1;
+                    return render.apply(this, args);
+                };
+                await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                runtime.Renderer.prototype.renderCamera = render;
+                return count;
+            }"""
+        )
+        self.assertEqual(frames, 0)
 
     def test_the_kernel_hears_the_camera_once_after_a_wheel_burst(self):
         saved = self.page.evaluate(

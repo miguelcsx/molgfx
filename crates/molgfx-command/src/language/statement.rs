@@ -8,6 +8,27 @@ use crate::registry;
 
 /// Parses the statement at `span`.
 pub(super) fn parse(source: &str, span: Span) -> Result<Command, CommandError> {
+    // Explicit interactions are caller-supplied API values. Accept their
+    // JSON form without parsing or computing molecular chemistry here.
+    let initial = words(source, span);
+    if let Some(verb) = initial.first()
+        && verb.text == "interaction"
+    {
+        let payload = source[verb.span.end..span.end].trim();
+        if payload.is_empty() {
+            return Err(syntax(
+                "interaction needs an explicit JSON specification",
+                verb.span,
+            ));
+        }
+        let interaction = serde_json::from_str(payload).map_err(|error| {
+            syntax(
+                format!("invalid interaction specification: {error}"),
+                verb.span,
+            )
+        })?;
+        return Ok(Command::Interaction { interaction });
+    }
     let (head, tail) = match first_comma(source, span) {
         Some(comma) => (
             Span::new(span.start, comma),
@@ -48,6 +69,7 @@ pub(super) fn parse(source: &str, span: Span) -> Result<Command, CommandError> {
             if rest.start == rest.end {
                 return Err(syntax("focus needs a target: focus TARGET", verb.span));
             }
+            no_target(tail, "focus")?;
             Ok(Command::Focus {
                 target: target(source, rest)?,
             })

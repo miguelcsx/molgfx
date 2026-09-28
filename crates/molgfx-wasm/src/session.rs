@@ -62,12 +62,17 @@ impl WebSession {
         scene.spec = resolved.spec().clone();
         serde_json::to_string(&answer).map_err(javascript_error)
     }
+    /// Samples a resident trajectory interval without recording an authoring command.
+    #[wasm_bindgen(js_name = setTrajectoryTime)]
+    pub fn set_trajectory_time(
+        &mut self,
+        scene: &mut WebScene,
+        structure: u64,
+        sample_seconds: f32,
+    ) -> Result<(), JsError> {
+        scene.set_trajectory_time(structure, sample_seconds)
+    }
 
-    /// Completion candidates for the word ending at `cursor`, as JSON.
-    ///
-    /// # Errors
-    ///
-    /// Returns a JavaScript error when the answer cannot be encoded.
     pub fn completions(&self, text: &str, cursor: usize) -> Result<String, JsError> {
         serde_json::to_string(&self.inner.completions(text, cursor)).map_err(javascript_error)
     }
