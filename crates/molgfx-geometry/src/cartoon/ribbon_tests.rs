@@ -186,7 +186,8 @@ fn a_strand_arrow_widens_to_its_shoulder_then_tapers_to_a_pointed_tip() {
     // Monotone taper after the shoulder, so the head has no step in it.
     let mut previous = shoulder.0;
     for step in 1..=8 {
-        let parameter = 0.65 + 0.35 * f64::from(step) as f32 / 8.0;
+        let parameter = f32::from(step) / 8.0;
+        let parameter = 0.65 + 0.35 * parameter;
         let width = crate::cartoon::profiles::profile_scale(
             SecondaryStructure::Strand,
             parameter,
