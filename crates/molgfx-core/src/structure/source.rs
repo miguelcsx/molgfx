@@ -19,8 +19,26 @@ pub struct SourceAtom {
 pub struct SourceBond {
     /// Endpoint atom rows.
     pub atoms: [u32; 2],
+    /// Chemical bond order from the source model.
+    pub order: molframe::BondOrder,
     /// Whether the source assigns aromatic order.
     pub aromatic: bool,
+    /// Whether the edge is a metal coordination bond.
+    pub metal: bool,
+}
+
+impl SourceBond {
+    /// Quantizes source chemistry to the styles supported by the analytic bond shader.
+    #[must_use]
+    pub const fn gpu_order(self) -> u32 {
+        match self.order {
+            molframe::BondOrder::Double | molframe::BondOrder::Aromatic => 2,
+            molframe::BondOrder::Triple | molframe::BondOrder::Quadruple => 3,
+            molframe::BondOrder::Single
+            | molframe::BondOrder::Polymeric
+            | molframe::BondOrder::Unknown => 1,
+        }
+    }
 }
 
 /// Compact hierarchy and connectivity associated with one coordinate column.
@@ -36,6 +54,15 @@ pub struct SourceTopology {
     pub model_chain_start: Arc<[u32]>,
     /// Covalent-bond records.
     pub bonds: Arc<[SourceBond]>,
+    /// Anisotropic displacement tensors, one row per atom that carries one.
+    ///
+    /// Sparse by design: most structures are isotropic, so an absent entry
+    /// means the atom has no recorded ellipsoid. Rows ascend by atom and each
+    /// tensor is `[U11, U22, U33, U12, U13, U23]` in ångström squared, the same
+    /// order the renderer's ellipsoid primitive consumes.
+    pub anisotropy: Arc<[(u32, [f32; 6])]>,
+    /// File or analysis secondary structure aligned to residue rows.
+    pub secondary_structure: Arc<[molframe::SecondaryStructure]>,
 }
 
 /// Borrowed molecular source contract used by physical structure assets.
@@ -251,9 +278,24 @@ fn topology(structure: &molframe::Structure) -> SourceTopology {
     let bonds = structure
         .bonds()
         .iter()
-        .map(|bond| SourceBond {
-            atoms: [bond.atom_a.get(), bond.atom_b.get()],
-            aromatic: bond.order == molframe::BondOrder::Aromatic,
+        .map(|bond| {
+            let metal = structure
+                .engine()
+                .atom(bond.atom_a)
+                .and_then(molframe::AtomRef::element)
+                .zip(
+                    structure
+                        .engine()
+                        .atom(bond.atom_b)
+                        .and_then(molframe::AtomRef::element),
+                )
+                .is_some_and(|(left, right)| is_metal(left) || is_metal(right));
+            SourceBond {
+                atoms: [bond.atom_a.get(), bond.atom_b.get()],
+                order: bond.order,
+                aromatic: bond.order == molframe::BondOrder::Aromatic,
+                metal,
+            }
         })
         .collect::<Vec<_>>();
     SourceTopology {
@@ -262,7 +304,58 @@ fn topology(structure: &molframe::Structure) -> SourceTopology {
         chain_residue_start: chain_residue_start.into(),
         model_chain_start: model_chain_start.into(),
         bonds: bonds.into(),
+        anisotropy: anisotropy(structure).into(),
+        secondary_structure: structure.engine().secondary_structure().to_vec().into(),
     }
+}
+
+/// Collects the anisotropic displacement tensors that ascend by atom row.
+///
+/// The facade exposes the table through `Structure::anisotropy`, whose rows are
+/// already sorted by atom, so this is one pass over the populated entries.
+/// A structure without the category yields an empty column.
+fn anisotropy(structure: &molframe::Structure) -> Vec<(u32, [f32; 6])> {
+    let table = structure.anisotropy();
+    if !table.is_available() {
+        return Vec::new();
+    }
+    table
+        .iter()
+        .map(|ellipsoid| (ellipsoid.atom.get(), ellipsoid.u))
+        .collect()
+}
+
+fn is_metal(element: molframe::Element) -> bool {
+    is_metal_atomic_number(element.atomic_number())
+}
+
+/// Returns whether an atomic number is rendered as a metal-coordination endpoint.
+#[must_use]
+pub const fn is_metal_atomic_number(atomic_number: u8) -> bool {
+    matches!(
+        atomic_number,
+        3   // Li
+            | 11 // Na
+            | 19 // K
+            | 12 // Mg
+            | 20 // Ca
+            | 25 // Mn
+            | 26 // Fe
+            | 27 // Co
+            | 28 // Ni
+            | 29 // Cu
+            | 30 // Zn
+            | 42 // Mo
+            | 47 // Ag
+            | 48 // Cd
+            | 80 // Hg
+            | 79 // Au
+            | 13 // Al
+            | 14 // Si
+            | 24 // Cr
+            | 23 // V
+            | 74 // W
+    )
 }
 
 fn offsets<I, R>(rows: I) -> Vec<u32>
@@ -300,3 +393,7 @@ fn adaptive(selected: u64, table_len: u32, rows: impl FnOnce() -> RoaringBitmap)
     }
     AtomSelection::Roaring(rows())
 }
+
+#[cfg(test)]
+#[path = "source_tests.rs"]
+mod tests;

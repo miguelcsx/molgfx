@@ -97,7 +97,7 @@ fn interactions_annotations_and_measurements_keep_their_source_objects() {
         .unwrap_or_else(|error| panic!("{error}"));
     let measurement_entity = EntityRef {
         structure: owner,
-        kind: EntityKind::Label,
+        kind: EntityKind::Measurement,
         index: Scene::measurement_row(measurement),
     };
     assert!(matches!(

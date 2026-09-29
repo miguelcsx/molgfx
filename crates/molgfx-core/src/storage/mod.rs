@@ -3,9 +3,11 @@
 pub(crate) mod column;
 pub(crate) mod error;
 pub(crate) mod handle;
+pub(crate) mod slot_map;
 
 pub use column::{Column, Revision};
 pub use error::CoreError;
+
 pub use handle::{
     AnnotationHandle, AtomPropertyHandle, AttributeHandle, EnsembleHandle, GuideHandle,
     InstanceBatchHandle, InteractionHandle, LigandPoseBatchHandle, MeasurementHandle, MeshHandle,

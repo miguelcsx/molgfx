@@ -43,7 +43,10 @@ pub use primitive::{
 pub use provenance::{EntityProvenance, ProvenanceDetail};
 pub use secondary::SecondaryStructure;
 pub use segmentation::{SegmentStyle, SegmentStyleTable, SegmentationStyle, SegmentedVolume};
-pub use source::{MolecularProvider, MolecularSource, SourceAtom, SourceBond, SourceTopology};
+pub use source::{
+    MolecularProvider, MolecularSource, SourceAtom, SourceBond, SourceTopology,
+    is_metal_atomic_number,
+};
 pub use topology::{ActiveTopologyBond, BondTopologyFrame, BondTopologySegment, TopologyBond};
 pub use trajectory::{TrajectoryFrame, TrajectorySegment};
 pub use validation::{ValidationKind, ValidationMarker};
