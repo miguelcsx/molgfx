@@ -91,7 +91,7 @@ impl SecondaryMotion {
 
 /// Solves the offset each spine sample receives.
 ///
-/// `spine` is the scientific geometry and is never modified. `offsets` is
+/// `spine` is the physical geometry and is never modified. `offsets` is
 /// cleared and filled with one displacement per sample, so the caller can add
 /// it into a separate presentation buffer and drop it without rebuilding the
 /// scene.

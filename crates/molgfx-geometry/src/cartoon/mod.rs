@@ -16,4 +16,4 @@ pub use paper_chain::append_paper_chain;
 pub use profiles::variable_tube_radius;
 pub use ribbon::{RibbonMesh, RibbonParams, RibbonVertex, SplineProfile};
 pub use secondary_motion::{SecondaryMotion, solve_offsets};
-pub use traces::{PolymerTraces, TraceRange, extract_polymer_traces};
+pub use traces::{CARTOON_GAP_CUTOFF, PolymerTraces, TraceRange, extract_polymer_traces};

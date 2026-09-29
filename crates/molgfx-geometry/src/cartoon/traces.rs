@@ -64,9 +64,21 @@ pub struct TraceRange {
     pub points: Range<usize>,
 }
 
+/// Cartesian distance beyond which a cartoon trace is broken rather than
+/// bridged.
+///
+/// A missing guide atom that is genuinely absent from a deposited model and a
+/// deliberately large spatial step are the same fact geometrically, so this is
+/// expressed as a length rather than a residue count: the two residues either
+/// are far enough apart that the ribbon between them would be a fabricated
+/// bridge, or they are not. The value is just above the longest credible
+/// consecutive C-alpha separation, so an ordered backbone stays one trace and a
+/// chain break does not.
+pub const CARTOON_GAP_CUTOFF: f32 = 8.0;
+
 /// Extracts C-alpha or C4-prime guide atoms in topology order. Missing guide
 /// atoms and caller-defined spatial gaps split traces instead of drawing a
-/// scientifically false bridge. All output vectors are reused.
+/// physically false bridge. All output vectors are reused.
 ///
 /// # Errors
 ///

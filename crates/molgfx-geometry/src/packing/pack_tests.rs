@@ -248,11 +248,8 @@ fn a_property_colour_scheme_leaves_records_element_coloured() {
         panic!("representation resolves")
     };
     let mut atoms = Vec::new();
-    pack_atoms_with_hierarchy(
+    pack_atoms(
         &placed.atoms,
-        &placed.hierarchy,
-        placed.secondary_structure.values(),
-        scene.atom_property(property_handle),
         representation,
         &AtomSelection::All,
         &mut atoms,
@@ -296,15 +293,8 @@ fn a_property_appearance_leaves_records_element_coloured() {
         panic!("representation resolves")
     };
     let mut atoms = Vec::new();
-    pack_atoms_with_properties(
+    pack_atoms(
         &placed.atoms,
-        &placed.hierarchy,
-        placed.secondary_structure.values(),
-        PropertyColumns {
-            color: None,
-            appearance: scene.atom_property(property_handle),
-            overlay: None,
-        },
         representation,
         &AtomSelection::All,
         &mut atoms,
@@ -412,8 +402,7 @@ fn a_bead_encloses_its_residue_and_keeps_one_sphere_per_residue() {
     pack_residue_beads(
         &placed.atoms,
         &placed.hierarchy,
-        placed.secondary_structure.values(),
-        None,
+        ColorContext::new(&scene, handle),
         &representation,
         &selection,
         &mut beads,

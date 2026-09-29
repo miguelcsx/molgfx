@@ -1,10 +1,9 @@
 //! Compact one-record-per-residue packing.
 
-use super::representation_color;
 use crate::PackingError;
+use crate::packing::ColorContext;
 use molgfx_core::{
-    AtomGpu, AtomProperty, AtomSelection, AtomTable, EntityId, EntityKind, Hierarchy,
-    Representation, SecondaryStructure,
+    AtomGpu, AtomSelection, AtomTable, EntityId, EntityKind, Hierarchy, Representation,
 };
 use molgfx_math::{Rgba8, Vec3};
 
@@ -16,8 +15,7 @@ use molgfx_math::{Rgba8, Vec3};
 pub fn pack_residue_beads(
     table: &AtomTable,
     hierarchy: &Hierarchy,
-    secondary_structure: &[SecondaryStructure],
-    property: Option<&AtomProperty>,
+    context: ColorContext<'_>,
     representation: &Representation,
     selection: &AtomSelection,
     out: &mut Vec<AtomGpu>,
@@ -29,7 +27,6 @@ pub fn pack_residue_beads(
     let elements = table.element().values();
     let flags = table.flags().values();
     let semantics = table.semantic().values();
-    let residues = table.residue().values();
     let scale = representation.params.radius_scale.max(0.0);
     for residue_index in 0..hierarchy.residue_count() {
         let atoms = hierarchy.residue_atoms(residue_index);
@@ -55,16 +52,13 @@ pub fn pack_residue_beads(
                 centre.distance(point) + extent
             })
             .fold(0.0_f32, f32::max);
-        let mut color = representation_color(
+        let mut color = context.color(
             representation.color,
             colors
                 .get(first)
                 .copied()
                 .into_iter()
                 .fold(Rgba8::opaque(255, 255, 255), |_, value| value),
-            Some((hierarchy, secondary_structure)),
-            property,
-            residues.get(first).copied(),
             first,
         );
         color.a = u8::MAX;

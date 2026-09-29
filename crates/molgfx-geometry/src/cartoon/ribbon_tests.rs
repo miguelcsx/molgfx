@@ -22,7 +22,7 @@ fn ribbon_generation_is_deterministic_and_indexed() {
     assert_eq!(first.vertices.len() % PROFILE_SIDES, 0);
     assert_eq!(
         first.indices.len(),
-        (first.vertices.len() / PROFILE_SIDES - 1) * 48
+        (first.vertices.len() / PROFILE_SIDES - 1) * PROFILE_SIDES * 6
     );
 }
 
@@ -161,7 +161,83 @@ fn secondary_structure_changes_cross_section_without_changing_topology() {
     let helix_profile = profile_diameters(&helix.vertices);
     let strand_profile = profile_diameters(&strand.vertices);
     assert!(strand_profile.0 > helix_profile.0);
-    assert!(strand_profile.1 < helix_profile.1);
+    // A strand is a slab, deeper than the flat oval of a helix.
+    assert!(strand_profile.1 > helix_profile.1);
+}
+
+#[test]
+fn a_strand_arrow_widens_to_its_shoulder_then_tapers_to_a_pointed_tip() {
+    // A terminal strand: the sample after it is not a strand, so the arrow
+    // shape applies along this interval.
+    let terminal = [SecondaryStructure::Strand, SecondaryStructure::Coil];
+    let body =
+        crate::cartoon::profiles::profile_scale(SecondaryStructure::Strand, 0.0, &terminal, 0);
+    let shoulder =
+        crate::cartoon::profiles::profile_scale(SecondaryStructure::Strand, 0.65, &terminal, 0);
+    let tip =
+        crate::cartoon::profiles::profile_scale(SecondaryStructure::Strand, 1.0, &terminal, 0);
+    assert!(
+        shoulder.0 > body.0,
+        "the arrow widens into its shoulder: {} vs {}",
+        shoulder.0,
+        body.0
+    );
+    assert!(tip.0 < body.0, "the tip is narrower than the body");
+    // Monotone taper after the shoulder, so the head has no step in it.
+    let mut previous = shoulder.0;
+    for step in 1..=8 {
+        let parameter = 0.65 + 0.35 * f64::from(step) as f32 / 8.0;
+        let width = crate::cartoon::profiles::profile_scale(
+            SecondaryStructure::Strand,
+            parameter,
+            &terminal,
+            0,
+        )
+        .0;
+        assert!(
+            width <= previous + 1.0e-6,
+            "taper is monotone at {parameter}"
+        );
+        previous = width;
+    }
+}
+
+#[test]
+fn an_interior_strand_keeps_its_body_width_without_an_arrow() {
+    // Both neighbours are strands, so this interval is body, not a head.
+    let interior = [SecondaryStructure::Strand, SecondaryStructure::Strand];
+    let start =
+        crate::cartoon::profiles::profile_scale(SecondaryStructure::Strand, 0.0, &interior, 0);
+    let end =
+        crate::cartoon::profiles::profile_scale(SecondaryStructure::Strand, 1.0, &interior, 0);
+    assert_eq!(start.0.to_bits(), end.0.to_bits());
+}
+
+#[test]
+fn a_loop_is_a_round_cord_and_a_helix_a_wide_flat_oval() {
+    let params = RibbonParams::default();
+    let half = |scale: (f32, f32)| {
+        (
+            scale.0 * params.width * 0.5,
+            scale.1 * params.thickness * 0.5,
+        )
+    };
+    let styles = [SecondaryStructure::Coil; 3];
+    let (loop_width, loop_depth) = half(crate::cartoon::profiles::profile_scale(
+        SecondaryStructure::Coil,
+        0.5,
+        &styles,
+        1,
+    ));
+    assert!((loop_width - loop_depth).abs() < 1.0e-5);
+    let (helix_width, helix_depth) = half(crate::cartoon::profiles::profile_scale(
+        SecondaryStructure::Helix,
+        0.5,
+        &styles,
+        1,
+    ));
+    assert!(helix_width > 4.0 * helix_depth);
+    assert!(helix_width > loop_width);
 }
 
 #[test]
@@ -228,9 +304,10 @@ ATOM 3 C CA . SER A 1 3 4.0 0.0 0.0 1.00 50.0 3 A 1
 }
 
 fn profile_diameters(vertices: &[RibbonVertex]) -> (f32, f32) {
-    let across_width = Vec3::from(vertices[0].position).distance(Vec3::from(vertices[4].position));
-    let across_thickness =
-        Vec3::from(vertices[2].position).distance(Vec3::from(vertices[6].position));
+    let across_width =
+        Vec3::from(vertices[0].position).distance(Vec3::from(vertices[PROFILE_SIDES / 2].position));
+    let across_thickness = Vec3::from(vertices[PROFILE_SIDES / 4].position)
+        .distance(Vec3::from(vertices[PROFILE_SIDES * 3 / 4].position));
     (
         across_width.max(across_thickness),
         across_width.min(across_thickness),

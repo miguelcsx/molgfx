@@ -59,9 +59,15 @@ fn bond_packing_remaps_endpoints_and_keeps_only_selected_edges() {
         .map_or_else(|| panic!("structure"), |(_, placed)| placed);
     let mut bonds = Vec::new();
     pack_bonds(placed, representation, &map, &mut bonds).unwrap_or_else(|error| panic!("{error}"));
-    assert_eq!(bonds.len(), 1);
-    assert_eq!((bonds[0].atom_a, bonds[0].atom_b), (0, 1));
-    assert!(bonds[0].is_aromatic());
+    assert_eq!(bonds.len(), 2);
+    assert!(
+        bonds
+            .iter()
+            .all(|bond| (bond.atom_a, bond.atom_b) == (0, 1))
+    );
+    assert!(bonds.iter().all(|bond| bond.is_aromatic()));
+    assert_eq!(bonds[0].order(), 2);
+    assert_eq!(bonds[1].order(), 2);
 }
 
 #[test]
@@ -87,7 +93,10 @@ fn lines_reuse_the_indexed_bond_path() {
         .map_or_else(|| panic!("structure"), |(_, placed)| placed);
     let mut bonds = Vec::new();
     pack_bonds(placed, representation, &map, &mut bonds).unwrap_or_else(|error| panic!("{error}"));
-    assert_eq!(bonds.len(), 2);
+    assert_eq!(bonds.len(), 3);
+    assert_eq!(bonds[0].order(), 1);
+    assert_eq!(bonds[1].order(), 2);
+    assert_eq!(bonds[2].order(), 2);
 }
 
 #[test]
@@ -144,6 +153,43 @@ fn dynamic_connectivity_packs_one_weighted_union_with_distinct_identity() {
     assert_eq!(
         bonds[1].entity_id.unpack(),
         Some((EntityKind::DynamicBond, 1))
+    );
+}
+
+#[test]
+fn a_multi_bond_packs_one_strand_per_order_with_sequential_variants() {
+    let structure = fixture_structure();
+    let mut scene = Scene::from_structure(&structure).unwrap_or_else(|error| panic!("{error}"));
+    let selection = scene.add_selection(AtomSelection::All);
+    let handle = scene
+        .represent(selection, RepresentationKind::BallAndStick)
+        .unwrap_or_else(|error| panic!("{error}"));
+    let table = scene.first_atoms().unwrap_or_else(|| panic!("atoms"));
+    let representation = scene
+        .representation(handle)
+        .unwrap_or_else(|| panic!("representation"));
+    let mut atoms = Vec::new();
+    pack_atoms(table, representation, &AtomSelection::All, &mut atoms)
+        .unwrap_or_else(|error| panic!("{error}"));
+    let mut map = Vec::new();
+    build_compaction_map(&atoms, table.len(), &mut map).unwrap_or_else(|error| panic!("{error}"));
+    let placed = scene
+        .structures()
+        .next()
+        .map_or_else(|| panic!("structure"), |(_, placed)| placed);
+    let mut bonds = Vec::new();
+    pack_bonds(placed, representation, &map, &mut bonds).unwrap_or_else(|error| panic!("{error}"));
+
+    // The fixture carries one SING and one AROM edge, so the single bond has
+    // one strand and the aromatic has two, each with its own variant index.
+    assert_eq!(bonds[0].order(), 1);
+    assert_eq!(bonds[0].variant(), 0);
+    assert_eq!(bonds[1].order(), 2);
+    assert_eq!(bonds[2].order(), 2);
+    assert_eq!(
+        [bonds[1].variant(), bonds[2].variant()],
+        [0, 1],
+        "the two strands of one double bond carry distinct variants"
     );
 }
 
