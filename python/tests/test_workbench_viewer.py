@@ -14,14 +14,21 @@ import shutil
 import tempfile
 import unittest
 
+import molframe
 import molgfx
 from molgfx.viewer import Workbench
 from molgfx.viewer._runtime import load_runtime
 
 try:
-    from .test_viewer import PAGE, STATIC, _LocalPage, structure, sync_playwright
+    from .test_viewer import MMCIF, PAGE, STATIC, _LocalPage, sync_playwright
 except ImportError:
-    from test_viewer import PAGE, STATIC, _LocalPage, structure, sync_playwright
+    from test_viewer import MMCIF, PAGE, STATIC, _LocalPage, sync_playwright
+
+
+def _centered_structure():
+    """A render fixture with one atom at the coordinate bounds centre."""
+    centered = MMCIF.replace(b"12.560 13.318 9.111", b"12.652 13.954 9.687")
+    return molframe.read(centered, name="one.cif")
 
 
 def _values(bench):
@@ -72,7 +79,7 @@ class WorkbenchPageTests(unittest.TestCase):
         # Only the module and its stylesheet: no runtime beside them.
         shutil.copy(STATIC / "widget.js", cls._directory / "widget.js")
         shutil.copy(STATIC / "widget.css", cls._directory / "widget.css")
-        bench = Workbench(structure())
+        bench = Workbench(_centered_structure())
         bench.execute("show spacefill, all")
         page = PAGE.replace("__VALUES__", json.dumps(_values(bench))).replace(
             "window.__molgfx.values.structure_payloads = window.__molgfx.bytes(window.__molgfx.values.structure_payloads);",
@@ -288,31 +295,24 @@ class WorkbenchPageTests(unittest.TestCase):
         )
         self.assertEqual(result, [{}, ""])
     def test_a_pick_returns_semantic_provenance_not_a_gpu_token(self):
-        # One centre click lands on the four-atom residue only if the software
-        # renderer drew and framed it exactly, which is not guaranteed on every
-        # machine. Sweep a small neighbourhood and keep the first click that
-        # resolves an atom, so the assertion tests provenance, not framing.
-        pick = self.page.evaluate(
-            """async () => {
-                const canvas = document.querySelector(".molgfx-canvas");
-                const b = canvas.getBoundingClientRect();
-                const cx = b.left + b.width / 2;
-                const cy = b.top + b.height / 2;
-                const settle = async () => {
-                    for (let i = 0; i < 40; i += 1) {
-                        if (window.__molgfx.values.pick.kind === "atom") return true;
-                        await new Promise((resolve) => setTimeout(resolve, 25));
-                    }
-                    return false;
-                };
-                for (const [dx, dy] of [[0, 0], [5, 5], [-5, 5], [5, -5], [-5, -5], [12, 0], [-12, 0], [0, 12], [0, -12], [18, 8], [-18, -8]]) {
-                    canvas.dispatchEvent(new MouseEvent("click", {clientX: cx + dx, clientY: cy + dy, bubbles: true}));
-                    if (await settle()) break;
-                }
-                return window.__molgfx.values.pick;
-            }"""
-        )
-        self.assertEqual(pick["kind"], "atom")
+        bounds = self.page.locator(".molgfx-canvas").bounding_box()
+        self.assertIsNotNone(bounds)
+        pick = {}
+        for _ in range(8):
+            before = self.page.evaluate("window.__molgfx.saved.length")
+            # The exact centre is a coincident-impostor seam; sample inside the
+            # centred atom instead so adapter differences cannot select the clear value.
+            self.page.mouse.click(
+                bounds["x"] + bounds["width"] / 2,
+                bounds["y"] + bounds["height"] * 0.55,
+            )
+            self.page.wait_for_function(
+                "(before) => window.__molgfx.saved.length > before", arg=before
+            )
+            pick = self.page.evaluate("window.__molgfx.values.pick")
+            if pick.get("kind") == "atom":
+                break
+        self.assertEqual(pick.get("kind"), "atom", pick)
         self.assertEqual(pick["dataset"], 1)
         self.assertIsInstance(pick["chunk"], int)
         self.assertIsInstance(pick["row"], int)
