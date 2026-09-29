@@ -8,9 +8,9 @@
 # repository `molgfx`, workflow `release-python.yml`, environment `release`),
 # so no token is stored here.
 #
-# The Jupyter widget loads a wasm-bindgen bundle that is built, not committed.
-# It is built once, here, and dropped into every wheel, so a wheel never ships
-# a loader with nothing to load.
+# The Jupyter widget is the browser runtime from crates/molgfx-wasm/js: built,
+# not committed. It is built once, here, and dropped into every wheel, so a
+# wheel never ships a widget without its module or a loader with nothing to load.
 
 name: Release Python
 
@@ -88,12 +88,32 @@ jobs:
             exit 1
           fi
 
-  verify:
+  # The runtime is built once and dropped into every wheel.
+  wasm:
     needs: detect
     if: needs.detect.outputs.release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/browser-runtime
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: browser-runtime
+          path: crates/molgfx-wasm/js/dist
+          if-no-files-found: error
+
+  verify:
+    needs: wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: browser-runtime
+          path: python/molgfx/viewer/static
 
       - uses: actions/setup-python@v5
         with:
@@ -104,41 +124,13 @@ jobs:
           set -euo pipefail
           python -m venv .venv
           . .venv/bin/activate
-          python -m pip install --upgrade pip maturin mypy anywidget numpy 'molframe>=0.2.1'
-          rustup target add wasm32-unknown-unknown
-          cargo install wasm-pack --locked
-          wasm-pack build crates/molgfx-wasm --target web --out-dir ../../python/molgfx/viewer/static --out-name molgfx_wasm
-          python .github/scripts/write_runtime_manifest.py
+          python -m pip install --upgrade pip maturin mypy anywidget numpy 'molframe>=0.3.0'
           maturin develop -m crates/molgfx-py/Cargo.toml
           python -m unittest discover -s python/tests
           python -m mypy.stubtest molgfx._engine
 
-  wasm:
-    needs: verify
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Toolchain
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Build the browser runtime
-        run: |
-          set -euo pipefail
-          cargo install wasm-pack --locked
-          wasm-pack build crates/molgfx-wasm --release --target web \
-            --out-dir ../../python/molgfx/viewer/static --out-name molgfx_wasm
-          python .github/scripts/write_runtime_manifest.py
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: browser-runtime
-          path: |
-            python/molgfx/viewer/static/molgfx_wasm.js
-            python/molgfx/viewer/static/molgfx_wasm_bg.wasm
-
   wheels:
-    needs: [detect, wasm]
+    needs: [detect, verify]
     strategy:
       fail-fast: false
       matrix:
@@ -195,11 +187,15 @@ jobs:
           if [ -d .venv/Scripts ]; then py=.venv/Scripts/python; else py=.venv/bin/python; fi
           "$py" -m pip install dist/*.whl
           "$py" -c 'import molgfx; print("molgfx imports")'
+          "$py" -m pip install anywidget
+          "$py" -c 'from molgfx.viewer import Workbench; print("molgfx.viewer imports")'
           listing=$("$py" -m zipfile -l dist/*.whl)
-          if ! printf '%s\n' "$listing" | grep 'viewer/static/molgfx_wasm_bg.wasm' >/dev/null; then
-            echo "::error::the wheel does not carry the browser runtime"
-            exit 1
-          fi
+          for name in widget.js widget.css runtime-manifest.json molgfx_wasm.js molgfx_wasm_bg.wasm; do
+            if ! printf '%s\n' "$listing" | grep "viewer/static/$name" >/dev/null; then
+              echo "::error::the wheel does not carry viewer/static/$name"
+              exit 1
+            fi
+          done
 
   # Importing is not rendering: this installs the built wheel on a bare Linux
   # host with no GPU and renders a PNG, so a wheel that cannot open a graphics
@@ -239,7 +235,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m venv .venv
-          .venv/bin/python -m pip install dist/*.whl 'molframe>=0.2.1'
+          .venv/bin/python -m pip install dist/*.whl 'molframe>=0.3.0'
           if [ "${{ matrix.name }}" = default ]; then
             env -u WGPU_BACKEND .venv/bin/python python/tests/headless_render.py
           else

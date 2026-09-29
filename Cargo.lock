@@ -2263,8 +2263,7 @@ dependencies = [
 
 [[package]]
 name = "molframe"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-adapters",
  "molframe-analysis",
@@ -2296,8 +2295,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-adapters"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-chem",
  "molframe-core",
@@ -2308,8 +2306,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-analysis"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "faer",
  "molframe-chem",
@@ -2326,8 +2323,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-audit"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-core",
  "num-traits",
@@ -2335,8 +2331,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-bcif"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "indexmap 2.14.2",
  "molframe-cif",
@@ -2351,8 +2346,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-chem"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-cif",
  "molframe-core",
@@ -2361,8 +2355,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-cif"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "indexmap 2.14.2",
  "memchr",
@@ -2374,8 +2367,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-compare"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-chem",
  "molframe-core",
@@ -2389,8 +2381,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-core"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "bytemuck",
  "flate2",
@@ -2405,8 +2396,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-engine"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-core",
  "thiserror 2.0.21",
@@ -2414,8 +2404,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-fx"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-chem",
  "molframe-core",
@@ -2429,8 +2418,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-geom"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-core",
  "num-traits",
@@ -2439,8 +2427,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-ic"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-core",
  "molframe-geom",
@@ -2449,8 +2436,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-interop"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "arrow",
  "molframe-analysis",
@@ -2466,8 +2452,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-mmap"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "memmap2",
  "tempfile",
@@ -2475,8 +2460,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-modelcif"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-cif",
  "molframe-core",
@@ -2485,8 +2469,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-pdb"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-core",
  "num-traits",
@@ -2497,8 +2480,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-py"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe",
  "numpy",
@@ -2507,8 +2489,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-query"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-chem",
  "molframe-core",
@@ -2516,13 +2497,11 @@ dependencies = [
 
 [[package]]
 name = "molframe-seq"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 
 [[package]]
 name = "molframe-spatial"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-core",
  "molframe-query",
@@ -2533,8 +2512,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-surface"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-core",
  "molframe-spatial",
@@ -2544,8 +2522,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-traj"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "bytemuck",
  "hdf5-reader",
@@ -2568,8 +2545,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-validate"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-analysis",
  "molframe-chem",
@@ -2583,8 +2559,7 @@ dependencies = [
 
 [[package]]
 name = "molframe-xtal"
-version = "0.3.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=0c8724c748c20bd725fb8e538f322febaf92fd1e#0c8724c748c20bd725fb8e538f322febaf92fd1e"
+version = "0.3.1"
 dependencies = [
  "molframe-cif",
  "molframe-core",
@@ -2596,42 +2571,23 @@ dependencies = [
 
 [[package]]
 name = "molgfx"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
- "molgfx-api",
  "molgfx-command",
-]
-
-[[package]]
-name = "molgfx-api"
-version = "0.3.0"
-dependencies = [
- "molframe",
- "molgfx-core",
- "molgfx-gpu",
- "molgfx-math",
- "molgfx-render",
- "molgfx-wgpu",
- "num-traits",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.21",
- "web-sys",
- "zip",
+ "molgfx-scene",
 ]
 
 [[package]]
 name = "molgfx-bench"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "criterion",
  "molframe",
  "molgfx",
- "molgfx-api",
  "molgfx-core",
  "molgfx-geometry",
  "molgfx-render",
+ "molgfx-scene",
  "num-traits",
  "png",
  "serde",
@@ -2642,10 +2598,10 @@ dependencies = [
 
 [[package]]
 name = "molgfx-command"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "molframe",
- "molgfx-api",
+ "molgfx-scene",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -2653,7 +2609,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-core"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "bytemuck",
  "hashbrown 0.17.1",
@@ -2672,7 +2628,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-geometry"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "bytemuck",
  "molframe",
@@ -2684,7 +2640,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-gpu"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "bitflags 2.13.2",
  "raw-window-handle",
@@ -2694,7 +2650,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-math"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "bytemuck",
  "criterion",
@@ -2707,7 +2663,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-py"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "molframe-py",
  "molgfx",
@@ -2717,7 +2673,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-render"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "bytemuck",
  "hashbrown 0.17.1",
@@ -2738,8 +2694,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "molgfx-scene"
+version = "0.3.2"
+dependencies = [
+ "molframe",
+ "molgfx-core",
+ "molgfx-gpu",
+ "molgfx-math",
+ "molgfx-render",
+ "molgfx-wgpu",
+ "num-traits",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.21",
+ "web-sys",
+ "zip",
+]
+
+[[package]]
 name = "molgfx-semantic"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "molframe",
  "molgfx-core",
@@ -2749,14 +2724,14 @@ dependencies = [
 
 [[package]]
 name = "molgfx-shaders"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "naga",
 ]
 
 [[package]]
 name = "molgfx-wasm"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "js-sys",
  "molframe",
@@ -2771,7 +2746,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-wgpu"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "futures-channel",
  "molframe",

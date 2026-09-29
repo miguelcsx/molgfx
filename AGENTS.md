@@ -28,6 +28,8 @@ cargo test  --workspace                      # all tests
 cargo test  -p molgfx-core                  # one crate
 cargo check -p molgfx-wasm --target wasm32-unknown-unknown   # the wasm leaf, on its real target
 cargo bench -p molgfx-bench                    # declarative/runtime performance matrix
+cargo run --release -p molgfx-bench --bin frame_time STRUCTURE [FORM]   # one-frame cost of a form, publication and interactive
+node crates/molgfx-wasm/js/scripts/build.mjs --out python/molgfx/viewer/static --out site/public/runtime   # the browser runtime
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --all
 ```
@@ -54,11 +56,11 @@ everywhere; the only `unsafe` is `bytemuck` POD casts for GPU upload.
 | `molgfx-geometry` | GPU geometry: impostor packing, ribbons, surfaces, BVH build |
 | `molgfx-render` | Render graph; realtime + quality modes |
 | `molgfx-semantic` | The semantic layer: focus+context, materials, LOD, interactions |
-| `molgfx-api` | Declarative values, semantic IDs, patches, resolved-scene lowering |
+| `molgfx-scene` | Declarative values, semantic IDs, patches, resolved-scene lowering |
 | `molgfx-command` | The authoring command language: typed commands, parser, session, undo/redo |
 | `molgfx` | Curated facade: `Scene`, `Renderer`, specs, values, and explicit namespaces |
 | `molgfx-py` | PyO3 type adapters and registration over the facade |
-| `molgfx-wasm` | Browser bindings over the same declarative scene and engine |
+| `molgfx-wasm` | Browser bindings, plus the viewer host in `js/`; builds the one browser runtime the wheel and the docs site both ship |
 | `molgfx-bench` | Benchmark harness |
 
 Ordinary callers import from `molgfx` only. Backends are chosen by capability,
@@ -69,8 +71,8 @@ crates or provide a `Deref` escape hatch. Low-level schema records live under
 something inward is a missing curated namespace, not a reason to add a
 dependency.
 
-`molgfx-api` is organized one directory per domain concept — `scene/`, `patch/`,
-`visual/`, `spec/`, `representation/`, `science/`, `render/`, `interop/` — with
+`molgfx-scene` is organized one directory per domain concept — `scene/`, `patch/`,
+`visual/`, `spec/`, `representation/`, `overlay/`, `render/`, `interop/` — with
 tests beside the code they cover. Do not add a flat module at its root, and do
 not use `#[path]` or `include!` to keep one module's text in several files: a
 file that has outgrown the cap has outgrown its responsibility, so split the
@@ -100,7 +102,7 @@ Things an agent would get wrong without being told (full rules in `RULES.md`):
   version MolGFX defines.)
 - **One definition of a visual input.** Everything a visual program may read —
   renderer scalars and vectors, interaction channels, bound atom columns — is
-  resolved through `molgfx-api`'s input registry. A style that authors cleanly
+  resolved through `molgfx-scene`'s input registry. A style that authors cleanly
   must lower cleanly; two validators that disagree is the bug that registry
   exists to prevent.
 - **No `unsafe` in product code.** POD upload types use audited `bytemuck` derives.
@@ -138,5 +140,5 @@ benchmark fixtures resolve data only through the harness.
 
 ## Commit scopes
 
-One of: `math core gpu wgpu shaders geometry render semantic api command facade py
+One of: `math core gpu wgpu shaders geometry render semantic scene command facade py
 wasm bench spec repo ci`.

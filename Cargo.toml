@@ -13,7 +13,7 @@ default-members = [
     "crates/molgfx-geometry",
     "crates/molgfx-render",
     "crates/molgfx-semantic",
-    "crates/molgfx-api",
+    "crates/molgfx-scene",
     "crates/molgfx-command",
 ]
 resolver = "3"
@@ -47,7 +47,7 @@ native-only-targets = [
 ]
 
 [workspace.package]
-version = "0.3.0"
+version = "0.3.2"
 edition = "2024"
 rust-version = "1.98.1"
 license = "MIT"
@@ -57,22 +57,22 @@ categories = ["science", "rendering", "visualization"]
 
 [workspace.dependencies]
 # Internal crates (layered; a crate depends only on lower layers).
-molgfx = { version = "0.3.0", path = "crates/molgfx" }
-molgfx-math = { version = "0.3.0", path = "crates/molgfx-math" }
-molgfx-core = { version = "0.3.0", path = "crates/molgfx-core" }
-molgfx-gpu = { version = "0.3.0", path = "crates/molgfx-gpu" }
-molgfx-wgpu = { version = "0.3.0", path = "crates/molgfx-wgpu" }
-molgfx-shaders = { version = "0.3.0", path = "crates/molgfx-shaders" }
-molgfx-geometry = { version = "0.3.0", path = "crates/molgfx-geometry" }
-molgfx-render = { version = "0.3.0", path = "crates/molgfx-render" }
-molgfx-semantic = { version = "0.3.0", path = "crates/molgfx-semantic" }
-molgfx-api = { version = "0.3.0", path = "crates/molgfx-api" }
-molgfx-command = { version = "0.3.0", path = "crates/molgfx-command" }
+molgfx = { version = "0.3.2", path = "crates/molgfx" }
+molgfx-math = { version = "0.3.2", path = "crates/molgfx-math" }
+molgfx-core = { version = "0.3.2", path = "crates/molgfx-core" }
+molgfx-gpu = { version = "0.3.2", path = "crates/molgfx-gpu" }
+molgfx-wgpu = { version = "0.3.2", path = "crates/molgfx-wgpu" }
+molgfx-shaders = { version = "0.3.2", path = "crates/molgfx-shaders" }
+molgfx-geometry = { version = "0.3.2", path = "crates/molgfx-geometry" }
+molgfx-render = { version = "0.3.2", path = "crates/molgfx-render" }
+molgfx-semantic = { version = "0.3.2", path = "crates/molgfx-semantic" }
+molgfx-scene = { version = "0.3.2", path = "crates/molgfx-scene" }
+molgfx-command = { version = "0.3.2", path = "crates/molgfx-command" }
 
-# The structural model and every detection the engine consumes, from crates.io.
-# The publishable crates must resolve `molframe` from the registry, so this is a
-# plain version requirement; a git pin would make Cargo refuse to package them.
-molframe = { version = "0.3.0", default-features = false, features = ["mmcif", "bcif", "pdb"] }
+# The structural model and every detection the engine consumes. The local path
+# patch below keeps the engine and its companion parser on one source tree while
+# the package requirement remains publishable.
+molframe = { version = "0.3.1", default-features = false, features = ["mmcif", "bcif", "pdb"] }
 # The provider's Python bridge names its library target `_native`, so the
 # dependency is renamed back to the package name for `molframe_py::` to resolve.
 molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "0c8724c748c20bd725fb8e538f322febaf92fd1e", default-features = false, features = ["full"] }
@@ -145,4 +145,8 @@ lto = "thin"
 # match. `[patch]` only applies to this workspace's own builds; the published
 # crates still resolve `molframe` from the registry.
 [patch.crates-io]
-molframe = { git = "https://github.com/miguelcsx/molframe", rev = "0c8724c748c20bd725fb8e538f322febaf92fd1e" }
+molframe = { path = "../molframe/crates/molframe" }
+
+# Keep the Python ABI producer and consumer on the adjacent source checkout.
+[patch."https://github.com/miguelcsx/molframe"]
+molframe-py = { path = "../molframe/crates/molframe-py" }
