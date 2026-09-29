@@ -1,7 +1,7 @@
 //! What a session knows: names, selections, layers, colour rules and focus.
 
 use crate::ir::{ColorValue, Form, Name, QueryText};
-use molgfx_api::{AppearanceRuleId, RepresentationId, SceneSpec, StructureId};
+use molgfx_scene::{AppearanceRuleId, RepresentationId, SceneSpec, StructureId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

@@ -94,7 +94,7 @@ impl Session {
     /// # Errors
     ///
     /// Returns an unknown-symbol error.
-    pub fn structure(&self, name: &str) -> Result<molgfx_api::StructureId, CommandError> {
+    pub fn structure(&self, name: &str) -> Result<molgfx_scene::StructureId, CommandError> {
         Name::new(name)
             .ok()
             .and_then(|name| self.state.spec.structures.get(&name).copied())

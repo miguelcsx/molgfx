@@ -8,9 +8,14 @@
 //! revision, forgets whatever vanished, and drops its history, because its
 //! inverses were computed against a scene that no longer exists.
 
+#[cfg(test)]
+#[path = "auto_tests.rs"]
+mod auto_tests;
 mod complete;
 mod explain;
 mod history;
+#[cfg(test)]
+mod overlay_tests;
 mod plan;
 mod property;
 mod resolve;
@@ -24,7 +29,7 @@ pub use state::{LayerSpec, RuleSpec, SessionSpec};
 use crate::error::{CommandError, CommandErrors, ErrorKind};
 use crate::ir::{Command, Program};
 use history::{Entry, History};
-use molgfx_api::{Scene, ScenePatch};
+use molgfx_scene::{Scene, ScenePatch};
 use plan::{Planner, scene_error};
 use serde::Serialize;
 use state::State;
@@ -130,6 +135,7 @@ impl Session {
             transaction: scene.begin(),
             messages: Vec::new(),
             site: None,
+            sources: scene.sources(),
         };
         if stale {
             planner.messages.push(

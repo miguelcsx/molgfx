@@ -1,5 +1,5 @@
 use crate::{Command, ErrorKind, Outcome, Session, SessionSpec};
-use molgfx_api::{PatchOperation, Scene};
+use molgfx_scene::{PatchOperation, Scene};
 
 /// Two protein chains of two residues each, and one haem iron in chain C.
 const CIF: &str = "\
@@ -52,21 +52,21 @@ pub(super) fn structure() -> molframe::Structure {
     }
 }
 
-fn scene() -> Scene {
+pub(super) fn scene() -> Scene {
     match Scene::from_structure(&structure()) {
         Ok(scene) => scene,
         Err(error) => panic!("scene builds: {error}"),
     }
 }
 
-fn run(session: &mut Session, scene: &mut Scene, source: &str) -> Outcome {
+pub(super) fn run(session: &mut Session, scene: &mut Scene, source: &str) -> Outcome {
     match session.execute_text(scene, source) {
         Ok(outcome) => outcome,
         Err(errors) => panic!("{source:?} runs: {}", errors.render(source)),
     }
 }
 
-fn fail(session: &mut Session, scene: &mut Scene, source: &str) -> crate::CommandError {
+pub(super) fn fail(session: &mut Session, scene: &mut Scene, source: &str) -> crate::CommandError {
     match session.execute_text(scene, source) {
         Ok(outcome) => panic!("{source:?} should fail, got {outcome:?}"),
         Err(errors) => match errors.0.into_iter().next() {
@@ -76,7 +76,7 @@ fn fail(session: &mut Session, scene: &mut Scene, source: &str) -> crate::Comman
     }
 }
 
-fn operations(outcome: &Outcome) -> Vec<&'static str> {
+pub(super) fn operations(outcome: &Outcome) -> Vec<&'static str> {
     outcome
         .patch
         .iter()
@@ -377,7 +377,7 @@ fn caller_supplied_interaction_is_staged_without_analysis() {
         outcome.patch.as_ref().map(|patch| patch.operations.len()),
         Some(1)
     );
-    assert_eq!(scene.spec().scientific_interactions.len(), 1);
+    assert_eq!(scene.spec().interactions.len(), 1);
 }
 
 #[test]
