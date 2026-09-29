@@ -230,15 +230,21 @@ pub(crate) fn segmentation_style_description(
 }
 
 pub(crate) fn surface_scalar_description(
-    value: crate::SurfaceScalarOverlay,
+    value: &crate::SurfaceScalarOverlay,
 ) -> SurfaceScalarDescription {
     SurfaceScalarDescription {
         field: ObjectIdentity {
             row: value.field.row(),
             generation: value.field.generation(),
         },
-        ramp_values: value.ramp.values().map(f32::to_bits),
-        ramp_colors: value.ramp.colors().map(rgba),
+        ramp_values: value
+            .ramp
+            .values()
+            .iter()
+            .copied()
+            .map(f32::to_bits)
+            .collect(),
+        ramp_colors: value.ramp.colors().iter().copied().map(rgba).collect(),
         contours: value
             .contours
             .map(|contours| [contours.interval, contours.width_pixels]),
@@ -397,6 +403,7 @@ fn entity_kind(kind: EntityKind) -> &'static str {
         EntityKind::Bond => "bond",
         EntityKind::Edge => "edge",
         EntityKind::Label => "label",
+        EntityKind::Measurement => "measurement",
         EntityKind::Primitive => "primitive",
         EntityKind::Mesh => "mesh",
         EntityKind::LigandPoseBatch => "ligand_pose_batch",

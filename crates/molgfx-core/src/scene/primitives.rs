@@ -7,7 +7,9 @@ impl Scene {
     ///
     /// Validation is atomic, storage is reserved once and the scene revision
     /// advances once, regardless of item count. This is the public path for
-    /// high-cardinality caller geometry.
+    /// high-cardinality caller geometry. The returned handles are in the same
+    /// order as `values`, so a caller that emits one item per atom keeps the
+    /// association without a second lookup.
     ///
     /// # Errors
     ///
@@ -16,19 +18,19 @@ impl Scene {
     pub fn add_primitives(
         &mut self,
         values: &[Primitive],
-    ) -> Result<Option<PrimitiveHandle>, CoreError> {
+    ) -> Result<Vec<PrimitiveHandle>, CoreError> {
         for value in values {
             self.validate_primitive(*value)?;
         }
         self.primitive.reserve(values.len());
-        let mut last = None;
+        let mut handles = Vec::with_capacity(values.len());
         for value in values {
-            last = Some(PrimitiveHandle(self.primitive.insert(*value)));
+            handles.push(PrimitiveHandle(self.primitive.insert(*value)));
         }
         if !values.is_empty() {
             self.primitive_revision = self.primitive_revision.wrapping_add(1);
         }
-        Ok(last)
+        Ok(handles)
     }
 
     /// Resolves one primitive.

@@ -11,7 +11,7 @@ pub const MAX_VOLUME_TRANSFER_POINTS: usize = 8;
 pub struct VolumeTransferPoint {
     /// Scalar value at this point.
     pub value: f32,
-    /// Reversible scientific color.
+    /// Reversible physical color.
     pub color: Rgba8,
     /// Optical response in [0, 1].
     pub opacity: f32,

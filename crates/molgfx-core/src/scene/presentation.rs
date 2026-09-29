@@ -10,7 +10,7 @@ impl Scene {
     /// Sets the global presentation clock read by visual-program time inputs.
     ///
     /// This value affects presentation only. It never changes source
-    /// coordinates, chemistry, provenance, or reportable scientific values.
+    /// coordinates, chemistry, provenance, or reportable physical values.
     ///
     /// # Errors
     ///

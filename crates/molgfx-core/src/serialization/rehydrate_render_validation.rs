@@ -24,10 +24,14 @@ fn parse_surface_scalar(
 ) -> Result<SurfaceScalarOverlay, crate::CoreError> {
     let raw = resolve_raw(value.field);
     resolve_existing(scene.volumes.get(raw))?;
-    let ramp = ScalarRamp::new(
-        value.ramp_values.map(f32::from_bits),
-        value.ramp_colors.map(rgba),
-    )?;
+    let values: Vec<f32> = value
+        .ramp_values
+        .iter()
+        .copied()
+        .map(f32::from_bits)
+        .collect();
+    let colors: Vec<Rgba8> = value.ramp_colors.iter().copied().map(rgba).collect();
+    let ramp = ScalarRamp::new(&values, &colors)?;
     let mut overlay = SurfaceScalarOverlay::new(crate::VolumeHandle(raw), ramp);
     overlay.contours = value
         .contours

@@ -143,8 +143,8 @@ fn particles_and_streamlines_lower_to_pickable_scene_tables() {
         Err(error) => panic!("particle validates: {error}"),
     };
     let primitive = match scene.add_primitives(&[Primitive::particle(particle)]) {
-        Ok(Some(handle)) => handle,
-        Ok(None) => panic!("non-empty batch returns its last handle"),
+        Ok(handles) if handles.len() == 1 => handles[0],
+        Ok(_) => panic!("non-empty batch returns one handle per item"),
         Err(error) => panic!("particle stores: {error}"),
     };
     let points = [

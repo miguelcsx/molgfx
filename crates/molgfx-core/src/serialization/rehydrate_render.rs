@@ -1,20 +1,21 @@
 //! Reconstruction of representation and material state.
 
+use super::color::{parse_color, rgba};
 use super::{Scene, insert, invalid, invalid_value, resolve_existing, resolve_raw};
 use crate::CoreError;
 use crate::scene::StoredRepresentation;
 use crate::serialization::types::{self, TargetDescription};
 use crate::serialization::types::{
-    ColorDescription, MaterialDescription, RepresentationDescription, SegmentationStyleDescription,
+    MaterialDescription, RepresentationDescription, SegmentationStyleDescription,
     SurfaceScalarDescription, VisualStyleDescription, VolumeStyleDescription,
 };
 use crate::{
-    AttributeKind, ClipCap, ClipPlane, ClipSet, ColorScheme, Material, MaterialModel,
-    PropertyAppearance, Representation, RepresentationKind, RepresentationParams,
-    RepresentationTarget, RowDomain, ScalarContours, ScalarRamp, SegmentStyle, SegmentStyleTable,
-    SurfaceKind, SurfaceScalarOverlay, SurfaceStyle, TubeRadiusMapping, VisualAttributeRef,
-    VisualCompatibility, VisualOutput, VisualProgram, VisualStyle, VolumeRegion, VolumeRendering,
-    VolumeSlice, VolumeStyle, VolumeTransferFunction, VolumeTransferPoint,
+    AttributeKind, ClipCap, ClipPlane, ClipSet, Material, MaterialModel, PropertyAppearance,
+    Representation, RepresentationKind, RepresentationParams, RepresentationTarget, RowDomain,
+    ScalarContours, ScalarRamp, SegmentStyle, SegmentStyleTable, SurfaceKind, SurfaceScalarOverlay,
+    SurfaceStyle, TubeRadiusMapping, VisualAttributeRef, VisualCompatibility, VisualOutput,
+    VisualProgram, VisualStyle, VolumeRegion, VolumeRendering, VolumeSlice, VolumeStyle,
+    VolumeTransferFunction, VolumeTransferPoint,
 };
 use molgfx_math::{Rgba8, Vec3};
 
@@ -229,7 +230,7 @@ fn parse_target(
     }
 }
 
-fn representation_params(values: [f32; 15]) -> Result<RepresentationParams, crate::CoreError> {
+fn representation_params(values: [f32; 16]) -> Result<RepresentationParams, crate::CoreError> {
     if values.iter().any(|value| !value.is_finite()) {
         return invalid("representation parameters contain a non-finite value");
     }
@@ -249,6 +250,7 @@ fn representation_params(values: [f32; 15]) -> Result<RepresentationParams, crat
         tube_radius_mapping: TubeRadiusMapping::Constant,
         point_size_pixels: values[11],
         line_width_pixels: values[12],
+        blob_spread: values[13],
     })
 }
 
@@ -299,50 +301,6 @@ fn parse_tube_mapping(value: Option<[f32; 4]>) -> Result<TubeRadiusMapping, crat
             TubeRadiusMapping::b_factor([domain_low, domain_high], [radius_low, radius_high])
         }
     }
-}
-
-fn parse_color(scene: &Scene, value: &ColorDescription) -> Result<ColorScheme, crate::CoreError> {
-    match value.mode.as_str() {
-        "element" => Ok(ColorScheme::ByElement),
-        "chain" => Ok(ColorScheme::ByChain),
-        "residue" => Ok(ColorScheme::ByResidue),
-        "secondary" => Ok(ColorScheme::BySecondaryStructure),
-        "uniform" => Ok(ColorScheme::Uniform(parse_rgba(value.rgba)?)),
-        "property" => {
-            let row = value
-                .property_row
-                .ok_or_else(|| invalid_value("property colour has no property row"))?;
-            let generation = value
-                .property_generation
-                .ok_or_else(|| invalid_value("property colour has no property generation"))?;
-            let raw = super::resolve_raw(types::ObjectIdentity { row, generation });
-            resolve_existing(scene.properties.get(raw))?;
-            let values = value
-                .ramp_values
-                .ok_or_else(|| invalid_value("property colour has no ramp values"))?
-                .map(f32::from_bits);
-            let colors = value
-                .ramp_colors
-                .ok_or_else(|| invalid_value("property colour has no ramp colours"))?
-                .map(rgba);
-            Ok(ColorScheme::ByProperty {
-                property: crate::AtomPropertyHandle(raw),
-                ramp: ScalarRamp::new(values, colors)?,
-                missing: parse_rgba(value.rgba)?,
-            })
-        }
-        _ => invalid("unknown colour mode"),
-    }
-}
-
-fn parse_rgba(value: Option<[u8; 4]>) -> Result<Rgba8, crate::CoreError> {
-    value
-        .map(rgba)
-        .ok_or_else(|| invalid_value("manifest colour is missing its RGBA value"))
-}
-
-fn rgba(value: [u8; 4]) -> Rgba8 {
-    Rgba8::new(value[0], value[1], value[2], value[3])
 }
 
 fn parse_material(value: &MaterialDescription) -> Result<Material, crate::CoreError> {

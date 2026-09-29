@@ -19,6 +19,7 @@ mod meshes;
 mod occupancy;
 mod overlays;
 mod presentation;
+mod presets;
 pub(crate) mod primitives;
 pub(crate) mod properties;
 pub(crate) mod query;

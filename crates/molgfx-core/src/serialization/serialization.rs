@@ -195,7 +195,7 @@ fn representation_description(
         target,
         visible: representation.visible,
         order: representation.order,
-        color: color_description(representation.color),
+        color: color_description(&representation.color),
         material: material_description(representation.material),
         params: [
             params.radius_scale,
@@ -211,6 +211,7 @@ fn representation_description(
             params.tube_radius,
             params.point_size_pixels,
             params.line_width_pixels,
+            params.blob_spread,
             f32::from(representation.material.opacity_unorm8()),
             f32::from(representation.order),
         ],
@@ -238,6 +239,7 @@ fn representation_description(
         segmentation: records::segmentation_style_description(&representation.segmentation),
         surface_scalar: representation
             .surface_scalar
+            .as_ref()
             .map(records::surface_scalar_description),
         visual: representation.visual.as_ref().map(visual_description),
     }
@@ -319,31 +321,30 @@ pub(super) fn visual_description(style: &VisualStyle) -> VisualStyleDescription 
     }
 }
 
-fn color_description(color: ColorScheme) -> ColorDescription {
-    match color {
+fn color_description(color: &ColorScheme) -> ColorDescription {
+    match *color {
         ColorScheme::ByElement => simple_color("element"),
-        ColorScheme::ByChain => simple_color("chain"),
-        ColorScheme::ByResidue => simple_color("residue"),
-        ColorScheme::BySecondaryStructure => simple_color("secondary"),
+        ColorScheme::ByCategory { property, palette } => ColorDescription {
+            property_row: Some(property.row()),
+            property_generation: Some(property.generation()),
+            palette: Some(palette.name().to_owned()),
+            ..simple_color("category")
+        },
         ColorScheme::Uniform(value) => ColorDescription {
-            mode: "uniform".to_owned(),
             rgba: Some([value.r, value.g, value.b, value.a]),
-            property_row: None,
-            property_generation: None,
-            ramp_values: None,
-            ramp_colors: None,
+            ..simple_color("uniform")
         },
         ColorScheme::ByProperty {
             property,
             ramp,
             missing,
         } => ColorDescription {
-            mode: "property".to_owned(),
             rgba: Some([missing.r, missing.g, missing.b, missing.a]),
             property_row: Some(property.row()),
             property_generation: Some(property.generation()),
-            ramp_values: Some(ramp.values().map(f32::to_bits)),
-            ramp_colors: Some(ramp.colors().map(rgba_array)),
+            ramp_values: Some(ramp.values().iter().copied().map(f32::to_bits).collect()),
+            ramp_colors: Some(ramp.colors().iter().copied().map(rgba_array).collect()),
+            ..simple_color("property")
         },
     }
 }
@@ -356,6 +357,7 @@ fn simple_color(mode: &str) -> ColorDescription {
         property_generation: None,
         ramp_values: None,
         ramp_colors: None,
+        palette: None,
     }
 }
 

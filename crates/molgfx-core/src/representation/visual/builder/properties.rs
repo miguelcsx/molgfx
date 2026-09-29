@@ -1,4 +1,4 @@
-//! Caller-owned per-atom columns, the hook for arbitrary science.
+//! Caller-owned per-atom columns, the hook for arbitrary analysis.
 //!
 //! A program reads a column the caller uploaded rather than a quantity this
 //! library knows how to compute, which is what lets a new metric drive the

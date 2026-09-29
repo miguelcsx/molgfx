@@ -1,4 +1,4 @@
-//! Concise recipes for common scientific visual mappings.
+//! Concise recipes for common physical visual mappings.
 
 use super::{VisualError, VisualProgramBuilder, VisualStyle};
 use crate::{AtomPropertyHandle, ScalarRamp};
