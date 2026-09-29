@@ -18,7 +18,10 @@ import molgfx
 from molgfx.viewer import Workbench
 from molgfx.viewer._runtime import load_runtime
 
-from test_viewer import PAGE, STATIC, _LocalPage, structure, sync_playwright
+try:
+    from .test_viewer import PAGE, STATIC, _LocalPage, structure, sync_playwright
+except ImportError:
+    from test_viewer import PAGE, STATIC, _LocalPage, structure, sync_playwright
 
 
 def _values(bench):
@@ -44,12 +47,6 @@ def _values(bench):
         "history": [],
         "command_request": {},
         "interaction_event": {},
-        "sequence_intervals": {},
-        "focus_preset": "",
-        "measurement_request": {},
-        "volume_sigma": {},
-        "trajectory_frame": {},
-        "trajectory_time": {},
         "command_reply": {},
         "_runtime_js": runtime.glue,
         "_runtime_wasm": base64.b64encode(runtime.wasm_gzip).decode("ascii"),

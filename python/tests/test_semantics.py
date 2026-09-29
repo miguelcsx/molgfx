@@ -83,7 +83,7 @@ class SceneSemanticsTests(unittest.TestCase):
         self.assertEqual(int(scene.structure_id), 1)
         self.assertEqual(int(representation), 1)
 
-    def test_all_scientific_items_use_the_common_add_path(self):
+    def test_all_overlay_items_use_the_common_add_path(self):
         scene = molgfx.Scene(structure())
         origin = molgfx.annotation.world((0.0, 0.0, 0.0))
         x_axis = molgfx.annotation.world((1.0, 0.0, 0.0))
@@ -126,13 +126,13 @@ class SceneSemanticsTests(unittest.TestCase):
         self.assertIsInstance(distance, molgfx.MeasurementId)
         self.assertIsInstance(angle, molgfx.MeasurementId)
         self.assertIsInstance(dihedral, molgfx.MeasurementId)
-        self.assertIsInstance(explicit, molgfx.ScientificInteractionId)
+        self.assertIsInstance(explicit, molgfx.InteractionId)
         self.assertIsInstance(trajectory, molgfx.TrajectoryId)
         spec = json.loads(scene.to_json())
         self.assertEqual(len(spec["volumes"]), 1)
         self.assertEqual(len(spec["annotations"]), 1)
         self.assertEqual(len(spec["measurements"]), 3)
-        self.assertEqual(len(spec["scientific_interactions"]), 1)
+        self.assertEqual(len(spec["interactions"]), 1)
         self.assertEqual(len(spec["trajectories"]), 1)
 
     def test_a_bound_trajectory_pair_reaches_the_renderer(self):
@@ -224,7 +224,7 @@ class SceneSemanticsTests(unittest.TestCase):
 
     def test_detected_interactions_are_not_exposed(self):
         self.assertFalse(hasattr(molgfx.interaction, "detected"))
-        self.assertFalse(hasattr(molgfx.ScientificInteraction, "detected"))
+        self.assertFalse(hasattr(molgfx.Interaction, "detected"))
 
     def test_a_covalent_disulfide_is_not_an_authorable_interaction(self):
         with self.assertRaises(TypeError):
@@ -248,8 +248,17 @@ class SceneSemanticsTests(unittest.TestCase):
         ):
             self.assertIsInstance(
                 molgfx.interaction.explicit(kind=kind, first=first, second=second),
-                molgfx.ScientificInteraction,
+                molgfx.Interaction,
             )
+
+    def test_auto_draws_the_default_forms_and_returns_typed_ids(self):
+        scene = molgfx.Scene(structure())
+        ids = scene.auto()
+        self.assertTrue(ids)
+        for identifier in ids:
+            self.assertIsInstance(identifier, molgfx.RepresentationId)
+        spec = json.loads(scene.to_json())
+        self.assertEqual(len(spec["representations"]), len(ids))
 
 
 class ViewerTransportTests(unittest.TestCase):

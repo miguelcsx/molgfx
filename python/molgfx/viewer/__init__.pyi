@@ -12,12 +12,6 @@ class Viewer:
     camera: dict[str, object]
     error: str
     interaction_event: dict[str, object]
-    sequence_intervals: dict[str, object]
-    focus_preset: str
-    measurement_request: dict[str, object]
-    volume_sigma: dict[str, object]
-    trajectory_frame: dict[str, object]
-    trajectory_time: dict[str, object]
     revision: int
     sync_request: int
     def __init__(self, scene: Scene, **kwargs: object) -> None: ...

@@ -1,4 +1,4 @@
-"""AnyWidget transport adapter for the molgfx-viewer frontend."""
+"""AnyWidget transport adapter for the viewer host built by molgfx-wasm."""
 
 import json
 from pathlib import Path
@@ -11,9 +11,16 @@ from ._runtime import load_runtime
 
 _STATIC = Path(__file__).parent / "static"
 
+if not (_STATIC / "widget.js").is_file():
+    # A wheel always carries the runtime; only a source checkout can lack it.
+    raise ImportError(
+        "the MolGFX browser runtime is not built; from the repository root run "
+        "`node crates/molgfx-wasm/js/scripts/build.mjs --out python/molgfx/viewer/static`"
+    )
+
 
 class Viewer(anywidget.AnyWidget):
-    """A scene transport backed by the shared molgfx-viewer frontend."""
+    """A scene transport backed by the shared molgfx-wasm viewer host."""
 
     _esm = _STATIC / "widget.js"
     _css = _STATIC / "widget.css"
@@ -35,12 +42,6 @@ class Viewer(anywidget.AnyWidget):
     camera = traitlets.Dict().tag(sync=True)
     error = traitlets.Unicode().tag(sync=True)
     interaction_event = traitlets.Dict().tag(sync=True)
-    sequence_intervals = traitlets.Dict().tag(sync=True)
-    focus_preset = traitlets.Unicode("").tag(sync=True)
-    measurement_request = traitlets.Dict().tag(sync=True)
-    volume_sigma = traitlets.Dict().tag(sync=True)
-    trajectory_frame = traitlets.Dict().tag(sync=True)
-    trajectory_time = traitlets.Dict().tag(sync=True)
     revision = traitlets.Int(0).tag(sync=True)
     sync_request = traitlets.Int(0).tag(sync=True)
 
