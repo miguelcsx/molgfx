@@ -133,15 +133,11 @@ impl DerivedColumn {
                     None => binding,
                 }
             }
-            Self::Category { by, .. } => {
-                // A categorical column is indexed by whole-number category, so
-                // its domain is the palette's index range rather than its
-                // values. That keeps the legend correct and lets a structure
-                // with no category at all — every value missing, as when a
-                // file carries no secondary structure — still validate.
-                let categories = by.default_palette().len().max(2);
-                binding.domain([0.0, (categories - 1) as f32])
-            }
+            // A categorical column keeps the value-derived domain: the renderer
+            // already falls back to each atom's own colour when the column has
+            // no value to colour, so a structure with no category needs no
+            // special domain here.
+            Self::Category { .. } => binding,
         })
     }
 }
