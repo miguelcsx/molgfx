@@ -135,7 +135,7 @@ impl PyScene {
                 },
             )
         } else {
-            crate::science_binding::add_item(item, &mut self.inner)?
+            crate::overlay_binding::add_item(item, &mut self.inner)?
         };
         self.publish(
             py,
@@ -145,6 +145,54 @@ impl PyScene {
             },
         )?;
         id.into_python(py)
+    }
+
+    #[pyo3(signature = (*, structure=None))]
+    fn auto(
+        &mut self,
+        py: Python<'_>,
+        structure: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Vec<Py<PyAny>>> {
+        if self.pending.is_some() {
+            return Err(PyValueError::new_err(
+                "default forms cannot be added inside a scene transaction",
+            ));
+        }
+        let target = match structure {
+            Some(structure) => crate::id_binding::structure_id(structure)?,
+            None => self.structure_id,
+        };
+        let base_revision = self.inner.revision();
+        let inserted = self
+            .inner
+            .add_auto(molgfx::StructureId::new(target))
+            .map_err(error)?;
+        let mut operations = Vec::with_capacity(inserted.len());
+        let mut ids = Vec::with_capacity(inserted.len());
+        for id in inserted {
+            let representation = self
+                .inner
+                .spec()
+                .representations
+                .get(&id)
+                .cloned()
+                .ok_or_else(|| PyValueError::new_err("inserted representation is unavailable"))?;
+            operations
+                .push(molgfx::schema::PatchOperation::AddRepresentation { id, representation });
+            ids.push(crate::id_binding::PySceneId::Representation(id.get()));
+        }
+        if !operations.is_empty() {
+            self.publish(
+                py,
+                &molgfx::ScenePatch {
+                    base_revision,
+                    operations,
+                },
+            )?;
+        }
+        ids.into_iter()
+            .map(|id| id.into_python(py))
+            .collect::<PyResult<Vec<_>>>()
     }
 
     #[pyo3(signature = (*, structure, name, source_hash, values, units=None, domain=None))]
@@ -183,8 +231,8 @@ impl PyScene {
     fn bind_trajectory(
         &mut self,
         source_hash: &str,
-        start: &crate::science_binding::PyTrajectoryFrame,
-        end: &crate::science_binding::PyTrajectoryFrame,
+        start: &crate::overlay_binding::PyTrajectoryFrame,
+        end: &crate::overlay_binding::PyTrajectoryFrame,
         sample_time: Option<f32>,
     ) -> PyResult<()> {
         let binding = molgfx::TrajectoryBinding::new(

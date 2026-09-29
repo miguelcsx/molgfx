@@ -36,16 +36,18 @@ semantic_id!(PyStructureId, "StructureId");
 semantic_id!(PyVolumeId, "VolumeId");
 semantic_id!(PyAnnotationId, "AnnotationId");
 semantic_id!(PyMeasurementId, "MeasurementId");
-semantic_id!(PyScientificInteractionId, "ScientificInteractionId");
+semantic_id!(PyInteractionId, "InteractionId");
 semantic_id!(PyTrajectoryId, "TrajectoryId");
+semantic_id!(PyEllipsoidId, "EllipsoidId");
 
 pub(super) enum PySceneId {
     Representation(u64),
     Volume(u64),
     Annotation(u64),
     Measurement(u64),
-    ScientificInteraction(u64),
+    Interaction(u64),
     Trajectory(u64),
+    Ellipsoids(u64),
 }
 
 pub(super) fn representation_id(value: &Bound<'_, PyAny>) -> PyResult<u64> {
@@ -65,10 +67,9 @@ impl PySceneId {
             Self::Volume(value) => Ok(Py::new(py, PyVolumeId(value))?.into_any()),
             Self::Annotation(value) => Ok(Py::new(py, PyAnnotationId(value))?.into_any()),
             Self::Measurement(value) => Ok(Py::new(py, PyMeasurementId(value))?.into_any()),
-            Self::ScientificInteraction(value) => {
-                Ok(Py::new(py, PyScientificInteractionId(value))?.into_any())
-            }
+            Self::Interaction(value) => Ok(Py::new(py, PyInteractionId(value))?.into_any()),
             Self::Trajectory(value) => Ok(Py::new(py, PyTrajectoryId(value))?.into_any()),
+            Self::Ellipsoids(value) => Ok(Py::new(py, PyEllipsoidId(value))?.into_any()),
         }
     }
 }
@@ -79,6 +80,7 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyVolumeId>()?;
     module.add_class::<PyAnnotationId>()?;
     module.add_class::<PyMeasurementId>()?;
-    module.add_class::<PyScientificInteractionId>()?;
-    module.add_class::<PyTrajectoryId>()
+    module.add_class::<PyInteractionId>()?;
+    module.add_class::<PyTrajectoryId>()?;
+    module.add_class::<PyEllipsoidId>()
 }

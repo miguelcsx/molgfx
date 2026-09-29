@@ -81,6 +81,39 @@ impl PyRenderProfile {
             molgfx::Quality::Publication => "publication",
         }
     }
+
+    #[getter]
+    fn depth_cue(&self) -> Option<(f32, f32, f32)> {
+        self.0
+            .depth_cue
+            .map(|cue| (cue.near_distance(), cue.far_distance(), cue.strength()))
+    }
+
+    #[pyo3(signature = (*, near_distance, far_distance, strength))]
+    fn with_depth_cue(
+        &self,
+        near_distance: f32,
+        far_distance: f32,
+        strength: f32,
+    ) -> PyResult<Self> {
+        molgfx::profile::DepthCue::new(near_distance, far_distance, strength)
+            .map(|cue| Self(self.0.with_depth_cue(cue)))
+            .map_err(crate::binding::error)
+    }
+
+    fn without_depth_cue(&self) -> Self {
+        Self(self.0.without_depth_cue())
+    }
+
+    #[getter]
+    fn edge_smoothing(&self) -> Option<bool> {
+        self.0.edge_smoothing
+    }
+
+    #[pyo3(signature = (*, enabled))]
+    fn with_edge_smoothing(&self, enabled: bool) -> Self {
+        Self(self.0.with_edge_smoothing(enabled))
+    }
 }
 
 #[pymethods]
@@ -114,6 +147,70 @@ fn residue() -> PyColorSpec {
 #[pyfunction]
 fn secondary_structure() -> PyColorSpec {
     PyColorSpec(molgfx::color::secondary_structure())
+}
+
+#[pyfunction]
+fn entity() -> PyColorSpec {
+    PyColorSpec(molgfx::color::entity())
+}
+
+#[pyfunction]
+fn molecule_type() -> PyColorSpec {
+    PyColorSpec(molgfx::color::molecule_type())
+}
+
+#[pyfunction]
+fn residue_name() -> PyColorSpec {
+    PyColorSpec(molgfx::color::residue_name())
+}
+
+#[pyfunction]
+fn carbon_by_chain() -> PyColorSpec {
+    PyColorSpec(molgfx::color::carbon_by_chain())
+}
+
+/// A categorical colour restricted to a named palette.
+#[pyfunction]
+#[pyo3(signature = (by, *, palette=None, carbon_only=false))]
+fn category(by: &str, palette: Option<&str>, carbon_only: bool) -> PyResult<PyColorSpec> {
+    let category = molgfx::color::AtomCategory::from_name(by)
+        .ok_or_else(|| PyValueError::new_err(format!("unknown category '{by}'")))?;
+    let mut spec = molgfx::ColorSpec::category(category);
+    if let Some(palette) = palette {
+        spec = spec.with_palette(palette);
+    }
+    if carbon_only {
+        spec = spec.carbon_only();
+    }
+    Ok(PyColorSpec(spec))
+}
+
+/// A colour by a value the structure defines for itself.
+#[pyfunction]
+#[pyo3(signature = (name, *, ramp=None, domain=None))]
+fn metric(name: &str, ramp: Option<&str>, domain: Option<(f32, f32)>) -> PyResult<PyColorSpec> {
+    let metric = molgfx::color::AtomMetric::ALL
+        .into_iter()
+        .find(|known| known.name() == name)
+        .ok_or_else(|| PyValueError::new_err(format!("unknown metric '{name}'")))?;
+    let mut spec = molgfx::color::metric(metric);
+    if let Some(ramp) = ramp {
+        spec = spec.with_ramp(ramp);
+    }
+    if let Some((low, high)) = domain {
+        spec = spec.with_domain([low, high]);
+    }
+    Ok(PyColorSpec(spec))
+}
+
+#[pyfunction]
+fn ramp_names() -> Vec<&'static str> {
+    molgfx::color::ramp_names()
+}
+
+#[pyfunction]
+fn palette_names() -> Vec<&'static str> {
+    molgfx::color::palette_names()
 }
 
 #[pyfunction]
@@ -166,6 +263,14 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     color.add_function(wrap_pyfunction!(chain, &color)?)?;
     color.add_function(wrap_pyfunction!(residue, &color)?)?;
     color.add_function(wrap_pyfunction!(secondary_structure, &color)?)?;
+    color.add_function(wrap_pyfunction!(entity, &color)?)?;
+    color.add_function(wrap_pyfunction!(molecule_type, &color)?)?;
+    color.add_function(wrap_pyfunction!(residue_name, &color)?)?;
+    color.add_function(wrap_pyfunction!(carbon_by_chain, &color)?)?;
+    color.add_function(wrap_pyfunction!(category, &color)?)?;
+    color.add_function(wrap_pyfunction!(metric, &color)?)?;
+    color.add_function(wrap_pyfunction!(ramp_names, &color)?)?;
+    color.add_function(wrap_pyfunction!(palette_names, &color)?)?;
     color.add_function(wrap_pyfunction!(uniform, &color)?)?;
     color.add_function(wrap_pyfunction!(property, &color)?)?;
     module.add_submodule(&color)?;

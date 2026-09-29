@@ -1,4 +1,4 @@
-//! Immutable Python authoring values for scientific scene items.
+//! Immutable Python authoring values for overlay scene items.
 
 use crate::binding::{error, selection};
 use pyo3::exceptions::PyTypeError;
@@ -26,12 +26,15 @@ struct PyLabel(molgfx::AnnotationSpec);
 struct PyMeasurement(molgfx::MeasurementSpec);
 
 #[derive(Clone, Debug)]
-#[pyclass(name = "ScientificInteraction", frozen, skip_from_py_object)]
-struct PyScientificInteraction(molgfx::ScientificInteractionSpec);
+#[pyclass(name = "Interaction", frozen, skip_from_py_object)]
+struct PyInteraction(molgfx::InteractionSpec);
 
 #[derive(Clone, Debug)]
 #[pyclass(name = "Trajectory", frozen, skip_from_py_object)]
 struct PyTrajectory(molgfx::TrajectorySpec);
+
+#[pyclass(name = "Ellipsoid", frozen, skip_from_py_object)]
+struct PyEllipsoid(molgfx::EllipsoidSpec);
 
 /// One decoded coordinate frame, handed to `Scene.bind_trajectory`.
 ///
@@ -91,7 +94,7 @@ fn interaction_kind(value: &str) -> PyResult<molgfx::InteractionKind> {
         "hydrophobic" => Ok(molgfx::InteractionKind::Hydrophobic),
         "metal_coordination" => Ok(molgfx::InteractionKind::MetalCoordination),
         "contact" => Ok(molgfx::InteractionKind::Contact),
-        _ => Err(PyTypeError::new_err("unknown scientific interaction kind")),
+        _ => Err(PyTypeError::new_err("unknown overlay interaction kind")),
     }
 }
 
@@ -188,8 +191,8 @@ fn dihedral(
 
 #[pyfunction]
 #[pyo3(signature = (*, kind, first, second))]
-fn explicit(kind: &str, first: &PyAnchor, second: &PyAnchor) -> PyResult<PyScientificInteraction> {
-    Ok(PyScientificInteraction(molgfx::interaction::explicit(
+fn explicit(kind: &str, first: &PyAnchor, second: &PyAnchor) -> PyResult<PyInteraction> {
+    Ok(PyInteraction(molgfx::interaction::explicit(
         interaction_kind(kind)?,
         first.0.clone(),
         second.0.clone(),
@@ -212,6 +215,29 @@ fn bind_trajectory(
         time_step,
         time_unit: time_unit.map(Into::into),
     }))
+}
+
+#[pyfunction]
+#[pyo3(signature = (*, structure, target, scale=None, color=None, opacity=None))]
+fn adp(
+    structure: &Bound<'_, PyAny>,
+    target: &Bound<'_, PyAny>,
+    scale: Option<f32>,
+    color: Option<(u8, u8, u8)>,
+    opacity: Option<f32>,
+) -> PyResult<PyEllipsoid> {
+    let structure = molgfx::StructureId::new(crate::id_binding::structure_id(structure)?);
+    let mut spec = molgfx::ellipsoid::adp(structure, selection(target)?.into());
+    if let Some(scale) = scale {
+        spec.scale = scale;
+    }
+    if let Some(color) = color {
+        spec.color = rgb(color);
+    }
+    if let Some(opacity) = opacity {
+        spec.opacity = opacity;
+    }
+    Ok(PyEllipsoid(spec))
 }
 
 pub(super) fn add_item(
@@ -255,11 +281,11 @@ pub(super) fn add_item(
             },
         ));
     }
-    if let Ok(item) = item.extract::<PyRef<'_, PyScientificInteraction>>() {
+    if let Ok(item) = item.extract::<PyRef<'_, PyInteraction>>() {
         let id = scene.add(item.0.clone()).map_err(error)?;
         return Ok((
-            crate::id_binding::PySceneId::ScientificInteraction(id.get()),
-            molgfx::schema::PatchOperation::AddScientificInteraction {
+            crate::id_binding::PySceneId::Interaction(id.get()),
+            molgfx::schema::PatchOperation::AddInteraction {
                 id,
                 interaction: item.0.clone(),
             },
@@ -275,8 +301,18 @@ pub(super) fn add_item(
             },
         ));
     }
+    if let Ok(item) = item.extract::<PyRef<'_, PyEllipsoid>>() {
+        let id = scene.add(item.0.clone()).map_err(error)?;
+        return Ok((
+            crate::id_binding::PySceneId::Ellipsoids(id.get()),
+            molgfx::schema::PatchOperation::AddEllipsoids {
+                id,
+                spec: item.0.clone(),
+            },
+        ));
+    }
     Err(PyTypeError::new_err(
-        "expected a representation or scientific scene item",
+        "expected a representation or overlay scene item",
     ))
 }
 
@@ -290,9 +326,10 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyVolume>()?;
     module.add_class::<PyLabel>()?;
     module.add_class::<PyMeasurement>()?;
-    module.add_class::<PyScientificInteraction>()?;
+    module.add_class::<PyInteraction>()?;
     module.add_class::<PyTrajectory>()?;
     module.add_class::<PyTrajectoryFrame>()?;
+    module.add_class::<PyEllipsoid>()?;
     let data = namespace(module, "data")?;
     data.add_function(wrap_pyfunction!(source, &data)?)?;
     module.add_submodule(&data)?;
@@ -312,6 +349,9 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     let interaction = namespace(module, "interaction")?;
     interaction.add_function(wrap_pyfunction!(explicit, &interaction)?)?;
     module.add_submodule(&interaction)?;
+    let ellipsoid = namespace(module, "ellipsoid")?;
+    ellipsoid.add_function(wrap_pyfunction!(adp, &ellipsoid)?)?;
+    module.add_submodule(&ellipsoid)?;
     let trajectory = namespace(module, "trajectory")?;
     trajectory.add_function(wrap_pyfunction!(bind_trajectory, &trajectory)?)?;
     trajectory.add_function(wrap_pyfunction!(trajectory_frame, &trajectory)?)?;

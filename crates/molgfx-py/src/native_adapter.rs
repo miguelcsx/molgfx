@@ -2,9 +2,9 @@
 
 use molgfx::source::{
     AtomSelection, CoreError, MolecularProvider, SourceAtom, SourceBond, SourceTopology, Structure,
-    topology_identity,
+    is_metal_atomic_number, topology_identity,
 };
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyAttributeError, PyValueError};
 use pyo3::prelude::*;
 use std::sync::{Arc, OnceLock};
 
@@ -28,6 +28,15 @@ impl NativeProvider {
     pub(super) fn import(object: &Bound<'_, PyAny>) -> PyResult<Self> {
         let source = molframe_py::NativeStructureSource::from_python(object)?;
         let native = source.topology();
+        let secondary_structure = match object.call_method0("_molframe_secondary_structure") {
+            Ok(value) => value
+                .extract::<Vec<u8>>()?
+                .into_iter()
+                .map(decode_secondary_structure)
+                .collect::<Vec<_>>(),
+            Err(error) if error.is_instance_of::<PyAttributeError>(object.py()) => Vec::new(),
+            Err(error) => return Err(error),
+        };
         let mut atoms = Vec::with_capacity(native.atoms.len());
         for atom in native.atoms {
             let element = u8::try_from(atom.element)
@@ -42,7 +51,13 @@ impl NativeProvider {
             .into_iter()
             .map(|bond| SourceBond {
                 atoms: [bond.first, bond.second],
+                order: decode_bond_order(bond.order, bond.aromatic != 0),
                 aromatic: bond.aromatic != 0,
+                metal: [bond.first, bond.second]
+                    .into_iter()
+                    .filter_map(|index| usize::try_from(index).ok())
+                    .filter_map(|index| atoms.get(index))
+                    .any(|atom| is_metal_atomic_number(atom.element)),
             })
             .collect::<Vec<_>>();
         let topology = SourceTopology {
@@ -51,6 +66,10 @@ impl NativeProvider {
             chain_residue_start: native.chain_residue_start.into(),
             model_chain_start: native.model_chain_start.into(),
             bonds: bonds.into(),
+            // The Python provider does not yet forward anisotropic tensors, so
+            // an imported structure is isotropic until it does.
+            anisotropy: Vec::new().into(),
+            secondary_structure: secondary_structure.into(),
         };
         let identity = topology_identity(&topology);
         Ok(Self {
@@ -63,6 +82,29 @@ impl NativeProvider {
 
     pub(super) fn browser_bytes(&self) -> PyResult<Vec<u8>> {
         self.source.encode_bcif()
+    }
+}
+
+fn decode_bond_order(code: u8, aromatic: bool) -> molgfx::molframe::BondOrder {
+    match code {
+        molframe_py::NativeBond::ORDER_SINGLE => molgfx::molframe::BondOrder::Single,
+        molframe_py::NativeBond::ORDER_DOUBLE => molgfx::molframe::BondOrder::Double,
+        molframe_py::NativeBond::ORDER_TRIPLE => molgfx::molframe::BondOrder::Triple,
+        molframe_py::NativeBond::ORDER_QUADRUPLE => molgfx::molframe::BondOrder::Quadruple,
+        molframe_py::NativeBond::ORDER_AROMATIC => molgfx::molframe::BondOrder::Aromatic,
+        molframe_py::NativeBond::ORDER_POLYMERIC => molgfx::molframe::BondOrder::Polymeric,
+        molframe_py::NativeBond::ORDER_UNKNOWN if aromatic => molgfx::molframe::BondOrder::Aromatic,
+        _ => molgfx::molframe::BondOrder::Unknown,
+    }
+}
+
+fn decode_secondary_structure(code: u8) -> molgfx::molframe::SecondaryStructure {
+    match code {
+        1 => molgfx::molframe::SecondaryStructure::Coil,
+        2 => molgfx::molframe::SecondaryStructure::Helix,
+        3 => molgfx::molframe::SecondaryStructure::Strand,
+        4 => molgfx::molframe::SecondaryStructure::Turn,
+        _ => molgfx::molframe::SecondaryStructure::Unknown,
     }
 }
 

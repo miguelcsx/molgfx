@@ -260,7 +260,7 @@ fn vocabulary(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
         forms.set_item(kind.name(), controls)?;
     }
     out.set_item("forms", forms)?;
-    out.set_item("schemes", command::registry::SCHEMES.to_vec())?;
+    out.set_item("schemes", command::registry::schemes())?;
     out.set_item(
         "colors",
         command::registry::NAMED_COLORS
@@ -268,7 +268,8 @@ fn vocabulary(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
             .map(|(name, _)| *name)
             .collect::<Vec<_>>(),
     )?;
-    out.set_item("ramps", command::registry::RAMPS.to_vec())?;
+    out.set_item("ramps", command::registry::ramps())?;
+    out.set_item("palettes", command::registry::palettes())?;
     Ok(out)
 }
 
