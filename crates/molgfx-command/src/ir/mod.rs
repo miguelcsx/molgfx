@@ -17,4 +17,4 @@ pub use form::{Form, FormKind, OptionError, OptionInfo, OptionKind};
 pub use name::{InvalidName, Name};
 pub use program::{Program, Statement};
 pub use target::{QueryText, Target};
-pub use value::{Finite, NonNegative, Opacity, Positive};
+pub use value::{Finite, Opacity, Positive};

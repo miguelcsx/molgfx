@@ -151,11 +151,13 @@ pub(crate) fn lower(
         let handles = lower_ellipsoids(
             lowering.scene,
             lowering.handles,
-            &ellipsoids.structure,
+            ellipsoids.structure,
             &ellipsoids.selection,
-            ellipsoids.scale,
-            ellipsoids.color.native(),
-            ellipsoids.opacity,
+            EllipsoidStyle {
+                scale: ellipsoids.scale,
+                color: ellipsoids.color.native(),
+                opacity: ellipsoids.opacity,
+            },
         )?;
         lowered.ellipsoids.push((*id, handles));
     }
@@ -172,17 +174,27 @@ pub(crate) fn lower(
 /// can carry a single malformed ellipsoid among thousands.
 ///
 /// Cost: `O(selected atoms)` plus one `add_primitives` batch insert.
-#[allow(clippy::too_many_arguments)]
-fn lower_ellipsoids(
-    scene: &mut Scene,
-    handles: &BTreeMap<StructureId, StructureHandle>,
-    structure: &StructureId,
-    selection: &Selection,
+/// How one ellipsoid overlay draws: its tensor scale and display style.
+#[derive(Clone, Copy, Debug)]
+struct EllipsoidStyle {
     scale: f32,
     color: molgfx_math::Rgba8,
     opacity: f32,
+}
+
+fn lower_ellipsoids(
+    scene: &mut Scene,
+    handles: &BTreeMap<StructureId, StructureHandle>,
+    structure: StructureId,
+    selection: &Selection,
+    style: EllipsoidStyle,
 ) -> Result<Vec<PrimitiveHandle>, Error> {
-    let handle = *handles.get(structure).ok_or_else(|| {
+    let EllipsoidStyle {
+        scale,
+        color,
+        opacity,
+    } = style;
+    let handle = *handles.get(&structure).ok_or_else(|| {
         Error::InvalidSpec("ellipsoid overlay targets an unbound structure".to_owned())
     })?;
     let Some(placed) = scene.structure(handle) else {
