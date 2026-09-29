@@ -10,6 +10,7 @@
 mod arguments;
 mod split;
 mod statement;
+mod targets;
 mod words;
 
 use crate::error::{CommandError, CommandErrors};

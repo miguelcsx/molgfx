@@ -113,6 +113,24 @@ fn focus_accepts_one_target_and_rejects_extra_or_trailing_targets() {
 }
 
 #[test]
+fn every_named_colour_parses_to_its_own_srgb_triple() {
+    for (name, rgb) in crate::registry::NAMED_COLORS {
+        let Some(Command::Color { color, .. }) =
+            commands(&format!("color {name}, all")).into_iter().next()
+        else {
+            panic!("color {name} parses")
+        };
+        assert_eq!(
+            color.scheme(),
+            Some(molgfx_scene::ColorSpec::Uniform {
+                color: molgfx_scene::Color::rgb(rgb[0], rgb[1], rgb[2]),
+            }),
+            "{name} resolves to {rgb:?}"
+        );
+    }
+}
+
+#[test]
 fn canonical_text_parses_back_to_the_same_command() {
     for source in [
         "select pocket, byres (within 5 of resname HEM)",

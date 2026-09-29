@@ -10,9 +10,9 @@ use super::form::Form;
 use super::name::Name;
 use super::target::{QueryText, Target};
 use super::value::Opacity;
-use molgfx_api::DomainSceneSnapshot as SceneSnapshot;
-use molgfx_api::{
-    AssemblySpec, FitResult, MovieExportRequest, ScientificInteractionSpec, ValidationFinding,
+use molgfx_scene::DomainSceneSnapshot as SceneSnapshot;
+use molgfx_scene::{
+    AssemblySpec, FitResult, InteractionSpec, MovieExportRequest, ValidationFinding, VolumeSpec,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -58,6 +58,43 @@ impl Show {
             color: None,
             opacity: None,
             duplicate: false,
+        }
+    }
+}
+
+/// What a measurement reads off its points.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MeasureKind {
+    /// The distance between two points.
+    Distance,
+    /// The angle at the middle of three points.
+    Angle,
+    /// The signed torsion about the axis through the middle two of four points.
+    Dihedral,
+}
+
+impl MeasureKind {
+    /// Every kind, in the order a help listing shows them.
+    pub const ALL: [Self; 3] = [Self::Distance, Self::Angle, Self::Dihedral];
+
+    /// The verb that writes this measurement.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Distance => "distance",
+            Self::Angle => "angle",
+            Self::Dihedral => "dihedral",
+        }
+    }
+
+    /// How many points define it.
+    #[must_use]
+    pub const fn arity(self) -> usize {
+        match self {
+            Self::Distance => 2,
+            Self::Angle => 3,
+            Self::Dihedral => 4,
         }
     }
 }
@@ -131,18 +168,60 @@ pub enum Command {
         /// What to focus.
         target: Target,
     },
-    /// Adds a caller-supplied explicit scientific interaction.
+    /// Adds a text label at the centroid of a query.
+    Label {
+        /// The label text.
+        text: String,
+        /// The atoms whose centroid anchors the label.
+        target: QueryText,
+        /// The structure the query is evaluated in; required only when a
+        /// scene has several.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        structure: Option<Name>,
+    },
+    /// Adds a distance, angle or dihedral measured between query centroids.
+    Measure {
+        /// What is measured.
+        kind: MeasureKind,
+        /// One query per point, in order; as many as the kind's arity.
+        points: Vec<QueryText>,
+        /// The structure the queries are evaluated in.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        structure: Option<Name>,
+    },
+    /// Draws a structure with the size- and chemistry-appropriate default
+    /// forms, the way opening it in a viewer would.
+    ///
+    /// Which forms those are is one policy, owned by the scene layer; the
+    /// command only names the structure to apply it to, so a caller does not
+    /// restate the policy per statement.
+    Auto {
+        /// The structure to draw; required only when a scene has several.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        structure: Option<Name>,
+    },
+    /// Adds a caller-supplied explicit overlay interaction.
     ///
     /// The interaction is already resolved by the caller; command execution
     /// only validates and stages its scene patch.
     Interaction {
         /// The explicit interaction specification.
-        interaction: ScientificInteractionSpec,
+        interaction: InteractionSpec,
     },
     /// Retains crystallographic assembly and unit-cell metadata.
     Assembly {
         /// Crystallographic assembly metadata.
         assembly: Option<AssemblySpec>,
+    },
+    /// Declares a density volume whose grid values arrive through a runtime
+    /// binding.
+    ///
+    /// The command carries the identity and sampling metadata only; the bulk
+    /// grid is supplied to the renderer separately, exactly as a data source
+    /// descriptor keeps the portable scene document small.
+    Volume {
+        /// Immutable volume metadata.
+        volume: VolumeSpec,
     },
     /// Retains a validated native fitting result.
     Fitting {
@@ -186,8 +265,12 @@ impl Command {
             Self::Uncolor { .. } => "uncolor",
             Self::Opacity { .. } => "opacity",
             Self::Focus { .. } => "focus",
+            Self::Label { .. } => "label",
+            Self::Measure { kind, .. } => kind.name(),
+            Self::Auto { .. } => "auto",
             Self::Interaction { .. } => "interaction",
             Self::Assembly { .. } => "assembly",
+            Self::Volume { .. } => "volume",
             Self::Fitting { .. } => "fitting",
             Self::Validation { .. } => "validation",
             Self::MovieExport { .. } => "movie_export",
@@ -259,39 +342,53 @@ impl fmt::Display for Command {
             }
             Self::Opacity { value, layer } => write!(formatter, "opacity {value}, @{layer}"),
             Self::Focus { target } => write!(formatter, "focus {target}"),
-            Self::Interaction { interaction } => write!(
+            Self::Label {
+                text,
+                target,
+                structure,
+            } => write!(
                 formatter,
-                "interaction {}",
-                serde_json::to_string(interaction).unwrap_or_else(|_| "{}".to_owned())
+                "label \"{}\"{}, {target}",
+                text.replace('\\', "\\\\").replace('"', "\\\""),
+                in_structure(structure)
             ),
-            Self::Assembly { assembly } => write!(
-                formatter,
-                "assembly {}",
-                serde_json::to_string(assembly).unwrap_or_else(|_| "null".to_owned())
-            ),
-            Self::Fitting { fitting } => write!(
-                formatter,
-                "fitting {}",
-                serde_json::to_string(fitting).unwrap_or_else(|_| "null".to_owned())
-            ),
-            Self::Validation { findings } => write!(
-                formatter,
-                "validation {}",
-                serde_json::to_string(findings).unwrap_or_else(|_| "[]".to_owned())
-            ),
-            Self::MovieExport { request } => write!(
-                formatter,
-                "movie_export {}",
-                serde_json::to_string(request).unwrap_or_else(|_| "null".to_owned())
-            ),
-            Self::Snapshot { snapshot } => write!(
-                formatter,
-                "snapshot {}",
-                serde_json::to_string(snapshot).unwrap_or_else(|_| "null".to_owned())
-            ),
+            Self::Measure {
+                kind,
+                points,
+                structure,
+            } => {
+                write!(formatter, "{}{}", kind.name(), in_structure(structure))?;
+                for point in points {
+                    write!(formatter, ", {point}")?;
+                }
+                Ok(())
+            }
+            Self::Auto { structure } => {
+                write!(formatter, "auto{}", in_structure(structure))
+            }
+            Self::Interaction { interaction } => write_json(formatter, "interaction", interaction),
+            Self::Assembly { assembly } => write_json(formatter, "assembly", assembly),
+            Self::Volume { volume } => write_json(formatter, "volume", volume),
+            Self::Fitting { fitting } => write_json(formatter, "fitting", fitting),
+            Self::Validation { findings } => write_json(formatter, "validation", findings),
+            Self::MovieExport { request } => write_json(formatter, "movie_export", request),
+            Self::Snapshot { snapshot } => write_json(formatter, "snapshot", snapshot),
             Self::Unfocus => formatter.write_str("unfocus"),
             Self::Undo => formatter.write_str("undo"),
             Self::Redo => formatter.write_str("redo"),
         }
     }
+}
+
+/// Writes `verb` followed by the JSON form of a caller-supplied value.
+fn write_json<T: Serialize + ?Sized>(
+    formatter: &mut fmt::Formatter<'_>,
+    verb: &str,
+    value: &T,
+) -> fmt::Result {
+    write!(
+        formatter,
+        "{verb} {}",
+        serde_json::to_string(value).map_err(|_| fmt::Error)?
+    )
 }

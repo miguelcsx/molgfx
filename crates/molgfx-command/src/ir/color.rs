@@ -1,5 +1,6 @@
 //! Colour values a command can apply.
 
+use molgfx_scene::color::{AtomCategory, AtomMetric};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -10,12 +11,29 @@ use std::fmt;
 pub enum ColorValue {
     /// Conventional element colours.
     Element,
-    /// One categorical colour per chain.
-    Chain,
-    /// One categorical colour per residue.
-    Residue,
-    /// Colours for helix, strand, turn and coil.
-    SecondaryStructure,
+    /// A category the structure defines — chain, entity, molecule type,
+    /// residue name, residue, secondary structure — through a palette.
+    Category {
+        /// What atoms are categorised by.
+        by: AtomCategory,
+        /// Palette name; the category's own default when absent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        palette: Option<Box<str>>,
+        /// Whether only carbon atoms take a colour.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        carbon_only: bool,
+    },
+    /// A value the structure defines for itself, through a ramp.
+    Metric {
+        /// Which value.
+        metric: AtomMetric,
+        /// Ramp name; the metric's own default when absent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ramp: Option<Box<str>>,
+        /// Explicit domain; the metric's own default when absent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        domain: Option<[f32; 2]>,
+    },
     /// One colour everywhere, in sRGB.
     Rgb {
         /// Red channel.
@@ -39,6 +57,9 @@ pub enum ColorValue {
         domain: Option<[f32; 2]>,
     },
 }
+
+/// The scheme word for carbon atoms coloured by chain.
+pub(crate) const CARBON_BY_CHAIN: &str = "carbon_by_chain";
 
 impl ColorValue {
     /// Parses `#rrggbb`.
@@ -70,30 +91,59 @@ impl ColorValue {
     /// colour names listed by [`crate::registry`].
     #[must_use]
     pub fn named(word: &str) -> Option<Self> {
-        match word {
-            "element" => Some(Self::Element),
-            "chain" => Some(Self::Chain),
-            "residue" => Some(Self::Residue),
-            "secondary_structure" => Some(Self::SecondaryStructure),
-            other => crate::registry::named_color(other).map(|[red, green, blue]| Self::Rgb {
-                red,
-                green,
-                blue,
-            }),
+        if word == "element" {
+            return Some(Self::Element);
         }
+        if word == CARBON_BY_CHAIN {
+            return Some(Self::Category {
+                by: AtomCategory::Chain,
+                palette: None,
+                carbon_only: true,
+            });
+        }
+        if let Some(by) = AtomCategory::from_name(word) {
+            return Some(Self::Category {
+                by,
+                palette: None,
+                carbon_only: false,
+            });
+        }
+        if let Some(metric) = AtomMetric::ALL.into_iter().find(|m| m.name() == word) {
+            return Some(Self::Metric {
+                metric,
+                ramp: None,
+                domain: None,
+            });
+        }
+        crate::registry::named_color(word).map(|[red, green, blue]| Self::Rgb { red, green, blue })
     }
 
     /// The declarative colour, for every value but a property colour, which
     /// needs the scene's property binding.
     #[must_use]
-    pub fn scheme(&self) -> Option<molgfx_api::ColorSpec> {
+    pub fn scheme(&self) -> Option<molgfx_scene::ColorSpec> {
         Some(match self {
-            Self::Element => molgfx_api::ColorSpec::Element,
-            Self::Chain => molgfx_api::ColorSpec::Chain,
-            Self::Residue => molgfx_api::ColorSpec::Residue,
-            Self::SecondaryStructure => molgfx_api::ColorSpec::SecondaryStructure,
-            Self::Rgb { red, green, blue } => molgfx_api::ColorSpec::Uniform {
-                color: molgfx_api::Color::rgb(*red, *green, *blue),
+            Self::Element => molgfx_scene::ColorSpec::Element,
+            Self::Category {
+                by,
+                palette,
+                carbon_only,
+            } => molgfx_scene::ColorSpec::Category {
+                by: *by,
+                palette: palette.clone(),
+                carbon_only: *carbon_only,
+            },
+            Self::Metric {
+                metric,
+                ramp,
+                domain,
+            } => molgfx_scene::ColorSpec::Metric {
+                metric: *metric,
+                ramp: ramp.clone(),
+                domain: *domain,
+            },
+            Self::Rgb { red, green, blue } => molgfx_scene::ColorSpec::Uniform {
+                color: molgfx_scene::Color::rgb(*red, *green, *blue),
             },
             Self::Property { .. } => return None,
         })
@@ -104,9 +154,36 @@ impl fmt::Display for ColorValue {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Element => formatter.write_str("element"),
-            Self::Chain => formatter.write_str("chain"),
-            Self::Residue => formatter.write_str("residue"),
-            Self::SecondaryStructure => formatter.write_str("secondary_structure"),
+            Self::Category {
+                by,
+                palette,
+                carbon_only,
+            } => {
+                let word = if *carbon_only && *by == AtomCategory::Chain {
+                    CARBON_BY_CHAIN
+                } else {
+                    by.name()
+                };
+                formatter.write_str(word)?;
+                if let Some(palette) = palette {
+                    write!(formatter, " palette={palette}")?;
+                }
+                Ok(())
+            }
+            Self::Metric {
+                metric,
+                ramp,
+                domain,
+            } => {
+                formatter.write_str(metric.name())?;
+                if let Some(ramp) = ramp {
+                    write!(formatter, " ramp={ramp}")?;
+                }
+                if let Some([low, high]) = domain {
+                    write!(formatter, " domain={low}:{high}")?;
+                }
+                Ok(())
+            }
             Self::Rgb { red, green, blue } => write!(formatter, "#{red:02x}{green:02x}{blue:02x}"),
             Self::Property {
                 property,

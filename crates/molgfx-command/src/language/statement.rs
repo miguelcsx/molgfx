@@ -1,9 +1,10 @@
 //! One statement: a verb, its arguments and its target.
 
 use super::arguments::{Arguments, color_value, layer_word, name_word, target};
-use super::words::{Word, first_comma, trim, words};
+use super::targets::optional_target;
+use super::words::{Word, comma_pieces, first_comma, trim, words};
 use crate::error::{CommandError, ErrorKind, Span};
-use crate::ir::{Command, Form, FormKind, Opacity, OptionError, QueryText, Show, Target};
+use crate::ir::{Command, Form, FormKind, MeasureKind, Opacity, OptionError, QueryText, Show};
 use crate::registry;
 
 /// Parses the statement at `span`.
@@ -61,8 +62,10 @@ pub(super) fn parse(source: &str, span: Span) -> Result<Command, CommandError> {
                 Command::Remove { layer }
             })
         }
+        "label" => label(source, verb.span, span),
+        "distance" | "angle" | "dihedral" => measure(source, verb, &arguments, tail),
         "color" => color(source, &arguments, tail),
-        "uncolor" => uncolor(source, &arguments, tail),
+        "uncolor" => super::targets::uncolor(source, &arguments, tail),
         "opacity" => opacity(source, &arguments, tail),
         "focus" => {
             let rest = trim(source, Span::new(verb.span.end, span.end));
@@ -73,6 +76,19 @@ pub(super) fn parse(source: &str, span: Span) -> Result<Command, CommandError> {
             Ok(Command::Focus {
                 target: target(source, rest)?,
             })
+        }
+        "auto" => {
+            let structure = arguments
+                .words()
+                .first()
+                .copied()
+                .map(name_word)
+                .transpose()?;
+            if let Some(extra) = arguments.words().get(1) {
+                return Err(syntax("auto takes at most one structure name", extra.span));
+            }
+            no_target(tail, "auto")?;
+            Ok(Command::Auto { structure })
         }
         "unfocus" | "undo" | "redo" => {
             if let Some(extra) = arguments.first() {
@@ -88,6 +104,7 @@ pub(super) fn parse(source: &str, span: Span) -> Result<Command, CommandError> {
                 _ => Command::Redo,
             })
         }
+        "volume" => volume(source, verb.span, span),
         unknown => Err(CommandError::new(
             ErrorKind::Syntax,
             format!("'{unknown}' is not a command"),
@@ -95,6 +112,152 @@ pub(super) fn parse(source: &str, span: Span) -> Result<Command, CommandError> {
         .at(verb.span)
         .suggest(registry::suggest(unknown, registry::verb_names()))),
     }
+}
+
+/// `volume {"source": {...}, "dimensions": [...], ...}`.
+///
+/// The volume's metadata is the same JSON the scene wire format uses, so a
+/// caller can author a descriptor and pass it through unchanged rather than
+/// naming every field twice.
+fn volume(source: &str, verb: Span, statement: Span) -> Result<Command, CommandError> {
+    let payload = source[verb.end..statement.end].trim();
+    if payload.is_empty() {
+        return Err(syntax(
+            "volume needs a JSON volume specification: volume {\"source\":...}",
+            verb,
+        ));
+    }
+    let volume = serde_json::from_str(payload)
+        .map_err(|error| syntax(format!("invalid volume specification: {error}"), verb))?;
+    Ok(Command::Volume { volume })
+}
+
+/// `label "TEXT" [in STRUCTURE], QUERY`.
+///
+/// The text is quoted so it can hold spaces, commas and keywords; a single
+/// bare word needs no quotes.
+fn label(source: &str, verb: Span, statement: Span) -> Result<Command, CommandError> {
+    const USAGE: &str = "label \"TEXT\" [in STRUCTURE], QUERY";
+    let Some(comma) = first_comma(source, statement) else {
+        return Err(syntax(format!("label needs a target: {USAGE}"), verb));
+    };
+    let head = trim(source, Span::new(verb.end, comma));
+    let (text, rest) = label_text(source, head)?;
+    let mut structure = None;
+    let mut rest_words = words(source, rest).into_iter();
+    while let Some(word) = rest_words.next() {
+        if word.text == "in" {
+            structure = Some(name_word(following(
+                &mut rest_words,
+                word,
+                "in STRUCTURE",
+            )?)?);
+        } else {
+            return Err(syntax(format!("unexpected '{}'", word.text), word.span));
+        }
+    }
+    let tail = trim(source, Span::new(comma + 1, statement.end));
+    if tail.start == tail.end {
+        return Err(syntax("label needs a target after the comma", verb));
+    }
+    let target = QueryText::compile(&source[tail.start..tail.end])
+        .map_err(|diagnostics| super::arguments::query_error(&diagnostics, tail))?;
+    Ok(Command::Label {
+        text,
+        target,
+        structure,
+    })
+}
+
+/// The label text at the start of `head`, and the span after it.
+fn label_text(source: &str, head: Span) -> Result<(String, Span), CommandError> {
+    let text = &source[head.start..head.end];
+    let Some(quote) = text.chars().next().filter(|c| matches!(c, '"' | '\'')) else {
+        let Some(word) = words(source, head).into_iter().next() else {
+            return Err(syntax("label needs text: label \"TEXT\", QUERY", head));
+        };
+        return Ok((
+            word.text.to_owned(),
+            trim(source, Span::new(word.span.end, head.end)),
+        ));
+    };
+    let mut value = String::new();
+    let mut escaped = false;
+    for (offset, character) in text.char_indices().skip(1) {
+        match (escaped, character) {
+            (true, other) => {
+                value.push(other);
+                escaped = false;
+            }
+            (false, '\\') => escaped = true,
+            (false, other) if other == quote => {
+                let end = head.start + offset + character.len_utf8();
+                return Ok((value, trim(source, Span::new(end, head.end))));
+            }
+            (false, other) => value.push(other),
+        }
+    }
+    Err(syntax("the label text is missing its closing quote", head))
+}
+
+/// `distance|angle|dihedral [in STRUCTURE], QUERY, QUERY[, QUERY[, QUERY]]`.
+fn measure(
+    source: &str,
+    verb: Word<'_>,
+    arguments: &Arguments<'_>,
+    tail: Option<Span>,
+) -> Result<Command, CommandError> {
+    let kind = match verb.text {
+        "distance" => MeasureKind::Distance,
+        "angle" => MeasureKind::Angle,
+        _ => MeasureKind::Dihedral,
+    };
+    let mut structure = None;
+    let mut rest = arguments.words().iter().copied();
+    while let Some(word) = rest.next() {
+        if word.text == "in" {
+            structure = Some(name_word(following(&mut rest, word, "in STRUCTURE")?)?);
+        } else {
+            return Err(syntax(format!("unexpected '{}'", word.text), word.span));
+        }
+    }
+    let Some(tail) = tail else {
+        return Err(syntax(
+            format!(
+                "{} needs {} points after a comma",
+                kind.name(),
+                kind.arity()
+            ),
+            verb.span,
+        ));
+    };
+    let pieces = comma_pieces(source, tail);
+    if pieces.len() != kind.arity() {
+        return Err(syntax(
+            format!(
+                "{} takes {} points, one query each, and {} were given",
+                kind.name(),
+                kind.arity(),
+                pieces.len()
+            ),
+            tail,
+        ));
+    }
+    let mut points = Vec::with_capacity(pieces.len());
+    for piece in pieces {
+        if piece.start == piece.end {
+            return Err(syntax("a point is missing its query", tail));
+        }
+        points.push(
+            QueryText::compile(&source[piece.start..piece.end])
+                .map_err(|diagnostics| super::arguments::query_error(&diagnostics, piece))?,
+        );
+    }
+    Ok(Command::Measure {
+        kind,
+        points,
+        structure,
+    })
 }
 
 fn select(
@@ -220,7 +383,7 @@ fn color(
         ));
     };
     let mut rest = words[1..].iter().copied().peekable();
-    let color = if first.text == "property" {
+    let mut color = if first.text == "property" {
         super::arguments::property_color(first, &mut rest)?
     } else {
         color_value(first.text, first.span)?
@@ -229,6 +392,8 @@ fn color(
     while let Some(word) = rest.next() {
         if word.text == "in" {
             structure = Some(name_word(following(&mut rest, word, "in STRUCTURE")?)?);
+        } else if word.text.contains('=') {
+            super::arguments::color_option(&mut color, word)?;
         } else {
             return Err(syntax(format!("unexpected '{}'", word.text), word.span));
         }
@@ -238,53 +403,6 @@ fn color(
         target: optional_target(source, tail, first.span, "color")?,
         structure,
     })
-}
-
-/// The target after a statement's comma, or everything when there is no comma.
-///
-/// As in `PyMOL`, `show cartoon` and `color red` apply to all atoms. A comma
-/// with nothing after it is still an error: it reads as a target left out by
-/// mistake, not as a request for everything.
-fn optional_target(
-    source: &str,
-    tail: Option<Span>,
-    anchor: Span,
-    statement: &str,
-) -> Result<Target, CommandError> {
-    match tail {
-        None => QueryText::compile("all")
-            .map(Target::Query)
-            .map_err(|diagnostics| super::arguments::query_error(&diagnostics, anchor)),
-        Some(tail) if tail.start < tail.end => target(source, tail),
-        Some(_) => Err(syntax(
-            format!("{statement} needs a target after the comma"),
-            anchor,
-        )),
-    }
-}
-
-fn uncolor(
-    source: &str,
-    arguments: &Arguments<'_>,
-    tail: Option<Span>,
-) -> Result<Command, CommandError> {
-    let mut structure = None;
-    let mut rest = arguments.words().iter().copied();
-    while let Some(word) = rest.next() {
-        if word.text == "in" {
-            structure = Some(name_word(following(&mut rest, word, "in STRUCTURE")?)?);
-        } else {
-            return Err(syntax(format!("unexpected '{}'", word.text), word.span));
-        }
-    }
-    let target = match tail.filter(|tail| tail.start < tail.end) {
-        Some(tail) => Some(
-            QueryText::compile(&source[tail.start..tail.end])
-                .map_err(|diagnostics| super::arguments::query_error(&diagnostics, tail))?,
-        ),
-        None => None,
-    };
-    Ok(Command::Uncolor { target, structure })
 }
 
 fn opacity(
@@ -322,7 +440,7 @@ fn opacity_value(text: &str, span: Span) -> Result<Opacity, CommandError> {
         })
 }
 
-fn following<'a>(
+pub(super) fn following<'a>(
     rest: &mut impl Iterator<Item = Word<'a>>,
     keyword: Word<'a>,
     usage: &str,

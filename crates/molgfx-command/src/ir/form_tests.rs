@@ -53,3 +53,22 @@ fn a_form_with_controls_serializes_only_what_is_set() {
     let back: Option<Form> = json.and_then(|json| serde_json::from_str(&json).ok());
     assert_eq!(back, Some(form));
 }
+
+#[test]
+fn the_polymer_and_dot_forms_accept_only_their_declared_controls() {
+    let mut putty = Form::new(FormKind::Putty);
+    assert!(putty.set_option("domain_min", "0").is_ok());
+    assert!(putty.set_option("domain_max", "50").is_ok());
+    assert!(putty.set_option("radius_min", "0.2").is_ok());
+    assert!(putty.set_option("radius_max", "2").is_ok());
+    assert!(matches!(
+        putty.set_option("width", "1"),
+        Err(OptionError::Unknown { .. })
+    ));
+    let mut dots = Form::new(FormKind::Dots);
+    assert!(dots.set_option("size", "3").is_ok());
+    assert!(matches!(
+        dots.set_option("radius", "1"),
+        Err(OptionError::Unknown { .. })
+    ));
+}
