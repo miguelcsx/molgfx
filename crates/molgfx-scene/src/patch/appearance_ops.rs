@@ -1,6 +1,6 @@
 //! Ordered patch application for selection-scoped appearance rules.
 
-use crate::scene::runtime::{insert_unique, remove_existing};
+use crate::scene::apply::{insert_unique, remove_existing};
 use crate::{Error, PatchError, PatchOperation, SceneSpec};
 
 /// Applies one appearance operation to a candidate specification.

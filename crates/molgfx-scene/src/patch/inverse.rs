@@ -8,7 +8,7 @@ use crate::spec::{InteractionChannel, SceneSpec};
 type Inverse = Result<Vec<PatchOperation>, crate::Error>;
 
 pub(super) fn inverse_operations(operation: &PatchOperation, base: &SceneSpec) -> Inverse {
-    if let Some(operations) = inverse_science(operation, base)? {
+    if let Some(operations) = inverse_overlay(operation, base)? {
         return Ok(operations);
     }
     if let Some(operations) = inverse_representation(operation, base)? {
@@ -154,7 +154,7 @@ fn inverse_representation(
     })
 }
 
-fn inverse_science(
+fn inverse_overlay(
     operation: &PatchOperation,
     base: &SceneSpec,
 ) -> Result<Option<Vec<PatchOperation>>, crate::Error> {
@@ -188,6 +188,17 @@ fn inverse_science(
                 .cloned()
                 .ok_or(crate::PatchError::MissingId)?,
         }),
+        PatchOperation::AddEllipsoids { id, .. } => {
+            one(PatchOperation::RemoveEllipsoids { id: *id })
+        }
+        PatchOperation::RemoveEllipsoids { id } => one(PatchOperation::AddEllipsoids {
+            id: *id,
+            spec: base
+                .ellipsoids
+                .get(id)
+                .cloned()
+                .ok_or(crate::PatchError::MissingId)?,
+        }),
         PatchOperation::AddMeasurement { id, .. } => {
             one(PatchOperation::RemoveMeasurement { id: *id })
         }
@@ -199,19 +210,17 @@ fn inverse_science(
                 .cloned()
                 .ok_or(crate::PatchError::MissingId)?,
         }),
-        PatchOperation::AddScientificInteraction { id, .. } => {
-            one(PatchOperation::RemoveScientificInteraction { id: *id })
+        PatchOperation::AddInteraction { id, .. } => {
+            one(PatchOperation::RemoveInteraction { id: *id })
         }
-        PatchOperation::RemoveScientificInteraction { id } => {
-            one(PatchOperation::AddScientificInteraction {
-                id: *id,
-                interaction: base
-                    .scientific_interactions
-                    .get(id)
-                    .cloned()
-                    .ok_or(crate::PatchError::MissingId)?,
-            })
-        }
+        PatchOperation::RemoveInteraction { id } => one(PatchOperation::AddInteraction {
+            id: *id,
+            interaction: base
+                .interactions
+                .get(id)
+                .cloned()
+                .ok_or(crate::PatchError::MissingId)?,
+        }),
         PatchOperation::AddTrajectory { id, .. } => {
             one(PatchOperation::RemoveTrajectory { id: *id })
         }
@@ -248,10 +257,8 @@ fn inverse_domain(
         }),
         PatchOperation::SetValidation { .. } => one(PatchOperation::SetValidation {
             findings: restore("molgfx.validation")
-                .map(serde_json::from_value)
-                .transpose()
-                .map_err(crate::Error::from)?
-                .unwrap_or_default(),
+                .map_or_else(|| Ok(Vec::new()), serde_json::from_value)
+                .map_err(crate::Error::from)?,
         }),
         PatchOperation::SetMovieExport { .. } => one(PatchOperation::SetMovieExport {
             request: restore("molgfx.movie_export")
@@ -309,36 +316,5 @@ fn interaction<'a>(scene: &'a SceneSpec, channel: &InteractionChannel) -> Option
         InteractionChannel::Muted => scene.muted.as_ref(),
         InteractionChannel::Hidden => scene.hidden.as_ref(),
         InteractionChannel::Custom(name) => scene.custom_interactions.get(name),
-    }
-}
-#[cfg(test)]
-mod tests {
-    use super::inverse_operations;
-    use crate::{Color, DataSource, PatchOperation, SceneSpec, VolumeSpec};
-
-    #[test]
-    fn set_isovalue_inverse_restores_the_base_value() {
-        let id = crate::VolumeId::new(1);
-        let mut base = SceneSpec::empty();
-        base.volumes.insert(
-            id,
-            VolumeSpec {
-                source: DataSource::new("density"),
-                dimensions: [2, 2, 2],
-                spacing: [1.0; 3],
-                origin: [0.0; 3],
-                isovalue: 1.25,
-                color: Color::rgb(1, 2, 3),
-            },
-        );
-        let inverse = inverse_operations(
-            &PatchOperation::SetVolumeIsovalue { id, isovalue: 2.5 },
-            &base,
-        )
-        .unwrap_or_else(|error| panic!("{error}"));
-        assert_eq!(
-            inverse,
-            vec![PatchOperation::SetVolumeIsovalue { id, isovalue: 1.25 }]
-        );
     }
 }

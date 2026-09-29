@@ -3,7 +3,7 @@
 //! A patch is prepared in full — every query evaluated, every value validated,
 //! every physical record computed — against the unchanged scene, and only then
 //! committed. Operations that change retained scene domains or which
-//! representations/scientific items exist re-resolve the scene; everything
+//! representations/overlay items exist re-resolve the scene; everything
 //! else, including recolouring, retargeting a representation and editing
 //! appearance rules, is applied in place to the representations and columns it
 //! touches.
@@ -12,12 +12,12 @@ use crate::error::{Error, PatchError};
 use crate::id::{RepresentationId, StructureId};
 use crate::representation::form::RepresentationSpec;
 use crate::scene::Resolution;
-use crate::scene::runtime::candidate_spec;
+use crate::scene::apply::candidate_spec;
 use crate::scene::selection_rows::SelectionRows;
 use crate::spec::{PatchOperation, ScenePatch, SceneSpec};
 use crate::{
-    AnnotationId, AnnotationSpec, MeasurementId, MeasurementSpec, ScientificInteractionId,
-    ScientificInteractionSpec, TrajectoryId, TrajectorySpec, VolumeId, VolumeSpec,
+    AnnotationId, AnnotationSpec, InteractionId, InteractionSpec, MeasurementId, MeasurementSpec,
+    TrajectoryId, TrajectorySpec, VolumeId, VolumeSpec,
 };
 use interactions::InteractionUpdates;
 use molgfx_core::{Representation, RepresentationHandle, StructureHandle};
@@ -28,8 +28,8 @@ mod appearance;
 mod commit;
 mod interactions;
 mod lower;
+mod overlay;
 mod routing;
-mod science;
 mod targets;
 
 pub(crate) use commit::CommitTarget;
@@ -51,7 +51,7 @@ pub(crate) struct PatchInputs<'a> {
     pub(crate) properties: &'a BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
     pub(crate) structures: &'a BTreeMap<StructureId, molgfx_core::MolecularSource>,
     pub(crate) property_bindings: &'a BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
-    pub(crate) science_bindings: &'a crate::science::ScienceBindings,
+    pub(crate) overlay_bindings: &'a crate::overlay::OverlayBindings,
     pub(crate) structure_assets: &'a crate::scene::runtime::StructureAssets,
     pub(crate) rows: &'a SelectionRows,
 }
@@ -77,7 +77,7 @@ pub(crate) struct LocalPatchPlan {
     targets: targets::TargetUpdates,
     appearance: appearance::AppearanceUpdates,
     interactions: InteractionUpdates,
-    science: ScienceDomains,
+    overlay: OverlayDomains,
     camera: Change<molgfx_math::Camera>,
     /// Whether the patch carried any operation at all.
     ///
@@ -88,12 +88,13 @@ pub(crate) struct LocalPatchPlan {
 }
 
 #[derive(Default)]
-struct ScienceDomains {
+struct OverlayDomains {
     volumes: Option<BTreeMap<VolumeId, VolumeSpec>>,
     annotations: Option<BTreeMap<AnnotationId, AnnotationSpec>>,
     measurements: Option<BTreeMap<MeasurementId, MeasurementSpec>>,
-    interactions: Option<BTreeMap<ScientificInteractionId, ScientificInteractionSpec>>,
+    interactions: Option<BTreeMap<InteractionId, InteractionSpec>>,
     trajectories: Option<BTreeMap<TrajectoryId, TrajectorySpec>>,
+    ellipsoids: Option<BTreeMap<crate::EllipsoidId, crate::overlay::EllipsoidSpec>>,
 }
 
 #[derive(Clone, Default)]
@@ -108,14 +109,14 @@ impl PatchPlan {
         if patch.operations.iter().any(is_structural) {
             let candidate = candidate_spec(inputs.spec, patch)?;
             // A structural patch in this planner only ever adds, removes or
-            // replaces representations and scientific items; the molecules are
+            // replaces representations and overlay items; the molecules are
             // untouched, so their atom tables are reused rather than rebuilt,
             // and unchanged queries come from the evaluated-rows cache.
             let resolution = crate::scene::runtime::resolve_reusing(
                 &candidate,
                 inputs.structures,
                 inputs.property_bindings,
-                inputs.science_bindings,
+                inputs.overlay_bindings,
                 inputs.rows,
                 Some(inputs.structure_assets),
             )
@@ -143,7 +144,7 @@ impl LocalPatchPlan {
             targets: targets::TargetUpdates::default(),
             appearance: appearance::AppearanceUpdates::default(),
             interactions: InteractionUpdates::default(),
-            science: ScienceDomains::default(),
+            overlay: OverlayDomains::default(),
             camera: Change::Unchanged,
             touched: !patch.operations.is_empty(),
         };
@@ -159,7 +160,7 @@ impl LocalPatchPlan {
         spec: &SceneSpec,
         operation: &PatchOperation,
     ) -> Result<(), Error> {
-        if self.science.apply(spec, operation)? || self.appearance.apply(spec, operation)? {
+        if self.overlay.apply(spec, operation)? || self.appearance.apply(spec, operation)? {
             return Ok(());
         }
         match operation {
@@ -229,10 +230,12 @@ impl LocalPatchPlan {
             | PatchOperation::RemoveAnnotation { .. }
             | PatchOperation::AddMeasurement { .. }
             | PatchOperation::RemoveMeasurement { .. }
-            | PatchOperation::AddScientificInteraction { .. }
-            | PatchOperation::RemoveScientificInteraction { .. }
+            | PatchOperation::AddInteraction { .. }
+            | PatchOperation::RemoveInteraction { .. }
             | PatchOperation::AddTrajectory { .. }
             | PatchOperation::RemoveTrajectory { .. }
+            | PatchOperation::AddEllipsoids { .. }
+            | PatchOperation::RemoveEllipsoids { .. }
             | PatchOperation::AddAppearanceRule { .. }
             | PatchOperation::ReplaceAppearanceRule { .. }
             | PatchOperation::SetAssembly { .. }

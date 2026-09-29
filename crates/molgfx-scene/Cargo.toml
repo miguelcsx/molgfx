@@ -1,6 +1,6 @@
 [package]
-name = "molgfx-api"
-description = "The declarative MolGFX authoring and rendering contract."
+name = "molgfx-scene"
+description = "Scene state: declarative specs, patches, transactions and the renderer front."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

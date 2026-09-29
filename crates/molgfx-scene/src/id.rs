@@ -36,10 +36,14 @@ semantic_id!(VolumeId, "Identity of a density volume in one scene.");
 semantic_id!(AnnotationId, "Identity of an annotation in one scene.");
 semantic_id!(MeasurementId, "Identity of a measurement in one scene.");
 semantic_id!(
-    ScientificInteractionId,
-    "Identity of a scientific interaction in one scene."
+    InteractionId,
+    "Identity of an overlay interaction in one scene."
 );
 semantic_id!(TrajectoryId, "Identity of a trajectory in one scene.");
+semantic_id!(
+    EllipsoidId,
+    "Identity of a per-atom anisotropic-displacement ellipsoid overlay in one scene."
+);
 semantic_id!(
     AppearanceRuleId,
     "Identity of a selection-scoped appearance rule in one scene. A higher identity takes precedence where rules overlap."

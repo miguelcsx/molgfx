@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 /// Complete portable semantic state captured for restoration.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct SceneSnapshot {
-    /// Scene state, including retained scientific descriptors and extensions.
+    /// Scene state, including retained overlay descriptors and extensions.
     pub scene: SceneSpec,
     /// Stable content hash of the captured scene.
     pub content_hash: Box<str>,
@@ -26,7 +26,7 @@ impl SceneSnapshot {
     ///
     /// # Errors
     ///
-    /// Returns an error when the content hash, selections, scientific
+    /// Returns an error when the content hash, selections, overlay
     /// descriptors, or camera state is invalid.
     pub fn verify(&self) -> Result<(), crate::Error> {
         let actual = self.scene.stable_hash();
@@ -36,7 +36,7 @@ impl SceneSnapshot {
             ));
         }
         self.scene.validate_selections()?;
-        self.scene.validate_science()?;
+        self.scene.validate_overlay()?;
         self.scene.validate_camera()
     }
 

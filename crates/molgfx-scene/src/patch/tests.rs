@@ -154,7 +154,7 @@ fn new_operations_round_trip_through_json() {
         vec![
             PatchOperation::SetColor {
                 id,
-                color: ColorSpec::SecondaryStructure,
+                color: crate::color::secondary_structure(),
             },
             PatchOperation::SetRepresentationTarget {
                 id,
@@ -192,7 +192,7 @@ fn new_operations_reject_a_stale_revision() {
         base_revision: scene.revision() + 7,
         operations: vec![PatchOperation::SetColor {
             id,
-            color: ColorSpec::Chain,
+            color: crate::color::chain(),
         }],
     };
     assert!(matches!(
@@ -209,7 +209,7 @@ fn a_candidate_spec_applies_the_new_operations_without_a_renderer() {
         vec![
             PatchOperation::SetColor {
                 id,
-                color: ColorSpec::Residue,
+                color: crate::color::residue(),
             },
             PatchOperation::AddAppearanceRule {
                 id: crate::AppearanceRuleId(1),
@@ -244,7 +244,7 @@ fn set_volume_isovalue_validates_applies_and_inverts() {
         scene.spec().volumes.get(&id).map(|volume| volume.isovalue),
         Some(2.5)
     );
-    assert_eq!(scene.scientific_handles().volumes, 1);
+    assert_eq!(scene.overlay_handles().volumes, 1);
     assert!(scene.apply(&inverse).is_ok());
     let restored = scene.spec();
     assert_eq!(
@@ -253,7 +253,7 @@ fn set_volume_isovalue_validates_applies_and_inverts() {
     );
     assert_eq!(restored.structures, base.structures);
     assert_eq!(restored.representations, base.representations);
-    assert_eq!(scene.scientific_handles().volumes, 1);
+    assert_eq!(scene.overlay_handles().volumes, 1);
 }
 
 #[test]

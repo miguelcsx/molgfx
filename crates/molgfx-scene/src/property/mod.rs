@@ -37,7 +37,7 @@ pub struct PropertySpec {
     pub structure: StructureId,
     /// Portable bulk-data source.
     pub source: DataSource,
-    /// Finite display domain in scientific units.
+    /// Finite display domain in physical units.
     pub domain: [f32; 2],
     /// Optional non-empty unit symbol.
     pub units: Option<Box<str>>,
@@ -83,7 +83,7 @@ impl ScalarPropertyBinding {
         self
     }
 
-    /// Attaches a scientific unit symbol.
+    /// Attaches a physical unit symbol.
     #[must_use]
     pub fn units(mut self, units: impl Into<Box<str>>) -> Self {
         self.spec.units = Some(units.into());

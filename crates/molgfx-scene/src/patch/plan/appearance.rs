@@ -75,6 +75,7 @@ impl AppearanceUpdates {
             &self.touched,
             inputs.structures,
             handles,
+            inputs.properties,
             inputs.rows,
         )?);
         Ok(())

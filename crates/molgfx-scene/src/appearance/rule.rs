@@ -42,9 +42,12 @@ impl AppearanceRuleSpec {
 
     pub(crate) fn validate(&self) -> Result<(), crate::Error> {
         self.color.validate()?;
-        if matches!(self.color, ColorSpec::Property { .. }) {
+        if matches!(
+            self.color,
+            ColorSpec::Property { .. } | ColorSpec::Metric { .. }
+        ) {
             return Err(crate::Error::InvalidSpec(
-                "an appearance rule cannot use a property colour; set it on a representation"
+                "an appearance rule cannot use a continuous colour; set it on a representation"
                     .to_owned(),
             ));
         }
