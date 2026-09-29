@@ -17,7 +17,7 @@ impl<D: Device> Engine<D> {
     pub(super) fn edge_smoothing(&self) -> bool {
         match self.resolved_plan.antialias() {
             Some(style) => style.edge_smoothing,
-            None => !(self.tier() >= QualityTier::Standard),
+            None => self.tier() < QualityTier::Standard,
         }
     }
 
