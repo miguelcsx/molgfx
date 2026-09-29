@@ -17,12 +17,23 @@ impl<D: Device> VisualPropertyTable<D> {
         self.offsets_for_domain(scene, RowDomain::Atoms(structure), style)
     }
 
-    /// The colour property column's arena offset and stride in words.
+    /// The arena columns one representation's colour reads.
+    pub(in crate::scene_gpu) fn color_columns(
+        &self,
+        representation: &molgfx_core::Representation,
+    ) -> crate::scene_gpu::color_uniforms::ResolvedColumns {
+        crate::scene_gpu::color_uniforms::ResolvedColumns::resolve(
+            &representation.color_columns(),
+            |handle| self.color_column(handle),
+        )
+    }
+
+    /// One property column's arena offset and stride in words.
     ///
     /// A scheme that samples a column which was not planned gets a zero offset,
     /// which the shader reads as "no column": every value resolves to the
     /// missing colour rather than reading an unrelated column.
-    pub(in crate::scene_gpu) fn color_column(&self, property: AtomPropertyHandle) -> [u32; 2] {
+    fn color_column(&self, property: AtomPropertyHandle) -> [u32; 2] {
         let reference = VisualAttributeRef::LegacyScalar(property);
         let Ok(index) = self
             .columns
