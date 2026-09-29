@@ -28,14 +28,8 @@ export interface WidgetTraits {
   pick: Record<string, unknown>;
   selection: string;
   interaction: Record<string, unknown>;
-  /** Typed interaction/science transports sent to the kernel. */
+  /** Typed interaction/overlay transports sent to the kernel. */
   interaction_event: Record<string, unknown>;
-  sequence_intervals: Record<string, unknown>;
-  focus_preset: string;
-  measurement_request: Record<string, unknown>;
-  volume_sigma: Record<string, unknown>;
-  trajectory_frame: Record<string, unknown>;
-  trajectory_time: Record<string, unknown>;
 
   workbench: boolean;
 

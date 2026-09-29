@@ -5,7 +5,7 @@ import {
   KEY_ZOOM_DELTA,
 } from "../core/config.js";
 import { CleanupBag, listen } from "../core/lifecycle.js";
-import type { Camera, ExactAtom, MeasurementKind, MeasurementRequest } from "../core/types.js";
+import type { Camera } from "../core/types.js";
 import { interactionModifiers } from "../core/interaction.js";
 import type { InteractionModifiers } from "../core/interaction.js";
 import type { RenderLoop } from "../render/render-loop.js";
@@ -68,50 +68,30 @@ export function mountInteractions(options: InteractionOptions): ViewerInteractio
   let publishTimer: ReturnType<typeof setTimeout> | undefined;
 
   let hoverToken = 0;
-  let hoverRunning = false;
-  let hoverNext: [number, number] | undefined;
 
   const cancelHover = () => {
-    hoverNext = undefined;
     hoverToken += 1;
   };
 
+  const scheduleHover = (x: number, y: number) => {
+    const token = ++hoverToken;
+    void loop.pickHover(x, y).then(
+      ({ performed, result }) => {
+        if (performed && token === hoverToken) {
+          onHover(result);
+        }
+      },
+      () => {
+        if (token === hoverToken) {
+          onHover(undefined);
+        }
+      },
+    );
+  };
   const cancelPendingGesture = (): void => {
     releasePointer();
     suppressClick = false;
   };
-
-  const drainHover = async () => {
-    hoverRunning = true;
-    try {
-      while (hoverNext) {
-        const coordinates = hoverNext;
-        hoverNext = undefined;
-        const [x, y] = coordinates;
-        const token = ++hoverToken;
-        try {
-          const { performed, result } = await loop.pick(x, y);
-          if (performed && token === hoverToken) {
-            onHover(result);
-          }
-        } catch {
-          if (token === hoverToken) {
-            onHover(undefined);
-          }
-        }
-      }
-    } finally {
-      hoverRunning = false;
-    }
-  };
-
-  const scheduleHover = (x: number, y: number) => {
-    hoverNext = [x, y];
-    if (!hoverRunning) {
-      void drainHover();
-    }
-  };
-
   const cancelPublish = () => {
     if (publishTimer === undefined) {
       return;
@@ -132,6 +112,7 @@ export function mountInteractions(options: InteractionOptions): ViewerInteractio
 
   const updateCamera = (update: (camera: Camera) => void) => {
     update(loop.camera);
+    loop.invalidatePicks();
     loop.requestFrame();
     publishSoon();
   };
@@ -183,6 +164,7 @@ export function mountInteractions(options: InteractionOptions): ViewerInteractio
         pointer.dragged ||= Math.hypot(totalX, totalY) >= DRAG_THRESHOLD_PX;
 
         rotateCamera(loop.camera, dx, dy);
+        loop.invalidatePicks();
         pointer.x = event.clientX;
         pointer.y = event.clientY;
         loop.requestFrame();
@@ -278,30 +260,4 @@ export function mountInteractions(options: InteractionOptions): ViewerInteractio
       cleanup.dispose();
     },
   };
-}
-export class MeasurementGesture {
-  #atoms: ExactAtom[] = [];
-  #topologyRevision: bigint | undefined;
-
-  add(atom: ExactAtom): boolean {
-    if (this.#topologyRevision === undefined) this.#topologyRevision = atom.topologyRevision;
-    if (atom.topologyRevision !== this.#topologyRevision) { this.cancel(); return false; }
-    if (this.#atoms.some((existing) => existing.structure === atom.structure && existing.atom === atom.atom)) return false;
-    this.#atoms.push(atom);
-    return true;
-  }
-
-  cancel(): void { this.#atoms = []; this.#topologyRevision = undefined; }
-
-  stale(topologyRevision: bigint): boolean {
-    return this.#topologyRevision !== undefined && this.#topologyRevision !== topologyRevision;
-  }
-
-  take(kind: MeasurementKind): MeasurementRequest | undefined {
-    const arity = kind === "distance" ? 2 : kind === "angle" ? 3 : 4;
-    if (this.#atoms.length !== arity || this.#topologyRevision === undefined) return undefined;
-    const request = { kind, atoms: this.#atoms as readonly ExactAtom[], topologyRevision: this.#topologyRevision };
-    this.cancel();
-    return request;
-  }
 }
