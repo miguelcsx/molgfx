@@ -298,7 +298,7 @@ window.__molgfx.model = {
   set: (name, value) => { window.__molgfx.values[name] = value; },
   save_changes: () => { saved.push(snapshot()); },
   // Real anywidget models support several subscribers per event; the page
-  // mounts the console and the science controls beside each other.
+  // mounts the console and the overlay controls beside each other.
   on: (event, callback) => {
     const list = listeners.get(event);
     if (list) list.push(callback); else listeners.set(event, [callback]);

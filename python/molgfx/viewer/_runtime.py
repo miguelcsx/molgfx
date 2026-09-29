@@ -1,6 +1,6 @@
-"""Load the immutable browser runtime published by molgfx-viewer.
+"""Load the immutable browser runtime built by ``crates/molgfx-wasm/js``.
 
-The TypeScript viewer owns runtime initialization. This module only bridges its
+The viewer host owns runtime initialization. This module only bridges its
 generated package artifact into AnyWidget's inline-runtime channel, which is
 needed because notebook frontends evaluate widget modules from blob URLs.
 """
@@ -24,7 +24,7 @@ class RuntimeBundle:
 
 @lru_cache(maxsize=1)
 def load_runtime() -> RuntimeBundle:
-    """Load and validate the generated molgfx-viewer runtime artifact."""
+    """Load and validate the generated molgfx-wasm runtime artifact."""
     static = files("molgfx.viewer").joinpath("static")
     try:
         manifest = json.loads(
