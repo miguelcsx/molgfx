@@ -28,15 +28,22 @@ impl NativeProvider {
     pub(super) fn import(object: &Bound<'_, PyAny>) -> PyResult<Self> {
         let source = molframe_py::NativeStructureSource::from_python(object)?;
         let native = source.topology();
-        let secondary_structure = match object.call_method0("_molframe_secondary_structure") {
-            Ok(value) => value
-                .extract::<Vec<u8>>()?
-                .into_iter()
-                .map(decode_secondary_structure)
-                .collect::<Vec<_>>(),
-            Err(error) if error.is_instance_of::<PyAttributeError>(object.py()) => Vec::new(),
-            Err(error) => return Err(error),
-        };
+        let secondary_structure = object
+            .call_method0("_molframe_secondary_structure")
+            .map_err(|error| {
+                if error.is_instance_of::<PyAttributeError>(object.py()) {
+                    PyAttributeError::new_err(
+                        "the molframe Structure has no secondary-structure accessor; \
+                         molgfx requires molframe>=0.3.1",
+                    )
+                } else {
+                    error
+                }
+            })?
+            .extract::<Vec<u8>>()?
+            .into_iter()
+            .map(decode_secondary_structure)
+            .collect::<Vec<_>>();
         let mut atoms = Vec::with_capacity(native.atoms.len());
         for atom in native.atoms {
             let element = u8::try_from(atom.element)

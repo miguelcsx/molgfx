@@ -126,6 +126,17 @@ class SessionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             Command.show("spacefill", "all", style="rocket")
 
+    def test_every_derived_colour_scheme_applies_to_a_live_layer(self):
+        # Secondary structure, chain and metric columns all come from the
+        # molframe structure the adapter imports; a column the adapter failed
+        # to fill used to validate as an all-NaN property and reject the whole
+        # program.
+        session = Session(structure())
+        session.execute("show cartoon, protein")
+        for scheme in ("secondary_structure", "chain", "molecule_type", "b_factor"):
+            with self.subTest(scheme=scheme):
+                session.execute(f"color {scheme}, @cartoon")
+
     def test_completions_follow_the_cursor(self):
         session = Session(structure())
         session.execute("select pocket, resname HEM")
