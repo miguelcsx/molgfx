@@ -4,7 +4,8 @@
 //! overlay lets a subset of its atoms take a different scheme without splitting
 //! the representation: every atom of the structure carries a small class in a
 //! scalar property column, class zero meaning "no override", and the overlay
-//! maps each non-zero class to one scheme from a fixed-size table.
+//! maps each non-zero class to one scheme from a fixed-size table. A scheme may
+//! itself be categorical, reading a column of its own.
 //!
 //! The column belongs to the structure, not to a representation, so every
 //! representation of that structure shares it. A frame reads one class per
@@ -37,8 +38,9 @@ impl ColorOverlay {
     /// # Errors
     ///
     /// Returns [`CoreError::InvalidProperty`] for an empty table, more than
-    /// [`MAX_COLOR_OVERLAY_CLASSES`] schemes, or a property-driven scheme,
-    /// which needs a column of its own and cannot share this one.
+    /// [`MAX_COLOR_OVERLAY_CLASSES`] schemes, or a continuous property ramp,
+    /// whose legend belongs to the representation and not to a subset of it.
+    /// A categorical scheme is allowed and reads its own column.
     pub fn new(classes: AtomPropertyHandle, schemes: &[ColorScheme]) -> Result<Self, CoreError> {
         if schemes.is_empty() || schemes.len() > MAX_COLOR_OVERLAY_CLASSES {
             return Err(CoreError::InvalidProperty {

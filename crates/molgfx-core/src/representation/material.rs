@@ -6,7 +6,7 @@ mod tests;
 
 /// Surface response of a drawn representation.
 ///
-/// The restrained molecular response is the scientific default. Other tagged
+/// The restrained molecular response is the physical default. Other tagged
 /// models are explicit art direction and never inferred from an element name.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Material {
@@ -24,7 +24,7 @@ pub struct Material {
 /// Tagged lighting response selected per representation.
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub enum MaterialModel {
-    /// Restrained dielectric response for scientific inspection.
+    /// Restrained dielectric response for physical inspection.
     #[default]
     Molecular,
     /// Energy-conserving metalness workflow for explicit art direction.

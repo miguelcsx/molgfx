@@ -147,7 +147,7 @@ impl InteractionGeometry {
     }
 }
 
-/// Fully resolved glyph presentation, derivable from the scientific inputs.
+/// Fully resolved glyph presentation, derivable from the physical inputs.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct InteractionStyle {
     /// Interaction-class color.
@@ -163,11 +163,11 @@ pub struct InteractionStyle {
     /// Fraction of each period occupied by a mark.
     pub duty_cycle: f32,
     /// Optional deterministic presentation phase speed in pixels per frame.
-    /// Zero keeps the scientific glyph static.
+    /// Zero keeps the physical glyph static.
     pub phase_speed_pixels_per_frame: f32,
 }
 
-/// One scientific interaction edge owned by the scene.
+/// One physical interaction edge owned by the scene.
 #[derive(Clone, PartialEq, Debug)]
 pub struct InteractionEdge {
     owner: StructureHandle,
@@ -283,7 +283,7 @@ impl InteractionEdge {
     /// Supplies caller-computed visual persistence for an interaction that was
     /// last observed some frames ago. A zero half-life disables decay. This is
     /// presentation state only: it never changes the stored occupancy or
-    /// claims that the interaction remains scientifically present.
+    /// claims that the interaction remains physically present.
     ///
     /// # Errors
     ///
@@ -309,7 +309,7 @@ impl InteractionEdge {
         self.persistence_age_frames = age_frames;
     }
 
-    /// Changes object-level visibility without changing scientific inputs.
+    /// Changes object-level visibility without changing physical inputs.
     pub const fn set_visible(&mut self, visible: bool) {
         self.visible = visible;
     }
@@ -332,7 +332,7 @@ impl InteractionEdge {
         self.end
     }
 
-    /// Scientific interaction class.
+    /// Physical interaction class.
     #[must_use]
     pub const fn kind(&self) -> InteractionKind {
         self.kind
@@ -392,7 +392,7 @@ impl InteractionEdge {
         self.visible
     }
 
-    /// Deterministically maps the scientific record to its default glyph.
+    /// Deterministically maps the physical record to its default glyph.
     ///
     /// Occupancy maps linearly to opacity (`0.35 + 0.65 × occupancy`) and
     /// normalized strength maps linearly to width (`base + 1.5 × strength`).

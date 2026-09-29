@@ -185,7 +185,7 @@ impl RelationLayout {
     }
 }
 
-/// Purely visual line pattern with no scientific interpretation.
+/// Purely visual line pattern with no physical interpretation.
 #[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
 pub enum RelationPattern {

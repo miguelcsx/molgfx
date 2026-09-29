@@ -126,7 +126,7 @@ pub enum PropertyValues {
     },
     /// Signed integer values.
     Integer(Arc<[i64]>),
-    /// Double-precision scientific values.
+    /// Double-precision physical values.
     Real(Arc<[f64]>),
     /// Interned dictionary identities.
     Symbol(Arc<[u32]>),

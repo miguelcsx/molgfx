@@ -71,7 +71,7 @@ impl DirtyGeneration {
     }
 }
 
-/// Scientific meaning and conservative value range of a brick.
+/// Physical meaning and conservative value range of a brick.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum BrickValueRange {
     /// Continuous scalar field.

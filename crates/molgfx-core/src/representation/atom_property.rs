@@ -8,7 +8,7 @@ use std::sync::Arc;
 #[path = "atom_property_tests.rs"]
 mod tests;
 
-/// Scientific interpretation of one scalar atom column.
+/// Physical interpretation of one scalar atom column.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum AtomPropertyMeaning {
     /// Caller-defined scalar with semantics carried by its name and units.
@@ -175,7 +175,7 @@ impl AtomProperty {
         }
     }
 
-    /// Scientific interpretation.
+    /// Physical interpretation.
     #[must_use]
     pub const fn meaning(&self) -> AtomPropertyMeaning {
         self.meaning
@@ -210,8 +210,8 @@ impl AtomProperty {
         PropertyLegend {
             title: Arc::clone(&self.name),
             semantics: self.semantics.clone(),
-            values: ramp.values(),
-            colors: ramp.colors(),
+            values: ramp.values().into(),
+            colors: ramp.colors().into(),
             missing,
         }
     }
@@ -224,10 +224,10 @@ pub struct PropertyLegend {
     pub title: Arc<str>,
     /// Quantity/units/provenance or explicit uncalibrated rank.
     pub semantics: ScalarFieldSemantics,
-    /// Numeric stops in scientific units.
-    pub values: [f32; 3],
+    /// Numeric stops in physical units.
+    pub values: Vec<f32>,
     /// CVD-safe colours at those stops.
-    pub colors: [Rgba8; 3],
+    pub colors: Vec<Rgba8>,
     /// Colour used for missing values.
     pub missing: Rgba8,
 }
@@ -271,7 +271,7 @@ impl PropertyAppearance {
     ///
     /// # Errors
     ///
-    /// The scientific domain must increase, endpoints must be finite and in
+    /// The physical domain must increase, endpoints must be finite and in
     /// range, and both visual channels must vary monotonically.
     pub fn new(
         property: AtomPropertyHandle,
@@ -359,7 +359,7 @@ impl PropertyAppearance {
         )
     }
 
-    /// Scientific value interval represented by both visual channels.
+    /// Physical value interval represented by both visual channels.
     #[must_use]
     pub const fn domain(self) -> [f32; 2] {
         self.domain
@@ -380,14 +380,14 @@ impl PropertyAppearance {
         }
     }
 
-    /// Recovers the represented scientific value from opacity when that
+    /// Recovers the represented physical value from opacity when that
     /// channel varies.
     #[must_use]
     pub fn value_from_opacity(self, opacity: f32) -> Option<f32> {
         inverse(opacity, self.opacity, self.domain)
     }
 
-    /// Recovers the represented scientific value from softness when that
+    /// Recovers the represented physical value from softness when that
     /// channel varies.
     #[must_use]
     pub fn value_from_softness(self, softness_pixels: f32) -> Option<f32> {

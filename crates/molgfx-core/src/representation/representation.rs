@@ -11,7 +11,7 @@ use crate::{
 use molgfx_math::Rgba8;
 #[path = "color_scheme.rs"]
 mod color_scheme;
-pub use color_scheme::{CATEGORICAL_COLORS, SECONDARY_STRUCTURE_COLORS};
+pub use color_scheme::ColorColumns;
 #[path = "kind_names.rs"]
 mod kind_names;
 #[path = "volume_types.rs"]
@@ -124,12 +124,19 @@ pub enum ColorScheme {
     /// The classic per-element convention.
     #[default]
     ByElement,
-    /// One color per chain.
-    ByChain,
-    /// Stable CVD-safe categorical colour by source residue row.
-    ByResidue,
-    /// Helix, sheet and coil receive distinct CVD-safe colours.
-    BySecondaryStructure,
+    /// A categorical column (a chain, an entity, a residue name, a secondary
+    /// structure class) coloured through a palette.
+    ///
+    /// The column is a scene property holding one whole-number category per
+    /// atom; the palette cycles when categories outnumber its colours. An atom
+    /// with no category (a non-finite value) keeps its element colour, which is
+    /// how "colour only the carbons by chain" is expressed.
+    ByCategory {
+        /// Scene property column of categories.
+        property: AtomPropertyHandle,
+        /// Palette the categories index.
+        palette: crate::CategoryPalette,
+    },
     /// One arbitrary caller-supplied atom scalar through a reversible ramp.
     ByProperty {
         /// Scene property column.
@@ -152,7 +159,7 @@ pub enum RepresentationTarget {
     /// One caller-supplied categorical label grid.
     SegmentedVolume(SegmentationHandle),
 }
-/// Numeric parameters a scientist may want to change per representation.
+/// Numeric parameters a caller may want to change per representation.
 /// Defaults are the community-standard values.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct RepresentationParams {
@@ -160,6 +167,9 @@ pub struct RepresentationParams {
     /// ball-and-stick spheres).
     pub radius_scale: f32,
     /// Bond capsule radius, Ångström.
+    ///
+    /// The default is the value the reference engines draw a stick with, so a
+    /// caller who authors no radius gets the familiar picture.
     pub bond_radius: f32,
     /// Solvent probe radius for surfaces, Ångström; water by default.
     pub probe_radius: f32,
@@ -176,6 +186,12 @@ pub struct RepresentationParams {
     pub surface_components: SurfaceComponentPolicy,
     /// Local-space spacing between contour lines or dots, Ångström.
     pub surface_pattern_spacing: f32,
+    /// Blend span of the soft-union (blob) surface, Ångström.
+    ///
+    /// How far two atoms' surfaces round into each other: a larger span
+    /// smooths a wider cusp away, a span near zero leaves the exact union.
+    /// Used only by [`SurfaceStyle::SoftUnion`].
+    pub blob_spread: f32,
     /// Contour half-width or dot radius in physical pixels.
     pub surface_pattern_width_pixels: f32,
     /// Cartoon strand and helix width, Ångström.
@@ -193,7 +209,7 @@ impl Default for RepresentationParams {
     fn default() -> Self {
         Self {
             radius_scale: 1.0,
-            bond_radius: 0.18,
+            bond_radius: 0.25,
             probe_radius: 1.4,
             gaussian_sigma: 1.0,
             isolevel: 1.0,
@@ -201,6 +217,7 @@ impl Default for RepresentationParams {
             surface_style: SurfaceStyle::default(),
             surface_components: SurfaceComponentPolicy::default(),
             surface_pattern_spacing: 1.5,
+            blob_spread: 2.0,
             surface_pattern_width_pixels: 1.25,
             ribbon_width: 1.2,
             tube_radius: 0.3,

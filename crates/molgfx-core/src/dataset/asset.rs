@@ -62,12 +62,12 @@ impl StructureAsset {
         let atoms = Arc::new(atoms);
         let hierarchy = Arc::new(Hierarchy::from_structure(structure));
         let spatial_bounds = atom_bounds(&atoms);
-        let secondary_structure =
-            Column::new(vec![SecondaryStructure::Unknown; hierarchy.residue_count()]);
+        let source = crate::MolecularSource::from_molframe(structure);
+        let secondary_structure = secondary_column(&source, hierarchy.residue_count());
         Ok(Self {
             data: Arc::new(StructureAssetData {
                 dataset,
-                source: crate::MolecularSource::from_molframe(structure),
+                source,
                 atoms,
                 hierarchy,
                 spatial_bvh: OnceLock::new(),
@@ -93,8 +93,7 @@ impl StructureAsset {
         let atoms = Arc::new(AtomTable::from_source(&source));
         let hierarchy = Arc::new(Hierarchy::from_source(&source));
         let spatial_bounds = atom_bounds(&atoms);
-        let secondary_structure =
-            Column::new(vec![SecondaryStructure::Unknown; hierarchy.residue_count()]);
+        let secondary_structure = secondary_column(&source, hierarchy.residue_count());
         Ok(Self {
             data: Arc::new(StructureAssetData {
                 dataset,
@@ -260,6 +259,27 @@ impl StructureAssetPlacement {
 /// The hierarchy reads boxes straight from the position and radius columns the
 /// table already owns. Materialising them first would cost twenty-four bytes
 /// per atom for a temporary that is read once and dropped.
+fn secondary_column(
+    source: &crate::MolecularSource,
+    residue_count: usize,
+) -> Column<SecondaryStructure> {
+    let mut values = source
+        .topology()
+        .secondary_structure
+        .iter()
+        .take(residue_count)
+        .map(|state| match state {
+            molframe::SecondaryStructure::Unknown => SecondaryStructure::Unknown,
+            molframe::SecondaryStructure::Coil => SecondaryStructure::Coil,
+            molframe::SecondaryStructure::Helix => SecondaryStructure::Helix,
+            molframe::SecondaryStructure::Strand => SecondaryStructure::Strand,
+            molframe::SecondaryStructure::Turn => SecondaryStructure::Turn,
+        })
+        .collect::<Vec<_>>();
+    values.resize(residue_count, SecondaryStructure::Unknown);
+    Column::new(values)
+}
+
 fn sphere_bounds(atoms: &AtomTable) -> SphereBounds<'_> {
     SphereBounds::new(atoms.coords().slice(), atoms.radius().values())
 }

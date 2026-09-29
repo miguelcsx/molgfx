@@ -59,6 +59,8 @@ pub enum EntityKind {
     Edge,
     /// A text label.
     Label,
+    /// A distance, angle or dihedral measurement.
+    Measurement,
     /// A caller-authored ellipsoid, carbohydrate symbol or filled plane.
     Primitive,
     /// A caller-supplied indexed mesh.
@@ -175,6 +177,7 @@ impl EntityId {
             EntityKind::Instance => 10,
             EntityKind::TemplatePart => 11,
             EntityKind::Relation => 12,
+            EntityKind::Measurement => 13,
         };
         Ok(Self((tag << Self::TAG_SHIFT) | index))
     }
@@ -199,6 +202,7 @@ impl EntityId {
             10 => EntityKind::Instance,
             11 => EntityKind::TemplatePart,
             12 => EntityKind::Relation,
+            13 => EntityKind::Measurement,
             _ => return None,
         };
         Some((kind, self.0 & Self::INDEX_MASK))
@@ -236,7 +240,7 @@ pub struct AtomGpu {
     pub semantic: u32,
 }
 
-/// The per-bond instance record: exactly 16 bytes.
+/// The per-bond instance record: exactly 24 bytes.
 ///
 /// Endpoints are indices into the atom buffer, so moving an atom moves its
 /// bonds with no bond re-upload. The radius carries one extra bit in its
@@ -252,6 +256,10 @@ pub struct BondGpu {
     pub atom_b: u32,
     /// Drawn radius, Ångström; sign bit set for aromatic bonds.
     pub radius: f32,
+    /// Quantized chemical order used for multi-bond separation.
+    pub order: u32,
+    /// Bit zero marks a metal-coordination edge.
+    pub flags: u32,
     /// Pickable identity of the source bond row.
     pub entity_id: EntityId,
 }

@@ -13,6 +13,7 @@ pub(crate) mod material;
 pub(crate) mod mesh;
 pub(crate) mod mesh_instance;
 pub(crate) mod overlay;
+mod palette;
 pub(crate) mod quadric;
 pub(crate) mod radii;
 mod relation;
@@ -39,22 +40,25 @@ pub use interaction::{
     InteractionPattern, InteractionStyle,
 };
 pub use kinds::{
-    CATEGORICAL_COLORS, ColorScheme, MAX_VOLUME_TRANSFER_POINTS, Representation,
-    RepresentationKind, RepresentationParams, RepresentationPreset, RepresentationTarget,
-    SECONDARY_STRUCTURE_COLORS, SurfaceKind, SurfaceStyle, VolumeRegion, VolumeRendering,
-    VolumeSlice, VolumeStyle, VolumeTransferFunction, VolumeTransferPoint,
+    ColorColumns, ColorScheme, MAX_VOLUME_TRANSFER_POINTS, Representation, RepresentationKind,
+    RepresentationParams, RepresentationPreset, RepresentationTarget, SurfaceKind, SurfaceStyle,
+    VolumeRegion, VolumeRendering, VolumeSlice, VolumeStyle, VolumeTransferFunction,
+    VolumeTransferPoint,
 };
 pub use material::{Material, MaterialModel};
 pub use mesh::{FaceVisibility, MAX_MESH_VERTICES, Mesh, MeshTopology, MeshVertex};
 pub use mesh_instance::MeshInstance;
 pub use overlay::{OverlayAnchor, OverlayContent, ScreenOverlay};
+pub use palette::{CategoryPalette, MAX_PALETTE_COLORS, MoleculeType, SecondaryStructureClass};
 pub use quadric::Quadric;
 pub use radii::{cpk_color, vdw_radius};
 pub use relation::{
     AnchorLayout, Relation, RelationBatch, RelationDependency, RelationLayout, RelationPartition,
     RelationPattern, RelationStyle, SpatialAnchor, TemplatePartRef,
 };
-pub use scalar::{ScalarContours, ScalarFieldSemantics, ScalarRamp, SurfaceScalarOverlay};
+pub use scalar::{
+    MAX_RAMP_STOPS, ScalarContours, ScalarFieldSemantics, ScalarRamp, SurfaceScalarOverlay,
+};
 pub use surface_components::{
     SurfaceComponentPolicy, SurfaceComponentPolicyError, SurfaceComponentThreshold,
 };

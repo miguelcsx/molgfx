@@ -2,7 +2,7 @@
 //!
 //! These are presentation defaults, not chemistry: the radius set is the
 //! community-standard one (Bondi 1964 with common extensions) and the colors
-//! follow the CPK convention scientists already read fluently. Both are
+//! follow the CPK convention chemists already read fluently. Both are
 //! indexed by atomic number in `O(1)`.
 
 use molgfx_math::Rgba8;

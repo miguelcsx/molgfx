@@ -18,13 +18,15 @@ fn atom_record_fields_sit_at_their_contracted_offsets() {
 }
 
 #[test]
-fn a_bond_record_is_exactly_sixteen_bytes_at_four_byte_alignment() {
-    assert_eq!(size_of::<BondGpu>(), 16);
+fn a_bond_record_is_exactly_twenty_four_bytes_at_four_byte_alignment() {
+    assert_eq!(size_of::<BondGpu>(), 24);
     assert_eq!(align_of::<BondGpu>(), 4);
     assert_eq!(offset_of!(BondGpu, atom_a), 0);
     assert_eq!(offset_of!(BondGpu, atom_b), 4);
     assert_eq!(offset_of!(BondGpu, radius), 8);
-    assert_eq!(offset_of!(BondGpu, entity_id), 12);
+    assert_eq!(offset_of!(BondGpu, order), 12);
+    assert_eq!(offset_of!(BondGpu, flags), 16);
+    assert_eq!(offset_of!(BondGpu, entity_id), 20);
 }
 
 #[test]
@@ -202,6 +204,43 @@ fn aromatic_bonds_keep_their_flag_and_radius_through_packing() {
     let degenerate = BondGpu::new(5, 6, 0.0, true, degenerate_id);
     assert!(degenerate.is_aromatic());
     assert!(degenerate.draw_radius() > 0.0);
+
+    let styled = BondGpu::with_style(
+        5,
+        6,
+        0.2,
+        super::BondStyle::new(2, false, true, 1),
+        degenerate_id,
+    );
+    assert_eq!(styled.order(), 2);
+    assert!(styled.is_metal());
+    assert_eq!(styled.variant(), 1);
+}
+
+#[test]
+fn each_multi_bond_strand_keeps_its_own_variant_index() {
+    let id = EntityId::pack(EntityKind::Bond, 7).unwrap_or_else(|error| panic!("{error}"));
+    let triple = (0..3)
+        .map(|variant| {
+            BondGpu::with_style(
+                0,
+                1,
+                0.25,
+                super::BondStyle::new(3, false, false, variant),
+                id,
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        triple.iter().map(|bond| bond.variant()).collect::<Vec<_>>(),
+        [0, 1, 2]
+    );
+    assert!(triple.iter().all(|bond| bond.order() == 3));
+    // The variant lane is bounded, so an out-of-range strand cannot alias the
+    // metal bit or overflow into the entity id.
+    let clamped = BondGpu::with_style(0, 1, 0.25, super::BondStyle::new(3, false, false, 9), id);
+    assert_eq!(clamped.variant(), 3);
+    assert!(!clamped.is_metal());
 }
 
 #[test]
