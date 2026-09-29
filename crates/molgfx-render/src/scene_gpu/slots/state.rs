@@ -10,6 +10,7 @@ pub(super) fn synced_state<D: Device>(input: &SlotSync<'_, D>) -> SlotSynced {
     let table = &input.placed.atoms;
     SlotSynced {
         quality: input.quality,
+        detail: input.detail,
         record_key: crate::scene_gpu::record_cache::RecordCache::<D>::key(
             input.scene,
             input.placed,
@@ -22,7 +23,7 @@ pub(super) fn synced_state<D: Device>(input: &SlotSync<'_, D>) -> SlotSynced {
         representation: input.representation_revision,
         presentation: PresentationState::new(input.representation),
         records: RecordState::new(input.representation),
-        ribbon: RibbonState::new(input.representation),
+        ribbon: RibbonState::new(input.representation, input.detail.ribbon_steps),
         color: table.color().revision().get(),
         flags: table.flags().revision().get(),
         semantic: table.semantic().revision().get(),

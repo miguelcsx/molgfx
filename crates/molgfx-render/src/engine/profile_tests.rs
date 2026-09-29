@@ -1,7 +1,8 @@
 use super::{
-    BackdropStyle, DepthOfField, DisplayTransform, EffectLayer, FocusTarget, IllustrationStyle,
-    LightingEnvironment, MotionBlur, PresentationEffect, RenderProfile,
+    AntiAliasingStyle, BackdropStyle, DepthOfField, DisplayTransform, EffectLayer,
+    IllustrationStyle, LightingEnvironment, MotionBlur, PresentationEffect, RenderProfile,
 };
+use crate::FocusTarget;
 use crate::{DisplayGamut, TransferFunction};
 
 fn approximately(left: f32, right: f32) -> bool {
@@ -261,4 +262,43 @@ fn malformed_focus_targets_resolve_to_the_camera_target() {
     assert_eq!(lens.sanitize().focus, FocusTarget::CameraTarget);
     lens.focus = FocusTarget::WorldPoint(molgfx_math::Vec3::splat(f32::INFINITY));
     assert_eq!(lens.sanitize().focus, FocusTarget::CameraTarget);
+}
+
+#[test]
+fn anti_aliasing_is_unset_until_a_layer_states_it() {
+    assert_eq!(RenderProfile::inspection().resolve().antialias(), None);
+    assert_eq!(RenderProfile::cinematic().resolve().antialias(), None);
+}
+
+#[test]
+fn a_stated_anti_aliasing_layer_wins_over_the_tier_default() {
+    let smoothed = RenderProfile::inspection().with_effect(PresentationEffect::AntiAliasing(
+        AntiAliasingStyle::smoothed(),
+    ));
+    assert_eq!(
+        smoothed.resolve().antialias(),
+        Some(AntiAliasingStyle::smoothed())
+    );
+
+    let plain = RenderProfile::inspection()
+        .with_effect(PresentationEffect::AntiAliasing(AntiAliasingStyle::none()));
+    assert_eq!(plain.resolve().antialias(), Some(AntiAliasingStyle::none()));
+}
+
+#[test]
+fn the_later_anti_aliasing_layer_in_priority_order_wins() {
+    let profile = RenderProfile::inspection()
+        .with_layer(EffectLayer::new(PresentationEffect::AntiAliasing(
+            AntiAliasingStyle::none(),
+        )))
+        .with_layer(
+            EffectLayer::new(PresentationEffect::AntiAliasing(
+                AntiAliasingStyle::smoothed(),
+            ))
+            .with_priority(1),
+        );
+    assert_eq!(
+        profile.resolve().antialias(),
+        Some(AntiAliasingStyle::smoothed())
+    );
 }

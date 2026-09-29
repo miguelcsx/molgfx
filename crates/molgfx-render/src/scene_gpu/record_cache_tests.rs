@@ -85,7 +85,7 @@ fn record_state_distinguishes_every_input_that_forces_a_repack() {
     let mut scaled = representation.clone();
     scaled.params.radius_scale = 0.5;
     let mut colored = representation.clone();
-    colored.color = molgfx_core::ColorScheme::ByChain;
+    colored.color = molgfx_core::ColorScheme::Uniform(molgfx_math::Rgba8::opaque(1, 2, 3));
     let mut opaque = representation.clone();
     opaque.material.opacity = 0.25;
     assert_eq!(base, RecordState::new(&representation));

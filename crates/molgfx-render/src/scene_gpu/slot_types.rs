@@ -148,6 +148,7 @@ pub(crate) enum SelectionIdentity {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct SlotSynced {
     pub(super) quality: bool,
+    pub(super) detail: super::detail::TierDetail,
     /// Which shared record set this slot's draws resolve against.
     pub(super) record_key: super::record_cache::RecordKey,
     pub(super) representation: u64,
@@ -184,7 +185,7 @@ pub(super) struct PresentationState {
     params: RepresentationParams,
     clipping: ClipSet,
     surface_scalar: Option<SurfaceScalarOverlay>,
-    /// How atoms are coloured, and the scientific mapping that drives opacity.
+    /// How atoms are coloured, and the physical mapping that drives opacity.
     ///
     /// Both are applied on the GPU from the representation uniform, so they
     /// belong here: a scheme or appearance change rewrites one uniform block
@@ -265,11 +266,13 @@ pub(super) struct RibbonState {
     radius: u32,
     color: ColorScheme,
     appearance: Option<molgfx_core::PropertyAppearance>,
+    steps: u8,
 }
 
 impl RibbonState {
-    pub(super) fn new(representation: &Representation) -> Self {
+    pub(super) fn new(representation: &Representation, steps: u8) -> Self {
         Self {
+            steps,
             target: representation.target,
             kind: kind_id(representation.kind),
             width: representation.params.ribbon_width.to_bits(),
@@ -363,6 +366,7 @@ pub(super) struct SlotSync<'a, D: Device> {
     pub(super) overlay_view: &'a D::TextureView,
     pub(super) overlay_binding_revision: u64,
     pub(super) quality: bool,
+    pub(super) detail: super::detail::TierDetail,
     pub(super) frame: &'a D::Buffer,
     pub(super) cull_tiles: &'a D::Buffer,
     pub(super) cull_binding_revision: u64,
@@ -377,8 +381,7 @@ pub(super) struct SlotSync<'a, D: Device> {
     pub(super) selection: &'a AtomSelection,
     /// Handle of `selection`, needed to key the shared packed records.
     pub(super) selection_handle: molgfx_core::SelectionHandle,
-    pub(super) color_property: Option<&'a molgfx_core::AtomProperty>,
-    pub(super) appearance_property: Option<&'a molgfx_core::AtomProperty>,
+    pub(super) color: molgfx_geometry::ColorContext<'a>,
     pub(super) property_revisions: [u64; 2],
     pub(super) visual_property_buffer: Option<&'a D::Buffer>,
     pub(super) visual_program_buffer: Option<&'a D::Buffer>,

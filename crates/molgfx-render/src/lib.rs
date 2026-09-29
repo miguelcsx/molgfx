@@ -23,9 +23,9 @@ fn fallback<T>(candidate: impl IntoIterator<Item = T>, fallback: T) -> T {
 mod testing;
 
 pub use engine::{
-    AdaptiveQuality, AdaptiveQualityConfig, AttributeChunkWindow, BackdropStyle, BloomStyle,
-    BondChunkPlacement, ChunkPlacementError, ChunkPlacementId, ChunkPlacementStatus,
-    ChunkRepresentation, ChunkResidencyError, ChunkResidencyMetrics, DepthOfField,
+    AdaptiveQuality, AdaptiveQualityConfig, AntiAliasingStyle, AttributeChunkWindow, BackdropStyle,
+    BloomStyle, BondChunkPlacement, ChunkPlacementError, ChunkPlacementId, ChunkPlacementStatus,
+    ChunkRepresentation, ChunkResidencyError, ChunkResidencyMetrics, DepthCue, DepthOfField,
     DerivedCacheBudget, DerivedCacheUsage, DisplayGamut, DisplayTransform, EffectLayer, Engine,
     EngineConfig, FocusTarget, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport,
     FrameStatus, FrameTiming, HdrImage, IllustrationStyle, Image, ImageConfig,

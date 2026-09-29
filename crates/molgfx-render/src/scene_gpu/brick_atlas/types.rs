@@ -7,7 +7,7 @@ use molgfx_semantic::BrickWorkingSetError;
 /// Physical texel interpretation shared by one atlas.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BrickAtlasKind {
-    /// Scalar density or scientific field.
+    /// Scalar density or physical field.
     Scalar,
     /// Exact categorical labels.
     Segmentation,
@@ -107,7 +107,7 @@ pub enum BrickAtlasError {
     /// Metadata semantics do not match the atlas texel interpretation.
     #[error("brick {brick} value semantics do not match the atlas")]
     KindMismatch {
-        /// Global brick whose scientific value kind differs.
+        /// Global brick whose physical value kind differs.
         brick: BrickId,
     },
     /// All fixed lifecycle records are occupied.

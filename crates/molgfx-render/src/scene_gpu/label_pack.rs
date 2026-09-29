@@ -147,7 +147,11 @@ fn pack_measurement(
     headers: &mut Vec<LabelHeaderGpu>,
     records: &mut Vec<LabelGpu>,
 ) -> Result<(), molgfx_core::EntityIdError> {
-    let entity = EntityId::pack(EntityKind::Label, u64::from(Scene::measurement_row(handle)))?.0;
+    let entity = EntityId::pack(
+        EntityKind::Measurement,
+        u64::from(Scene::measurement_row(handle)),
+    )?
+    .0;
     let first = count(records.len());
     let anchor = measurement_guides(records, value, entity, pick_page);
     let bounds = pack_text(

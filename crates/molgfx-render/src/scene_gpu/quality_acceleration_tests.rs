@@ -85,10 +85,11 @@ fn bond_hierarchy_is_persistent_and_covers_each_compact_bond() {
         acceleration.upload_words.len(),
         acceleration.hierarchy.nodes.len() * 8
             + acceleration.upload_indices.len()
-            + bonds.len() * 4
+            + bonds.len() * (std::mem::size_of::<BondGpu>() / std::mem::size_of::<u32>())
     );
     assert_eq!(
-        &acceleration.upload_words[acceleration.upload_words.len() - bonds.len() * 4..],
+        &acceleration.upload_words[acceleration.upload_words.len()
+            - bonds.len() * (std::mem::size_of::<BondGpu>() / std::mem::size_of::<u32>())..],
         bytemuck::cast_slice::<BondGpu, u32>(&bonds)
     );
     let capacities = (
