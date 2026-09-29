@@ -8,6 +8,8 @@
 
 const SURFACE_KIND_GAUSSIAN: u32 = 3u;
 
+//!include "include/color/ramp.wgsl"
+
 struct RepresentationUniforms {
     surface: vec4f,
     grid_min: vec4f,
@@ -18,8 +20,8 @@ struct RepresentationUniforms {
     clip_planes: array<vec4f, 4>,
     clip_meta: vec4u,
     overlay_world_to_voxel: mat4x4f,
-    overlay_domain: vec4f,
-    overlay_colors: array<vec4f, 3>,
+    overlay_contour: vec4f,
+    overlay_ramp: RampLut,
     overlay_size: vec4u,
     overlay_visual: vec4f,
     material: vec4f,

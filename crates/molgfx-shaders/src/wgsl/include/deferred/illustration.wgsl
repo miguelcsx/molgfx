@@ -236,9 +236,10 @@ fn apply_illustration(
     let posterize =
         frame.npr.x;
 
+    let explicit_depth_cue = frame.depth_cue.z > 0.0;
     if all(
         style <= vec3f(0.0)
-    ) && posterize < 2.0 {
+    ) && posterize < 2.0 && !explicit_depth_cue {
         return color;
     }
 
@@ -289,27 +290,29 @@ fn apply_illustration(
 
     // Avoid background(), including its length()/smoothstep work, unless
     // depth cueing can actually affect this fragment.
-    if style.z == 0.0 {
+    if style.z == 0.0 && !explicit_depth_cue {
         return shaped;
     }
 
-    let focus_distance =
-        max(
+    var depth_cue = 0.0;
+    if explicit_depth_cue {
+        let cue = frame.depth_cue;
+        depth_cue = smoothstep(
+            cue.x,
+            max(cue.y, cue.x + MIN_FOCUS_DISTANCE),
+            -position.z,
+        ) * cue.z;
+    } else {
+        let focus_distance = max(
             frame.illustration.w,
             MIN_FOCUS_DISTANCE,
         );
-
-    let depth_cue =
-        smoothstep(
-            focus_distance *
-                DEPTH_CUE_NEAR_FOCUS,
-
-            focus_distance *
-                DEPTH_CUE_FAR_FOCUS,
-
+        depth_cue = smoothstep(
+            focus_distance * DEPTH_CUE_NEAR_FOCUS,
+            focus_distance * DEPTH_CUE_FAR_FOCUS,
             -position.z,
-        ) *
-        style.z;
+        ) * style.z;
+    }
 
     if depth_cue == 0.0 {
         return shaped;

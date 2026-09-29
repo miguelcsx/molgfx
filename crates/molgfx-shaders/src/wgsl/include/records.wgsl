@@ -12,5 +12,7 @@ struct BondRecord {
     atom_a: u32,
     atom_b: u32,
     radius: f32,
+    order: u32,
+    flags: u32,
     entity_id: u32,
 }

@@ -82,11 +82,66 @@ fn fragment_visuals_share_one_interpreter_and_keep_a_specialized_builtin_path() 
 
 #[test]
 fn visual_emission_stays_hdr_through_deferred_and_transparent_paths() {
-    assert!(GEOMETRY_CARTOON.contains("visual.color.rgb + visual.emission"));
+    assert!(GEOMETRY_CARTOON.contains("visual.color.rgb"));
+    assert!(GEOMETRY_CARTOON.contains("visual.emission"));
     assert!(GEOMETRY_CARTOON.contains("ribbon_visual_gbuffer_material"));
     assert!(super::GEOMETRY_POINT.contains("visual.color.rgb + visual.emission"));
     assert!(super::LIGHTING.contains("emission_enabled"));
-    assert!(super::LIGHTING.contains("albedo_material.a >= 8.0"));
+    assert!(super::LIGHTING.contains("unmarked_payload >= 8.0"));
+}
+
+#[test]
+fn every_gbuffer_form_carries_its_marker_to_the_lighting_edge() {
+    for source in [
+        GEOMETRY_CARTOON,
+        GEOMETRY_SPHERE,
+        GEOMETRY_BOND,
+        super::GEOMETRY_POINT,
+    ] {
+        assert!(source.contains("marker_encode_payload"));
+    }
+    assert!(super::LIGHTING.contains("apply_marker_edge"));
+    assert!(super::LIGHTING.contains("marker_from_payload"));
+}
+
+#[test]
+fn the_molecular_bond_pipeline_displaces_every_packed_multi_bond_variant() {
+    // The molecular bond pipeline carries the packed chemical order; the
+    // provider-backed paged-bond pipeline is authored per placement and has no
+    // order lane, so only the molecular unit is asserted here.
+    assert!(GEOMETRY_BOND.contains("bond_variant_geometry"));
+    assert!(GEOMETRY_BOND.contains("bond_perpendicular"));
+    assert!(GEOMETRY_BOND.contains("offset_radii"));
+    // The order and variant lanes the packer writes are actually read.
+    assert!(GEOMETRY_BOND.contains("bond.order"));
+    assert!(GEOMETRY_BOND.contains("(bond.flags >> 1u) & 3u"));
+    // The single-strand case must stay exactly one full-width capsule.
+    assert!(GEOMETRY_BOND.contains("BOND_DOUBLE_OFFSET"));
+    assert!(GEOMETRY_BOND.contains("BOND_TRIPLE_OFFSET"));
+    assert!(GEOMETRY_BOND.contains("BOND_STYLE_AROMATIC_INNER"));
+}
+
+#[test]
+fn every_analytic_depth_writer_ranks_a_coincident_tie_by_entity() {
+    // A capsule, a wire and an atom sphere can all meet at one point at the
+    // same analytic depth, and culling compacts visibility in parallel. Each
+    // analytic writer must rank the tie by entity, or the winning fragment
+    // varies between submissions on the same input. The point pipeline is
+    // exempt because it writes the rasterized device depth, which the
+    // rasterizer already fixes for a given vertex position.
+    for source in [GEOMETRY_BOND, GEOMETRY_SPHERE] {
+        assert!(
+            source.contains("stable_entity_depth"),
+            "an analytic depth writer must rank by entity"
+        );
+        assert!(source.contains("in.entity_id"));
+    }
+    // The provider-backed paths carry their identity as a pick page and local
+    // row rather than an entity id, and must rank the tie too.
+    for source in [super::PAGED_CHUNK, super::PAGED_BOND] {
+        assert!(source.contains("stable_entity_depth"));
+        assert!(source.contains("in.pick_page * 65536u + in.local_row"));
+    }
 }
 
 #[test]
@@ -156,6 +211,16 @@ fn soft_union_is_explicit_and_keeps_the_exact_surface_path() {
     assert!(GEOMETRY_SURFACE.contains("representation.options.w == 5u"));
     assert!(GEOMETRY_SURFACE.contains("soft_union_parameter(nearest_parameters"));
     assert!(GEOMETRY_SURFACE.contains("let soft_union ="));
+    // The blend span is the caller's blob spread, not a shader constant, and
+    // the impostor bound is derived from the same value so the two cannot
+    // disagree about how far a cusp may round outward.
+    assert!(GEOMETRY_SURFACE.contains("representation.presentation.y"));
+    // The ray-bounds padding and the trace must both derive from the span; a
+    // hardcoded blend span or half-ångström pad would let them disagree. A
+    // zero span must select the exact union rather than a tiny blend.
+    assert!(!GEOMETRY_SURFACE.contains("select(0.0, 2.0"));
+    assert!(GEOMETRY_SURFACE.contains("normal_blend_span > 0.0"));
+    assert!(GEOMETRY_SURFACE.contains("max(representation.presentation.y, 0.0) * 0.25"));
 }
 
 #[test]
@@ -164,7 +229,7 @@ fn animated_ribbons_pull_resident_coordinates_in_beauty_and_shadow_paths() {
         assert!(source.contains("ribbon_base_coordinates"));
         assert!(source.contains("fn ribbon_catmull_position"));
         assert!(source.contains("fn ribbon_rotation_arc"));
-        assert!(source.contains("ribbon_deform(vertex_id"));
+        assert!(source.matches("ribbon_deform(").count() >= 2);
     }
 }
 

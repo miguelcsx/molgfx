@@ -1,6 +1,7 @@
 // Batched provider-backed atom chunks with chunk-local u32 addressing.
 
 //!include "include/camera.wgsl"
+//!include "include/depth_tie.wgsl"
 //!include "include/quad.wgsl"
 //!include "include/intersect.wgsl"
 //!include "include/surface_frame.wgsl"
@@ -277,6 +278,11 @@ fn paged_spacefill_fragment(in: PagedSphereVertex) -> PagedSphereFragment {
     out.local_row = in.local_row;
     out.pick_page = in.pick_page;
     out.motion = vec2f(0.0);
-    out.depth = camera_view_depth(hit);
+    // Two provider spheres can meet at the same analytic depth; the pick page
+    // and local row together are the entity, so the tie is stable.
+    out.depth = stable_entity_depth(
+        camera_view_depth(hit),
+        in.pick_page * 65536u + in.local_row,
+    );
     return out;
 }

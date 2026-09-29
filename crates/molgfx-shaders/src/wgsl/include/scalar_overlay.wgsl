@@ -2,9 +2,9 @@
 //
 // Contracts for the enabled pipeline:
 //   - overlay_size.xyz dimensions are >= 2.
-//   - overlay_visual.z = 1 / (overlay_domain.y - overlay_domain.x).
-//   - overlay_visual.w = 1 / (overlay_domain.z - overlay_domain.y).
-//   - overlay_domain.w = inverse contour interval, or 0 to disable contours.
+//   - overlay_ramp is a baked lookup table; see include/color/ramp.wgsl.
+//   - overlay_contour.x = inverse contour interval, or 0 to disable contours.
+//   - Contours lie at whole multiples of the interval.
 //
 // SCALAR_OVERLAY_ENABLED allows the entire overlay path to be compiled out
 // for representations that do not use scalar overlays.
@@ -149,40 +149,15 @@ fn overlay_sample(
     );
 }
 
-/// Maps a scalar value through the caller-authored three-color ramp.
+/// Maps a scalar value through the caller-authored ramp table.
 fn overlay_ramp(value: f32) -> vec3f {
-    let domain =
-        representation.overlay_domain.xyz;
-
-    if value <= domain.y {
-        let amount =
-            clamp(
-                (value - domain.x) *
-                    representation.overlay_visual.z,
-                0.0,
-                1.0,
-            );
-
-        return mix(
-            representation.overlay_colors[0].rgb,
-            representation.overlay_colors[1].rgb,
-            amount,
-        );
-    }
-
-    let amount =
-        clamp(
-            (value - domain.y) *
-                representation.overlay_visual.w,
-            0.0,
-            1.0,
-        );
-
-    return mix(
-        representation.overlay_colors[1].rgb,
-        representation.overlay_colors[2].rgb,
-        amount,
-    );
+    let ramp = representation.overlay_ramp;
+    let tap = ramp_tap(value, ramp.domain.x, ramp.domain.y);
+    return ramp_mix(
+        ramp.colors[tap.low >> 2u][tap.low & 3u],
+        ramp.colors[tap.high >> 2u][tap.high & 3u],
+        tap.fraction,
+    ).rgb;
 }
 
 /// Applies the scalar overlay and optional derivative-antialiased contours.
@@ -246,7 +221,7 @@ fn scalar_overlay_color(
 
     // W stores the reciprocal interval, so contours require no division.
     let inverse_interval =
-        representation.overlay_domain.w;
+        representation.overlay_contour.x;
 
     if inverse_interval <= 0.0 {
         return color;
@@ -255,8 +230,7 @@ fn scalar_overlay_color(
     let phase =
         abs(
             fract(
-                (value -
-                    representation.overlay_domain.y) *
+                value *
                     inverse_interval +
                 0.5
             ) -

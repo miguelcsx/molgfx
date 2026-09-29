@@ -421,6 +421,7 @@ fn fs_point_transparent(
 /// The vertex stage forwards the record's element colour and palette indices;
 /// the scheme is applied here, where the overlay's class column is visible.
 fn point_scheme_color(semantic: u32, entity_id: u32, element: vec4f) -> vec4f {
-    let color = atom_scheme_color(semantic, atom_source_index(entity_id), vec4f(element.rgb, 1.0));
-    return vec4f(color.rgb, element.a);
+    let source = atom_source_index(entity_id);
+    let color = atom_scheme_color(semantic, source, vec4f(element.rgb, 1.0));
+    return interaction_color(vec4f(color.rgb, element.a), source);
 }

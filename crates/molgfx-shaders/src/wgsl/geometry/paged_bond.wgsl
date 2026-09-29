@@ -1,6 +1,7 @@
 // One bounded indirect batch of provider bonds referencing resident atom pages.
 
 //!include "include/camera.wgsl"
+//!include "include/depth_tie.wgsl"
 //!include "include/intersect.wgsl"
 //!include "include/surface_frame.wgsl"
 
@@ -243,6 +244,11 @@ fn paged_bond_fragment(in: PagedBondVertex) -> PagedBondFragment {
     out.local_row = in.local_row;
     out.pick_page = in.pick_page;
     out.motion = vec2f(0.0);
-    out.depth = paged_bond_view_depth(hit);
+    // A provider bond meets the atom it ends on at the same depth; the pick
+    // page and local row together rank the tie, as for the molecular path.
+    out.depth = stable_entity_depth(
+        paged_bond_view_depth(hit),
+        in.pick_page * 65536u + in.local_row,
+    );
     return out;
 }
