@@ -30,7 +30,7 @@ fn world() -> Anchor {
 }
 
 #[test]
-fn every_scientific_item_receives_its_own_monotonic_identity() {
+fn every_overlay_item_receives_its_own_monotonic_identity() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let volume = scene
         .add(density::volume(DataSource::new("density-hash"), [8, 8, 8]))
@@ -64,12 +64,12 @@ fn every_scientific_item_receives_its_own_monotonic_identity() {
     assert_eq!(scene.spec().volumes.len(), 1);
     assert_eq!(scene.spec().annotations.len(), 1);
     assert_eq!(scene.spec().measurements.len(), 1);
-    assert_eq!(scene.spec().scientific_interactions.len(), 1);
+    assert_eq!(scene.spec().interactions.len(), 1);
     assert_eq!(scene.spec().trajectories.len(), 1);
 }
 
 #[test]
-fn every_exposed_scientific_capability_reaches_the_renderer() {
+fn every_exposed_overlay_capability_reaches_the_renderer() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let source = DataSource::new("density-hash");
     let _ = scene
@@ -93,7 +93,7 @@ fn every_exposed_scientific_capability_reaches_the_renderer() {
         ))
         .unwrap_or_else(|error| panic!("{error}"));
 
-    let handles = scene.scientific_handles();
+    let handles = scene.overlay_handles();
     assert_eq!(handles.volumes, 1, "a bound density grid is uploaded");
     assert_eq!(handles.labels, 1, "a label becomes an annotation");
     assert_eq!(handles.measurements, 1, "a distance becomes a measurement");
@@ -107,13 +107,13 @@ fn a_volume_without_a_runtime_binding_stays_unresolved() {
         .add(density::volume(DataSource::new("unbound-hash"), [2, 2, 2]))
         .unwrap_or_else(|error| panic!("{error}"));
 
-    assert_eq!(scene.scientific_handles().volumes, 0);
+    assert_eq!(scene.overlay_handles().volumes, 0);
     assert_eq!(scene.spec().volumes.len(), 1);
 }
 
 #[test]
 fn detected_interactions_are_not_exposed() {
-    let rejected = serde_json::from_str::<crate::ScientificInteractionSpec>(
+    let rejected = serde_json::from_str::<crate::InteractionSpec>(
         r#"{"mode":"detected","kind":"hydrogen_bond","structure":1,"selection":"all","cutoff":4.0}"#,
     );
     assert!(rejected.is_err(), "detected interactions must not decode");
@@ -129,7 +129,7 @@ fn detected_interactions_are_not_exposed() {
 }
 
 #[test]
-fn scientific_specs_round_trip_without_bulk_payloads() {
+fn overlay_specs_round_trip_without_bulk_payloads() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let _ = scene
         .add(density::volume(
@@ -147,7 +147,7 @@ fn scientific_specs_round_trip_without_bulk_payloads() {
 }
 
 #[test]
-fn invalid_scientific_items_leave_the_scene_unchanged() {
+fn invalid_overlay_items_leave_the_scene_unchanged() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let before = scene.to_spec();
     let result = scene.add(density::volume(DataSource::new(""), [0, 2, 2]));
@@ -156,7 +156,7 @@ fn invalid_scientific_items_leave_the_scene_unchanged() {
 }
 
 #[test]
-fn scientific_additions_have_exact_inverse_patches() {
+fn overlay_additions_have_exact_inverse_patches() {
     let scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let base = scene.to_spec();
     let volume = density::volume(DataSource::new("density-hash"), [2, 2, 2]);
@@ -222,7 +222,7 @@ fn a_bound_trajectory_reaches_the_renderer_as_a_resident_frame_pair() {
         ))
         .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(
-        scene.scientific_handles().trajectories,
+        scene.overlay_handles().trajectories,
         0,
         "a descriptor without a runtime binding stays unresolved"
     );
@@ -232,7 +232,7 @@ fn a_bound_trajectory_reaches_the_renderer_as_a_resident_frame_pair() {
         .bind_trajectory(TrajectoryBinding::new(source, start, end))
         .unwrap_or_else(|error| panic!("{error}"));
 
-    let handles = scene.scientific_handles();
+    let handles = scene.overlay_handles();
     assert_eq!(
         handles.trajectories, 1,
         "the pair installs on its structure"
@@ -345,7 +345,7 @@ fn an_unmatched_trajectory_source_stays_unresolved() {
         .unwrap_or_else(|error| panic!("{error}"));
 
     assert_eq!(
-        scene.scientific_handles().trajectories,
+        scene.overlay_handles().trajectories,
         0,
         "a binding for a different source does not satisfy the descriptor"
     );

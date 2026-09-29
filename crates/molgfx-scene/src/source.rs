@@ -12,7 +12,7 @@
 
 pub use molgfx_core::{
     AtomSelection, CoreError, MolecularProvider, MolecularSource, SourceAtom, SourceBond,
-    SourceTopology,
+    SourceTopology, is_metal_atomic_number,
 };
 
 /// A content-derived identity for a provider's molecular topology.
@@ -37,7 +37,39 @@ pub fn topology_identity(topology: &SourceTopology) -> u64 {
     topology.model_chain_start.hash(&mut hasher);
     for bond in topology.bonds.iter() {
         bond.atoms.hash(&mut hasher);
+        bond_order_tag(bond.order).hash(&mut hasher);
         bond.aromatic.hash(&mut hasher);
+        bond.metal.hash(&mut hasher);
+    }
+    topology.secondary_structure.len().hash(&mut hasher);
+    for state in topology.secondary_structure.iter() {
+        secondary_structure_tag(*state).hash(&mut hasher);
     }
     hasher.finish()
 }
+
+fn bond_order_tag(order: molframe::BondOrder) -> u8 {
+    match order {
+        molframe::BondOrder::Unknown => 0,
+        molframe::BondOrder::Single => 1,
+        molframe::BondOrder::Double => 2,
+        molframe::BondOrder::Triple => 3,
+        molframe::BondOrder::Quadruple => 4,
+        molframe::BondOrder::Aromatic => 5,
+        molframe::BondOrder::Polymeric => 6,
+    }
+}
+
+fn secondary_structure_tag(state: molframe::SecondaryStructure) -> u8 {
+    match state {
+        molframe::SecondaryStructure::Unknown => 0,
+        molframe::SecondaryStructure::Coil => 1,
+        molframe::SecondaryStructure::Helix => 2,
+        molframe::SecondaryStructure::Strand => 3,
+        molframe::SecondaryStructure::Turn => 4,
+    }
+}
+
+#[cfg(test)]
+#[path = "source_tests.rs"]
+mod tests;

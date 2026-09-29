@@ -1,7 +1,7 @@
-//! Declarative scientific scene items whose bulk data stays in runtime bindings.
+//! Declarative overlay scene items whose bulk data stays in runtime bindings.
 
 use crate::id::{
-    AnnotationId, MeasurementId, ScientificInteractionId, StructureId, TrajectoryId, VolumeId,
+    AnnotationId, EllipsoidId, InteractionId, MeasurementId, StructureId, TrajectoryId, VolumeId,
 };
 use crate::representation::Selection;
 use crate::representation::private::Sealed;
@@ -9,7 +9,6 @@ use crate::{Color, Error, Scene, SceneItem};
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
-#[path = "surfaces_tests.rs"]
 mod surfaces_tests;
 #[cfg(test)]
 mod tests;
@@ -17,13 +16,15 @@ mod tests;
 pub(crate) mod bindings;
 mod builders;
 pub(crate) mod lower;
+#[cfg(test)]
+mod lower_tests;
 mod surfaces;
 mod validation;
-pub(crate) use bindings::ScienceBindings;
+pub(crate) use bindings::OverlayBindings;
 pub use bindings::{
-    ScientificHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding, VolumeStatistics,
+    OverlayHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding, VolumeStatistics,
 };
-pub use builders::{annotation, density, interaction, measurement, trajectory};
+pub use builders::{annotation, density, ellipsoid, interaction, measurement, trajectory};
 pub use surfaces::{
     AssemblyInstance, AssemblySpec, FitResult, MovieExportRequest, UnitCellSpec, ValidationFinding,
 };
@@ -179,7 +180,27 @@ pub enum MeasurementSpec {
     },
 }
 
-/// Scientific interaction classification.
+/// The anchors a measurement reads, in order.
+#[must_use]
+pub fn measurement_anchors(spec: &MeasurementSpec) -> &[Anchor] {
+    match spec {
+        MeasurementSpec::Distance { anchors } => anchors,
+        MeasurementSpec::Angle { anchors } => anchors,
+        MeasurementSpec::Dihedral { anchors } => anchors,
+    }
+}
+
+/// The kind name and anchor count of a measurement.
+#[must_use]
+pub const fn measurement_shape(spec: &MeasurementSpec) -> (&'static str, usize) {
+    match spec {
+        MeasurementSpec::Distance { .. } => ("distance", 2),
+        MeasurementSpec::Angle { .. } => ("angle", 3),
+        MeasurementSpec::Dihedral { .. } => ("dihedral", 4),
+    }
+}
+
+/// Overlay interaction classification.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum InteractionKind {
@@ -223,16 +244,16 @@ impl InteractionKind {
     }
 }
 
-/// Caller-supplied scientific interaction specification.
+/// Caller-supplied overlay interaction specification.
 ///
 /// Detection is molecular analysis and belongs to `molframe`; this crate stores
 /// and presents interactions the caller has already resolved.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
-pub enum ScientificInteractionSpec {
+pub enum InteractionSpec {
     /// Caller-provided interaction endpoints.
     Explicit {
-        /// Scientific interaction class.
+        /// Overlay interaction class.
         kind: InteractionKind,
         /// Ordered endpoints.
         endpoints: [Anchor; 2],
@@ -252,6 +273,41 @@ pub struct TrajectorySpec {
     pub time_step: Option<f64>,
     /// Optional physical unit for `time_step`.
     pub time_unit: Option<Box<str>>,
+}
+
+/// Per-atom anisotropic-displacement ellipsoid overlay.
+///
+/// Every selected atom that carries a displacement tensor in its source is
+/// drawn as one ellipsoid, so the item is a selection plus a display style
+/// rather than a per-atom list. Atoms without a tensor are simply skipped.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct EllipsoidSpec {
+    /// Structure whose per-atom tensors the selection reads.
+    pub structure: StructureId,
+    /// Atoms to draw; only those carrying a tensor produce geometry.
+    pub selection: Selection,
+    /// Multiplier on the displacement tensor.
+    ///
+    /// The tensor is a mean-square displacement, so the drawn surface is one
+    /// standard deviation; a larger scale widens the ellipsoid by that factor.
+    /// Applied as `scale² · U`, since lengths scale with the square root of a
+    /// displacement tensor's eigenvalues.
+    #[serde(default = "default_ellipsoid_scale")]
+    pub scale: f32,
+    /// Display color.
+    pub color: Color,
+    /// Final opacity in `[0, 1]`.
+    #[serde(default = "default_opacity")]
+    pub opacity: f32,
+}
+
+/// The one-standard-deviation surface an unscaled tensor already describes.
+fn default_ellipsoid_scale() -> f32 {
+    1.0
+}
+
+fn default_opacity() -> f32 {
+    1.0
 }
 
 macro_rules! tuple_scene_item {
@@ -281,13 +337,23 @@ impl SceneItem for MeasurementSpec {
     }
 }
 
-impl Sealed for ScientificInteractionSpec {}
+impl Sealed for InteractionSpec {}
 
-impl SceneItem for ScientificInteractionSpec {
-    type Id = ScientificInteractionId;
+impl SceneItem for InteractionSpec {
+    type Id = InteractionId;
 
     fn add_to(self, scene: &mut Scene) -> Result<Self::Id, Error> {
-        scene.insert_scientific_interaction(self)
+        scene.insert_interaction(self)
+    }
+}
+
+impl Sealed for EllipsoidSpec {}
+
+impl SceneItem for EllipsoidSpec {
+    type Id = EllipsoidId;
+
+    fn add_to(self, scene: &mut Scene) -> Result<Self::Id, Error> {
+        scene.insert_ellipsoids(self)
     }
 }
 

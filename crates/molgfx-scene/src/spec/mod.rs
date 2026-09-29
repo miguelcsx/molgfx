@@ -3,12 +3,12 @@
 pub(crate) mod lowering;
 
 use crate::id::{RepresentationId, StructureId};
+use crate::overlay::{
+    AnnotationSpec, InteractionSpec, MeasurementSpec, TrajectorySpec, VolumeSpec,
+};
 pub(crate) use crate::patch::{PatchOperation, ScenePatch};
 use crate::representation::Selection;
 use crate::representation::form::RepresentationSpec;
-use crate::science::{
-    AnnotationSpec, MeasurementSpec, ScientificInteractionSpec, TrajectorySpec, VolumeSpec,
-};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -62,13 +62,15 @@ pub struct SceneSpec {
     /// Measurement specifications in stable ID order.
     #[serde(default)]
     pub measurements: BTreeMap<crate::MeasurementId, MeasurementSpec>,
-    /// Scientific interactions in stable ID order.
+    /// Interactions in stable ID order.
     #[serde(default)]
-    pub scientific_interactions:
-        BTreeMap<crate::ScientificInteractionId, ScientificInteractionSpec>,
+    pub interactions: BTreeMap<crate::InteractionId, InteractionSpec>,
     /// Trajectory bindings in stable ID order.
     #[serde(default)]
     pub trajectories: BTreeMap<crate::TrajectoryId, TrajectorySpec>,
+    /// Per-atom anisotropic-displacement ellipsoid overlays in stable ID order.
+    #[serde(default)]
+    pub ellipsoids: BTreeMap<crate::EllipsoidId, crate::overlay::EllipsoidSpec>,
     /// Selection-scoped colour rules. Where rules overlap, the higher identity
     /// wins; a rule always wins over a representation's own colour.
     #[serde(default)]
@@ -103,8 +105,9 @@ impl SceneSpec {
             volumes: BTreeMap::new(),
             annotations: BTreeMap::new(),
             measurements: BTreeMap::new(),
-            scientific_interactions: BTreeMap::new(),
+            interactions: BTreeMap::new(),
             trajectories: BTreeMap::new(),
+            ellipsoids: BTreeMap::new(),
             appearance: BTreeMap::new(),
             focus: None,
             selected: None,
@@ -134,7 +137,7 @@ impl SceneSpec {
     pub fn from_json(source: &str) -> Result<Self, crate::Error> {
         let value: Self = serde_json::from_str(source)?;
         value.validate_selections()?;
-        value.validate_science()?;
+        value.validate_overlay()?;
         value.validate_camera()?;
         Ok(value)
     }
@@ -158,7 +161,7 @@ impl SceneSpec {
             }
             .into());
         }
-        crate::scene::runtime::candidate_spec(self, patch)
+        crate::scene::apply::candidate_spec(self, patch)
     }
 
     pub(crate) fn validate_selections(&self) -> Result<(), crate::Error> {
@@ -199,7 +202,7 @@ impl SceneSpec {
         validate_camera(self.camera)
     }
 
-    pub(crate) fn validate_science(&self) -> Result<(), crate::Error> {
+    pub(crate) fn validate_overlay(&self) -> Result<(), crate::Error> {
         self.volumes.values().try_for_each(VolumeSpec::validate)?;
         self.annotations
             .values()
@@ -207,10 +210,13 @@ impl SceneSpec {
         self.measurements
             .values()
             .try_for_each(|spec| spec.validate(self))?;
-        self.scientific_interactions
+        self.interactions
             .values()
             .try_for_each(|spec| spec.validate(self))?;
         self.trajectories
+            .values()
+            .try_for_each(|spec| spec.validate(self))?;
+        self.ellipsoids
             .values()
             .try_for_each(|spec| spec.validate(self))
     }

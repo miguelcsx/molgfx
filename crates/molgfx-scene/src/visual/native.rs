@@ -328,11 +328,11 @@ impl<'a> Compiler<'a> {
                 ..
             } => {
                 let value = self.scalar(value)?;
-                let colors = color::palette(palette)?.map(crate::Color::native);
-                let ramp = molgfx_core::ScalarRamp::new(
-                    [domain[0], domain[0].midpoint(domain[1]), domain[1]],
-                    colors,
-                )?;
+                let colors: Vec<_> = color::ramp_colors(palette)?
+                    .into_iter()
+                    .map(crate::Color::native)
+                    .collect();
+                let ramp = molgfx_core::ScalarRamp::evenly(*domain, &colors)?;
                 self.builder.ramp(value, ramp)
             }
         }
