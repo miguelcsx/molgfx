@@ -39,7 +39,7 @@ impl<D: Device> GpuScene<D> {
             let Some(structure_gpu) = self.structures.get(slot.structure_index) else {
                 continue;
             };
-            let (_, _, property_revisions) =
+            let (_, property_revisions) =
                 properties::resolve(scene, representation, slot.key.structure);
             let key = crate::scene_gpu::record_cache::RecordCache::<D>::key(
                 scene,
@@ -94,7 +94,7 @@ impl<D: Device> GpuScene<D> {
                 let Some(placed) = scene.structure(key.selection.structure) else {
                     return Ok(None);
                 };
-                let (color_property, appearance_property, _) =
+                let (color, _) =
                     properties::resolve(scene, representation, key.selection.structure);
                 Ok(Some(crate::scene_gpu::record_cache::RecordPrepare {
                     device,
@@ -102,8 +102,7 @@ impl<D: Device> GpuScene<D> {
                     placed,
                     representation,
                     selection,
-                    color_property,
-                    appearance_property,
+                    color,
                 }))
             },
         )?;

@@ -70,6 +70,8 @@ pub(crate) struct SceneSync<'a, D: Device> {
     pub(crate) queue: &'a D::Queue,
     pub(crate) scene: &'a Scene,
     pub(crate) quality: bool,
+    /// Sampling density the quality tier allows.
+    pub(crate) detail: super::detail::TierDetail,
     pub(crate) extent: [u32; 2],
     pub(crate) ray_query_layout: Option<&'a D::BindGroupLayout>,
     pub(crate) derived_cache: &'a mut crate::DerivedCache,
@@ -246,6 +248,7 @@ impl<D: Device> GpuScene<D> {
             queue,
             scene,
             quality,
+            detail,
             extent,
             ray_query_layout,
             derived_cache,
@@ -328,12 +331,52 @@ impl<D: Device> GpuScene<D> {
             derived_cache,
             derived_frame,
         )?;
-        self.prepare_surface_fields(device, queue, scene, quality)?;
-        changed |=
-            self.sync_representation_slots(device, queue, scene, quality, ray_query_layout)?;
+        changed |= self.sync_molecular_slots(
+            device,
+            queue,
+            scene,
+            (quality, detail),
+            ray_query_layout,
+            (derived_cache, derived_frame),
+        )?;
+        changed |= self.sync_auxiliary_slots(device, queue, scene)?;
+        Ok(changed)
+    }
+
+    /// Surface fields first, then every record-backed representation slot that
+    /// binds them, then the release of fields no slot kept.
+    fn sync_molecular_slots(
+        &mut self,
+        device: &D,
+        queue: &D::Queue,
+        scene: &Scene,
+        (quality, detail): (bool, super::detail::TierDetail),
+        ray_query_layout: Option<&D::BindGroupLayout>,
+        (derived_cache, derived_frame): (&mut crate::DerivedCache, u64),
+    ) -> Result<bool, RenderError> {
+        self.prepare_surface_fields(device, queue, scene, detail.surface_spacing)?;
+        let changed = self.sync_representation_slots(
+            device,
+            queue,
+            scene,
+            quality,
+            detail,
+            ray_query_layout,
+        )?;
         self.retain_surface_fields(derived_cache, derived_frame);
         self.release_upload_scratch();
-        changed |= self.sync_volume_slots(device, queue, scene)?;
+        Ok(changed)
+    }
+
+    /// Volume, mesh and segmentation slots: the representations that own no
+    /// molecular records and so sync after every record-backed slot.
+    fn sync_auxiliary_slots(
+        &mut self,
+        device: &D,
+        queue: &D::Queue,
+        scene: &Scene,
+    ) -> Result<bool, RenderError> {
+        let mut changed = self.sync_volume_slots(device, queue, scene)?;
         changed |= self.sync_mesh_slots(device, queue, scene)?;
         changed |= self.sync_segmentation_slots(device, queue, scene)?;
         Ok(changed)

@@ -59,6 +59,12 @@ pub(crate) struct PassContext<'a, D: Device> {
     pub temporal_write: usize,
     /// Whether progressive quality effects replace their realtime variants.
     pub quality: bool,
+    /// Whether the tonemap pass smooths edges.
+    ///
+    /// Resolved from the presentation profile when it states a choice, and
+    /// otherwise the realtime tiers smooth and the converged quality tiers do
+    /// not, because accumulation already averages sub-pixel coverage.
+    pub edge_smoothing: bool,
     /// Display gamut and transfer curve for this frame's presentation.
     ///
     /// The tonemap shader takes these as pipeline constants rather than

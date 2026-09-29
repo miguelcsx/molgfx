@@ -19,7 +19,7 @@ use super::asset::GpuAssetIdentity;
 use super::buffers::{count, upload_grow};
 use super::slot_types::{RecordState, SelectionIdentity, SelectionKey};
 use crate::error::RenderError;
-use molgfx_core::{AtomGpu, BondGpu, PlacedStructure, Representation, Scene};
+use molgfx_core::{AtomGpu, BondGpu, PlacedStructure, Representation, RepresentationKind, Scene};
 use molgfx_gpu::Device;
 use std::collections::BTreeMap;
 
@@ -33,7 +33,7 @@ pub(crate) struct RecordKey {
     pub(crate) selection: SelectionKey,
     pub(crate) asset: GpuAssetIdentity,
     pub(crate) records: RecordState,
-    /// Content revisions of the two scientific columns the packer reads.
+    /// Content revisions of the two physical columns the packer reads.
     pub(crate) properties: [u64; 2],
 }
 
@@ -50,7 +50,7 @@ pub(crate) struct RecordGeometry {
     pub(crate) selection: SelectionKey,
     /// The asset whose coordinates and topology those records came from.
     pub(crate) asset: GpuAssetIdentity,
-    /// Content revisions of the scientific columns the packer reads.
+    /// Content revisions of the physical columns the packer reads.
     pub(crate) properties: [u64; 2],
     /// The representation kind, which selects the packing rule.
     pub(crate) kind: u8,
@@ -79,8 +79,7 @@ pub(super) struct RecordPrepare<'a, D: Device> {
     pub(super) placed: &'a PlacedStructure,
     pub(super) representation: &'a Representation,
     pub(super) selection: &'a molgfx_core::AtomSelection,
-    pub(super) color_property: Option<&'a molgfx_core::AtomProperty>,
-    pub(super) appearance_property: Option<&'a molgfx_core::AtomProperty>,
+    pub(super) color: molgfx_geometry::ColorContext<'a>,
 }
 
 /// The ledger and frame a shared resource registers itself against.
@@ -179,7 +178,14 @@ impl<D: Device> RecordCache<D> {
             },
             asset,
             records: RecordState::new(representation),
-            properties: property_revisions,
+            // Only residue beads bake a colour into their records; every other
+            // form resolves colour on the GPU, so a column edit must not
+            // invalidate records that never read it.
+            properties: if representation.kind == RepresentationKind::Beads {
+                property_revisions
+            } else {
+                [0; 2]
+            },
         }
     }
 

@@ -88,6 +88,7 @@ pub(super) const fn kind_index(kind: EntityKind) -> usize {
         EntityKind::Instance => 10,
         EntityKind::TemplatePart => 11,
         EntityKind::Relation => 12,
+        EntityKind::Measurement => 13,
     }
 }
 

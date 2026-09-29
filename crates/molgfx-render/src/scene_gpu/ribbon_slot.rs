@@ -197,7 +197,7 @@ fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), Rend
         .ok_or(RenderError::SourceCapabilityMissing {
             capability: "ribbon topology",
         })?;
-    let params = spline_params(input.representation);
+    let params = spline_params(input.representation, input.ribbon_steps);
     if input.representation.kind == RepresentationKind::PaperChain {
         input.mesh.clear();
     } else if input.representation.kind == RepresentationKind::Twister {
@@ -209,7 +209,7 @@ fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), Rend
             structure,
             input.selection,
             input.placed.secondary_structure.values(),
-            8.0,
+            molgfx_geometry::CARTOON_GAP_CUTOFF,
             params,
         )?;
     }
@@ -218,18 +218,13 @@ fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), Rend
         input.representation.kind,
         RepresentationKind::Twister | RepresentationKind::PaperChain
     ) {
-        molgfx_geometry::recolor_ribbon_with_appearance(
+        molgfx_geometry::recolor_ribbon(
             &mut input.mesh.vertices,
             &input.placed.atoms,
-            &input.placed.hierarchy,
-            input.placed.secondary_structure.values(),
-            molgfx_geometry::PropertyColumns {
-                color: input.color_property,
-                appearance: input.appearance_property,
-                overlay: input.overlay,
-            },
+            input.color,
             molgfx_geometry::RibbonColoring {
                 color: input.representation.color,
+                overlay: input.representation.color_overlay,
                 appearance: input.representation.appearance,
                 opacity: u8::MAX,
             },
@@ -302,7 +297,7 @@ const TWISTER_THICKNESS_SCALE: f32 = 0.2;
 /// Sampling ceiling for the twisting profile.
 const TWISTER_MAX_STEPS: u8 = 32;
 
-fn spline_params(representation: &Representation) -> RibbonParams {
+fn spline_params(representation: &Representation, steps: u8) -> RibbonParams {
     let color = match representation.color {
         ColorScheme::Uniform(color) => molgfx_math::Rgba8::new(color.r, color.g, color.b, u8::MAX),
         _ => molgfx_math::Rgba8::new(110, 165, 235, u8::MAX),
@@ -314,6 +309,7 @@ fn spline_params(representation: &Representation) -> RibbonParams {
                 width: diameter,
                 thickness: diameter,
                 profile: SplineProfile::Tube,
+                max_steps: steps,
                 color,
                 ..RibbonParams::default()
             }
@@ -334,11 +330,13 @@ fn spline_params(representation: &Representation) -> RibbonParams {
         RepresentationKind::Rocket => RibbonParams {
             width: representation.params.ribbon_width,
             profile: SplineProfile::Rocket,
+            max_steps: steps,
             color,
             ..RibbonParams::default()
         },
         _ => RibbonParams {
             width: representation.params.ribbon_width,
+            max_steps: steps,
             color,
             ..RibbonParams::default()
         },
@@ -346,14 +344,14 @@ fn spline_params(representation: &Representation) -> RibbonParams {
 }
 
 pub(super) struct RibbonSync<'a, D: Device> {
+    /// Maximum samples per trace interval the quality tier allows.
+    pub(super) ribbon_steps: u8,
     pub(super) device: &'a D,
     pub(super) queue: &'a D::Queue,
     pub(super) placed: &'a PlacedStructure,
     pub(super) representation: &'a Representation,
     pub(super) selection: &'a AtomSelection,
     pub(super) mesh: &'a mut RibbonMesh,
-    pub(super) color_property: Option<&'a molgfx_core::AtomProperty>,
-    pub(super) appearance_property: Option<&'a molgfx_core::AtomProperty>,
-    /// Selection-scoped schemes overriding the representation's own.
-    pub(super) overlay: Option<molgfx_geometry::OverlayColumn<'a>>,
+    /// The columns the colour scheme, its overlay and its appearance read.
+    pub(super) color: molgfx_geometry::ColorContext<'a>,
 }

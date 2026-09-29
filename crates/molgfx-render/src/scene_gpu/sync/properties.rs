@@ -1,10 +1,13 @@
-//! Dirty-state resolution for independent scientific property channels.
+//! Dirty-state resolution for independent physical property channels.
 
-use molgfx_core::{
-    AtomProperty, Representation, RowDomain, Scene, StructureHandle, VisualAttributeRef,
-};
+use molgfx_core::{Representation, RowDomain, Scene, StructureHandle, VisualAttributeRef};
+use molgfx_geometry::ColorContext;
 
-type Resolved<'a> = (Option<&'a AtomProperty>, Option<&'a AtomProperty>, [u64; 2]);
+/// The colour context and the revisions that invalidate geometry baked from it.
+///
+/// The first revision folds every column the colour scheme and its overlay
+/// read; the second is the appearance mapping's own column.
+type Resolved<'a> = (ColorContext<'a>, [u64; 2]);
 
 pub(super) type VisualResolved = ([Option<VisualAttributeRef>; 4], [u64; 4]);
 
@@ -13,21 +16,36 @@ pub(super) fn resolve<'a>(
     representation: &Representation,
     structure: StructureHandle,
 ) -> Resolved<'a> {
-    let handles = [
-        representation.color.property_handle(),
-        representation
-            .appearance
-            .map(|appearance| appearance.property),
-    ];
-    let properties = handles
-        .map(|handle| handle.and_then(|handle| scene.property_for_structure(handle, structure)));
-    let revisions = handles.map(|handle| {
-        handle
-            .and_then(|handle| scene.property_content_revision(handle))
-            .into_iter()
-            .fold(0, |_, revision| revision)
-    });
-    (properties[0], properties[1], revisions)
+    let columns = representation.color_columns();
+    let revision = |handle: molgfx_core::AtomPropertyHandle| content_revision(scene, handle);
+    let scheme_revision = columns
+        .handles()
+        .filter(|handle| Some(*handle) != columns.appearance)
+        .fold(0_u64, |folded, handle| mix(folded, revision(handle)));
+    let appearance_revision = match columns.appearance {
+        Some(handle) => revision(handle),
+        None => 0,
+    };
+    (
+        ColorContext::new(scene, structure),
+        [scheme_revision, appearance_revision],
+    )
+}
+
+/// A column's content revision, zero when the column is gone.
+fn content_revision(scene: &Scene, handle: molgfx_core::AtomPropertyHandle) -> u64 {
+    let Some(revision) = scene.property_content_revision(handle) else {
+        return 0;
+    };
+    revision
+}
+
+/// Folds one revision into a running digest, order-sensitively.
+///
+/// A 64-bit multiplicative mix: two different revision sets collide with
+/// probability `2^-64`, and the same set always folds to the same value.
+const fn mix(folded: u64, revision: u64) -> u64 {
+    (folded ^ revision.wrapping_add(0x9e37_79b9_7f4a_7c15)).wrapping_mul(0x0100_0000_01b3)
 }
 
 pub(super) fn resolve_visual(

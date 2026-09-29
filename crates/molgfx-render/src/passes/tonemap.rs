@@ -22,9 +22,15 @@ pub(crate) struct TonemapPass<D: Device> {
     pub(crate) layout: D::BindGroupLayout,
 }
 
-/// Position of one encoding in [`TonemapPass::variants`].
-const fn variant_index(encoding: DisplayEncoding) -> usize {
-    encoding.gamut.index() * TransferFunction::ALL.len() + encoding.transfer.index()
+/// Number of pipelines built for one anti-aliasing setting.
+const ENCODINGS: usize = DisplayGamut::ALL.len() * TransferFunction::ALL.len();
+
+/// Position of one encoding and anti-aliasing setting in
+/// [`TonemapPass::variants`]: every plain encoding first, then the same
+/// encodings with edge smoothing fused in.
+const fn variant_index(encoding: DisplayEncoding, smoothed: bool) -> usize {
+    let plain = encoding.gamut.index() * TransferFunction::ALL.len() + encoding.transfer.index();
+    if smoothed { ENCODINGS + plain } else { plain }
 }
 
 impl<D: Device> TonemapPass<D> {
@@ -62,27 +68,29 @@ impl<D: Device> TonemapPass<D> {
             label: "tonemap",
             wgsl: molgfx_shaders::TONEMAP,
         })?;
-        let mut variants =
-            Vec::with_capacity(DisplayGamut::ALL.len() * TransferFunction::ALL.len());
-        for gamut in DisplayGamut::ALL {
-            for transfer in TransferFunction::ALL {
-                variants.push(device.create_render_pipeline(&RenderPipelineDesc {
-                    label: "HDR tonemap",
-                    layouts: &[Some(group0), Some(&layout)],
-                    shader: &shader,
-                    vs_entry: "vs_fullscreen",
-                    fs_entry: Some("fs_tonemap"),
-                    color_targets: &[ColorTarget {
-                        format: target_format,
-                        blend: molgfx_gpu::BlendMode::Replace,
-                    }],
-                    depth: None,
-                    constants: &[
-                        ("PRESENTATION_GAMUT_TAG", f64::from(gamut.tag())),
-                        ("PRESENTATION_TRANSFER_TAG", f64::from(transfer.tag())),
-                    ],
-                    topology: PrimitiveTopology::TriangleList,
-                })?);
+        let mut variants = Vec::with_capacity(2 * ENCODINGS);
+        for smoothed in [false, true] {
+            for gamut in DisplayGamut::ALL {
+                for transfer in TransferFunction::ALL {
+                    variants.push(device.create_render_pipeline(&RenderPipelineDesc {
+                        label: "HDR tonemap",
+                        layouts: &[Some(group0), Some(&layout)],
+                        shader: &shader,
+                        vs_entry: "vs_fullscreen",
+                        fs_entry: Some("fs_tonemap"),
+                        color_targets: &[ColorTarget {
+                            format: target_format,
+                            blend: molgfx_gpu::BlendMode::Replace,
+                        }],
+                        depth: None,
+                        constants: &[
+                            ("PRESENTATION_GAMUT_TAG", f64::from(gamut.tag())),
+                            ("PRESENTATION_TRANSFER_TAG", f64::from(transfer.tag())),
+                            ("FXAA_ENABLED", f64::from(u8::from(smoothed))),
+                        ],
+                        topology: PrimitiveTopology::TriangleList,
+                    })?);
+                }
             }
         }
         Ok(Self { variants, layout })
@@ -107,11 +115,12 @@ impl<D: Device> TonemapPass<D> {
             depth: None,
             timestamps: ctx.timestamps,
         });
+        let smoothed = ctx.edge_smoothing;
         let Some(pipeline) = ctx
             .passes
             .tonemap
             .variants
-            .get(variant_index(ctx.display_encoding))
+            .get(variant_index(ctx.display_encoding, smoothed))
         else {
             return;
         };

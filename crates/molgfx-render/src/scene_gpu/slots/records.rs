@@ -11,14 +11,12 @@ impl<D: Device> GpuSlot<D> {
         self.bond_count = bond_count;
     }
 
-    /// Records the colour property column's arena offset and stride.
-    pub(in crate::scene_gpu) const fn adopt_color_column(&mut self, column: [u32; 2]) {
-        self.color_column = column;
-    }
-
-    /// Records the overlay class column's arena offset and stride.
-    pub(in crate::scene_gpu) const fn adopt_overlay_column(&mut self, column: [u32; 2]) {
-        self.overlay_column = column;
+    /// Records the arena columns this slot's colour reads.
+    pub(in crate::scene_gpu) const fn adopt_color_columns(
+        &mut self,
+        columns: super::super::color_uniforms::ResolvedColumns,
+    ) {
+        self.color_columns = columns;
     }
 
     /// Reserves the per-representation uniform buffer the first time it syncs.

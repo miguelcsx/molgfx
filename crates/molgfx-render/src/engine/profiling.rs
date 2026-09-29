@@ -293,6 +293,7 @@ impl<D: Device> Engine<D> {
                 quality,
                 publication: false,
                 illustration: self.resolved_plan.illustration(),
+                depth_cue: self.resolved_plan.packed_depth_cue(),
                 optics,
                 motion_blur: self
                     .resolved_plan

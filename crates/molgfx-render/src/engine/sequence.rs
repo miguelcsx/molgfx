@@ -126,6 +126,74 @@ impl<D: Device> Engine<D> {
             last_timestamp: None,
         })
     }
+
+    /// Submits one frame to an open sequence without waiting for readback.
+    ///
+    /// # Errors
+    ///
+    /// Returns backpressure at the configured depth, non-monotonic timestamps,
+    /// or a typed renderer or device error.
+    pub fn submit_sequence_frame(
+        &mut self,
+        sequence: &mut SequenceRenderer<D>,
+        scene: &Scene,
+        camera: &Camera,
+        timestamp: u64,
+    ) -> Result<FrameTicket, RenderError> {
+        sequence.submit(self, scene, camera, timestamp)
+    }
+
+    /// Resolves every pending frame of an open sequence in submission order.
+    ///
+    /// # Errors
+    ///
+    /// Returns device loss or image-layout failures.
+    pub fn finish_sequence(
+        &mut self,
+        sequence: SequenceRenderer<D>,
+    ) -> Result<Vec<SequenceFrame>, RenderError> {
+        sequence.finish(self)
+    }
+
+    /// Resolves the oldest pending frame when its submission has completed.
+    ///
+    /// # Errors
+    ///
+    /// Returns device loss or image-layout failures.
+    pub fn poll_sequence_frame(
+        &mut self,
+        sequence: &mut SequenceRenderer<D>,
+    ) -> Result<Option<SequenceFrame>, RenderError> {
+        sequence.poll(self)
+    }
+
+    /// Resolves the oldest pending frame, waiting for its submission.
+    ///
+    /// This is the blocking drain a producer uses when the pipeline is full:
+    /// it resolves exactly one frame in submission order and returns.
+    ///
+    /// # Errors
+    ///
+    /// Returns device loss or image-layout failures, and an invalid-sequence
+    /// error when nothing is pending.
+    pub fn drain_sequence_frame(
+        &mut self,
+        sequence: &mut SequenceRenderer<D>,
+    ) -> Result<SequenceFrame, RenderError> {
+        sequence.resolve_front(self)
+    }
+
+    /// Frames one sequence submission may leave unresolved.
+    #[must_use]
+    pub const fn sequence_in_flight(sequence: &SequenceRenderer<D>) -> u8 {
+        sequence.config.max_in_flight
+    }
+
+    /// Frames submitted to an open sequence that have not been resolved.
+    #[must_use]
+    pub fn pending_sequence_frames(sequence: &SequenceRenderer<D>) -> usize {
+        sequence.pending()
+    }
 }
 
 impl<D: Device> SequenceRenderer<D> {

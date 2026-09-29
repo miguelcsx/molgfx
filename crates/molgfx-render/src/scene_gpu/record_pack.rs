@@ -14,8 +14,7 @@ pub(super) fn pack_records<D: Device>(
         molgfx_geometry::pack_residue_beads(
             &input.placed.atoms,
             &input.placed.hierarchy,
-            input.placed.secondary_structure.values(),
-            input.color_property,
+            input.color,
             input.representation,
             input.selection,
             scratch.atoms,
@@ -28,15 +27,8 @@ pub(super) fn pack_records<D: Device>(
         scratch.bonds.clear();
         return Ok(());
     }
-    molgfx_geometry::pack_atoms_with_properties(
+    molgfx_geometry::pack_atoms(
         &input.placed.atoms,
-        &input.placed.hierarchy,
-        input.placed.secondary_structure.values(),
-        molgfx_geometry::PropertyColumns {
-            color: input.color_property,
-            appearance: input.appearance_property,
-            overlay: None,
-        },
         input.representation,
         input.selection,
         scratch.atoms,

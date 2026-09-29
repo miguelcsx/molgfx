@@ -23,6 +23,7 @@ fn options(quality: bool) -> TemporalOptions {
         quality,
         publication: false,
         illustration: IllustrationStyle::default(),
+        depth_cue: [0.0; 4],
         optics: [8.0, 0.0, 0.0, 0.0],
         motion_blur: [0.0; 4],
         atmosphere: crate::engine::backdrop::pack(
@@ -115,4 +116,36 @@ fn a_small_camera_move_restarts_refinement_without_discarding_reprojectable_hist
     assert!(!state.needs_another_frame(8));
     state.invalidate_convergence();
     assert!(state.needs_another_frame(8));
+}
+
+#[test]
+fn convergence_is_a_four_sample_budget_reached_in_order_and_restarted_by_any_change() {
+    // The convergence contract, stated once: a clean frame starts from zero
+    // history, four samples converge, and any change that invalidates history
+    // restarts the count rather than letting a stale prefix satisfy it.
+    const BUDGET: u8 = 4;
+
+    let mut state = TemporalState::default();
+    let mut samples = 0_u8;
+    while state.needs_another_frame(BUDGET) {
+        let _ = state.prepare(&camera(), &options(false));
+        samples = samples.saturating_add(1);
+        assert!(samples <= BUDGET, "the budget bounds the sample count");
+    }
+    assert_eq!(samples, BUDGET, "four samples converge the image");
+
+    // A scene edit clears history, so the next frame must not consider itself
+    // converged.
+    state.invalidate_convergence();
+    assert!(state.needs_another_frame(BUDGET));
+
+    // So does camera motion, without discarding reprojectable history.
+    for _ in 0..BUDGET {
+        let _ = state.prepare(&camera(), &options(false));
+    }
+    assert!(!state.needs_another_frame(BUDGET));
+    let mut moved = camera();
+    moved.eye.x += 0.05;
+    let _ = state.prepare(&moved, &options(false));
+    assert!(state.needs_another_frame(BUDGET));
 }
