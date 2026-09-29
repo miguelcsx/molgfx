@@ -1,16 +1,28 @@
-import type { CommandBackend, InlineRuntimeSource, InteractionEvent, SceneSource, SequenceSink, ViewerSink } from "./core/contracts.js";
+import type { InlineRuntimeSource, InteractionEvent, SceneSource, ViewerSink } from "./core/contracts.js";
 import { element, setAria } from "./core/dom.js";
 import { errorMessage } from "./core/errors.js";
 import { CleanupBag, listen } from "./core/lifecycle.js";
 import { SceneGeneration } from "./core/interaction.js";
-import type { Cleanup, WasmRenderer, WasmScene } from "./core/types.js";
+import type { Cleanup, RuntimeModule, WasmRenderer, WasmScene } from "./core/types.js";
 import { mountInteractions } from "./interaction/interactions.js";
-import { buildSequencePanelModel, displayedResidues, metadataFromScene, residueIntervals, residueNumberLabel, selectSequenceChain } from "./sequence.js";
-import type { SequenceResidue } from "./sequence.js";
 import { RenderLoop } from "./render/render-loop.js";
 import { assertWebGPUAvailable, loadRuntime } from "./runtime/runtime.js";
-import { mountScienceControls } from "./science-controls.js";
 import { applyScenePatch, buildScene, sceneIsBehind } from "./runtime/scene.js";
+
+/**
+ * The mounted view as a console sees it: the one live wasm scene, and the
+ * single path an in-page edit takes to reach the screen. A host whose
+ * commands run elsewhere (a kernel) ignores it; a page-local host edits this
+ * scene in place instead of keeping a second copy.
+ */
+export interface ViewerContext {
+  readonly runtime: RuntimeModule;
+  scene(): WasmScene | undefined;
+  /** Called after each scene replacement, with the new scene. */
+  onSceneReplaced(callback: (scene: WasmScene) => void): Cleanup;
+  /** The scene was edited in place; redraw it and drop stale picks. */
+  sceneEdited(cameraChanged: boolean): void;
+}
 
 /** Everything the reusable core needs from whatever is hosting it. */
 export interface ViewerHost {
@@ -18,8 +30,7 @@ export interface ViewerHost {
   source: SceneSource;
   sink: ViewerSink;
   inlineRuntime?: InlineRuntimeSource;
-  commandBackend?: CommandBackend;
-  mountConsole?: (parent: HTMLElement) => Cleanup;
+  mountConsole?: (parent: HTMLElement, view: ViewerContext) => Cleanup;
 }
 
 
@@ -39,69 +50,27 @@ function createViewerDom(parent: HTMLElement) {
   return { root, canvas, startup, failure };
 }
 
-function mountSequencePanel(root: HTMLElement, scene: WasmScene, structure: bigint, transport: SequenceSink): Cleanup {
-  let model = buildSequencePanelModel(metadataFromScene(scene, structure));
-  const panel = element("section", "molgfx-sequence");
-  setAria(panel, { label: "Structure sequence" });
-  const heading = element("div", "molgfx-sequence-heading", "Sequence");
-  const chooser = element("select", "molgfx-sequence-chain");
-  setAria(chooser, { label: "Chain or entity" });
-  const rows = element("div", "molgfx-sequence-rows");
-  const actions = element("div", "molgfx-focus-actions");
-  const ligand = element("button", "molgfx-focus-button", "Focus ligand");
-  const selected = element("button", "molgfx-focus-button", "Focus selection");
-  ligand.type = "button";
-  selected.type = "button";
-  actions.append(ligand, selected);
-  panel.append(heading, chooser, rows, actions);
-  root.appendChild(panel);
+type PickAtom = {
+  pick?: unknown;
+  chain?: unknown;
+  residue_number?: unknown;
+  atom_name?: unknown;
+};
 
-  let dragStart: number | undefined;
-    let dragMoved = false;
-  const emit = (residues: readonly SequenceResidue[]) => {
-    const chain = model.chains.find((candidate) => candidate.key === model.selectedChain);
-    if (!chain) return;
-    const intervals = residueIntervals(residues);
-    if (intervals.length > 0) transport.publishSequenceIntervals?.(intervals, chain.key, structure);
-  };
-  const render = () => {
-    chooser.replaceChildren();
-    for (const chain of model.chains) {
-      const option = element("option", undefined, chain.label + (chain.entity === null ? "" : ` · entity ${chain.entity}`));
-      option.value = chain.key;
-      option.selected = chain.key === model.selectedChain;
-      chooser.appendChild(option);
-    }
-    rows.replaceChildren();
-    const chain = model.chains.find((candidate) => candidate.key === model.selectedChain);
-    if (!chain) return;
-    for (const residue of displayedResidues(chain)) {
-      const row = element("button", "molgfx-sequence-residue");
-      row.type = "button";
-      row.disabled = residue.isGap;
-      row.dataset.residueKey = residue.key;
-      row.textContent = residue.oneLetter ?? residue.component ?? "·";
-      row.title = `${residueNumberLabel(residue)}${residue.isGap ? " (canonical gap)" : ""}`;
-      row.addEventListener("pointerdown", () => { dragStart = chain.residues.indexOf(residue); dragMoved = false; });
-      row.addEventListener("pointerenter", () => {
-        if (dragStart === undefined) return;
-        const current = chain.residues.indexOf(residue);
-                dragMoved = dragMoved || current !== dragStart;
-        const from = Math.min(dragStart, current);
-        const to = Math.max(dragStart, current);
-        emit(chain.residues.slice(from, to + 1));
-      });
-      row.addEventListener("click", () => { if (dragMoved) { dragMoved = false; return; } emit([residue]); });
-      rows.appendChild(row);
-    }
-  };
-  chooser.addEventListener("change", () => { model = selectSequenceChain(model, chooser.value); render(); });
-  const clearDrag = () => { dragStart = undefined; dragMoved = false; };
-    window.addEventListener("pointerup", clearDrag, { passive: true });
-  ligand.addEventListener("click", () => transport.publishFocusPreset?.("ligand"));
-  selected.addEventListener("click", () => transport.publishFocusPreset?.("selection"));
-  render();
-  return () => { window.removeEventListener("pointerup", clearDrag); panel.remove(); };
+function safeQueryToken(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_.+\-]+$/.test(value);
+}
+
+function atomSelection(result: string | undefined): string | undefined {
+  if (result === undefined) return undefined;
+  let value: unknown;
+  try { value = JSON.parse(result) as unknown; } catch { return undefined; }
+  if (!value || typeof value !== "object") return undefined;
+  const atom = value as PickAtom;
+  if (atom.pick !== "atom" || !Number.isInteger(atom.residue_number)) return undefined;
+  const terms = [`resid ${String(atom.residue_number)}`];
+  if (safeQueryToken(atom.chain)) terms.unshift(`chain ${atom.chain}`);
+  return terms.join(" and ");
 }
 
 export async function mountViewer(host: ViewerHost): Promise<Cleanup> {
@@ -112,6 +81,9 @@ export async function mountViewer(host: ViewerHost): Promise<Cleanup> {
   let renderer: WasmRenderer | undefined;
   let scene: WasmScene | undefined;
   const generation = new SceneGeneration();
+  const localFile = "file" in source.snapshot();
+  let localSelection: string | undefined;
+  let localHover: string | undefined;
   let interactionSequence = 0;
   try {
     const runtime = await loadRuntime(host.inlineRuntime);
@@ -138,46 +110,85 @@ export async function mountViewer(host: ViewerHost): Promise<Cleanup> {
           // derived projection of the same result, never a second transport.
           sink.publishPick(event.result);
           sink.publishInteraction(event);
+          const query = atomSelection(event.result);
+          if (localFile && query !== undefined) {
+            localSelection = event.modifiers.alt
+              ? localSelection === undefined
+                ? undefined
+                : `(${localSelection}) and not (${query})`
+              : event.modifiers.shift && localSelection !== undefined
+                ? `(${localSelection}) or (${query})`
+                : query;
+            applyLocalInteraction("selected", localSelection);
+          } else if (localFile && event.result === undefined) {
+            localSelection = undefined;
+            applyLocalInteraction("selected", undefined);
+          }
         }).catch((error) => sink.reportError(error));
       },
       onClearSelection: () => {
         sink.publishInteraction({ kind: "clear", eventId: `${generation.value}:${++interactionSequence}`, sceneGeneration: generation.value });
+        if (localFile) {
+          localSelection = undefined;
+          applyLocalInteraction("selected", undefined);
+        }
       },
-      onHover: (result) => dom.canvas.classList.toggle("is-hovering-atom", result !== undefined),
+      onHover: (result) => {
+        dom.canvas.classList.toggle("is-hovering-atom", result !== undefined);
+        if (!localFile) return;
+        const query = atomSelection(result);
+        if (query === localHover) return;
+        localHover = query;
+        applyLocalInteraction("hovered", query);
+      },
     });
     cleanup.add(() => interactions.dispose());
-    let sequencePanelCleanup: Cleanup | undefined;
-        const mountCurrentSequencePanel = (current: WasmScene) => {
-          sequencePanelCleanup?.();
-          const firstStructure = source.snapshot().structures[0];
-          sequencePanelCleanup = firstStructure ? mountSequencePanel(dom.root, current, firstStructure.id, sink) : undefined;
-        };
-        mountCurrentSequencePanel(scene);
-        cleanup.add(() => { sequencePanelCleanup?.(); sequencePanelCleanup = undefined; });
+    const replaced = new Set<(scene: WasmScene) => void>();
     const replaceScene = () => {
       try {
         const next = buildScene(source.snapshot(), runtime); const previous = scene;
         interactions.cancelPendingPublish(); generation.advance(); scene = next; loop.setScene(next);
-                mountCurrentSequencePanel(next);
+        localSelection = undefined; localHover = undefined;
+        for (const callback of replaced) callback(next);
         void loop.settled().then(() => previous?.free());
         if (sceneIsBehind(next, source)) source.requestResync();
       } catch (error) { sink.reportError(error); }
     };
+    const sceneEdited = (cameraChanged: boolean) => {
+      generation.advance();
+      loop.invalidatePicks();
+      if (cameraChanged) { interactions.cancelPendingPublish(); loop.invalidateCamera(); }
+      loop.requestFrame();
+    };
+    const applyLocalInteraction = (channel: "selected" | "hovered", selection: string | undefined) => {
+      if (!localFile || !scene) return;
+      const patch = JSON.stringify({
+        base_revision: Number(scene.revision),
+        operations: [{ op: "set_interaction", channel, selection: selection ?? null }],
+      });
+      try {
+        const result = applyScenePatch(scene, patch, runtime);
+        if (result.applied) sceneEdited(false);
+      } catch (error) { sink.reportError(error); }
+    };
+
     const patchScene = (patchJson: string) => {
       if (!scene) return;
       try {
         const result = applyScenePatch(scene, patchJson, runtime);
         if (!result.applied) { source.requestResync(); return; }
-        generation.advance();
-        loop.invalidatePicks();
-        if (result.cameraChanged) { interactions.cancelPendingPublish(); loop.invalidateCamera(); }
-        loop.requestFrame();
+        sceneEdited(result.cameraChanged);
       } catch (error) { sink.reportError(error); }
+    };
+    const view: ViewerContext = {
+      runtime,
+      scene: () => scene,
+      onSceneReplaced(callback) { replaced.add(callback); return () => { replaced.delete(callback); }; },
+      sceneEdited,
     };
     cleanup.add(source.onReplace(replaceScene));
     cleanup.add(source.onPatch(patchScene));
-    if (host.mountConsole) cleanup.add(host.mountConsole(dom.root));
-    if (host.commandBackend) cleanup.add(mountScienceControls(host.commandBackend, dom.root));
+    if (host.mountConsole) cleanup.add(host.mountConsole(dom.root, view));
     dom.startup.remove(); loop.requestFrame();
     if (sceneIsBehind(scene, source)) source.requestResync();
     let closed = false;

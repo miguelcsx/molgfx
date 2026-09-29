@@ -1,25 +1,11 @@
-import type {
-  InlineRuntimeSource,
-  InteractionEvent,
-  SceneSnapshot,
-  SceneSource,
-  ScienceSink,
-  ViewerSink,
-} from "../core/contracts.js";
-import type {
-  Camera,
-  Cleanup,
-  MeasurementRequest,
-  TrajectoryFrameInput,
-  VolumeSigmaControls,
-} from "../core/types.js";
+import type { InlineRuntimeSource, InteractionEvent, SceneSnapshot, SceneSource, ViewerSink } from "../core/contracts.js";
+import type { Camera, Cleanup } from "../core/types.js";
 import { observeModel } from "./model.js";
 import type { WidgetModel } from "./model.js";
 
 /** Adapts one anywidget `WidgetModel` to every port the viewer core needs. */
 export class AnywidgetAdapter implements SceneSource, InlineRuntimeSource, ViewerSink {
   readonly #model: WidgetModel;
-  readonly science: ScienceSink = this;
 
   constructor(model: WidgetModel) {
     this.#model = model;
@@ -81,10 +67,13 @@ export class AnywidgetAdapter implements SceneSource, InlineRuntimeSource, Viewe
       this.#model.set("selection", "");
       return;
     }
-    // Native payloads are the renderer's fixed PickResult schema, but a
-    // malformed body must fail loudly instead of corrupting widget state.
-    this.#model.set("pick", JSON.parse(result) as Record<string, unknown>);
-    this.#model.set("selection", result);
+    // Native payloads are rich semantic picks; keep the old flat PickResult
+    // shape on compatibility traits while interaction_event carries the full
+    // endpoint and source metadata.
+    const value = JSON.parse(result) as unknown;
+    const pick = legacyPick(value);
+    this.#model.set("pick", pick);
+    this.#model.set("selection", JSON.stringify(pick));
   }
 
   publishPick(result: string | undefined): void {
@@ -100,38 +89,28 @@ export class AnywidgetAdapter implements SceneSource, InlineRuntimeSource, Viewe
     this.#publishLegacyPick(event.kind === "pick" ? event.result : undefined);
     this.#model.save_changes();
   }
+}
 
-  publishSequenceIntervals(intervals: readonly [number, number][], chain: string, structure: bigint): void {
-    this.#model.set("sequence_intervals", { intervals, chain, structure: structure.toString() });
-    this.#model.save_changes();
+/** Project a rich native pick onto the flat pick wire shape. */
+function legacyPick(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object") return {};
+  const record = value as Record<string, unknown>;
+  switch (record.pick) {
+    case "atom":
+      return flatPick("atom", record, "atom_index");
+    case "bond":
+      return flatPick("bond", record, "bond_index");
+    case "non_atom": {
+      const { pick: _pick, ...rest } = record;
+      return rest;
+    }
+    default:
+      return {};
   }
+}
 
-  publishFocusPreset(preset: "ligand" | "selection"): void {
-    this.#model.set("focus_preset", preset);
-    this.#model.save_changes();
-  }
-
-  commitMeasurement(request: MeasurementRequest): void {
-    this.#model.set("measurement_request", wireObject(request));
-    this.#model.save_changes();
-  }
-
-  setVolumeSigma(volume: bigint, controls: VolumeSigmaControls): void {
-    this.#model.set("volume_sigma", { volume: volume.toString(), ...controls });
-    this.#model.save_changes();
-  }
-
-  bindTrajectoryFrame(frame: TrajectoryFrameInput): void {
-    this.#model.set("trajectory_frame", wireObject(frame));
-    this.#model.save_changes();
-  }
-
-  setTrajectoryTime(structure: bigint, seconds: number, topologyRevision: bigint): void {
-    this.#model.set("trajectory_time", {
-      structure: structure.toString(), seconds, topology_revision: topologyRevision.toString(),
-    });
-    this.#model.save_changes();
-  }
+function flatPick(kind: string, entry: Record<string, unknown>, rowKey: string): Record<string, unknown> {
+  return { kind, dataset: entry.dataset, chunk: entry.chunk, row: entry[rowKey], volume_label: null };
 }
 
 /** Convert bigint identities to JSON-safe wire values without copying binary payloads. */

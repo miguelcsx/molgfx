@@ -3,6 +3,12 @@ import type { Camera, WasmRenderer, WasmScene } from "../core/types.js";
 
 export interface PickResult { performed: boolean; result?: string; }
 interface RenderCallbacks { onError: (error: unknown) => void; onSuccess: () => void; }
+interface PendingHover {
+  x: number;
+  y: number;
+  resolve: (result: PickResult) => void;
+  reject: (error: unknown) => void;
+}
 
 export class RenderLoop {
   readonly #canvas: HTMLCanvasElement;
@@ -20,7 +26,14 @@ export class RenderLoop {
   #redrawAfterPick = false;
   #pickInFlight: Promise<PickResult> | undefined;
   #pickTail: Promise<void> = Promise.resolve();
+  #hoverFrame: number | null = null;
+  #hoverPending: PendingHover | undefined;
+  #hoverInFlight = false;
   #sceneEpoch = 0;
+  /** Advances whenever the visible image can change: camera, size or scene. */
+  #viewEpoch = 0;
+  /** The last completed hover pick, valid while the pointer and the view stay put. */
+  #hoverMemo: { x: number; y: number; epoch: number; result: PickResult } | undefined;
   #disposed = false;
   #failed = false;
 
@@ -30,9 +43,9 @@ export class RenderLoop {
   get camera(): Camera { const [width, height] = this.#ensureSize(); this.#camera ??= sceneCamera(this.#scene, width, height); return this.#camera; }
   get disposed(): boolean { return this.#disposed; }
   setScene(scene: WasmScene): void { this.#scene = scene; this.#sceneEpoch += 1; this.invalidateCamera(); this.requestFrame(); }
-  invalidatePicks(): void { this.#sceneEpoch += 1; }
-  invalidateCamera(): void { this.#camera = undefined; }
-  markSizeDirty = (): void => { this.#sizeDirty = true; this.requestFrame(); };
+  invalidatePicks(): void { this.#sceneEpoch += 1; this.#viewEpoch += 1; }
+  invalidateCamera(): void { this.#camera = undefined; this.#viewEpoch += 1; }
+  markSizeDirty = (): void => { this.#sizeDirty = true; this.#viewEpoch += 1; this.requestFrame(); };
   requestFrame = (): void => {
     if (this.#disposed) return;
     if (this.#picking) { this.#redrawAfterPick = true; return; }
@@ -56,9 +69,52 @@ export class RenderLoop {
     this.#pickTail = run.catch(() => undefined);
     return result;
   }
+
+  /**
+   * Coalesces pointer hover to one exact readback per animation turn, and
+   * answers from the previous readback while the pointer and the view have not
+   * moved, so a stationary pointer over a still scene costs no GPU work.
+   */
+  pickHover(x: number, y: number): Promise<PickResult> {
+    if (this.#disposed) return Promise.resolve({ performed: false });
+    const memo = this.#hoverMemo;
+    if (memo && memo.x === x && memo.y === y && memo.epoch === this.#viewEpoch) return Promise.resolve(memo.result);
+    let resolveResult!: (result: PickResult) => void;
+    let rejectResult!: (error: unknown) => void;
+    const result = new Promise<PickResult>((resolve, reject) => { resolveResult = resolve; rejectResult = reject; });
+    this.#hoverPending?.resolve({ performed: false });
+    this.#hoverPending = { x, y, resolve: resolveResult, reject: rejectResult };
+    this.#scheduleHoverPick();
+    return result;
+  }
+
+  #scheduleHoverPick(): void {
+    if (this.#disposed || this.#hoverFrame !== null || this.#hoverInFlight || !this.#hoverPending) return;
+    this.#hoverFrame = requestAnimationFrame(() => {
+      this.#hoverFrame = null;
+      const pending = this.#hoverPending;
+      this.#hoverPending = undefined;
+      if (!pending || this.#disposed) {
+        pending?.resolve({ performed: false });
+        return;
+      }
+      this.#hoverInFlight = true;
+      const epoch = this.#viewEpoch;
+      void this.pick(pending.x, pending.y)
+        .then((result) => {
+          if (result.performed && epoch === this.#viewEpoch) this.#hoverMemo = { x: pending.x, y: pending.y, epoch, result };
+          pending.resolve(result);
+        }, pending.reject)
+        .finally(() => {
+          this.#hoverInFlight = false;
+          this.#scheduleHoverPick();
+        });
+    });
+  }
+
   async #runPick(x: number, y: number, epoch: number): Promise<PickResult> {
     try {
-      const result = await this.#renderer.pick(x, y);
+      const result = await this.#renderer.pick(this.#scene, x, y);
       if (epoch !== this.#sceneEpoch || this.#disposed) return { performed: false };
       return result === undefined ? { performed: true } : { performed: true, result };
     } finally {
@@ -71,7 +127,11 @@ export class RenderLoop {
     if (this.#disposed) return;
     this.#disposed = true; this.#sceneEpoch += 1; this.#redrawAfterPick = false;
     if (this.#frame !== null) cancelAnimationFrame(this.#frame);
+    if (this.#hoverFrame !== null) cancelAnimationFrame(this.#hoverFrame);
     this.#frame = null;
+    this.#hoverFrame = null;
+    this.#hoverPending?.resolve({ performed: false });
+    this.#hoverPending = undefined;
   }
   #ensureSize(): [number, number] {
     const pixelRatio = window.devicePixelRatio || 1;

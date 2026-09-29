@@ -3,11 +3,14 @@ import type { RuntimeModule, WasmScene } from "../core/types.js";
 import { sourceBytes } from "./runtime.js";
 
 interface PatchOperation { op?: string; }
-interface PatchDocument { operations?: PatchOperation[]; }
+export interface PatchDocument { operations?: PatchOperation[]; }
 
 export interface PatchResult { applied: boolean; cameraChanged: boolean; }
 
 export function buildScene(snapshot: SceneSnapshot, runtime: RuntimeModule): WasmScene {
+  if ("file" in snapshot) {
+    return runtime.Scene.fromStructureBytes(sourceBytes(snapshot.file.payload), snapshot.file.name);
+  }
   const scene = new runtime.Scene(snapshot.spec);
   try {
     for (const structure of snapshot.structures) {
@@ -22,7 +25,12 @@ export function buildScene(snapshot: SceneSnapshot, runtime: RuntimeModule): Was
 }
 
 export function sceneIsBehind(scene: WasmScene, source: SceneSource): boolean {
-  return scene.revision !== source.revision();
+  return source.revision !== undefined && scene.revision !== source.revision();
+}
+
+/** Whether a committed patch moved the camera, so a cached view must be dropped. */
+export function patchChangesCamera(patch: PatchDocument | undefined): boolean {
+  return patch?.operations?.some(({ op }) => op === "set_camera") ?? false;
 }
 
 export function applyScenePatch(scene: WasmScene, encoded: string, runtime: RuntimeModule): PatchResult {
@@ -30,11 +38,7 @@ export function applyScenePatch(scene: WasmScene, encoded: string, runtime: Runt
   try {
     if (patch.baseRevision !== scene.revision) return { applied: false, cameraChanged: false };
     scene.apply(patch);
-    const document = JSON.parse(encoded) as PatchDocument;
-    return {
-      applied: true,
-      cameraChanged: document.operations?.some(({ op }) => op === "set_camera") ?? false,
-    };
+    return { applied: true, cameraChanged: patchChangesCamera(JSON.parse(encoded) as PatchDocument) };
   } finally {
     patch.free();
   }

@@ -402,21 +402,38 @@ impl WebRenderer {
             .map_err(javascript_error)
     }
 
-    /// Resolves one canvas pixel through the renderer's single packed map.
+    /// Resolves one canvas pixel through the renderer's single packed map and
+    /// the live semantic scene.
     ///
-    /// The returned JSON contains stable dataset/chunk/row provenance rather
-    /// than a physical GPU token. `None` denotes the background.
+    /// Atom JSON contains stable source metadata; non-atom JSON retains the
+    /// renderer pick kind and provenance. `None` denotes the background.
     ///
     /// # Errors
     ///
     /// Returns a JavaScript error if readback or semantic resolution fails.
-    pub async fn pick(&mut self, x: u32, y: u32) -> Result<Option<String>, JsError> {
-        self.inner
+    pub async fn pick(
+        &mut self,
+        scene: &WebScene,
+        x: u32,
+        y: u32,
+    ) -> Result<Option<String>, JsError> {
+        let Some(pick) = self
+            .inner
             .pick_async(x, y)
             .await
             .map_err(javascript_error)?
-            .map(|pick| pick.to_json().map_err(javascript_error))
-            .transpose()
+        else {
+            return Ok(None);
+        };
+        let resolved = scene
+            .resolved
+            .as_ref()
+            .ok_or_else(|| JsError::new("scene must be resolved before picking"))?
+            .resolve_pick(&pick)
+            .map_err(javascript_error)?;
+        serde_json::to_string(&resolved)
+            .map(Some)
+            .map_err(javascript_error)
     }
 }
 
