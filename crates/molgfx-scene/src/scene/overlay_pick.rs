@@ -77,10 +77,12 @@ impl Scene {
     /// structure is the reading, and a multi-structure scene reports none
     /// rather than guessing.
     fn measurement_structure(&self, spec: &crate::overlay::MeasurementSpec) -> StructureId {
-        for anchor in measurement_anchors(spec) {
-            return self.anchor_structure(anchor);
+        // A measurement has at least one anchor by construction, so the first
+        // anchor decides; an empty spec would fall back to the stand-in.
+        match measurement_anchors(spec).first() {
+            Some(anchor) => self.anchor_structure(anchor),
+            None => self.stand_in_structure(),
         }
-        self.stand_in_structure()
     }
 
     /// The structure an anchor reads in.

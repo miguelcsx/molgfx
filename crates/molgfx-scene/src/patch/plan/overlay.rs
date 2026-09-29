@@ -14,11 +14,7 @@ impl OverlayDomains {
         match operation {
             PatchOperation::AddVolume { id, volume } => {
                 volume.validate()?;
-                insert_new(
-                    self.volumes.get_or_insert_with(|| spec.volumes.clone()),
-                    *id,
-                    volume.clone(),
-                )?;
+                insert_item(&mut self.volumes, &spec.volumes, *id, volume.clone())?;
             }
             PatchOperation::RemoveVolume { id } => {
                 remove(self.volumes.get_or_insert_with(|| spec.volumes.clone()), id)?;
@@ -37,83 +33,58 @@ impl OverlayDomains {
             }
             PatchOperation::AddAnnotation { id, annotation } => {
                 annotation.validate(spec)?;
-                insert_new(
-                    self.annotations
-                        .get_or_insert_with(|| spec.annotations.clone()),
+                insert_item(
+                    &mut self.annotations,
+                    &spec.annotations,
                     *id,
                     annotation.clone(),
                 )?;
             }
             PatchOperation::RemoveAnnotation { id } => {
-                remove(
-                    self.annotations
-                        .get_or_insert_with(|| spec.annotations.clone()),
-                    id,
-                )?;
+                remove_item(&mut self.annotations, &spec.annotations, id)?;
             }
             PatchOperation::AddMeasurement { id, measurement } => {
                 measurement.validate(spec)?;
-                insert_new(
-                    self.measurements
-                        .get_or_insert_with(|| spec.measurements.clone()),
+                insert_item(
+                    &mut self.measurements,
+                    &spec.measurements,
                     *id,
                     measurement.clone(),
                 )?;
             }
             PatchOperation::RemoveMeasurement { id } => {
-                remove(
-                    self.measurements
-                        .get_or_insert_with(|| spec.measurements.clone()),
-                    id,
-                )?;
+                remove_item(&mut self.measurements, &spec.measurements, id)?;
             }
             PatchOperation::AddInteraction { id, interaction } => {
                 interaction.validate(spec)?;
-                insert_new(
-                    self.interactions
-                        .get_or_insert_with(|| spec.interactions.clone()),
+                insert_item(
+                    &mut self.interactions,
+                    &spec.interactions,
                     *id,
                     interaction.clone(),
                 )?;
             }
             PatchOperation::RemoveInteraction { id } => {
-                remove(
-                    self.interactions
-                        .get_or_insert_with(|| spec.interactions.clone()),
-                    id,
-                )?;
+                remove_item(&mut self.interactions, &spec.interactions, id)?;
             }
             PatchOperation::AddTrajectory { id, trajectory } => {
                 trajectory.validate(spec)?;
-                insert_new(
-                    self.trajectories
-                        .get_or_insert_with(|| spec.trajectories.clone()),
+                insert_item(
+                    &mut self.trajectories,
+                    &spec.trajectories,
                     *id,
                     trajectory.clone(),
                 )?;
             }
             PatchOperation::RemoveTrajectory { id } => {
-                remove(
-                    self.trajectories
-                        .get_or_insert_with(|| spec.trajectories.clone()),
-                    id,
-                )?;
+                remove_item(&mut self.trajectories, &spec.trajectories, id)?;
             }
             PatchOperation::AddEllipsoids { id, spec: item } => {
                 item.validate(spec)?;
-                insert_new(
-                    self.ellipsoids
-                        .get_or_insert_with(|| spec.ellipsoids.clone()),
-                    *id,
-                    item.clone(),
-                )?;
+                insert_item(&mut self.ellipsoids, &spec.ellipsoids, *id, item.clone())?;
             }
             PatchOperation::RemoveEllipsoids { id } => {
-                remove(
-                    self.ellipsoids
-                        .get_or_insert_with(|| spec.ellipsoids.clone()),
-                    id,
-                )?;
+                remove_item(&mut self.ellipsoids, &spec.ellipsoids, id)?;
             }
             _ => return Ok(false),
         }
@@ -128,6 +99,25 @@ impl OverlayDomains {
         replace(&mut spec.trajectories, self.trajectories);
         replace(&mut spec.ellipsoids, self.ellipsoids);
     }
+}
+
+/// Inserts one overlay value, materialising the table copy on first touch.
+fn insert_item<K: Ord + Clone, V: Clone>(
+    table: &mut Option<BTreeMap<K, V>>,
+    source: &BTreeMap<K, V>,
+    id: K,
+    value: V,
+) -> Result<(), Error> {
+    insert_new(table.get_or_insert_with(|| source.clone()), id, value)
+}
+
+/// Removes one overlay value, materialising the table copy on first touch.
+fn remove_item<K: Ord + Clone, V: Clone>(
+    table: &mut Option<BTreeMap<K, V>>,
+    source: &BTreeMap<K, V>,
+    id: &K,
+) -> Result<(), Error> {
+    remove(table.get_or_insert_with(|| source.clone()), id)
 }
 
 fn insert_new<K: Ord, V>(values: &mut BTreeMap<K, V>, id: K, value: V) -> Result<(), Error> {

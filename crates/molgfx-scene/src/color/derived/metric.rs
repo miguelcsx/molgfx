@@ -151,7 +151,7 @@ fn fill_sasa(structure: &molframe::Structure, values: &mut [f32]) {
     let positions: Vec<[f32; 3]> = structure
         .atoms()
         .into_iter()
-        .filter_map(|atom| atom.position().map(|position| position.into()))
+        .filter_map(|atom| atom.position())
         .collect();
     if positions.len() != values.len() {
         return;
