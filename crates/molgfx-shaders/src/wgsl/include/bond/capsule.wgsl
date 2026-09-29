@@ -50,11 +50,29 @@ fn vs_bond_capsule(
     let world_b =
         atom_position(atom_b.entity_id);
 
+    // Multi-bond separation: each packed variant is one strand of the same
+    // bond, displaced across the bond direction so a double or triple bond
+    // reads as parallel strokes rather than one thicker line. The offset is
+    // applied in view space so the strand's motion vector still comes from
+    // the unshifted atom positions.
+    let variant =
+        bond_variant_geometry(
+            bond.order,
+            bond.radius < 0.0,
+            (bond.flags & 1u) != 0u,
+            (bond.flags >> 1u) & 3u,
+        );
+    let strand_radius = radius * variant.radius_fraction;
+    let separation =
+        bond_view_direction(
+            bond_perpendicular(bond_world_axis(world_a, world_b)),
+        ) * (variant.offset_radii * radius);
+
     let endpoint_a =
-        bond_view_position(world_a);
+        bond_view_position(world_a) + separation;
 
     let endpoint_b =
-        bond_view_position(world_b);
+        bond_view_position(world_b) + separation;
 
     let ndc_a =
         bond_project_ndc(endpoint_a);
@@ -69,7 +87,7 @@ fn vs_bond_capsule(
             bond_capsule_extent(
                 endpoint_a,
                 endpoint_b,
-                radius,
+                strand_radius,
             ),
             vertex_index,
         );
@@ -110,7 +128,7 @@ fn vs_bond_capsule(
         out.endpoint_a_radius =
             vec4f(
                 endpoint_a,
-                radius,
+                strand_radius,
             );
 
         out.endpoint_b_inv_axis_sq =
@@ -147,7 +165,7 @@ fn vs_bond_capsule(
                     BOND_CAP_ROUGHNESS,
                 ),
 
-                1.0 / radius,
+                1.0 / strand_radius,
 
                 material_payload(
                     representation.material,
@@ -162,6 +180,7 @@ fn vs_bond_capsule(
 
         out.atom_records =
             vec2u(bond.atom_a, bond.atom_b);
+        out.style = variant.style;
     }
 
     return out;
@@ -319,7 +338,7 @@ fn fs_bond_capsule(
     let hit =
         bond_capsule_hit(in);
 
-    if !hit.valid {
+    if !hit.valid || !bond_style_visible(in.style, hit.along) {
         discard;
     }
 
@@ -380,9 +399,17 @@ fn fs_bond_capsule(
             hit.along,
         );
 
+    // Two collinear half-bonds meet an endpoint sphere at exactly the same
+    // depth there. Culling compacts visibility in parallel, so draw order is
+    // not stable, and without a tie-break the winning fragment would vary
+    // between submissions. Ranking by entity keeps the surface identical for
+    // the same input.
     out.depth =
-        bond_view_depth(
-            hit.position,
+        stable_entity_depth(
+            bond_view_depth(
+                hit.position,
+            ),
+            in.entity_id,
         );
 
     return out;
@@ -395,7 +422,7 @@ fn fs_bond_capsule_transparent(
     let hit =
         bond_capsule_hit(in);
 
-    if !hit.valid {
+    if !hit.valid || !bond_style_visible(in.style, hit.along) {
         discard;
     }
 

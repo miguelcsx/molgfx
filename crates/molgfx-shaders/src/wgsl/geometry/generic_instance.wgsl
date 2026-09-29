@@ -131,6 +131,7 @@ fn generic_instance_fragment(
         response.z,
         geometry.x > 0.5,
         geometry.y * 8.0,
+        MARKER_NONE,
     );
     if !VISUAL_FRAGMENT_ENABLED || visual_config.counts.z == 0u {
         return fallback;

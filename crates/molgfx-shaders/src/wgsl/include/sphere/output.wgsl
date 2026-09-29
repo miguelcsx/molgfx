@@ -10,6 +10,42 @@
 // declaration of the shader that includes this file.
 diagnostic(off, derivative_uniformity);
 
+/// Adds a thin analytic rim marker without changing sphere geometry.
+///
+/// Only translucent spheres need it: opaque fragments carry their marker in
+/// the gbuffer and the lighting pass draws the edge for every form alike.
+fn sphere_marker_visual(
+    visual: VisualFragmentResult,
+    surface: SphereSurface,
+    entity_id: u32,
+    radius: f32,
+) -> VisualFragmentResult {
+    let marker = visual.marker;
+    if marker == MARKER_NONE {
+        return visual;
+    }
+
+    let distance = sqrt(max(surface.perpendicular_sq, 0.0));
+    let edge = smoothstep(radius * 0.72, radius * 0.98, distance);
+    if edge <= 0.0 {
+        return visual;
+    }
+
+    let tint = marker_tint(marker);
+
+    return VisualFragmentResult(
+        vec4f(mix(visual.color.rgb, tint, edge * 0.9), visual.color.a),
+        visual.emission,
+        visual.emission_enabled,
+        visual.roughness,
+        visual.specular,
+        visual.material_strength,
+        visual.visible,
+        visual.softness_pixels,
+        visual.marker,
+    );
+}
+
 /// Writes one opaque sphere surface into the shared gbuffer.
 fn sphere_opaque_output(
     in: SphereVsOut,
@@ -21,14 +57,13 @@ fn sphere_opaque_output(
             surface.hit,
         );
 
-    let visual =
-        visual_fragment(
-            in.entity_id,
-            vec4f(atom_fragment_color(in.color, in.semantic, in.entity_id).rgb, in.color.a),
-            visual_local_position(world_hit),
-            world_hit,
-            visual_world_normal(surface.normal),
-        );
+    let visual = visual_fragment(
+        in.entity_id,
+        vec4f(atom_fragment_color(in.color, in.semantic, in.entity_id).rgb, in.color.a),
+        visual_local_position(world_hit),
+        world_hit,
+        visual_world_normal(surface.normal),
+    );
 
     if !visual.visible {
         discard;
@@ -124,14 +159,18 @@ fn sphere_transparent_output(
             surface.hit,
         );
 
-    let visual =
+    var visual = sphere_marker_visual(
         visual_fragment(
             in.entity_id,
             vec4f(atom_fragment_color(in.color, in.semantic, in.entity_id).rgb, in.color.a),
             visual_local_position(world_hit),
             world_hit,
             visual_world_normal(surface.normal),
-        );
+        ),
+        surface,
+        in.entity_id,
+        in.center_radius.w,
+    );
 
     if !visual.visible {
         discard;

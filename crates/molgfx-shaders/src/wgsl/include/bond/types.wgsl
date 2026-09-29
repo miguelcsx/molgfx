@@ -13,6 +13,136 @@ const BOND_LINE_NORMAL: vec3f = vec3f(0.0, 0.0, 1.0);
 const BOND_CAP_TINT: vec3f = vec3f(0.68, 0.76, 0.82);
 const BOND_CAP_ROUGHNESS: f32 = 0.82;
 const BOND_CAP_MATERIAL: f32 = 0.05;
+const BOND_STYLE_SOLID: u32 = 0u;
+const BOND_STYLE_AROMATIC: u32 = 1u;
+const BOND_STYLE_METAL: u32 = 2u;
+/// The inner stroke of an aromatic bond: two short segments rather than a
+/// uniform cadence, so the ring reads as a solid line with a broken inner
+/// line on the inside of the ring.
+const BOND_STYLE_AROMATIC_INNER: u32 = 4u;
+
+// Multi-bond separation, in fractions of the nominal bond radius.
+//
+// Both multi-bond styles keep the pair or triplet inside the envelope of one
+// single bond of that radius: two strands of 0.4 r offset by 0.6 r span
+// exactly -1 r to +1 r, and three strands of 1/3.5 r offset by 2.5/3.5 r
+// span the same. The engine therefore draws a double or triple bond over the
+// same width a stick of that radius already occupies.
+const BOND_DOUBLE_RADIUS_FRACTION: f32 = 0.4;
+const BOND_DOUBLE_OFFSET: f32 = 0.6;
+const BOND_TRIPLE_RADIUS_FRACTION: f32 = 1.0 / 3.5;
+const BOND_TRIPLE_OFFSET: f32 = 2.5 / 3.5;
+/// Aromatic inner stroke radius, matching the double-bond strand width.
+const BOND_AROMATIC_INNER_RADIUS_FRACTION: f32 = 0.4;
+const BOND_AROMATIC_INNER_OFFSET: f32 = 0.6;
+
+/// How one packed variant of a bond is displaced and thinned.
+struct BondVariant {
+    /// Signed perpendicular offset, in nominal bond radii.
+    offset_radii: f32,
+    /// Drawn radius as a fraction of the nominal bond radius.
+    radius_fraction: f32,
+    /// Draw style this variant carries.
+    style: u32,
+}
+
+/// Resolves the geometry of one bond variant.
+///
+/// `order` is the quantized chemical order and `variant` the zero-based strand
+/// index within it. A single bond is the only strand and is drawn whole; the
+/// aromatic case draws the full line on strand zero and a broken inner line on
+/// strand one, which is the pair of strokes a reader expects inside a ring.
+fn bond_variant_geometry(
+    order: u32,
+    aromatic: bool,
+    metal: bool,
+    variant: u32,
+) -> BondVariant {
+    let metal_style = select(0u, BOND_STYLE_METAL, metal);
+    if aromatic {
+        if variant == 0u {
+            return BondVariant(0.0, 1.0, metal_style);
+        }
+        let side = select(-1.0, 1.0, (variant & 1u) == 0u);
+        return BondVariant(
+            side * BOND_AROMATIC_INNER_OFFSET,
+            BOND_AROMATIC_INNER_RADIUS_FRACTION,
+            BOND_STYLE_AROMATIC_INNER | metal_style,
+        );
+    }
+    if order >= 3u {
+        let offset = select(-BOND_TRIPLE_OFFSET, BOND_TRIPLE_OFFSET, variant == 1u);
+        let displaced = select(0.0, offset, variant != 0u);
+        return BondVariant(displaced, BOND_TRIPLE_RADIUS_FRACTION, metal_style);
+    }
+    if order == 2u {
+        let side = select(-1.0, 1.0, variant == 0u);
+        return BondVariant(
+            side * BOND_DOUBLE_OFFSET,
+            BOND_DOUBLE_RADIUS_FRACTION,
+            metal_style,
+        );
+    }
+    return BondVariant(0.0, 1.0, metal_style);
+}
+
+/// Whether the strand at `along` is painted under this draw style.
+fn bond_style_visible(style: u32, along: f32) -> bool {
+    if style == BOND_STYLE_SOLID {
+        return true;
+    }
+    if (style & BOND_STYLE_AROMATIC_INNER) != 0u {
+        // The two inner strokes of an aromatic ring, symmetric about the
+        // midpoint and clear of both ends so the ring closure stays solid.
+        return (along >= 0.24 && along <= 0.44) || (along >= 0.56 && along <= 0.76);
+    }
+    if (style & BOND_STYLE_AROMATIC) != 0u {
+        return fract(along * 2.0) < 0.62;
+    }
+    return fract(along * 4.0) < 0.52;
+}
+
+/// A stable unit vector perpendicular to `axis`.
+///
+/// The reference is the world axis the bond direction least aligns with, so
+/// the choice is deterministic and independent of the camera. A perpendicular
+/// taken from the view or the ray would make a double bond appear to swing as
+/// the camera orbits, which reads as a rendering artefact rather than a fact
+/// about the molecule.
+fn bond_perpendicular(axis: vec3f) -> vec3f {
+    let absolute = abs(axis);
+    var reference = vec3f(0.0, 0.0, 1.0);
+    if absolute.z > absolute.x && absolute.z > absolute.y {
+        reference = vec3f(1.0, 0.0, 0.0);
+    } else if absolute.y > absolute.x {
+        reference = vec3f(0.0, 1.0, 0.0);
+    }
+    let perpendicular = cross(axis, reference);
+    let length_sq = dot(perpendicular, perpendicular);
+    if length_sq < BOND_AXIS_EPSILON_SQ {
+        return vec3f(0.0, 0.0, 0.0);
+    }
+    return perpendicular * inverseSqrt(length_sq);
+}
+
+/// Rotates a world-space direction into view space without translating it.
+fn bond_view_direction(world: vec3f) -> vec3f {
+    return frame.view[0].xyz * world.x
+        + frame.view[1].xyz * world.y
+        + frame.view[2].xyz * world.z;
+}
+
+/// The normalized world-space direction from `a` to `b`, or zero when the
+/// endpoints coincide.
+fn bond_world_axis(a: vec3f, b: vec3f) -> vec3f {
+    let axis = b - a;
+    let length_sq = dot(axis, axis);
+    if length_sq < BOND_AXIS_EPSILON_SQ {
+        return vec3f(0.0, 0.0, 0.0);
+    }
+    return axis * inverseSqrt(length_sq);
+}
+
 
 struct BondLineVsOut {
     @builtin(position) position: vec4f,
@@ -39,6 +169,7 @@ struct BondLineVsOut {
     @location(8) @interpolate(flat, either) atom_entities: vec2u,
     // The two endpoint records, for colour resolved in the fragment stage.
     @location(9) @interpolate(flat, either) atom_records: vec2u,
+    @location(10) @interpolate(flat, either) style: u32,
 }
 
 struct BondCapsuleVsOut {
@@ -67,6 +198,7 @@ struct BondCapsuleVsOut {
     @location(8) @interpolate(flat, either) atom_entities: vec2u,
     // The two endpoint records, for colour resolved in the fragment stage.
     @location(9) @interpolate(flat, either) atom_records: vec2u,
+    @location(10) @interpolate(flat, either) style: u32,
 }
 
 struct BondLineHit {
@@ -248,7 +380,7 @@ fn bond_scheme_color(
     delta: vec4f,
     along: f32,
 ) -> vec4f {
-    if color_uniforms.selector.x == COLOR_SCHEME_ELEMENT
+    if color_uniforms.base.header.x == COLOR_RULE_ELEMENT
         && color_uniforms.overlay.x == 0u {
         return bond_color(start, delta, along);
     }
@@ -287,9 +419,13 @@ fn bond_visual(
 ) -> VisualFragmentResult {
     let entity_id = select(atom_entities.x, atom_entities.y, along >= 0.5);
     let world_position = bond_world_position(view_position);
+    let presented_color = interaction_color(
+        color,
+        atom_source_index(entity_id),
+    );
     return visual_fragment(
         entity_id,
-        color,
+        presented_color,
         visual_local_position(world_position),
         world_position,
         visual_world_normal(view_normal),

@@ -4,6 +4,8 @@
 // carries one depth attachment instead of a full position target — a
 // bandwidth saving paid on every pixel of every frame.
 
+//!include "include/visual/marker.wgsl"
+
 @group(1) @binding(0) var albedo_texture: texture_2d<f32>;
 @group(1) @binding(1) var normal_texture: texture_2d<f32>;
 @group(1) @binding(2) var depth_texture: texture_2d<f32>;

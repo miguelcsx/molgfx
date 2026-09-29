@@ -1,7 +1,7 @@
 // Per-frame matrices and viewport state shared by graphics and compute.
 //
 // Layout is intentionally 16-byte aligned and byte-stable with the host.
-// Total uniform size: 1040 bytes.
+// Total uniform size: 1056 bytes.
 
 struct FrameUniforms {
     view: mat4x4f,
@@ -15,6 +15,7 @@ struct FrameUniforms {
     viewport: vec4f,
     temporal: vec4f,
     illustration: vec4f,
+    depth_cue: vec4f,
     npr: vec4f,
     optics: vec4f,
     motion_blur: vec4f,

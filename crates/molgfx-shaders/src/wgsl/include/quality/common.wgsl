@@ -43,12 +43,14 @@ fn quality_bond_index(index: u32) -> u32 {
 fn quality_bond(index: u32) -> BondRecord {
     let base = visual_counts.bond_bvh_nodes * 8u
         + visual_counts.bond_bvh_indices
-        + index * 4u;
+        + index * 6u;
     return BondRecord(
         quality_bond_data[base],
         quality_bond_data[base + 1u],
         bitcast<f32>(quality_bond_data[base + 2u]),
         quality_bond_data[base + 3u],
+        quality_bond_data[base + 4u],
+        quality_bond_data[base + 5u],
     );
 }
 

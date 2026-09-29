@@ -20,6 +20,7 @@ fn hidden_bond_line() -> BondLineVsOut {
     out.entity_id = HIDDEN_WIRE_BOND;
     out.atom_entities = vec2u(0u);
     out.atom_records = vec2u(0u);
+    out.style = BOND_STYLE_SOLID;
     return out;
 }
 
@@ -40,8 +41,22 @@ fn vs_bond_line(
     let world_a = atom_position(atom_a.entity_id);
     let world_b = atom_position(atom_b.entity_id);
 
-    let endpoint_a = bond_view_position(world_a);
-    let endpoint_b = bond_view_position(world_b);
+    // Multi-bond separation in view space, so a double or triple bond draws as
+    // parallel wires and the motion vectors still come from the atom records.
+    let variant =
+        bond_variant_geometry(
+            bond.order,
+            bond.radius < 0.0,
+            (bond.flags & 1u) != 0u,
+            (bond.flags >> 1u) & 3u,
+        );
+    let separation =
+        bond_view_direction(
+            bond_perpendicular(bond_world_axis(world_a, world_b)),
+        ) * (variant.offset_radii * abs(bond.radius));
+
+    let endpoint_a = bond_view_position(world_a) + separation;
+    let endpoint_b = bond_view_position(world_b) + separation;
 
     let ndc_a = bond_project_ndc(endpoint_a);
     let ndc_b = bond_project_ndc(endpoint_b);
@@ -50,7 +65,8 @@ fn vs_bond_line(
         atom_visual_geometry(atom_a.entity_id).w
             + atom_visual_geometry(atom_b.entity_id).w
     ) * 4.0;
-    let line_width = representation.visual.w * width_scale;
+    let line_width =
+        representation.visual.w * width_scale * variant.radius_fraction;
 
     let ndc = bond_quad_ndc(
         ndc_a,
@@ -145,6 +161,7 @@ fn vs_bond_line(
 
         out.atom_records =
             vec2u(bond.atom_a, bond.atom_b);
+        out.style = variant.style;
     }
 
     return out;
@@ -208,7 +225,7 @@ fn fs_bond_line(
 ) -> BondFsOut {
     let hit = bond_line_hit(in);
 
-    if !hit.valid {
+    if !hit.valid || !bond_style_visible(in.style, hit.along) {
         discard;
     }
 
@@ -262,9 +279,14 @@ fn fs_bond_line(
             hit.along,
         );
 
+    // A wire meets the atom point it ends on at exactly the same depth; the
+    // entity rank breaks the tie deterministically, as it does for capsules.
     out.depth =
-        bond_view_depth(
-            hit.position,
+        stable_entity_depth(
+            bond_view_depth(
+                hit.position,
+            ),
+            in.entity_id,
         );
 
     return out;
@@ -276,7 +298,7 @@ fn fs_bond_line_transparent(
 ) -> OitOutput {
     let hit = bond_line_hit(in);
 
-    if !hit.valid {
+    if !hit.valid || !bond_style_visible(in.style, hit.along) {
         discard;
     }
 
