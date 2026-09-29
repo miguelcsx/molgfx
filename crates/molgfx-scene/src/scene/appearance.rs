@@ -36,6 +36,7 @@ pub(crate) fn prepare(
     touched: &BTreeSet<StructureId>,
     structures: &BTreeMap<StructureId, MolecularSource>,
     handles: &BTreeMap<StructureId, StructureHandle>,
+    properties: &BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
     rows: &SelectionRows,
 ) -> Result<Vec<PreparedClasses>, Error> {
     let mut prepared = Vec::with_capacity(touched.len());
@@ -50,7 +51,8 @@ pub(crate) fn prepare(
         let classes = resolve_classes(
             rules.values().filter(|rule| rule.structure == *structure),
             atom_count,
-            |rule| {
+            properties,
+            |rule: &AppearanceRuleSpec| {
                 rows.rows(*structure, source, &rule.target)
                     .map(|(rows, _)| rows)
             },

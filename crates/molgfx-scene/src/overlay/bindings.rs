@@ -1,4 +1,4 @@
-//! Runtime bulk data for scientific descriptors, and renderer-handle inspection.
+//! Runtime bulk data for overlay descriptors, and renderer-handle inspection.
 
 use crate::{DataSource, Error, VolumeSpec};
 use molgfx_math::Vec3;
@@ -327,14 +327,14 @@ impl TrajectoryBinding {
     }
 }
 
-/// Runtime bulk data a resolved scene's scientific descriptors can reach.
+/// Runtime bulk data a resolved scene's overlay descriptors can reach.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct ScienceBindings {
+pub(crate) struct OverlayBindings {
     volumes: BTreeMap<Box<str>, VolumeBinding>,
     trajectories: BTreeMap<Box<str>, TrajectoryBinding>,
 }
 
-impl ScienceBindings {
+impl OverlayBindings {
     /// Registers one density grid under its portable content hash.
     ///
     /// # Errors
@@ -382,12 +382,12 @@ impl ScienceBindings {
     }
 }
 
-/// Renderer-side handle counts for each exposed scientific capability.
+/// Renderer-side handle counts for each exposed overlay capability.
 ///
 /// A portable descriptor that never reached the renderer counts zero: a density
 /// volume with no runtime binding, for example, is deliberately unresolved.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub struct ScientificHandles {
+pub struct OverlayHandles {
     /// Density grids resolved against a runtime binding.
     pub volumes: usize,
     /// Labels stored as annotations.
@@ -398,6 +398,9 @@ pub struct ScientificHandles {
     pub interactions: usize,
     /// Structures holding a resident trajectory frame pair.
     pub trajectories: usize,
+    /// Per-atom anisotropic-displacement ellipsoid overlays, with their
+    /// emitted primitive counts.
+    pub ellipsoids: usize,
 }
 
 /// Whether two coordinate triples are bit-identical.

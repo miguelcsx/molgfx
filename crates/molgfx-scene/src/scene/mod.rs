@@ -9,57 +9,10 @@ use crate::spec::{InteractionChannel, PatchOperation, ScenePatch, SceneSpec, Str
 use molgfx_core::{RepresentationHandle, SelectionHandle};
 use std::collections::BTreeMap;
 
-/// Metadata for one residue observed in a bound molecular structure.
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct ResidueMetadata {
-    /// Chain identifier.
-    pub chain: Option<String>,
-    /// Author-provided chain identifier.
-    pub auth_chain: Option<String>,
-    /// Entity identifier.
-    pub entity: Option<u32>,
-    /// One-letter residue code.
-    pub one_letter: Option<String>,
-    /// Component identifier.
-    pub component: Option<String>,
-    /// Author-provided component identifier.
-    pub auth_component: Option<String>,
-    /// Author-provided residue number.
-    pub auth_number: Option<i32>,
-    /// Label residue number.
-    pub label_number: Option<i32>,
-    /// Insertion code.
-    pub insertion_code: Option<String>,
-    /// Whether the residue was observed.
-    pub observed: bool,
-    /// Zero-based residue index.
-    pub residue_index: u32,
-    /// Inclusive atom range.
-    pub atom_range: Option<[u32; 2]>,
-}
-/// A molecular atom resolved against the exact structure and topology owned by a scene.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ResolvedAtomPick {
-    /// Structure identifier.
-    pub structure: StructureId,
-    /// Dataset identifier.
-    pub dataset: u64,
-    /// Chunk identifier.
-    pub chunk: u64,
-    /// Topology revision identifier.
-    pub topology_revision: u64,
-    /// Atom index within the topology.
-    pub atom_index: u32,
-}
-
-/// Result of resolving a renderer pick against a live semantic scene.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ResolvedPick {
-    /// An atom resolved to stable scene coordinates.
-    Atom(ResolvedAtomPick),
-    /// A non-atom renderer pick.
-    NonAtom(crate::PickResult),
-}
+pub use inspect::{
+    ResidueMetadata, ResolvedAtomPick, ResolvedBondPick, ResolvedLabelPick,
+    ResolvedMeasurementPick, ResolvedPick, ResolvedVolumeSegmentPick,
+};
 
 /// Mutable scene state backed by one resolved renderer scene.
 #[derive(Debug)]
@@ -72,8 +25,8 @@ pub struct Scene {
     visuals: BTreeMap<RepresentationId, crate::visual::ResolvedVisual>,
     property_bindings: BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
     properties: BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
-    science_bindings: crate::science::ScienceBindings,
-    science: crate::science::lower::LoweredScience,
+    overlay_bindings: crate::overlay::OverlayBindings,
+    overlay: crate::overlay::lower::LoweredOverlay,
     /// Structure assets of the current resolution, so a later resolution over
     /// the same sources reuses their atom tables instead of rebuilding them.
     structure_assets: crate::scene::runtime::StructureAssets,
@@ -91,165 +44,33 @@ pub(crate) struct Resolution {
     pub(crate) selections: BTreeMap<String, SelectionHandle>,
     pub(crate) visuals: BTreeMap<RepresentationId, crate::visual::ResolvedVisual>,
     pub(crate) properties: BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
-    pub(crate) science: crate::science::lower::LoweredScience,
+    pub(crate) overlay: crate::overlay::lower::LoweredOverlay,
     pub(crate) appearance: crate::scene::appearance::AppearanceColumns,
 }
 
 pub(crate) mod appearance;
+pub(crate) mod apply;
+mod atom_pick;
 pub(crate) mod domains;
+#[cfg(test)]
+mod domains_tests;
 pub(crate) mod hashing;
 mod insertion;
+mod inspect;
 pub(crate) mod interaction;
 #[cfg(test)]
 mod interaction_tests;
 mod operations;
+mod overlay;
+mod overlay_pick;
 pub(crate) mod properties;
 pub(crate) mod runtime;
 #[cfg(test)]
 mod runtime_tests;
-mod science;
 pub(crate) mod selection_rows;
 pub(crate) mod transaction;
 
 impl Scene {
-    /// Resolves a physical pick against this scene's exact dataset and topology.
-    ///
-    /// The dataset-to-structure mapping is derived explicitly from each placed
-    /// structure's authoritative metadata: a placed source proves its semantic
-    /// owner by shared storage with exactly one bound structure. A dataset that
-    /// maps to several structures is rejected as ambiguous, and one that maps
-    /// to none is rejected as stale, instead of trusting positional order.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::AmbiguousPick`] when a dataset or source identity maps
-    /// to multiple structures, [`Error::StalePick`] when no bound structure
-    /// proves ownership, and [`Error::InvalidSpec`] for malformed picks.
-    pub fn resolve_pick(&self, pick: &crate::PickResult) -> Result<ResolvedPick, Error> {
-        let Some(dataset) = pick.dataset else {
-            return Ok(ResolvedPick::NonAtom(pick.clone()));
-        };
-        let Some(chunk) = pick.chunk else {
-            return Err(Error::InvalidSpec(
-                "pick is missing its chunk identity".to_owned(),
-            ));
-        };
-        let Some(row) = pick.row else {
-            return Err(Error::InvalidSpec(
-                "pick is missing its logical row".to_owned(),
-            ));
-        };
-        let mut placed = None;
-        for candidate in self.resolved.structures().map(|(_, placed)| placed) {
-            if candidate.dataset_id().get() != dataset {
-                continue;
-            }
-            if placed.is_some() {
-                return Err(Error::AmbiguousPick { dataset });
-            }
-            placed = Some(candidate);
-        }
-        let placed = placed.ok_or(Error::StalePick { dataset })?;
-        let structure = self.structure_for_source(&placed.source, dataset)?;
-        let atom_index = u32::try_from(row).map_err(|_| {
-            Error::InvalidSpec(format!("pick row {row} is outside the atom index space"))
-        })?;
-        if pick.kind == crate::PickKind::Atom
-            && usize::try_from(atom_index)
-                .ok()
-                .is_none_or(|index| index >= placed.atoms.len() as usize)
-        {
-            return Err(Error::InvalidSpec(format!(
-                "pick row {row} is outside structure topology"
-            )));
-        }
-        if pick.kind == crate::PickKind::Atom {
-            Ok(ResolvedPick::Atom(ResolvedAtomPick {
-                structure,
-                dataset,
-                chunk,
-                topology_revision: self.resolved.structure_revision(),
-                atom_index,
-            }))
-        } else {
-            Ok(ResolvedPick::NonAtom(pick.clone()))
-        }
-    }
-    /// Resolves the semantic structure that owns one placed physical source.
-    ///
-    /// Ownership is proven by shared provider storage with a bound structure,
-    /// never by iteration position. Two bindings sharing one source cannot be
-    /// told apart, so the mapping is ambiguous rather than positional.
-    fn structure_for_source(
-        &self,
-        source: &molgfx_core::MolecularSource,
-        dataset: u64,
-    ) -> Result<StructureId, Error> {
-        let mut owner = None;
-        for (identity, bound) in &self.structures {
-            if !bound.shares_storage_with(source) {
-                continue;
-            }
-            if owner.is_some() {
-                return Err(Error::AmbiguousPick { dataset });
-            }
-            owner = Some(*identity);
-        }
-        owner.ok_or(Error::StalePick { dataset })
-    }
-    /// Returns typed metadata for residues observed in one structure.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the structure is unknown, is not backed by
-    /// `MolFrame` data, or its residue index space cannot be represented.
-    pub fn residue_metadata(&self, structure: StructureId) -> Result<Vec<ResidueMetadata>, Error> {
-        let source = self
-            .structures
-            .get(&structure)
-            .ok_or_else(|| Error::InvalidSpec(format!("unknown structure {}", structure.get())))?;
-        let Some(input) = source.molframe() else {
-            return Err(Error::InvalidSpec(
-                "residue metadata requires a MolFrame-backed structure".to_owned(),
-            ));
-        };
-        let topology = source.topology();
-        let mut metadata = Vec::with_capacity(input.residue_count());
-        for (chain_index, chain) in input.chains().iter().enumerate() {
-            let chain_start = topology
-                .chain_residue_start
-                .get(chain_index)
-                .copied()
-                .unwrap_or_default();
-            for (local_residue, residue) in chain.residues().enumerate() {
-                let local_residue = u32::try_from(local_residue).map_err(|_| {
-                    Error::InvalidSpec("residue index exceeds the supported range".to_owned())
-                })?;
-                let residue_index = chain_start.checked_add(local_residue).ok_or_else(|| {
-                    Error::InvalidSpec("residue index exceeds the supported range".to_owned())
-                })?;
-                let atom_range = topology
-                    .residue_atom_start
-                    .get(residue_index as usize..residue_index as usize + 2)
-                    .and_then(|range| (range.len() == 2).then_some([range[0], range[1]]));
-                metadata.push(ResidueMetadata {
-                    chain: chain.label().map(str::to_owned),
-                    auth_chain: chain.auth_label().map(str::to_owned),
-                    entity: chain.entity().map(molframe::EntityIndex::get),
-                    one_letter: None,
-                    component: residue.name().map(str::to_owned),
-                    auth_component: residue.auth_name().map(str::to_owned),
-                    auth_number: residue.auth_seq_id(),
-                    label_number: residue.label_seq_id(),
-                    insertion_code: residue.ins_code().map(str::to_owned),
-                    observed: true,
-                    residue_index,
-                    atom_range,
-                });
-            }
-        }
-        Ok(metadata)
-    }
     /// Builds a scene over a shared immutable `MolFrame` snapshot.
     ///
     /// # Errors
@@ -287,9 +108,9 @@ impl Scene {
             visuals: BTreeMap::new(),
             property_bindings: BTreeMap::new(),
             properties: BTreeMap::new(),
-            science_bindings: crate::science::ScienceBindings::default(),
+            overlay_bindings: crate::overlay::OverlayBindings::default(),
             structure_assets: crate::scene::runtime::StructureAssets::default(),
-            science: crate::science::lower::LoweredScience::default(),
+            overlay: crate::overlay::lower::LoweredOverlay::default(),
             rows: crate::scene::selection_rows::SelectionRows::default(),
             appearance: BTreeMap::new(),
             next_structure: 2,
@@ -358,13 +179,14 @@ impl Scene {
             }
         }
         spec.validate_selections()?;
-        let science_bindings = crate::science::ScienceBindings::default();
+        let property_bindings = with_derived_bindings(&spec, &structures, property_bindings)?;
+        let overlay_bindings = crate::overlay::OverlayBindings::default();
         let rows = crate::scene::selection_rows::SelectionRows::default();
         let resolution = resolve(
             &spec,
             &structures,
             &property_bindings,
-            &science_bindings,
+            &overlay_bindings,
             &rows,
         )?;
         let next_structure = next_structure_id(&spec)?;
@@ -380,8 +202,8 @@ impl Scene {
             visuals: resolution.visuals,
             property_bindings,
             properties: resolution.properties,
-            science_bindings,
-            science: resolution.science,
+            overlay_bindings,
+            overlay: resolution.overlay,
             structure_assets,
             rows,
             appearance: resolution.appearance,
@@ -397,6 +219,24 @@ impl Scene {
     /// Returns an error for an invalid selection or representation value.
     pub fn add<T: SceneItem>(&mut self, item: T) -> Result<T::Id, Error> {
         item.add_to(self)
+    }
+
+    /// Adds the default representations for `structure`, chosen from its size.
+    ///
+    /// See [`crate::preset::auto_representations`] for the policy.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an unknown structure or an invalid representation.
+    pub fn add_auto(&mut self, structure: StructureId) -> Result<Vec<RepresentationId>, Error> {
+        let Some(source) = self.structures.get(&structure) else {
+            return Err(Error::InvalidSpec(format!(
+                "structure {} is not part of this scene",
+                structure.0
+            )));
+        };
+        let forms = crate::preset::auto_representations(source, structure)?;
+        forms.into_iter().map(|form| self.add(form)).collect()
     }
 
     pub(crate) fn insert_representation(
@@ -471,7 +311,18 @@ impl Scene {
         Ok(id)
     }
 
-    /// Current canonical immutable scene state.
+    /// The scene's molecular sources, keyed by structure.
+    ///
+    /// Read-only: the coordinates and topology behind these sources are what
+    /// every representation draws, so a caller may inspect them to decide what
+    /// to author but never replace them in place. Adding a source goes through
+    /// [`Self::add_source`], which announces the change as a patch.
+    #[must_use]
+    pub const fn sources(&self) -> &BTreeMap<StructureId, molgfx_core::MolecularSource> {
+        &self.structures
+    }
+
+    /// The specification as it is, including the revision patches must name.
     #[must_use]
     pub const fn spec(&self) -> &SceneSpec {
         &self.spec
@@ -600,4 +451,38 @@ impl Scene {
 }
 
 #[cfg(test)]
+mod inspect_tests;
+#[cfg(test)]
 mod tests;
+
+/// Adds a binding for every derived property the specification declares.
+///
+/// Callers supply only the columns they own; a derived column is rebuilt from
+/// its structure, so a serialized scene carries a descriptor and no values.
+fn with_derived_bindings(
+    spec: &SceneSpec,
+    structures: &BTreeMap<StructureId, molgfx_core::MolecularSource>,
+    mut bindings: BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
+) -> Result<BTreeMap<Box<str>, crate::ScalarPropertyBinding>, Error> {
+    for (name, descriptor) in &spec.properties {
+        let derived = descriptor.source.format.as_deref() == Some(crate::color::DERIVED_FORMAT);
+        if !derived || bindings.contains_key(name) {
+            continue;
+        }
+        let column = descriptor
+            .source
+            .uri
+            .as_deref()
+            .and_then(crate::color::DerivedColumn::from_name)
+            .ok_or_else(|| {
+                Error::InvalidSpec(format!("derived property '{name}' names an unknown column"))
+            })?;
+        let source = structures.get(&descriptor.structure).ok_or_else(|| {
+            Error::InvalidSpec(format!(
+                "derived property '{name}' owns an unknown structure"
+            ))
+        })?;
+        let _ = bindings.insert(name.clone(), column.binding(descriptor.structure, source)?);
+    }
+    Ok(bindings)
+}

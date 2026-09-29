@@ -19,11 +19,16 @@ fn structure() -> molframe::Structure {
 fn every_representation_form_round_trips_through_its_tagged_shape() {
     let specifications = vec![
         rep::cartoon("all").into(),
+        rep::backbone("all").into(),
+        rep::trace("all").into(),
+        rep::tube("all").into(),
+        rep::putty("all").into(),
         rep::ball_and_stick("all").into(),
         rep::spacefill("all").into(),
         rep::licorice("all").into(),
         rep::lines("all").into(),
         rep::points("all").into(),
+        rep::dots("all").into(),
         rep::surface("all").into(),
         rep::nucleic_acid("all").into(),
         rep::bases("all").into(),
@@ -71,6 +76,25 @@ fn the_superseded_optional_field_wire_shape_is_rejected() {
     let source = serde_json::to_string(&value)
         .unwrap_or_else(|error| panic!("malformed fixture must serialize: {error}"));
     assert!(crate::SceneSpec::from_json(&source).is_err());
+}
+
+#[test]
+fn a_blob_surface_round_trips_and_names_its_soft_union_style() {
+    let specification: RepresentationSpec = rep::surface("all")
+        .style(SurfaceStyle::SoftUnion)
+        .probe_radius(1.6)
+        .isolevel(0.6)
+        .blob_spread(0.0)
+        .into();
+    let json = serde_json::to_string(&specification)
+        .unwrap_or_else(|error| panic!("specification must serialize: {error}"));
+    assert!(json.contains("\"style\":\"soft_union\""), "{json}");
+    // Zero is a meaningful spread: it requests the exact union, so the control
+    // must survive the wire rather than being normalised away.
+    assert!(json.contains("\"blob_spread\":0.0"), "{json}");
+    let decoded: RepresentationSpec = serde_json::from_str(&json)
+        .unwrap_or_else(|error| panic!("specification must deserialize: {error}"));
+    assert_eq!(decoded, specification);
 }
 
 #[test]

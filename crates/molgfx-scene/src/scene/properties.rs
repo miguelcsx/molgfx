@@ -1,6 +1,7 @@
 //! Validation and physical resolution for scalar property bindings.
 
 use super::Scene;
+use crate::color::DerivedColumn;
 use crate::{Error, ScalarProperty, ScalarPropertyBinding, SceneSpec, StructureId};
 use molgfx_core::{AtomPropertyHandle, StructureHandle};
 use std::collections::BTreeMap;
@@ -18,6 +19,14 @@ impl Scene {
         &mut self,
         binding: ScalarPropertyBinding,
     ) -> Result<ScalarProperty, Error> {
+        let reference = self.attach_property(binding)?;
+        self.spec.revision = self.spec.revision.wrapping_add(1);
+        Ok(reference)
+    }
+
+    /// Validates and installs one property binding without touching the
+    /// revision, so implicit bindings do not advance the patch stream.
+    fn attach_property(&mut self, binding: ScalarPropertyBinding) -> Result<ScalarProperty, Error> {
         let name = binding.name().to_owned().into_boxed_str();
         if self.property_bindings.contains_key(&name) {
             return Err(Error::InvalidSpec(format!(
@@ -37,8 +46,80 @@ impl Scene {
         let _ = self.spec.properties.insert(name.clone(), spec);
         let _ = self.properties.insert(name.clone(), handle);
         let _ = self.property_bindings.insert(name, binding);
-        self.spec.revision = self.spec.revision.wrapping_add(1);
         Ok(reference)
+    }
+
+    /// Binds every derived column the colours in `patch` read, once.
+    ///
+    /// A derived column is a pure function of its structure, so binding it is
+    /// idempotent and adds no revision: a replica that applies the same patch
+    /// derives the same columns and reaches the same state.
+    pub(crate) fn ensure_derived(&mut self, patch: &crate::ScenePatch) -> Result<(), Error> {
+        let mut wanted: Vec<(StructureId, DerivedColumn)> = Vec::new();
+        // Structures of representations the patch itself adds, which a later
+        // operation in the same patch may recolour before the scene knows them.
+        let mut added: BTreeMap<crate::RepresentationId, Option<StructureId>> = BTreeMap::new();
+        let only = self.only_structure();
+        for operation in &patch.operations {
+            use crate::PatchOperation::{
+                AddAppearanceRule, AddRepresentation, ReplaceAppearanceRule, ReplaceRepresentation,
+                SetColor,
+            };
+            let (structure, color) = match operation {
+                AddRepresentation { id, representation }
+                | ReplaceRepresentation { id, representation } => {
+                    let structure = representation.structure_id().or(only);
+                    let _ = added.insert(*id, structure);
+                    (structure, representation.color())
+                }
+                SetColor { id, color } => {
+                    let structure = match added.get(id) {
+                        Some(structure) => *structure,
+                        None => self
+                            .spec
+                            .representations
+                            .get(id)
+                            .and_then(crate::RepresentationSpec::structure_id),
+                    };
+                    (structure, color)
+                }
+                AddAppearanceRule { rule, .. } | ReplaceAppearanceRule { rule, .. } => {
+                    (Some(rule.structure), &rule.color)
+                }
+                _ => continue,
+            };
+            if let (Some(structure), Some(column)) = (structure, color.derived()) {
+                wanted.push((structure, column));
+            }
+        }
+        for (structure, column) in wanted {
+            self.bind_derived(structure, column)?;
+        }
+        Ok(())
+    }
+
+    /// The scene's only structure, when it has exactly one.
+    fn only_structure(&self) -> Option<StructureId> {
+        let mut ids = self.structures.keys();
+        match (ids.next(), ids.next()) {
+            (Some(id), None) => Some(*id),
+            _ => None,
+        }
+    }
+
+    /// Derives `column` for `structure` and binds it, unless it already is.
+    fn bind_derived(&mut self, structure: StructureId, column: DerivedColumn) -> Result<(), Error> {
+        let name = column.property_name(structure).into_boxed_str();
+        if self.property_bindings.contains_key(&name) {
+            return Ok(());
+        }
+        let source = self
+            .structures
+            .get(&structure)
+            .ok_or_else(|| Error::InvalidSpec("derived column owner is not bound".to_owned()))?;
+        let binding = column.binding(structure, source)?;
+        self.attach_property(binding)?;
+        Ok(())
     }
 }
 
