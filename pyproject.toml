@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "molgfx"
-version = "0.3.0"
+version = "0.3.2"
 description = "Semantic, GPU-native molecular rendering, with interactive notebook viewers and a command console"
 readme = "README.md"
 authors = [{ name = "Miguel Cárdenas", email = "miguelecsx@gmail.com" }]
@@ -56,11 +56,8 @@ module-name = "molgfx._engine"
 # later instead of one wheel per minor version; the floor is 3.12 because that
 # is what Google Colab runs.
 features = ["pyo3/abi3-py312"]
-# The browser runtime is built by wasm-pack into the viewer's static directory
-# and is not committed, so it is named here rather than left to discovery:
-# without it the Jupyter widget ships a loader with nothing to load.
-include = [
-    { path = "python/molgfx/viewer/static/molgfx_wasm.js", format = "wheel" },
-    { path = "python/molgfx/viewer/static/molgfx_wasm_bg.wasm", format = "wheel" },
-    { path = "python/molgfx/viewer/static/runtime-manifest.json", format = "wheel" },
-]
+# The browser runtime (wasm bindings, widget module, stylesheet, manifest) is
+# built by crates/molgfx-wasm/js/scripts/build.mjs into the viewer's static
+# directory. It is generated and git-ignored, and maturin skips ignored files,
+# so the whole directory is named here: without it the widget has no module.
+include = [{ path = "python/molgfx/viewer/static/*", format = "wheel" }]

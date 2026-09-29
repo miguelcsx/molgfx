@@ -5,7 +5,8 @@ on:
     branches: [main]
     paths:
       - "site/**"
-      - "crates/molgfx-wasm/**"
+      - "crates/**"
+      - ".github/actions/browser-runtime/**"
       - "Cargo.lock"
       - "Cargo.toml"
       - ".github/workflows/pages.yml"
@@ -25,20 +26,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/browser-runtime
+        with:
+          out: site/public/runtime
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: site/package-lock.json
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-      - name: Install wasm-pack
-        run: cargo install wasm-pack --locked
-      - name: Build browser runtime
-        run: >-
-          wasm-pack build crates/molgfx-wasm --release --target web
-          --out-dir ../../site/public/demo --out-name molgfx_wasm
       - name: Install locked dependencies
         working-directory: site
         run: npm ci
