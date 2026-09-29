@@ -3,11 +3,8 @@
 
 # generated content
 .source
-/public/demo/molgfx_wasm*
-/public/demo/package.json
-/public/demo/LICENSE
-/public/demo/README.md
-/public/demo/.gitignore
+# the browser runtime, copied from crates/molgfx-wasm/js/dist by its build
+/public/runtime/
 
 # test & build
 /coverage

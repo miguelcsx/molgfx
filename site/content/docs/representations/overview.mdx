@@ -32,3 +32,49 @@ scene.add(molgfx.rep.licorice(target="resname HEM", bond_radius=0.15))
 ```
 
 For ball-and-stick, licorice, and lines, call `structure.infer_bonds()` after reading mmCIF when the source does not contain all bonds.
+
+## Bond chemistry on screen
+
+Sticks, ball-and-stick, and lines draw the chemical order they were read with,
+not a uniform stick per edge:
+
+- a double bond is two parallel strands and a triple bond three, packed inside
+  the width one stick of that radius occupies;
+- an aromatic bond is a solid line with a broken inner line inside the ring;
+- a metal-coordination edge keeps its metal styling.
+
+The default stick radius is 0.25 Å, the value the reference engines use, so an
+unparameterized `licorice` or `ball_and_stick` matches the familiar picture.
+Override it with `bond_radius`.
+
+## Blob surfaces
+
+`surface` takes a `style`; `soft_union` is the smoothed envelope that rounds the
+union of the contributing atoms into one blob rather than tracing each atom's
+exact boundary. Use it for a schematic molecular envelope, and `solid` or `mesh`
+when the exact solvent-accessible or solvent-excluded boundary matters.
+
+```python
+scene.add(molgfx.rep.surface(target="protein", style="soft_union", probe_radius=1.6))
+```
+
+## Automatic defaults
+
+`auto` draws a structure with the forms its size and chemistry call for — the
+same policy a viewer applies when it opens a file: atomic detail for a small
+non-polymer, cartoons (and nucleic-acid ribbons) plus atomic detail for a medium
+structure, cartoons alone for a large one, and one Gaussian surface for a huge
+one. Solvent is never drawn.
+
+```python
+scene.auto()
+```
+
+In the command session the same verb adds the layers under their form names, so
+they can be hidden, recoloured, or removed like any other layer:
+
+```text
+auto
+hide @ball_and_stick
+```
+

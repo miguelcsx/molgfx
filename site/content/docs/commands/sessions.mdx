@@ -20,6 +20,8 @@ color orange, $pocket
 - Layers use `@name`.
 - `show` is idempotent for the same form and target unless `duplicate` is requested.
 - Redefining a named selection retargets dependent layers and rules.
+- `auto` adds the size- and chemistry-appropriate default layers for the scene's structure, named after their forms, and nothing else changes: hide, recolour, or remove them like any other layer.
+- `volume` declares a density grid; the grid values themselves arrive through a runtime binding, and the portable scene document keeps only the descriptor.
 - See [Query-driven visualization](/docs/commands/visual-selections) for named selections, visual layers, and the canonical pocket workflow.
 
 ## History, errors, and completion
