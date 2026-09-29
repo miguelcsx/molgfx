@@ -18,6 +18,7 @@ impl PyPickResult {
             molgfx::PickKind::Bond => "bond",
             molgfx::PickKind::Interaction => "interaction",
             molgfx::PickKind::Label => "label",
+            molgfx::PickKind::Measurement => "measurement",
             molgfx::PickKind::Primitive => "primitive",
             molgfx::PickKind::Mesh => "mesh",
             molgfx::PickKind::LigandPoseBatch => "ligand_pose_batch",
@@ -114,6 +115,20 @@ impl PyRenderer {
     fn pick(&mut self, py: Python<'_>, x: u32, y: u32) -> PyResult<Option<PyPickResult>> {
         py.detach(|| self.0.pick(x, y))
             .map(|pick| pick.map(PyPickResult))
+            .map_err(error)
+    }
+
+    #[pyo3(signature = (scene, *, size, fps, frames))]
+    fn render_sequence(
+        &mut self,
+        py: Python<'_>,
+        scene: &PyScene,
+        size: (u32, u32),
+        fps: u32,
+        frames: usize,
+    ) -> PyResult<Vec<PyImage>> {
+        py.detach(|| self.0.render_sequence(&scene.inner, size, fps, frames))
+            .map(|images| images.into_iter().map(PyImage).collect())
             .map_err(error)
     }
 

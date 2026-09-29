@@ -193,6 +193,7 @@ named_control!(molgfx::rep::SurfaceStyle, "surface style", [
     "dots" => Dots,
     "filled_contour" => FilledContour,
     "mesh" => Mesh,
+    "soft_union" => SoftUnion,
 ]);
 
 /// Declares one representation constructor over exactly the controls its form
@@ -236,12 +237,25 @@ representation!(
     kind: String,
     style: String,
     probe_radius: f32,
-    isolevel: f32
+    isolevel: f32,
+    blob_spread: f32
 );
 representation!(nucleic_acid, width: f32);
 representation!(bases, radius: f32);
 representation!(base_pairs, radius: f32, bond_radius: f32);
 representation!(glycan, width: f32);
+representation!(beads, radius: f32);
+representation!(dots, size: f32);
+representation!(backbone, width: f32);
+representation!(trace, radius: f32);
+representation!(tube, radius: f32);
+representation!(
+    putty,
+    domain_min: f32,
+    domain_max: f32,
+    radius_min: f32,
+    radius_max: f32
+);
 
 #[pymodule]
 fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -260,7 +274,7 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     crate::transaction_binding::register(module)?;
     crate::authoring_binding::register(module)?;
     crate::render_binding::register(module)?;
-    crate::science_binding::register(module)?;
+    crate::overlay_binding::register(module)?;
     crate::visual_binding::register(module)?;
     crate::command_binding::register(module)?;
     crate::session_binding::register(module)?;
@@ -276,5 +290,11 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     rep.add_function(wrap_pyfunction!(bases, &rep)?)?;
     rep.add_function(wrap_pyfunction!(base_pairs, &rep)?)?;
     rep.add_function(wrap_pyfunction!(glycan, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(beads, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(dots, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(backbone, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(trace, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(tube, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(putty, &rep)?)?;
     module.add_submodule(&rep)
 }
