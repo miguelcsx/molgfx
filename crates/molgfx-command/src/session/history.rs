@@ -1,7 +1,7 @@
 //! Undo and redo of scene edits together with the session state.
 
 use super::state::SessionSpec;
-use molgfx_api::PatchOperation;
+use molgfx_scene::PatchOperation;
 use std::collections::VecDeque;
 
 /// One executed program: how to replay it and how to reverse it.

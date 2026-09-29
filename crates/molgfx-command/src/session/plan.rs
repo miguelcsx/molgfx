@@ -9,15 +9,20 @@ use super::state::{LayerSpec, RuleSpec, State};
 use crate::error::{CommandError, ErrorKind, Span};
 use crate::ir::{ColorValue, Command, Look, Name, QueryText, Show, Target};
 use crate::registry;
-use molgfx_api::{
-    AppearanceRuleSpec, PatchOperation, SceneTransaction, ScientificInteractionId,
-    ScientificInteractionSpec, StructureId,
-};
+use molgfx_scene::{AppearanceRuleSpec, PatchOperation, SceneTransaction, StructureId};
+use std::collections::BTreeMap;
+mod auto;
+mod overlay;
+
 pub(crate) struct Planner<'a> {
     pub(crate) state: State,
     pub(crate) transaction: SceneTransaction,
     pub(crate) messages: Vec<String>,
     pub(crate) site: Option<(&'a str, Span)>,
+    /// The live scene's molecular sources, read-only, so a plan can apply a
+    /// policy that depends on the structure's own chemistry — the automatic
+    /// preset classifies by polymer residue count — without re-reading it.
+    pub(crate) sources: &'a BTreeMap<StructureId, molgfx_scene::source::MolecularSource>,
 }
 
 impl Planner<'_> {
@@ -56,10 +61,21 @@ impl Planner<'_> {
                 self.state.spec.focus = Some(declared);
                 Ok(())
             }
+            Command::Label {
+                text,
+                target,
+                structure,
+            } => self.label(text, target, structure.as_ref()),
+            Command::Measure {
+                kind,
+                points,
+                structure,
+            } => self.measure(*kind, points, structure.as_ref()),
             Command::Interaction { interaction } => self.interaction(interaction),
             Command::Assembly { assembly } => self.domain(PatchOperation::SetAssembly {
                 assembly: assembly.clone(),
             }),
+            Command::Volume { volume } => self.volume(volume.clone()),
             Command::Fitting { fitting } => self.domain(PatchOperation::SetFitting {
                 fitting: fitting.clone(),
             }),
@@ -79,48 +95,12 @@ impl Planner<'_> {
                 self.state.spec.focus = None;
                 Ok(())
             }
+            Command::Auto { structure } => self.auto(structure.as_ref()),
             Command::Undo | Command::Redo => Err(CommandError::new(
                 ErrorKind::History,
                 "undo and redo cannot be combined with edits in one program",
             )),
         }
-    }
-
-    fn domain(&mut self, operation: PatchOperation) -> Result<(), CommandError> {
-        self.transaction
-            .stage(operation)
-            .map_err(|error| scene_error(&error))
-    }
-    fn interaction(&mut self, interaction: &ScientificInteractionSpec) -> Result<(), CommandError> {
-        // The command path accepts only the API's explicit variant. The API
-        // validates anchors against the scene when this patch is staged; no
-        // chemistry or MolFrame analysis occurs here.
-        if !matches!(interaction, ScientificInteractionSpec::Explicit { .. }) {
-            return Err(CommandError::new(
-                ErrorKind::Scene,
-                "scientific interactions must be explicit caller-supplied values",
-            ));
-        }
-        let next = self
-            .transaction
-            .spec()
-            .scientific_interactions
-            .keys()
-            .next_back()
-            .map_or(Some(1), |id| id.get().checked_add(1));
-        let Some(next) = next else {
-            return Err(CommandError::new(
-                ErrorKind::Scene,
-                "scientific interaction identity space is exhausted",
-            ));
-        };
-        let id = ScientificInteractionId::new(next);
-        self.transaction
-            .stage(PatchOperation::AddScientificInteraction {
-                id,
-                interaction: interaction.clone(),
-            })
-            .map_err(|error| scene_error(&error))
     }
 
     fn resolver(&self) -> Resolver<'_> {
@@ -311,7 +291,7 @@ impl Planner<'_> {
         structure: StructureId,
         declared: &QueryText,
         show: &Show,
-    ) -> Option<(Name, molgfx_api::RepresentationId)> {
+    ) -> Option<(Name, molgfx_scene::RepresentationId)> {
         self.state.spec.layers.iter().find_map(|(name, layer)| {
             let same = layer.structure == structure
                 && layer.form == show.form
@@ -484,7 +464,7 @@ impl Planner<'_> {
         &self,
         color: &ColorValue,
         structure: StructureId,
-    ) -> Result<molgfx_api::ColorSpec, CommandError> {
+    ) -> Result<molgfx_scene::ColorSpec, CommandError> {
         if let Some(spec) = color.scheme() {
             return Ok(spec);
         }
@@ -492,6 +472,6 @@ impl Planner<'_> {
     }
 }
 
-pub(crate) fn scene_error(error: &molgfx_api::Error) -> CommandError {
+pub(crate) fn scene_error(error: &molgfx_scene::Error) -> CommandError {
     CommandError::new(ErrorKind::Scene, error.to_string())
 }

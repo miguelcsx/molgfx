@@ -28,12 +28,12 @@ impl Resolver<'_> {
     pub(crate) fn selection(
         &self,
         query: &QueryText,
-    ) -> Result<molgfx_api::Selection, CommandError> {
+    ) -> Result<molgfx_scene::Selection, CommandError> {
         self.check_references(query)?;
         self.state
             .aliases
             .resolve(query.query())
-            .map(molgfx_api::Selection::from)
+            .map(molgfx_scene::Selection::from)
             .map_err(|diagnostics| {
                 let message = diagnostics.first().map_or_else(
                     || "the query could not be resolved".to_owned(),

@@ -3,7 +3,7 @@
 use crate::error::{CommandError, ErrorKind};
 use crate::ir::ColorValue;
 use crate::registry;
-use molgfx_api::{Color, ColorSpec, SceneSpec, StructureId};
+use molgfx_scene::{Color, ColorSpec, SceneSpec, StructureId};
 
 /// Colour for values a property does not have.
 const MISSING: Color = Color::rgb(160, 160, 160);
@@ -44,7 +44,7 @@ pub(crate) fn color(
     let reference = serde_json::json!({ "structure": structure, "name": property });
     let property = serde_json::from_value(reference)
         .map_err(|error| CommandError::new(ErrorKind::InvalidColor, error.to_string()))?;
-    Ok(molgfx_api::color::property(
+    Ok(molgfx_scene::color::property(
         property,
         ramp.clone(),
         match domain {
