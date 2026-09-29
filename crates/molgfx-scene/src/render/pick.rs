@@ -68,10 +68,7 @@ impl Renderer {
         let Some(raw) = self.inner.finish_pick(packed).map_err(Error::from)? else {
             return Ok(None);
         };
-        scene
-            .resolve_pick(&semantic_pick(&raw))
-            .map(Some)
-            .map_err(Error::from)
+        scene.resolve_pick(&semantic_pick(&raw)).map(Some)
     }
 
     /// Resolves the entity under one target pixel on native platforms.
