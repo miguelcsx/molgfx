@@ -91,11 +91,15 @@ impl ScalarPropertyBinding {
     }
 
     pub(crate) fn validate(&self, rows: usize) -> Result<(), Error> {
+        // A column with no finite value at all is allowed: it has nothing to
+        // colour, so the renderer falls back to each atom's own colour. That is
+        // how a structural scheme such as secondary structure or B-factor
+        // degrades when the structure does not carry the property, instead of
+        // rejecting an otherwise valid program.
         if self.name.trim().is_empty()
             || self.spec.source.content_hash.trim().is_empty()
             || self.values.len() != rows
             || self.values.iter().any(|value| value.is_infinite())
-            || finite_domain(&self.values).is_none()
             || !valid_domain(self.spec.domain)
             || self
                 .spec

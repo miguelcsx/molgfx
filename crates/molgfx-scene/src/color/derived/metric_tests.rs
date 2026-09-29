@@ -56,18 +56,13 @@ fn sequence_position_runs_from_zero_at_the_first_residue_to_one_at_the_last() {
 fn every_metric_colors_through_a_derived_property_bound_on_first_use() {
     let mut scene =
         crate::Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
-    // A PDB carries no formal charges, so that column is entirely missing and
-    // a property with no value at all is refused rather than drawn as one
-    // colour.
-    let refused = scene.add(
-        crate::rep::spacefill(crate::sel::all())
-            .color(crate::color::metric(AtomMetric::FormalCharge)),
-    );
-    assert!(refused.is_err());
-    for metric in AtomMetric::ALL
-        .into_iter()
-        .filter(|metric| *metric != AtomMetric::FormalCharge)
-    {
+    // A PDB may carry no formal charges. The program still applies — every
+    // atom keeps its own colour — rather than being refused, whether or not
+    // that column happens to hold values.
+    let missing = crate::color::metric(AtomMetric::FormalCharge);
+    let applied = scene.add(crate::rep::spacefill(crate::sel::all()).color(missing));
+    assert!(applied.is_ok(), "{applied:?}");
+    for metric in AtomMetric::ALL {
         let spec = crate::color::metric(metric);
         assert!(spec.validate().is_ok(), "{metric:?}");
         assert!(spec.legend().is_some(), "{metric:?}");

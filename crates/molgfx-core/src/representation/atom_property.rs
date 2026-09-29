@@ -47,12 +47,14 @@ impl AtomProperty {
     ///
     /// NaN denotes a missing value and is retained; infinities are rejected.
     /// Length is validated against the owning structure by
-    /// [`crate::Scene::add_atom_property`].
+    /// [`crate::Scene::add_atom_property`]. A column with no finite value at
+    /// all is accepted: it has nothing to colour, so the renderer falls back to
+    /// each atom's own colour rather than failing the whole scene.
     ///
     /// # Errors
     ///
     /// Returns [`CoreError::InvalidProperty`] for an empty name, empty values,
-    /// infinity, or a column with no finite value.
+    /// or infinity.
     pub fn new(
         owner: StructureHandle,
         name: impl Into<Arc<str>>,
@@ -69,8 +71,10 @@ impl AtomProperty {
                 "property values may be finite or missing NaN, never infinite",
             ));
         }
-        let finite_domain = finite_domain(&values)
-            .ok_or_else(|| invalid("property must contain at least one finite value"))?;
+        let finite_domain = match finite_domain(&values) {
+            Some(domain) => domain,
+            None => [0.0, 1.0],
+        };
         Ok(Self {
             owner,
             name,
