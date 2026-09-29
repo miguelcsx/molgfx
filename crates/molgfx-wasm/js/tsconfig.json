@@ -16,5 +16,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "wasm/molgfx_wasm.d.ts"]
+  "include": ["src/**/*.ts", "pkg/molgfx_wasm.d.ts"]
 }
