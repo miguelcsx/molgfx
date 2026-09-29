@@ -1,6 +1,6 @@
 //! The intentionally small Python surface.
 use pyo3::create_exception;
-use pyo3::exceptions::{PyException, PyValueError};
+use pyo3::exceptions::{PyException, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyModule};
 
@@ -213,6 +213,7 @@ macro_rules! representation {
             // One Rust parameter per Python keyword would exceed the
             // crate's argument budget as forms grow, so every optional
             // control arrives in one keyword map and is read by name.
+            reject_unknown_options(stringify!($name), options)?;
             let mut value = molgfx::rep::$name(selection(target)?).opacity(match options {
                 Some(dict) => keyword(dict, "opacity")?.map_or(Ok(1.0), |raw| raw.extract())?,
                 None => 1.0,
@@ -239,6 +240,41 @@ fn keyword<'py>(
     name: &str,
 ) -> PyResult<Option<Bound<'py, pyo3::PyAny>>> {
     dict.get_item(name)
+}
+
+/// Rejects a keyword the form does not declare.
+///
+/// The keyword map binds every control at once, so an unknown name would
+/// otherwise be ignored; the form's own control list is the single source of
+/// truth for what it accepts.
+fn reject_unknown_options(
+    form: &str,
+    options: Option<&Bound<'_, pyo3::types::PyDict>>,
+) -> PyResult<()> {
+    let Some(options) = options else {
+        return Ok(());
+    };
+    let Some(kind) = molgfx::command::FormKind::from_name(form) else {
+        return Ok(());
+    };
+    for (key, _) in options.iter() {
+        let Ok(name) = key.extract::<String>() else {
+            continue;
+        };
+        if name == "opacity" || name == "color" {
+            continue;
+        }
+        let known = kind
+            .options()
+            .iter()
+            .any(|option| option.name == name.as_str());
+        if !known {
+            return Err(PyTypeError::new_err(format!(
+                "{form} does not accept the control '{name}'"
+            )));
+        }
+    }
+    Ok(())
 }
 
 representation!(cartoon, width: f32, style: String);

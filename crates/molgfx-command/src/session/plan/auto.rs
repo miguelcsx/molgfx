@@ -51,7 +51,10 @@ impl Planner<'_> {
                 LayerSpec {
                     id,
                     structure,
-                    form: Form::new(FormKind::from_name(&kind).unwrap_or(FormKind::Cartoon)),
+                    form: Form::new(match FormKind::from_name(&kind) {
+                        Some(form) => form,
+                        None => FormKind::Cartoon,
+                    }),
                     target: declared,
                 },
             );
