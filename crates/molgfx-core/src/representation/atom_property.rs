@@ -71,10 +71,10 @@ impl AtomProperty {
                 "property values may be finite or missing NaN, never infinite",
             ));
         }
-        let finite_domain = match finite_domain(&values) {
-            Some(domain) => domain,
-            None => [0.0, 1.0],
-        };
+        let mut finite_domain = [0.0, 1.0];
+        if let Some(finite) = finite_domain(&values) {
+            finite_domain = finite;
+        }
         Ok(Self {
             owner,
             name,
