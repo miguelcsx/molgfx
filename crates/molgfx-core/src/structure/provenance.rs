@@ -72,11 +72,10 @@ impl Scene {
             }
             EntityKind::Guide => ProvenanceDetail::Guide(self.guide_for_entity(entity)?.1),
             EntityKind::Label => {
-                if let Some((_, annotation)) = self.annotation_for_entity(entity) {
-                    ProvenanceDetail::Annotation(annotation)
-                } else {
-                    ProvenanceDetail::Measurement(self.measurement_for_entity(entity)?.1)
-                }
+                ProvenanceDetail::Annotation(self.annotation_for_entity(entity)?.1)
+            }
+            EntityKind::Measurement => {
+                ProvenanceDetail::Measurement(self.measurement_for_entity(entity)?.1)
             }
             EntityKind::Primitive => {
                 ProvenanceDetail::Primitive(self.primitive_for_entity(entity)?)

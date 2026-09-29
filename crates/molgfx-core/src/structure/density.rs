@@ -150,14 +150,14 @@ impl ScalarVolume {
         self.range
     }
 
-    /// Attaches the caller's scientific meaning without changing grid data.
+    /// Attaches the caller's physical meaning without changing grid data.
     #[must_use]
     pub fn with_semantics(mut self, semantics: ScalarFieldSemantics) -> Self {
         self.semantics = semantics;
         self
     }
 
-    /// Scientific meaning and provenance of this grid.
+    /// Physical meaning and provenance of this grid.
     #[must_use]
     pub const fn semantics(&self) -> &ScalarFieldSemantics {
         &self.semantics
