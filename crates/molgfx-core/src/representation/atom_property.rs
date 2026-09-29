@@ -71,9 +71,9 @@ impl AtomProperty {
                 "property values may be finite or missing NaN, never infinite",
             ));
         }
-        let mut finite_domain = [0.0, 1.0];
+        let mut domain = [0.0, 1.0];
         if let Some(finite) = finite_domain(&values) {
-            finite_domain = finite;
+            domain = finite;
         }
         Ok(Self {
             owner,
@@ -82,7 +82,7 @@ impl AtomProperty {
             interpolated: Vec::new(),
             meaning,
             semantics,
-            finite_domain,
+            finite_domain: domain,
         })
     }
 
