@@ -298,11 +298,16 @@ class WorkbenchPageTests(unittest.TestCase):
         bounds = self.page.locator(".molgfx-canvas").bounding_box()
         self.assertIsNotNone(bounds)
         pick = {}
-        for _ in range(8):
+        # The fitted camera places the fixture atom at the canvas centre. The
+        # exact centre is also a coincident-impostor seam, so probe a bounded
+        # neighbourhood instead of repeatedly sampling the same pixel.
+        offsets = [(0, 0), (-6, 0), (6, 0), (0, -6), (0, 6),
+                   (-6, -6), (6, -6), (-6, 6), (6, 6)]
+        for dx, dy in offsets:
             before = self.page.evaluate("window.__molgfx.saved.length")
             self.page.mouse.click(
-                bounds["x"] + bounds["width"] / 2,
-                bounds["y"] + bounds["height"] / 2,
+                bounds["x"] + bounds["width"] / 2 + dx,
+                bounds["y"] + bounds["height"] / 2 + dy,
             )
             self.page.wait_for_function(
                 "(before) => window.__molgfx.saved.length > before", arg=before
@@ -310,9 +315,6 @@ class WorkbenchPageTests(unittest.TestCase):
             pick = self.page.evaluate("window.__molgfx.values.pick")
             if pick.get("kind") == "atom":
                 break
-            # The widget host becomes ready before SwiftShader's first pick
-            # readback. Retry across presented frames, not at arbitrary pixels.
-            self.page.wait_for_timeout(700)
         self.assertEqual(pick.get("kind"), "atom", pick)
         self.assertEqual(pick["dataset"], 1)
         self.assertIsInstance(pick["chunk"], int)
