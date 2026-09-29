@@ -23,7 +23,10 @@
 
 #![cfg(not(target_arch = "wasm32"))]
 
-use molgfx_core::{AtomSelection, ColorScheme, RepresentationKind, Scene, VisualStyle};
+use molgfx_core::{
+    AtomProperty, AtomPropertyMeaning, AtomSelection, CategoryPalette, ColorScheme,
+    RepresentationKind, ScalarFieldSemantics, Scene, VisualStyle,
+};
 use molgfx_math::{BoundingSphere, Camera, Rgba8, Vec3};
 use molgfx_render::{Engine, EngineConfig, ImageConfig, RenderMode};
 use molgfx_wgpu::WgpuDevice;
@@ -76,17 +79,58 @@ ATOM 3 O O  . GLY A 1 1 3.0 1.0 0.0 1.00 10.0 1 A 1
     }
 }
 
+/// A colour scheme, before the scene it colours exists.
+///
+/// A categorical scheme reads a property column of its scene, so it can only be
+/// turned into an engine scheme once that scene has the column.
+#[derive(Clone, Copy, Debug)]
+enum Scheme {
+    Fixed(ColorScheme),
+    Category(CategoryPalette),
+}
+
+impl Scheme {
+    fn resolve(self, scene: &mut Scene) -> ColorScheme {
+        match self {
+            Self::Fixed(scheme) => scheme,
+            Self::Category(palette) => {
+                let Some((structure, placed)) = scene.structures().next() else {
+                    panic!("fixture has a structure")
+                };
+                let categories: Vec<f32> = (0..placed.atoms.len())
+                    .map(|atom| u16::try_from(atom).map_or(0.0, f32::from))
+                    .collect();
+                let column = match AtomProperty::new(
+                    structure,
+                    std::sync::Arc::<str>::from("categories"),
+                    categories.into(),
+                    AtomPropertyMeaning::Generic,
+                    ScalarFieldSemantics::UncalibratedRank,
+                ) {
+                    Ok(column) => column,
+                    Err(error) => panic!("category column builds: {error}"),
+                };
+                let Ok(handle) = scene.add_atom_property(column) else {
+                    panic!("category column binds")
+                };
+                ColorScheme::category(handle, palette)
+            }
+        }
+    }
+}
+
 /// A scene with two spacefill representations sharing one selection.
 ///
 /// Two representations over one selection is the configuration every sharing
 /// change in the engine exists to serve, so it is also the one a real device
 /// should be asked to compile pipelines for.
-fn scene(scheme: ColorScheme, style: Option<&VisualStyle>) -> Scene {
+fn scene(scheme: Scheme, style: Option<&VisualStyle>) -> Scene {
     let mut scene = Scene::new();
     let source = structure();
     if let Err(error) = scene.add_structure(&source) {
         panic!("fixture structure places: {error}");
     }
+    let scheme = scheme.resolve(&mut scene);
     let selection = scene.add_selection(AtomSelection::All);
     for order in 0..2 {
         let Ok(handle) = scene.represent(selection, RepresentationKind::Spacefill) else {
@@ -141,11 +185,10 @@ fn every_colour_scheme_builds_its_pipelines_on_a_real_device() {
     // pipeline validation. A binding the shader stage needs and the layout does
     // not declare surfaces here and nowhere else in the suite.
     for scheme in [
-        ColorScheme::ByElement,
-        ColorScheme::ByChain,
-        ColorScheme::ByResidue,
-        ColorScheme::BySecondaryStructure,
-        ColorScheme::Uniform(Rgba8::opaque(12, 34, 56)),
+        Scheme::Fixed(ColorScheme::ByElement),
+        Scheme::Category(CategoryPalette::Kelly),
+        Scheme::Category(CategoryPalette::MoleculeType),
+        Scheme::Fixed(ColorScheme::Uniform(Rgba8::opaque(12, 34, 56))),
     ] {
         let image = render(&scene(scheme, None));
         assert_eq!(
@@ -177,7 +220,7 @@ fn a_styled_scene_builds_its_pipelines_on_a_real_device() {
         panic!("style builds")
     };
     let style = VisualStyle::new(program);
-    let image = render(&scene(ColorScheme::ByElement, Some(&style)));
+    let image = render(&scene(Scheme::Fixed(ColorScheme::ByElement), Some(&style)));
     assert_eq!((image.width, image.height), (WIDTH, HEIGHT));
 }
 
@@ -189,7 +232,7 @@ fn a_surface_scene_builds_its_pipelines_on_a_real_device() {
     // every stage rather than narrowing it.
     // The scene helper already added a selection for its spacefill pair, so the
     // surface reuses the same rows.
-    let mut scene = scene(ColorScheme::ByChain, None);
+    let mut scene = scene(Scheme::Category(CategoryPalette::Kelly), None);
     let selection = match scene.representations().next() {
         Some((representation, _)) => match scene.representation(representation) {
             Some(representation) => match representation.selection() {
@@ -230,7 +273,7 @@ fn the_first_frame_pays_the_specialization_stall_once() {
         panic!("style builds")
     };
     let style = VisualStyle::new(program);
-    let scene = scene(ColorScheme::ByElement, Some(&style));
+    let scene = scene(Scheme::Fixed(ColorScheme::ByElement), Some(&style));
 
     let config = EngineConfig {
         mode: RenderMode::Realtime,

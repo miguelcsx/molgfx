@@ -185,7 +185,7 @@ fn construction_breakdown(criterion: &mut Criterion) {
         );
         let facade_source = molgfx_core::MolecularSource::from_molframe(&source);
         let _ = group.bench_function(BenchmarkId::new("structure_hash", atoms(residues)), |b| {
-            b.iter(|| black_box(molgfx_api::structure_hash(black_box(&facade_source)).len()));
+            b.iter(|| black_box(molgfx_scene::structure_hash(black_box(&facade_source)).len()));
         });
         let _ = group.bench_function(
             BenchmarkId::new("facade_from_source", atoms(residues)),

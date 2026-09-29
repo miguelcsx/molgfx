@@ -28,7 +28,7 @@ criterion.workspace = true
 # dev-dependencies: the harness itself still reaches the engine through the
 # facade alone, and nothing in the workspace depends on this crate.
 molgfx-core = { path = "../molgfx-core" }
-molgfx-api = { path = "../molgfx-api" }
+molgfx-scene = { path = "../molgfx-scene" }
 molgfx-geometry = { path = "../molgfx-geometry" }
 molgfx-render = { path = "../molgfx-render" }
 [[bench]]
@@ -61,3 +61,7 @@ path = "src/bin/resources.rs"
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "frame_time"
+path = "src/bin/frame_time.rs"

@@ -46,8 +46,9 @@ pub(super) fn binding(
             *slot = Primitive::particle(particle);
             handle
         }
-        None => scene
+        None => *scene
             .add_primitives(&[Primitive::particle(particle)])?
+            .first()
             .ok_or(CoreError::InvalidPrimitive {
                 reason: "non-empty LOD batch produced no handle",
             })?,

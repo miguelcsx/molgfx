@@ -8,29 +8,31 @@
 #![forbid(unsafe_code)]
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use molgfx_api::Image;
-pub use molgfx_api::Renderer;
+pub use molgfx_scene::FrameTiming;
 #[cfg(not(target_arch = "wasm32"))]
-pub use molgfx_api::{AdapterReport, SystemInfo, system_info};
-pub use molgfx_api::{
+pub use molgfx_scene::Image;
+pub use molgfx_scene::Renderer;
+#[cfg(not(target_arch = "wasm32"))]
+pub use molgfx_scene::{AdapterReport, SystemInfo, system_info};
+pub use molgfx_scene::{
     Anchor, AnnotationId, AnnotationSpec, AppearanceRuleId, AppearanceRuleSpec, Camera, Color,
-    ColorSpec, Error, InteractionChannel, InteractionKind, Legend, LegendStop,
-    MAX_APPEARANCE_CLASSES, MeasurementId, MeasurementSpec, Parameter, ParameterType,
-    ParameterValue, PatchError, PickKind, PickResult, Quality, RenderProfile, RepresentationId,
-    RepresentationSpec, ScalarProperty, ScalarPropertyBinding, Scene, SceneItem, ScenePatch,
-    SceneSpec, SceneTransaction, ScientificInteractionId, ScientificInteractionSpec, Selection,
+    ColorSpec, DepthCue, EllipsoidId, EllipsoidSpec, Error, InteractionChannel, InteractionId,
+    InteractionKind, InteractionSpec, Legend, LegendStop, MAX_APPEARANCE_CLASSES, MeasurementId,
+    MeasurementSpec, Parameter, ParameterType, ParameterValue, PatchError, PickKind, PickResult,
+    Quality, RenderProfile, RepresentationId, RepresentationSpec, ScalarProperty,
+    ScalarPropertyBinding, Scene, SceneItem, ScenePatch, SceneSpec, SceneTransaction, Selection,
     StructureId, TrajectoryId, TrajectorySpec, VisualStyle, VolumeId, VolumeSpec, molframe,
 };
 
-pub use molgfx_api::{ScientificHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding};
-pub use molgfx_api::{annotation, density, interaction, measurement, trajectory};
+pub use molgfx_scene::{OverlayHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding};
+pub use molgfx_scene::{annotation, density, ellipsoid, interaction, measurement, trajectory};
 
 /// Binding caller-owned molecular storage, for language bindings and embedders.
 pub mod source {
-    pub use molgfx_api::molframe::Structure;
-    pub use molgfx_api::source::{
+    pub use molgfx_scene::molframe::Structure;
+    pub use molgfx_scene::source::{
         AtomSelection, CoreError, MolecularProvider, MolecularSource, SourceAtom, SourceBond,
-        SourceTopology, topology_identity,
+        SourceTopology, is_metal_atomic_number, topology_identity,
     };
 
     /// Re-parses a transported molecular payload into the structural model.
@@ -44,8 +46,8 @@ pub mod source {
     /// Returns `None` when the payload is not a supported structure.
     #[must_use]
     pub fn structure_from_payload(bytes: &[u8], name: &str) -> Option<Structure> {
-        let options = molgfx_api::molframe::ReadOptions::new();
-        molgfx_api::molframe::read_bytes(bytes.to_vec(), Some(name), &options)
+        let options = molgfx_scene::molframe::ReadOptions::new();
+        molgfx_scene::molframe::read_bytes(bytes.to_vec(), Some(name), &options)
             .ok()
             .map(|(structure, _)| structure)
     }
@@ -53,27 +55,28 @@ pub mod source {
 
 /// Low-level wire-schema values.
 pub mod schema {
-    pub use molgfx_api::{DataSource, PatchOperation, StructureSource};
+    pub use molgfx_scene::{DataSource, PatchOperation, StructureSource};
 }
 
 /// Validated camera construction from facade-native values.
 pub mod camera {
-    pub use molgfx_api::camera::perspective;
+    pub use molgfx_scene::camera::perspective;
 }
 
 /// Immutable representation specifications and constructors.
 pub mod rep {
-    pub use molgfx_api::rep::{
-        BallAndStick, BasePairs, Bases, Cartoon, CartoonStyle, Glycan, Licorice, Lines,
-        NucleicAcid, PointRepresentation, Spacefill, Surface, SurfaceKind, SurfaceStyle,
-        ball_and_stick, base_pairs, bases, cartoon, glycan, licorice, lines, nucleic_acid, points,
-        spacefill, surface,
+    pub use molgfx_scene::rep::{
+        Backbone, BallAndStick, BasePairs, Bases, Beads, Cartoon, CartoonStyle, Dots, Glycan,
+        Licorice, Lines, NucleicAcid, PointRepresentation, Putty, Spacefill, Surface, SurfaceKind,
+        SurfaceStyle, Trace, Tube, backbone, ball_and_stick, base_pairs, bases, beads, cartoon,
+        dots, glycan, licorice, lines, nucleic_acid, points, putty, spacefill, surface, trace,
+        tube,
     };
 }
 
 /// `MolFrame`'s exact molecular selection-expression surface.
 pub mod sel {
-    pub use molgfx_api::sel::{
+    pub use molgfx_scene::sel::{
         Builder, ColumnBuilder, all, aromatic, backbone, by_residue, chain, col, glycans, heavy,
         hetero, hydrogen, ions, ligands, lipids, name, none, nucleic, nucleic_backbone,
         nucleic_base, nucleic_sugar, occupancy, polymer, protein, residues_within, resname,
@@ -81,22 +84,30 @@ pub mod sel {
     };
 }
 
-/// Scientific color values and mappings.
+/// Color values and mappings.
 pub mod color {
-    pub use molgfx_api::color::{
-        Color, ColorSpec, Legend, LegendStop, chain, element, property, residue,
-        secondary_structure, uniform,
+    pub use molgfx_scene::color::{
+        AtomCategory, AtomMetric, Color, ColorSpec, Legend, LegendStop, carbon_by_chain, chain,
+        element, entity, metric, molecule_type, palette_names, property, ramp_names, residue,
+        residue_name, secondary_structure, uniform,
     };
+}
+
+/// Size-aware default representations.
+pub mod preset {
+    pub use molgfx_scene::preset::{StructureSize, auto_representations};
 }
 
 /// Adaptive rendering profiles.
 pub mod profile {
-    pub use molgfx_api::profile::{Quality, RenderProfile, adaptive, interactive, publication};
+    pub use molgfx_scene::profile::{
+        DepthCue, Quality, RenderProfile, adaptive, interactive, publication,
+    };
 }
 
 /// Typed immutable visual-expression DAGs.
 pub mod visual {
-    pub use molgfx_api::visual::{
+    pub use molgfx_scene::visual::{
         BoolExpr, ColorExpr, Parameter, ParameterType, ParameterValue, ScalarExpr, VectorExpr,
         VisualStyle,
     };
@@ -104,7 +115,7 @@ pub mod visual {
 
 /// Bounded provider-neutral data streaming.
 pub mod streaming {
-    pub use molgfx_api::streaming::{
+    pub use molgfx_scene::streaming::{
         Cancellation, Chunk, DataSource, Limits, Metadata, Priority, Request, Scheduler,
         SourceError,
     };
@@ -112,7 +123,7 @@ pub mod streaming {
 
 /// Portable scene interchange.
 pub mod interop {
-    pub use molgfx_api::interop::{
+    pub use molgfx_scene::interop::{
         Diagnostic, MvsDocument, MvsImport, from_mvsj, from_mvsx, to_mvsj, to_mvsx,
     };
 }

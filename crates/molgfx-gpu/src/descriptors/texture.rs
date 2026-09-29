@@ -27,7 +27,7 @@ pub enum TextureFormat {
     R8Unorm,
     /// Single 32-bit unsigned integer; the entity-id channel.
     R32Uint,
-    /// Single 32-bit float channel; scientific scalar density grids.
+    /// Single 32-bit float channel; physical scalar density grids.
     R32Float,
     /// 32-bit float depth, used with reversed depth.
     Depth32Float,
