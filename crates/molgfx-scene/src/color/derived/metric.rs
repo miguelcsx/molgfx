@@ -68,11 +68,10 @@ impl AtomMetric {
     pub const fn ramp(self) -> &'static str {
         match self {
             Self::Occupancy => "purples",
-            Self::BFactor => "blue_white_red",
+            Self::BFactor | Self::Sasa => "blue_white_red",
             Self::FormalCharge => "red_white_blue",
             Self::Hydrophobicity => "red_yellow_green",
             Self::SequencePosition => "rainbow",
-            Self::Sasa => "blue_white_red",
         }
     }
 
@@ -81,13 +80,12 @@ impl AtomMetric {
     pub const fn domain(self) -> [f32; 2] {
         match self {
             Self::Occupancy | Self::SequencePosition => [0.0, 1.0],
-            Self::BFactor => [0.0, 100.0],
             Self::FormalCharge => [-2.0, 2.0],
             Self::Hydrophobicity => [-4.5, 4.5],
             // A fully exposed atom in a protein is at most a few square
             // ångström per atom; this range covers an exposed-to-buried spread
             // and clamps the rare buried outlier.
-            Self::Sasa => [0.0, 100.0],
+            Self::BFactor | Self::Sasa => [0.0, 100.0],
         }
     }
 
