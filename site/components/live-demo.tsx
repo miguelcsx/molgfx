@@ -35,10 +35,24 @@ const examplePdb = [
 ].join('\n');
 
 const options = {
-  // Oxyhaemoglobin, fetched from the RCSB by the visitor's browser.
+  // Oxyhaemoglobin, fetched from the RCSB by the visitor's browser. Four haem
+  // groups, four chains: enough to show cartoon, surface, ligand and labelling
+  // at once.
   structure: { name: '1hho.cif', url: 'https://files.rcsb.org/download/1HHO.cif' },
   fallback: { name: 'alanine-helix.pdb', data: examplePdb },
-  program: 'show cartoon, protein; color chain, @cartoon; show spacefill, ligand',
+  // One program shows the engine's range: a query-driven pocket, four
+  // representations combined on the same scene, chain colouring of the pocket,
+  // a label and a framed focus.
+  program: [
+    'select heme, resname HEM',
+    'select pocket, byres (within 5 of $heme) and protein',
+    'show cartoon color=chain, protein',
+    'show surface style=soft_union opacity=0.35, protein',
+    'show ball_and_stick radius=0.25 as pocket, $pocket',
+    'show spacefill color=orange, $heme',
+    'label "heme", $heme',
+    'focus $heme',
+  ].join('; '),
 };
 
 type Mount = (root: HTMLElement, mountOptions: typeof options) => () => void;

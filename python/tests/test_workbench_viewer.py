@@ -214,38 +214,47 @@ class WorkbenchPageTests(unittest.TestCase):
                 let maximum = 0;
                 let calls = 0;
                 const pending = [];
-                runtime.Renderer.prototype.pick = function (x, y) {
+                runtime.Renderer.prototype.beginPick = function (x, y) {
                     calls += 1;
                     active += 1;
                     maximum = Math.max(maximum, active);
-                    return new Promise((resolve) => pending.push(() => {
+                    return { resolve: () => new Promise((resolve) => pending.push(() => {
                         active -= 1;
-                        resolve(JSON.stringify({x, y}));
-                    }));
+                        resolve(new Uint8Array([x, y]));
+                    })) };
                 };
+                runtime.Renderer.prototype.finishPick = (scene, bytes) => JSON.stringify({x: bytes[0], y: bytes[1]});
                 const canvas = document.querySelector(".molgfx-canvas");
                 const move = (x) => canvas.dispatchEvent(new PointerEvent("pointermove", {
                     clientX: x, clientY: 50, pointerId: 1, bubbles: true,
                 }));
+                const frames = (n) => new Promise((resolve) => requestAnimationFrame(() => n > 1 ? frames(n - 1).then(resolve) : resolve()));
+                // A burst of moves inside one frame must coalesce to a single readback.
                 for (let x = 10; x < 110; x += 1) move(x);
-                await new Promise((resolve) => requestAnimationFrame(resolve));
-                const beforeRelease = [calls, maximum, pending.length];
+                await frames(1);
+                const burst = [calls, maximum, pending.length];
                 pending.shift()();
-                await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                await frames(2);
+                // A later move re-arms the coalescer: exactly one more readback.
+                move(200);
+                await frames(1);
+                const resumed = [calls, maximum];
                 while (pending.length) pending.shift()();
-                return {beforeRelease, calls, maximum};
+                return {burst, resumed};
             }"""
         )
-        self.assertLessEqual(result["maximum"], 1)
-        self.assertLessEqual(result["beforeRelease"][0], 1)
-        self.assertGreaterEqual(result["calls"], 2)
+        self.assertLessEqual(result["burst"][0], 1)
+        self.assertLessEqual(result["burst"][1], 1)
+        self.assertGreaterEqual(result["resumed"][0], 2)
+        self.assertLessEqual(result["resumed"][1], 1)
 
     def test_hover_does_not_save_changes_to_the_kernel(self):
         saved = self.page.evaluate(
             """async () => {
                 const {loadRuntime} = await import("./widget.js");
                 const runtime = await loadRuntime(window.__molgfx.model);
-                runtime.Renderer.prototype.pick = () => Promise.resolve(JSON.stringify({hover: true}));
+                runtime.Renderer.prototype.beginPick = () => ({ resolve: () => Promise.resolve(new Uint8Array()) });
+                runtime.Renderer.prototype.finishPick = () => JSON.stringify({hover: true});
                 const before = window.__molgfx.saved.length;
                 document.querySelector(".molgfx-canvas").dispatchEvent(new PointerEvent("pointermove", {
                     clientX: 30, clientY: 50, pointerId: 1, bubbles: true,
@@ -262,16 +271,17 @@ class WorkbenchPageTests(unittest.TestCase):
                 const {loadRuntime} = await import("./widget.js");
                 const runtime = await loadRuntime(window.__molgfx.model);
                 let resolvePick;
-                runtime.Renderer.prototype.pick = () => new Promise((resolve) => {
-                    resolvePick = resolve;
+                runtime.Renderer.prototype.beginPick = () => ({
+                    resolve: () => new Promise((resolve) => { resolvePick = resolve; }),
                 });
+                runtime.Renderer.prototype.finishPick = () => JSON.stringify({stale: true});
                 const canvas = document.querySelector(".molgfx-canvas");
                 canvas.dispatchEvent(new PointerEvent("pointermove", {
                     clientX: 30, clientY: 50, pointerId: 1, bubbles: true,
                 }));
                 await new Promise((resolve) => requestAnimationFrame(resolve));
                 canvas.dispatchEvent(new PointerEvent("pointerleave", {bubbles: true}));
-                resolvePick(JSON.stringify({stale: true}));
+                resolvePick(new Uint8Array());
                 await new Promise((resolve) => setTimeout(resolve, 25));
                 return [window.__molgfx.values.pick, window.__molgfx.values.selection];
             }"""
