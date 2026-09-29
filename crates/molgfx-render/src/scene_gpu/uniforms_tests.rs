@@ -1,4 +1,5 @@
 use super::*;
+use crate::scene_gpu::detail::FINEST_SURFACE_SPACING as SURFACE_GRID_TARGET_SPACING;
 
 #[test]
 fn surface_grid_uses_angstrom_spacing_until_the_dimension_cap() {
@@ -7,7 +8,7 @@ fn surface_grid_uses_angstrom_spacing_until_the_dimension_cap() {
 }
 
 #[test]
-fn realtime_surface_grid_halves_each_axis_without_changing_quality_spacing() {
+fn a_coarser_target_spacing_shrinks_the_grid_without_changing_the_finest_spacing() {
     use molgfx_core::{AtomSelection, Representation, RepresentationKind, Scene};
 
     let mut scene = Scene::new();
@@ -17,8 +18,13 @@ fn realtime_surface_grid_halves_each_axis_without_changing_quality_spacing() {
         RepresentationKind::Surface,
     );
     let bounds = Aabb::from_points([Vec3::ZERO, Vec3::splat(10.0)]);
-    let realtime = RepresentationUniforms::for_quality(&representation, bounds, None, false);
-    let quality = RepresentationUniforms::for_quality(&representation, bounds, None, true);
+    let realtime = RepresentationUniforms::for_spacing(&representation, bounds, None, 0.5);
+    let quality = RepresentationUniforms::for_spacing(
+        &representation,
+        bounds,
+        None,
+        SURFACE_GRID_TARGET_SPACING,
+    );
 
     assert!((realtime.grid_cell[0] - 0.5).abs() < f32::EPSILON);
     assert!((quality.grid_cell[0] - 0.25).abs() < f32::EPSILON);
@@ -303,13 +309,12 @@ fn scalar_overlay_uniforms_preserve_domain_dimensions_and_contour_units() {
         scene.volume(volume),
     );
     assert_eq!(uniforms.overlay_size, [3, 4, 5, 1]);
-    for (actual, expected) in uniforms
-        .overlay_domain
-        .into_iter()
-        .zip([-2.0, 0.0, 2.0, 0.5])
-    {
-        assert!((actual - expected).abs() < f32::EPSILON);
-    }
+    // The shader multiplies by the reciprocal, so a half-ångström-per-unit
+    // interval reaches it as two contours per unit.
+    assert!((uniforms.overlay_contour[0] - 2.0).abs() < f32::EPSILON);
+    let [first, scale] = uniforms.overlay_ramp.domain_probe();
+    assert!((first + 2.0).abs() < f32::EPSILON);
+    assert!((scale - 255.0 / 4.0).abs() < 1.0e-4);
     assert!((uniforms.overlay_visual[0] - 1.25).abs() < f32::EPSILON);
 }
 

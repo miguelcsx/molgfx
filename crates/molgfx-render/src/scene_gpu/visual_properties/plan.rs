@@ -191,16 +191,16 @@ impl<D: Device> VisualPropertyTable<D> {
 fn collect_attribute_references(scene: &Scene, references: &mut Vec<VisualAttributeRef>) {
     references.clear();
     for (_, representation) in scene.representations() {
-        // A colour scheme reads one scalar column; it is planned here so
-        // the shader can sample it from the same arena visual programs use.
-        if let Some(handle) = representation.color.property_handle() {
-            references.push(VisualAttributeRef::LegacyScalar(handle));
-        }
-        // A selection-scoped overlay reads its class column from the same
-        // arena, so it is planned alongside the scheme's own column.
-        if let Some(overlay) = representation.color_overlay {
-            references.push(VisualAttributeRef::LegacyScalar(overlay.classes()));
-        }
+        // Colour reads scalar columns (the scheme's own, the overlay's class
+        // and per-class columns, and the appearance mapping's); each is
+        // planned here so the shader samples it from the arena visual
+        // programs use.
+        references.extend(
+            representation
+                .color_columns()
+                .handles()
+                .map(VisualAttributeRef::LegacyScalar),
+        );
         let Some(style) = &representation.visual else {
             continue;
         };

@@ -12,7 +12,7 @@ use crate::scene_gpu::sync::GpuScene;
 use crate::scene_gpu::sync::properties;
 use crate::scene_gpu::visual_parameters::VisualParameterTable;
 use crate::scene_gpu::visual_properties::VisualPropertyTable;
-use molgfx_core::{AtomProperty, AtomSelection, Scene};
+use molgfx_core::{AtomSelection, Scene};
 use molgfx_gpu::Device;
 
 /// Frame inputs every slot in one pass shares.
@@ -22,6 +22,7 @@ struct SlotInputs<'a, D: Device> {
     queue: &'a D::Queue,
     scene: &'a Scene,
     quality: bool,
+    detail: crate::scene_gpu::detail::TierDetail,
     ray_query_layout: Option<&'a D::BindGroupLayout>,
 }
 
@@ -66,6 +67,7 @@ impl<D: Device> GpuScene<D> {
         queue: &D::Queue,
         scene: &Scene,
         quality: bool,
+        detail: crate::scene_gpu::detail::TierDetail,
         ray_query_layout: Option<&D::BindGroupLayout>,
     ) -> Result<bool, RenderError> {
         let inputs = SlotInputs {
@@ -73,6 +75,7 @@ impl<D: Device> GpuScene<D> {
             queue,
             scene,
             quality,
+            detail,
             ray_query_layout,
         };
         let arena = self.indirect.buffer();
@@ -121,8 +124,7 @@ struct Resolved<'a, D: Device> {
     acceleration: Option<&'a SharedAcceleration<D>>,
     selection: &'a AtomSelection,
     selection_handle: molgfx_core::SelectionHandle,
-    color_property: Option<&'a AtomProperty>,
-    appearance_property: Option<&'a AtomProperty>,
+    color: molgfx_geometry::ColorContext<'a>,
     property_revisions: [u64; 2],
     visual_property_revisions: [u64; 4],
     visual_property_offsets: [u32; 4],
@@ -145,7 +147,7 @@ fn resolve<'a, D: Device>(
     let selection_handle = representation.selection()?;
     let selection = scene.selection_for(selection_handle, slot.key.structure)?;
     let representation_revision = scene.representation_content_revision(slot.key.representation)?;
-    let (color_property, appearance_property, property_revisions) =
+    let (color, property_revisions) =
         properties::resolve(scene, representation, slot.key.structure);
     let (_, visual_property_revisions) =
         properties::resolve_visual(scene, representation, slot.key.structure);
@@ -182,8 +184,7 @@ fn resolve<'a, D: Device>(
         acceleration: shared.acceleration.get(record_key),
         selection,
         selection_handle,
-        color_property,
-        appearance_property,
+        color,
         property_revisions,
         visual_property_revisions,
         visual_property_offsets: visual_attributes.offsets,
@@ -209,6 +210,7 @@ fn sync_one_slot<D: Device>(
         queue,
         scene,
         quality,
+        detail,
         ray_query_layout,
     } = *inputs;
     let Some(placed) = scene.structure(slot.key.structure) else {
@@ -259,6 +261,7 @@ fn sync_one_slot<D: Device>(
         overlay_view: resolved.overlay_view,
         overlay_binding_revision: resolved.overlay_binding_revision,
         quality,
+        detail,
         frame: shared.frame,
         cull_tiles: shared.cull_tiles,
         cull_binding_revision: shared.cull_binding_revision,
@@ -271,8 +274,7 @@ fn sync_one_slot<D: Device>(
         representation_revision: resolved.representation_revision,
         selection: resolved.selection,
         selection_handle: resolved.selection_handle,
-        color_property: resolved.color_property,
-        appearance_property: resolved.appearance_property,
+        color: resolved.color,
         property_revisions: resolved.property_revisions,
         visual_property_buffer: shared.visual_properties.buffer(),
         visual_program_buffer: shared.visual_programs.buffer(),

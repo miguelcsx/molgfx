@@ -13,8 +13,6 @@ use overlay::overlay_uniforms;
 mod overlay;
 
 pub(super) const SURFACE_GRID_MAX_DIMENSION: u32 = 192;
-const SURFACE_GRID_TARGET_SPACING: f32 = 0.25;
-const SURFACE_GRID_REALTIME_SPACING: f32 = 0.5;
 /// Bounded hybrid traversal budget for a persistent grid.
 ///
 /// Each iteration crosses at least one cell and empty-space distances skip
@@ -83,8 +81,10 @@ pub(crate) struct FrameUniforms {
     pub viewport: [f32; 4],
     /// History, quality and publication flags followed by sample index.
     pub temporal: [f32; 4],
-    /// Silhouette, cavity and depth-cue strengths followed by focus distance.
+    /// Silhouette, cavity and legacy relative depth-cue strengths followed by focus distance.
     pub illustration: [f32; 4],
+    /// Explicit near distance, far distance, strength and reserved lane.
+    pub depth_cue: [f32; 4],
     /// Non-photorealistic lane: cel-shading band count in x, spare in yzw.
     pub npr: [f32; 4],
     /// Focus distance, aperture scale, maximum blur radius and blade count.
@@ -118,6 +118,7 @@ pub(crate) struct TemporalFrame {
     pub(crate) quality: bool,
     pub(crate) publication: bool,
     pub(crate) illustration: [f32; 4],
+    pub(crate) depth_cue: [f32; 4],
     pub(crate) npr: [f32; 4],
     pub(crate) optics: [f32; 4],
     pub(crate) motion_blur: [f32; 4],
@@ -173,6 +174,7 @@ impl FrameUniforms {
                 )),
             ],
             illustration: temporal.illustration,
+            depth_cue: temporal.depth_cue,
             npr: temporal.npr,
             optics: temporal.optics,
             motion_blur: temporal.motion_blur,
@@ -223,10 +225,10 @@ pub(super) struct RepresentationUniforms {
     pub(super) clip_meta: [u32; 4],
     /// World-space position to caller scalar-grid coordinates.
     pub(super) overlay_world_to_voxel: [[f32; 4]; 4],
-    /// Low, center and high scalar stops followed by contour interval.
-    pub(super) overlay_domain: [f32; 4],
-    /// Colors corresponding to the three scalar stops.
-    pub(super) overlay_colors: [[f32; 4]; 3],
+    /// The reciprocal contour interval in `x`, or zero for no contours.
+    pub(super) overlay_contour: [f32; 4],
+    /// The caller's scalar ramp, baked to a lookup table.
+    pub(super) overlay_ramp: super::ramp_lut::RampLut,
     /// Grid dimensions followed by an enabled sentinel.
     pub(super) overlay_size: [u32; 4],
     /// Contour half-width and normal sampling offset.
@@ -244,14 +246,21 @@ impl RepresentationUniforms {
         bounds: Aabb,
         overlay_volume: Option<&ScalarVolume>,
     ) -> Self {
-        Self::for_quality(representation, bounds, overlay_volume, true)
+        Self::for_spacing(
+            representation,
+            bounds,
+            overlay_volume,
+            super::detail::FINEST_SURFACE_SPACING,
+        )
     }
 
-    pub(super) fn for_quality(
+    /// Uniforms for a surface field sampled at `target_spacing` ångström, coarsened
+    /// only where the grid would exceed its dimension cap.
+    pub(super) fn for_spacing(
         representation: &Representation,
         bounds: Aabb,
         overlay_volume: Option<&ScalarVolume>,
-        quality: bool,
+        target_spacing: f32,
     ) -> Self {
         let gaussian = representation.params.surface_kind == SurfaceKind::Gaussian;
         let sigma = representation.params.gaussian_sigma.max(0.05);
@@ -275,11 +284,6 @@ impl RepresentationUniforms {
         let maximum = bounds.max + Vec3::splat(probe);
         let extent = maximum - minimum;
         let max_divisions = dimension_f32(SURFACE_GRID_MAX_DIMENSION.saturating_sub(1));
-        let target_spacing = if quality {
-            SURFACE_GRID_TARGET_SPACING
-        } else {
-            SURFACE_GRID_REALTIME_SPACING
-        };
         let cell = (extent.max_element() / max_divisions).max(target_spacing);
         let dimensions = [
             axis_cells(extent.x, cell),
@@ -318,12 +322,12 @@ impl RepresentationUniforms {
             clip_planes: clip_planes(&representation.clipping),
             clip_meta: clip_meta(&representation.clipping),
             overlay_world_to_voxel: overlay.world_to_voxel,
-            overlay_domain: overlay.domain,
-            overlay_colors: overlay.colors,
+            overlay_contour: overlay.contour,
+            overlay_ramp: overlay.ramp,
             overlay_size: overlay.size,
             overlay_visual: overlay.visual,
             material: material_uniforms(representation.material),
-            presentation: presentation_uniforms(representation.material),
+            presentation: presentation_uniforms(representation),
         }
     }
 }
@@ -334,10 +338,10 @@ pub(super) fn write_representation_uniforms<D: Device>(
     representation: &Representation,
     bounds: Aabb,
     overlay_volume: Option<&ScalarVolume>,
-    quality: bool,
+    target_spacing: f32,
 ) {
     let value =
-        RepresentationUniforms::for_quality(representation, bounds, overlay_volume, quality);
+        RepresentationUniforms::for_spacing(representation, bounds, overlay_volume, target_spacing);
     queue.write_buffer(buffer, 0, bytemuck::bytes_of(&value));
 }
 
@@ -358,7 +362,7 @@ impl ClipUniforms {
             planes: clip_planes(clipping),
             meta: clip_meta(clipping),
             material: material_uniforms(material),
-            presentation: presentation_uniforms(material),
+            presentation: presentation_uniforms_for_material(material),
             tube_mapping: [0.0; 4],
             tube: [0.0; 4],
         }
@@ -379,7 +383,7 @@ impl ClipUniforms {
             planes: clip_planes(&representation.clipping),
             meta: clip_meta(&representation.clipping),
             material: material_uniforms(representation.material),
-            presentation: presentation_uniforms(representation.material),
+            presentation: presentation_uniforms(representation),
             tube_mapping: [0.0; 4],
             tube: [
                 representation.params.tube_radius.abs().max(1.0e-6),
@@ -413,7 +417,33 @@ pub(super) fn material_uniforms(material: Material) -> [f32; 4] {
     ]
 }
 
-fn presentation_uniforms(material: Material) -> [f32; 4] {
+/// Presentation lanes for a representation: opacity, then the soft-union blend
+/// span when the style reads it.
+///
+/// The span rides in a presentation lane rather than a surface lane so the
+/// surface-uniform block keeps its four-lane shape and every existing shader
+/// layout is unchanged.
+fn presentation_uniforms(representation: &Representation) -> [f32; 4] {
+    let material = representation.material;
+    let span = if representation.params.surface_style == molgfx_core::SurfaceStyle::SoftUnion {
+        representation.params.blob_spread.max(0.0)
+    } else {
+        0.0
+    };
+    let opacity = f32::from(material.opacity_unorm8()) / 255.0;
+    let mut lanes = presentation_lanes(material);
+    lanes[0] = opacity;
+    lanes[1] = span;
+    lanes
+}
+
+/// Presentation lanes for a material alone, with no representation to read a
+/// style-specific control from.
+fn presentation_uniforms_for_material(material: Material) -> [f32; 4] {
+    presentation_lanes(material)
+}
+
+fn presentation_lanes(material: Material) -> [f32; 4] {
     [f32::from(material.opacity_unorm8()) / 255.0, 0.0, 0.0, 0.0]
 }
 

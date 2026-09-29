@@ -296,7 +296,7 @@ impl<D: Device> VisualSlot<D> {
 
     pub(super) fn sync(&mut self, input: &VisualSync<'_, D>) -> Result<bool, RenderError> {
         let Some(style) = input.style else {
-            let changed = self.ensure_fallback(input.device, input.queue)?;
+            let changed = self.ensure_fallback(input.device, input.queue, input.state_offset)?;
             self.entity_count = input.entity_count;
             return Ok(changed);
         };
@@ -432,7 +432,12 @@ impl<D: Device> VisualSlot<D> {
         Ok(changed)
     }
 
-    fn ensure_fallback(&mut self, device: &D, queue: &D::Queue) -> Result<bool, RenderError> {
+    fn ensure_fallback(
+        &mut self,
+        device: &D,
+        queue: &D::Queue,
+        state_offset: u32,
+    ) -> Result<bool, RenderError> {
         let mut changed = false;
         // The disabled path is intentionally allocation-only after its first
         // frame.  None of these buffers is read while `visual_enabled == 0`,
@@ -449,7 +454,8 @@ impl<D: Device> VisualSlot<D> {
             )?;
             changed = true;
         }
-        let config = VisualConfig::default();
+        let mut config = VisualConfig::default();
+        config.arena_offsets[2] = state_offset;
         let config_created = self.config.is_none();
         if config_created {
             self.config = Some(device.create_buffer(&BufferDesc {

@@ -31,7 +31,7 @@ impl<D: Device> GpuScene<D> {
         device: &D,
         queue: &D::Queue,
         scene: &Scene,
-        quality: bool,
+        surface_spacing: f32,
     ) -> Result<(), RenderError> {
         // Destructured so the slot list can be walked mutably while the shared
         // tables stay borrowed immutably, exactly as the binding pass does.
@@ -57,7 +57,7 @@ impl<D: Device> GpuScene<D> {
             let Some(selection) = scene.selection_for(selection_handle, slot.key.structure) else {
                 continue;
             };
-            let (_, _, property_revisions) =
+            let (_, property_revisions) =
                 super::properties::resolve(scene, representation, slot.key.structure);
             let record_key = RecordCache::<D>::key(
                 scene,
@@ -77,22 +77,16 @@ impl<D: Device> GpuScene<D> {
                     .resolve(placed, representation, selection)?;
             let (overlay_volume, _, _) =
                 scalar_overlay::resolve(volume_resources, scene, representation, fallback);
-            let uniforms = RepresentationUniforms::for_quality(
+            let uniforms = RepresentationUniforms::for_spacing(
                 representation,
                 selection_bounds,
                 overlay_volume,
-                quality,
+                surface_spacing,
             );
-            // The colour column is resolved from the same arena the visual
-            // programs sample, so a property scheme adds no second upload path.
-            if let Some(handle) = representation.color.property_handle() {
-                slot.adopt_color_column(self.visual_properties.color_column(handle));
-            }
-            // The overlay's class column rides in the same arena.
-            slot.adopt_overlay_column(match representation.color_overlay {
-                Some(overlay) => self.visual_properties.color_column(overlay.classes()),
-                None => [0, 1],
-            });
+            // Every colour column is resolved from the same arena the visual
+            // programs sample, so a property or category scheme, an overlay
+            // and an appearance mapping add no second upload path.
+            slot.adopt_color_columns(self.visual_properties.color_columns(representation));
             slot.surface
                 .resolve_key(&uniforms, representation, record_key.geometry(), atom_count);
             let Some(key) = slot.surface.key() else {
