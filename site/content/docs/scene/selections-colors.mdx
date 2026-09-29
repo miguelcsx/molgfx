@@ -29,6 +29,8 @@ scene.add(molgfx.rep.ball_and_stick(
 
 Available mappings are `uniform`, `element`, `chain`, `residue`, `secondary_structure`, and `property`. `property` takes a bound scalar property, a supported ramp, and an explicit domain. Its `ColorSpec.legend_json()` provides legend data for an application UI.
 
+A uniform colour in Python is an RGB triple or a `ColorSpec`: `color=(178, 34, 34)`. In command text, a colour may also be a named colour or a hex triple: `color firebrick, protein` and `color #b22222, protein` are the same rule. The named set covers the conventional element and presentation names; any other colour is written as hex.
+
 ## Opacity and visual state
 
 A representation ID gives direct scene controls:

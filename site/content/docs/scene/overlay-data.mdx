@@ -1,5 +1,5 @@
 ---
-title: Scientific data and guides
+title: Overlay data and guides
 description: Add labels, measurements, declared data sources, and explicit interactions to a scene.
 ---
 
@@ -19,7 +19,7 @@ scene.add(molgfx.measurement.distance(first, second))
 
 `measurement.angle` takes three anchors; `measurement.dihedral` takes four. Selection anchors use `molgfx.annotation.selection(structure=scene.structure_id, target="resname HEM")`.
 
-## Explicit scientific interactions
+## Explicit overlay interactions
 
 Author an interaction only when your application or upstream analysis supplies it:
 
@@ -31,15 +31,15 @@ scene.add(molgfx.interaction.explicit(
 ))
 ```
 
-The public interaction kinds are `hydrogen_bond`, `salt_bridge`, `pi_stacking`, `cation_pi`, `hydrophobic`, `metal_coordination`, and `contact`. MolGFX does not expose interaction detection; use MolFrame or another analysis step to establish the scientific result first.
+The public interaction kinds are `hydrogen_bond`, `salt_bridge`, `pi_stacking`, `cation_pi`, `hydrophobic`, `metal_coordination`, and `contact`. MolGFX does not expose interaction detection; use MolFrame or another analysis step to establish the overlay result first.
 
 ## Volumes, properties, and trajectories
 
-`molgfx.data.source()` declares the identity and optional location/format of an external scientific data source. It does not upload the payload. The portable scene specification intentionally carries descriptors rather than bulk volume or trajectory values.
+`molgfx.data.source()` declares the identity and optional location/format of an external overlay data source. It does not upload the payload. The portable scene specification intentionally carries descriptors rather than bulk volume or trajectory values.
 
 
 For scalar coloring, bind values to a structure with `scene.bind_property(...)`, then pass the returned property to `molgfx.color.property(...)`. Trajectory declarations use `molgfx.trajectory.bind(...)`; their frames must match the declared structure topology and source identity before a renderer can resolve them.
 
 <Callout type="info" title="Keep raw data outside the scene document">
-Use stable source hashes and let the application or binding provide the payload. This keeps scene JSON portable and makes failure to resolve a scientific source explicit instead of silently visualizing a different dataset.
+Use stable source hashes and let the application or binding provide the payload. This keeps scene JSON portable and makes failure to resolve a overlay source explicit instead of silently visualizing a different dataset.
 </Callout>
