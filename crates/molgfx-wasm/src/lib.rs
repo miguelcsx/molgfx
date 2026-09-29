@@ -12,4 +12,4 @@ mod session;
 pub use session::WebSession;
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-pub use contract::{WebRenderer, WebScene, WebScenePatch, WebSceneSpec};
+pub use contract::{WebPickReadback, WebRenderer, WebScene, WebScenePatch, WebSceneSpec};

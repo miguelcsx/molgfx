@@ -5,6 +5,25 @@ use crate::error::GpuError;
 use crate::{FenceValue, TextureWrite};
 use std::future::Future;
 
+/// A detached readback over one buffer.
+///
+/// The handle owns everything it needs to await a mapped range, so a caller
+/// can release every borrow of the renderer that submitted the copy before
+/// the wait begins. On the browser's single JavaScript thread that is what
+/// lets a frame render while a pick is still resolving its readback.
+pub trait Readback: std::fmt::Debug {
+    /// Awaits the mapped range and returns its bytes.
+    ///
+    /// # Errors
+    ///
+    /// The device was lost, or the buffer was not readable.
+    fn resolve(
+        &self,
+        offset: u64,
+        size: u64,
+    ) -> impl Future<Output = Result<Vec<u8>, GpuError>> + '_;
+}
+
 /// Uploads and submission. One submission per frame is the discipline the
 /// engine holds; the trait does not enforce it, the render loop does.
 pub trait Queue<D: Device> {
@@ -42,6 +61,12 @@ pub trait Queue<D: Device> {
         offset: u64,
         size: u64,
     ) -> impl Future<Output = Result<Vec<u8>, GpuError>> + 'a;
+
+    /// Detaches a readback handle over one buffer.
+    ///
+    /// The returned handle borrows nothing, so the caller is free to use the
+    /// device and queue while a [`Readback::resolve`] is still awaiting.
+    fn readback(&self, device: &D, buffer: &D::Buffer) -> D::Readback;
 
     /// Native convenience that waits for a mapped range. Browser callers use
     /// [`Self::read_buffer_async`].

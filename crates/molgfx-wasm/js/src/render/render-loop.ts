@@ -113,8 +113,16 @@ export class RenderLoop {
   }
 
   async #runPick(x: number, y: number, epoch: number): Promise<PickResult> {
+    // Record the pick and detach its readback, then await the bytes and resolve
+    // the identity. Every renderer call here is synchronous and complete before
+    // the wait, so no renderer borrow is ever held across the readback: the
+    // frame loop, a resize or a scene edit can run while it is in flight.
     try {
-      const result = await this.#renderer.pick(this.#scene, x, y);
+      const readback = this.#renderer.beginPick(x, y);
+      if (readback === undefined) return { performed: true };
+      const bytes = await readback.resolve();
+      if (epoch !== this.#sceneEpoch || this.#disposed) return { performed: false };
+      const result = this.#renderer.finishPick(this.#scene, bytes);
       if (epoch !== this.#sceneEpoch || this.#disposed) return { performed: false };
       return result === undefined ? { performed: true } : { performed: true, result };
     } finally {

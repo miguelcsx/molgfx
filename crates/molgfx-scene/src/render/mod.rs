@@ -179,32 +179,6 @@ impl Renderer {
             .map_err(Error::from)
     }
 
-    /// Asynchronously resolves the entity under one target pixel.
-    ///
-    /// # Errors
-    ///
-    /// Returns a typed readback or device error.
-    pub async fn pick_async(&mut self, x: u32, y: u32) -> Result<Option<PickResult>, Error> {
-        self.inner
-            .pick_async(x, y)
-            .await
-            .map(|pick| pick.as_ref().map(semantic_pick))
-            .map_err(Error::from)
-    }
-
-    /// Resolves the entity under one target pixel on native platforms.
-    ///
-    /// # Errors
-    ///
-    /// Returns a typed readback or device error.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn pick(&mut self, x: u32, y: u32) -> Result<Option<PickResult>, Error> {
-        self.inner
-            .pick(x, y)
-            .map(|pick| pick.as_ref().map(semantic_pick))
-            .map_err(Error::from)
-    }
-
     /// Renders one deterministic off-screen image, inferring a framing camera.
     ///
     /// # Errors
@@ -372,44 +346,6 @@ impl Renderer {
     }
 }
 
-fn semantic_pick(pick: &molgfx_render::Pick) -> PickResult {
-    match pick.entity {
-        molgfx_render::PickEntity::Structure(identity) => PickResult {
-            kind: pick_kind(identity.kind()),
-            dataset: Some(identity.dataset().get()),
-            chunk: Some(identity.chunk().get()),
-            row: Some(identity.row().get()),
-            volume_label: None,
-        },
-        molgfx_render::PickEntity::VolumeSegment(segment) => PickResult {
-            kind: PickKind::VolumeSegment,
-            dataset: None,
-            chunk: None,
-            row: None,
-            volume_label: Some(segment.label),
-        },
-    }
-}
-
-const fn pick_kind(kind: molgfx_core::EntityKind) -> PickKind {
-    match kind {
-        molgfx_core::EntityKind::Atom => PickKind::Atom,
-        molgfx_core::EntityKind::Bond => PickKind::Bond,
-        molgfx_core::EntityKind::Edge => PickKind::Interaction,
-        molgfx_core::EntityKind::Label => PickKind::Label,
-        molgfx_core::EntityKind::Measurement => PickKind::Measurement,
-        molgfx_core::EntityKind::Primitive => PickKind::Primitive,
-        molgfx_core::EntityKind::Mesh => PickKind::Mesh,
-        molgfx_core::EntityKind::LigandPoseBatch => PickKind::LigandPoseBatch,
-        molgfx_core::EntityKind::Guide => PickKind::Guide,
-        molgfx_core::EntityKind::DynamicBond => PickKind::DynamicBond,
-        molgfx_core::EntityKind::Point => PickKind::Point,
-        molgfx_core::EntityKind::Instance => PickKind::Instance,
-        molgfx_core::EntityKind::TemplatePart => PickKind::TemplatePart,
-        molgfx_core::EntityKind::Relation => PickKind::Relation,
-    }
-}
-
 fn engine_config(profile: RenderProfile) -> molgfx_render::EngineConfig {
     let mut presentation = match profile.quality {
         Quality::Publication => molgfx_render::RenderProfile::illustrative(),
@@ -442,6 +378,9 @@ fn engine_config(profile: RenderProfile) -> molgfx_render::EngineConfig {
         ..molgfx_render::EngineConfig::default()
     }
 }
+
+mod pick;
+pub use pick::PickReadback;
 
 #[cfg(test)]
 mod tests;

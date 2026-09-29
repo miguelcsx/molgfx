@@ -12,7 +12,7 @@ use crate::descriptors::{
 };
 use crate::encoder::CommandEncoder;
 use crate::error::GpuError;
-use crate::queue::Queue;
+use crate::queue::{Queue, Readback};
 use crate::surface::Surface;
 use crate::{
     BlasDesc, RayQueryBindGroupDesc, RayQueryBindGroupLayoutDesc, RayQueryLimits, TlasDesc,
@@ -135,6 +135,8 @@ pub trait Device: Sized + 'static {
     type CommandEncoder: CommandEncoder<Self>;
     /// Submission queue.
     type Queue: Queue<Self>;
+    /// A detached readback over one of this device's buffers.
+    type Readback: Readback;
     /// Presentation surface.
     type Surface: Surface<Self>;
 

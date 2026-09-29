@@ -16,6 +16,7 @@ impl molgfx_gpu::Device for MockDevice {
     type Tlas = MockTlas;
     type CommandEncoder = MockEncoder;
     type Queue = MockQueue;
+    type Readback = MockReadback;
     type Surface = MockSurface;
 
     async fn open_async(

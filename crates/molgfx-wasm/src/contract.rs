@@ -417,23 +417,64 @@ impl WebRenderer {
         x: u32,
         y: u32,
     ) -> Result<Option<String>, JsError> {
-        let Some(pick) = self
-            .inner
-            .pick_async(x, y)
-            .await
-            .map_err(javascript_error)?
-        else {
+        let Some(readback) = self.begin_pick(x, y)? else {
             return Ok(None);
         };
+        let bytes = readback.resolve().await?;
+        self.finish_pick(scene, &bytes)
+    }
+
+    /// Records one pixel pick and detaches its readback.
+    ///
+    /// The returned handle borrows nothing, so a caller may render while the
+    /// readback is awaited. `undefined` means the pixel is outside the target
+    /// or nothing is drawable. Hand the resolved bytes to [`Self::finish_pick`].
+    ///
+    /// # Errors
+    ///
+    /// Returns a JavaScript error if the pick copies cannot be recorded.
+    #[wasm_bindgen(js_name = beginPick)]
+    pub fn begin_pick(&mut self, x: u32, y: u32) -> Result<Option<WebPickReadback>, JsError> {
+        let readback = self.inner.begin_pick(x, y).map_err(javascript_error)?;
+        Ok(readback.map(|inner| WebPickReadback { inner }))
+    }
+
+    /// Resolves a [`Self::begin_pick`] readback against the live scene.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JavaScript error if the scene is unresolved or the identity
+    /// cannot be resolved or encoded.
+    #[wasm_bindgen(js_name = finishPick)]
+    pub fn finish_pick(&self, scene: &WebScene, bytes: &[u8]) -> Result<Option<String>, JsError> {
         let resolved = scene
             .resolved
             .as_ref()
-            .ok_or_else(|| JsError::new("scene must be resolved before picking"))?
-            .resolve_pick(&pick)
-            .map_err(javascript_error)?;
-        serde_json::to_string(&resolved)
-            .map(Some)
-            .map_err(javascript_error)
+            .ok_or_else(|| JsError::new("scene must be resolved before picking"))?;
+        self.inner
+            .finish_pick(resolved, bytes)
+            .map_err(javascript_error)?
+            .map(|pick| serde_json::to_string(&pick).map_err(javascript_error))
+            .transpose()
+    }
+}
+
+#[wasm_bindgen(js_name = PickReadback)]
+#[derive(Debug)]
+/// A detached pick readback awaiting one frame's identity bytes.
+pub struct WebPickReadback {
+    inner: molgfx::PickReadback,
+}
+
+#[wasm_bindgen(js_class = PickReadback)]
+impl WebPickReadback {
+    /// Awaits the packed identity bytes without holding the renderer.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JavaScript error if readback fails.
+    pub async fn resolve(&self) -> Result<Vec<u8>, JsError> {
+        self.inner.resolve().await.map_err(javascript_error)
     }
 }
 

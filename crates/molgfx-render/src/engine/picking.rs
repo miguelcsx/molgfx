@@ -8,10 +8,13 @@ use crate::passes::{
 use molgfx_core::{
     AtomSelection, EntityKind, GlobalPickIdentity, GpuPickToken, PickPageTicket, VolumeSegmentRef,
 };
-use molgfx_gpu::{BufferDesc, BufferUsage, CommandEncoder as _, Device, Queue as _};
+use molgfx_gpu::{BufferDesc, BufferUsage, CommandEncoder as _, Device, Queue as _, Readback as _};
 
 const READBACK_BYTES: u32 = 256;
 const PICK_FIELDS: u64 = 4;
+
+/// Bytes a pick readback resolves: one field per identity domain.
+pub const PICK_READBACK_BYTES: u64 = READBACK_BYTES as u64 * PICK_FIELDS;
 
 /// A resolved visible entity and its convenient single-atom selection.
 #[derive(Clone, Debug)]
@@ -62,19 +65,41 @@ impl<D: Device> Engine<D> {
     /// Returns a typed device error when readback fails. A pixel outside the
     /// target or over the background resolves to `Ok(None)`.
     pub async fn pick_async(&mut self, x: u32, y: u32) -> Result<Option<Pick>, RenderError> {
+        let Some(readback) = self.begin_pick(x, y)? else {
+            return Ok(None);
+        };
+        let packed = readback
+            .resolve(0, u64::from(READBACK_BYTES) * PICK_FIELDS)
+            .await?;
+        self.finish_pick(&packed)
+    }
+
+    /// Records one pick and returns a detached readback handle.
+    ///
+    /// The handle borrows neither the engine nor its device, so on the
+    /// browser's single JavaScript thread a frame may render between this
+    /// call and [`Self::finish_pick`]. `None` means the pixel is outside the
+    /// target or nothing is drawable.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed error when the pick copies cannot be recorded.
+    pub fn begin_pick(&mut self, x: u32, y: u32) -> Result<Option<D::Readback>, RenderError> {
         if !self.record_pick(x, y)? {
             return Ok(None);
         }
-        let packed = self
-            .queue
-            .read_buffer_async(
-                &self.device,
-                &self.picker.readback,
-                0,
-                u64::from(READBACK_BYTES) * PICK_FIELDS,
-            )
-            .await?;
-        self.resolve_pick(&packed)
+        Ok(Some(
+            self.queue.readback(&self.device, &self.picker.readback),
+        ))
+    }
+
+    /// Resolves the packed bytes a [`Self::begin_pick`] produced.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed error when the packed identity cannot be resolved.
+    pub fn finish_pick(&self, packed: &[u8]) -> Result<Option<Pick>, RenderError> {
+        self.resolve_pick(packed)
     }
 
     /// Resolves the exact visible entity at one top-left-origin pixel in
@@ -93,9 +118,9 @@ impl<D: Device> Engine<D> {
             &self.device,
             &self.picker.readback,
             0,
-            u64::from(READBACK_BYTES) * PICK_FIELDS,
+            PICK_READBACK_BYTES,
         )?;
-        self.resolve_pick(&packed)
+        self.finish_pick(&packed)
     }
 
     fn record_pick(&mut self, x: u32, y: u32) -> Result<bool, RenderError> {

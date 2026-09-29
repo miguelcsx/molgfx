@@ -37,7 +37,7 @@ pub use device::{
 };
 pub use encoder::{CommandEncoder, ComputePassEncoder, RayQueryCommandEncoder, RenderPassEncoder};
 pub use error::GpuError;
-pub use queue::Queue;
+pub use queue::{Queue, Readback};
 pub use residency::{
     ArenaAllocation, ArenaError, ArenaMetrics, CommandScratch, CommandScratchMetrics, FenceValue,
     PagedArena, Retirement, ScratchFull, UploadBackpressure, UploadMetrics, UploadReservation,

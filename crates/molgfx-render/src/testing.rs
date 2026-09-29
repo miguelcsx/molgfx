@@ -337,6 +337,13 @@ impl molgfx_gpu::Queue<MockDevice> for MockQueue {
         mock_readback(size, buffer.label, &self.log)
     }
 
+    fn readback(&self, _device: &MockDevice, buffer: &MockBuffer) -> MockReadback {
+        MockReadback {
+            label: buffer.label,
+            log: Arc::clone(&self.log),
+        }
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     fn read_buffer_blocking(
         &self,
@@ -351,49 +358,6 @@ impl molgfx_gpu::Queue<MockDevice> for MockQueue {
     fn timestamp_period(&self) -> f32 {
         1.0
     }
-}
-
-fn mock_readback(size: u64, label: &'static str, log: &Arc<MockLog>) -> Result<Vec<u8>, GpuError> {
-    let length = usize::try_from(size).map_err(|_| GpuError::DeviceLost)?;
-    let mut bytes = vec![0; length];
-    if label == "packed pick readback" {
-        let row = log.pick_local_row.lock().map_or(u32::MAX, |row| *row);
-        let page = log.pick_resident_page.lock().map_or(u32::MAX, |page| *page);
-        let source = log
-            .segment_pick_source
-            .lock()
-            .map_or(u32::MAX, |source| *source);
-        let segment = log.segment_pick_label.lock().map_or(0, |value| *value);
-        for (offset, value) in [(0, row), (256, page), (512, source), (768, segment)] {
-            if let Some(word) = bytes.get_mut(offset..offset + 4) {
-                word.copy_from_slice(&value.to_le_bytes());
-            }
-        }
-    } else if label == "local row pick readback" {
-        let row = log.pick_local_row.lock().map_or(u32::MAX, |row| *row);
-        if let Some(word) = bytes.get_mut(..4) {
-            word.copy_from_slice(&row.to_le_bytes());
-        }
-    } else if label == "resident page pick readback" {
-        let page = log.pick_resident_page.lock().map_or(u32::MAX, |page| *page);
-        if let Some(word) = bytes.get_mut(..4) {
-            word.copy_from_slice(&page.to_le_bytes());
-        }
-    } else if label == "segment volume pick readback" {
-        let source = log
-            .segment_pick_source
-            .lock()
-            .map_or(u32::MAX, |source| *source);
-        if let Some(word) = bytes.get_mut(..4) {
-            word.copy_from_slice(&source.to_le_bytes());
-        }
-    } else if label == "segment label pick readback" {
-        let label = log.segment_pick_label.lock().map_or(0, |label| *label);
-        if let Some(word) = bytes.get_mut(..4) {
-            word.copy_from_slice(&label.to_le_bytes());
-        }
-    }
-    Ok(bytes)
 }
 
 impl molgfx_gpu::CommandEncoder<MockDevice> for MockEncoder {
@@ -497,3 +461,7 @@ impl molgfx_gpu::ComputePassEncoder<MockDevice> for MockPass<'_> {
 }
 
 mod device;
+mod readback;
+
+pub(crate) use readback::MockReadback;
+use readback::mock_readback;

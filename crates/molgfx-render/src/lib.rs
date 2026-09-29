@@ -30,10 +30,10 @@ pub use engine::{
     EngineConfig, FocusTarget, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport,
     FrameStatus, FrameTiming, HdrImage, IllustrationStyle, Image, ImageConfig,
     InstanceChunkPlacement, InstanceChunkWindow, LigandPoseStats, LightingEnvironment, MotionBlur,
-    Pick, PickEntity, PointChunkPlacement, PresentationEffect, QualityTier, RelationChunkPlacement,
-    RenderMode, RenderProfile, RenderSession, ResidentGenericChunk, ResidentStructureChunk,
-    ResidentTrajectoryChunk, ResolvedRenderPlan, StructureChunkPlacement, ToneMapping,
-    TrajectoryChunkWindow, TransferFunction,
+    PICK_READBACK_BYTES, Pick, PickEntity, PointChunkPlacement, PresentationEffect, QualityTier,
+    RelationChunkPlacement, RenderMode, RenderProfile, RenderSession, ResidentGenericChunk,
+    ResidentStructureChunk, ResidentTrajectoryChunk, ResolvedRenderPlan, StructureChunkPlacement,
+    ToneMapping, TrajectoryChunkWindow, TransferFunction,
 };
 pub(crate) use engine::{
     DerivedCache, DerivedCacheClass, DerivedCacheKey, DerivedFootprint, MaterializationPlan,

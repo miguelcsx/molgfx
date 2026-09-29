@@ -11,6 +11,7 @@
 pub use molgfx_scene::FrameTiming;
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_scene::Image;
+pub use molgfx_scene::PickReadback;
 pub use molgfx_scene::Renderer;
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_scene::{AdapterReport, SystemInfo, system_info};
