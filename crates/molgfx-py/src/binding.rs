@@ -205,25 +205,40 @@ named_control!(molgfx::rep::SurfaceStyle, "surface style", [
 macro_rules! representation {
     ($name:ident $(, $control:ident : $type:ty)* $(,)?) => {
         #[pyfunction]
-        #[pyo3(signature = (*, target, $($control = None,)* opacity = 1.0, color = None))]
+        #[pyo3(signature = (target, **options))]
         fn $name(
             target: &Bound<'_, PyAny>,
-            $($control: Option<$type>,)*
-            opacity: f32,
-            color: Option<&Bound<'_, PyAny>>,
+            options: Option<&Bound<'_, pyo3::types::PyDict>>,
         ) -> PyResult<PyRepresentation> {
-            let mut value = molgfx::rep::$name(selection(target)?).opacity(opacity);
+            // One Rust parameter per Python keyword would exceed the
+            // crate's argument budget as forms grow, so every optional
+            // control arrives in one keyword map and is read by name.
+            let mut value = molgfx::rep::$name(selection(target)?).opacity(match options {
+                Some(dict) => keyword(dict, "opacity")?.map_or(Ok(1.0), |raw| raw.extract())?,
+                None => 1.0,
+            });
             $(
-                if let Some($control) = $control {
-                    value = value.$control(Control::control($control)?);
+                if let Some(raw) = options.map(|dict| keyword(dict, stringify!($control))).transpose()?.flatten() {
+                    let control: $type = raw.extract()?;
+                    value = value.$control(Control::control(control)?);
                 }
             )*
-            if let Some(color) = color_spec(color)? {
-                value = value.color(color);
+            if let Some(raw) = options.map(|dict| keyword(dict, "color")).transpose()?.flatten() {
+                if let Some(color) = color_spec(Some(&raw))? {
+                    value = value.color(color);
+                }
             }
             Ok(PyRepresentation::from_item(value))
         }
     };
+}
+
+/// One optional keyword from a constructor's keyword map.
+fn keyword<'py>(
+    dict: &Bound<'py, pyo3::types::PyDict>,
+    name: &str,
+) -> PyResult<Option<Bound<'py, pyo3::PyAny>>> {
+    dict.get_item(name)
 }
 
 representation!(cartoon, width: f32, style: String);

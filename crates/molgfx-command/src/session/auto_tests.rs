@@ -24,8 +24,7 @@ fn auto_adds_the_size_appropriate_default_layers_and_registers_them() {
         .layers
         .keys()
         .next()
-        .map(ToString::to_string)
-        .unwrap_or_else(|| panic!("a layer was registered"));
+        .map_or_else(|| panic!("a layer was registered"), ToString::to_string);
     run(&mut session, &mut scene, &format!("hide @{name}"));
 }
 

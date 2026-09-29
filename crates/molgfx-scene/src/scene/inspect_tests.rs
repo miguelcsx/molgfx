@@ -125,8 +125,10 @@ fn a_label_pick_resolves_to_the_annotation_the_scene_owns() {
         .labels
         .iter()
         .find(|(id, _)| *id == annotation)
-        .map(|(_, handle)| handle.row())
-        .unwrap_or_else(|| panic!("the label is lowered"));
+        .map_or_else(
+            || panic!("the label is lowered"),
+            |(_, handle)| handle.row(),
+        );
     let resolved = scene
         .resolve_pick(&PickResult {
             kind: PickKind::Label,
@@ -154,9 +156,6 @@ fn a_measurement_pick_resolves_to_its_kind_and_arity() {
     let first = crate::Anchor::World {
         position: [0.0, 0.0, 0.0],
     };
-    let second = crate::Anchor::World {
-        position: [2.0, 0.0, 0.0],
-    };
     let measurement = scene
         .add(crate::measurement::distance(
             crate::Anchor::World {
@@ -179,8 +178,10 @@ fn a_measurement_pick_resolves_to_its_kind_and_arity() {
         .measurements
         .iter()
         .find(|(id, _)| *id == measurement)
-        .map(|(_, handle)| handle.row())
-        .unwrap_or_else(|| panic!("the measurement is lowered"));
+        .map_or_else(
+            || panic!("the measurement is lowered"),
+            |(_, handle)| handle.row(),
+        );
     let resolved = scene
         .resolve_pick(&PickResult {
             kind: PickKind::Measurement,
