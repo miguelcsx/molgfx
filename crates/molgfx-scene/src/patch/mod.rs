@@ -2,24 +2,26 @@
 
 pub(crate) mod appearance_ops;
 mod inverse;
+#[cfg(test)]
+mod inverse_tests;
+pub(crate) mod overlay_ops;
 pub(crate) mod plan;
-pub(crate) mod science_ops;
 #[cfg(test)]
 mod tests;
 
 use crate::appearance::AppearanceRuleSpec;
 use crate::color::ColorSpec;
 use crate::id::{
-    AnnotationId, AppearanceRuleId, MeasurementId, RepresentationId, ScientificInteractionId,
+    AnnotationId, AppearanceRuleId, EllipsoidId, InteractionId, MeasurementId, RepresentationId,
     StructureId, TrajectoryId, VolumeId,
+};
+use crate::overlay::{
+    AnnotationSpec, AssemblySpec, EllipsoidSpec, FitResult, InteractionSpec, MeasurementSpec,
+    MovieExportRequest, TrajectorySpec, ValidationFinding, VolumeSpec,
 };
 use crate::representation::Selection;
 use crate::representation::form::RepresentationSpec;
 use crate::scene::domains::SceneSnapshot;
-use crate::science::{
-    AnnotationSpec, AssemblySpec, FitResult, MeasurementSpec, MovieExportRequest,
-    ScientificInteractionSpec, TrajectorySpec, ValidationFinding, VolumeSpec,
-};
 use crate::spec::{InteractionChannel, SceneSpec, StructureSource};
 use crate::{ParameterValue, VisualStyle};
 use serde::{Deserialize, Serialize};
@@ -89,17 +91,17 @@ pub enum PatchOperation {
         /// Measurement to remove.
         id: MeasurementId,
     },
-    /// Inserts a caller-supplied scientific interaction.
-    AddScientificInteraction {
-        /// Stable scientific interaction identity.
-        id: ScientificInteractionId,
+    /// Inserts a caller-supplied overlay interaction.
+    AddInteraction {
+        /// Stable overlay interaction identity.
+        id: InteractionId,
         /// Immutable interaction value.
-        interaction: ScientificInteractionSpec,
+        interaction: InteractionSpec,
     },
-    /// Removes a scientific interaction.
-    RemoveScientificInteraction {
-        /// Scientific interaction to remove.
-        id: ScientificInteractionId,
+    /// Removes an overlay interaction.
+    RemoveInteraction {
+        /// Overlay interaction to remove.
+        id: InteractionId,
     },
     /// Binds a trajectory descriptor to one structure.
     AddTrajectory {
@@ -112,6 +114,18 @@ pub enum PatchOperation {
     RemoveTrajectory {
         /// Trajectory to remove.
         id: TrajectoryId,
+    },
+    /// Inserts a per-atom anisotropic-displacement ellipsoid overlay.
+    AddEllipsoids {
+        /// Stable identity assigned by the authoring scene.
+        id: EllipsoidId,
+        /// Immutable overlay value.
+        spec: EllipsoidSpec,
+    },
+    /// Removes a per-atom anisotropic-displacement ellipsoid overlay.
+    RemoveEllipsoids {
+        /// Overlay to remove.
+        id: EllipsoidId,
     },
     /// Removes a representation.
     RemoveRepresentation {
@@ -292,7 +306,7 @@ impl ScenePatch {
         let mut operation_groups = Vec::with_capacity(self.operations.len());
         for operation in &self.operations {
             operation_groups.push(inverse::inverse_operations(operation, &state)?);
-            crate::scene::runtime::apply_operation(&mut state, operation)?;
+            crate::scene::apply::apply_operation(&mut state, operation)?;
         }
         let operations = operation_groups.into_iter().rev().flatten().collect();
         Ok(Self {

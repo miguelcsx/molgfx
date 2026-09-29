@@ -29,6 +29,21 @@ pub(crate) enum RepresentationFormSpec {
         width: f32,
         style: CartoonStyle,
     },
+    Backbone {
+        width: f32,
+    },
+    Trace {
+        radius: f32,
+    },
+    Tube {
+        radius: f32,
+    },
+    Putty {
+        domain_min: f32,
+        domain_max: f32,
+        radius_min: f32,
+        radius_max: f32,
+    },
     BallAndStick {
         radius: f32,
         bond_radius: f32,
@@ -46,11 +61,15 @@ pub(crate) enum RepresentationFormSpec {
     Points {
         size: f32,
     },
+    Dots {
+        size: f32,
+    },
     Surface {
         surface: SurfaceKind,
         style: SurfaceStyle,
         probe_radius: f32,
         isolevel: f32,
+        blob_spread: f32,
     },
     NucleicAcid {
         width: f32,
@@ -64,6 +83,9 @@ pub(crate) enum RepresentationFormSpec {
     },
     Glycan {
         width: f32,
+    },
+    Beads {
+        radius: f32,
     },
 }
 
@@ -131,16 +153,22 @@ impl RepresentationSpec {
     pub const fn form_name(&self) -> &'static str {
         match &self.form {
             RepresentationFormSpec::Cartoon { .. } => "cartoon",
+            RepresentationFormSpec::Backbone { .. } => "backbone",
+            RepresentationFormSpec::Trace { .. } => "trace",
+            RepresentationFormSpec::Tube { .. } => "tube",
+            RepresentationFormSpec::Putty { .. } => "putty",
             RepresentationFormSpec::BallAndStick { .. } => "ball_and_stick",
             RepresentationFormSpec::Spacefill { .. } => "spacefill",
             RepresentationFormSpec::Licorice { .. } => "licorice",
             RepresentationFormSpec::Lines { .. } => "lines",
             RepresentationFormSpec::Points { .. } => "points",
+            RepresentationFormSpec::Dots { .. } => "dots",
             RepresentationFormSpec::Surface { .. } => "surface",
             RepresentationFormSpec::NucleicAcid { .. } => "nucleic_acid",
             RepresentationFormSpec::Bases { .. } => "bases",
             RepresentationFormSpec::BasePairs { .. } => "base_pairs",
             RepresentationFormSpec::Glycan { .. } => "glycan",
+            RepresentationFormSpec::Beads { .. } => "beads",
         }
     }
 
@@ -201,12 +229,41 @@ impl RepresentationSpec {
         }
         match &self.form {
             RepresentationFormSpec::Cartoon { width, .. }
+            | RepresentationFormSpec::Backbone { width }
             | RepresentationFormSpec::Lines { width }
             | RepresentationFormSpec::NucleicAcid { width }
             | RepresentationFormSpec::Glycan { width } => positive("width", *width)?,
-            RepresentationFormSpec::Points { size } => positive("point size", *size)?,
+            RepresentationFormSpec::Points { size } | RepresentationFormSpec::Dots { size } => {
+                positive("point size", *size)?;
+            }
+            RepresentationFormSpec::Trace { radius } | RepresentationFormSpec::Tube { radius } => {
+                positive("tube radius", *radius)?;
+            }
+            RepresentationFormSpec::Putty {
+                domain_min,
+                domain_max,
+                radius_min,
+                radius_max,
+            } => {
+                for (name, value) in [
+                    ("putty domain minimum", *domain_min),
+                    ("putty domain maximum", *domain_max),
+                ] {
+                    if !value.is_finite() {
+                        return Err(crate::Error::InvalidSpec(format!("{name} must be finite")));
+                    }
+                }
+                if *domain_max <= *domain_min {
+                    return Err(crate::Error::InvalidSpec(
+                        "putty domain must be strictly increasing".to_owned(),
+                    ));
+                }
+                positive("putty minimum radius", *radius_min)?;
+                positive("putty maximum radius", *radius_max)?;
+            }
             RepresentationFormSpec::Spacefill { radius }
-            | RepresentationFormSpec::Bases { radius } => positive("radius", *radius)?,
+            | RepresentationFormSpec::Bases { radius }
+            | RepresentationFormSpec::Beads { radius } => positive("radius", *radius)?,
             RepresentationFormSpec::BallAndStick {
                 radius,
                 bond_radius,
@@ -225,12 +282,20 @@ impl RepresentationSpec {
             RepresentationFormSpec::Surface {
                 probe_radius,
                 isolevel,
+                blob_spread,
                 ..
             } => {
                 positive("probe radius", *probe_radius)?;
                 if !isolevel.is_finite() {
                     return Err(crate::Error::InvalidSpec(
                         "isolevel must be finite".to_owned(),
+                    ));
+                }
+                // A blob spread is a distance; it may be zero to request the
+                // exact union, but never negative or non-finite.
+                if !blob_spread.is_finite() || *blob_spread < 0.0 {
+                    return Err(crate::Error::InvalidSpec(
+                        "blob spread must be finite and non-negative".to_owned(),
                     ));
                 }
             }

@@ -18,10 +18,12 @@ pub(super) fn is_structural(operation: &PatchOperation) -> bool {
             | PatchOperation::RemoveAnnotation { .. }
             | PatchOperation::AddMeasurement { .. }
             | PatchOperation::RemoveMeasurement { .. }
-            | PatchOperation::AddScientificInteraction { .. }
-            | PatchOperation::RemoveScientificInteraction { .. }
+            | PatchOperation::AddInteraction { .. }
+            | PatchOperation::RemoveInteraction { .. }
             | PatchOperation::AddTrajectory { .. }
             | PatchOperation::RemoveTrajectory { .. }
+            | PatchOperation::AddEllipsoids { .. }
+            | PatchOperation::RemoveEllipsoids { .. }
             // Domain values are retained in the scene extension namespace.
             // They still participate in full scene resolution so history and
             // renderer projections observe one atomic semantic transition.

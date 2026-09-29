@@ -1,6 +1,6 @@
-//! Ordered patch application for scientific semantic items.
+//! Ordered patch application for overlay items.
 
-use crate::scene::runtime::{insert_unique, remove_existing};
+use crate::scene::apply::{insert_unique, remove_existing};
 use crate::{Error, PatchOperation, SceneSpec};
 
 pub(crate) fn apply(candidate: &mut SceneSpec, operation: &PatchOperation) -> Result<bool, Error> {
@@ -46,17 +46,17 @@ pub(crate) fn apply(candidate: &mut SceneSpec, operation: &PatchOperation) -> Re
         PatchOperation::RemoveMeasurement { id } => {
             remove_existing(&mut candidate.measurements, id)?;
         }
-        PatchOperation::AddScientificInteraction { id, interaction } => {
+        PatchOperation::AddInteraction { id, interaction } => {
             interaction.validate(candidate)?;
             insert_unique(
-                &mut candidate.scientific_interactions,
+                &mut candidate.interactions,
                 *id,
                 interaction.clone(),
                 "interaction",
             )?;
         }
-        PatchOperation::RemoveScientificInteraction { id } => {
-            remove_existing(&mut candidate.scientific_interactions, id)?;
+        PatchOperation::RemoveInteraction { id } => {
+            remove_existing(&mut candidate.interactions, id)?;
         }
         PatchOperation::AddTrajectory { id, trajectory } => {
             trajectory.validate(candidate)?;
@@ -69,6 +69,13 @@ pub(crate) fn apply(candidate: &mut SceneSpec, operation: &PatchOperation) -> Re
         }
         PatchOperation::RemoveTrajectory { id } => {
             remove_existing(&mut candidate.trajectories, id)?;
+        }
+        PatchOperation::AddEllipsoids { id, spec } => {
+            spec.validate(candidate)?;
+            insert_unique(&mut candidate.ellipsoids, *id, spec.clone(), "ellipsoid")?;
+        }
+        PatchOperation::RemoveEllipsoids { id } => {
+            remove_existing(&mut candidate.ellipsoids, id)?;
         }
         _ => return Ok(false),
     }

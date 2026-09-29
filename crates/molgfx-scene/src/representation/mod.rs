@@ -8,9 +8,10 @@ mod tests;
 
 pub use crate::selection::Selection;
 pub use builders::{
-    BallAndStick, BasePairs, Bases, Cartoon, Glycan, Licorice, Lines, NucleicAcid,
-    PointRepresentation, Spacefill, Surface, ball_and_stick, base_pairs, bases, cartoon, glycan,
-    licorice, lines, nucleic_acid, points, spacefill, surface,
+    Backbone, BallAndStick, BasePairs, Bases, Beads, Cartoon, Dots, Glycan, Licorice, Lines,
+    NucleicAcid, PointRepresentation, Putty, Spacefill, Surface, Trace, Tube, backbone,
+    ball_and_stick, base_pairs, bases, beads, cartoon, dots, glycan, licorice, lines, nucleic_acid,
+    points, putty, spacefill, surface, trace, tube,
 };
 pub use form::RepresentationSpec;
 pub use item::SceneItem;
@@ -59,4 +60,7 @@ pub enum SurfaceStyle {
     FilledContour,
     /// Wire lattice.
     Mesh,
+    /// Smoothed soft-minimum union of the contributing atoms, the blob
+    /// surface both reference engines show for a rounded molecular envelope.
+    SoftUnion,
 }

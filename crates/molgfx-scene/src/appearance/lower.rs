@@ -11,7 +11,7 @@
 
 use super::rule::{AppearanceRuleSpec, MAX_APPEARANCE_CLASSES};
 use crate::error::Error;
-use molgfx_core::{AtomSelection, ColorScheme};
+use molgfx_core::{AtomPropertyHandle, AtomSelection, CategoryPalette, ColorScheme};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -37,6 +37,7 @@ pub(crate) struct AppearanceClasses {
 pub(crate) fn resolve_classes<'a>(
     rules: impl IntoIterator<Item = &'a AppearanceRuleSpec>,
     atom_count: u32,
+    properties: &BTreeMap<Box<str>, AtomPropertyHandle>,
     mut rows: impl FnMut(&AppearanceRuleSpec) -> Result<Arc<AtomSelection>, Error>,
 ) -> Result<Option<AppearanceClasses>, Error> {
     let mut rules = rules.into_iter().peekable();
@@ -49,7 +50,7 @@ pub(crate) fn resolve_classes<'a>(
     let mut schemes: Vec<ColorScheme> = Vec::new();
     let mut interned: BTreeMap<SchemeKey, u8> = BTreeMap::new();
     for rule in rules {
-        let scheme = native_scheme(rule)?;
+        let scheme = native_scheme(rule, properties)?;
         let key = SchemeKey::of(scheme);
         let class = if let Some(class) = interned.get(&key) {
             *class
@@ -87,21 +88,22 @@ pub(crate) fn resolve_classes<'a>(
 }
 
 /// The physical scheme one rule's colour lowers to.
-fn native_scheme(rule: &AppearanceRuleSpec) -> Result<ColorScheme, Error> {
+fn native_scheme(
+    rule: &AppearanceRuleSpec,
+    properties: &BTreeMap<Box<str>, AtomPropertyHandle>,
+) -> Result<ColorScheme, Error> {
     rule.validate()?;
-    // Property colours are refused by validation, so the property table is
-    // never consulted and may be empty.
-    rule.color.native(&BTreeMap::new(), rule.structure)
+    // Continuous colours are refused by validation. A categorical rule reads
+    // the structure's derived column, which the scene bound before lowering.
+    rule.color.native(properties, rule.structure)
 }
 
 /// A total, injective key for interning schemes that have no total order.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum SchemeKey {
     Element,
-    Chain,
-    Residue,
-    Secondary,
     Uniform([u8; 4]),
+    Category(u32, u32, CategoryPalette),
     Other,
 }
 
@@ -109,10 +111,10 @@ impl SchemeKey {
     const fn of(scheme: ColorScheme) -> Self {
         match scheme {
             ColorScheme::ByElement => Self::Element,
-            ColorScheme::ByChain => Self::Chain,
-            ColorScheme::ByResidue => Self::Residue,
-            ColorScheme::BySecondaryStructure => Self::Secondary,
             ColorScheme::Uniform(color) => Self::Uniform([color.r, color.g, color.b, color.a]),
+            ColorScheme::ByCategory { property, palette } => {
+                Self::Category(property.row(), property.generation(), palette)
+            }
             _ => Self::Other,
         }
     }

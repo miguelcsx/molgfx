@@ -121,7 +121,7 @@ fn a_rule_over_chain_a_colours_only_chain_a_of_a_whole_protein_cartoon() {
     let Some(spec) = scene.spec().representations.get(&cartoon) else {
         panic!("representation exists")
     };
-    assert_eq!(spec.color(), &ColorSpec::Chain);
+    assert_eq!(spec.color(), &crate::color::chain());
 }
 
 #[test]

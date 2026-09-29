@@ -99,7 +99,7 @@ impl LocalPatchPlan {
         }
         AppearanceUpdates::commit_spec(rules, spec);
         self.interactions.commit(spec);
-        self.science.commit(spec);
+        self.overlay.commit(spec);
         assign(&mut spec.camera, self.camera);
         if self.touched {
             spec.revision = spec.revision.wrapping_add(1);

@@ -29,9 +29,16 @@ fn property_legends_keep_domain_units_and_missing_color() {
     assert_eq!(legend.title.as_ref(), "electrostatic potential");
     assert_eq!(legend.units.as_deref(), Some("kT/e"));
     assert_eq!(legend.missing, missing);
+    // One legend stop per anchor of the ramp, spanning the declared domain.
+    assert_eq!(legend.stops.len(), 8);
     assert_eq!(legend.stops[0].value.to_bits(), (-2.0_f32).to_bits());
-    assert_eq!(legend.stops[1].value.to_bits(), 0.0_f32.to_bits());
-    assert_eq!(legend.stops[2].value.to_bits(), 2.0_f32.to_bits());
+    assert_eq!(legend.stops[7].value.to_bits(), 2.0_f32.to_bits());
+    assert!(
+        legend
+            .stops
+            .windows(2)
+            .all(|pair| pair[0].value < pair[1].value)
+    );
 }
 
 #[test]

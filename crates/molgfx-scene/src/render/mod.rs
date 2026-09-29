@@ -1,7 +1,7 @@
 //! Physical renderer wrapper with target-sized rendering.
 
 use crate::{Error, Quality, RenderProfile, Scene};
-pub use molgfx_render::FrameReport;
+pub use molgfx_render::{FrameReport, FrameTiming};
 #[cfg(not(target_arch = "wasm32"))]
 use num_traits::ToPrimitive as _;
 
@@ -17,6 +17,8 @@ pub enum PickKind {
     Interaction,
     /// Annotation label.
     Label,
+    /// Distance, angle or dihedral measurement.
+    Measurement,
     /// Analytic extension primitive.
     Primitive,
     /// Mesh extension entity.
@@ -253,6 +255,110 @@ impl Renderer {
             .map_err(Error::from)
     }
 
+    /// Measures one frame with device timestamp queries.
+    ///
+    /// The frame is rendered at the renderer's current quality tier, so this is
+    /// the cost of one interactive frame at that tier, not of a converged
+    /// publication image. Discard warmup frames before averaging.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capability error when the adapter exposes no timestamps, or a
+    /// typed renderer or device error.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn measure_frame(&mut self, scene: &Scene, size: (u32, u32)) -> Result<FrameTiming, Error> {
+        let (Some(width), Some(height)) = (size.0.to_f32(), size.1.to_f32()) else {
+            return Err(Error::InvalidSpec(
+                "image size cannot be represented".to_owned(),
+            ));
+        };
+        let aspect = width / height.max(1.0);
+        let camera = scene.framing_camera(aspect);
+        self.inner
+            .profile_frame(
+                scene.resolved(),
+                &camera,
+                molgfx_render::ImageConfig {
+                    width: size.0,
+                    height: size.1,
+                },
+            )
+            .map_err(Error::from)
+    }
+
+    /// Renders a bounded sequence of deterministic frames, one per timestamp.
+    ///
+    /// Each frame is a fully converged publication image, so a sequence of
+    /// `N` frames costs `N` publication renders. Frames are submitted without
+    /// waiting and resolved in order, so the caller can drive a camera path and
+    /// read the completed frames back at their own pace.
+    ///
+    /// Movie *encoding* is deliberately not here: the engine produces the
+    /// frames, and a caller that wants an MP4 or a GIF encodes them with
+    /// whatever tool it already uses.
+    ///
+    /// # Errors
+    ///
+    /// Returns an invalid-specification error for an empty target, a zero or
+    /// non-representable frame rate, or a non-increasing timestamp, and a
+    /// typed renderer or device error otherwise.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn render_sequence(
+        &mut self,
+        scene: &Scene,
+        size: (u32, u32),
+        frames_per_second: u32,
+        frames: usize,
+    ) -> Result<Vec<Image>, Error> {
+        if size.0 == 0 || size.1 == 0 {
+            return Err(Error::InvalidSpec(
+                "frame width and height must be non-zero".to_owned(),
+            ));
+        }
+        let (Some(width), Some(height)) = (size.0.to_f32(), size.1.to_f32()) else {
+            return Err(Error::InvalidSpec(
+                "frame size cannot be represented".to_owned(),
+            ));
+        };
+        let aspect = width / height.max(1.0);
+        let camera = scene.framing_camera(aspect);
+        let config = molgfx_render::SequenceConfig::at_fps(
+            molgfx_render::ImageConfig {
+                width: size.0,
+                height: size.1,
+            },
+            frames_per_second,
+            2,
+        )
+        .map_err(Error::from)?;
+        let mut sequence = self.inner.sequence(config).map_err(Error::from)?;
+        let in_flight = usize::from(molgfx_render::Engine::sequence_in_flight(&sequence));
+        let mut images = Vec::with_capacity(frames);
+        for index in 0..frames {
+            let timestamp = u64::try_from(index)
+                .ok()
+                .and_then(|index| index.checked_mul(config.timebase_nanoseconds))
+                .ok_or_else(|| {
+                    Error::InvalidSpec("sequence timestamp exceeds the supported range".to_owned())
+                })?;
+            // Drain before the pipeline is full, so a long sequence streams
+            // instead of stalling at the in-flight limit.
+            while molgfx_render::Engine::pending_sequence_frames(&sequence) >= in_flight {
+                let frame = self
+                    .inner
+                    .drain_sequence_frame(&mut sequence)
+                    .map_err(Error::from)?;
+                images.push(Image(frame.image));
+            }
+            self.inner
+                .submit_sequence_frame(&mut sequence, scene.resolved(), &camera, timestamp)
+                .map_err(Error::from)?;
+        }
+        let resolved = self.inner.finish_sequence(sequence).map_err(Error::from)?;
+        images.extend(resolved.into_iter().map(|frame| Image(frame.image)));
+        Ok(images)
+    }
+
     /// Deterministic description of the high-level policy and semantic scene.
     #[must_use]
     pub fn explain(&self, scene: &Scene) -> String {
@@ -291,6 +397,7 @@ const fn pick_kind(kind: molgfx_core::EntityKind) -> PickKind {
         molgfx_core::EntityKind::Bond => PickKind::Bond,
         molgfx_core::EntityKind::Edge => PickKind::Interaction,
         molgfx_core::EntityKind::Label => PickKind::Label,
+        molgfx_core::EntityKind::Measurement => PickKind::Measurement,
         molgfx_core::EntityKind::Primitive => PickKind::Primitive,
         molgfx_core::EntityKind::Mesh => PickKind::Mesh,
         molgfx_core::EntityKind::LigandPoseBatch => PickKind::LigandPoseBatch,
@@ -304,11 +411,26 @@ const fn pick_kind(kind: molgfx_core::EntityKind) -> PickKind {
 }
 
 fn engine_config(profile: RenderProfile) -> molgfx_render::EngineConfig {
+    let mut presentation = match profile.quality {
+        Quality::Publication => molgfx_render::RenderProfile::illustrative(),
+        Quality::Auto | Quality::Interactive => molgfx_render::RenderProfile::inspection(),
+    };
+    if let Some(cue) = profile.depth_cue {
+        presentation = presentation.with_effect(molgfx_render::PresentationEffect::DepthCue(
+            molgfx_render::DepthCue {
+                near_distance: cue.near_distance(),
+                far_distance: cue.far_distance(),
+                strength: cue.strength(),
+            },
+        ));
+    }
+    if let Some(edge_smoothing) = profile.edge_smoothing {
+        presentation = presentation.with_effect(molgfx_render::PresentationEffect::AntiAliasing(
+            molgfx_render::AntiAliasingStyle { edge_smoothing },
+        ));
+    }
     molgfx_render::EngineConfig {
-        profile: match profile.quality {
-            Quality::Publication => molgfx_render::RenderProfile::illustrative(),
-            Quality::Auto | Quality::Interactive => molgfx_render::RenderProfile::inspection(),
-        },
+        profile: presentation,
         // Only the adaptive policy adapts. `Interactive` is an explicit request
         // for low latency that still renders at one fixed tier, and publication
         // output must stay reproducible, so neither may hold a tier that

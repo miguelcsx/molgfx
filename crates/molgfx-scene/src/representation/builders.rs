@@ -151,12 +151,50 @@ representation! {
 }
 
 representation! {
+    /// Typed backbone trace specification.
+    Backbone => Backbone {
+        /// Sets the trace radius in ångström.
+        width => width: f32 = 0.3,
+    }
+}
+
+representation! {
+    /// Typed smooth polymer trace specification.
+    Trace => Trace {
+        /// Sets the trace radius in ångström.
+        radius => radius: f32 = 0.3,
+    }
+}
+
+representation! {
+    /// Typed smooth polymer tube specification.
+    Tube => Tube {
+        /// Sets the tube radius in ångström.
+        radius => radius: f32 = 0.3,
+    }
+}
+
+representation! {
+    /// Typed B-factor putty tube specification.
+    Putty => Putty {
+        /// Lower B-factor domain bound.
+        domain_min => domain_min: f32 = 0.0,
+        /// Upper B-factor domain bound.
+        domain_max => domain_max: f32 = 100.0,
+        /// Radius at the lower bound.
+        radius_min => radius_min: f32 = 0.2,
+        /// Radius at the upper bound.
+        radius_max => radius_max: f32 = 0.8,
+    }
+}
+
+representation! {
     /// Typed ball-and-stick specification.
     BallAndStick => BallAndStick {
         /// Scales atom radii.
         radius => radius: f32 = 0.25,
         /// Sets bond radius in ångström.
-        bond_radius => bond_radius: f32 = 0.18,
+        bond_radius => bond_radius: f32 = 0.25,
     }
 }
 
@@ -173,8 +211,8 @@ representation! {
     Licorice => Licorice {
         /// Scales atom radii.
         radius => radius: f32 = 1.0,
-        /// Sets bond radius in ångström.
-        bond_radius => bond_radius: f32 = 0.18,
+        /// Sets bond radius in ångström; the conventional stick radius.
+        bond_radius => bond_radius: f32 = 0.25,
     }
 }
 
@@ -195,6 +233,14 @@ representation! {
 }
 
 representation! {
+    /// Typed dot/point specification.
+    Dots => Dots {
+        /// Sets point diameter in physical pixels.
+        size => size: f32 = 3.0,
+    }
+}
+
+representation! {
     /// Typed molecular-surface specification.
     Surface => Surface {
         /// Selects the physical boundary definition.
@@ -205,6 +251,8 @@ representation! {
         probe_radius => probe_radius: f32 = 1.4,
         /// Sets the level for Gaussian surfaces.
         isolevel => isolevel: f32 = 0.0,
+        /// Sets the soft-union blend span in ångström.
+        blob_spread => blob_spread: f32 = 2.0,
     }
 }
 
@@ -230,7 +278,15 @@ representation! {
         /// Scales atom radii.
         radius => radius: f32 = 0.25,
         /// Sets bond radius in ångström.
-        bond_radius => bond_radius: f32 = 0.18,
+        bond_radius => bond_radius: f32 = 0.25,
+    }
+}
+
+representation! {
+    /// Typed residue-bead representation.
+    Beads => Beads {
+        /// Scales the enclosing-sphere radius.
+        radius => radius: f32 = 1.0,
     }
 }
 
@@ -242,10 +298,40 @@ representation! {
     }
 }
 
+/// One sphere per residue, enclosing that residue's atoms.
+#[must_use]
+pub fn beads(target: impl Into<Selection>) -> Beads {
+    Beads::new(target)
+}
+
 /// Protein or polymer cartoon.
 #[must_use]
 pub fn cartoon(target: impl Into<Selection>) -> Cartoon {
     Cartoon::new(target)
+}
+
+/// Backbone trace.
+#[must_use]
+pub fn backbone(target: impl Into<Selection>) -> Backbone {
+    Backbone::new(target)
+}
+
+/// Smooth polymer trace.
+#[must_use]
+pub fn trace(target: impl Into<Selection>) -> Trace {
+    Trace::new(target)
+}
+
+/// Smooth polymer tube.
+#[must_use]
+pub fn tube(target: impl Into<Selection>) -> Tube {
+    Tube::new(target)
+}
+
+/// B-factor putty tube.
+#[must_use]
+pub fn putty(target: impl Into<Selection>) -> Putty {
+    Putty::new(target)
 }
 
 /// Small atom spheres and bond capsules.
@@ -276,6 +362,12 @@ pub fn lines(target: impl Into<Selection>) -> Lines {
 #[must_use]
 pub fn points(target: impl Into<Selection>) -> PointRepresentation {
     PointRepresentation::new(target)
+}
+
+/// Analytic point/dot representation.
+#[must_use]
+pub fn dots(target: impl Into<Selection>) -> Dots {
+    Dots::new(target)
 }
 
 /// Molecular implicit surface.

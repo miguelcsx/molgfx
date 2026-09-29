@@ -1,11 +1,11 @@
-//! Prepared scientific-domain table updates.
+//! Prepared overlay-domain table updates.
 
-use super::{SceneSpec, ScienceDomains};
+use super::{OverlayDomains, SceneSpec};
 use crate::error::{Error, PatchError};
 use crate::spec::PatchOperation;
 use std::collections::BTreeMap;
 
-impl ScienceDomains {
+impl OverlayDomains {
     pub(super) fn apply(
         &mut self,
         spec: &SceneSpec,
@@ -67,19 +67,19 @@ impl ScienceDomains {
                     id,
                 )?;
             }
-            PatchOperation::AddScientificInteraction { id, interaction } => {
+            PatchOperation::AddInteraction { id, interaction } => {
                 interaction.validate(spec)?;
                 insert_new(
                     self.interactions
-                        .get_or_insert_with(|| spec.scientific_interactions.clone()),
+                        .get_or_insert_with(|| spec.interactions.clone()),
                     *id,
                     interaction.clone(),
                 )?;
             }
-            PatchOperation::RemoveScientificInteraction { id } => {
+            PatchOperation::RemoveInteraction { id } => {
                 remove(
                     self.interactions
-                        .get_or_insert_with(|| spec.scientific_interactions.clone()),
+                        .get_or_insert_with(|| spec.interactions.clone()),
                     id,
                 )?;
             }
@@ -99,6 +99,22 @@ impl ScienceDomains {
                     id,
                 )?;
             }
+            PatchOperation::AddEllipsoids { id, spec: item } => {
+                item.validate(spec)?;
+                insert_new(
+                    self.ellipsoids
+                        .get_or_insert_with(|| spec.ellipsoids.clone()),
+                    *id,
+                    item.clone(),
+                )?;
+            }
+            PatchOperation::RemoveEllipsoids { id } => {
+                remove(
+                    self.ellipsoids
+                        .get_or_insert_with(|| spec.ellipsoids.clone()),
+                    id,
+                )?;
+            }
             _ => return Ok(false),
         }
         Ok(true)
@@ -108,8 +124,9 @@ impl ScienceDomains {
         replace(&mut spec.volumes, self.volumes);
         replace(&mut spec.annotations, self.annotations);
         replace(&mut spec.measurements, self.measurements);
-        replace(&mut spec.scientific_interactions, self.interactions);
+        replace(&mut spec.interactions, self.interactions);
         replace(&mut spec.trajectories, self.trajectories);
+        replace(&mut spec.ellipsoids, self.ellipsoids);
     }
 }
 
