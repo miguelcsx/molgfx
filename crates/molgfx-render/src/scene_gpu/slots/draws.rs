@@ -181,7 +181,10 @@ impl<D: Device> GpuSlot<D> {
     ) -> Option<(&D::BindGroup, u64, SlotShading)> {
         (self.visible
             && self.atom_count > 0
-            && self.kind == RepresentationKind::Points
+            && matches!(
+                self.kind,
+                RepresentationKind::Points | RepresentationKind::Lines
+            )
             && self.translucent == translucent)
             .then_some((self.group2.as_ref()?, self.atom_args?, self.shading))
     }
@@ -265,7 +268,7 @@ impl<D: Device> GpuSlot<D> {
             atom_group: self.atom_cull_group.as_ref()?,
             bond_group: self.bond_cull_group.as_ref()?,
             visual_group: self.visual_cull_group.as_ref()?,
-            atom_groups: if self.kind == RepresentationKind::Lines || is_spline_kind(self.kind) {
+            atom_groups: if is_spline_kind(self.kind) {
                 [0, 0]
             } else {
                 super::super::dispatch::workgroups_2d(u64::from(self.atom_count).div_ceil(64))

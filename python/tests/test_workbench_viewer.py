@@ -288,10 +288,30 @@ class WorkbenchPageTests(unittest.TestCase):
         )
         self.assertEqual(result, [{}, ""])
     def test_a_pick_returns_semantic_provenance_not_a_gpu_token(self):
-        before = self.page.evaluate("window.__molgfx.saved.length")
-        self.page.evaluate("""() => { const canvas = document.querySelector('.molgfx-canvas'); const b = canvas.getBoundingClientRect(); canvas.dispatchEvent(new MouseEvent('click', {clientX: b.left + b.width / 2, clientY: b.top + b.height / 2, bubbles: true})); }""")
-        self.page.wait_for_function("(before) => window.__molgfx.saved.length > before", arg=before)
-        pick = self.page.evaluate("window.__molgfx.values.pick")
+        # One centre click lands on the four-atom residue only if the software
+        # renderer drew and framed it exactly, which is not guaranteed on every
+        # machine. Sweep a small neighbourhood and keep the first click that
+        # resolves an atom, so the assertion tests provenance, not framing.
+        pick = self.page.evaluate(
+            """async () => {
+                const canvas = document.querySelector(".molgfx-canvas");
+                const b = canvas.getBoundingClientRect();
+                const cx = b.left + b.width / 2;
+                const cy = b.top + b.height / 2;
+                const settle = async () => {
+                    for (let i = 0; i < 40; i += 1) {
+                        if (window.__molgfx.values.pick.kind === "atom") return true;
+                        await new Promise((resolve) => setTimeout(resolve, 25));
+                    }
+                    return false;
+                };
+                for (const [dx, dy] of [[0, 0], [5, 5], [-5, 5], [5, -5], [-5, -5], [12, 0], [-12, 0], [0, 12], [0, -12], [18, 8], [-18, -8]]) {
+                    canvas.dispatchEvent(new MouseEvent("click", {clientX: cx + dx, clientY: cy + dy, bubbles: true}));
+                    if (await settle()) break;
+                }
+                return window.__molgfx.values.pick;
+            }"""
+        )
         self.assertEqual(pick["kind"], "atom")
         self.assertEqual(pick["dataset"], 1)
         self.assertIsInstance(pick["chunk"], int)

@@ -90,16 +90,16 @@ fn lines_record_only_one_gpu_compacted_bond_draw() {
     };
     assert_eq!(
         draws.len(),
-        2,
-        "shadow and beauty passes draw bonds without atom junctions"
+        3,
+        "shadow and beauty passes draw bonds, and lone atoms draw crosses"
     );
     let Ok(dispatches) = engine.device.log.dispatches.lock() else {
         panic!("log lock")
     };
     assert_eq!(
         dispatches.as_slice(),
-        &[(1, 1, 1), (1, 1, 1)],
-        "reset and bond compaction run without unused atom compaction"
+        &[(1, 1, 1), (1, 1, 1), (1, 1, 1)],
+        "reset, atom compaction and bond compaction each run once"
     );
 }
 

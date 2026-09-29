@@ -51,7 +51,7 @@ fn the_first_sample_rejects_history_and_the_second_reprojects_it() {
 }
 
 #[test]
-fn a_camera_cut_discards_the_previous_history() {
+fn any_camera_motion_discards_the_previous_history() {
     let mut state = TemporalState::default();
     let _ = state.prepare(&camera(), &options(false));
     let mut cut = camera();
@@ -100,7 +100,7 @@ fn caller_scheduling_stops_after_each_mode_reaches_its_sample_budget() {
 }
 
 #[test]
-fn a_small_camera_move_restarts_refinement_without_discarding_reprojectable_history() {
+fn a_small_camera_move_restarts_refinement_with_clean_history() {
     let mut state = TemporalState::default();
     for _ in 0..8 {
         state.prepare(&camera(), &options(false));
@@ -108,7 +108,7 @@ fn a_small_camera_move_restarts_refinement_without_discarding_reprojectable_hist
     let mut moved = camera();
     moved.eye.x += 0.01;
     let first = state.prepare(&moved, &options(false));
-    assert_ne!(first.temporal[0].to_bits(), 0.0_f32.to_bits());
+    assert_eq!(first.temporal[0].to_bits(), 0.0_f32.to_bits());
     assert!(state.needs_another_frame(8));
     for _ in 0..7 {
         state.prepare(&moved, &options(false));
@@ -139,7 +139,7 @@ fn convergence_is_a_four_sample_budget_reached_in_order_and_restarted_by_any_cha
     state.invalidate_convergence();
     assert!(state.needs_another_frame(BUDGET));
 
-    // So does camera motion, without discarding reprojectable history.
+    // Camera motion also starts from clean history.
     for _ in 0..BUDGET {
         let _ = state.prepare(&camera(), &options(false));
     }

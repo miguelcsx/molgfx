@@ -5,6 +5,10 @@ use crate::scene_gpu::record_cache::{RecordPrepare, RecordScratch};
 use molgfx_core::RepresentationKind;
 use molgfx_gpu::Device;
 
+#[cfg(test)]
+#[path = "record_pack_tests.rs"]
+mod tests;
+
 /// Packs one record set's atoms, bonds and compaction map into scratch.
 pub(super) fn pack_records<D: Device>(
     input: &RecordPrepare<'_, D>,
@@ -44,5 +48,19 @@ pub(super) fn pack_records<D: Device>(
         scratch.compaction,
         scratch.bonds,
     )?;
+    if input.representation.kind == RepresentationKind::Lines {
+        hide_bonded_line_atoms(scratch.atoms, scratch.bonds);
+    }
     Ok(())
+}
+
+/// Leaves a positive point-cull radius only on selected atoms without a bond.
+///
+/// Bond endpoints already index the compact atom table, so this is one linear
+/// pass with no degree array or additional allocation.
+fn hide_bonded_line_atoms(atoms: &mut [molgfx_core::AtomGpu], bonds: &[molgfx_core::BondGpu]) {
+    for bond in bonds {
+        atoms[bond.atom_a as usize].radius = 0.0;
+        atoms[bond.atom_b as usize].radius = 0.0;
+    }
 }

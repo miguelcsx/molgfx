@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
 #[path = "projection_tests.rs"]
 mod tests;
 
-/// The closest the fitted near plane may come to the camera, in Ångström.
 /// Keeps the projection finite when the camera sits inside the scene bound.
 const MIN_NEAR: f32 = 0.01;
 
