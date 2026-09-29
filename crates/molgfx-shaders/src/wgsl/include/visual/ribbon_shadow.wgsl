@@ -74,6 +74,7 @@ fn ribbon_shadow_visible(
         response.z,
         geometry.x > 0.5,
         geometry.y * 8.0,
+        MARKER_NONE,
     );
     let camera_delta = frame.inv_view[3].xyz - world_position;
     let camera_distance = length(camera_delta);

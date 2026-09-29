@@ -7,6 +7,8 @@
 // register computation itself differs between the two, which is what keeps a
 // specialized pipeline pixel-identical to an interpreted one.
 
+//!include "include/visual/marker.wgsl"
+
 struct VisualFragmentResult {
     color: vec4f,
     emission: vec3f,
@@ -16,6 +18,8 @@ struct VisualFragmentResult {
     material_strength: f32,
     visible: bool,
     softness_pixels: f32,
+    /// Strongest interaction marker; see `marker.wgsl`.
+    marker: u32,
 }
 
 fn visual_fragment_value(
@@ -105,5 +109,6 @@ fn visual_resolve_registers(
         strength,
         visible,
         softness,
+        fallback.marker,
     );
 }

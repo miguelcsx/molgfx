@@ -54,7 +54,10 @@ fn visual_material_payload(result: VisualFragmentResult) -> f32 {
 }
 
 fn visual_gbuffer_payload(result: VisualFragmentResult) -> f32 {
-    return visual_material_payload(result) + select(0.0, 8.0, result.emission_enabled);
+    return marker_encode_payload(
+        visual_material_payload(result) + select(0.0, 8.0, result.emission_enabled),
+        result.marker,
+    );
 }
 
 fn visual_fragment_fallback(entity_id: u32, base_color: vec4f) -> VisualFragmentResult {
@@ -87,6 +90,7 @@ fn visual_fragment_fallback(entity_id: u32, base_color: vec4f) -> VisualFragment
         response.z,
         geometry.x > 0.5,
         geometry.y * 8.0,
+        interaction_marker(source),
     );
 }
 
@@ -97,6 +101,19 @@ fn visual_fragment(
     world_position: vec3f,
     world_normal: vec3f,
 ) -> VisualFragmentResult {
+    if interaction_hidden(atom_source_index(entity_id)) {
+        return VisualFragmentResult(
+            base_color,
+            vec3f(0.0),
+            false,
+            representation.material.x,
+            representation.material.y,
+            representation.material.w,
+            false,
+            0.0,
+            MARKER_NONE,
+        );
+    }
     if !VISUAL_PROGRAM_ENABLED || visual_counts.visual_enabled == 0u {
         return VisualFragmentResult(
             base_color,
@@ -107,6 +124,7 @@ fn visual_fragment(
             representation.material.w,
             true,
             0.0,
+            interaction_marker(atom_source_index(entity_id)),
         );
     }
 

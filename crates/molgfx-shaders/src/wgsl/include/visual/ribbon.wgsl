@@ -27,7 +27,7 @@ fn visual_parameter(index: u32) -> vec4f {
 fn ribbon_visual_source(entity_id: u32) -> u32 {
     return entity_id & VISUAL_ENTITY_MASK;
 }
-
+//!include "include/visual/interaction.wgsl"
 fn ribbon_visual_offset(entity_id: u32) -> vec3f {
     if !VISUAL_PROGRAM_ENABLED {
         return vec3f(0.0);
@@ -65,6 +65,7 @@ fn ribbon_visual_fallback(entity_id: u32, base_color: vec4f) -> VisualFragmentRe
         response.z,
         geometry.x > 0.5,
         geometry.y * 8.0,
+        interaction_marker(source),
     );
 }
 
@@ -75,7 +76,10 @@ fn ribbon_visual(
     world_position: vec3f,
     world_normal: vec3f,
 ) -> VisualFragmentResult {
-    var presented_color = base_color;
+    var presented_color = interaction_color(
+        base_color,
+        ribbon_visual_source(entity_id),
+    );
     presented_color.a *= ribbon_uniforms.presentation.x;
     if !VISUAL_PROGRAM_ENABLED {
         return VisualFragmentResult(
@@ -87,6 +91,7 @@ fn ribbon_visual(
             ribbon_uniforms.material.w,
             true,
             0.0,
+            interaction_marker(ribbon_visual_source(entity_id)),
         );
     }
     let camera_delta = frame.inv_view[3].xyz - world_position;
@@ -122,5 +127,8 @@ fn ribbon_visual_material(result: VisualFragmentResult) -> f32 {
 }
 
 fn ribbon_visual_gbuffer_material(result: VisualFragmentResult) -> f32 {
-    return ribbon_visual_material(result) + select(0.0, 8.0, result.emission_enabled);
+    return marker_encode_payload(
+        ribbon_visual_material(result) + select(0.0, 8.0, result.emission_enabled),
+        result.marker,
+    );
 }

@@ -271,8 +271,11 @@ fn intersect_union_surface(
 
     var node_index = 0u;
 
-    let soft_union = probe > 0.0 && representation.options.w == 5u;
-    let normal_blend_span = select(0.0, 2.0, soft_union);
+    // The blend span is the caller's blob spread. A zero span disables the
+    // soft minimum, leaving the raw nearest-atom union this tracer walks.
+    let normal_blend_span = max(representation.presentation.y, 0.0);
+    let soft_union =
+        probe > 0.0 && representation.options.w == 5u && normal_blend_span > 0.0;
 
     while (node_index != BVH_ESCAPE_END) {
         let node =

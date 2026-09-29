@@ -37,8 +37,8 @@ struct SphereVsOut {
 
     @location(5) @interpolate(flat, either) entity_id: u32,
 
-    // The packed semantic word: the three colour-scheme palette indices, the
-    // caller's own tags and the record's packed softness.
+    // The packed semantic word: the caller's own tags and the record's packed
+    // softness.
     @location(6) @interpolate(flat, either) semantic: u32,
 }
 
