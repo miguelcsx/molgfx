@@ -37,13 +37,13 @@ impl PropertyMapping {
         Ok(Self { domain, visual })
     }
 
-    /// Maps and clamps a scientific value into the visual interval.
+    /// Maps and clamps a physical value into the visual interval.
     #[must_use]
     pub fn map(self, value: f32) -> f32 {
         interpolate(value, self.domain, self.visual)
     }
 
-    /// Inverts and clamps a visual value back into scientific units.
+    /// Inverts and clamps a visual value back into physical units.
     #[must_use]
     pub fn unmap(self, value: f32) -> f32 {
         interpolate(value, self.visual, self.domain)

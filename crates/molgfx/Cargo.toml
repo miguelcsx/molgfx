@@ -10,7 +10,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-molgfx-api.workspace = true
+molgfx-scene.workspace = true
 molgfx-command.workspace = true
 
 [lints]

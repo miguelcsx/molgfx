@@ -62,7 +62,7 @@ impl LodScene {
     ///
     /// Each visible residue, secondary-structure or domain cluster becomes one
     /// analytic sphere at the cluster centroid and radius. All records share
-    /// the core scientific table and its single indirect draw, so the coarse
+    /// the core physical table and its single indirect draw, so the coarse
     /// path does not add one CPU draw call per biological cluster. Native
     /// representations registered with [`Self::bind_detail_representation`]
     /// are switched automatically from [`LodFrame::atom_structures`].

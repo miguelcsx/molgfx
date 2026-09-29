@@ -20,7 +20,7 @@ const MIN_NEAR: f32 = 0.01;
 /// How a camera maps view space to clip space.
 ///
 /// Orthographic projection is offered as a first-class choice because it is
-/// often the scientifically correct one: parallel lines stay parallel and
+/// often the physically correct one: parallel lines stay parallel and
 /// distances compare across the image.
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Projection {

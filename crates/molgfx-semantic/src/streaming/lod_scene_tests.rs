@@ -41,8 +41,8 @@ fn foreign_particle(scene: &mut Scene, owner: StructureHandle) -> PrimitiveHandl
         Err(error) => panic!("foreign particle validates: {error}"),
     };
     match scene.add_primitives(&[Primitive::particle(particle)]) {
-        Ok(Some(handle)) => handle,
-        Ok(None) => panic!("non-empty foreign batch returns one handle"),
+        Ok(handles) if handles.len() == 1 => handles[0],
+        Ok(_) => panic!("non-empty foreign batch returns one handle"),
         Err(error) => panic!("foreign particle stores: {error}"),
     }
 }
