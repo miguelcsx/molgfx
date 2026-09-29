@@ -3,6 +3,7 @@
 
 use super::MockLog;
 use molgfx_gpu::GpuError;
+use std::future::Future;
 use std::sync::Arc;
 
 /// A mock readback that owns its log, so the wait borrows nothing.
@@ -13,8 +14,12 @@ pub(crate) struct MockReadback {
 }
 
 impl molgfx_gpu::Readback for MockReadback {
-    async fn resolve(&self, _offset: u64, size: u64) -> Result<Vec<u8>, GpuError> {
-        mock_readback(size, self.label, &self.log)
+    fn resolve(
+        &self,
+        _offset: u64,
+        size: u64,
+    ) -> impl Future<Output = Result<Vec<u8>, GpuError>> + '_ {
+        std::future::ready(mock_readback(size, self.label, &self.log))
     }
 }
 
