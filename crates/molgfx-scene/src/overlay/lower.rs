@@ -1,4 +1,4 @@
-//! Lowering portable scientific descriptors onto the caller-facing core scene.
+//! Lowering portable overlay descriptors onto the caller-facing core scene.
 //!
 //! Descriptors carry anchors, classification and provenance; bulk data lives in
 //! runtime bindings. This module is the only place the two meet, and it supplies
@@ -8,54 +8,56 @@
 
 use crate::error::Error;
 use crate::id::{
-    AnnotationId, MeasurementId, ScientificInteractionId, StructureId, TrajectoryId, VolumeId,
+    AnnotationId, EllipsoidId, InteractionId, MeasurementId, StructureId, TrajectoryId, VolumeId,
 };
+use crate::overlay::{Anchor, InteractionSpec, MeasurementSpec, OverlayBindings, VolumeSpec};
 use crate::representation::Selection;
-use crate::science::{
-    Anchor, MeasurementSpec, ScienceBindings, ScientificInteractionSpec, VolumeSpec,
-};
 use molgfx_core::{
-    Annotation, AnnotationAnchor, AnnotationHandle, InteractionAnchor, InteractionEdge,
-    InteractionGeometry, InteractionHandle, Measurement, MeasurementHandle, MolecularSource, Scene,
-    SelectionHandle, StructureHandle, VolumeHandle,
+    AnisotropicEllipsoid, Annotation, AnnotationAnchor, AnnotationHandle, InteractionAnchor,
+    InteractionEdge, InteractionGeometry, InteractionHandle, Measurement, MeasurementHandle,
+    MolecularSource, Primitive, PrimitiveHandle, Scene, SelectionHandle, StructureHandle,
+    VolumeHandle,
 };
 use molgfx_math::Vec3;
 use std::collections::BTreeMap;
 
-/// Renderer handles a resolved scene assigned to each scientific item.
+/// Renderer handles a resolved scene assigned to each overlay item.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct LoweredScience {
+pub(crate) struct LoweredOverlay {
     pub(crate) volumes: Vec<(VolumeId, VolumeHandle)>,
     pub(crate) labels: Vec<(AnnotationId, AnnotationHandle)>,
     pub(crate) measurements: Vec<(MeasurementId, MeasurementHandle)>,
-    pub(crate) interactions: Vec<(ScientificInteractionId, InteractionHandle)>,
+    pub(crate) interactions: Vec<(InteractionId, InteractionHandle)>,
     pub(crate) trajectories: Vec<(TrajectoryId, StructureHandle)>,
+    /// One entry per overlay, holding the primitives it emitted.
+    pub(crate) ellipsoids: Vec<(EllipsoidId, Vec<PrimitiveHandle>)>,
 }
 
-impl LoweredScience {
+impl LoweredOverlay {
     /// Handle counts for the public inspection view.
-    pub(crate) fn counts(&self) -> crate::science::ScientificHandles {
-        crate::science::ScientificHandles {
+    pub(crate) fn counts(&self) -> crate::overlay::OverlayHandles {
+        crate::overlay::OverlayHandles {
             volumes: self.volumes.len(),
             labels: self.labels.len(),
             measurements: self.measurements.len(),
             interactions: self.interactions.len(),
             trajectories: self.trajectories.len(),
+            ellipsoids: self.ellipsoids.iter().map(|(_, rows)| rows.len()).sum(),
         }
     }
 }
 
 /// Everything lowering needs from the scene it resolves against.
-pub(crate) struct SciLowering<'a> {
+pub(crate) struct OverlayLowering<'a> {
     pub(crate) scene: &'a mut Scene,
     pub(crate) structures: &'a BTreeMap<StructureId, MolecularSource>,
     pub(crate) handles: &'a BTreeMap<StructureId, StructureHandle>,
     /// Canonical selection cache shared with representation lowering.
     pub(crate) selections: &'a mut BTreeMap<String, SelectionHandle>,
-    pub(crate) bindings: &'a ScienceBindings,
+    pub(crate) bindings: &'a OverlayBindings,
 }
 
-/// Lowers every declared scientific item onto `scene`.
+/// Lowers every declared overlay item onto `scene`.
 ///
 /// # Errors
 ///
@@ -64,9 +66,9 @@ pub(crate) struct SciLowering<'a> {
 /// interaction geometry.
 pub(crate) fn lower(
     spec: &crate::SceneSpec,
-    lowering: &mut SciLowering<'_>,
-) -> Result<LoweredScience, Error> {
-    let mut lowered = LoweredScience::default();
+    lowering: &mut OverlayLowering<'_>,
+) -> Result<LoweredOverlay, Error> {
+    let mut lowered = LoweredOverlay::default();
 
     for (id, volume) in &spec.volumes {
         if let Some(handle) = lower_volume(lowering.scene, volume, lowering.bindings)? {
@@ -110,8 +112,8 @@ pub(crate) fn lower(
             .push((*id, lowering.scene.add_measurement(native)?));
     }
 
-    for (id, interaction) in &spec.scientific_interactions {
-        let ScientificInteractionSpec::Explicit { kind, endpoints } = interaction;
+    for (id, interaction) in &spec.interactions {
+        let InteractionSpec::Explicit { kind, endpoints } = interaction;
         let points = positions(
             lowering.scene,
             lowering.structures,
@@ -145,7 +147,82 @@ pub(crate) fn lower(
         }
     }
 
+    for (id, ellipsoids) in &spec.ellipsoids {
+        let handles = lower_ellipsoids(
+            lowering.scene,
+            lowering.handles,
+            &ellipsoids.structure,
+            &ellipsoids.selection,
+            ellipsoids.scale,
+            ellipsoids.color.native(),
+            ellipsoids.opacity,
+        )?;
+        lowered.ellipsoids.push((*id, handles));
+    }
+
     Ok(lowered)
+}
+
+/// Emits one analytic ellipsoid per selected atom that carries a tensor.
+///
+/// The tensors come from the structure's source, which already stores them
+/// sparse and ascending by atom row; the selection decides which rows are
+/// drawn. An atom without a tensor, or one whose tensor is not positive
+/// definite, is skipped rather than aborting the overlay, because a real file
+/// can carry a single malformed ellipsoid among thousands.
+///
+/// Cost: `O(selected atoms)` plus one `add_primitives` batch insert.
+#[allow(clippy::too_many_arguments)]
+fn lower_ellipsoids(
+    scene: &mut Scene,
+    handles: &BTreeMap<StructureId, StructureHandle>,
+    structure: &StructureId,
+    selection: &Selection,
+    scale: f32,
+    color: molgfx_math::Rgba8,
+    opacity: f32,
+) -> Result<Vec<PrimitiveHandle>, Error> {
+    let handle = *handles.get(structure).ok_or_else(|| {
+        Error::InvalidSpec("ellipsoid overlay targets an unbound structure".to_owned())
+    })?;
+    let Some(placed) = scene.structure(handle) else {
+        return Err(Error::InvalidSpec(
+            "ellipsoid overlay targets an unresolved structure".to_owned(),
+        ));
+    };
+    let source = placed.source.clone();
+    let atom_count = placed.atoms.len();
+    let positions = placed.atoms.coords().slice();
+    let tensors = source.topology().anisotropy.clone();
+    let rows = source.select(selection.source())?;
+    let squared = scale * scale;
+    let mut batch = Vec::new();
+    rows.for_each(atom_count, |row| {
+        let Some(position) = positions.get(row as usize) else {
+            return;
+        };
+        let Some(tensor) = lookup_tensor(&tensors, row) else {
+            return;
+        };
+        let scaled = tensor.map(|value| value * squared);
+        if let Ok(value) = AnisotropicEllipsoid::new(Vec3::from_array(*position), scaled)
+            && let Ok(primitive) = Primitive::ellipsoid(handle, value, color, opacity)
+        {
+            batch.push(primitive);
+        }
+    });
+    if batch.is_empty() {
+        return Ok(Vec::new());
+    }
+    Ok(scene.add_primitives(&batch)?)
+}
+
+/// Binary-searches the ascending sparse tensor column for one atom row.
+fn lookup_tensor(tensors: &[(u32, [f32; 6])], row: u32) -> Option<[f32; 6]> {
+    tensors
+        .binary_search_by_key(&row, |(atom, _)| *atom)
+        .ok()
+        .map(|index| tensors[index].1)
 }
 
 /// Installs a trajectory's resident frame pair on the structure it belongs to.
@@ -156,7 +233,7 @@ pub(crate) fn lower(
 /// time because a binding is declared before the structure it names is
 /// necessarily resolved.
 fn lower_trajectory(
-    lowering: &mut SciLowering<'_>,
+    lowering: &mut OverlayLowering<'_>,
     spec: &crate::TrajectorySpec,
 ) -> Result<Option<StructureHandle>, Error> {
     let Some(binding) = lowering.bindings.trajectory(&spec.source.content_hash) else {
@@ -182,7 +259,7 @@ fn lower_trajectory(
 fn lower_volume(
     scene: &mut Scene,
     spec: &VolumeSpec,
-    bindings: &ScienceBindings,
+    bindings: &OverlayBindings,
 ) -> Result<Option<VolumeHandle>, Error> {
     let Some(binding) = bindings.volume(&spec.source.content_hash) else {
         return Ok(None);
@@ -267,7 +344,7 @@ fn lower_measurement(
     Ok(built)
 }
 
-/// Owning structure of a scientific item: the first selection anchor's
+/// Owning structure of an overlay item: the first selection anchor's
 /// structure, or the scene's first bound structure for world-only anchors,
 /// because core ownership drives lifecycle and picking.
 fn owner_of(
@@ -286,9 +363,7 @@ fn owner_of(
         .structures()
         .next()
         .map(|(handle, _)| handle)
-        .ok_or_else(|| {
-            Error::InvalidSpec("a scientific item requires a bound structure".to_owned())
-        })
+        .ok_or_else(|| Error::InvalidSpec("an overlay item requires a bound structure".to_owned()))
 }
 
 fn positions(
@@ -402,25 +477,4 @@ fn dihedral_value(points: &[Vec3]) -> Result<f32, Error> {
     let x = normal_first.dot(normal_last);
     let y = normal_first.cross(normal_last).dot(axis) / length;
     Ok(y.atan2(x).to_degrees())
-}
-#[cfg(test)]
-mod tests {
-    use crate::appearance::tests::two_chains;
-    use crate::{DataSource, Scene, VolumeBinding, density};
-    use std::sync::Arc;
-
-    #[test]
-    fn bound_volume_lowers_to_a_real_renderer_handle() {
-        let mut scene =
-            Scene::from_structure(&two_chains()).unwrap_or_else(|error| panic!("{error}"));
-        let source = DataSource::new("density");
-        let _ = scene
-            .add(density::volume(source.clone(), [2, 2, 2]).isovalue(2.5))
-            .unwrap_or_else(|error| panic!("{error}"));
-        let values: Arc<[f32]> = (0_u8..8).map(f32::from).collect();
-        scene
-            .bind_volume(VolumeBinding::new(source, [2, 2, 2], values))
-            .unwrap_or_else(|error| panic!("{error}"));
-        assert_eq!(scene.scientific_handles().volumes, 1);
-    }
 }

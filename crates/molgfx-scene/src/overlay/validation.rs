@@ -1,8 +1,8 @@
-//! Cross-object validation for scientific semantic values.
+//! Cross-object validation for overlay values.
 
 use super::{
-    Anchor, AnnotationSpec, DataSource, MeasurementSpec, ScientificInteractionSpec, TrajectorySpec,
-    VolumeSpec,
+    Anchor, AnnotationSpec, DataSource, EllipsoidSpec, InteractionSpec, MeasurementSpec,
+    TrajectorySpec, VolumeSpec,
 };
 use crate::Error;
 
@@ -17,7 +17,19 @@ impl DataSource {
     }
 }
 
+use crate::id::StructureId;
+
 impl Anchor {
+    /// The structure a selection anchor reads in; `None` for a fixed
+    /// world-space point, which belongs to no structure.
+    #[must_use]
+    pub const fn structure(&self) -> Option<StructureId> {
+        match self {
+            Self::World { .. } => None,
+            Self::Selection { structure, .. } => Some(*structure),
+        }
+    }
+
     fn validate(&self, scene: &crate::SceneSpec) -> Result<(), Error> {
         match self {
             Self::World { position } if position.iter().all(|value| value.is_finite()) => Ok(()),
@@ -81,13 +93,35 @@ impl MeasurementSpec {
     }
 }
 
-impl ScientificInteractionSpec {
+impl InteractionSpec {
     pub(crate) fn validate(&self, scene: &crate::SceneSpec) -> Result<(), Error> {
         match self {
             Self::Explicit { endpoints, .. } => endpoints
                 .iter()
                 .try_for_each(|anchor| anchor.validate(scene)),
         }
+    }
+}
+
+impl EllipsoidSpec {
+    pub(crate) fn validate(&self, scene: &crate::SceneSpec) -> Result<(), Error> {
+        if !scene.structures.contains_key(&self.structure) {
+            return Err(Error::InvalidSpec(
+                "ellipsoid overlay targets an unknown structure".to_owned(),
+            ));
+        }
+        let _ = self.selection.fingerprint()?;
+        if !self.scale.is_finite() || self.scale <= 0.0 {
+            return Err(Error::InvalidSpec(
+                "ellipsoid scale must be finite and positive".to_owned(),
+            ));
+        }
+        if !self.opacity.is_finite() || !(0.0..=1.0).contains(&self.opacity) {
+            return Err(Error::InvalidSpec(
+                "ellipsoid opacity must be within zero to one".to_owned(),
+            ));
+        }
+        Ok(())
     }
 }
 

@@ -318,11 +318,11 @@ pub enum ColorExpr {
         /// Color when the predicate is false.
         no: Arc<Self>,
     },
-    /// Scientific ramp over an explicit domain.
+    /// Named ramp over an explicit domain.
     Ramp {
         /// Scalar input.
         value: Arc<ScalarExpr>,
-        /// Scientific palette name.
+        /// Named palette name.
         palette: Box<str>,
         /// Explicit scalar domain.
         domain: [f32; 2],

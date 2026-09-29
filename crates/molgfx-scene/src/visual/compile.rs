@@ -362,7 +362,7 @@ fn color_wgsl(expression: &ColorExpr, inputs: &mut Inputs) -> Result<String, Err
         } => {
             // The same registry the renderer lowering uses, so a style that
             // compiles here cannot fail on an unknown ramp further down.
-            let _ = crate::color::palette(palette)?;
+            let _ = crate::color::ramp_colors(palette)?;
             validate_domain(domain[0], domain[1])?;
             inputs.fragment = true;
             format!(

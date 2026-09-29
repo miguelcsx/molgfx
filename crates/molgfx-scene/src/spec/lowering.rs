@@ -44,7 +44,7 @@ impl RepresentationSpec {
         } else {
             None
         };
-        native = apply_form(native, &self.form);
+        native = apply_form(native, &self.form)?;
         Ok((native, resolved))
     }
 
@@ -133,6 +133,10 @@ impl PreparedAppearance {
 fn native_kind(spec: &RepresentationSpec) -> molgfx_core::RepresentationKind {
     use molgfx_core::RepresentationKind as Native;
     match &spec.form {
+        RepresentationFormSpec::Backbone { .. } | RepresentationFormSpec::Trace { .. } => {
+            Native::Trace
+        }
+        RepresentationFormSpec::Tube { .. } | RepresentationFormSpec::Putty { .. } => Native::Tube,
         RepresentationFormSpec::Cartoon {
             style: crate::representation::CartoonStyle::Rocket,
             ..
@@ -151,19 +155,36 @@ fn native_kind(spec: &RepresentationSpec) -> molgfx_core::RepresentationKind {
         RepresentationFormSpec::Spacefill { .. } => Native::Spacefill,
         RepresentationFormSpec::Licorice { .. } => Native::Licorice,
         RepresentationFormSpec::Lines { .. } => Native::Lines,
-        RepresentationFormSpec::Points { .. } => Native::Points,
+        RepresentationFormSpec::Points { .. } | RepresentationFormSpec::Dots { .. } => {
+            Native::Points
+        }
         RepresentationFormSpec::Surface { .. } => Native::Surface,
+        RepresentationFormSpec::Beads { .. } => Native::Beads,
     }
 }
 
 fn apply_form(
     native: molgfx_core::RepresentationConfig,
     form: &RepresentationFormSpec,
-) -> molgfx_core::RepresentationConfig {
+) -> Result<molgfx_core::RepresentationConfig, crate::Error> {
     match form {
+        RepresentationFormSpec::Backbone { width } => {
+            native.tube_radius(*width).map_err(crate::Error::from)
+        }
+        RepresentationFormSpec::Trace { radius } | RepresentationFormSpec::Tube { radius } => {
+            native.tube_radius(*radius).map_err(crate::Error::from)
+        }
+        RepresentationFormSpec::Putty {
+            domain_min,
+            domain_max,
+            radius_min,
+            radius_max,
+        } => native
+            .putty_b_factor([*domain_min, *domain_max], [*radius_min, *radius_max])
+            .map_err(crate::Error::from),
         RepresentationFormSpec::Cartoon { width, .. }
         | RepresentationFormSpec::NucleicAcid { width }
-        | RepresentationFormSpec::Glycan { width } => native.ribbon_width(*width),
+        | RepresentationFormSpec::Glycan { width } => Ok(native.ribbon_width(*width)),
         RepresentationFormSpec::BallAndStick {
             radius,
             bond_radius,
@@ -175,21 +196,25 @@ fn apply_form(
         | RepresentationFormSpec::BasePairs {
             radius,
             bond_radius,
-        } => native.radius_scale(*radius).bond_radius(*bond_radius),
-        RepresentationFormSpec::Spacefill { radius } | RepresentationFormSpec::Bases { radius } => {
-            native.radius_scale(*radius)
+        } => Ok(native.radius_scale(*radius).bond_radius(*bond_radius)),
+        RepresentationFormSpec::Spacefill { radius }
+        | RepresentationFormSpec::Bases { radius }
+        | RepresentationFormSpec::Beads { radius } => Ok(native.radius_scale(*radius)),
+        RepresentationFormSpec::Lines { width } => Ok(native.line_width(*width)),
+        RepresentationFormSpec::Points { size } | RepresentationFormSpec::Dots { size } => {
+            Ok(native.point_size(*size))
         }
-        RepresentationFormSpec::Lines { width } => native.line_width(*width),
-        RepresentationFormSpec::Points { size } => native.point_size(*size),
         RepresentationFormSpec::Surface {
             surface,
             style,
             probe_radius,
             isolevel,
-        } => native
+            blob_spread,
+        } => Ok(native
             .surface(surface_kind(*surface), surface_style(*style))
             .probe_radius(*probe_radius)
-            .isolevel(*isolevel),
+            .isolevel(*isolevel)
+            .blob_spread(*blob_spread)),
     }
 }
 
@@ -211,6 +236,7 @@ fn surface_style(style: crate::representation::SurfaceStyle) -> molgfx_core::Sur
         SurfaceStyle::Dots => molgfx_core::SurfaceStyle::Dots,
         SurfaceStyle::FilledContour => molgfx_core::SurfaceStyle::FilledContour,
         SurfaceStyle::Mesh => molgfx_core::SurfaceStyle::Mesh,
+        SurfaceStyle::SoftUnion => molgfx_core::SurfaceStyle::SoftUnion,
     }
 }
 
