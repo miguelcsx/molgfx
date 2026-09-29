@@ -47,7 +47,7 @@ native-only-targets = [
 ]
 
 [workspace.package]
-version = "0.3.3"
+version = "0.3.4"
 edition = "2024"
 rust-version = "1.98.1"
 license = "MIT"
@@ -57,17 +57,17 @@ categories = ["science", "rendering", "visualization"]
 
 [workspace.dependencies]
 # Internal crates (layered; a crate depends only on lower layers).
-molgfx = { version = "0.3.3", path = "crates/molgfx" }
-molgfx-math = { version = "0.3.3", path = "crates/molgfx-math" }
-molgfx-core = { version = "0.3.3", path = "crates/molgfx-core" }
-molgfx-gpu = { version = "0.3.3", path = "crates/molgfx-gpu" }
-molgfx-wgpu = { version = "0.3.3", path = "crates/molgfx-wgpu" }
-molgfx-shaders = { version = "0.3.3", path = "crates/molgfx-shaders" }
-molgfx-geometry = { version = "0.3.3", path = "crates/molgfx-geometry" }
-molgfx-render = { version = "0.3.3", path = "crates/molgfx-render" }
-molgfx-semantic = { version = "0.3.3", path = "crates/molgfx-semantic" }
-molgfx-scene = { version = "0.3.3", path = "crates/molgfx-scene" }
-molgfx-command = { version = "0.3.3", path = "crates/molgfx-command" }
+molgfx = { version = "0.3.4", path = "crates/molgfx" }
+molgfx-math = { version = "0.3.4", path = "crates/molgfx-math" }
+molgfx-core = { version = "0.3.4", path = "crates/molgfx-core" }
+molgfx-gpu = { version = "0.3.4", path = "crates/molgfx-gpu" }
+molgfx-wgpu = { version = "0.3.4", path = "crates/molgfx-wgpu" }
+molgfx-shaders = { version = "0.3.4", path = "crates/molgfx-shaders" }
+molgfx-geometry = { version = "0.3.4", path = "crates/molgfx-geometry" }
+molgfx-render = { version = "0.3.4", path = "crates/molgfx-render" }
+molgfx-semantic = { version = "0.3.4", path = "crates/molgfx-semantic" }
+molgfx-scene = { version = "0.3.4", path = "crates/molgfx-scene" }
+molgfx-command = { version = "0.3.4", path = "crates/molgfx-command" }
 
 # The structural model and every detection the engine consumes. The local path
 # patch below keeps the engine and its companion parser on one source tree while
