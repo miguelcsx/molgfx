@@ -11,7 +11,7 @@ categories.workspace = true
 
 [dependencies]
 molgfx-math.workspace = true
-molframe = { workspace = true, features = ["query", "surface"] }
+molframe = { workspace = true, features = ["query", "surface", "chemistry", "spatial"] }
 bytemuck.workspace = true
 smallvec.workspace = true
 hashbrown.workspace = true

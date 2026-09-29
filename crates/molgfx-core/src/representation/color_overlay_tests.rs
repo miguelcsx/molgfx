@@ -28,15 +28,19 @@ fn handle() -> AtomPropertyHandle {
     }
 }
 
+fn by_chain() -> ColorScheme {
+    ColorScheme::category(handle(), crate::CategoryPalette::Kelly)
+}
+
 #[test]
 fn a_class_selects_its_scheme_and_zero_keeps_the_base() {
     let red = ColorScheme::Uniform(Rgba8::opaque(255, 0, 0));
-    let Ok(overlay) = ColorOverlay::new(handle(), &[red, ColorScheme::ByChain]) else {
+    let Ok(overlay) = ColorOverlay::new(handle(), &[red, by_chain()]) else {
         panic!("overlay builds")
     };
     assert_eq!(overlay.scheme_for(0.0), None);
     assert_eq!(overlay.scheme_for(1.0), Some(red));
-    assert_eq!(overlay.scheme_for(2.0), Some(ColorScheme::ByChain));
+    assert_eq!(overlay.scheme_for(2.0), Some(by_chain()));
     assert_eq!(overlay.scheme_for(3.0), None);
     assert_eq!(overlay.scheme_for(f32::NAN), None);
     assert_eq!(overlay.scheme_for(1.5), None);
@@ -47,7 +51,20 @@ fn a_class_selects_its_scheme_and_zero_keeps_the_base() {
 fn an_overlay_is_bounded_and_rejects_property_schemes() {
     let classes = handle();
     assert!(ColorOverlay::new(classes, &[]).is_err());
-    let many = [ColorScheme::ByChain; MAX_COLOR_OVERLAY_CLASSES + 1];
+    let many = [by_chain(); MAX_COLOR_OVERLAY_CLASSES + 1];
     assert!(ColorOverlay::new(classes, &many).is_err());
     assert!(ColorOverlay::new(classes, &many[..MAX_COLOR_OVERLAY_CLASSES]).is_ok());
+}
+
+#[test]
+fn a_categorical_scheme_is_allowed_and_a_continuous_ramp_is_not() {
+    let classes = handle();
+    let category = ColorScheme::category(handle(), crate::CategoryPalette::Dark2);
+    assert!(ColorOverlay::new(classes, &[category]).is_ok());
+    let ramp = ColorScheme::ByProperty {
+        property: handle(),
+        ramp: crate::ScalarRamp::sequential([0.0, 1.0]),
+        missing: Rgba8::opaque(1, 1, 1),
+    };
+    assert!(ColorOverlay::new(classes, &[ramp]).is_err());
 }

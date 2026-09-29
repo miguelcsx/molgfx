@@ -178,6 +178,16 @@ impl RepresentationConfig {
         self
     }
 
+    /// Sets the soft-union blend span, Ångström.
+    ///
+    /// Only [`SurfaceStyle::SoftUnion`](crate::SurfaceStyle::SoftUnion) reads
+    /// it; every other style ignores the value.
+    #[must_use]
+    pub const fn blob_spread(mut self, spread: f32) -> Self {
+        self.params.blob_spread = spread;
+        self
+    }
+
     /// Selects molecular-surface construction and presentation in one step.
     #[must_use]
     pub const fn surface(mut self, kind: SurfaceKind, style: SurfaceStyle) -> Self {
