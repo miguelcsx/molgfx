@@ -295,6 +295,17 @@ class WorkbenchPageTests(unittest.TestCase):
         )
         self.assertEqual(result, [{}, ""])
     def test_a_pick_returns_semantic_provenance_not_a_gpu_token(self):
+        self.page.evaluate("""async () => {
+            const {loadRuntime} = await import("./widget.js");
+            const runtime = await loadRuntime(window.__molgfx.model);
+            window.__pickTrace = [];
+            const finish = runtime.Renderer.prototype.finishPick;
+            runtime.Renderer.prototype.finishPick = function(scene, bytes) {
+                const result = finish.call(this, scene, bytes);
+                window.__pickTrace.push({bytes: Array.from(bytes), result});
+                return result;
+            };
+        }""")
         bounds = self.page.locator(".molgfx-canvas").bounding_box()
         self.assertIsNotNone(bounds)
         # Probe around the centered, enlarged atom; the exact center is an impostor seam.
@@ -315,7 +326,7 @@ class WorkbenchPageTests(unittest.TestCase):
             pick = self.page.evaluate("window.__molgfx.values.pick")
             if pick.get("kind") == "atom":
                 break
-        self.assertEqual(pick.get("kind"), "atom", pick)
+        self.assertEqual(pick.get("kind"), "atom", self.page.evaluate("({pick: window.__molgfx.values.pick, trace: window.__pickTrace, camera: window.__molgfx.values.camera})"))
         self.assertEqual(pick["dataset"], 1)
         self.assertIsInstance(pick["chunk"], int)
         self.assertIsInstance(pick["row"], int)
