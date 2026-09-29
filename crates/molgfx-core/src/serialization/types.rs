@@ -206,8 +206,12 @@ pub struct RepresentationDescription {
     pub color: ColorDescription,
     /// Surface response state.
     pub material: MaterialDescription,
-    /// Numeric geometry knobs in the same stable order as `RepresentationParams`.
-    pub params: [f32; 15],
+    /// Numeric geometry knobs in the fixed order of `representation_params`.
+    ///
+    /// The first thirteen lanes are geometry, followed by the material opacity
+    /// and draw order. The width is part of the wire contract: an older scene
+    /// with a shorter array is rejected rather than reinterpreted.
+    pub params: [f32; 16],
     /// Sampled-field connected-component threshold.
     pub surface_components: SurfaceComponentDescription,
     /// Clipping state.
@@ -288,7 +292,7 @@ pub struct VisualInstructionDescription {
 /// Stable description of a colour source and optional scalar ramp.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct ColorDescription {
-    /// `element`, `chain`, `residue`, `secondary`, `property` or `uniform`.
+    /// `element`, `category`, `property` or `uniform`.
     pub mode: String,
     /// Uniform or missing colour, when applicable.
     pub rgba: Option<[u8; 4]>,
@@ -297,9 +301,12 @@ pub struct ColorDescription {
     /// Property slot generation, when applicable.
     pub property_generation: Option<u32>,
     /// Numeric ramp stops, when applicable.
-    pub ramp_values: Option<[u32; 3]>,
+    pub ramp_values: Option<Vec<u32>>,
     /// Ramp colours, when applicable.
-    pub ramp_colors: Option<[[u8; 4]; 3]>,
+    pub ramp_colors: Option<Vec<[u8; 4]>>,
+    /// Categorical palette name, when applicable.
+    #[serde(default)]
+    pub palette: Option<String>,
 }
 
 /// Compact material description.
@@ -478,9 +485,9 @@ pub struct SurfaceScalarDescription {
     /// Scalar volume slot identity.
     pub field: ObjectIdentity,
     /// Three ramp values encoded as IEEE-754 bits.
-    pub ramp_values: [u32; 3],
+    pub ramp_values: Vec<u32>,
     /// Three ramp colours.
-    pub ramp_colors: [[u8; 4]; 3],
+    pub ramp_colors: Vec<[u8; 4]>,
     /// Optional contour interval and width in pixels.
     pub contours: Option<[f32; 2]>,
     /// Sampling displacement along the surface normal.

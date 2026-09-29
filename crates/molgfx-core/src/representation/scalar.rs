@@ -11,7 +11,7 @@ use std::sync::Arc;
 #[path = "scalar_tests.rs"]
 mod tests;
 
-/// Scientific meaning attached to a scalar grid.
+/// Physical meaning attached to a scalar grid.
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub enum ScalarFieldSemantics {
     /// Values are useful only for relative ordering and carry no physical unit.
@@ -55,12 +55,21 @@ impl ScalarFieldSemantics {
     }
 }
 
-/// A three-stop scalar ramp whose numeric domain is always available to a
-/// legend. Values outside the domain clamp to the nearest endpoint.
+/// Most stops a scalar ramp holds.
+///
+/// Sixteen anchors reproduce every published continuous palette to within one
+/// eight-bit step once interpolated, while keeping the ramp a small `Copy`
+/// value the renderer can compare and upload without allocation.
+pub const MAX_RAMP_STOPS: usize = 16;
+
+/// A piecewise-linear scalar ramp of two to [`MAX_RAMP_STOPS`] stops whose
+/// numeric domain is always available to a legend. Values outside the domain
+/// clamp to the nearest endpoint.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct ScalarRamp {
-    values: [f32; 3],
-    colors: [Rgba8; 3],
+    len: u8,
+    values: [f32; MAX_RAMP_STOPS],
+    colors: [Rgba8; MAX_RAMP_STOPS],
 }
 
 impl ScalarRamp {
@@ -68,17 +77,62 @@ impl ScalarRamp {
     ///
     /// # Errors
     ///
-    /// Stop values must be finite and strictly increasing.
-    pub fn new(values: [f32; 3], colors: [Rgba8; 3]) -> Result<Self, CoreError> {
+    /// There must be two to [`MAX_RAMP_STOPS`] stops, one colour per value, and
+    /// the values must be finite and strictly increasing.
+    pub fn new(values: &[f32], colors: &[Rgba8]) -> Result<Self, CoreError> {
+        let len = values.len();
+        if !(2..=MAX_RAMP_STOPS).contains(&len) || colors.len() != len {
+            return Err(CoreError::InvalidVolume {
+                reason: "a scalar ramp needs two to sixteen stops with one colour each",
+            });
+        }
         if values.iter().any(|value| !value.is_finite())
-            || values[0] >= values[1]
-            || values[1] >= values[2]
+            || values.windows(2).any(|pair| pair[0] >= pair[1])
         {
             return Err(CoreError::InvalidVolume {
                 reason: "scalar ramp values must be finite and strictly increasing",
             });
         }
-        Ok(Self { values, colors })
+        let Ok(count) = u8::try_from(len) else {
+            return Err(CoreError::InvalidVolume {
+                reason: "scalar ramp has too many stops",
+            });
+        };
+        let mut ramp = Self {
+            len: count,
+            values: [0.0; MAX_RAMP_STOPS],
+            colors: [Rgba8::WHITE; MAX_RAMP_STOPS],
+        };
+        ramp.values[..len].copy_from_slice(values);
+        ramp.colors[..len].copy_from_slice(colors);
+        Ok(ramp)
+    }
+
+    /// Spreads `colors` evenly over `domain`.
+    ///
+    /// # Errors
+    ///
+    /// The domain must be finite and increasing, and there must be two to
+    /// [`MAX_RAMP_STOPS`] colours.
+    pub fn evenly(domain: [f32; 2], colors: &[Rgba8]) -> Result<Self, CoreError> {
+        let count = colors.len();
+        if !(2..=MAX_RAMP_STOPS).contains(&count)
+            || domain[0].partial_cmp(&domain[1]) != Some(std::cmp::Ordering::Less)
+        {
+            return Err(CoreError::InvalidVolume {
+                reason: "an even ramp needs an increasing domain and two to sixteen colours",
+            });
+        }
+        let mut values = [0.0_f32; MAX_RAMP_STOPS];
+        let last = count - 1;
+        for (index, value) in values.iter_mut().take(count).enumerate() {
+            let fraction = u16::try_from(index).map_or(1.0, f32::from)
+                / u16::try_from(last).map_or(1.0, f32::from);
+            *value = domain[0] + (domain[1] - domain[0]) * fraction;
+        }
+        // Pin the endpoints so rounding cannot leave the last stop short.
+        values[last] = domain[1];
+        Self::new(&values[..count], colors)
     }
 
     /// Symmetric blue-white-red ramp around zero.
@@ -89,53 +143,93 @@ impl ScalarRamp {
         } else {
             1.0
         };
-        Self {
-            values: [-extent, 0.0, extent],
-            colors: [
+        Self::three(
+            [-extent, 0.0, extent],
+            [
                 Rgba8::opaque(49, 54, 149),
                 Rgba8::opaque(247, 247, 247),
                 Rgba8::opaque(165, 0, 38),
             ],
-        }
+        )
     }
 
     /// Viridis-class sequential ramp over one caller domain.
     #[must_use]
     pub fn sequential(domain: [f32; 2]) -> Self {
         let [low, high] = finite_domain(domain);
-        Self {
-            values: [low, low.midpoint(high), high],
-            colors: [
+        Self::three(
+            [low, low.midpoint(high), high],
+            [
                 Rgba8::opaque(68, 1, 84),
                 Rgba8::opaque(33, 145, 140),
                 Rgba8::opaque(253, 231, 37),
             ],
-        }
+        )
+    }
+
+    /// A three-stop ramp; the values are the caller's to keep increasing.
+    fn three(values: [f32; 3], colors: [Rgba8; 3]) -> Self {
+        let mut ramp = Self {
+            len: 3,
+            values: [0.0; MAX_RAMP_STOPS],
+            colors: [Rgba8::WHITE; MAX_RAMP_STOPS],
+        };
+        ramp.values[..3].copy_from_slice(&values);
+        ramp.colors[..3].copy_from_slice(&colors);
+        ramp
     }
 
     /// Samples the piecewise-linear ramp; NaN resolves to `missing`.
+    ///
+    /// Binary search over the stops: `O(log n)`, at most five comparisons.
     #[must_use]
     pub fn sample(self, value: f32, missing: Rgba8) -> Rgba8 {
         if !value.is_finite() {
             return missing;
         }
-        let segment = usize::from(value > self.values[1]);
-        let from = self.values[segment];
-        let to = self.values[segment + 1];
+        let values = self.values();
+        let colors = self.colors();
+        let upper = values.partition_point(|stop| *stop < value);
+        if upper == 0 {
+            return colors[0];
+        }
+        if upper >= values.len() {
+            return colors[values.len() - 1];
+        }
+        let (from, to) = (values[upper - 1], values[upper]);
         let parameter = ((value - from) / (to - from)).clamp(0.0, 1.0);
-        mix_color(self.colors[segment], self.colors[segment + 1], parameter)
+        mix_color(colors[upper - 1], colors[upper], parameter)
+    }
+
+    /// Number of stops.
+    #[must_use]
+    pub const fn len(self) -> usize {
+        self.len as usize
+    }
+
+    /// A ramp always has at least two stops.
+    #[must_use]
+    pub const fn is_empty(self) -> bool {
+        false
     }
 
     /// Numeric stop values in ascending order.
     #[must_use]
-    pub const fn values(self) -> [f32; 3] {
-        self.values
+    pub fn values(&self) -> &[f32] {
+        &self.values[..usize::from(self.len)]
     }
 
     /// Colors corresponding exactly to [`Self::values`].
     #[must_use]
-    pub const fn colors(self) -> [Rgba8; 3] {
-        self.colors
+    pub fn colors(&self) -> &[Rgba8] {
+        &self.colors[..usize::from(self.len)]
+    }
+
+    /// Lowest and highest stop value.
+    #[must_use]
+    pub fn domain(&self) -> [f32; 2] {
+        let values = self.values();
+        [values[0], values[values.len() - 1]]
     }
 }
 

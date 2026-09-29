@@ -1,5 +1,7 @@
 //! Cold-source scene reconstruction from a stable manifest.
 
+#[path = "rehydrate_color.rs"]
+mod color;
 #[path = "rehydrate_generic.rs"]
 mod generic;
 #[path = "rehydrate_payload.rs"]

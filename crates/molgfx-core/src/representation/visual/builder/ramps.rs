@@ -5,7 +5,10 @@ use super::VisualProgramBuilder;
 use crate::ScalarRamp;
 
 impl VisualProgramBuilder {
-    /// Samples an existing reversible three-stop scalar ramp.
+    /// Samples an existing reversible scalar ramp of any stop count.
+    ///
+    /// Costs three program instructions per stop, so the program's fixed
+    /// instruction budget bounds the stops a program can carry.
     ///
     /// # Errors
     ///
@@ -15,15 +18,15 @@ impl VisualProgramBuilder {
     pub fn ramp(&mut self, value: ScalarExpr, ramp: ScalarRamp) -> Result<ColorExpr, VisualError> {
         let values = ramp.values();
         let colors = ramp.colors();
-        let low = self.scalar(values[0])?;
-        let middle = self.scalar(values[1])?;
-        let high = self.scalar(values[2])?;
-        let first_weight = self.smoothstep(low, middle, value)?;
-        let second_weight = self.smoothstep(middle, high, value)?;
-        let first = self.color(colors[0].to_f32())?;
-        let second = self.color(colors[1].to_f32())?;
-        let third = self.color(colors[2].to_f32())?;
-        let lower = self.mix_color(first, second, first_weight)?;
-        self.mix_color(lower, third, second_weight)
+        let mut previous_stop = self.scalar(values[0])?;
+        let mut blended = self.color(colors[0].to_f32())?;
+        for (stop, color) in values.iter().zip(colors).skip(1) {
+            let next_stop = self.scalar(*stop)?;
+            let weight = self.smoothstep(previous_stop, next_stop, value)?;
+            let next_color = self.color(color.to_f32())?;
+            blended = self.mix_color(blended, next_color, weight)?;
+            previous_stop = next_stop;
+        }
+        Ok(blended)
     }
 }

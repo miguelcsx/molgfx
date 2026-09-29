@@ -162,12 +162,17 @@ impl Scene {
     }
 
     /// Resolves a picked label row to a measurement in `O(1)`.
+    ///
+    /// Annotations and measurements share one label storage table, so the
+    /// entity kind selects which object a row must hold: a `Measurement`
+    /// entity only resolves if the row is a measurement, which is what keeps
+    /// the two from aliasing at the same index.
     #[must_use]
     pub fn measurement_for_entity(
         &self,
         entity: EntityRef,
     ) -> Option<(MeasurementHandle, &Measurement)> {
-        if entity.kind != EntityKind::Label {
+        if entity.kind != EntityKind::Measurement {
             return None;
         }
         let (handle, object) = self.labels.get_index(entity.index)?;

@@ -44,7 +44,7 @@ fn annotations_and_measurements_share_stable_pick_rows_without_type_confusion() 
     };
     let measurement_entity = EntityRef {
         structure: owner,
-        kind: EntityKind::Label,
+        kind: EntityKind::Measurement,
         index: Scene::measurement_row(distance),
     };
     assert_eq!(
