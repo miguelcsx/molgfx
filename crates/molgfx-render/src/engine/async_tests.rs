@@ -48,3 +48,49 @@ fn asynchronous_pick_resolves_the_same_integer_entity() {
     assert_eq!(entity.kind(), molgfx_core::EntityKind::Atom);
     assert_eq!(entity.row(), molgfx_core::LogicalRow::new(0));
 }
+
+#[test]
+fn a_detached_pick_readback_resolves_after_the_engine_is_idle() {
+    // The browser path records a pick, detaches the readback, and resolves it
+    // without borrowing the engine — so a frame can render, and a scene edit
+    // can apply, while the readback is in flight.
+    let source = structure();
+    let mut scene = match Scene::from_structure(&source) {
+        Ok(scene) => scene,
+        Err(error) => panic!("fixture scene builds: {error}"),
+    };
+    let selection = scene.add_selection(AtomSelection::All);
+    if let Err(error) = scene.represent(selection, RepresentationKind::Spacefill) {
+        panic!("spacefill applies: {error}")
+    }
+    let mut engine = engine();
+    if let Err(error) = engine.render(&scene, &camera()) {
+        panic!("frame renders: {error}")
+    }
+    let readback = match engine.begin_pick(0, 0) {
+        Ok(Some(readback)) => readback,
+        Ok(None) => panic!("a rendered frame records a pick"),
+        Err(error) => panic!("pick records: {error}"),
+    };
+    // The engine is free: render another frame before resolving the readback.
+    if let Err(error) = engine.render(&scene, &camera()) {
+        panic!("a frame renders while a readback is detached: {error}")
+    }
+    let packed = match pollster::block_on(molgfx_gpu::Readback::resolve(
+        &readback,
+        0,
+        super::PICK_READBACK_BYTES,
+    )) {
+        Ok(packed) => packed,
+        Err(error) => panic!("detached readback resolves: {error}"),
+    };
+    let pick = match engine.finish_pick(&packed) {
+        Ok(Some(pick)) => pick,
+        Ok(None) => panic!("mock readback resolves zero ids"),
+        Err(error) => panic!("detached pick resolves: {error}"),
+    };
+    let super::PickEntity::Structure(entity) = pick.entity else {
+        panic!("molecular pick resolves to a structure entity")
+    };
+    assert_eq!(entity.kind(), molgfx_core::EntityKind::Atom);
+}

@@ -61,7 +61,7 @@ pub use image::{Image, ImageConfig};
 pub use init::Engine;
 pub use lighting_environment::LightingEnvironment;
 pub use optics::{DepthOfField, FocusTarget, MotionBlur};
-pub use picking::{Pick, PickEntity};
+pub use picking::{PICK_READBACK_BYTES, Pick, PickEntity};
 pub use profile::{
     AntiAliasingStyle, BloomStyle, EffectLayer, IllustrationStyle, PresentationEffect,
     RenderProfile, ResolvedRenderPlan,

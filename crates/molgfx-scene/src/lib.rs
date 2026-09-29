@@ -47,6 +47,7 @@ pub use profile::{DepthCue, Quality, RenderProfile};
 pub use property::{PropertySpec, ScalarProperty, ScalarPropertyBinding};
 #[cfg(not(target_arch = "wasm32"))]
 pub use render::Image;
+pub use render::PickReadback;
 pub use render::Renderer;
 pub use render::{FrameReport, FrameTiming};
 pub use render::{PickKind, PickResult};

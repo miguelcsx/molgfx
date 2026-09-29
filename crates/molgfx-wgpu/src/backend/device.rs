@@ -104,6 +104,7 @@ impl molgfx_gpu::Device for WgpuDevice {
     type Tlas = wgpu::Tlas;
     type CommandEncoder = crate::encoder::WgpuCommandEncoder;
     type Queue = crate::queue::WgpuQueue;
+    type Readback = crate::queue::WgpuReadback;
     type Surface = WgpuSurface;
 
     fn open_async(
