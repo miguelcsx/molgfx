@@ -37,11 +37,12 @@ fn word(source: &str, start: usize, end: usize) -> Word<'_> {
     }
 }
 
-/// The position of the first comma outside quotes in `source[span]`.
-pub(super) fn first_comma(source: &str, span: Span) -> Option<usize> {
+/// The positions of every comma outside quotes in `source[span]`, in order.
+pub(super) fn commas(source: &str, span: Span) -> Vec<usize> {
     let bytes = &source.as_bytes()[span.start..span.end];
     let mut quote = None;
     let mut index = 0;
+    let mut found = Vec::new();
     while index < bytes.len() {
         let byte = bytes[index];
         match quote {
@@ -53,12 +54,29 @@ pub(super) fn first_comma(source: &str, span: Span) -> Option<usize> {
                 }
             }
             None if byte == b'"' || byte == b'\'' => quote = Some(byte),
-            None if byte == b',' => return Some(span.start + index),
+            None if byte == b',' => found.push(span.start + index),
             None => {}
         }
         index += 1;
     }
-    None
+    found
+}
+
+/// The position of the first comma outside quotes in `source[span]`.
+pub(super) fn first_comma(source: &str, span: Span) -> Option<usize> {
+    commas(source, span).first().copied()
+}
+
+/// `span` cut at every top-level comma, each piece trimmed.
+pub(super) fn comma_pieces(source: &str, span: Span) -> Vec<Span> {
+    let mut pieces = Vec::new();
+    let mut start = span.start;
+    for comma in commas(source, span) {
+        pieces.push(trim(source, Span::new(start, comma)));
+        start = comma + 1;
+    }
+    pieces.push(trim(source, Span::new(start, span.end)));
+    pieces
 }
 
 /// `span` with surrounding whitespace removed.

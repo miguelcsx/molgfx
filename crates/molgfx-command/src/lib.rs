@@ -18,7 +18,7 @@ mod session;
 
 pub use error::{CommandError, CommandErrors, ErrorKind, Span};
 pub use ir::{
-    ColorValue, Command, Finite, Form, FormKind, InvalidName, Name, Opacity, OptionError,
-    OptionInfo, OptionKind, Positive, Program, QueryText, Show, Statement, Target,
+    ColorValue, Command, Finite, Form, FormKind, InvalidName, MeasureKind, Name, Opacity,
+    OptionError, OptionInfo, OptionKind, Positive, Program, QueryText, Show, Statement, Target,
 };
 pub use session::{Completion, LayerSpec, Outcome, RuleSpec, Session, SessionSpec};

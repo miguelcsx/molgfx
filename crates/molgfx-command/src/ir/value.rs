@@ -95,6 +95,54 @@ impl fmt::Display for Finite {
     }
 }
 
+/// A finite length that may be zero but never negative.
+///
+/// Zero is meaningful for controls that request an exact, unblended result.
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
+#[serde(try_from = "f32", into = "f32")]
+pub struct NonNegative(f32);
+
+impl NonNegative {
+    /// Validates `value`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a description when `value` is not finite and non-negative.
+    pub fn new(value: f32) -> Result<Self, &'static str> {
+        if value.is_finite() && value >= 0.0 {
+            Ok(Self(value))
+        } else {
+            Err("must be a finite number zero or greater")
+        }
+    }
+
+    /// The value.
+    #[must_use]
+    pub const fn get(self) -> f32 {
+        self.0
+    }
+}
+
+impl TryFrom<f32> for NonNegative {
+    type Error = &'static str;
+
+    fn try_from(value: f32) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl From<NonNegative> for f32 {
+    fn from(value: NonNegative) -> Self {
+        value.0
+    }
+}
+
+impl fmt::Display for NonNegative {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.0)
+    }
+}
+
 /// An opacity between zero (invisible) and one (opaque), inclusive.
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(try_from = "f32", into = "f32")]

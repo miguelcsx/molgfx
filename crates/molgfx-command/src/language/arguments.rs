@@ -107,6 +107,65 @@ pub(super) fn color_value(text: &str, span: Span) -> Result<ColorValue, CommandE
     })
 }
 
+/// Applies one `key=value` option to a scheme colour.
+///
+/// Categorical schemes take `palette=`; metric schemes take `ramp=` and
+/// `domain=`. Any other pairing is an error naming what the scheme accepts.
+pub(super) fn color_option(color: &mut ColorValue, word: Word<'_>) -> Result<(), CommandError> {
+    let Some((key, value)) = word.text.split_once('=') else {
+        return Err(syntax(format!("unexpected '{}'", word.text), word.span));
+    };
+    match (color, key) {
+        (ColorValue::Category { palette, .. }, "palette") => {
+            let known = registry::palettes();
+            if !known.contains(&value) {
+                return Err(CommandError::new(
+                    ErrorKind::InvalidColor,
+                    format!("'{value}' is not a palette; palettes are {}", known.join(", ")),
+                )
+                .at(word.span)
+                .suggest(registry::suggest(value, known.iter().copied())));
+            }
+            *palette = Some(value.into());
+            Ok(())
+        }
+        (ColorValue::Metric { ramp, .. }, "ramp") => {
+            *ramp = Some(ramp_name(value, word.span)?);
+            Ok(())
+        }
+        (ColorValue::Metric { domain, .. }, "domain") => {
+            *domain = Some(domain_value(value, word.span)?);
+            Ok(())
+        }
+        _ => Err(CommandError::new(
+            ErrorKind::InvalidOption,
+            format!(
+                "'{}' is not a control of this colour; categories take palette=, metrics take ramp= and domain=",
+                word.text
+            ),
+        )
+        .at(word.span)),
+    }
+}
+
+/// A ramp name, with or without the reversing suffix.
+fn ramp_name(value: &str, span: Span) -> Result<Box<str>, CommandError> {
+    let known = registry::ramps();
+    let base = molgfx_scene::color::ramp_base_name(value);
+    if known.contains(&base) {
+        return Ok(value.into());
+    }
+    Err(CommandError::new(
+        ErrorKind::InvalidColor,
+        format!(
+            "'{value}' is not a ramp; ramps are {} (append _r to reverse one)",
+            known.join(", ")
+        ),
+    )
+    .at(span)
+    .suggest(registry::suggest(value, known.iter().copied())))
+}
+
 /// `property NAME [ramp=RAMP] [domain=LOW:HIGH]`, after the `property` word.
 pub(super) fn property_color<'a>(
     keyword: Word<'a>,
@@ -122,20 +181,7 @@ pub(super) fn property_color<'a>(
     let mut domain = None;
     while let Some(word) = rest.next_if(|word| word.text.contains('=')) {
         match word.text.split_once('=') {
-            Some(("ramp", value)) => {
-                if !registry::RAMPS.contains(&value) {
-                    return Err(CommandError::new(
-                        ErrorKind::InvalidColor,
-                        format!(
-                            "'{value}' is not a ramp; ramps are {}",
-                            registry::RAMPS.join(", ")
-                        ),
-                    )
-                    .at(word.span)
-                    .suggest(registry::suggest(value, registry::RAMPS.iter().copied())));
-                }
-                ramp = value.into();
-            }
+            Some(("ramp", value)) => ramp = ramp_name(value, word.span)?,
             Some(("domain", value)) => domain = Some(domain_value(value, word.span)?),
             _ => {
                 return Err(CommandError::new(

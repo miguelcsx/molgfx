@@ -8,9 +8,9 @@
 //! form: `style` on a cartoon is a cartoon style, and `style` does not exist on
 //! a spacefill at all.
 
-use super::value::{Finite, Positive};
-use molgfx_api::RepresentationSpec;
-use molgfx_api::rep::{CartoonStyle, SurfaceKind, SurfaceStyle};
+use super::value::{Finite, NonNegative, Positive};
+use molgfx_scene::RepresentationSpec;
+use molgfx_scene::rep::{CartoonStyle, SurfaceKind, SurfaceStyle};
 use serde::{Deserialize, Serialize};
 
 /// How one control's value is written and checked.
@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 pub enum OptionKind {
     /// A finite number greater than zero.
     Positive,
+    /// A finite number zero or greater.
+    NonNegative,
     /// Any finite number.
     Finite,
     /// One of a fixed set of words.
@@ -48,6 +50,26 @@ pub(crate) trait ControlValue: Sized + Copy {
 
 impl ControlValue for Positive {
     const KIND: OptionKind = OptionKind::Positive;
+    type Native = f32;
+
+    fn parse(text: &str) -> Result<Self, String> {
+        let value = text
+            .parse::<f32>()
+            .map_err(|_| format!("'{text}' is not a number"))?;
+        Self::new(value).map_err(str::to_owned)
+    }
+
+    fn native(self) -> f32 {
+        self.get()
+    }
+
+    fn word(self) -> String {
+        self.to_string()
+    }
+}
+
+impl ControlValue for NonNegative {
+    const KIND: OptionKind = OptionKind::NonNegative;
     type Native = f32;
 
     fn parse(text: &str) -> Result<Self, String> {
@@ -136,12 +158,13 @@ choice!(SurfaceStyle, [
     "dots" => Dots,
     "filled_contour" => FilledContour,
     "mesh" => Mesh,
+    "soft_union" => SoftUnion,
 ]);
 
 /// Where a layer draws and how it looks, apart from its form.
 pub(crate) struct Look {
-    pub(crate) structure: molgfx_api::StructureId,
-    pub(crate) color: Option<molgfx_api::ColorSpec>,
+    pub(crate) structure: molgfx_scene::StructureId,
+    pub(crate) color: Option<molgfx_scene::ColorSpec>,
     pub(crate) opacity: Option<f32>,
 }
 
@@ -294,13 +317,13 @@ macro_rules! forms {
             /// The representation this form draws over `target`.
             pub(crate) fn specification(
                 &self,
-                target: molgfx_api::Selection,
+                target: molgfx_scene::Selection,
                 look: Look,
             ) -> RepresentationSpec {
                 match *self {
                     $(
                         Self::$variant { $($option),* } => {
-                            let mut builder = molgfx_api::rep::$builder(target)
+                            let mut builder = molgfx_scene::rep::$builder(target)
                                 .structure(look.structure);
                             $(
                                 if let Some(value) = $option {
@@ -328,6 +351,25 @@ forms! {
         width: Positive => "ribbon width in ångström",
         style: CartoonStyle => "ribbon recipe",
     }
+    /// Backbone trace through polymer guide atoms.
+    Backbone = "backbone" via backbone {
+        width: Positive => "trace radius in ångström",
+    }
+    /// Thin smooth polymer trace.
+    Trace = "trace" via trace {
+        radius: Positive => "trace radius in ångström",
+    }
+    /// Round smooth polymer tube.
+    Tube = "tube" via tube {
+        radius: Positive => "tube radius in ångström",
+    }
+    /// B-factor-driven variable-radius tube.
+    Putty = "putty" via putty {
+        domain_min: Finite => "lower B-factor domain",
+        domain_max: Finite => "upper B-factor domain",
+        radius_min: Positive => "radius at the lower domain bound",
+        radius_max: Positive => "radius at the upper domain bound",
+    }
     /// Small atom spheres joined by bond capsules.
     BallAndStick = "ball_and_stick" via ball_and_stick {
         radius: Positive => "atom sphere scale relative to the van der Waals radius",
@@ -350,12 +392,17 @@ forms! {
     Points = "points" via points {
         size: Positive => "point diameter in pixels",
     }
+    /// Analytic point/dot markers.
+    Dots = "dots" via dots {
+        size: Positive => "dot diameter in pixels",
+    }
     /// A molecular surface.
     Surface = "surface" via surface {
         kind: SurfaceKind => "which molecular boundary",
         style: SurfaceStyle => "how the boundary is drawn",
         probe_radius: Positive => "solvent probe radius in ångström",
         isolevel: Finite => "level-set threshold",
+        blob_spread: NonNegative => "soft-union blend span in ångström",
     }
     /// Nucleic-acid backbone ribbon.
     NucleicAcid = "nucleic_acid" via nucleic_acid {
@@ -373,6 +420,10 @@ forms! {
     /// Glycan tree ribbon.
     Glycan = "glycan" via glycan {
         width: Positive => "ribbon width in ångström",
+    }
+    /// One sphere per residue.
+    Beads = "beads" via beads {
+        radius: Positive => "enclosing-sphere scale",
     }
 }
 
