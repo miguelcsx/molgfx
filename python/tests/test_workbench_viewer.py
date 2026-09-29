@@ -80,7 +80,7 @@ class WorkbenchPageTests(unittest.TestCase):
         shutil.copy(STATIC / "widget.js", cls._directory / "widget.js")
         shutil.copy(STATIC / "widget.css", cls._directory / "widget.css")
         bench = Workbench(_centered_structure())
-        bench.execute("show spacefill, all")
+        bench.execute("show spacefill radius=3, all")
         page = PAGE.replace("__VALUES__", json.dumps(_values(bench))).replace(
             "window.__molgfx.values.structure_payloads = window.__molgfx.bytes(window.__molgfx.values.structure_payloads);",
             "window.__molgfx.values.structure_payloads = window.__molgfx.bytes(window.__molgfx.values.structure_payloads);\n"
@@ -297,12 +297,12 @@ class WorkbenchPageTests(unittest.TestCase):
     def test_a_pick_returns_semantic_provenance_not_a_gpu_token(self):
         bounds = self.page.locator(".molgfx-canvas").bounding_box()
         self.assertIsNotNone(bounds)
+        # Probe around the centered, enlarged atom; the exact center is an impostor seam.
         pick = {}
-        # The fitted camera places the fixture atom at the canvas centre. The
-        # exact centre is also a coincident-impostor seam, so probe a bounded
-        # neighbourhood instead of repeatedly sampling the same pixel.
-        offsets = [(0, 0), (-6, 0), (6, 0), (0, -6), (0, 6),
-                   (-6, -6), (6, -6), (-6, 6), (6, 6)]
+        offsets = (
+            (0, 0), (-12, 0), (12, 0), (0, -12), (0, 12),
+            (-12, -12), (12, -12), (-12, 12), (12, 12),
+        )
         for dx, dy in offsets:
             before = self.page.evaluate("window.__molgfx.saved.length")
             self.page.mouse.click(
