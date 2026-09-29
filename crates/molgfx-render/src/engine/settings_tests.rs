@@ -122,3 +122,31 @@ fn every_effect_combination_allocates_only_its_active_targets_and_bindings() {
         );
     }
 }
+
+#[test]
+fn an_interactive_tier_climb_keeps_edge_smoothing_on() {
+    // The default profile states no anti-aliasing choice, so the engine's own
+    // convergence decides. An interactive loop that climbs to the top tier
+    // still presents every frame independently and must keep smoothing;
+    // keying the default to the tier instead dropped it exactly then.
+    let mut engine = engine();
+    assert!(
+        engine.edge_smoothing(),
+        "the default interactive profile smooths edges"
+    );
+    engine.adaptive.observe(0);
+    for _ in 0..1_000 {
+        engine.adaptive.observe(1);
+    }
+    assert_eq!(engine.quality_tier(), crate::engine::QualityTier::High);
+    assert!(
+        engine.edge_smoothing(),
+        "a raised interactive tier still smooths"
+    );
+
+    engine.set_render_mode(crate::engine::RenderMode::Cinematic);
+    assert!(
+        !engine.edge_smoothing(),
+        "the converged path relies on accumulation instead"
+    );
+}

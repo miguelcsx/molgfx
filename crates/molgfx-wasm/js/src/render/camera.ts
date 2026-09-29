@@ -1,4 +1,6 @@
 import {
+  CAMERA_MAX_DISTANCE_FRACTION,
+  CAMERA_MIN_DISTANCE_FRACTION,
   CAMERA_PITCH_LIMIT,
   CAMERA_ROTATION_SPEED,
   CAMERA_ZOOM_LIMIT,
@@ -78,10 +80,28 @@ export function rotateCamera(camera: Camera, dx: number, dy: number): void {
 export function zoomCamera(camera: Camera, delta: number): void {
   const scale = Math.exp(clamp(delta * CAMERA_ZOOM_SPEED, -CAMERA_ZOOM_LIMIT, CAMERA_ZOOM_LIMIT));
   const [tx, ty, tz] = camera.target;
+  const ox = camera.position[0] - tx;
+  const oy = camera.position[1] - ty;
+  const oz = camera.position[2] - tz;
+  const distance = Math.hypot(ox, oy, oz);
 
-  camera.position[0] = tx + (camera.position[0] - tx) * scale;
-  camera.position[1] = ty + (camera.position[1] - ty) * scale;
-  camera.position[2] = tz + (camera.position[2] - tz) * scale;
+  // A camera that reaches its target has a degenerate view basis: the derived
+  // right and up vectors collapse, so the perspective matrix is rejected and
+  // every depth cue is lost, because near and far scale with the distance to
+  // the target. Zooming in therefore stops at a fixed fraction of the framing
+  // distance the scene reported, and zooming out at a multiple of it, so
+  // neither end can collapse the transform.
+  const home = camera.distance ?? distance;
+  const target_distance = clamp(
+    distance * scale,
+    home * CAMERA_MIN_DISTANCE_FRACTION,
+    home * CAMERA_MAX_DISTANCE_FRACTION,
+  );
+  const factor = distance > 0 ? target_distance / distance : 1;
+
+  camera.position[0] = tx + ox * factor;
+  camera.position[1] = ty + oy * factor;
+  camera.position[2] = tz + oz * factor;
 }
 
 export function pickCoordinates(

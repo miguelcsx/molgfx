@@ -230,3 +230,26 @@ fn cheaper_tiers_sample_ribbons_no_more_finely_and_never_below_two_steps() {
     }
     assert_eq!(QualityTier::default().ribbon_steps(), 8);
 }
+
+#[test]
+fn an_interactive_loop_never_converges_but_a_publication_one_does() {
+    // Edge smoothing defaults on off a converged path only, however high the
+    // interactive tier climbs: a small scene reaches the top tier and still
+    // presents every frame independently, so its edges must be smoothed.
+    let mut interactive = controller();
+    for _ in 0..(UP_FRAMES * 4) {
+        interactive.observe(BUDGET_NS / 4);
+        if interactive.tier() == QualityTier::High {
+            break;
+        }
+    }
+    assert_eq!(interactive.tier(), QualityTier::High, "the tier climbs");
+    assert!(
+        !interactive.converged(),
+        "an interactive loop does not converge"
+    );
+
+    let publication = AdaptiveQuality::new(AdaptiveQualityConfig::publication(), true);
+    assert!(publication.converged(), "publication converges");
+    assert!(!publication.enabled(), "publication never adapts");
+}

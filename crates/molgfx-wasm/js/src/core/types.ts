@@ -14,6 +14,8 @@ export interface Camera {
   position: Vec3;
   target: Vec3;
   up: Vec3;
+  /** Distance the scene framed the camera at; limits how far zoom may travel. */
+  distance?: number;
 }
 
 export type BinaryState = ArrayBuffer | ArrayBufferView;

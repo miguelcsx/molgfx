@@ -286,6 +286,7 @@ impl WebScene {
             "position": camera.eye.to_array(),
             "target": camera.target.to_array(),
             "up": camera.up.to_array(),
+            "distance": distance(camera.eye.to_array(), camera.target.to_array()),
         }))
         .map_err(javascript_error)
     }
