@@ -300,11 +300,9 @@ class WorkbenchPageTests(unittest.TestCase):
         pick = {}
         for _ in range(8):
             before = self.page.evaluate("window.__molgfx.saved.length")
-            # The exact centre is a coincident-impostor seam; sample inside the
-            # centred atom instead so adapter differences cannot select the clear value.
             self.page.mouse.click(
                 bounds["x"] + bounds["width"] / 2,
-                bounds["y"] + bounds["height"] * 0.55,
+                bounds["y"] + bounds["height"] / 2,
             )
             self.page.wait_for_function(
                 "(before) => window.__molgfx.saved.length > before", arg=before
@@ -312,6 +310,9 @@ class WorkbenchPageTests(unittest.TestCase):
             pick = self.page.evaluate("window.__molgfx.values.pick")
             if pick.get("kind") == "atom":
                 break
+            # The widget host becomes ready before SwiftShader's first pick
+            # readback. Retry across presented frames, not at arbitrary pixels.
+            self.page.wait_for_timeout(700)
         self.assertEqual(pick.get("kind"), "atom", pick)
         self.assertEqual(pick["dataset"], 1)
         self.assertIsInstance(pick["chunk"], int)
