@@ -12,13 +12,12 @@ mod packing;
 mod polyhedra;
 
 pub use cartoon::{
-    PolymerTraces, RibbonMesh, RibbonParams, RibbonVertex, SecondaryMotion, SplineProfile,
-    TraceRange, append_base_polygons, append_base_slabs, append_paper_chain,
+    CARTOON_GAP_CUTOFF, PolymerTraces, RibbonMesh, RibbonParams, RibbonVertex, SecondaryMotion,
+    SplineProfile, TraceRange, append_base_polygons, append_base_slabs, append_paper_chain,
     extract_glycosidic_traces, extract_polymer_traces, solve_offsets, variable_tube_radius,
 };
 pub use packing::{
-    OverlayColumn, PackingError, PropertyColumns, RibbonColoring, build_compaction_map,
-    build_selection_compaction, pack_atoms, pack_atoms_with_hierarchy, pack_atoms_with_properties,
-    pack_bonds, pack_residue_beads, recolor_ribbon, recolor_ribbon_with_appearance,
+    ColorContext, PackingError, RibbonColoring, build_compaction_map, build_selection_compaction,
+    pack_atoms, pack_bonds, pack_residue_beads, recolor_ribbon,
 };
 pub use polyhedra::{MAX_SHELL, coordination_hull};

@@ -10,7 +10,7 @@ use molgfx_math::{CurveSample, Rgba8, TransportFrame, Vec3};
 #[path = "ribbon_tests.rs"]
 mod tests;
 
-pub(super) const PROFILE_SIDES: usize = 8;
+pub(super) const PROFILE_SIDES: usize = 16;
 
 /// One gbuffer-ready cartoon vertex, aligned to two 16-byte lanes.
 #[repr(C)]
@@ -70,7 +70,7 @@ impl Default for RibbonParams {
     fn default() -> Self {
         Self {
             tolerance: 0.08,
-            max_steps: 16,
+            max_steps: 8,
             width: 1.2,
             thickness: 0.28,
             profile: SplineProfile::Cartoon,

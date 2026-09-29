@@ -2,7 +2,7 @@
 
 use super::PackingError;
 use molgfx_core::{
-    AtomSelection, BondGpu, EntityId, EntityKind, PlacedStructure, Representation,
+    AtomSelection, BondGpu, BondStyle, EntityId, EntityKind, PlacedStructure, Representation,
     RepresentationKind,
 };
 
@@ -109,13 +109,17 @@ pub fn pack_bonds(
         if atom_a == u32::MAX || atom_b == u32::MAX {
             continue;
         }
-        out.push(BondGpu::new(
-            atom_a,
-            atom_b,
-            representation.params.bond_radius,
-            bond.aromatic,
-            bond_entity(EntityKind::Bond, source_index)?,
-        ));
+        let order = bond.gpu_order();
+        let entity = bond_entity(EntityKind::Bond, source_index)?;
+        for variant in 0..order {
+            out.push(BondGpu::with_style(
+                atom_a,
+                atom_b,
+                representation.params.bond_radius,
+                BondStyle::new(order, bond.aromatic, bond.metal, variant),
+                entity,
+            ));
+        }
     }
     Ok(())
 }

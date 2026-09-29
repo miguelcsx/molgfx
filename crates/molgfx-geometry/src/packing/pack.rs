@@ -3,13 +3,12 @@
 //! Packs columnar per-atom state into contiguous GPU instance records in one
 //! `O(selected)` pass into a reused caller-owned scratch vector.
 
+use super::ColorContext;
 use super::PackingError;
 use molgfx_core::{
-    AtomGpu, AtomProperty, AtomSelection, AtomTable, CATEGORICAL_COLORS, ColorScheme, EntityId,
-    EntityKind, Hierarchy, PropertyAppearance, Representation, RepresentationKind,
-    SECONDARY_STRUCTURE_COLORS, SecondaryStructure, SemanticTag, SurfaceKind, SurfaceStyle,
+    AtomGpu, AtomProperty, AtomSelection, AtomTable, ColorOverlay, ColorScheme, EntityId,
+    EntityKind, PropertyAppearance, Representation, RepresentationKind, SurfaceKind, SurfaceStyle,
 };
-use molgfx_math::Rgba8;
 use rayon::prelude::*;
 
 mod residue_beads;
@@ -36,47 +35,7 @@ pub fn pack_atoms(
     selection: &AtomSelection,
     out: &mut Vec<AtomGpu>,
 ) -> Result<(), PackingError> {
-    pack_atoms_inner(table, None, representation, selection, out)
-}
-
-/// Packs atoms with hierarchy-aware representation coloring.
-///
-/// # Errors
-///
-/// Returns [`PackingError`] when a selected source row cannot be encoded.
-pub fn pack_atoms_with_hierarchy(
-    table: &AtomTable,
-    hierarchy: &Hierarchy,
-    secondary_structure: &[SecondaryStructure],
-    property: Option<&AtomProperty>,
-    representation: &Representation,
-    selection: &AtomSelection,
-    out: &mut Vec<AtomGpu>,
-) -> Result<(), PackingError> {
-    pack_atoms_with_properties(
-        table,
-        hierarchy,
-        secondary_structure,
-        PropertyColumns {
-            color: property,
-            appearance: None,
-            overlay: None,
-        },
-        representation,
-        selection,
-        out,
-    )
-}
-
-/// Borrowed scientific columns independently driving colour and appearance.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct PropertyColumns<'a> {
-    /// Continuous colour source.
-    pub color: Option<&'a AtomProperty>,
-    /// Opacity and edge-softness source.
-    pub appearance: Option<&'a AtomProperty>,
-    /// Selection-scoped schemes overriding the representation's own.
-    pub overlay: Option<super::OverlayColumn<'a>>,
+    pack_atoms_inner(table, representation, selection, out)
 }
 
 /// Compact representation state used while recolouring generated splines.
@@ -84,39 +43,16 @@ pub struct PropertyColumns<'a> {
 pub struct RibbonColoring {
     /// Colour mapping.
     pub color: ColorScheme,
-    /// Optional scientific appearance mapping.
+    /// Selection-scoped schemes overriding `color`.
+    pub overlay: Option<ColorOverlay>,
+    /// Optional physical appearance mapping.
     pub appearance: Option<PropertyAppearance>,
     /// Base representation opacity.
     pub opacity: u8,
 }
 
-/// Packs atoms with independent colour and scientific-appearance properties.
-///
-/// # Errors
-///
-/// Returns [`PackingError`] when a selected source row cannot be encoded.
-pub fn pack_atoms_with_properties(
-    table: &AtomTable,
-    hierarchy: &Hierarchy,
-    secondary_structure: &[SecondaryStructure],
-    properties: PropertyColumns<'_>,
-    representation: &Representation,
-    selection: &AtomSelection,
-    out: &mut Vec<AtomGpu>,
-) -> Result<(), PackingError> {
-    let _ = properties;
-    pack_atoms_inner(
-        table,
-        Some((hierarchy, secondary_structure)),
-        representation,
-        selection,
-        out,
-    )
-}
-
 fn pack_atoms_inner(
     table: &AtomTable,
-    hierarchy: Option<(&Hierarchy, &[SecondaryStructure])>,
     representation: &Representation,
     selection: &AtomSelection,
     out: &mut Vec<AtomGpu>,
@@ -128,7 +64,6 @@ fn pack_atoms_inner(
     let elements = table.element().values();
     let flags = table.flags().values();
     let semantics = table.semantic().values();
-    let residues = table.residue().values();
     let scale = representation.params.radius_scale.max(0.0);
     let surface_inflation = surface_inflation_of(representation);
 
@@ -155,14 +90,14 @@ fn pack_atoms_inner(
             } else {
                 radius * scale + surface_inflation
             },
-            // The record carries the element colour and the indices every
-            // scheme resolves from. The scheme itself is applied on the GPU, so
-            // changing it is a uniform write rather than a repack.
+            // The record carries the element colour. The scheme is applied on
+            // the GPU from property columns, so changing it is a uniform write
+            // rather than a repack.
             color: *color,
             element: *element,
             flags: *flag,
             entity_id,
-            semantic: color_indices(*semantic, hierarchy, residues.get(i).copied()),
+            semantic: *semantic,
         }))
     };
 
@@ -297,73 +232,17 @@ fn surface_inflation_of(representation: &Representation) -> f32 {
     }
 }
 
-pub(crate) fn representation_color(
-    scheme: ColorScheme,
-    element: Rgba8,
-    hierarchy: Option<(&Hierarchy, &[SecondaryStructure])>,
-    property: Option<&AtomProperty>,
-    residue: Option<u32>,
-    atom: usize,
-) -> Rgba8 {
-    match scheme {
-        ColorScheme::Uniform(color) => color,
-        ColorScheme::ByChain => residue
-            .and_then(|residue| hierarchy?.0.chain_of_residue(residue))
-            .map_or(element, chain_color),
-        ColorScheme::ByResidue => residue
-            .and_then(|value| usize::try_from(value).ok())
-            .map_or(element, categorical_color),
-        ColorScheme::BySecondaryStructure => residue
-            .and_then(|value| usize::try_from(value).ok())
-            .and_then(|index| hierarchy?.1.get(index).copied())
-            .map_or(element, secondary_color),
-        ColorScheme::ByProperty { ramp, missing, .. } => property
-            .and_then(|value| value.values().get(atom).copied())
-            .map_or(missing, |value| ramp.sample(value, missing)),
-        _ => element,
-    }
-}
-
-/// Applies the same representation colour function to generated spline
-/// vertices using their stable guide-atom provenance.
+/// Applies colour and per-guide opacity to generated spline vertices.
 pub fn recolor_ribbon(
     vertices: &mut [crate::RibbonVertex],
     table: &AtomTable,
-    hierarchy: &Hierarchy,
-    secondary_structure: &[SecondaryStructure],
-    property: Option<&AtomProperty>,
-    scheme: ColorScheme,
-    opacity: u8,
-) {
-    recolor_ribbon_with_appearance(
-        vertices,
-        table,
-        hierarchy,
-        secondary_structure,
-        PropertyColumns {
-            color: property,
-            appearance: None,
-            overlay: None,
-        },
-        RibbonColoring {
-            color: scheme,
-            appearance: None,
-            opacity,
-        },
-    );
-}
-
-/// Applies colour and per-guide opacity to generated spline vertices.
-pub fn recolor_ribbon_with_appearance(
-    vertices: &mut [crate::RibbonVertex],
-    table: &AtomTable,
-    hierarchy: &Hierarchy,
-    secondary_structure: &[SecondaryStructure],
-    properties: PropertyColumns<'_>,
+    context: ColorContext<'_>,
     style: RibbonColoring,
 ) {
     let element_colors = table.color().values();
-    let residues = table.residue().values();
+    let appearance_column = style
+        .appearance
+        .and_then(|mapping| context.column(mapping.property));
     for vertex in vertices {
         let Some((EntityKind::Atom, index)) = EntityId(vertex.entity_id).unpack() else {
             continue;
@@ -374,19 +253,9 @@ pub fn recolor_ribbon_with_appearance(
         let Some(&element) = element_colors.get(index) else {
             continue;
         };
-        let scheme = match properties.overlay {
-            Some(overlay) => overlay.scheme(style.color, index),
-            None => style.color,
-        };
-        let mut color = representation_color(
-            scheme,
-            element,
-            Some((hierarchy, secondary_structure)),
-            properties.color,
-            residues.get(index).copied(),
-            index,
-        );
-        color.a = atom_appearance(style.appearance, properties.appearance, index)
+        let scheme = context.scheme(style.color, style.overlay, index);
+        let mut color = context.color(scheme, element, index);
+        color.a = atom_appearance(style.appearance, appearance_column, index)
             .map_or(style.opacity, |(appearance_opacity, _)| {
                 multiply_unorm8(style.opacity, appearance_opacity)
             });
@@ -413,64 +282,4 @@ fn multiply_unorm8(left: u8, right: u8) -> u8 {
     u8::try_from(product / 255)
         .into_iter()
         .fold(u8::MAX, |_, value| value)
-}
-
-/// Packs the three palette indices the GPU colour schemes resolve from.
-///
-/// The chain and residue indices are the values the CPU colour functions
-/// already reduce modulo the palette, and the class is the residue's
-/// secondary-structure assignment, so the shader reproduces the CPU result
-/// exactly rather than approximating it. A missing hierarchy leaves the fields
-/// zero, which is the element-colour fallback.
-fn color_indices(
-    semantic: u32,
-    hierarchy: Option<(&Hierarchy, &[SecondaryStructure])>,
-    residue: Option<u32>,
-) -> u32 {
-    let (chain, residue_index, class) = match (hierarchy, residue) {
-        (Some((hierarchy, styles)), Some(residue)) => {
-            let chain = hierarchy.chain_of_residue(residue).map_or(0, |chain| {
-                u32::try_from(chain).map_or(0, |chain| chain & SemanticTag::FIELD_MAX)
-            });
-            // The palette reduces the residue row modulo its length, so the
-            // packed index is that reduction and nothing is lost.
-            let residue_index = residue & SemanticTag::FIELD_MAX;
-            let class = usize::try_from(residue)
-                .ok()
-                .and_then(|index| styles.get(index).copied())
-                .map_or(0, secondary_class);
-            (chain, residue_index, class)
-        }
-        _ => (0, 0, 0),
-    };
-    let indices = chain << SemanticTag::CHAIN_SHIFT
-        | residue_index << SemanticTag::RESIDUE_SHIFT
-        | class << SemanticTag::SECONDARY_SHIFT;
-    semantic & (SemanticTag::TAG_MASK | SemanticTag::COLOR_MASK) | indices
-}
-
-/// The palette slot a secondary-structure class colours from.
-///
-/// The classes map to the same palette the CPU path uses, expressed as slots so
-/// the shader needs no branch per class.
-const fn secondary_class(value: SecondaryStructure) -> u32 {
-    match value {
-        SecondaryStructure::Unknown => 0,
-        SecondaryStructure::Coil => 1,
-        SecondaryStructure::Helix => 2,
-        SecondaryStructure::Strand => 3,
-        SecondaryStructure::Turn => 4,
-    }
-}
-
-fn chain_color(chain: usize) -> Rgba8 {
-    CATEGORICAL_COLORS[chain % CATEGORICAL_COLORS.len()]
-}
-
-fn categorical_color(index: usize) -> Rgba8 {
-    chain_color(index.wrapping_mul(5))
-}
-
-fn secondary_color(value: SecondaryStructure) -> Rgba8 {
-    SECONDARY_STRUCTURE_COLORS[secondary_class(value) as usize]
 }
