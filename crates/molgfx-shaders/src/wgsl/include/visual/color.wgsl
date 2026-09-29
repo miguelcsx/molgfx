@@ -1,69 +1,61 @@
 // GPU resolution of the per-atom colour schemes.
 //
-// Colour used to be resolved on the CPU and baked into each 20-byte instance
-// record, so changing a scheme repacked and re-uploaded every atom. The record
-// now carries the element colour and three palette indices, and this file turns
-// them into the final colour under the scheme the representation selects. A
-// scheme change is therefore a uniform write and nothing else.
+// Colour used to be resolved on the CPU and baked into each instance record, so
+// changing a scheme repacked and re-uploaded every atom. The record now carries
+// the element colour only, and this file turns it into the final colour under
+// the rule the representation selects. A scheme change is therefore a uniform
+// write and nothing else.
+//
+// Every scheme is a rule: a tag, an optional packed colour, and the arena
+// column it reads. The representation's base scheme is one rule and each entry
+// of a selection-scoped overlay is another; one function resolves both.
 
-const COLOR_SCHEME_ELEMENT: u32 = 0u;
-const COLOR_SCHEME_CHAIN: u32 = 1u;
-const COLOR_SCHEME_RESIDUE: u32 = 2u;
-const COLOR_SCHEME_SECONDARY: u32 = 3u;
-const COLOR_SCHEME_PROPERTY: u32 = 4u;
-const COLOR_SCHEME_UNIFORM: u32 = 5u;
-
-/// Where the eight categorical colours begin in the palette.
-const COLOR_CATEGORICAL_BASE: u32 = 9u;
-/// Where the five secondary-structure colours begin.
-const COLOR_SECONDARY_BASE: u32 = 4u;
-
-const COLOR_CHAIN_SHIFT: u32 = 10u;
-const COLOR_RESIDUE_SHIFT: u32 = 13u;
-const COLOR_SECONDARY_SHIFT: u32 = 16u;
-const COLOR_FIELD_MASK: u32 = 7u;
+const COLOR_RULE_ELEMENT: u32 = 0u;
+const COLOR_RULE_UNIFORM: u32 = 1u;
+const COLOR_RULE_PROPERTY: u32 = 2u;
+const COLOR_RULE_CATEGORY: u32 = 3u;
 
 /// The most overriding schemes one overlay table holds.
 const COLOR_OVERLAY_CLASSES: u32 = 15u;
+/// Colours in the palette bank.
+const COLOR_BANK_COLORS: u32 = 128u;
 
-/// The colour palette and selector block the representation uploads.
+//!include "include/color/ramp.wgsl"
+
+/// One colour rule.
+struct ColorRule {
+    /// x = tag, y = packed uniform colour, z = column offset, w = column stride.
+    header: vec4u,
+    /// x = palette bank base, y = palette length.
+    palette: vec4u,
+}
+
+/// The colour block the representation uploads.
 struct ColorUniforms {
-    palette: array<vec4f, 17>,
-    selector: vec4u,
+    base: ColorRule,
     appearance: vec4f,
     softness: vec4f,
+    /// The appearance column: x = arena offset, y = stride.
+    appearance_column: vec4u,
     /// The selection-scoped overlay: the class column's arena offset (zero
     /// when no overlay applies), its stride in words, and the class count.
     overlay: vec4u,
-    /// Two (scheme tag, packed colour) pairs per row, class one first.
-    overlay_table: array<vec4u, 8>,
+    overlay_rules: array<ColorRule, 15>,
+    /// Every built-in palette, four packed colours per element.
+    bank: array<vec4u, 32>,
+    /// The property ramp, baked to a lookup table.
+    ramp: RampLut,
 }
 
 @group(2) @binding(18)
 var<uniform> color_uniforms: ColorUniforms;
 
-/// One palette slot as a colour.
-fn color_palette_slot(slot: u32) -> vec4f {
-    return color_uniforms.palette[min(slot, 16u)];
-}
-
-/// The three palette indices packed into an atom's semantic word.
-fn color_indices(semantic: u32) -> vec3u {
-    return vec3u(
-        (semantic >> COLOR_CHAIN_SHIFT) & COLOR_FIELD_MASK,
-        (semantic >> COLOR_RESIDUE_SHIFT) & COLOR_FIELD_MASK,
-        (semantic >> COLOR_SECONDARY_SHIFT) & COLOR_FIELD_MASK,
-    );
-}
-
-/// Samples the colour property column at one atom row.
+/// Samples one arena column at one atom row.
 ///
-/// The column's arena offset and stride arrive as uniform words rather than
-/// floats, so no conversion is needed before the load. A zero offset means no
-/// column was planned, and a NaN sample resolves to the missing colour.
-fn color_property_sample(atom_index: u32) -> f32 {
-    let offset = color_uniforms.selector.z;
-    let stride = color_uniforms.selector.w;
+/// The offset and stride arrive as uniform words rather than floats, so no
+/// conversion is needed before the load. A zero offset means no column was
+/// planned, and the sample is the quiet NaN of a missing value.
+fn color_column_sample(offset: u32, stride: u32, atom_index: u32) -> f32 {
     if offset == 0u {
         return missing_sample();
     }
@@ -79,40 +71,33 @@ fn color_property_sample(atom_index: u32) -> f32 {
 /// on the first frame of every viewer. The mask folds to zero at run time, so
 /// the bits are exactly the quiet NaN this shader means to carry.
 fn missing_sample() -> f32 {
-    return bitcast<f32>(0x7fc00000u | (color_uniforms.selector.z & 0u));
+    return bitcast<f32>(0x7fc00000u | (color_uniforms.base.header.z & 0u));
 }
 
-/// Applies a three-stop ramp to a scalar, matching the CPU ramp exactly.
+/// Resolves a scalar through the property ramp table, matching the CPU ramp.
 ///
-/// A non-finite value resolves to the missing colour, which the palette carries
-/// packed in the free lane of the ramp row.
+/// A non-finite value resolves to the missing colour the table carries.
 fn color_ramp(value: f32) -> vec4f {
+    let ramp = color_uniforms.ramp;
     if !(value == value) {
-        return unpack4x8unorm(bitcast<u32>(color_uniforms.palette[3].w));
+        return unpack4x8unorm(bitcast<u32>(ramp.domain.z));
     }
-    let low = color_uniforms.palette[3].x;
-    let middle = color_uniforms.palette[3].y;
-    let high = color_uniforms.palette[3].z;
-    var low_color = color_palette_slot(0u);
-    var high_color = color_palette_slot(1u);
-    var span = middle - low;
-    if value > middle {
-        low_color = color_palette_slot(1u);
-        high_color = color_palette_slot(2u);
-        span = high - middle;
-    }
-    let t = clamp((value - low) / max(span, 1.0e-30), 0.0, 1.0);
-    return mix(low_color, high_color, t);
+    let tap = ramp_tap(value, ramp.domain.x, ramp.domain.y);
+    return ramp_mix(
+        ramp.colors[tap.low >> 2u][tap.low & 3u],
+        ramp.colors[tap.high >> 2u][tap.high & 3u],
+        tap.fraction,
+    );
 }
 
-/// Whether a scientific appearance mapping drives this representation.
+/// Whether a physical appearance mapping drives this representation.
 fn color_appearance_enabled() -> bool {
     return color_uniforms.appearance.x < color_uniforms.appearance.y;
 }
 
-/// Samples the scientific appearance mapping, returning opacity and softness.
+/// Samples the physical appearance mapping, returning opacity and softness.
 ///
-/// Opacity and edge softness are scientific data, not decoration, so they are
+/// Opacity and edge softness are physical data, not decoration, so they are
 /// resolved here rather than baked into the shared record: a mapping change then
 /// costs one uniform write instead of a repack. A value outside the column, or
 /// a non-finite one, resolves to the mapping's own missing response.
@@ -121,7 +106,11 @@ fn atom_appearance(semantic: u32, atom_index: u32) -> vec2f {
         // No mapping: full opacity, and the record's packed softness.
         return vec2f(1.0, atom_softness_pixels(semantic));
     }
-    let value = color_property_sample(atom_index);
+    let value = color_column_sample(
+        color_uniforms.appearance_column.x,
+        color_uniforms.appearance_column.y,
+        atom_index,
+    );
     if !(value == value) {
         return vec2f(color_uniforms.softness.z, color_uniforms.softness.w);
     }
@@ -156,17 +145,18 @@ fn atom_fragment_color(
         atom_source_index(entity_id),
         element,
     );
-    color.a *= atom_appearance(semantic, atom_source_index(entity_id)).x;
+    let source = atom_source_index(entity_id);
+    color.a *= atom_appearance(semantic, source).x;
     color.a *= representation.presentation.x;
-    if visual_counts.visual_enabled == 0u {
-        return color;
+    if visual_counts.visual_enabled != 0u {
+        color = visual_uniform_base_color(color);
+        color = unpack4x8unorm(visual_result_word(
+            source,
+            VISUAL_RESULT_COLOR,
+            pack4x8unorm(color),
+        ));
     }
-    color = visual_uniform_base_color(color);
-    return unpack4x8unorm(visual_result_word(
-        atom_source_index(entity_id),
-        VISUAL_RESULT_COLOR,
-        pack4x8unorm(color),
-    ));
+    return interaction_color(color, source);
 }
 
 /// The overlay class of one atom row, or zero when its scheme is not
@@ -189,52 +179,48 @@ fn color_overlay_class(atom_index: u32) -> u32 {
     return u32(value);
 }
 
-/// The (scheme tag, packed colour) pair one non-zero overlay class selects.
-fn color_overlay_entry(overlay_class: u32) -> vec2u {
-    let slot = overlay_class - 1u;
-    let row = color_uniforms.overlay_table[min(slot / 2u, 7u)];
-    if (slot & 1u) == 0u {
-        return row.xy;
+//!include "include/visual/interaction.wgsl"
+
+/// The colour a categorical rule gives one atom.
+///
+/// The category is a whole-number scalar reduced modulo the palette length. An
+/// atom with no category, or a negative or non-finite one, keeps its element
+/// colour, which is how a scheme can colour only some atoms.
+fn color_category(rule: ColorRule, atom_index: u32, element_color: vec4f) -> vec4f {
+    let value = color_column_sample(rule.header.z, rule.header.w, atom_index);
+    if !(value >= 0.0) || value > 16777216.0 {
+        return element_color;
     }
-    return row.zw;
+    let index = rule.palette.x + u32(value) % max(rule.palette.y, 1u);
+    let slot = min(index, COLOR_BANK_COLORS - 1u);
+    return unpack4x8unorm(color_uniforms.bank[slot >> 2u][slot & 3u]);
+}
+
+/// Applies one rule to one atom.
+///
+/// `element_color` is the element colour the shared record carries, which every
+/// fallback path returns: a rule whose own input is absent shows the element
+/// colour rather than an arbitrary palette entry.
+fn color_rule_apply(rule: ColorRule, atom_index: u32, element_color: vec4f) -> vec4f {
+    let tag = rule.header.x;
+    if tag == COLOR_RULE_CATEGORY {
+        return color_category(rule, atom_index, element_color);
+    }
+    if tag == COLOR_RULE_PROPERTY {
+        return color_ramp(color_column_sample(rule.header.z, rule.header.w, atom_index));
+    }
+    if tag == COLOR_RULE_UNIFORM {
+        return unpack4x8unorm(rule.header.y);
+    }
+    return element_color;
 }
 
 /// Resolves one atom's display colour under the active scheme.
-///
-/// `element_color` is the element colour the shared record carries, which every
-/// fallback path returns: a scheme whose own input row is absent shows the
-/// element colour rather than an arbitrary palette entry.
 fn atom_scheme_color(semantic: u32, atom_index: u32, element_color: vec4f) -> vec4f {
-    var scheme = color_uniforms.selector.x;
-    var packed = color_uniforms.selector.y;
     let overlay_class = color_overlay_class(atom_index);
     if overlay_class != 0u {
-        let entry = color_overlay_entry(overlay_class);
-        scheme = entry.x;
-        packed = entry.y;
+        let slot = min(overlay_class, COLOR_OVERLAY_CLASSES) - 1u;
+        return color_rule_apply(color_uniforms.overlay_rules[slot], atom_index, element_color);
     }
-    if scheme == COLOR_SCHEME_CHAIN {
-        return color_palette_slot(
-            COLOR_CATEGORICAL_BASE + color_indices(semantic).x,
-        );
-    }
-    if scheme == COLOR_SCHEME_RESIDUE {
-        // Matches the CPU palette, which steps the categorical table by five
-        // per residue so adjacent residues are not adjacent colours.
-        return color_palette_slot(
-            COLOR_CATEGORICAL_BASE + (color_indices(semantic).y * 5u) % 8u,
-        );
-    }
-    if scheme == COLOR_SCHEME_SECONDARY {
-        return color_palette_slot(
-            COLOR_SECONDARY_BASE + color_indices(semantic).z,
-        );
-    }
-    if scheme == COLOR_SCHEME_PROPERTY {
-        return color_ramp(color_property_sample(atom_index));
-    }
-    if scheme == COLOR_SCHEME_UNIFORM {
-        return unpack4x8unorm(packed);
-    }
-    return element_color;
+    return color_rule_apply(color_uniforms.base, atom_index, element_color);
 }

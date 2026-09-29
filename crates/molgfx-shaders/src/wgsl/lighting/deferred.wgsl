@@ -12,6 +12,7 @@
 //!include "include/material_lighting.wgsl"
 //!include "include/deferred/gbuffer.wgsl"
 //!include "include/deferred/illustration.wgsl"
+//!include "include/deferred/marker_edge.wgsl"
 //!include "include/deferred/shadow.wgsl"
 
 override MASSIVE_POINTS: bool = false;
@@ -87,10 +88,12 @@ fn fs_lighting(
         visibility = direct_visibility(position, shading_frame.normal, occlusion.g);
     }
 
-    let emission_enabled = albedo_material.a >= 8.0;
+    let marker = marker_from_payload(albedo_material.a);
+    let unmarked_payload = payload_without_marker(albedo_material.a);
+    let emission_enabled = unmarked_payload >= 8.0;
     let material_payload_value = select(
-        albedo_material.a,
-        albedo_material.a - 8.0,
+        unmarked_payload,
+        unmarked_payload - 8.0,
         emission_enabled,
     );
     var lit = albedo_material.rgb;
@@ -112,6 +115,8 @@ fn fs_lighting(
             ),
         );
     }
+
+    lit = apply_marker_edge(lit, pixel, dimensions, marker);
 
     return vec4f(
         apply_illustration(

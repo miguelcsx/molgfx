@@ -12,11 +12,10 @@ fn surface_node_padding(node: BvhNode) -> f32 {
         return representation.surface.x;
     }
 
-    let soft_union_padding = select(
-        0.0,
-        0.5,
-        representation.options.w == 5u,
-    );
+    // A soft minimum can round a cusp outward by at most a quarter of its
+    // blend span, so the impostor bound grows by exactly that much. A zero
+    // span blends nothing and needs no extra bound.
+    let soft_union_padding = max(representation.presentation.y, 0.0) * 0.25;
 
     return node.max_radius.w *
         representation.visual.w +
