@@ -146,7 +146,7 @@ fn tier_knobs_are_monotone_in_cost() {
     let mut previous = QualityTier::ALL[0];
     for tier in QualityTier::ALL.into_iter().skip(1) {
         assert!(tier > previous);
-        assert!(tier.surface_grid_spacing() < previous.surface_grid_spacing());
+        assert!(tier.surface_grid_spacing() <= previous.surface_grid_spacing());
         assert!(tier.temporal_samples() > previous.temporal_samples());
         assert!(tier.image_samples() > previous.image_samples());
         previous = tier;
@@ -179,4 +179,54 @@ fn an_impossible_refresh_rate_is_clamped_instead_of_dividing_by_zero() {
     }
     assert_eq!(quality.tier(), QualityTier::Minimal);
     assert_eq!(quality.smoothed_ns(), 2_000_000_000);
+}
+
+#[test]
+fn atom_count_bands_cap_adaptive_render_cost() {
+    assert_eq!(QualityTier::for_atom_count(10_000), QualityTier::High);
+    assert_eq!(QualityTier::for_atom_count(10_001), QualityTier::Standard);
+    assert_eq!(QualityTier::for_atom_count(100_001), QualityTier::Reduced);
+    assert_eq!(QualityTier::for_atom_count(500_001), QualityTier::Minimal);
+
+    let mut quality = controller();
+    quality.set_atom_count(1_000_000);
+    for _ in 0..400 {
+        quality.observe(BUDGET_NS / 2);
+    }
+    assert_eq!(quality.tier(), QualityTier::Minimal);
+}
+
+#[test]
+fn shrinking_scene_size_never_jumps_to_a_richer_tier() {
+    let mut quality = controller();
+    quality.set_atom_count(1_000_000);
+    assert_eq!(quality.tier(), QualityTier::Minimal);
+    quality.set_atom_count(1_000);
+    assert_eq!(quality.tier(), QualityTier::Minimal);
+}
+
+#[test]
+fn only_the_two_cheapest_tiers_coarsen_the_surface_grid() {
+    assert!(
+        QualityTier::Minimal.surface_grid_spacing() > QualityTier::Reduced.surface_grid_spacing()
+    );
+    assert!(
+        QualityTier::Reduced.surface_grid_spacing() > QualityTier::Standard.surface_grid_spacing()
+    );
+    assert!(
+        (QualityTier::Standard.surface_grid_spacing() - QualityTier::High.surface_grid_spacing())
+            .abs()
+            < f32::EPSILON
+    );
+}
+
+#[test]
+fn cheaper_tiers_sample_ribbons_no_more_finely_and_never_below_two_steps() {
+    let mut previous = 0;
+    for tier in QualityTier::ALL {
+        assert!(tier.ribbon_steps() >= 2, "{tier:?}");
+        assert!(tier.ribbon_steps() >= previous, "{tier:?}");
+        previous = tier.ribbon_steps();
+    }
+    assert_eq!(QualityTier::default().ribbon_steps(), 8);
 }

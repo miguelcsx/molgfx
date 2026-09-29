@@ -61,6 +61,25 @@ impl QualityTier {
     /// Every tier, cheapest first.
     pub const ALL: [Self; 4] = [Self::Minimal, Self::Reduced, Self::Standard, Self::High];
 
+    /// Selects the largest tier allowed by scene size before frame-time
+    /// adaptation.
+    ///
+    /// The bands bound expensive surface, temporal and upload work without
+    /// touching coordinates. Callers may still force publication quality; this
+    /// policy only constrains adaptive realtime rendering.
+    #[must_use]
+    pub const fn for_atom_count(atom_count: u64) -> Self {
+        if atom_count <= 10_000 {
+            Self::High
+        } else if atom_count <= 100_000 {
+            Self::Standard
+        } else if atom_count <= 500_000 {
+            Self::Reduced
+        } else {
+            Self::Minimal
+        }
+    }
+
     const fn index(self) -> usize {
         match self {
             Self::Minimal => 0,
@@ -93,9 +112,31 @@ impl QualityTier {
     }
 
     /// Surface field grid spacing in Ångström for this tier.
+    ///
+    /// The two richer tiers share the finest spacing: it is the resolution at
+    /// which a surface stops changing visibly, so a richer tier spends its
+    /// budget on samples instead.
     #[must_use]
     pub const fn surface_grid_spacing(self) -> f32 {
-        [0.75, 0.5, 0.375, 0.25][self.index()]
+        [0.75, 0.5, 0.25, 0.25][self.index()]
+    }
+
+    /// Maximum ribbon samples per trace interval for this tier.
+    ///
+    /// Fewer samples coarsen the spline between residues only; the residue
+    /// positions the ribbon passes through are unchanged.
+    #[must_use]
+    pub const fn ribbon_steps(self) -> u8 {
+        [3, 5, 8, 8][self.index()]
+    }
+
+    /// The scene-synchronization detail budgets this tier selects.
+    #[must_use]
+    pub(crate) const fn detail(self) -> crate::scene_gpu::detail::TierDetail {
+        crate::scene_gpu::detail::TierDetail {
+            surface_spacing: self.surface_grid_spacing(),
+            ribbon_steps: self.ribbon_steps(),
+        }
     }
 
     /// Temporal accumulation budget for this tier, in samples.
@@ -168,6 +209,7 @@ pub struct AdaptiveQuality {
     target_ns: u64,
     ema_ns: u64,
     tier: QualityTier,
+    size_cap: QualityTier,
     overrun_frames: u32,
     headroom_frames: u32,
 }
@@ -194,6 +236,7 @@ impl AdaptiveQuality {
             } else {
                 QualityTier::Reduced
             },
+            size_cap: QualityTier::High,
             overrun_frames: 0,
             headroom_frames: 0,
         }
@@ -223,10 +266,30 @@ impl AdaptiveQuality {
         self.ema_ns
     }
 
+    /// Applies the size-based realtime ceiling for the next frame.
+    ///
+    /// This is a cheap scene-level operation. Changing to a smaller band
+    /// immediately drops the tier and clears its timing window; growing a
+    /// scene's budget never causes a sudden expensive jump.
+    pub fn set_atom_count(&mut self, atom_count: u64) {
+        if self.publication {
+            return;
+        }
+        let cap = QualityTier::for_atom_count(atom_count);
+        if cap == self.size_cap {
+            return;
+        }
+        self.size_cap = cap;
+        if self.tier > cap {
+            self.tier = cap;
+            self.reset_window();
+        }
+    }
+
     /// Marks the engine as running the deterministic publication path.
     ///
     /// Entering publication holds the tier constant from that frame on.
-    pub const fn set_publication(&mut self, publication: bool) {
+    pub fn set_publication(&mut self, publication: bool) {
         if self.publication != publication {
             self.publication = publication;
             self.tier = if publication {
@@ -234,6 +297,7 @@ impl AdaptiveQuality {
             } else {
                 QualityTier::Reduced
             };
+            self.size_cap = QualityTier::High;
             self.reset_window();
         }
     }
@@ -246,7 +310,7 @@ impl AdaptiveQuality {
     /// submission-to-fence-completion elapsed time. Both are host-clock
     /// durations, neither is GPU execution time, and each frame feeds exactly
     /// one sample from exactly one source.
-    pub const fn observe(&mut self, frame_ns: u64) -> QualityTier {
+    pub fn observe(&mut self, frame_ns: u64) -> QualityTier {
         if !self.enabled() {
             return self.tier;
         }
@@ -276,7 +340,11 @@ impl AdaptiveQuality {
         if self.overrun_frames >= DOWN_FRAMES {
             self.step(self.tier.cheaper());
         } else if self.headroom_frames >= UP_FRAMES {
-            self.step(self.tier.richer());
+            let next = match self.tier.richer() {
+                Some(tier) if tier <= self.size_cap => Some(tier),
+                _ => None,
+            };
+            self.step(next);
         }
         self.tier
     }

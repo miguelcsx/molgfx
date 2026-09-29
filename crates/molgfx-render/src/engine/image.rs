@@ -234,6 +234,7 @@ impl<D: Device> Engine<D> {
                     quality: cinematic,
                     publication: purpose == ImagePurpose::Publication,
                     illustration: self.resolved_plan.illustration(),
+                    depth_cue: self.resolved_plan.packed_depth_cue(),
                     optics,
                     motion_blur: self
                         .resolved_plan
@@ -337,6 +338,7 @@ impl<D: Device> Engine<D> {
         if purpose == ImagePurpose::Publication {
             self.adaptive.set_publication(true);
         }
+        self.adaptive.set_atom_count(scene.atom_count());
         self.sync_quality_tier();
         self.chunk_residency.begin_epoch();
         let scene_changed = self.scene_gpu.sync(crate::scene_gpu::SceneSync {
@@ -344,6 +346,7 @@ impl<D: Device> Engine<D> {
             queue: &self.queue,
             scene,
             quality: self.tier() >= QualityTier::Standard,
+            detail: self.tier().detail(),
             extent: [self.width, self.height],
             ray_query_layout: self.passes.ambient_occlusion.ray_query_layout(),
             derived_cache: &mut self.derived_cache,
@@ -416,6 +419,7 @@ impl<D: Device> Engine<D> {
                     }),
                 temporal_write: self.temporal.write_index(),
                 quality,
+                edge_smoothing: self.edge_smoothing(),
                 display_encoding: self.display_encoding(),
             });
             if stop_after.is_some_and(|resource| node.writes.contains(&resource)) {

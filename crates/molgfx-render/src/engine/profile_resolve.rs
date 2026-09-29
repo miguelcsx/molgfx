@@ -1,7 +1,7 @@
 //! Ordered render-profile resolution kept separate from the public recipe types.
 
 use super::{
-    BackdropStyle, BloomStyle, DepthOfField, DisplayTransform, IllustrationStyle,
+    BackdropStyle, BloomStyle, DepthCue, DepthOfField, DisplayTransform, IllustrationStyle,
     LightingEnvironment, MotionBlur, PresentationEffect, RenderProfile, ResolvedRenderPlan,
 };
 
@@ -10,17 +10,22 @@ impl RenderProfile {
         let mut order = (0..self.layers.len()).collect::<Vec<_>>();
         order.sort_by_key(|index| self.layers[*index].priority);
         let mut illustration = IllustrationStyle::default();
+        let mut depth_cue = DepthCue::default();
         let mut depth_of_field = None;
         let mut motion_blur = None;
         let mut bloom = None;
         let mut backdrop = BackdropStyle::default();
         let mut lighting = LightingEnvironment::default();
         let mut display = DisplayTransform::default();
+        let mut antialias = None;
         for index in order {
             let layer = self.layers[index];
             match layer.effect {
                 PresentationEffect::Illustration(style) => {
                     illustration = illustration.blend(style.sanitize(), layer.weight);
+                }
+                PresentationEffect::DepthCue(cue) => {
+                    depth_cue = depth_cue.blend(cue.sanitize(), layer.weight);
                 }
                 PresentationEffect::DepthOfField(settings) => {
                     let settings = settings.sanitize();
@@ -56,6 +61,9 @@ impl RenderProfile {
                 PresentationEffect::Display(transform) => {
                     display = display.blend(transform.sanitize(), layer.weight);
                 }
+                PresentationEffect::AntiAliasing(style) => {
+                    antialias = Some(style.sanitize());
+                }
                 PresentationEffect::Bloom(style) => {
                     let style = style.sanitize();
                     let baseline = match bloom {
@@ -72,12 +80,14 @@ impl RenderProfile {
         }
         ResolvedRenderPlan {
             illustration,
+            depth_cue,
             depth_of_field,
             motion_blur,
             bloom,
             backdrop,
             lighting,
             display,
+            antialias,
         }
     }
 }
