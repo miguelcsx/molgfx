@@ -12,6 +12,7 @@ mod chunk_residency;
 mod chunk_residency_support;
 mod chunk_residency_types;
 mod config;
+mod depth_cue;
 mod derived_cache;
 mod exr;
 mod focus_target;
@@ -22,8 +23,10 @@ mod hdr_image;
 mod image;
 mod init;
 mod lighting_environment;
+mod optics;
 mod picking;
 pub(crate) mod pipeline_cache;
+mod presentation;
 mod profile;
 mod profile_numeric;
 mod profiling;
@@ -51,15 +54,17 @@ pub use config::{
     EngineConfig, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport, FrameStatus,
     RenderMode,
 };
+pub use depth_cue::DepthCue;
 pub use derived_cache::{DerivedCacheBudget, DerivedCacheUsage};
 pub use hdr_image::HdrImage;
 pub use image::{Image, ImageConfig};
 pub use init::Engine;
 pub use lighting_environment::LightingEnvironment;
+pub use optics::{DepthOfField, FocusTarget, MotionBlur};
 pub use picking::{Pick, PickEntity};
 pub use profile::{
-    BloomStyle, DepthOfField, EffectLayer, FocusTarget, IllustrationStyle, MotionBlur,
-    PresentationEffect, RenderProfile, ResolvedRenderPlan,
+    AntiAliasingStyle, BloomStyle, EffectLayer, IllustrationStyle, PresentationEffect,
+    RenderProfile, ResolvedRenderPlan,
 };
 pub use profiling::FrameTiming;
 #[cfg(not(target_arch = "wasm32"))]

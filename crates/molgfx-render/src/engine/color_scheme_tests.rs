@@ -2,6 +2,7 @@
 
 use super::tests::{camera, engine, represented_scene};
 use crate::engine::Engine;
+use crate::scene_gpu::color_uniforms;
 use crate::testing::MockDevice;
 use molgfx_core::ColorScheme;
 
@@ -39,15 +40,38 @@ fn frame_writes(engine: &mut Engine<MockDevice>, scene: &molgfx_core::Scene) -> 
     writes_since(engine, before)
 }
 
+/// A category column of zeros over the fixture's first structure.
+fn category_column(scene: &mut molgfx_core::Scene) -> molgfx_core::AtomPropertyHandle {
+    let Some((structure, placed)) = scene.structures().next() else {
+        panic!("fixture has a structure")
+    };
+    let atoms = placed.atoms.len() as usize;
+    let column = match molgfx_core::AtomProperty::new(
+        structure,
+        std::sync::Arc::<str>::from("categories"),
+        vec![0.0; atoms].into(),
+        molgfx_core::AtomPropertyMeaning::Generic,
+        molgfx_core::ScalarFieldSemantics::UncalibratedRank,
+    ) {
+        Ok(property) => property,
+        Err(error) => panic!("category column builds: {error}"),
+    };
+    match scene.add_atom_property(column) {
+        Ok(handle) => handle,
+        Err(error) => panic!("category column binds: {error}"),
+    }
+}
+
 #[test]
 fn a_colour_scheme_change_writes_only_fixed_size_uniforms() {
     // The scheme is resolved on the GPU from the record's element colour and
-    // three packed palette indices, so changing it rewrites the presentation
-    // uniforms and nothing else: no repack, no record upload, no new buffer.
+    // a property column, so changing it rewrites the presentation uniforms and
+    // nothing else: no repack, no record upload, no new buffer.
     let mut scene = represented_scene(1, 1);
     let Some((representation, _)) = scene.representations().next() else {
         panic!("fixture has a representation")
     };
+    let column = category_column(&mut scene);
     let mut engine = engine();
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("initial frame renders: {error}")
@@ -57,9 +81,8 @@ fn a_colour_scheme_change_writes_only_fixed_size_uniforms() {
     };
 
     for scheme in [
-        ColorScheme::ByChain,
-        ColorScheme::ByResidue,
-        ColorScheme::BySecondaryStructure,
+        ColorScheme::category(column, molgfx_core::CategoryPalette::Kelly),
+        ColorScheme::category(column, molgfx_core::CategoryPalette::MoleculeType),
         ColorScheme::Uniform(Rgba8::opaque(12, 34, 56)),
     ] {
         let Some(value) = scene.representation_mut(representation) else {
@@ -68,9 +91,12 @@ fn a_colour_scheme_change_writes_only_fixed_size_uniforms() {
         value.color = scheme;
         let changed = frame_writes(&mut engine, &scene);
         assert!(
+            // A newly referenced column uploads once into the property table;
+            // records, culling state and indirect arguments are untouched.
             changed.iter().all(|label| *label == "frame uniforms"
                 || *label == "representation uniforms"
-                || *label == "colour scheme uniforms"),
+                || *label == "colour scheme uniforms"
+                || *label == "visual property table"),
             "{scheme:?} wrote unexpected buffers: {changed:?}"
         );
     }
@@ -127,10 +153,10 @@ fn representations_differing_only_in_colour_share_one_record_set() {
 }
 
 #[test]
-fn the_gpu_scheme_palette_matches_the_cpu_palette() {
-    // The shader resolves chain and residue colours from the same tables the
-    // CPU path uses. This pins the arrangement the shader indexes: getting a
-    // base wrong silently draws chains in secondary-structure colours.
+fn the_gpu_palette_bank_matches_the_cpu_palettes() {
+    // The shader resolves categories from the bank the block uploads. This pins
+    // the arrangement it indexes: every palette back to back in `ALL` order, so
+    // getting a base wrong silently draws chains in another palette's colours.
     let scene = represented_scene(1, 1);
     let Some((representation, _)) = scene.representations().next() else {
         panic!("fixture has a representation")
@@ -138,35 +164,26 @@ fn the_gpu_scheme_palette_matches_the_cpu_palette() {
     let Some(value) = scene.representation(representation) else {
         panic!("representation resolves")
     };
-    let uniforms = crate::scene_gpu::color_uniforms::ColorUniforms::new(value, [0, 1], [0, 1]);
-    let palette = uniforms.palette_probe();
-    for (index, color) in molgfx_core::CATEGORICAL_COLORS.into_iter().enumerate() {
-        assert_eq!(
-            palette[9 + index].map(f32::to_bits),
-            lanes(color).map(f32::to_bits),
-            "categorical slot {index}"
-        );
+    let uniforms =
+        color_uniforms::ColorUniforms::new(value, &color_uniforms::ResolvedColumns::NONE);
+    for palette in molgfx_core::CategoryPalette::ALL {
+        let base = color_uniforms::bank_base(palette);
+        for (index, color) in palette.colors().iter().enumerate() {
+            assert_eq!(
+                uniforms.bank_probe(base + index),
+                u32::from_le_bytes([color.r, color.g, color.b, color.a]),
+                "{palette:?} colour {index}"
+            );
+        }
     }
-    for (class, color) in molgfx_core::SECONDARY_STRUCTURE_COLORS
+    let total: usize = molgfx_core::CategoryPalette::ALL
         .into_iter()
-        .enumerate()
-    {
-        assert_eq!(
-            palette[4 + class].map(f32::to_bits),
-            lanes(color).map(f32::to_bits),
-            "secondary slot {class}"
-        );
-    }
-}
-
-/// One packed colour as four normalized lanes.
-fn lanes(color: Rgba8) -> [f32; 4] {
-    [
-        f32::from(color.r) / 255.0,
-        f32::from(color.g) / 255.0,
-        f32::from(color.b) / 255.0,
-        f32::from(color.a) / 255.0,
-    ]
+        .map(molgfx_core::CategoryPalette::len)
+        .sum();
+    assert!(
+        total <= color_uniforms::BANK_COLORS,
+        "every palette fits the bank"
+    );
 }
 
 #[test]
@@ -211,8 +228,8 @@ fn the_colour_block_is_written_with_the_active_scheme() {
     let Some(payload) = writes.get(index) else {
         panic!("the colour block write captured its bytes")
     };
-    // palette is 17 lanes, then the selector: scheme, packed colour, column.
-    let selector_at = 17 * 16;
+    // The base rule comes first: tag, packed colour, column offset, stride.
+    let selector_at = 0;
     let scheme = u32::from_le_bytes([
         payload[selector_at],
         payload[selector_at + 1],
@@ -225,7 +242,7 @@ fn the_colour_block_is_written_with_the_active_scheme() {
         payload[selector_at + 6],
         payload[selector_at + 7],
     ]);
-    assert_eq!(scheme, 5, "a uniform scheme selects tag 5");
+    assert_eq!(scheme, 1, "a uniform scheme selects the uniform rule");
     assert_eq!(
         packed,
         u32::from_le_bytes([12, 34, 56, 255]),
@@ -254,9 +271,13 @@ fn an_overlay_packs_its_column_and_scheme_table_for_the_shader() {
         panic!("class column binds")
     };
     let red = molgfx_math::Rgba8::opaque(255, 0, 0);
-    let Ok(overlay) =
-        molgfx_core::ColorOverlay::new(handle, &[ColorScheme::ByChain, ColorScheme::Uniform(red)])
-    else {
+    let Ok(overlay) = molgfx_core::ColorOverlay::new(
+        handle,
+        &[
+            ColorScheme::category(handle, molgfx_core::CategoryPalette::Kelly),
+            ColorScheme::Uniform(red),
+        ],
+    ) else {
         panic!("overlay builds")
     };
     let Some((representation, _)) = scene.representations().next() else {
@@ -266,14 +287,20 @@ fn an_overlay_packs_its_column_and_scheme_table_for_the_shader() {
         panic!("representation resolves")
     };
     value.color_overlay = Some(overlay);
-    let packed = crate::scene_gpu::color_uniforms::ColorUniforms::new(value, [0, 1], [40, 1]);
-    let (header, table) = packed.overlay_probe();
+    let mut columns = color_uniforms::ResolvedColumns::NONE;
+    columns.overlay = [40, 1];
+    columns.schemes[0] = [48, 1];
+    let packed = color_uniforms::ColorUniforms::new(value, &columns);
+    let (header, rules) = packed.overlay_probe();
     assert_eq!(header, [40, 1, 2, 0]);
-    // Class one is the chain scheme, class two the packed uniform red.
-    assert_eq!(table[0][0], 1);
-    assert_eq!(table[0][2], 5);
-    assert_eq!(table[0][3], u32::from_le_bytes([255, 0, 0, 255]));
-    // An unplanned column disables the overlay instead of reading offset zero.
-    let disabled = crate::scene_gpu::color_uniforms::ColorUniforms::new(value, [0, 1], [0, 1]);
+    // Class one is the category rule over its own column, class two the packed
+    // uniform red.
+    assert_eq!(rules[0], [3, 0, 48, 1]);
+    assert_eq!(rules[1][0], 1);
+    assert_eq!(rules[1][1], u32::from_le_bytes([255, 0, 0, 255]));
+    // An unplanned class column disables the overlay instead of reading offset
+    // zero.
+    let disabled =
+        color_uniforms::ColorUniforms::new(value, &color_uniforms::ResolvedColumns::NONE);
     assert_eq!(disabled.overlay_probe().0[0], 0);
 }
