@@ -1,7 +1,7 @@
 //! Presentation resources: the display encoding, the transient pool sized to
 //! the surface, and acquiring the next surface frame.
 
-use super::{Engine, QualityTier};
+use super::Engine;
 use crate::error::RenderError;
 use crate::graph::{DisplayEncoding, TransientPool, plan_aliases};
 use crate::passes::FrameBindings;
@@ -10,14 +10,17 @@ use molgfx_gpu::{Device, Surface as _, SurfaceError};
 impl<D: Device> Engine<D> {
     /// Whether the tonemap pass smooths edges this frame.
     ///
-    /// A profile that states a choice wins; otherwise accumulation already
-    /// averages sub-pixel coverage on the converged tiers, so only the realtime
-    /// tiers, whose budget is a handful of samples, smooth.
+    /// A profile that states a choice wins. Otherwise the choice follows
+    /// convergence, not quality: only a path that accumulates sub-pixel
+    /// coverage is already smooth, and the realtime path is not, so it smooths
+    /// whatever tier it holds. Keying this to the tier instead left small
+    /// interactive scenes — which reach the highest tier — with hard,
+    /// stair-stepped silhouettes at every zoom.
     #[inline]
     pub(super) fn edge_smoothing(&self) -> bool {
         match self.resolved_plan.antialias() {
             Some(style) => style.edge_smoothing,
-            None => self.tier() < QualityTier::Standard,
+            None => !self.adaptive.converged(),
         }
     }
 

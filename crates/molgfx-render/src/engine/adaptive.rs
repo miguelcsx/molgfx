@@ -254,6 +254,16 @@ impl AdaptiveQuality {
         self.requested && !self.publication
     }
 
+    /// Whether this instant accumulates to a still image.
+    ///
+    /// The cinematic path and off-screen publication converge, so their
+    /// sub-pixel coverage is already averaged; the realtime path does not, so
+    /// its edges need explicit smoothing whatever tier it happens to hold.
+    #[must_use]
+    pub const fn converged(&self) -> bool {
+        self.publication
+    }
+
     /// The tier every frame of this instant presents at.
     #[must_use]
     pub const fn tier(&self) -> QualityTier {

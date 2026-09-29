@@ -5,6 +5,10 @@ export const CAMERA_PITCH_LIMIT = 1.5;
 
 export const CAMERA_ZOOM_SPEED = 0.001;
 export const CAMERA_ZOOM_LIMIT = 1;
+/** Closest a camera may approach its target, as a fraction of its home distance. */
+export const CAMERA_MIN_DISTANCE_FRACTION = 0.02;
+/** Farthest a camera may retreat from its target, as a fraction of its home distance. */
+export const CAMERA_MAX_DISTANCE_FRACTION = 4;
 
 export const CAMERA_PUBLISH_DELAY_MS = 200;
 
