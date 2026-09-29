@@ -75,7 +75,7 @@ molgfx-command = { version = "0.3.2", path = "crates/molgfx-command" }
 molframe = { version = "0.3.1", default-features = false, features = ["mmcif", "bcif", "pdb"] }
 # The provider's Python bridge names its library target `_native`, so the
 # dependency is renamed back to the package name for `molframe_py::` to resolve.
-molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "0c8724c748c20bd725fb8e538f322febaf92fd1e", default-features = false, features = ["full"] }
+molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "ae827fe2f01d98adbf0b3d360bc69bf3567bf950", default-features = false, features = ["full"] }
 
 # Python ABI shared by the thin binding crate and the sibling molframe bridge.
 pyo3 = "0.29"
@@ -143,10 +143,8 @@ lto = "thin"
 # from git, and it builds against the molframe in that same checkout. Without
 # this patch the workspace would hold two copies of `molframe` whose types do not
 # match. `[patch]` only applies to this workspace's own builds; the published
-# crates still resolve `molframe` from the registry.
+# crates still resolve `molframe` from the registry. The patch names a git
+# revision rather than an adjacent checkout, so the exact same sources build in
+# CI, where there is no `../molframe` directory.
 [patch.crates-io]
-molframe = { path = "../molframe/crates/molframe" }
-
-# Keep the Python ABI producer and consumer on the adjacent source checkout.
-[patch."https://github.com/miguelcsx/molframe"]
-molframe-py = { path = "../molframe/crates/molframe-py" }
+molframe = { git = "https://github.com/miguelcsx/molframe", rev = "ae827fe2f01d98adbf0b3d360bc69bf3567bf950" }
