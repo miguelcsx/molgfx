@@ -45,7 +45,7 @@ fn the_structure_digest_is_a_pinned_value() {
     let hash = structure_hash(&molgfx_core::MolecularSource::from_molframe(&structure));
     assert_eq!(
         hash.as_ref(),
-        "30f78498b6486f27db6c750a5dd857abcb393a0dec3902672161cca160c281b4",
+        "fc774826f49010c2753ec610a1d2b315c982d3f34e740542b967a2288ddfed51",
         "the structure digest is a published contract"
     );
 }

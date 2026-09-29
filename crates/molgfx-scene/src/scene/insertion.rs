@@ -1,4 +1,4 @@
-//! Allocating identities for scientific items added one at a time.
+//! Allocating identities for overlay items added one at a time.
 //!
 //! Each insertion is one atomic patch whose new identity is the next after the
 //! highest in its table, so identities are dense, deterministic and never
@@ -60,20 +60,38 @@ impl Scene {
         Ok(id)
     }
 
-    pub(crate) fn insert_scientific_interaction(
+    pub(crate) fn insert_interaction(
         &mut self,
-        interaction: crate::ScientificInteractionSpec,
-    ) -> Result<crate::ScientificInteractionId, Error> {
-        let id = crate::ScientificInteractionId(next_id_for(
+        interaction: crate::InteractionSpec,
+    ) -> Result<crate::InteractionId, Error> {
+        let id = crate::InteractionId(next_id_for(
             self.spec
-                .scientific_interactions
+                .interactions
                 .last_key_value()
                 .map(|(id, _)| id.get()),
-            "scientific interaction",
+            "overlay interaction",
         )?);
         self.apply(&ScenePatch {
             base_revision: self.revision(),
-            operations: vec![PatchOperation::AddScientificInteraction { id, interaction }],
+            operations: vec![PatchOperation::AddInteraction { id, interaction }],
+        })?;
+        Ok(id)
+    }
+
+    pub(crate) fn insert_ellipsoids(
+        &mut self,
+        spec: crate::overlay::EllipsoidSpec,
+    ) -> Result<crate::EllipsoidId, Error> {
+        let id = crate::EllipsoidId(next_id_for(
+            self.spec
+                .ellipsoids
+                .last_key_value()
+                .map(|(id, _)| id.get()),
+            "ellipsoid overlay",
+        )?);
+        self.apply(&crate::ScenePatch {
+            base_revision: self.spec.revision,
+            operations: vec![crate::PatchOperation::AddEllipsoids { id, spec }],
         })?;
         Ok(id)
     }

@@ -171,7 +171,7 @@ fn equal_queries_share_one_resolved_selection() {
 }
 
 #[test]
-fn scientific_additions_do_not_rebuild_molecular_representations() {
+fn overlay_additions_do_not_rebuild_molecular_representations() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let id = scene
         .add(rep::spacefill("all"))

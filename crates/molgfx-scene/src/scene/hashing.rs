@@ -35,10 +35,13 @@ pub fn structure_hash(structure: &molgfx_core::MolecularSource) -> Box<str> {
     // never agree. Every field in this digest is width-explicit for that reason.
     hash.update(hashed_length(structure.coordinates().len()));
     hash_coordinate_lanes(&mut hash, structure.coordinates());
-    hash_atoms(&mut hash, &structure.topology().atoms);
-    hash_bonds(&mut hash, &structure.topology().bonds);
-    if let Some(native) = structure.molframe() {
-        hash_native_text(&mut hash, native);
+    match structure.molframe() {
+        Some(native) => {
+            let canonical = molgfx_core::MolecularSource::from_molframe(native);
+            hash_topology(&mut hash, canonical.topology());
+            hash_native_text(&mut hash, native);
+        }
+        None => hash_topology(&mut hash, structure.topology()),
     }
     format!("{digest:x}", digest = hash.finalize()).into_boxed_str()
 }
@@ -66,6 +69,13 @@ fn hash_coordinate_lanes(hash: &mut Sha256, coordinates: &[[f32; 3]]) {
     hash.update(&block[..filled]);
 }
 
+/// Feeds the canonical topology, including chemical edge style and secondary structure.
+fn hash_topology(hash: &mut Sha256, topology: &molgfx_core::SourceTopology) {
+    hash_atoms(hash, &topology.atoms);
+    hash_bonds(hash, &topology.bonds);
+    hash_secondary_structure(hash, &topology.secondary_structure);
+}
+
 /// Feeds every atom's element and residue as one run.
 fn hash_atoms(hash: &mut Sha256, atoms: &[molgfx_core::SourceAtom]) {
     let mut block = [0_u8; HASH_BLOCK_BYTES];
@@ -84,15 +94,17 @@ fn hash_atoms(hash: &mut Sha256, atoms: &[molgfx_core::SourceAtom]) {
     hash.update(&block[..filled]);
 }
 
-/// Feeds every bond's endpoints and aromaticity as one run.
+/// Feeds every bond's endpoints and chemical style as one run.
 fn hash_bonds(hash: &mut Sha256, bonds: &[molgfx_core::SourceBond]) {
     let mut block = [0_u8; HASH_BLOCK_BYTES];
     let mut filled = 0;
     for bond in bonds {
-        let mut entry = [0_u8; 9];
+        let mut entry = [0_u8; 11];
         entry[..4].copy_from_slice(&bond.atoms[0].to_le_bytes());
         entry[4..8].copy_from_slice(&bond.atoms[1].to_le_bytes());
-        entry[8] = u8::from(bond.aromatic);
+        entry[8] = bond_order_tag(bond.order);
+        entry[9] = u8::from(bond.aromatic);
+        entry[10] = u8::from(bond.metal);
         if filled + entry.len() > block.len() {
             hash.update(&block[..filled]);
             filled = 0;
@@ -101,6 +113,31 @@ fn hash_bonds(hash: &mut Sha256, bonds: &[molgfx_core::SourceBond]) {
         filled += entry.len();
     }
     hash.update(&block[..filled]);
+}
+
+fn bond_order_tag(order: molframe::BondOrder) -> u8 {
+    match order {
+        molframe::BondOrder::Single => 1,
+        molframe::BondOrder::Double => 2,
+        molframe::BondOrder::Triple => 3,
+        molframe::BondOrder::Quadruple => 4,
+        molframe::BondOrder::Aromatic => 5,
+        molframe::BondOrder::Polymeric => 6,
+        molframe::BondOrder::Unknown => 0,
+    }
+}
+
+fn hash_secondary_structure(hash: &mut Sha256, values: &[molframe::SecondaryStructure]) {
+    hash.update(hashed_length(values.len()));
+    for value in values {
+        hash.update([match value {
+            molframe::SecondaryStructure::Unknown => 0,
+            molframe::SecondaryStructure::Coil => 1,
+            molframe::SecondaryStructure::Helix => 2,
+            molframe::SecondaryStructure::Strand => 3,
+            molframe::SecondaryStructure::Turn => 4,
+        }]);
+    }
 }
 
 /// Feeds the parser's own labels, keeping the per-field length prefix that

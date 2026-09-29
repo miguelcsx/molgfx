@@ -1,9 +1,9 @@
-//! Runtime scientific bindings and renderer-handle inspection.
+//! Runtime overlay bindings and renderer-handle inspection.
 
 use super::{Resolution, Scene};
 use crate::error::Error;
 use crate::id::StructureId;
-use crate::science::{ScientificHandles, TrajectoryBinding, VolumeBinding};
+use crate::overlay::{OverlayHandles, TrajectoryBinding, VolumeBinding};
 
 impl Scene {
     /// Binds one immutable density grid for every volume descriptor naming it.
@@ -19,8 +19,8 @@ impl Scene {
     /// hash that is already bound, or a grid that contradicts a descriptor it
     /// would satisfy.
     pub fn bind_volume(&mut self, binding: VolumeBinding) -> Result<(), Error> {
-        self.science_bindings.insert(binding)?;
-        self.rebind_science()
+        self.overlay_bindings.insert(binding)?;
+        self.rebind_overlay()
     }
 
     /// Binds one resident frame pair for every trajectory descriptor naming it.
@@ -37,8 +37,8 @@ impl Scene {
     /// hash that is already bound, a pair that contradicts its descriptor, or
     /// frames that do not match the target structure's topology.
     pub fn bind_trajectory(&mut self, binding: TrajectoryBinding) -> Result<(), Error> {
-        self.science_bindings.insert_trajectory(binding)?;
-        self.rebind_science()
+        self.overlay_bindings.insert_trajectory(binding)?;
+        self.rebind_overlay()
     }
 
     /// Advances one structure's presentation time inside its resident interval.
@@ -70,26 +70,26 @@ impl Scene {
     }
 
     /// Re-resolves the scene so newly bound runtime data reaches the handle set.
-    fn rebind_science(&mut self) -> Result<(), Error> {
+    fn rebind_overlay(&mut self) -> Result<(), Error> {
         self.spec.revision = self.spec.revision.wrapping_add(1);
         let resolution = crate::scene::runtime::resolve(
             &self.spec,
             &self.structures,
             &self.property_bindings,
-            &self.science_bindings,
+            &self.overlay_bindings,
             &self.rows,
         )?;
         self.install_resolution(resolution);
         Ok(())
     }
 
-    /// Renderer-side handle counts for each exposed scientific capability.
+    /// Renderer-side handle counts for each exposed overlay capability.
     ///
-    /// Scientific descriptors reach the renderer when the scene resolves, which
-    /// every scientific patch, structure addition and volume binding performs.
+    /// Overlay descriptors reach the renderer when the scene resolves, which
+    /// every overlay patch, structure addition and volume binding performs.
     #[must_use]
-    pub fn scientific_handles(&self) -> ScientificHandles {
-        self.science.counts()
+    pub fn overlay_handles(&self) -> OverlayHandles {
+        self.overlay.counts()
     }
 
     /// Replaces every resolved view of the core scene at once.
@@ -101,7 +101,7 @@ impl Scene {
         self.selections = resolution.selections;
         self.visuals = resolution.visuals;
         self.properties = resolution.properties;
-        self.science = resolution.science;
+        self.overlay = resolution.overlay;
         self.appearance = resolution.appearance;
     }
 }

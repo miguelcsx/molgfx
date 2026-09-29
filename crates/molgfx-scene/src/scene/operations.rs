@@ -21,6 +21,7 @@ impl Scene {
             }
             .into());
         }
+        self.ensure_derived(patch)?;
         let plan = PatchPlan::prepare(
             PatchInputs {
                 spec: &self.spec,
@@ -30,7 +31,7 @@ impl Scene {
                 properties: &self.properties,
                 structures: &self.structures,
                 property_bindings: &self.property_bindings,
-                science_bindings: &self.science_bindings,
+                overlay_bindings: &self.overlay_bindings,
                 structure_assets: &self.structure_assets,
                 rows: &self.rows,
             },

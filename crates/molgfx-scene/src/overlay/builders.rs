@@ -1,4 +1,4 @@
-//! Curated constructors for scientific scene items.
+//! Curated constructors for overlay scene items.
 
 /// Density-volume authoring.
 pub mod density {
@@ -58,18 +58,14 @@ pub mod measurement {
     }
 }
 
-/// Caller-supplied scientific interactions.
+/// Caller-supplied overlay interactions.
 pub mod interaction {
-    use super::super::{Anchor, InteractionKind, ScientificInteractionSpec};
+    use super::super::{Anchor, InteractionKind, InteractionSpec};
 
     /// Declares one known interaction between two semantic anchors.
     #[must_use]
-    pub fn explicit(
-        kind: InteractionKind,
-        first: Anchor,
-        second: Anchor,
-    ) -> ScientificInteractionSpec {
-        ScientificInteractionSpec::Explicit {
+    pub fn explicit(kind: InteractionKind, first: Anchor, second: Anchor) -> InteractionSpec {
+        InteractionSpec::Explicit {
             kind,
             endpoints: [first, second],
         }
@@ -93,6 +89,26 @@ pub mod trajectory {
             frame_count,
             time_step: None,
             time_unit: None,
+        }
+    }
+}
+
+/// Per-atom anisotropic-displacement ellipsoid authoring.
+pub mod ellipsoid {
+    use super::super::{Color, EllipsoidSpec, Selection, StructureId};
+
+    /// Draws one ellipsoid per selected atom that carries a displacement tensor.
+    ///
+    /// The default scale is one standard deviation, the surface the recorded
+    /// tensor already describes, and the default color is a neutral blue.
+    #[must_use]
+    pub fn adp(structure: StructureId, selection: Selection) -> EllipsoidSpec {
+        EllipsoidSpec {
+            structure,
+            selection,
+            scale: 1.0,
+            color: Color::rgb(96, 132, 200),
+            opacity: 1.0,
         }
     }
 }

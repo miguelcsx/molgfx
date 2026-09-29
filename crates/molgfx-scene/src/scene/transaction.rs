@@ -67,8 +67,8 @@ impl SceneTransaction {
     /// Returns the validation error; the transaction is unchanged.
     pub fn stage(&mut self, operation: PatchOperation) -> Result<(), Error> {
         let mut candidate = self.candidate.clone();
-        crate::scene::runtime::apply_operation(&mut candidate, &operation)?;
-        crate::scene::runtime::validate_touched_domains(
+        crate::scene::apply::apply_operation(&mut candidate, &operation)?;
+        crate::scene::apply::validate_touched_domains(
             &candidate,
             std::slice::from_ref(&operation),
         )?;
