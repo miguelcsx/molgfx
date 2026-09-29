@@ -274,7 +274,6 @@ impl<D: Device> Engine<D> {
         let preparation = self.prepare_image(scene, ImagePurpose::Publication)?;
         let identity = scene.cache_identity();
         let scene_reset = self.temporal_scene_identity.replace(identity) != Some(identity);
-        let camera_changed = self.temporal.camera_changed(camera);
         let quality = self.tier() >= QualityTier::Standard;
         let optics = self.resolve_optics(scene, camera)?;
         let shadow = self.shadow_bound.fit(
@@ -287,9 +286,7 @@ impl<D: Device> Engine<D> {
             camera,
             &TemporalOptions {
                 extent: [self.width, self.height],
-                reset: scene_reset
-                    || preparation.rebuild
-                    || (self.tier() >= QualityTier::Standard && camera_changed),
+                reset: Self::temporal_reset_required(scene_reset, preparation.rebuild),
                 quality,
                 publication: false,
                 illustration: self.resolved_plan.illustration(),

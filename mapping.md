@@ -89,7 +89,7 @@ surface, point, label, volume, and interaction passes.
 | Spacefill / spheres | `spacefill`, physical or uniform size, sphere impostors | `sphere` with vdW scale and sphere modes | **have**; rendered in the temporary browser case. |
 | Ball-and-stick | element spheres plus intra/inter-unit bonds and half-bond colors | spheres plus sticks, valence, and bond order | **have**: atoms and file/inferred bonds render; order 2 and 3 draw as parallel strands, aromatic as a solid line with a broken inner line, and order 0 dotted. Exact half-bond colours and the metal cadence are not pixel-compared. |
 | Licorice / sticks | bond/atom cylinder variants | `sticks`, junction spheres, half-bond colors | **partial**: native bond-capable form renders at the reference 0.25 Å radius; exact junction cap and half-bond seam are not implemented. |
-| Lines | line bonds, points/crosses for lone atoms | `lines`, `nonbonded`, smooth line modes | **partial**: screen-space bond wires and atom points render; lone-atom cross and all width/anti-alias policy parity is not complete. |
+| Lines | line bonds, points/crosses for lone atoms | `lines`, `nonbonded`, smooth line modes | **partial**: screen-space bond wires render, and lone-atom crosses now draw end to end (packing hides bonded endpoints, the point shader strokes the cross at the line width); width/anti-alias policy parity is not complete. |
 | Points | point/element visuals | point/sprite sphere modes | **have**; public `Points` form. |
 | Dots | volume dots and dot surfaces | solvent/van der Waals dot density | **partial**: public analytic dot form exists; complete vdW/SAS buried-dot behavior is not equivalent. |
 | Cartoon | polymer curve, helix/sheet/coil, nucleotide blocks/rings, gaps, arrows | cartoon, putty, nucleic options, smoothing and transparency | **partial**: quality-scaled spline/ribbon and secondary-structure inputs exist; full Mol*/PyMOL sheet-arrow, nucleotide, and fixture coverage remains. |
@@ -193,8 +193,10 @@ surface, point, label, volume, and interaction passes.
 Two passes have run against this map. The first closed the profile-input and
 adaptive-budget seams and tightened shared interaction state. The second closed
 the renames, bond geometry, soft-union reachability, automatic presets, and the
-serialized pick union. The remaining visual-parity items, all of which need a
-comparison fixture or a measurement, stay open.
+serialized pick union. The third closed the Lines lone-atom cross, reset the
+temporal contract on camera motion, and bounded the zoom clearance safely. The
+remaining visual-parity items, all of which need a comparison fixture or a
+measurement, stay open.
 
 ### Completed in the second pass
 
@@ -221,20 +223,37 @@ comparison fixture or a measurement, stay open.
   own `EntityKind::Measurement` GPU namespace so it no longer collides with an
   annotation's storage row.
 
+### Completed in the third pass
+
+- **Lines lone-atom crosses:** packing leaves a positive point radius only on
+  selected atoms without a bond, and the point shader strokes the Mol*/PyMOL
+  nonbonded cross at the line width against the four-atom fixture
+  (`scene_gpu::record_pack::hide_bonded_line_atoms`,
+  `point_shape_distance`).
+- **Camera-motion temporal contract:** camera motion now discards temporal
+  history instead of reusing it. Several analytic and provider-backed paths
+  cannot encode exact per-fragment velocity for every topology/trajectory
+  transition, so stale screen-space tiles followed moving geometry; object
+  motion still reprojects while the camera is stable.
+- **Zoom camera bounds:** the trackball zoom keeps Mol*'s five-Ångström target
+  clearance but caps that clearance for tiny scenes, so the lower bound never
+  exceeds the scene-relative upper bound and the camera can no longer be
+  pinned outside a small structure's framing radius.
+
 ### Verification observed in this pass
 
-- `nix develop -c cargo fmt --all --check`
-- `nix develop -c cargo clippy --workspace --all-targets --all-features -- -D warnings`: clean
-- `nix develop -c cargo test --workspace --all-features`: 1207 passed, 0 failed
-- `nix develop -c cargo check` and `clippy -p molgfx-wasm --target wasm32-unknown-unknown`: clean
-- `maturin develop` + `python -m unittest discover -s python/tests`: 67 passed
-- `python -m mypy.stubtest molgfx._engine`: no issues
-- Repository-policy greps (lint suppression, non-test `unwrap`, `unsafe`, the
-  500-line cap, manifest lint allowances, the `benchmarks/` seam): all empty
+- `nix develop -c cargo fmt --all -- --check`
+- `nix develop -c cargo clippy --workspace --all-features`: clean
+- `nix develop -c cargo test -p molgfx-render --lib`: 381 passed, 0 failed
+- `nix develop -c cargo test -p molgfx-shaders`: 25 passed, 0 failed
+- `nix develop -c npm run typecheck` (wasm host): clean
+- Touched-file `wc -l` audit: every file under the 500-line cap
+- Repository-policy grep over the touched crates for non-test `unwrap`: empty
 
-A native render of a C=O plus aromatic fixture confirms the double bond draws
-as two strands. The earlier browser comparison remains exploratory evidence;
-no golden or cross-engine fixture was added in this pass.
+A browser render of a three-atom lone fixture strokes the cross only on the
+unbonded nitrogen, and the two bonded endpoints draw no marker. The camera
+floor now bounds by the smaller of the scene-relative maximum and Mol*'s
+5 Å clearance.
 
 ### Recommended continuation order
 
@@ -246,7 +265,7 @@ no golden or cross-engine fixture was added in this pass.
    hydrophobicity, uncertainty, molecule-type, charge, carbon-by-chain, and
    sequence-rainbow schemes; add matching legends and fixtures.
 4. Finish the dedicated blob/ellipsoid/orientation/polyhedron/plane/unit-cell
-   *forms* and the licorice junction/seam and lines lone-atom cross.
+   *forms* and the licorice junction/seam (the Lines lone-atom cross is done).
 5. Measure temporal convergence, multiscale AO, AA selection, sphere LOD/Hi-Z,
    upload budgets, WASM cold start, and same-input protein/nucleic/ligand/
    density comparisons before changing thresholds or committing goldens.

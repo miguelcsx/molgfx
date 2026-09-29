@@ -7,6 +7,8 @@ export const CAMERA_ZOOM_SPEED = 0.001;
 export const CAMERA_ZOOM_LIMIT = 1;
 /** Closest a camera may approach its target, as a fraction of its home distance. */
 export const CAMERA_MIN_DISTANCE_FRACTION = 0.02;
+/** Absolute target clearance in Å, matching Mol*'s default trackball policy. */
+export const CAMERA_MIN_DISTANCE_ANGSTROMS = 5;
 /** Farthest a camera may retreat from its target, as a fraction of its home distance. */
 export const CAMERA_MAX_DISTANCE_FRACTION = 4;
 

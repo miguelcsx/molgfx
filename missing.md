@@ -97,8 +97,14 @@ names the missing fixture, measurement, or semantic boundary.
 - [~] **P0** Licorice uses the shared bond capsule path. **Open:** exact
   junction-cap, half-bond seam, and default-radius parity. The default bond
   radius is now 0.25 Å, the reference value.
-- [~] **P0** Lines use screen-space quads and render topology bonds. **Open:**
-  lone-atom cross markers, line anti-alias policy, and reference width parity.
+- [~] **P0** Lines use screen-space quads and render topology bonds. Lone-atom
+  cross markers are implemented end to end: packing leaves a positive point
+  radius only on selected atoms without a bond
+  (`scene_gpu::record_pack::hide_bonded_line_atoms`), and the point shader
+  draws the Mol*/PyMOL cross stroke at the line width against the shared
+  four-atom fixture (`line_crosses_remain_only_for_atoms_without_selected_bonds`
+  plus a browser render of the three-atom lone fixture). **Open:** line
+  anti-alias policy and reference width parity.
 - [x] **P1** Typed and command-addressable forms exist for Cartoon, Backbone,
   Trace, Tube, Putty, BallAndStick, Spacefill, Licorice, Lines, Points, Dots,
   Surface, NucleicAcid, Bases, BasePairs, and Glycan. **Owner:**
@@ -462,8 +468,8 @@ remain intentionally open for the next contributor:
   still performs per-request readback rather than using a cached low-resolution
   buffer.
 - Multi-bond order, aromatic inner strokes and the reference 0.25 Å stick
-  radius are now drawn; licorice's exact junction cap and half-bond seam and the
-  lone-atom cross for `lines` are not yet implemented.
+  radius are now drawn, and the Lines lone-atom cross is implemented end to
+  end; licorice's exact junction cap and half-bond seam are still open.
 - The `molgfx-api` → `molgfx-scene` crate rename and the `science` → `overlay`
   module rename are complete across crates, Python, WASM, the docs site and the
   guides; no `scien`-named engine concept remains outside the PyPI trove

@@ -95,15 +95,10 @@ impl<D: Device> Engine<D> {
         changed
     }
 
-    /// Returns whether temporal accumulation must restart for the current frame.
+    /// Returns whether scene state invalidates temporal accumulation.
     #[inline]
-    fn temporal_reset_required(
-        &self,
-        scene_reset: bool,
-        pool_rebuilt: bool,
-        camera_changed: bool,
-    ) -> bool {
-        scene_reset || pool_rebuilt || (self.mode == RenderMode::Cinematic && camera_changed)
+    pub(crate) fn temporal_reset_required(scene_reset: bool, pool_rebuilt: bool) -> bool {
+        scene_reset || pool_rebuilt
     }
 
     /// Renders one frame of the scene to the presentation surface.
@@ -190,7 +185,6 @@ impl<D: Device> Engine<D> {
         self.scene_gpu
             .settle_specializations(&self.device, scene, &self.passes);
 
-        let camera_changed = self.temporal.camera_changed(camera);
         let scene_reset = self.update_temporal_scene_identity(scene);
         let cinematic = self.tier() >= QualityTier::Standard;
 
@@ -203,7 +197,7 @@ impl<D: Device> Engine<D> {
             camera,
             &TemporalOptions {
                 extent: [self.width, self.height],
-                reset: self.temporal_reset_required(scene_reset, pool_rebuilt, camera_changed),
+                reset: Self::temporal_reset_required(scene_reset, pool_rebuilt),
                 quality: cinematic,
                 publication: false,
                 illustration: self.resolved_plan.illustration(),

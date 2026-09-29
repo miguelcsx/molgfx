@@ -133,14 +133,12 @@ impl TemporalState {
 
     pub(crate) fn prepare(&mut self, camera: &Camera, options: &TemporalOptions) -> FrameUniforms {
         let camera_changed = self.camera_changed(camera);
-        if camera_changed {
-            self.invalidate_convergence();
-        }
-        if options.reset
-            || self
-                .previous_camera
-                .is_some_and(|old| camera_cut(old, *camera))
-        {
+        if camera_changed || options.reset {
+            // Several analytic and provider-backed paths cannot encode exact
+            // per-fragment velocity for every topology/trajectory transition.
+            // Reusing their history during camera motion turns disocclusions
+            // into stale screen-space tiles. Object motion still reprojects
+            // while the camera is stable; camera motion starts clean history.
             self.reset();
         }
         // Camera motion is already changing the image every frame. Sampling a
@@ -194,21 +192,6 @@ impl TemporalState {
             None => true,
         }
     }
-}
-
-fn camera_cut(previous: Camera, current: Camera) -> bool {
-    let scale = previous
-        .focus_distance()
-        .max(current.focus_distance())
-        .max(1.0);
-    if previous.eye.distance(current.eye) > scale * 0.5
-        || previous.target.distance(current.target) > scale * 0.5
-    {
-        return true;
-    }
-    let previous_direction = (previous.target - previous.eye).normalize_or_zero();
-    let current_direction = (current.target - current.eye).normalize_or_zero();
-    previous_direction.dot(current_direction) < std::f32::consts::FRAC_1_SQRT_2
 }
 
 #[cfg(test)]

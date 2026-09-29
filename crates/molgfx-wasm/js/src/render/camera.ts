@@ -1,5 +1,6 @@
 import {
   CAMERA_MAX_DISTANCE_FRACTION,
+  CAMERA_MIN_DISTANCE_ANGSTROMS,
   CAMERA_MIN_DISTANCE_FRACTION,
   CAMERA_PITCH_LIMIT,
   CAMERA_ROTATION_SPEED,
@@ -85,18 +86,17 @@ export function zoomCamera(camera: Camera, delta: number): void {
   const oz = camera.position[2] - tz;
   const distance = Math.hypot(ox, oy, oz);
 
-  // A camera that reaches its target has a degenerate view basis: the derived
-  // right and up vectors collapse, so the perspective matrix is rejected and
-  // every depth cue is lost, because near and far scale with the distance to
-  // the target. Zooming in therefore stops at a fixed fraction of the framing
-  // distance the scene reported, and zooming out at a multiple of it, so
-  // neither end can collapse the transform.
+  // A camera that reaches its target has a degenerate view basis. Keep the
+  // scene-relative limit and Mol*'s five-Ångström default clearance, but cap
+  // that clearance for tiny scenes so the lower bound never exceeds the
+  // scene-relative upper bound.
   const home = camera.distance ?? distance;
-  const target_distance = clamp(
-    distance * scale,
-    home * CAMERA_MIN_DISTANCE_FRACTION,
-    home * CAMERA_MAX_DISTANCE_FRACTION,
+  const maximum = home * CAMERA_MAX_DISTANCE_FRACTION;
+  const minimum = Math.min(
+    maximum,
+    Math.max(home * CAMERA_MIN_DISTANCE_FRACTION, CAMERA_MIN_DISTANCE_ANGSTROMS),
   );
+  const target_distance = clamp(distance * scale, minimum, maximum);
   const factor = distance > 0 ? target_distance / distance : 1;
 
   camera.position[0] = tx + ox * factor;

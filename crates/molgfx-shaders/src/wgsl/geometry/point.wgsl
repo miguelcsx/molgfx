@@ -1,5 +1,8 @@
 // Pixel-stable circular atom points for dense semantic zoom.
 //
+// Lines additionally draw one pixel-stable nonbonded cross per atom whose
+// point-cull radius stayed positive, matching Mol*/PyMOL's lone-atom marker.
+//
 // Opaque and transparent paths use dedicated payloads.
 // Point clipping is specialized at pipeline creation and evaluated per vertex,
 // never per covered fragment.
@@ -23,6 +26,25 @@
 
 const POINT_NORMAL: vec3f = vec3f(0.0, 0.0, 1.0);
 const POINT_COVERAGE_EPSILON: f32 = 1.0e-6;
+
+/// Signed distance to the selected screen-space point shape.
+///
+/// Lines use the nonbonded cross convention from Mol*/PyMOL. Every other point
+/// form retains its circular marker. visual.w is non-zero only for Lines.
+fn point_shape_distance(corner: vec2f) -> f32 {
+    if representation.visual.w > 0.0 {
+        let half_width = min(
+            representation.visual.w /
+                max(
+                    max(representation.visual.x, representation.visual.w * 4.0),
+                    1.0,
+                ),
+            1.0,
+        );
+        return min(abs(corner.x), abs(corner.y)) - half_width;
+    }
+    return length(corner) - 1.0;
+}
 
 // Compile two pipeline variants when representation clipping is optional.
 override POINT_CLIPPING_ENABLED: bool = false;
@@ -87,9 +109,16 @@ fn point_geometry(
     let corner =
         quad_corner(vertex);
 
+    var half_extent_pixels = representation.visual.x;
+    if representation.visual.w > 0.0 {
+        half_extent_pixels = max(
+            half_extent_pixels,
+            representation.visual.w * 4.0,
+        );
+    }
     let offset =
         corner *
-        representation.visual.x *
+        half_extent_pixels *
         frame.viewport.zw *
         clip.w;
 
@@ -216,7 +245,7 @@ fn vs_point(
 fn fs_point(
     in: PointOpaqueVsOut,
 ) -> PointFsOut {
-    if dot(in.corner, in.corner) > 1.0 {
+    if point_shape_distance(in.corner) > 0.0 {
         discard;
     }
 
@@ -351,13 +380,8 @@ fn vs_point_transparent(
 fn fs_point_transparent(
     in: PointTransparentVsOut,
 ) -> OitOutput {
-    let radius_sq =
-        dot(
-            in.corner,
-            in.corner,
-        );
-
-    if radius_sq > 1.0 {
+    let shape_distance = point_shape_distance(in.corner);
+    if shape_distance > 0.0 {
         discard;
     }
 
@@ -373,12 +397,9 @@ fn fs_point_transparent(
         discard;
     }
 
-    let radius =
-        sqrt(radius_sq);
-
     let transition =
         max(
-            fwidth(radius) *
+            fwidth(shape_distance) *
                 max(
                     max(in.softness_pixels, visual.softness_pixels),
                     1.0,
@@ -390,7 +411,7 @@ fn fs_point_transparent(
         smoothstep(
             0.0,
             transition,
-            1.0 - radius,
+            -shape_distance,
         );
 
     if coverage <= 0.0 {
