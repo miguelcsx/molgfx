@@ -91,7 +91,11 @@ class WorkbenchPageTests(unittest.TestCase):
         cls._local = _LocalPage(cls._directory).__enter__()
         cls._browser = cls._playwright.chromium.launch(
             channel="chromium",
-            args=["--enable-unsafe-webgpu", "--use-angle=swiftshader"]
+            args=[
+                "--enable-unsafe-webgpu", "--use-angle=swiftshader",
+                "--enable-features=Vulkan", "--use-vulkan=swiftshader",
+                "--disable-vulkan-surface",
+            ]
         )
 
     @classmethod
