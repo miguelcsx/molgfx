@@ -102,6 +102,7 @@ class WorkbenchPageTests(unittest.TestCase):
 
     def setUp(self):
         self.page = self._browser.new_page()
+        self.page.add_init_script("""() => {}""")
         self.page.goto(f"http://127.0.0.1:{self._local.port}/page.html")
         self.page.wait_for_function(
             "window.__molgfx.cleanup !== undefined || window.__molgfx.setupError !== ''"
