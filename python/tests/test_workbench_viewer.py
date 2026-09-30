@@ -102,7 +102,18 @@ class WorkbenchPageTests(unittest.TestCase):
 
     def setUp(self):
         self.page = self._browser.new_page()
-        self.page.add_init_script("""() => {}""")
+        self.page.add_init_script("""
+            if (globalThis.GPUAdapter) {
+                const request = GPUAdapter.prototype.requestDevice;
+                GPUAdapter.prototype.requestDevice = async function (...args) {
+                    const device = await request.apply(this, args);
+                    device.lost.then((info) => {
+                        window.__gpuLoss = {reason: info.reason, message: info.message};
+                    });
+                    return device;
+                };
+            }
+        """)
         self.page.goto(f"http://127.0.0.1:{self._local.port}/page.html")
         self.page.wait_for_function(
             "window.__molgfx.cleanup !== undefined || window.__molgfx.setupError !== ''"
@@ -320,7 +331,10 @@ class WorkbenchPageTests(unittest.TestCase):
                         (event?.kind === "pick" && event.eventId !== before);
                 }""", arg=before
             )
-            self.assertEqual(self.page.evaluate("window.__molgfx.values.error"), "")
+            self.assertEqual(
+                self.page.evaluate("window.__molgfx.values.error"), "",
+                self.page.evaluate("window.__gpuLoss"),
+            )
             pick = self.page.evaluate("window.__molgfx.values.pick")
             if pick.get("kind") == "atom":
                 break
