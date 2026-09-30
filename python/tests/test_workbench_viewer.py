@@ -90,6 +90,7 @@ class WorkbenchPageTests(unittest.TestCase):
         cls._playwright = sync_playwright().start()
         cls._local = _LocalPage(cls._directory).__enter__()
         cls._browser = cls._playwright.chromium.launch(
+            channel="chromium",
             args=["--enable-unsafe-webgpu", "--use-angle=swiftshader"]
         )
 
