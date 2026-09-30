@@ -295,7 +295,8 @@ class WorkbenchPageTests(unittest.TestCase):
         )
         self.assertEqual(result, [{}, ""])
     def test_a_pick_returns_semantic_provenance_not_a_gpu_token(self):
-        bounds = self.page.locator(".molgfx-canvas").bounding_box()
+        canvas = self.page.locator(".molgfx-canvas")
+        bounds = canvas.bounding_box()
         self.assertIsNotNone(bounds)
         # Await the pick event: pointerup saves the camera before GPU readback.
         pick = {}
@@ -307,16 +308,18 @@ class WorkbenchPageTests(unittest.TestCase):
             before = self.page.evaluate(
                 "window.__molgfx.values.interaction_event?.eventId"
             )
-            self.page.mouse.click(
-                bounds["x"] + bounds["width"] / 2 + dx,
-                bounds["y"] + bounds["height"] / 2 + dy,
-            )
+            canvas.click(position={
+                "x": bounds["width"] / 2 + dx,
+                "y": bounds["height"] / 2 + dy,
+            })
             self.page.wait_for_function(
                 """(before) => {
                     const event = window.__molgfx.values.interaction_event;
-                    return event?.kind === "pick" && event.eventId !== before;
+                    return window.__molgfx.values.error ||
+                        (event?.kind === "pick" && event.eventId !== before);
                 }""", arg=before
             )
+            self.assertEqual(self.page.evaluate("window.__molgfx.values.error"), "")
             pick = self.page.evaluate("window.__molgfx.values.pick")
             if pick.get("kind") == "atom":
                 break
