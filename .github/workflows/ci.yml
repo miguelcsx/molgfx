@@ -163,3 +163,5 @@ jobs:
           name: browser-runtime
           path: python/molgfx/viewer/static
       - run: python -m unittest discover -s python/tests -p 'test_*viewer.py' -v
+        env:
+          DEBUG: pw:browser
