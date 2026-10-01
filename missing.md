@@ -27,10 +27,13 @@ evidence for their specific boundary, not a green gate for the whole current tre
   Rust images/HDR, Python and WASM. Native Python observed High/64 completed
   samples; WebGPU observed immutable completed metadata after resize. **Open:**
   complete scene fidelity, effective spacing and full-resolution performance.
-- [ ] **P0** Fix full-residency certification. Current effective_quality.rs checks
-  only active upload tickets; zero tickets does not prove declared placements,
-  trajectory endpoints, relation dependencies or provider work are drawable.
-  Reuse authoritative lifecycle/draw state; do not add another membership store.
+- [x] **P0** Full-residency certification no longer reads only upload tickets:
+  `full_residency` also requires every planned slot to have synced and no
+  queued trajectory interpolation (`GpuScene::pending_drawables`, regression
+  test `a_synced_scene_is_fully_resident_and_an_unsynced_slot_is_not`).
+  **Open:** declared placements and provider work that have no slot yet are not
+  visible to this check, and the surface field cap below still makes large
+  surfaces correctly incomplete.
 - [~] **P0** Shared exposure recording, distinct uniform ranges and tracked fences
   exist. **Open:** finish sequence/concurrency and whole-corpus acceptance; no
   reused samples, stale-camera output or subsample-as-frame accounting.
@@ -48,6 +51,18 @@ evidence for their specific boundary, not a green gate for the whole current tre
   Report p99/backlog/allocations/RSS and per-recipe settings. Offscreen completion
   cannot certify 120-Hz presentation on the observed 30-Hz display.
 
+- [x] **P1** Detached picks own their readback buffer and captured page
+  generations (`PendingPick`, at most four in flight, explicit
+  `InFlightExhausted`); `finishPick` takes the readback, so a later pick, frame
+  or scene edit cannot change which entity it resolves. A volume-segment pick
+  names a volume only when exactly one exists. **Open:** a `SegmentationSpec`
+  domain so categorical picks can name their own segmentation.
+- [x] The pocket-and-pose composition (focus subject, interaction shell,
+  orienting shell, pocket surface, local solvent, far context) is one declarative
+  call in every surface: `Scene::add_pocket`, the `pocket` command, and Python
+  `Scene.pocket(..., style=PocketStyle(...))` / `Command.pocket`. **Open:** a
+  real-protein golden image and a measured frame budget for the composition.
+
 ### MolFrame / Gemmi
 
 - [x] Reciprocal vectors/d-spacing and exact reflection centricity, systematic
@@ -60,8 +75,15 @@ evidence for their specific boundary, not a green gate for the whole current tre
   molframe-xtal/molframe-py, all targets with -D warnings, passed. **Open:**
   full gate, benchmark assessment and publication/pin verification; this is not
   general Gemmi parity or a speedup claim.
-- [ ] Continue density affine/sampling consistency and the strongest missing
-  scattering/structure-factor, reciprocal-processing and FFT workflows after
+- [x] X-ray form factors (International Tables, H–Cf) and direct structure
+  factors over the full space group with occupancy and isotropic/anisotropic
+  displacement, from a structure's own cell and symmetry, in Rust and Python.
+  **Observed:** differential against Gemmi 0.7.5 on P 21 21 21, P 1 21 1
+  (anisotropic) and I 2 2 2, agreement ≈1e-5 relative. A PDB `CRYST1` space
+  group is now kept and resolved to symmetry operations (it was dropped).
+  **Open:** anomalous dispersion, neutron/electron tables, ions.
+- [ ] Continue density affine/sampling consistency and the remaining
+  reciprocal-processing, density-from-model and FFT workflows after
   source audit. Preserve existing CIF/PDB/BCIF, symmetry, crystal neighbors,
   maps and reflection I/O; do not introduce Gemmi as a product dependency or
   copy its implementation into the renderer.
