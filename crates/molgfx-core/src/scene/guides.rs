@@ -192,9 +192,14 @@ impl Scene {
         if self.structure(owner).is_none() {
             return Err(CoreError::StaleHandle);
         }
+        // Prepare the whole boundary on the stack before any scene mutation.
+        let mut guides = [None; N];
+        for (slot, (start, end)) in guides.iter_mut().zip(edges) {
+            *slot = Some(Guide::new(owner, start, end, style)?);
+        }
         let mut handles = Vec::with_capacity(N);
-        for (start, end) in edges {
-            handles.push(self.add_guide(Guide::new(owner, start, end, style)?)?);
+        for guide in guides.into_iter().flatten() {
+            handles.push(self.add_guide(guide)?);
         }
         Ok(handles)
     }

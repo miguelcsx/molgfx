@@ -227,7 +227,7 @@ fn sync_one_slot<D: Device>(
     };
     let visibility_key = crate::scene_gpu::VisibilityKey {
         records: resolved.record_key,
-        lod_mode: slot.lod_mode(),
+        lod_mode: slot.lod_mode(detail),
         visual_enabled: representation.visual.is_some(),
         bond_break_length: placed.bond_break_length().to_bits(),
     };

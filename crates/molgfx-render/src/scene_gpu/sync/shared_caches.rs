@@ -18,10 +18,11 @@ impl<D: Device> GpuScene<D> {
         device: &D,
         queue: &D::Queue,
         scene: &Scene,
-        requires_bvh: bool,
+        sampling: (bool, crate::scene_gpu::detail::TierDetail),
         derived_cache: &mut crate::DerivedCache,
         derived_frame: u64,
     ) -> Result<(), RenderError> {
+        let (requires_bvh, detail) = sampling;
         let mut needed: BTreeMap<crate::scene_gpu::record_cache::RecordKey, usize> =
             BTreeMap::new();
         let mut policies: Vec<crate::scene_gpu::slot_types::CullPolicy> =
@@ -55,6 +56,7 @@ impl<D: Device> GpuScene<D> {
                 records: key,
                 kind: representation.kind,
                 visual_enabled: representation.visual.is_some(),
+                lod_enabled: detail.lod_enabled,
                 bond_break_length: placed.bond_break_length(),
             });
         }
@@ -139,6 +141,7 @@ impl<D: Device> GpuScene<D> {
             records: record_key,
             kind,
             visual_enabled,
+            lod_enabled,
             bond_break_length,
         } in policies
         {
@@ -155,6 +158,7 @@ impl<D: Device> GpuScene<D> {
                     set.atom_count,
                     set.bond_count,
                     kind,
+                    lod_enabled,
                 ),
                 visual_enabled,
                 bond_break_length: bond_break_length.to_bits(),

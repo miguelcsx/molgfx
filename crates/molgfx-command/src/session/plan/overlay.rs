@@ -6,7 +6,7 @@ use crate::error::{CommandError, ErrorKind};
 use crate::ir::{MeasureKind, Name, QueryText};
 use molgfx_scene::{
     Anchor, AnnotationId, AnnotationSpec, Color, InteractionId, InteractionSpec, MeasurementId,
-    MeasurementSpec, PatchOperation, StructureId, VolumeId, VolumeSpec,
+    MeasurementSpec, PatchOperation, PlaneId, PlaneSpec, StructureId, VolumeId, VolumeSpec,
 };
 
 impl Planner<'_> {
@@ -132,6 +132,21 @@ impl Planner<'_> {
             })
             .map_err(|error| scene_error(&error))
     }
+    pub(super) fn plane(&mut self, plane: PlaneSpec) -> Result<(), CommandError> {
+        let id = PlaneId::new(next_identity(
+            self.transaction
+                .spec()
+                .planes
+                .keys()
+                .next_back()
+                .map(|id| id.get()),
+            "plane",
+        )?);
+        self.transaction
+            .stage(PatchOperation::AddPlane { id, spec: plane })
+            .map_err(|error| scene_error(&error))
+    }
+
     pub(super) fn volume(&mut self, volume: VolumeSpec) -> Result<(), CommandError> {
         let id = VolumeId::new(next_identity(
             self.transaction

@@ -49,11 +49,11 @@ use super::visual_programs::VisualProgramTable;
 use super::visual_properties::VisualPropertyTable;
 use super::volume_slot::{GpuVolumeResource, GpuVolumeSlot};
 use crate::error::RenderError;
-use crate::{ResidencyMachine, ResidencyTicket, ResidencyWorkspace};
+use crate::{ResidencyMachine, ResidencyWorkspace};
 use molgfx_core::{
     AtomGpu, BondGpu, RepresentationHandle, Scene, SegmentationHandle, VolumeHandle,
 };
-use molgfx_gpu::{ArenaAllocation, Device, TextureFormat, UploadTicket};
+use molgfx_gpu::{Device, TextureFormat, UploadTicket};
 use semantic_tables::SemanticSync;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -84,6 +84,7 @@ pub(crate) struct GpuScene<D: Device> {
     pub frame_uniforms: D::Buffer,
     pub group0: D::BindGroup,
     pub group0_layout: D::BindGroupLayout,
+    pub(super) exposure_uniforms: Option<super::exposure_arena::ExposureArena<D>>,
     pub group2_layout: D::BindGroupLayout,
     pub quality_layout: D::BindGroupLayout,
     pub volume_layout: D::BindGroupLayout,
@@ -184,9 +185,7 @@ pub(crate) struct GpuScene<D: Device> {
     ribbon_scratch: molgfx_geometry::RibbonMesh,
     residency: ResidencyWorkspace<FrameUploadCommand>,
     residency_machine: ResidencyMachine,
-    frame_residency_ticket: ResidencyTicket,
-    _frame_allocation: ArenaAllocation,
-    upload_fence: u64,
+    frame_residency: residency_init::FrameUniformResidency,
 }
 
 impl<D: Device> GpuScene<D> {
@@ -327,7 +326,7 @@ impl<D: Device> GpuScene<D> {
             device,
             queue,
             scene,
-            requires_bvh,
+            (requires_bvh, detail),
             derived_cache,
             derived_frame,
         )?;

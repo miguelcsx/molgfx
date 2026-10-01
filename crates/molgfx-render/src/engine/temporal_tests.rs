@@ -40,6 +40,21 @@ fn options(quality: bool) -> TemporalOptions {
 }
 
 #[test]
+fn converged_exposure_retains_maximum_ray_budget_across_camera_cuts() {
+    let mut state = TemporalState::default();
+    let mut selected = options(true);
+    selected.publication = true;
+    let first = state.prepare(&camera(), &selected);
+    let mut moved = camera();
+    moved.eye.x += 1.0;
+    let cut = state.prepare(&moved, &selected);
+    assert_eq!(first.temporal[1].to_bits(), 8.0_f32.to_bits());
+    assert_eq!(cut.temporal[1].to_bits(), 8.0_f32.to_bits());
+    assert_eq!(cut.temporal[0].to_bits(), 0.0_f32.to_bits());
+    assert_ne!(cut.proj, moved.projection.matrix());
+}
+
+#[test]
 fn the_first_sample_rejects_history_and_the_second_reprojects_it() {
     let mut state = TemporalState::default();
     let first = state.prepare(&camera(), &options(false));

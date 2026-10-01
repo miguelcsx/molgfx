@@ -64,3 +64,40 @@ fn invalid_pipeline_depth_is_rejected() {
         Err(RenderError::InvalidSequence { .. })
     ));
 }
+
+#[test]
+fn converged_camera_outputs_complete_independent_exposures() {
+    let mut engine = engine();
+    let scene = Scene::new();
+    let mut sequence = engine.sequence(config()).unwrap();
+    let mut first = camera();
+    let mut second = camera();
+    first.eye.x = 3.0;
+    second.eye.x = -3.0;
+    sequence.submit(&mut engine, &scene, &first, 0).unwrap();
+    sequence.submit(&mut engine, &scene, &second, 1).unwrap();
+    let frames = sequence.finish(&mut engine).unwrap();
+    for frame in frames {
+        let quality = frame.image.quality;
+        assert_eq!(quality.samples_required, 64);
+        assert_eq!(quality.samples_submitted, 64);
+        assert_eq!(quality.samples_completed, Some(64));
+        assert!(quality.complete());
+        assert!(!quality.adaptive);
+    }
+}
+
+#[test]
+fn progressive_sequence_does_not_certify_a_single_sample_as_complete() {
+    let mut engine = engine();
+    let scene = Scene::new();
+    let mut sequence = engine
+        .sequence(config().with_exposure(SequenceExposure::Progressive))
+        .unwrap();
+    sequence.submit(&mut engine, &scene, &camera(), 0).unwrap();
+    let frames = sequence.finish(&mut engine).unwrap();
+    let quality = frames[0].image.quality;
+    assert_eq!(quality.samples_submitted, 1);
+    assert_eq!(quality.samples_completed, Some(1));
+    assert!(!quality.complete());
+}

@@ -78,6 +78,7 @@ impl PyRenderProfile {
         match self.0.quality {
             molgfx::Quality::Auto => "auto",
             molgfx::Quality::Interactive => "interactive",
+            molgfx::Quality::HighestFixed => "highest_fixed",
             molgfx::Quality::Publication => "publication",
         }
     }
@@ -253,6 +254,11 @@ fn adaptive(target_fps: u16) -> PyRenderProfile {
     PyRenderProfile(molgfx::profile::adaptive(target_fps))
 }
 
+#[pyfunction]
+fn highest_fixed(target_fps: u16) -> PyRenderProfile {
+    PyRenderProfile(molgfx::profile::highest_fixed(target_fps))
+}
+
 pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyColorSpec>()?;
     module.add_class::<PyRenderProfile>()?;
@@ -278,5 +284,6 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     profile.add_function(wrap_pyfunction!(interactive, &profile)?)?;
     profile.add_function(wrap_pyfunction!(publication, &profile)?)?;
     profile.add_function(wrap_pyfunction!(adaptive, &profile)?)?;
+    profile.add_function(wrap_pyfunction!(highest_fixed, &profile)?)?;
     module.add_submodule(&profile)
 }

@@ -12,7 +12,8 @@ use super::target::{QueryText, Target};
 use super::value::Opacity;
 use molgfx_scene::DomainSceneSnapshot as SceneSnapshot;
 use molgfx_scene::{
-    AssemblySpec, FitResult, InteractionSpec, MovieExportRequest, ValidationFinding, VolumeSpec,
+    AssemblySpec, FitResult, InteractionSpec, MovieExportRequest, PlaneSpec, ValidationFinding,
+    VolumeSpec,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -213,6 +214,11 @@ pub enum Command {
         /// Crystallographic assembly metadata.
         assembly: Option<AssemblySpec>,
     },
+    /// Adds a finite caller-authored planar guide.
+    Plane {
+        /// Immutable plane geometry and style.
+        plane: PlaneSpec,
+    },
     /// Declares a density volume whose grid values arrive through a runtime
     /// binding.
     ///
@@ -270,6 +276,7 @@ impl Command {
             Self::Auto { .. } => "auto",
             Self::Interaction { .. } => "interaction",
             Self::Assembly { .. } => "assembly",
+            Self::Plane { .. } => "plane",
             Self::Volume { .. } => "volume",
             Self::Fitting { .. } => "fitting",
             Self::Validation { .. } => "validation",
@@ -368,6 +375,7 @@ impl fmt::Display for Command {
             }
             Self::Interaction { interaction } => write_json(formatter, "interaction", interaction),
             Self::Assembly { assembly } => write_json(formatter, "assembly", assembly),
+            Self::Plane { plane } => write_json(formatter, "plane", plane),
             Self::Volume { volume } => write_json(formatter, "volume", volume),
             Self::Fitting { fitting } => write_json(formatter, "fitting", fitting),
             Self::Validation { findings } => write_json(formatter, "validation", findings),

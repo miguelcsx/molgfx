@@ -1,5 +1,5 @@
 //! Off-screen rendering and mapped publication images.
-use super::{Engine, MotionBlur, QualityTier, TemporalOptions};
+use super::{Engine, QualityTier};
 use crate::error::RenderError;
 use crate::graph::{PassContext, ResourceTable};
 use molgfx_core::Scene;
@@ -11,13 +11,11 @@ use molgfx_math::Camera;
 #[path = "image/layout.rs"]
 mod layout;
 pub(super) use layout::ImageLayout;
-/// Publication samples that no tier refines any further.
-pub(crate) const PUBLICATION_IMAGE_SAMPLES: u32 = 64;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ImagePurpose {
     Publication,
     #[cfg(not(target_arch = "wasm32"))]
-    SequenceFrame,
+    ProgressiveSequence,
 }
 #[derive(Clone, Copy)]
 pub(super) struct ImagePreparation {
@@ -55,7 +53,7 @@ impl ImageConfig {
 }
 
 /// Mapped, tightly packed RGBA8 image owned by the caller.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Image {
     /// Width in pixels.
     pub width: u32,
@@ -63,6 +61,8 @@ pub struct Image {
     pub height: u32,
     /// Row-major RGBA8 pixels with no row padding.
     pub pixels: Vec<u8>,
+    /// Settings and completed exposure observed for these pixels.
+    pub quality: super::EffectiveQuality,
 }
 
 impl Image {
@@ -183,13 +183,7 @@ impl<D: Device> Engine<D> {
         let layout = ImageLayout::new(config, 4)?;
         self.width = config.width;
         self.height = config.height;
-        let preparation = self.prepare_image(scene, purpose)?;
-        let identity = scene.cache_identity();
-        let scene_reset = self.temporal_scene_identity.replace(identity) != Some(identity);
-        if purpose == ImagePurpose::Publication {
-            self.temporal.reset();
-        }
-        let optics = self.resolve_optics(scene, camera)?;
+        let mut exposure = self.prepare_exposure(scene, camera, purpose)?;
         let texture = self.device.create_texture(&TextureDesc {
             label: "off-screen image",
             width: config.width,
@@ -207,52 +201,14 @@ impl<D: Device> Engine<D> {
             size: layout.buffer_size,
             usage: BufferUsage::COPY_DST.union(BufferUsage::MAP_READ),
         })?;
-        let samples = match purpose {
-            // A sequence frame is one deterministic exposure per output frame.
-            #[cfg(not(target_arch = "wasm32"))]
-            ImagePurpose::SequenceFrame => 1,
-            ImagePurpose::Publication => self.tier().image_samples(),
-        };
-        let shadow = self.shadow_bound.fit(
-            scene,
-            camera,
-            self.resolved_plan.lighting(),
-            preparation.scene_changed || preparation.rebuild,
-        );
-        let mut completion = FenceValue::default();
+        let samples = exposure.samples;
+        let mut encoder = self.device.create_command_encoder();
         for sample in 0..samples {
-            self.scene_gpu.begin_frame();
+            self.prepare_exposure_sample(&mut exposure, sample)?;
             let cinematic = self.tier() >= QualityTier::Standard;
-            let uniforms = self.temporal.prepare(
-                camera,
-                &TemporalOptions {
-                    extent: [self.width, self.height],
-                    reset: (purpose == ImagePurpose::Publication
-                        || scene_reset
-                        || preparation.rebuild)
-                        && sample == 0,
-                    quality: cinematic,
-                    publication: purpose == ImagePurpose::Publication,
-                    illustration: self.resolved_plan.illustration(),
-                    depth_cue: self.resolved_plan.packed_depth_cue(),
-                    optics,
-                    motion_blur: self
-                        .resolved_plan
-                        .motion_blur()
-                        .map_or([0.0; 4], MotionBlur::packed),
-                    atmosphere: self
-                        .resolved_plan
-                        .packed_presentation(self.scene_gpu.has_translucency()),
-                    lighting: self.resolved_plan.packed_lighting(),
-                    shadow_view: shadow.view,
-                    shadow_projection: shadow.projection,
-                    shadow_view_proj: shadow.view_projection,
-                },
-            );
-            self.scene_gpu
-                .write_frame_uniforms(&self.queue, &uniforms)?;
-            let mut encoder = self.device.create_command_encoder();
-            self.record_image_scene_updates(&mut encoder, cinematic);
+            if sample == 0 {
+                self.record_scene_compute(&mut encoder, cinematic, None);
+            }
             self.record_image(&mut encoder, &view, None, cinematic, false);
             if sample + 1 == samples {
                 encoder.copy_texture_to_buffer(
@@ -264,70 +220,32 @@ impl<D: Device> Engine<D> {
                     &readback,
                 );
             }
-            completion = self.submit_image_sample(encoder, sample + 1 == samples);
         }
-        if purpose == ImagePurpose::Publication {
-            self.temporal_scene_identity = None;
-        }
+        let completion = self.submit_exposure(&exposure, encoder)?;
+        let mut quality = self.effective_quality(
+            if purpose == ImagePurpose::Publication {
+                samples
+            } else {
+                u32::from(self.tier().temporal_samples())
+            },
+            self.temporal.prepared_samples(),
+        );
+        quality.progressive = purpose != ImagePurpose::Publication;
         Ok(PendingImage {
             config,
             layout,
             buffer: readback,
             _texture: texture,
             completion,
+            quality,
         })
-    }
-
-    fn submit_image_sample(&self, encoder: D::CommandEncoder, final_sample: bool) -> FenceValue {
-        if final_sample {
-            self.queue.submit_tracked(encoder)
-        } else {
-            self.queue.submit(encoder);
-            FenceValue::default()
-        }
-    }
-
-    fn record_image_scene_updates(&mut self, encoder: &mut D::CommandEncoder, quality: bool) {
-        self.passes
-            .cull
-            .record_attribute_timelines(&self.scene_gpu, encoder);
-        self.passes
-            .cull
-            .record_instance_timelines(&self.scene_gpu, encoder);
-        let point_coordinates_changed = self
-            .passes
-            .cull
-            .record_point_timelines(&self.scene_gpu, encoder);
-        self.scene_gpu
-            .record_particle_motion(encoder, &self.passes.particle_motion);
-        let structure_coordinates_changed =
-            self.scene_gpu
-                .record_trajectories(encoder, &self.passes.trajectory, None);
-        let paged_coordinates_changed = self
-            .passes
-            .cull
-            .record_paged_trajectories(&self.scene_gpu, encoder);
-        self.scene_gpu.record_dynamic_relations(
-            encoder,
-            &self.passes.relation_resolve,
-            structure_coordinates_changed || paged_coordinates_changed || point_coordinates_changed,
-        );
-        self.scene_gpu
-            .record_occupancies(encoder, self.passes.occupancy.as_ref());
-        self.scene_gpu.record_surface_fields(
-            encoder,
-            &self.passes.surface_field,
-            &self.passes.surface_components,
-        );
-        self.scene_gpu.record_quality_hardware(encoder, quality);
     }
 
     /// Prepares the off-screen frame: scene sync, tier publication and pool
     /// rebuild.
     ///
-    /// The adaptive loop is pinned only for publication. A sequence frame is a
-    /// deterministic exposure of a caller-driven timeline, but the engine that
-    /// renders it is still an interactive one, so its tiers keep adapting.
+    /// Converged outputs pin maximum detail. Explicit progressive sequences
+    /// restore the configured realtime policy and retain compatible history.
     pub(super) fn prepare_image(
         &mut self,
         scene: &Scene,
@@ -335,9 +253,8 @@ impl<D: Device> Engine<D> {
     ) -> Result<ImagePreparation, RenderError> {
         self.ensure_occupancy(scene)?;
         self.device.check_errors()?;
-        if purpose == ImagePurpose::Publication {
-            self.adaptive.set_publication(true);
-        }
+        self.adaptive
+            .set_publication(purpose == ImagePurpose::Publication);
         self.adaptive.set_atom_count(scene.atom_count());
         self.sync_quality_tier();
         self.chunk_residency.begin_epoch();
@@ -435,6 +352,7 @@ pub(super) struct PendingImage<D: Device> {
     buffer: D::Buffer,
     _texture: D::Texture,
     completion: FenceValue,
+    quality: super::EffectiveQuality,
 }
 
 impl<D: Device> PendingImage<D> {
@@ -449,11 +367,12 @@ impl<D: Device> PendingImage<D> {
     }
 
     pub(super) fn resolve(
-        self,
+        mut self,
         mapped: Vec<u8>,
         format: TextureFormat,
     ) -> Result<Image, RenderError> {
         let _completion = self.completion;
+        self.quality.observe_completion();
         let mut pixels = self.layout.unpack(mapped)?;
         if matches!(
             format,
@@ -467,6 +386,7 @@ impl<D: Device> PendingImage<D> {
             width: self.config.width,
             height: self.config.height,
             pixels,
+            quality: self.quality,
         })
     }
 }

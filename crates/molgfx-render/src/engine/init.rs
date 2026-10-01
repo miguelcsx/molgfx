@@ -57,6 +57,8 @@ pub struct Engine<D: Device> {
     pub(crate) last_submission_id: u64,
     pub(crate) last_submission_timestamp_ns: u64,
     pub(crate) last_completion_timestamp_ns: Option<u64>,
+    pub(super) submitted_frame_quality: Option<super::EffectiveQuality>,
+    pub(super) last_completed_frame: Option<super::CompletedFrame>,
 
     pub(crate) last_frame_submission: FenceValue,
 
@@ -301,6 +303,8 @@ impl<D: Device> Engine<D> {
             last_submission_id: 0,
             last_submission_timestamp_ns: 0,
             last_completion_timestamp_ns: None,
+            submitted_frame_quality: None,
+            last_completed_frame: None,
 
             last_frame_submission: FenceValue::default(),
 

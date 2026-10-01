@@ -4,7 +4,7 @@ pub(crate) mod lowering;
 
 use crate::id::{RepresentationId, StructureId};
 use crate::overlay::{
-    AnnotationSpec, InteractionSpec, MeasurementSpec, TrajectorySpec, VolumeSpec,
+    AnnotationSpec, AssemblySpec, InteractionSpec, MeasurementSpec, TrajectorySpec, VolumeSpec,
 };
 pub(crate) use crate::patch::{PatchOperation, ScenePatch};
 use crate::representation::Selection;
@@ -71,6 +71,12 @@ pub struct SceneSpec {
     /// Per-atom anisotropic-displacement ellipsoid overlays in stable ID order.
     #[serde(default)]
     pub ellipsoids: BTreeMap<crate::EllipsoidId, crate::overlay::EllipsoidSpec>,
+    /// Caller-authored planar guide regions in stable ID order.
+    #[serde(default)]
+    pub planes: BTreeMap<crate::PlaneId, crate::PlaneSpec>,
+    /// Optional molecular assembly and crystallographic unit-cell description.
+    #[serde(default)]
+    pub assembly: Option<AssemblySpec>,
     /// Selection-scoped colour rules. Where rules overlap, the higher identity
     /// wins; a rule always wins over a representation's own colour.
     #[serde(default)]
@@ -108,6 +114,8 @@ impl SceneSpec {
             interactions: BTreeMap::new(),
             trajectories: BTreeMap::new(),
             ellipsoids: BTreeMap::new(),
+            planes: BTreeMap::new(),
+            assembly: None,
             appearance: BTreeMap::new(),
             focus: None,
             selected: None,
@@ -203,6 +211,9 @@ impl SceneSpec {
     }
 
     pub(crate) fn validate_overlay(&self) -> Result<(), crate::Error> {
+        if let Some(assembly) = &self.assembly {
+            assembly.validate()?;
+        }
         self.volumes.values().try_for_each(VolumeSpec::validate)?;
         self.annotations
             .values()
@@ -217,6 +228,9 @@ impl SceneSpec {
             .values()
             .try_for_each(|spec| spec.validate(self))?;
         self.ellipsoids
+            .values()
+            .try_for_each(|spec| spec.validate(self))?;
+        self.planes
             .values()
             .try_for_each(|spec| spec.validate(self))
     }

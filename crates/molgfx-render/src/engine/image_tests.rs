@@ -1,6 +1,49 @@
-use super::{Image, ImageConfig, ImageLayout, ImagePurpose};
-use crate::engine::tests::{camera, engine};
-use molgfx_core::Scene;
+use super::{Image, ImageConfig, ImageLayout};
+
+fn unrendered_quality() -> crate::EffectiveQuality {
+    crate::EffectiveQuality {
+        extent: [2, 1],
+        tier: crate::QualityTier::High,
+        samples_required: 64,
+        samples_submitted: 0,
+        samples_completed: None,
+        surface_spacing_requested: 0.25,
+        surface_spacing_effective: None,
+        ribbon_steps_max: 8,
+        occlusion_rays_per_sample: 0,
+        lighting: crate::LightingEnvironment::neutral(),
+        illumination_bounces: 0,
+        lod_mode_max: 0,
+        progressive: false,
+        adaptive: false,
+        full_residency: true,
+    }
+}
+
+#[test]
+fn completion_requires_a_fence_and_requested_detail() {
+    let mut quality = unrendered_quality();
+    quality.samples_submitted = 64;
+    assert!(!quality.complete());
+    quality.samples_completed = Some(63);
+    assert!(!quality.complete());
+    quality.samples_completed = Some(64);
+    assert!(quality.complete());
+    quality.surface_spacing_effective = Some([0.25, 0.5]);
+    assert!(!quality.complete());
+    quality.surface_spacing_effective = Some([0.25, 0.25]);
+    quality.full_residency = false;
+    assert!(!quality.complete());
+    quality.full_residency = true;
+    quality.lod_mode_max = 1;
+    assert!(!quality.complete());
+    quality.lod_mode_max = 0;
+    quality.progressive = true;
+    assert!(!quality.complete());
+    quality.progressive = false;
+    quality.samples_required = 0;
+    assert!(!quality.complete());
+}
 
 #[test]
 fn publication_png_round_trips_rgba_pixels() {
@@ -8,6 +51,7 @@ fn publication_png_round_trips_rgba_pixels() {
         width: 2,
         height: 1,
         pixels: vec![12, 34, 56, 255, 200, 180, 160, 128],
+        quality: unrendered_quality(),
     };
     let bytes = match image.png_bytes() {
         Ok(bytes) => bytes,
@@ -35,6 +79,7 @@ fn malformed_publication_image_is_rejected_before_encoding() {
         width: 2,
         height: 1,
         pixels: vec![0; 3],
+        quality: unrendered_quality(),
     };
     assert!(image.png_bytes().is_err());
 }
@@ -68,33 +113,4 @@ fn padded_rows_are_compacted_without_reallocating_the_frame() {
 
     assert_eq!(compact.as_ptr(), allocation);
     assert_eq!(compact, (0_u8..24).collect::<Vec<_>>());
-}
-
-#[test]
-fn sequence_frames_preserve_history_while_publication_stills_reset_it() {
-    let mut engine = engine();
-    let scene = Scene::new();
-    let config = ImageConfig {
-        width: 32,
-        height: 24,
-    };
-    assert!(
-        engine
-            .render_image_to_buffer(&scene, &camera(), config, ImagePurpose::SequenceFrame)
-            .is_ok()
-    );
-    assert_eq!(engine.temporal.write_index(), 0);
-    assert_eq!(engine.temporal_scene_identity, Some(scene.cache_identity()));
-    assert!(
-        engine
-            .render_image_to_buffer(&scene, &camera(), config, ImagePurpose::SequenceFrame)
-            .is_ok()
-    );
-    assert_eq!(engine.temporal.write_index(), 1);
-    assert!(
-        engine
-            .render_image_to_buffer(&scene, &camera(), config, ImagePurpose::Publication)
-            .is_ok()
-    );
-    assert_eq!(engine.temporal_scene_identity, None);
 }

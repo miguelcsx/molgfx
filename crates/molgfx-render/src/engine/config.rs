@@ -6,7 +6,8 @@ use molgfx_core::ResidencyBudget;
 use molgfx_gpu::PowerPreference;
 
 /// Presentation result independent of streaming completeness.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum FrameStatus {
     /// The frame reached the presentation surface.
     Presented,
@@ -16,7 +17,8 @@ pub enum FrameStatus {
 }
 
 /// Whether every requested resource contributed at full fidelity.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum FrameCompleteness {
     /// No provider or upload work remains pending.
     Complete,
@@ -28,7 +30,7 @@ pub enum FrameCompleteness {
 }
 
 /// Allocation-free bitset describing explicit realtime degradation.
-#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug, serde::Serialize)]
 pub struct FrameDegradation(u8);
 
 impl FrameDegradation {
@@ -51,7 +53,7 @@ impl FrameDegradation {
 }
 
 /// Stable, allocation-free counters captured with a frame report.
-#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug, serde::Serialize)]
 pub struct FrameMetrics {
     /// Provider chunks tracked by the GPU residency layer.
     pub tracked_chunks: usize,
@@ -66,12 +68,10 @@ pub struct FrameMetrics {
     /// frame is separately observable as the duration of the native `render`
     /// call; this is not device execution time.
     pub submission_timestamp_ns: u64,
-    /// Host timestamp when the last submission's fence was observed complete,
-    /// in the same monotonic clock. `None` while the frame is pending, and
-    /// `None` on native backends because the engine only observes the fence on
-    /// the browser path; even when set, this is host-observation latency, not
-    /// exact device completion or GPU execution time. GPU execution time
-    /// requires timestamp queries via the profiling path.
+    /// Host timestamp when the last submission fence was observed complete,
+    /// in the same monotonic clock. `None` while pending. This is host
+    /// observation latency, not exact device completion or execution time.
+    /// GPU execution time requires timestamp queries via profiling.
     pub completion_timestamp_ns: Option<u64>,
     /// Retained recomputable device bytes.
     pub derived_cache_gpu_bytes: u64,
@@ -87,8 +87,17 @@ pub struct FrameMetrics {
     pub physical_peak_bytes: u64,
 }
 
+/// Immutable settings of a presentation submission whose fence was observed.
+#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize)]
+pub struct CompletedFrame {
+    /// Submission identifier, independent of subsequent camera or scene edits.
+    pub submission_id: u64,
+    /// Settings captured at submission, with completion observed afterward.
+    pub quality: super::EffectiveQuality,
+}
+
 /// Explicit frame status, completeness and degradation report.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize)]
 pub struct FrameReport {
     /// Presentation result.
     pub status: FrameStatus,
@@ -103,6 +112,10 @@ pub struct FrameReport {
     pub needs_another_frame: bool,
     /// The adaptive quality tier this frame rendered at.
     pub quality_tier: QualityTier,
+    /// Physical settings and exposure completion observed at reporting time.
+    pub quality: super::EffectiveQuality,
+    /// Latest fence-observed submission; never inferred from a later frame.
+    pub last_completed: Option<CompletedFrame>,
 }
 
 /// Which rendering mode the engine runs.

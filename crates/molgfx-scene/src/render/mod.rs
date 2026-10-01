@@ -1,9 +1,21 @@
 //! Physical renderer wrapper with target-sized rendering.
 
-use crate::{Error, Quality, RenderProfile, Scene};
-pub use molgfx_render::{FrameReport, FrameTiming};
+use crate::{Error, RenderProfile, Scene};
+use engine_config::engine_config;
+pub use molgfx_render::{
+    CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming, PassTiming,
+    PassTimingCoverage, QualityTier,
+};
 #[cfg(not(target_arch = "wasm32"))]
 use num_traits::ToPrimitive as _;
+
+impl Renderer {
+    /// Actual pass timings from the latest completed profile, without a copy.
+    #[must_use]
+    pub fn last_pass_timings(&self) -> &[PassTiming] {
+        self.inner.last_pass_timings()
+    }
+}
 
 /// Semantic entity namespace returned by picking.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
@@ -74,6 +86,12 @@ pub struct Image(molgfx_render::Image);
 
 #[cfg(not(target_arch = "wasm32"))]
 impl Image {
+    /// Physical settings and observed completion for this image.
+    #[must_use]
+    pub const fn quality(&self) -> &EffectiveQuality {
+        &self.0.quality
+    }
+
     /// Row-major RGBA8 pixels with no row padding.
     #[must_use]
     pub fn pixels(&self) -> &[u8] {
@@ -229,16 +247,15 @@ impl Renderer {
             .map_err(Error::from)
     }
 
-    /// Measures one frame with device timestamp queries.
+    /// Measures one fully converged output with a framing camera.
     ///
-    /// The frame is rendered at the renderer's current quality tier, so this is
-    /// the cost of one interactive frame at that tier, not of a converged
-    /// publication image. Discard warmup frames before averaging.
+    /// All exposure samples are included; discard warmup outputs before
+    /// percentile gates. Pixel export is outside this measurement.
     ///
     /// # Errors
     ///
-    /// Returns a capability error when the adapter exposes no timestamps, or a
-    /// typed renderer or device error.
+    /// Returns a typed renderer or device error. Missing timestamp capability
+    /// leaves GPU timing unresolved while the completion fence is still awaited.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn measure_frame(&mut self, scene: &Scene, size: (u32, u32)) -> Result<FrameTiming, Error> {
         let (Some(width), Some(height)) = (size.0.to_f32(), size.1.to_f32()) else {
@@ -248,10 +265,25 @@ impl Renderer {
         };
         let aspect = width / height.max(1.0);
         let camera = scene.framing_camera(aspect);
+        self.measure_frame_with_camera(scene, &camera, size)
+    }
+
+    /// Measures a converged output using the caller's physical camera.
+    ///
+    /// # Errors
+    ///
+    /// Returns invalid extent, rendering or device errors.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn measure_frame_with_camera(
+        &mut self,
+        scene: &Scene,
+        camera: &molgfx_math::Camera,
+        size: (u32, u32),
+    ) -> Result<FrameTiming, Error> {
         self.inner
             .profile_frame(
                 scene.resolved(),
-                &camera,
+                camera,
                 molgfx_render::ImageConfig {
                     width: size.0,
                     height: size.1,
@@ -346,41 +378,6 @@ impl Renderer {
     }
 }
 
-fn engine_config(profile: RenderProfile) -> molgfx_render::EngineConfig {
-    let mut presentation = match profile.quality {
-        Quality::Publication => molgfx_render::RenderProfile::illustrative(),
-        Quality::Auto | Quality::Interactive => molgfx_render::RenderProfile::inspection(),
-    };
-    if let Some(cue) = profile.depth_cue {
-        presentation = presentation.with_effect(molgfx_render::PresentationEffect::DepthCue(
-            molgfx_render::DepthCue {
-                near_distance: cue.near_distance(),
-                far_distance: cue.far_distance(),
-                strength: cue.strength(),
-            },
-        ));
-    }
-    if let Some(edge_smoothing) = profile.edge_smoothing {
-        presentation = presentation.with_effect(molgfx_render::PresentationEffect::AntiAliasing(
-            molgfx_render::AntiAliasingStyle { edge_smoothing },
-        ));
-    }
-    molgfx_render::EngineConfig {
-        profile: presentation,
-        // Only the adaptive policy adapts. `Interactive` is an explicit request
-        // for low latency that still renders at one fixed tier, and publication
-        // output must stay reproducible, so neither may hold a tier that
-        // depends on how fast the machine happens to be.
-        adaptive: molgfx_render::AdaptiveQualityConfig {
-            target_fps: profile.target_fps,
-            enabled: profile.quality == Quality::Auto,
-        },
-        ..molgfx_render::EngineConfig::default()
-    }
-}
-
+mod engine_config;
 mod pick;
 pub use pick::PickReadback;
-
-#[cfg(test)]
-mod tests;

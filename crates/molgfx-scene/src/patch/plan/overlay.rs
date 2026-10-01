@@ -86,6 +86,13 @@ impl OverlayDomains {
             PatchOperation::RemoveEllipsoids { id } => {
                 remove_item(&mut self.ellipsoids, &spec.ellipsoids, id)?;
             }
+            PatchOperation::AddPlane { id, spec: item } => {
+                item.validate(spec)?;
+                insert_item(&mut self.planes, &spec.planes, *id, *item)?;
+            }
+            PatchOperation::RemovePlane { id } => {
+                remove_item(&mut self.planes, &spec.planes, id)?;
+            }
             _ => return Ok(false),
         }
         Ok(true)
@@ -98,6 +105,7 @@ impl OverlayDomains {
         replace(&mut spec.interactions, self.interactions);
         replace(&mut spec.trajectories, self.trajectories);
         replace(&mut spec.ellipsoids, self.ellipsoids);
+        replace(&mut spec.planes, self.planes);
     }
 }
 

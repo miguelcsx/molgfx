@@ -83,3 +83,46 @@ fn volume_rejects_a_malformed_specification() {
     let error = fail(&mut session, &mut scene, "volume");
     assert_eq!(error.kind, ErrorKind::Syntax, "{error}");
 }
+#[test]
+fn assembly_unit_cell_reaches_guide_geometry_and_undo_removes_it() {
+    let mut scene = scene();
+    let mut session = Session::new(&scene);
+    let command = r#"assembly {"structures":[1],"instances":[],"unit_cell":{"lengths":[10.0,11.0,12.0],"angles_degrees":[90.0,90.0,90.0],"origin":[0.0,0.0,0.0]}}"#;
+    run(&mut session, &mut scene, command);
+    assert_eq!(scene.overlay_handles().unit_cell_guides, 12);
+    assert!(scene.spec().assembly.is_some());
+
+    run(&mut session, &mut scene, "undo");
+    assert_eq!(scene.overlay_handles().unit_cell_guides, 0);
+    assert!(scene.spec().assembly.is_none());
+}
+#[test]
+fn removing_an_assembly_is_undoable_and_redoable() {
+    let mut scene = scene();
+    let mut session = Session::new(&scene);
+    let command = r#"assembly {"structures":[1],"instances":[],"unit_cell":{"lengths":[10.0,11.0,12.0],"angles_degrees":[80.0,95.0,105.0],"origin":[1.0,2.0,3.0]}}"#;
+    run(&mut session, &mut scene, command);
+    let assembly = scene.spec().assembly.clone();
+    run(&mut session, &mut scene, "assembly null");
+    assert!(scene.spec().assembly.is_none());
+    assert_eq!(scene.overlay_handles().unit_cell_guides, 0);
+    run(&mut session, &mut scene, "undo");
+    assert_eq!(scene.spec().assembly, assembly);
+    assert_eq!(scene.overlay_handles().unit_cell_guides, 12);
+    run(&mut session, &mut scene, "redo");
+    assert!(scene.spec().assembly.is_none());
+    assert_eq!(scene.overlay_handles().unit_cell_guides, 0);
+}
+#[test]
+fn plane_reaches_guide_geometry_and_undo_removes_it() {
+    let mut scene = scene();
+    let mut session = Session::new(&scene);
+    let command = r#"plane {"structure":1,"center":[0.0,0.0,0.0],"normal":[0.0,0.0,1.0],"tangent":[1.0,0.0,0.0],"size":[4.0,6.0],"color":[226,232,240,255]}"#;
+    run(&mut session, &mut scene, command);
+    assert_eq!(scene.overlay_handles().plane_guides, 4);
+    assert_eq!(scene.spec().planes.len(), 1);
+
+    run(&mut session, &mut scene, "undo");
+    assert_eq!(scene.overlay_handles().plane_guides, 0);
+    assert!(scene.spec().planes.is_empty());
+}

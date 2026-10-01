@@ -8,15 +8,16 @@
 
 use crate::error::Error;
 use crate::id::{
-    AnnotationId, EllipsoidId, InteractionId, MeasurementId, StructureId, TrajectoryId, VolumeId,
+    AnnotationId, EllipsoidId, InteractionId, MeasurementId, PlaneId, StructureId, TrajectoryId,
+    VolumeId,
 };
 use crate::overlay::{Anchor, InteractionSpec, MeasurementSpec, OverlayBindings, VolumeSpec};
 use crate::representation::Selection;
 use molgfx_core::{
-    AnisotropicEllipsoid, Annotation, AnnotationAnchor, AnnotationHandle, InteractionAnchor,
-    InteractionEdge, InteractionGeometry, InteractionHandle, Measurement, MeasurementHandle,
-    MolecularSource, Primitive, PrimitiveHandle, Scene, SelectionHandle, StructureHandle,
-    VolumeHandle,
+    AnisotropicEllipsoid, Annotation, AnnotationAnchor, AnnotationHandle, GuideHandle,
+    InteractionAnchor, InteractionEdge, InteractionGeometry, InteractionHandle, Measurement,
+    MeasurementHandle, MolecularSource, Primitive, PrimitiveHandle, Scene, SelectionHandle,
+    StructureHandle, VolumeHandle,
 };
 use molgfx_math::Vec3;
 use std::collections::BTreeMap;
@@ -31,6 +32,8 @@ pub(crate) struct LoweredOverlay {
     pub(crate) trajectories: Vec<(TrajectoryId, StructureHandle)>,
     /// One entry per overlay, holding the primitives it emitted.
     pub(crate) ellipsoids: Vec<(EllipsoidId, Vec<PrimitiveHandle>)>,
+    pub(crate) planes: Vec<(PlaneId, Vec<GuideHandle>)>,
+    pub(crate) unit_cells: Vec<(StructureId, Vec<GuideHandle>)>,
 }
 
 impl LoweredOverlay {
@@ -43,6 +46,8 @@ impl LoweredOverlay {
             interactions: self.interactions.len(),
             trajectories: self.trajectories.len(),
             ellipsoids: self.ellipsoids.iter().map(|(_, rows)| rows.len()).sum(),
+            plane_guides: self.planes.iter().map(|(_, rows)| rows.len()).sum(),
+            unit_cell_guides: self.unit_cells.iter().map(|(_, rows)| rows.len()).sum(),
         }
     }
 }
@@ -60,7 +65,6 @@ pub(crate) struct OverlayLowering<'a> {
 /// Lowers every declared overlay item onto `scene`.
 ///
 /// # Errors
-///
 /// Returns an invalid-specification error for a grid that contradicts its
 /// descriptor, an empty anchor selection, or degenerate measurement and
 /// interaction geometry.
@@ -68,7 +72,11 @@ pub(crate) fn lower(
     spec: &crate::SceneSpec,
     lowering: &mut OverlayLowering<'_>,
 ) -> Result<LoweredOverlay, Error> {
-    let mut lowered = LoweredOverlay::default();
+    let mut lowered = LoweredOverlay {
+        unit_cells: super::lower_guides::lower_unit_cells(spec, lowering.scene, lowering.handles)?,
+        planes: super::lower_guides::lower_planes(spec, lowering.scene, lowering.handles)?,
+        ..LoweredOverlay::default()
+    };
 
     for (id, volume) in &spec.volumes {
         if let Some(handle) = lower_volume(lowering.scene, volume, lowering.bindings)? {

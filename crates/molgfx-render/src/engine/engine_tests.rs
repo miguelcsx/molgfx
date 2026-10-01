@@ -468,17 +468,20 @@ fn zero_sized_off_screen_images_are_typed_errors() {
 }
 
 #[test]
-fn profiling_without_timestamp_queries_is_a_typed_capability_error() {
+fn profiling_without_timestamps_still_completes_the_exposure() {
     let mut engine = engine();
-    let Err(error) = engine.profile_frame(
-        &Scene::new(),
-        &camera(),
-        ImageConfig {
-            width: 64,
-            height: 64,
-        },
-    ) else {
-        panic!("mock deliberately exposes no timestamp queries")
-    };
-    assert_eq!(error.code(), "MOLGFX-E0010");
+    let timing = engine
+        .profile_frame(
+            &Scene::new(),
+            &camera(),
+            ImageConfig {
+                width: 64,
+                height: 64,
+            },
+        )
+        .unwrap();
+    assert_eq!(timing.gpu_timing, super::GpuTiming::Unsupported);
+    assert_eq!(timing.quality.samples_required, 64);
+    assert_eq!(timing.quality.samples_completed, Some(64));
+    assert!(timing.quality.complete());
 }

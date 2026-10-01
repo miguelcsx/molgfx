@@ -31,6 +31,17 @@ impl<D: Device> SurfaceFieldCache<D> {
         }
     }
 
+    /// Physical spacing range of the retained live sampled grids.
+    pub(crate) fn spacing_range(&self) -> Option<[f32; 2]> {
+        self.entries.iter().fold(None, |range, (key, _)| {
+            let spacing = f32::from_bits(key.grid_cell);
+            Some(match range {
+                None => [spacing, spacing],
+                Some([min, max]) => [min.min(spacing), max.max(spacing)],
+            })
+        })
+    }
+
     /// Populates one field, building it on first use.
     ///
     /// A second surface over the same key takes the existing field untouched,

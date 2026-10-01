@@ -8,22 +8,27 @@
 #![forbid(unsafe_code)]
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use molgfx_scene::FrameTiming;
-#[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_scene::Image;
 pub use molgfx_scene::PickReadback;
 pub use molgfx_scene::Renderer;
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_scene::{AdapterReport, SystemInfo, system_info};
 pub use molgfx_scene::{
-    Anchor, AnnotationId, AnnotationSpec, AppearanceRuleId, AppearanceRuleSpec, Camera, Color,
-    ColorSpec, DepthCue, EllipsoidId, EllipsoidSpec, Error, InteractionChannel, InteractionId,
-    InteractionKind, InteractionSpec, Legend, LegendStop, MAX_APPEARANCE_CLASSES, MeasurementId,
-    MeasurementSpec, Parameter, ParameterType, ParameterValue, PatchError, PickKind, PickResult,
-    Quality, RenderProfile, RepresentationId, RepresentationSpec, ScalarProperty,
-    ScalarPropertyBinding, Scene, SceneItem, ScenePatch, SceneSpec, SceneTransaction, Selection,
-    StructureId, TrajectoryId, TrajectorySpec, VisualStyle, VolumeId, VolumeSpec, molframe,
+    Anchor, AnnotationId, AnnotationSpec, AppearanceRuleId, AppearanceRuleSpec, AssemblySpec,
+    Camera, Color, ColorSpec, DepthCue, EllipsoidId, EllipsoidSpec, Error, InteractionChannel,
+    InteractionId, InteractionKind, InteractionSpec, Legend, LegendStop, MAX_APPEARANCE_CLASSES,
+    MeasurementId, MeasurementSpec, Parameter, ParameterType, ParameterValue, PatchError, PickKind,
+    PickResult, PlaneId, PlaneSpec, Quality, RenderProfile, RepresentationId, RepresentationSpec,
+    ScalarProperty, ScalarPropertyBinding, Scene, SceneItem, ScenePatch, SceneSpec,
+    SceneTransaction, Selection, StructureId, TrajectoryId, TrajectorySpec, UnitCellSpec,
+    VisualStyle, VolumeId, VolumeSpec, molframe,
 };
+pub use molgfx_scene::{
+    CompletedFrame, CpuStages, EffectiveQuality, FrameReport, PassTiming, PassTimingCoverage,
+    QualityTier,
+};
+#[cfg(not(target_arch = "wasm32"))]
+pub use molgfx_scene::{FrameTiming, GpuTiming};
 
 pub use molgfx_scene::{OverlayHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding};
 pub use molgfx_scene::{annotation, density, ellipsoid, interaction, measurement, trajectory};
@@ -99,10 +104,10 @@ pub mod preset {
     pub use molgfx_scene::preset::{StructureSize, auto_representations};
 }
 
-/// Adaptive rendering profiles.
+/// Adaptive and fixed rendering profiles.
 pub mod profile {
     pub use molgfx_scene::profile::{
-        DepthCue, Quality, RenderProfile, adaptive, interactive, publication,
+        DepthCue, Quality, RenderProfile, adaptive, highest_fixed, interactive, publication,
     };
 }
 

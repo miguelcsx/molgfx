@@ -54,6 +54,10 @@ pub(crate) struct MockLog {
     pub submitted_fence: AtomicU64,
     /// Greatest submission explicitly completed by a test.
     pub completed_fence: AtomicU64,
+    /// Keeps asynchronous waits pending until a test releases this queue.
+    pub hold_fence: std::sync::atomic::AtomicBool,
+    /// First fence held when asynchronous completion is paused.
+    pub hold_fence_from: AtomicU64,
     /// Source id returned by categorical pick fixtures.
     pub segment_pick_source: Mutex<u32>,
     /// Label returned by categorical pick fixtures.
@@ -91,6 +95,8 @@ impl Default for MockLog {
             submits: Mutex::default(),
             submitted_fence: AtomicU64::new(0),
             completed_fence: AtomicU64::new(0),
+            hold_fence: std::sync::atomic::AtomicBool::new(false),
+            hold_fence_from: AtomicU64::new(0),
             segment_pick_source: Mutex::new(u32::MAX),
             segment_pick_label: Mutex::new(0),
             pick_local_row: Mutex::new(0),
@@ -117,6 +123,7 @@ impl Default for MockDevice {
             log: Arc::new(MockLog::default()),
             capabilities: Capabilities {
                 flags: molgfx_gpu::CapabilityFlags::empty(),
+                min_uniform_buffer_offset_alignment: 256,
                 max_storage_buffer_bytes: 1 << 30,
                 max_storage_buffers_per_shader_stage: 8,
                 max_texture_dim: 16_384,
@@ -202,6 +209,10 @@ pub(crate) struct MockBuffer {
     pub id: u32,
     /// Creation label used by deterministic readback fixtures.
     pub label: &'static str,
+    /// Byte capacity used by readback range validation.
+    pub size: u64,
+    /// Host readability used by readback validation.
+    pub usage: molgfx_gpu::BufferUsage,
 }
 
 /// A mock timestamp query set.
@@ -229,6 +240,7 @@ pub(crate) struct MockView(pub &'static str);
 #[derive(Debug)]
 pub(crate) struct MockEncoder {
     log: Arc<MockLog>,
+    timestamps: Option<molgfx_gpu::PassTimestampCapture<MockQuerySet>>,
 }
 
 /// A mock pass; render and compute share it.
@@ -326,20 +338,68 @@ impl molgfx_gpu::Queue<MockDevice> for MockQueue {
         ))
     }
 
+    async fn wait_fence<'a>(
+        &'a self,
+        device: &'a MockDevice,
+        fence: molgfx_gpu::FenceValue,
+    ) -> Result<(), GpuError> {
+        std::future::poll_fn(|_| {
+            if self.log.hold_fence.load(Ordering::Acquire)
+                && fence.0 >= self.log.hold_fence_from.load(Ordering::Acquire)
+            {
+                std::task::Poll::Pending
+            } else {
+                std::task::Poll::Ready(())
+            }
+        })
+        .await;
+        device.complete_submissions();
+        if self.completed_fence(device)? < fence {
+            return Err(GpuError::DeviceLost);
+        }
+        Ok(())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn wait_fence_blocking(
+        &self,
+        device: &MockDevice,
+        fence: molgfx_gpu::FenceValue,
+    ) -> Result<(), GpuError> {
+        device.complete_submissions();
+        if self.completed_fence(device)? < fence {
+            return Err(GpuError::DeviceLost);
+        }
+        Ok(())
+    }
+
     async fn read_buffer_async(
         &self,
-        _device: &MockDevice,
+        device: &MockDevice,
         buffer: &MockBuffer,
-        _offset: u64,
+        offset: u64,
         size: u64,
     ) -> Result<Vec<u8>, GpuError> {
-        std::future::ready(()).await;
-        mock_readback(size, buffer.label, &self.log)
+        molgfx_gpu::Readback::resolve(&self.readback(device, buffer), offset, size).await
+    }
+
+    async fn read_buffer_into_async<'a>(
+        &'a self,
+        device: &'a MockDevice,
+        buffer: &'a MockBuffer,
+        offset: u64,
+        size: u64,
+        output: &'a mut [u8],
+    ) -> Result<(), GpuError> {
+        molgfx_gpu::Readback::resolve_into(&self.readback(device, buffer), offset, size, output)
+            .await
     }
 
     fn readback(&self, _device: &MockDevice, buffer: &MockBuffer) -> MockReadback {
         MockReadback {
             label: buffer.label,
+            size: buffer.size,
+            usage: buffer.usage,
             log: Arc::clone(&self.log),
         }
     }
@@ -347,12 +407,25 @@ impl molgfx_gpu::Queue<MockDevice> for MockQueue {
     #[cfg(not(target_arch = "wasm32"))]
     fn read_buffer_blocking(
         &self,
-        _device: &MockDevice,
+        device: &MockDevice,
         buffer: &MockBuffer,
-        _offset: u64,
+        offset: u64,
         size: u64,
     ) -> Result<Vec<u8>, GpuError> {
-        mock_readback(size, buffer.label, &self.log)
+        self.readback(device, buffer).resolve_bytes(offset, size)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn read_buffer_into_blocking(
+        &self,
+        device: &MockDevice,
+        buffer: &MockBuffer,
+        offset: u64,
+        size: u64,
+        output: &mut [u8],
+    ) -> Result<(), GpuError> {
+        self.readback(device, buffer)
+            .copy_bytes(offset, size, output)
     }
 
     fn timestamp_period(&self) -> f32 {
@@ -360,108 +433,9 @@ impl molgfx_gpu::Queue<MockDevice> for MockQueue {
     }
 }
 
-impl molgfx_gpu::CommandEncoder<MockDevice> for MockEncoder {
-    type RenderPass<'e> = MockPass<'e>;
-    type ComputePass<'e> = MockPass<'e>;
-
-    fn begin_render_pass<'e>(&'e mut self, _desc: &RenderPassDesc<'_, MockDevice>) -> MockPass<'e> {
-        MockPass { log: &self.log }
-    }
-
-    fn begin_compute_pass<'e>(
-        &'e mut self,
-        desc: &ComputePassDesc<'_, MockDevice>,
-    ) -> MockPass<'e> {
-        if let Ok(mut passes) = self.log.compute_passes.lock() {
-            passes.push(desc.label);
-        }
-        MockPass { log: &self.log }
-    }
-
-    fn copy_buffer_to_buffer(
-        &mut self,
-        source: &MockBuffer,
-        _so: u64,
-        destination: &MockBuffer,
-        _do_: u64,
-        bytes: u64,
-    ) {
-        if let Ok(mut copies) = self.log.buffer_copies.lock() {
-            copies.push((source.id, destination.id, bytes));
-        }
-    }
-
-    fn copy_texture_to_buffer(
-        &mut self,
-        _src: &MockTexture,
-        _origin: (u32, u32),
-        _size: (u32, u32),
-        _bpr: u32,
-        _destination_offset: u64,
-        _dst: &MockBuffer,
-    ) {
-    }
-
-    fn resolve_query_set(
-        &mut self,
-        _queries: &MockQuerySet,
-        _range: Range<u32>,
-        _dst: &MockBuffer,
-        _offset: u64,
-    ) {
-    }
-
-    fn build_blas(
-        &mut self,
-        _desc: &molgfx_gpu::BlasBuildDesc<'_, MockDevice>,
-    ) -> Result<(), GpuError> {
-        fail_mock_ray_query(&self.log)?;
-        self.log.blas_builds.fetch_add(1, Ordering::Relaxed);
-        Ok(())
-    }
-
-    fn build_tlas(&mut self, _tlas: &MockTlas) -> Result<(), GpuError> {
-        fail_mock_ray_query(&self.log)?;
-        self.log.tlas_builds.fetch_add(1, Ordering::Relaxed);
-        Ok(())
-    }
-}
-
-fn fail_mock_ray_query(log: &MockLog) -> Result<(), GpuError> {
-    if log.fail_ray_query.swap(false, Ordering::AcqRel) {
-        Err(GpuError::DeviceLost)
-    } else {
-        Ok(())
-    }
-}
-
-impl molgfx_gpu::RenderPassEncoder<MockDevice> for MockPass<'_> {
-    fn set_pipeline(&mut self, _pipeline: &u32) {}
-    fn set_bind_group(&mut self, _index: u32, _group: &u32, _offsets: &[u32]) {}
-    fn draw(&mut self, vertices: Range<u32>, instances: Range<u32>) {
-        if let Ok(mut draws) = self.log.draws.lock() {
-            draws.push((vertices, instances));
-        }
-    }
-    fn draw_indirect(&mut self, args: &MockBuffer, offset: u64) {
-        if let Ok(mut indirect) = self.log.indirect_draws.lock() {
-            indirect.push((args.id, offset));
-        }
-    }
-}
-
-impl molgfx_gpu::ComputePassEncoder<MockDevice> for MockPass<'_> {
-    fn set_pipeline(&mut self, _pipeline: &u32) {}
-    fn set_bind_group(&mut self, _index: u32, _group: &u32, _offsets: &[u32]) {}
-    fn dispatch(&mut self, x: u32, y: u32, z: u32) {
-        if let Ok(mut dispatches) = self.log.dispatches.lock() {
-            dispatches.push((x, y, z));
-        }
-    }
-}
-
 mod device;
+mod encoder;
 mod readback;
+use encoder::fail_mock_ray_query;
 
 pub(crate) use readback::MockReadback;
-use readback::mock_readback;

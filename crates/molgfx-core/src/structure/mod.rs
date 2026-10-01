@@ -3,6 +3,7 @@
 mod analytic_instance;
 pub(crate) mod atoms;
 pub(crate) mod coord;
+mod crystal_cell;
 pub(crate) mod density;
 mod ensemble;
 pub(crate) mod hierarchy;
@@ -27,6 +28,7 @@ pub use analytic_instance::{
 };
 pub use atoms::AtomTable;
 pub use coord::CoordRef;
+pub use crystal_cell::CrystalCell;
 pub use density::ScalarVolume;
 pub use ensemble::Ensemble;
 pub use hierarchy::Hierarchy;
@@ -37,8 +39,7 @@ pub use planar::PlanarRegion;
 pub use point_batch::{PointBatch, PointGlyph, PointStyle};
 pub use pose_batch::{LicoriceTemplate, LigandPose, LigandPoseBatch};
 pub use primitive::{
-    AnisotropicEllipsoid, CarbohydrateShape, CarbohydrateSymbol, CrystalCell, Primitive,
-    SymmetryInstance,
+    AnisotropicEllipsoid, CarbohydrateShape, CarbohydrateSymbol, Primitive, SymmetryInstance,
 };
 pub use provenance::{EntityProvenance, ProvenanceDetail};
 pub use secondary::SecondaryStructure;

@@ -75,6 +75,7 @@ impl Planner<'_> {
             Command::Assembly { assembly } => self.domain(PatchOperation::SetAssembly {
                 assembly: assembly.clone(),
             }),
+            Command::Plane { plane } => self.plane(*plane),
             Command::Volume { volume } => self.volume(volume.clone()),
             Command::Fitting { fitting } => self.domain(PatchOperation::SetFitting {
                 fitting: fitting.clone(),

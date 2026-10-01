@@ -28,18 +28,20 @@ pub use engine::{
     ChunkRepresentation, ChunkResidencyError, ChunkResidencyMetrics, DepthCue, DepthOfField,
     DerivedCacheBudget, DerivedCacheUsage, DisplayGamut, DisplayTransform, EffectLayer, Engine,
     EngineConfig, FocusTarget, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport,
-    FrameStatus, FrameTiming, HdrImage, IllustrationStyle, Image, ImageConfig,
+    FrameStatus, FrameTiming, GpuTiming, HdrImage, IllustrationStyle, Image, ImageConfig,
     InstanceChunkPlacement, InstanceChunkWindow, LigandPoseStats, LightingEnvironment, MotionBlur,
     PICK_READBACK_BYTES, Pick, PickEntity, PointChunkPlacement, PresentationEffect, QualityTier,
     RelationChunkPlacement, RenderMode, RenderProfile, RenderSession, ResidentGenericChunk,
     ResidentStructureChunk, ResidentTrajectoryChunk, ResolvedRenderPlan, StructureChunkPlacement,
     ToneMapping, TrajectoryChunkWindow, TransferFunction,
 };
+pub use engine::{CompletedFrame, CpuStages, EffectiveQuality};
 pub(crate) use engine::{
     DerivedCache, DerivedCacheClass, DerivedCacheKey, DerivedFootprint, MaterializationPlan,
 };
 #[cfg(not(target_arch = "wasm32"))]
-pub use engine::{FrameTicket, SequenceConfig, SequenceFrame, SequenceRenderer};
+pub use engine::{FrameTicket, SequenceConfig, SequenceExposure, SequenceFrame, SequenceRenderer};
+pub use engine::{PassTiming, PassTimingCoverage};
 pub use error::RenderError;
 pub use molgfx_geometry::PackingError;
 pub use residency::{

@@ -17,6 +17,8 @@ pub(crate) struct TierDetail {
     pub(crate) surface_spacing: f32,
     /// Maximum ribbon samples per trace interval.
     pub(crate) ribbon_steps: u8,
+    /// Whether projected-radius LOD may replace analytic geometry.
+    pub(crate) lod_enabled: bool,
 }
 
 impl Default for TierDetail {
@@ -25,6 +27,7 @@ impl Default for TierDetail {
         Self {
             surface_spacing: FINEST_SURFACE_SPACING,
             ribbon_steps: RICHEST_RIBBON_STEPS,
+            lod_enabled: false,
         }
     }
 }

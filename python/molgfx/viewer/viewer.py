@@ -1,8 +1,8 @@
 """AnyWidget transport adapter for the viewer host built by molgfx-wasm."""
 
 import json
-from pathlib import Path
 import weakref
+from pathlib import Path
 
 import anywidget
 import traitlets
@@ -37,7 +37,6 @@ class Viewer(anywidget.AnyWidget):
     structure_payloads = traitlets.List(traitlets.Bytes()).tag(sync=True)
     pick = traitlets.Dict().tag(sync=True)
     selection = traitlets.Unicode().tag(sync=True)
-    # Canonical typed interaction event; pick and selection remain compatibility projections.
     interaction = traitlets.Dict().tag(sync=True)
     camera = traitlets.Dict().tag(sync=True)
     error = traitlets.Unicode().tag(sync=True)
@@ -123,7 +122,8 @@ class Viewer(anywidget.AnyWidget):
         # resolve-time, so the page rebuilds from a full spec replacement. That
         # replacement may also drop payloads for removed or replaced sources.
         if any(
-            operation.get("op") in ("add_structure", "replace_structure", "remove_structure")
+            operation.get("op")
+            in ("add_structure", "replace_structure", "remove_structure")
             for operation in operations
         ):
             self._resync_structures()

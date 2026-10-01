@@ -43,17 +43,17 @@ const HEADROOM_DENOMINATOR: u64 = 4;
 ///
 /// The order is the control axis: [`AdaptiveQuality`] steps one tier at a
 /// time, so a tier carries no meaning beyond its position in this list.
-#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum QualityTier {
     /// Lowest cost: coarsest surface grids, narrowest sample budgets.
     Minimal,
     /// Below the standard tier; still progressive, never below one sample.
     Reduced,
-    /// The default interactive tier, and the tier every non-adaptive
-    /// presentation holds.
+    /// The standard adaptive detail tier.
     #[default]
     Standard,
-    /// Full sample budgets for converged interactive output.
+    /// Maximum detail and sample budgets.
     High,
 }
 
@@ -136,6 +136,7 @@ impl QualityTier {
         crate::scene_gpu::detail::TierDetail {
             surface_spacing: self.surface_grid_spacing(),
             ribbon_steps: self.ribbon_steps(),
+            lod_enabled: !matches!(self, Self::High),
         }
     }
 
@@ -152,14 +153,26 @@ impl QualityTier {
     }
 }
 
+/// Rays per pixel for analytic occlusion and area-light visibility.
+pub(crate) const fn occlusion_rays(quality: bool, publication: bool) -> u8 {
+    if !quality {
+        0
+    } else if publication {
+        8
+    } else {
+        2
+    }
+}
+
 /// Caller policy for the adaptive loop.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct AdaptiveQualityConfig {
     /// Frame rate the loop steers toward, in frames per second.
     pub target_fps: u16,
-    /// Whether the loop may move a tier. Publication callers clear this so
-    /// converged output stays reproducible.
+    /// Whether scene size and measured frame time may change the tier.
     pub enabled: bool,
+    /// Initial adaptive tier, or the exact tier held when adaptation is disabled.
+    pub initial_tier: QualityTier,
 }
 
 impl AdaptiveQualityConfig {
@@ -169,16 +182,30 @@ impl AdaptiveQualityConfig {
         Self {
             target_fps,
             enabled: true,
+            initial_tier: QualityTier::Reduced,
         }
     }
 
-    /// A fixed-tier loop for deterministic publication output.
+    /// Holds an exact tier, independent of scene size and frame duration.
+    #[must_use]
+    pub const fn fixed(target_fps: u16, tier: QualityTier) -> Self {
+        Self {
+            target_fps,
+            enabled: false,
+            initial_tier: tier,
+        }
+    }
+
+    /// Maximum fixed detail for a caller-selected frame-rate target.
+    #[must_use]
+    pub const fn highest_fixed(target_fps: u16) -> Self {
+        Self::fixed(target_fps, QualityTier::High)
+    }
+
+    /// Maximum fixed detail for deterministic publication output.
     #[must_use]
     pub const fn publication() -> Self {
-        Self {
-            target_fps: 1,
-            enabled: false,
-        }
+        Self::highest_fixed(1)
     }
 
     /// The frame budget in nanoseconds, clamped to a representable rate.
@@ -209,20 +236,17 @@ pub struct AdaptiveQuality {
     target_ns: u64,
     ema_ns: u64,
     tier: QualityTier,
+    initial_tier: QualityTier,
     size_cap: QualityTier,
     overrun_frames: u32,
     headroom_frames: u32,
 }
 
 impl AdaptiveQuality {
-    /// Builds a controller at the tier one render mode starts from.
+    /// Builds a controller from the requested initial or fixed tier.
     ///
-    /// `publication` is the engine's own determinism switch: the cinematic path
-    /// and off-screen publication never adapt regardless of policy, and they
-    /// start at [`QualityTier::Standard`] — the tier it holds for every frame.
-    /// An interactive path starts at [`QualityTier::Reduced`], the tier whose
-    /// sampling matches the realtime presets the engine shipped before the
-    /// loop existed, and the loop raises it once there is measured headroom.
+    /// Publication always selects maximum detail and never adapts. Leaving
+    /// publication restores the caller-configured starting tier.
     #[must_use]
     pub const fn new(config: AdaptiveQualityConfig, publication: bool) -> Self {
         Self {
@@ -232,10 +256,11 @@ impl AdaptiveQuality {
             target_ns: config.budget_ns(),
             ema_ns: 0,
             tier: if publication {
-                QualityTier::Standard
+                QualityTier::High
             } else {
-                QualityTier::Reduced
+                config.initial_tier
             },
+            initial_tier: config.initial_tier,
             size_cap: QualityTier::High,
             overrun_frames: 0,
             headroom_frames: 0,
@@ -282,7 +307,7 @@ impl AdaptiveQuality {
     /// immediately drops the tier and clears its timing window; growing a
     /// scene's budget never causes a sudden expensive jump.
     pub fn set_atom_count(&mut self, atom_count: u64) {
-        if self.publication {
+        if !self.enabled() {
             return;
         }
         let cap = QualityTier::for_atom_count(atom_count);
@@ -303,9 +328,9 @@ impl AdaptiveQuality {
         if self.publication != publication {
             self.publication = publication;
             self.tier = if publication {
-                QualityTier::Standard
+                QualityTier::High
             } else {
-                QualityTier::Reduced
+                self.initial_tier
             };
             self.size_cap = QualityTier::High;
             self.reset_window();
