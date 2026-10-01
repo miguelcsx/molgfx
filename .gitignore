@@ -31,3 +31,4 @@ target
 # The browser runtime, copied in whole from crates/molgfx-wasm/js/dist by
 # `node crates/molgfx-wasm/js/scripts/build.mjs --out python/molgfx/viewer/static`.
 python/molgfx/viewer/static/
+**/*.dSYM/
