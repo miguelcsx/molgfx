@@ -32,3 +32,9 @@ target
 # `node crates/molgfx-wasm/js/scripts/build.mjs --out python/molgfx/viewer/static`.
 python/molgfx/viewer/static/
 **/*.dSYM/
+.DS_Store
+*.log
+*.swp
+*.bak
+*.orig
+*.tmp
