@@ -149,9 +149,13 @@ evidence for their specific boundary, not a green gate for the whole current tre
   for every pair within a cutoff (`../molframe/crates/molframe-xtal/src/assembly_spatial.rs`),
   and `molframe_xtal::collect_crystal_neighbors` covers bare crystal mates.
   What is missing is the consumer: `SourceTopology`/`BondGpu` carry no instance
-  index, and the typed `SceneSpec.assembly.instances` state is not yet lowered to
-  molecular placements. Adding it needs an `InstancedBond` row and an instance
-  lane on the packed bond record, both on the MolGFX side.
+  index. Whole-structure placements and `Scene.assembly` copies now exist
+  (`Scene.place`, `StructureSource.placement`), each copy a dataset of its own, so
+  picks resolve per copy. **Open:** the typed `SceneSpec.assembly.instances` state is
+  still not lowered to placements; bonds between copies need an `InstancedBond` row
+  and an instance lane on the packed bond record; copies do not yet share one
+  dataset (the viewer transports one payload per distinct source but parses one per
+  copy); MolViewSpec export drops placements.
 
 ## Phase C — representation fidelity
 

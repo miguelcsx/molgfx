@@ -3,6 +3,7 @@
   "pages": [
     "selections-colors",
     "interaction",
-    "overlay-data"
+    "overlay-data",
+    "placements"
   ]
 }

@@ -179,6 +179,35 @@ class ViewerTransportTests(unittest.TestCase):
             [bytes(payload) for payload in viewer.structure_payloads], payloads
         )
 
+    def test_placed_copies_share_one_transported_payload(self):
+        scene, viewer, _ = viewer_with_representation()
+        shifted = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 25.0, 0, 0, 1]
+
+        copy = int(scene._scene.place(shifted))
+
+        self.assertEqual(viewer.structure_ids, [1, copy])
+        self.assertEqual(viewer.structure_sources, [1, 1])
+        self.assertGreater(len(viewer.structure_payloads[0]), 0)
+        self.assertEqual(viewer.structure_payloads[1], b"")
+        placed = json.loads(viewer.scene_spec)["structures"][str(copy)]
+        self.assertEqual(placed["placement"][12], 25.0)
+        self.assertEqual(viewer.patch_sequence, 0)
+
+    def test_an_assembly_announces_every_copy_in_one_resync(self):
+        class Instance:
+            def __init__(self, shift):
+                self.matrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, shift, 0, 0, 1]
+                self.chains = ["A"]
+
+        scene, viewer, _ = viewer_with_representation()
+
+        copies = scene._scene.assembly([Instance(0.0), Instance(30.0), Instance(60.0)])
+
+        ids = [int(copy.structure) for copy in copies]
+        self.assertEqual(viewer.structure_ids, [1, *ids])
+        self.assertEqual(viewer.structure_sources, [1] * 4)
+        self.assertEqual([len(p) for p in viewer.structure_payloads[1:]], [0, 0, 0])
+
     def test_a_second_structure_renders_and_resolves_on_the_rust_scene(self):
         scene = CountingScene(molgfx.Scene(structure()))
         scene._scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()))
@@ -448,6 +477,40 @@ class ViewerPageTests(unittest.TestCase):
         self.assertEqual(values["error"], "")
         self.assertEqual(before, 1)
         self.assertEqual(len(values["structure_payloads"]), 2)
+
+    def test_a_placed_copy_binds_the_payload_its_source_owns(self):
+        self.runtime()
+        scene = molgfx.Scene(structure())
+        scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()))
+        copy = scene.place([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 30.0, 0, 0, 1])
+        scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()).on(copy))
+        viewer = Viewer(scene)
+        self.assertEqual(viewer.structure_sources, [1, 1])
+        self.page.evaluate(
+            """(columns) => {
+                const values = window.__molgfx.values;
+                values.structure_ids = columns.ids;
+                values.structure_names = columns.names;
+                values.structure_payloads = window.__molgfx.bytes(columns.payloads);
+                values.structure_sources = columns.sources;
+                values.scene_spec = columns.spec;
+                window.__molgfx.emit("change:scene_spec");
+            }""",
+            {
+                "ids": list(viewer.structure_ids),
+                "names": list(viewer.structure_names),
+                "payloads": [
+                    base64.b64encode(bytes(payload)).decode("ascii")
+                    for payload in viewer.structure_payloads
+                ],
+                "sources": list(viewer.structure_sources),
+                "spec": viewer.scene_spec,
+            },
+        )
+        self.page.wait_for_timeout(600)
+        values = self.page.evaluate("window.__molgfx.values")
+        self.assertEqual(values["error"], "")
+        self.assertEqual(len(values["structure_ids"]), 2)
 
     def test_resize_reconfigures_the_canvas(self):
         self.runtime()
