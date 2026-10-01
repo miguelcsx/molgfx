@@ -64,7 +64,7 @@ fn run(
     let mut scene = Scene::from_structure(&structure)?;
     match form {
         "spacefill" => scene.add(rep::spacefill(sel::all()))?,
-        "sticks" => scene.add(rep::licorice(sel::all()))?,
+        "sticks" | "licorice" => scene.add(rep::licorice(sel::all()))?,
         "surface" => scene.add(rep::surface(sel::protein()))?,
         "cartoon" => scene.add(rep::cartoon(sel::all()))?,
         _ => return Err(io::Error::other(format!("unknown form: {form}")).into()),
