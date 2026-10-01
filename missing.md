@@ -531,10 +531,16 @@ Attribution (per-pass actual timestamps, spacefill): sphere impostors 0.7 ms,
 scene-fit shadows 0.3 ms, traced ambient occlusion ≈ 18.4 ms. Setting the
 publication AO budget from 8 to 2 rays per sample gave 359 ms per output
 (3.5× faster), so the cost is linear in rays and the BVH traversal is not the
-bottleneck: 8 rays × 64 samples is 512 AO rays per pixel per output. Whether
-that budget can fall at equal converged error is a measurement still to be
-made (render N=8 and N=2 against a 1024-sample reference and compare error);
-it is not assumed here.
+bottleneck: 8 rays × 64 samples is 512 AO rays per pixel per output. That
+budget was then measured rather than assumed: the same 64-sample output of a
+spacefill scene (4oz7, 480×360) rendered at 1, 2, 4, 8 and 16 rays per sample,
+each compared with the 16-ray render. RMS difference in 8-bit levels: 1.06, 0.73,
+0.47, 0.29 (and p99.9 of 14, 9, 6, 3 levels); a cartoon scene differs by zero at
+every count because it has no traced AO, and a pocket scene stays under 0.35.
+The publication budget is now **4** rays per sample (spacefill on 7qpd: 1263 ms → 636 ms per output, 0.8 → 1.57 outputs/s), the largest saving that
+stays below the half-level quantization noise of an 8-bit image; 8 would be
+reachable again by one constant. The reference is itself noisy, so these are
+upper bounds on the true error.
 
 Consequences for the stated goal: a 64-sample converged output at 120 per second
 is not reachable on this hardware by tuning. Interactive mode (one sample per

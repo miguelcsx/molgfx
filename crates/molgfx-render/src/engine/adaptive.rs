@@ -153,12 +153,19 @@ impl QualityTier {
     }
 }
 
-/// Rays per pixel for analytic occlusion and area-light visibility.
+/// Rays per pixel for analytic occlusion and area-light visibility, per sample.
+///
+/// A converged output accumulates 64 samples, so the per-sample budget sets the
+/// total (256 rays per pixel at the publication budget). Measured against a
+/// 16-rays-per-sample reference of the same 64-sample output on a spacefill
+/// scene, the RMS difference was 0.29, 0.47, 0.73 and 1.06 of 255 for 8, 4, 2 and
+/// 1 rays: four is the largest saving that stays under the half-level
+/// quantization noise of an 8-bit image. See `missing.md`.
 pub(crate) const fn occlusion_rays(quality: bool, publication: bool) -> u8 {
     if !quality {
         0
     } else if publication {
-        8
+        4
     } else {
         2
     }

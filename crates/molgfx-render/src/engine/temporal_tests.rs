@@ -48,8 +48,10 @@ fn converged_exposure_retains_maximum_ray_budget_across_camera_cuts() {
     let mut moved = camera();
     moved.eye.x += 1.0;
     let cut = state.prepare(&moved, &selected);
-    assert_eq!(first.temporal[1].to_bits(), 8.0_f32.to_bits());
-    assert_eq!(cut.temporal[1].to_bits(), 8.0_f32.to_bits());
+    let budget = f32::from(crate::engine::occlusion_rays(true, true));
+    assert!(budget > f32::from(crate::engine::occlusion_rays(true, false)));
+    assert_eq!(first.temporal[1].to_bits(), budget.to_bits());
+    assert_eq!(cut.temporal[1].to_bits(), budget.to_bits());
     assert_eq!(cut.temporal[0].to_bits(), 0.0_f32.to_bits());
     assert_ne!(cut.proj, moved.projection.matrix());
 }
