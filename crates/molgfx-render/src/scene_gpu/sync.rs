@@ -353,7 +353,7 @@ impl<D: Device> GpuScene<D> {
         ray_query_layout: Option<&D::BindGroupLayout>,
         (derived_cache, derived_frame): (&mut crate::DerivedCache, u64),
     ) -> Result<bool, RenderError> {
-        self.prepare_surface_fields(device, queue, scene, detail.surface_spacing)?;
+        self.prepare_surface_fields(device, queue, scene, detail)?;
         let changed = self.sync_representation_slots(
             device,
             queue,

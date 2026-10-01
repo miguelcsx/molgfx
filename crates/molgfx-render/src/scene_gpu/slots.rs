@@ -417,7 +417,12 @@ impl<D: Device> GpuSlot<D> {
                 input.representation,
                 selection_bounds,
                 input.overlay_volume,
-                input.detail.surface_spacing,
+                (
+                    input.detail.surface_spacing,
+                    input
+                        .detail
+                        .surface_dimension_limit(input.device.capabilities().max_texture_dim_3d),
+                ),
             );
         }
         // The colour block changes with the scheme, which is presentation

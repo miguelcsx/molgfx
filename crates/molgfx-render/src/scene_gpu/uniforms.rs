@@ -12,18 +12,17 @@ use overlay::overlay_uniforms;
 
 mod overlay;
 
-pub(super) const SURFACE_GRID_MAX_DIMENSION: u32 = 192;
 /// Bounded hybrid traversal budget for a persistent grid.
 ///
 /// Each iteration crosses at least one cell and empty-space distances skip
 /// farther. Capping the rare near-surface miss at the grid's longest axis
 /// prevents grazing fragments from dominating frame time.
-fn march_steps(dimensions: [u32; 3]) -> u32 {
+fn march_steps(dimensions: [u32; 3], max_dimension: u32) -> u32 {
     dimensions
         .iter()
         .copied()
         .fold(2, u32::max)
-        .min(SURFACE_GRID_MAX_DIMENSION)
+        .min(max_dimension)
 }
 
 /// Per-structure placement, shared by every representation of that structure.
@@ -254,16 +253,18 @@ impl RepresentationUniforms {
             bounds,
             overlay_volume,
             super::detail::FINEST_SURFACE_SPACING,
+            super::detail::INTERACTIVE_SURFACE_DIMENSION,
         )
     }
 
     /// Uniforms for a surface field sampled at `target_spacing` ångström, coarsened
-    /// only where the grid would exceed its dimension cap.
+    /// only where an axis would exceed `max_dimension` cells.
     pub(super) fn for_spacing(
         representation: &Representation,
         bounds: Aabb,
         overlay_volume: Option<&ScalarVolume>,
         target_spacing: f32,
+        max_dimension: u32,
     ) -> Self {
         let gaussian = representation.params.surface_kind == SurfaceKind::Gaussian;
         let sigma = representation.params.gaussian_sigma.max(0.05);
@@ -286,12 +287,12 @@ impl RepresentationUniforms {
         let minimum = bounds.min - Vec3::splat(probe);
         let maximum = bounds.max + Vec3::splat(probe);
         let extent = maximum - minimum;
-        let max_divisions = dimension_f32(SURFACE_GRID_MAX_DIMENSION.saturating_sub(1));
+        let max_divisions = dimension_f32(max_dimension.saturating_sub(1));
         let cell = (extent.max_element() / max_divisions).max(target_spacing);
         let dimensions = [
-            axis_cells(extent.x, cell),
-            axis_cells(extent.y, cell),
-            axis_cells(extent.z, cell),
+            axis_cells(extent.x, cell, max_dimension),
+            axis_cells(extent.y, cell, max_dimension),
+            axis_cells(extent.z, cell, max_dimension),
         ];
         let total = dimensions.iter().copied().fold(1u32, u32::saturating_mul);
         let overlay = overlay_uniforms(representation, overlay_volume);
@@ -301,7 +302,7 @@ impl RepresentationUniforms {
             grid_cell: [cell, cell, cell, 0.0],
             options: [
                 representation.params.surface_kind as u32,
-                march_steps(dimensions),
+                march_steps(dimensions, max_dimension),
                 u32::from(PROBE_SAMPLE_COUNT),
                 representation.params.surface_style as u32,
             ],
@@ -341,10 +342,15 @@ pub(super) fn write_representation_uniforms<D: Device>(
     representation: &Representation,
     bounds: Aabb,
     overlay_volume: Option<&ScalarVolume>,
-    target_spacing: f32,
+    (target_spacing, max_dimension): (f32, u32),
 ) {
-    let value =
-        RepresentationUniforms::for_spacing(representation, bounds, overlay_volume, target_spacing);
+    let value = RepresentationUniforms::for_spacing(
+        representation,
+        bounds,
+        overlay_volume,
+        target_spacing,
+        max_dimension,
+    );
     queue.write_buffer(buffer, 0, bytemuck::bytes_of(&value));
 }
 
@@ -467,11 +473,9 @@ pub(super) fn clip_meta(clipping: &ClipSet) -> [u32; 4] {
     ]
 }
 
-fn axis_cells(extent: f32, cell: f32) -> u32 {
+fn axis_cells(extent: f32, cell: f32, max_dimension: u32) -> u32 {
     let mut cells = 2u32;
-    while cells < SURFACE_GRID_MAX_DIMENSION
-        && dimension_f32(cells.saturating_sub(1)) * cell < extent
-    {
+    while cells < max_dimension && dimension_f32(cells.saturating_sub(1)) * cell < extent {
         cells += 1;
     }
     cells

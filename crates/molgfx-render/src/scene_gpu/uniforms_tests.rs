@@ -3,8 +3,30 @@ use crate::scene_gpu::detail::FINEST_SURFACE_SPACING as SURFACE_GRID_TARGET_SPAC
 
 #[test]
 fn surface_grid_uses_angstrom_spacing_until_the_dimension_cap() {
-    assert_eq!(axis_cells(10.0, 0.25), 41);
-    assert_eq!(axis_cells(100.0, 0.25), SURFACE_GRID_MAX_DIMENSION);
+    use crate::scene_gpu::detail::INTERACTIVE_SURFACE_DIMENSION as CAP;
+
+    assert_eq!(axis_cells(10.0, 0.25, CAP), 41);
+    assert_eq!(axis_cells(100.0, 0.25, CAP), CAP);
+    // A larger limit keeps the requested spacing instead of coarsening.
+    assert_eq!(axis_cells(100.0, 0.25, 1024), 401);
+}
+
+#[test]
+fn a_large_structure_keeps_its_requested_spacing_only_when_the_limit_allows() {
+    use molgfx_core::{AtomSelection, Representation, RepresentationKind, Scene};
+
+    let mut scene = Scene::new();
+    let selection = scene.add_selection(AtomSelection::All);
+    let representation = Representation::new(
+        molgfx_core::RepresentationTarget::Selection(selection),
+        RepresentationKind::Surface,
+    );
+    let bounds = Aabb::from_points([Vec3::ZERO, Vec3::splat(100.0)]);
+    let capped = RepresentationUniforms::for_spacing(&representation, bounds, None, 0.25, 192);
+    let open = RepresentationUniforms::for_spacing(&representation, bounds, None, 0.25, 1024);
+    assert!(capped.grid_cell[0] > 0.5, "{}", capped.grid_cell[0]);
+    assert!((open.grid_cell[0] - 0.25).abs() < f32::EPSILON);
+    assert!(open.grid_size[0] > capped.grid_size[0]);
 }
 
 #[test]
@@ -18,12 +40,13 @@ fn a_coarser_target_spacing_shrinks_the_grid_without_changing_the_finest_spacing
         RepresentationKind::Surface,
     );
     let bounds = Aabb::from_points([Vec3::ZERO, Vec3::splat(10.0)]);
-    let realtime = RepresentationUniforms::for_spacing(&representation, bounds, None, 0.5);
+    let realtime = RepresentationUniforms::for_spacing(&representation, bounds, None, 0.5, 192);
     let quality = RepresentationUniforms::for_spacing(
         &representation,
         bounds,
         None,
         SURFACE_GRID_TARGET_SPACING,
+        192,
     );
 
     assert!((realtime.grid_cell[0] - 0.5).abs() < f32::EPSILON);
@@ -34,14 +57,16 @@ fn a_coarser_target_spacing_shrinks_the_grid_without_changing_the_finest_spacing
 
 #[test]
 fn surface_grid_always_has_an_interpolatable_cell() {
-    assert_eq!(axis_cells(0.0, 0.25), 2);
-    assert_eq!(axis_cells(0.1, 0.25), 2);
+    assert_eq!(axis_cells(0.0, 0.25, 192), 2);
+    assert_eq!(axis_cells(0.1, 0.25, 192), 2);
 }
 
 #[test]
 fn grid_traversal_budget_is_bounded_by_the_longest_axis() {
-    assert_eq!(march_steps([2, 2, 2]), 2);
-    assert_eq!(march_steps([192, 121, 87]), 192);
+    assert_eq!(march_steps([2, 2, 2], 192), 2);
+    assert_eq!(march_steps([192, 121, 87], 192), 192);
+    assert_eq!(march_steps([576, 400, 300], 1024), 576);
+    assert_eq!(march_steps([576, 400, 300], 512), 512);
 }
 
 #[test]
