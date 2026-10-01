@@ -78,3 +78,31 @@ auto
 hide @ball_and_stick
 ```
 
+## Pocket and pose
+
+`pocket` builds the standard view of a ligand in its binding site from one
+query. The subject is drawn at full detail; complete residues within `near` ångström
+are thin ball-and-stick; residues out to `mid` are faint points; a translucent
+solvent-excluded surface bounds the pocket; water inside the outer shell stays as
+sparse context; everything farther is a demoted tube. Water beyond the shell is
+never drawn, and the subject is focused so the camera frames it.
+
+```python
+scene.pocket("resname LIG")
+
+style = molgfx.PocketStyle(near=5.0, mid=12.0).with_opacity(pocket=0.5)
+scene.pocket("resname LIG", style=style)
+```
+
+Every piece is an ordinary representation, so each can be edited afterwards, and
+in a command session the six layers are registered like any other and one `undo`
+removes the composition:
+
+```text
+pocket near=5 mid=12, resname LIG
+```
+
+The same call exists in Rust as `Scene::add_pocket` with a `PocketStyle`. An empty
+subject query, unordered radii, or an opacity outside zero to one are rejected
+before anything is added.
+
