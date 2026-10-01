@@ -99,9 +99,11 @@ pub mod color {
     };
 }
 
-/// Size-aware default representations.
+/// Size- and focus-aware default representations.
 pub mod preset {
-    pub use molgfx_scene::preset::{StructureSize, auto_representations};
+    pub use molgfx_scene::preset::{
+        PocketStyle, StructureSize, auto_representations, pocket_representations,
+    };
 }
 
 /// Adaptive and fixed rendering profiles.

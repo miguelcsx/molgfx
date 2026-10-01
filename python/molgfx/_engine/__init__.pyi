@@ -252,6 +252,14 @@ class Scene:
     def auto(
         self, *, structure: StructureId | None = None
     ) -> Sequence[RepresentationId]: ...
+    def pocket(
+        self,
+        focus: _Target,
+        *,
+        structure: StructureId | None = None,
+        near: float = 4.0,
+        mid: float = 10.0,
+    ) -> Sequence[RepresentationId]: ...
     def bind_property(
         self,
         *,
