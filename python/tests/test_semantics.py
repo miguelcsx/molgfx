@@ -292,6 +292,23 @@ class SceneSemanticsTests(unittest.TestCase):
             scene.pocket("name CA", style=molgfx.PocketStyle().with_opacity(solvent=2.0))
         self.assertEqual(json.loads(scene.to_json())["representations"], {})
 
+    def test_camera_paths_sample_validate_and_reject_bad_keyframes(self):
+        def camera(x):
+            return molgfx.Camera(position=(x, 0.0, 10.0), target=(0.0, 0.0, 0.0))
+
+        path = molgfx.CameraPath([(0.0, camera(0.0)), (2.0, camera(8.0))], easing="linear")
+        self.assertEqual((len(path), path.range), (2, (0.0, 2.0)))
+        # Paths orbit the target: the midpoint is between the ends, not their mean.
+        self.assertTrue(1.0 < path.sample(1.0).position[0] < 7.0)
+        self.assertEqual(path.sample(-3.0).position[0], 0.0)
+        self.assertIsNone(path.sample(float("nan")))
+        with self.assertRaises(ValueError):
+            molgfx.CameraPath([(0.0, camera(0.0))])
+        with self.assertRaises(ValueError):
+            molgfx.CameraPath([(1.0, camera(0.0)), (1.0, camera(1.0))])
+        with self.assertRaises(ValueError):
+            molgfx.CameraPath([(0.0, camera(0.0)), (1.0, camera(1.0))], easing="bounce")
+
 
 class ViewerTransportTests(unittest.TestCase):
     def test_direct_mutations_publish_exact_incremental_patches(self):

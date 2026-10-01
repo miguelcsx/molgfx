@@ -137,6 +137,20 @@ impl PyRenderer {
             .map_err(error)
     }
 
+    #[pyo3(signature = (scene, path, *, size, fps))]
+    fn render_camera_path(
+        &mut self,
+        py: Python<'_>,
+        scene: &PyScene,
+        path: &crate::camera_path_binding::PyCameraPath,
+        size: (u32, u32),
+        fps: u32,
+    ) -> PyResult<Vec<PyImage>> {
+        py.detach(|| self.0.render_camera_path(&scene.inner, &path.0, size, fps))
+            .map(|images| images.into_iter().map(PyImage).collect())
+            .map_err(error)
+    }
+
     fn explain(&self, scene: &PyScene) -> String {
         self.0.explain(&scene.inner)
     }

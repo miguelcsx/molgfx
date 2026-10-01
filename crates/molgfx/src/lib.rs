@@ -66,7 +66,7 @@ pub mod schema {
 
 /// Validated camera construction from facade-native values.
 pub mod camera {
-    pub use molgfx_scene::camera::perspective;
+    pub use molgfx_scene::camera::{CameraEasing, CameraKeyframe, CameraPath, path, perspective};
 }
 
 /// Immutable representation specifications and constructors.

@@ -326,8 +326,61 @@ impl Renderer {
                 "frame size cannot be represented".to_owned(),
             ));
         };
-        let aspect = width / height.max(1.0);
-        let camera = scene.framing_camera(aspect);
+        let camera = scene.framing_camera(width / height.max(1.0));
+        self.render_frames(scene, size, frames_per_second, frames, |_| Ok(camera))
+    }
+
+    /// Renders one converged frame per tick of a camera path, in order.
+    ///
+    /// Frame `i` shows the path at `start + i / frames_per_second` seconds, so
+    /// the sequence covers the path's own time range inclusively. Each frame is a
+    /// complete publication render; encoding the frames into a movie is the
+    /// caller's job.
+    ///
+    /// # Errors
+    ///
+    /// Returns an invalid-specification error for an empty target, a zero frame
+    /// rate, or a range that yields no frame, and a typed renderer error otherwise.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn render_camera_path(
+        &mut self,
+        scene: &Scene,
+        path: &crate::camera::CameraPath,
+        size: (u32, u32),
+        frames_per_second: u32,
+    ) -> Result<Vec<Image>, Error> {
+        if size.0 == 0 || size.1 == 0 || frames_per_second == 0 {
+            return Err(Error::InvalidSpec(
+                "frame size and frame rate must be non-zero".to_owned(),
+            ));
+        }
+        let [start, end] = path.range();
+        let count = ((end - start) * f64::from(frames_per_second)).floor();
+        let frames = count
+            .to_usize()
+            .and_then(|count| count.checked_add(1))
+            .ok_or_else(|| {
+                Error::InvalidSpec("the path yields no representable frame count".to_owned())
+            })?;
+        let step = 1.0 / f64::from(frames_per_second);
+        self.render_frames(scene, size, frames_per_second, frames, |index| {
+            let offset = index
+                .to_f64()
+                .ok_or_else(|| Error::InvalidSpec("frame index is not representable".to_owned()))?;
+            path.sample(start + step * offset)
+                .ok_or_else(|| Error::InvalidSpec("the path cannot be sampled".to_owned()))
+        })
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn render_frames(
+        &mut self,
+        scene: &Scene,
+        size: (u32, u32),
+        frames_per_second: u32,
+        frames: usize,
+        camera_at: impl Fn(usize) -> Result<crate::Camera, Error>,
+    ) -> Result<Vec<Image>, Error> {
         let config = molgfx_render::SequenceConfig::at_fps(
             molgfx_render::ImageConfig {
                 width: size.0,
@@ -357,7 +410,12 @@ impl Renderer {
                 images.push(Image(frame.image));
             }
             self.inner
-                .submit_sequence_frame(&mut sequence, scene.resolved(), &camera, timestamp)
+                .submit_sequence_frame(
+                    &mut sequence,
+                    scene.resolved(),
+                    &camera_at(index)?,
+                    timestamp,
+                )
                 .map_err(Error::from)?;
         }
         let resolved = self.inner.finish_sequence(sequence).map_err(Error::from)?;
