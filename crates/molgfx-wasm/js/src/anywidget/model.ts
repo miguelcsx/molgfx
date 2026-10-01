@@ -18,6 +18,8 @@ export interface WidgetTraits {
   structure_ids: Array<number | string | bigint>;
   structure_names: Array<string | null | undefined>;
   structure_payloads: BinaryState[];
+  /** The structure whose payload each structure parses; absent when every structure carries its own. */
+  structure_sources?: Array<number | string | bigint>;
 
   sync_request: number;
   error: string;

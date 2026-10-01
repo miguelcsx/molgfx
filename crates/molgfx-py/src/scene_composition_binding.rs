@@ -2,7 +2,7 @@
 //! view, and placed copies of a structure.
 
 use crate::binding::{error, selection};
-use crate::scene_binding::PyScene;
+use crate::scene_binding::{PyScene, deliver};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -121,20 +121,11 @@ impl PyScene {
     /// the deposited asymmetric unit rather than add to it.
     #[pyo3(signature = (instances, *, of=None))]
     fn assembly(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         instances: &Bound<'_, PyAny>,
         of: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Vec<PyAssemblyCopy>> {
-        if self.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "an assembly cannot be added inside a scene transaction",
-            ));
-        }
-        let target = match of {
-            Some(of) => crate::id_binding::structure_id(of)?,
-            None => self.structure_id,
-        };
         let parsed = instances
             .try_iter()?
             .map(|instance| {
@@ -147,40 +138,54 @@ impl PyScene {
                 Ok((matrix, chains))
             })
             .collect::<PyResult<Vec<_>>>()?;
-        let base_revision = self.inner.revision();
-        let mut operations = Vec::with_capacity(parsed.len());
-        let mut described = Vec::with_capacity(parsed.len());
-        for (matrix, chains) in parsed {
-            let id = self
-                .inner
-                .place(molgfx::StructureId::new(target), matrix)
-                .map_err(error)?;
-            self.share_browser_source(target, id.get())?;
-            let announced = self
-                .inner
-                .spec()
-                .structures
-                .get(&id)
-                .cloned()
-                .ok_or_else(|| PyValueError::new_err("a placed copy is unavailable"))?;
-            operations.push(molgfx::schema::PatchOperation::AddStructure {
-                id,
-                source: announced,
-            });
-            described.push(PyAssemblyCopy {
-                structure: id.get(),
-                selection: molgfx::chain_selection(&chains).source().to_owned(),
-                chains,
-            });
-        }
-        if !operations.is_empty() {
-            self.publish(
-                py,
-                &molgfx::ScenePatch {
+        let of = of.map(crate::id_binding::structure_id).transpose()?;
+        let (patch, described) = {
+            let mut this = slf.borrow_mut();
+            if this.pending.is_some() {
+                return Err(PyValueError::new_err(
+                    "an assembly cannot be added inside a scene transaction",
+                ));
+            }
+            let target = match of {
+                Some(of) => of,
+                None => this.structure_id,
+            };
+            let base_revision = this.inner.revision();
+            let mut operations = Vec::with_capacity(parsed.len());
+            let mut described = Vec::with_capacity(parsed.len());
+            for (matrix, chains) in parsed {
+                let id = this
+                    .inner
+                    .place(molgfx::StructureId::new(target), matrix)
+                    .map_err(error)?;
+                this.share_browser_source(target, id.get())?;
+                let announced = this
+                    .inner
+                    .spec()
+                    .structures
+                    .get(&id)
+                    .cloned()
+                    .ok_or_else(|| PyValueError::new_err("a placed copy is unavailable"))?;
+                operations.push(molgfx::schema::PatchOperation::AddStructure {
+                    id,
+                    source: announced,
+                });
+                described.push(PyAssemblyCopy {
+                    structure: id.get(),
+                    selection: molgfx::chain_selection(&chains).source().to_owned(),
+                    chains,
+                });
+            }
+            (
+                molgfx::ScenePatch {
                     base_revision,
                     operations,
                 },
-            )?;
+                described,
+            )
+        };
+        if !patch.operations.is_empty() {
+            deliver(slf, py, &patch)?;
         }
         Ok(described)
     }
@@ -242,43 +247,48 @@ impl PyScene {
     /// matrix; it is a structure of its own with its own representations.
     #[pyo3(signature = (matrix, *, structure=None))]
     fn place(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         matrix: Vec<f32>,
         structure: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Py<PyAny>> {
-        if self.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "a placement cannot be added inside a scene transaction",
-            ));
-        }
         let matrix: [f32; 16] = matrix
             .try_into()
             .map_err(|_| PyValueError::new_err("matrix needs 16 values (column-major 4x4)"))?;
-        let of = match structure {
-            Some(structure) => crate::id_binding::structure_id(structure)?,
-            None => self.structure_id,
+        let of = structure.map(crate::id_binding::structure_id).transpose()?;
+        let (id, patch) = {
+            let mut this = slf.borrow_mut();
+            if this.pending.is_some() {
+                return Err(PyValueError::new_err(
+                    "a placement cannot be added inside a scene transaction",
+                ));
+            }
+            let of = match of {
+                Some(of) => of,
+                None => this.structure_id,
+            };
+            let base_revision = this.inner.revision();
+            let id = this
+                .inner
+                .place(molgfx::StructureId::new(of), matrix)
+                .map_err(error)?;
+            this.share_browser_source(of, id.get())?;
+            let source = this
+                .inner
+                .spec()
+                .structures
+                .get(&id)
+                .cloned()
+                .ok_or_else(|| PyValueError::new_err("the placed structure is unavailable"))?;
+            (
+                id,
+                molgfx::ScenePatch {
+                    base_revision,
+                    operations: vec![molgfx::schema::PatchOperation::AddStructure { id, source }],
+                },
+            )
         };
-        let base_revision = self.inner.revision();
-        let id = self
-            .inner
-            .place(molgfx::StructureId::new(of), matrix)
-            .map_err(error)?;
-        self.share_browser_source(of, id.get())?;
-        let source = self
-            .inner
-            .spec()
-            .structures
-            .get(&id)
-            .cloned()
-            .ok_or_else(|| PyValueError::new_err("the placed structure is unavailable"))?;
-        self.publish(
-            py,
-            &molgfx::ScenePatch {
-                base_revision,
-                operations: vec![molgfx::schema::PatchOperation::AddStructure { id, source }],
-            },
-        )?;
+        deliver(slf, py, &patch)?;
         Ok(Py::new(py, crate::id_binding::PyStructureId(id.get()))?.into_any())
     }
 }

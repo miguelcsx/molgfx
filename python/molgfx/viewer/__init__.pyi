@@ -7,6 +7,7 @@ class Viewer:
     structure_ids: list[int]
     structure_names: list[str]
     structure_payloads: list[bytes]
+    structure_sources: list[int]
     pick: dict[str, object]
     selection: str
     camera: dict[str, object]

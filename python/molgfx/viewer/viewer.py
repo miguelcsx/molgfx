@@ -35,6 +35,7 @@ class Viewer(anywidget.AnyWidget):
     structure_ids = traitlets.List(traitlets.Int()).tag(sync=True)
     structure_names = traitlets.List(traitlets.Unicode()).tag(sync=True)
     structure_payloads = traitlets.List(traitlets.Bytes()).tag(sync=True)
+    structure_sources = traitlets.List(traitlets.Int()).tag(sync=True)
     pick = traitlets.Dict().tag(sync=True)
     selection = traitlets.Unicode().tag(sync=True)
     interaction = traitlets.Dict().tag(sync=True)
@@ -50,7 +51,7 @@ class Viewer(anywidget.AnyWidget):
         self._structures = {}
         self._materialize(scene._browser_sources())
         runtime = load_runtime()
-        ids, names, payloads = self._structure_columns()
+        ids, names, payloads, sources = self._structure_columns()
         scene_spec = scene.to_json()
         super().__init__(
             _runtime_js=runtime.glue,
@@ -61,6 +62,7 @@ class Viewer(anywidget.AnyWidget):
             structure_ids=ids,
             structure_names=names,
             structure_payloads=payloads,
+            structure_sources=sources,
             **kwargs,
         )
         self._subscription = weakref.WeakMethod(self._on_scene_patch)
@@ -91,11 +93,23 @@ class Viewer(anywidget.AnyWidget):
             del self._structures[identity]
 
     def _structure_columns(self):
-        """The materialized structures as the three parallel transport columns."""
+        """The materialized structures as the parallel transport columns.
+
+        Structures whose encoding is byte-identical -- the placed copies of one
+        source -- share one payload: the first of them owns the bytes, and each
+        later one carries an empty payload and names the owner in ``sources``.
+        """
         ids = list(self._structures)
         names = [entry[0] for entry in self._structures.values()]
-        payloads = [entry[1] for entry in self._structures.values()]
-        return ids, names, payloads
+        owners = {}
+        payloads = []
+        sources = []
+        for identity in ids:
+            encoded = self._structures[identity][1]
+            owner = owners.setdefault(encoded, identity)
+            sources.append(owner)
+            payloads.append(encoded if owner == identity else b"")
+        return ids, names, payloads, sources
 
     def _resync_structures(self):
         """Transfer every structure the scene now declares, each exactly once.
@@ -107,9 +121,12 @@ class Viewer(anywidget.AnyWidget):
         sources = self._scene._browser_sources()
         self._release_unreferenced(sources)
         self._materialize(sources)
-        self.structure_ids, self.structure_names, self.structure_payloads = (
-            self._structure_columns()
-        )
+        (
+            self.structure_ids,
+            self.structure_names,
+            self.structure_payloads,
+            self.structure_sources,
+        ) = self._structure_columns()
         self.scene_spec = self._scene.to_json()
 
     def _on_scene_patch(self, patch_json):

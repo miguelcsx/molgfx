@@ -16,13 +16,16 @@ export class AnywidgetAdapter implements SceneSource, InlineRuntimeSource, Viewe
     const ids = model.get("structure_ids");
     const names = model.get("structure_names");
     const payloads = model.get("structure_payloads");
-    if (ids.length !== names.length || ids.length !== payloads.length) {
+    const sources = model.get("structure_sources") ?? ids;
+    if (ids.length !== names.length || ids.length !== payloads.length || ids.length !== sources.length) {
       throw new Error("structure transport columns have different lengths");
     }
+    const owned = new Map(ids.map((id, index) => [BigInt(id), payloads[index]]));
     return {
       spec: model.get("scene_spec"),
       structures: ids.map((id, index) => {
-        const payload = payloads[index];
+        const source = sources[index];
+        const payload = source === undefined ? undefined : owned.get(BigInt(source));
         if (id === undefined || payload === undefined) {
           throw new Error(`missing structure transport value at index ${index}`);
         }

@@ -1,0 +1,44 @@
+---
+title: Placed copies and assemblies
+description: Draw a structure more than once, at different positions, and lay out a biological assembly.
+---
+
+`Scene.place` makes a copy of a structure's molecular source at a column-major 4×4
+affine matrix. The copy is a structure of its own: it has its own identity, its own
+representations, and its own picks, and the source it copies is not modified.
+
+```python
+shift = [1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  25.0, 0, 0, 1]
+copy = scene.place(shift)
+scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()).on(copy))
+```
+
+A matrix that is not finite, not affine (bottom row `0 0 0 1`), or not invertible is
+rejected when it is placed rather than when it is drawn.
+
+## Biological assemblies
+
+`Scene.assembly` places one copy per assembly instance. Each instance carries a
+`matrix` and the `chains` it applies to, which is what `molframe.crystal.assembly`
+returns:
+
+```python
+instances = molframe.crystal.assembly(structure, "1")
+for copy in scene.assembly(instances):
+    scene.add(molgfx.rep.cartoon(target=copy.selection).on(copy.structure))
+```
+
+Each returned `AssemblyCopy` names the placed structure, the chains, and a query that
+selects exactly those chains. The identity transform comes back like any other, so the
+copies replace the deposited asymmetric unit rather than add to it.
+
+## What is shared and what is not
+
+In the browser viewer the encoded source crosses to the page once however many copies
+are placed; each copy names the structure that owns the bytes. The page still parses
+one source per copy.
+
+<Callout type="warning" title="Current limits">
+A picked atom in a placed copy resolves against that copy's own structure. Bonds are
+not generated between copies, and MolViewSpec export does not carry placements.
+</Callout>
