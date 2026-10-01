@@ -1,4 +1,4 @@
-# Engine map: Mol* and PyMOL → MolGFX
+# Engine map: Mol* and PyMOL → MolGFX; Gemmi → MolFrame
 
 This is the source-and-render map for the engine layer. It compares the
 checked-out Mol* 5.11.0 and Open-Source PyMOL trees with the current MolGFX
@@ -16,6 +16,26 @@ Status words:
   been exercised yet.
 - **external** — supplied by MolFrame or a caller rather than implemented in
   MolGFX.
+
+## Current status — 2026-09-30
+
+The complete agreed target and acceptance gates are in [plan.md](plan.md).
+Historical checks below certify their stated boundary, not all subsequent
+working-tree changes or publication of local work.
+
+| Capability | Implementation and observed evidence | Remaining boundary |
+|---|---|---|
+| Fixed maximum detail | HighestFixed, shared EffectiveQuality, image/HDR metadata, Python Image.quality_json() and WASM frame reports exist. Native Python observed High with 64 submitted/completed samples; browser observed completed 320×180 metadata after resize. | **partial**: no 120-FPS certification; requested spacing is not effective spacing. |
+| Exposure completion | engine/exposure.rs and tracked fences preserve distinct temporal samples; one converged output is not 64 frames. | **partial**: whole-corpus, sequence and concurrent lifecycle acceptance remain open. |
+| Residency certification | engine/effective_quality.rs derives full_residency from zero active upload tickets. | **incorrectly narrow**: missing declared placements/dependencies and provider work can precede upload; complete is not yet sufficient proof of all requested geometry. |
+| GPU profiling | engine/pass_profiling.rs records actual occurrences, ticks, sample identity, coverage and absence reasons using reusable storage. Stale detection and cancellation changes are present. | **partial**: latest real-device lifecycle/stale verification remains unconfirmed here; invalid durations stay null plus reason. |
+| Comparison harness | crates/molgfx-bench/parity/corpus.json and src/bin/parity retain hashes, settings, cold/warm/measured outputs and failures. See missing.md for the small-extent 13-case evidence. | **partial**: maximum-quality reference corpus, semantic agreement and full-resolution repeated acceptance remain open. |
+| Gemmi reciprocal geometry | MolFrame CellTransform reciprocal vectors/d-spacing, borrowed Miller iteration, shared MTZ resolution and exact ReflectionSymmetry classification are exposed in Rust/Python. | **verified narrow slice**: observed differential across all 530 Hall settings, 386,370 reflections and 2,187 spacing checks, maximum relative spacing error 5.7e-16. Not general Gemmi parity or speed evidence. |
+| Broader Gemmi workflows | Existing MolFrame CIF/PDB/BCIF, Hall catalogue, crystal neighbors, map codecs/sampling and reflection I/O remain authoritative. | **open audit/implementation**: density affine consistency, scattering/structure factors, reciprocal processing and FFT; no duplicate biology in the renderer. |
+
+Latest targeted check observed: MolFrame formatting and Clippy for
+molframe-xtal/molframe-py, all targets with -D warnings, completed successfully.
+This does not certify the full workspace gate.
 
 ## Evidence and comparison harness
 
@@ -104,7 +124,7 @@ surface, point, label, volume, and interaction passes.
 | Labels and annotations | SDF label text and loci labels | FreeType labels, connectors, screen/world placement | **partial**: deterministic label/guide/marker passes and API specs exist; no command form exposes all label controls. |
 | Measurements | distance, angle, dihedral loci/visuals | distance/angle/dihedral measurement objects | **partial**: typed measurement specs and interaction glyphs exist; command and cross-engine fixture coverage is incomplete. |
 | Volumes and segmentation | direct volume, isosurface, segment, slice, dot | map surface/mesh/volume | **partial**: MolGFX volume/segmentation contracts and passes exist; no comparable density/map fixture was included in the smoke set. |
-| Ellipsoid/orientation/polyhedron/plane/unit cell | ADP ellipsoids, orientation, coordination polyhedra, plane and cell helpers | ellipsoids and cell/measurement features | **partial/missing by form**: low-level primitives exist for some paths, but no complete curated public form/command parity. |
+| Ellipsoid/orientation/polyhedron/plane/unit cell | ADP ellipsoids, orientation, coordination polyhedra, plane and cell helpers | ellipsoids and cell/measurement features | **partial**: ADP ellipsoids, finite planar outlines, and unit cells are typed public overlays/guides with command + undo; orientation and coordination polyhedra remain absent. |
 
 ## 3. Themes, color, and size
 
@@ -142,13 +162,13 @@ surface, point, label, volume, and interaction passes.
 | Lighting/materials | GGX/head light/ambient, illustrative variants | two-light and ray lighting settings | **have**: material/BRDF/lighting profiles; constants are intentionally not identical. |
 | Ambient occlusion | multiscale SSAO and denoise | surface/ray shading | **partial**: AO and denoise passes exist; Mol* multiscale threshold parity is not yet matched. |
 | Shadows | screen-space/soft options | ray shadows | **have** in the render graph, with profile-dependent quality. |
-| Transparency | WBOIT/DPOIT/blended modes | sorted/WBOIT/ray transparency | **have** through OIT paths. |
-| Temporal resolve | jitter, accumulation, marker stability | no equivalent realtime temporal contract | **have in graph; unverified** for convergence/marker-only changes. |
+| Transparency | WBOIT/DPOIT/blended modes | sorted/WBOIT/ray transparency | **partial**: WBOIT exists; DPOIT and bounded-layer residual certification remain open. |
+| Temporal resolve | jitter, accumulation, marker stability | no equivalent realtime temporal contract | **partial**: converged exposure/fence metadata exercised; full marker/history acceptance remains open. |
 | Anti-aliasing | SMAA/FXAA and multisampling | MSAA/line smoothing/ray AA | **partial**: temporal resolve plus FXAA, now selectable through `RenderProfile.with_edge_smoothing` (Rust and Python) with a tier default; SMAA is open. |
 | Outline/depth cue/fog | outlines, background/depth cue, DOF, bloom | ray modes and fog/depth cue settings | **partial**: illustration silhouette/cavity controls and an explicit `DepthCue` profile input now lower through the frame uniform and deferred path; marker-specific mask/edge ghosting and cross-engine fog parity remain open. |
 | DOF/bloom/motion blur | postprocessing passes | ray/scene effects vary by mode | **have** as explicit optional MolGFX profile effects. |
 | Camera fitting | perspective/orthographic, fitted clip planes | perspective/orthoscopic and orient | **have**: camera API and fit path. |
-| Image export | offscreen `ImagePass`, PNG/JPEG/MP4 helpers | PNG/ray and movie export | **partial**: deterministic PNG plus a bounded streaming frame sequence (`render_sequence`) exist; JPEG/WebP and movie encoding are open. |
+| Image export | offscreen images and sequences | PNG/ray and movie export | **partial**: PNG, Rust HDR/OpenEXR and bounded converged sequences exist; JPEG/WebP and detached-image acceptance remain open. Movie encoding belongs to the caller. |
 
 ## 6. Scale and performance
 
@@ -156,7 +176,7 @@ surface, point, label, volume, and interaction passes.
 |---|---|---|---|
 | Instancing | unit/symmetry instances and grouped renderables | object/state reuse | **have/partial**: shared scene records, symmetry instance primitives, lazy residency, and indirect draws exist; symmetry-bond generation is open. |
 | Culling | instance grid, frustum/occlusion culling, LOD and multi-draw | display/object culling and quality settings | **have**: GPU culling/indirect draw and chunk residency; Hi-Z/sphere-stride parity remains open. |
-| Quality policy | atom-count/resolution-dependent geometry quality | atom-count/cartoon quality settings | **partial**: adaptive quality now applies one authoritative atom-count cap at 10k/100k/500k bands and remains monotone under scene shrink; geometry segmentation, surface resolution, upload budgets, and full Mol* threshold parity remain open. |
+| Quality policy | atom-count/resolution-dependent quality | geometry quality settings | **partial**: adaptive tiers and HighestFixed coexist. HighestFixed holds High without atom-count degradation; effective field resolution, full residency and maximum-quality throughput remain open. |
 | GPU memory | grouped buffers and reusable renderables | CPU/OpenGL display lists/buffers | **have** for columnar/lazy upload design; actual large-scene benchmark coverage is open. |
 | Idle work | settled render state avoids unnecessary updates | scene invalidation/display rebuilds | **have** in the render graph and residency design. |
 | Marker updates | texture/state update without geometry rebuild | selection/display invalidation | **have** in the semantic state path; outline consumer remains open. |
@@ -240,6 +260,51 @@ measurement, stay open.
   exceeds the scene-relative upper bound and the camera can no longer be
   pinned outside a small structure's framing radius.
 
+### Close-camera correctness and planar guides
+
+- Analytic impostor vertices now all carry their flat payload. The former
+  first-vertex-only optimization produced a black triangular discontinuity
+  when the proxy crossed the near plane. The same camera and radius with the
+  rebuilt browser runtime no longer show that discontinuity; page errors and
+  the synchronized renderer error were empty. This is correctness evidence,
+  not a cross-engine pixel-parity or performance claim.
+- Public planar guides reach four analytic segments through scene replacement,
+  add/remove patches and the undoable `plane` command. A browser pick on the
+  rectangle resolved to a guide rather than a molecular atom.
+- A native device smoke on 2026-09-30 reproduced a missing sphere pick with
+  the camera inside the sphere. Molecular culling now retains near-crossing
+  bounds, and sphere/capsule proxies cover the viewport at that boundary.
+  After the fix, six 256×256 outside/near/interior sphere/capsule renders
+  returned atom/bond picks. A red planar outline covered 1,908 pixels and
+  returned a Guide pick; a triclinic cell lowered alongside it. Evidence:
+  `target/guide-smoke/*.png` (local, untracked). This smoke does not certify
+  cross-engine fidelity or maximum-quality performance. The rebuilt release
+  WASM runtime also returned the six atom/bond picks without browser errors;
+  isolated sphere outside/near/interior screenshots showed continuous shading.
+- Geometry validation is shared by core constructors and portable scene specs:
+  overflowing/collapsed planar boundaries and impossible/translated collapsed
+  cells fail before mutation. Regression coverage includes exact skew corners,
+  style restoration, and no partial native guide insertion after an error.
+- `assembly null` removes the unit cell through the canonical command contract;
+  undo/redo restores its exact semantic geometry in Rust and Python.
+- Workspace Clippy with all targets/features and `-D warnings`, workspace tests,
+  WASM-target check/Clippy, and rebuilt Python bindings passed. All 70 Python
+  tests and stubtest passed. These are contract checks, not benchmark results.
+- Verification: 381 render tests and 25 shader tests passed; workspace Clippy
+  with all targets/features and `-D warnings` passed; the release WASM runtime
+  rebuilt successfully.
+- Full workspace tests, 69 Python tests, stubtest, formatting, WASM-target
+  Clippy and browser-host typechecking passed. The 33-test browser viewer suite
+  also passed independently. Production panic/lint/unsafe scans were empty;
+  tracked Rust/WGSL sources met the 500-line cap.
+- Linux CI is green at `d5c9ee8` ([run 36655292702](https://github.com/miguelcsx/molgfx/actions/runs/36655292702)): all eight jobs passed, including all 33 browser viewer tests with real semantic pick readback.
+  Chromium previously failed to allocate the WebGPU canvas shared image, then
+  lost the device. The browser fixtures use full headless Chromium with
+  SwiftShader Vulkan enabled for compatible shared-image backing and native
+  Vulkan presentation disabled. The passing browser log contains neither the
+  shared-image allocation failure nor the external-instance loss message.
+  This verifies the committed CI fix, not the uncommitted feature changes.
+
 ### Verification observed in this pass
 
 - `nix develop -c cargo fmt --all -- --check`
@@ -255,17 +320,9 @@ unbonded nitrogen, and the two bonded endpoints draw no marker. The camera
 floor now bounds by the smaller of the scene-relative maximum and Mol*'s
 5 Å clearance.
 
-### Recommended continuation order
+### Continuation order
 
-1. Add symmetry-mate/inter-unit bond records at the MolFrame/core instance
-   topology boundary, including source-endpoint picking.
-2. Add a marker mask/edge pass with ghosted occluded edges, then replace
-   per-request hover readback with one invalidated low-resolution buffer.
-3. Extend the single property/input registry with named occupancy,
-   hydrophobicity, uncertainty, molecule-type, charge, carbon-by-chain, and
-   sequence-rainbow schemes; add matching legends and fixtures.
-4. Finish the dedicated blob/ellipsoid/orientation/polyhedron/plane/unit-cell
-   *forms* and the licorice junction/seam (the Lines lone-atom cross is done).
-5. Measure temporal convergence, multiscale AO, AA selection, sphere LOD/Hi-Z,
-   upload budgets, WASM cold start, and same-input protein/nucleic/ligand/
-   density comparisons before changing thresholds or committing goldens.
+Follow [plan.md](plan.md): measurement and truthful completeness, then MolFrame
+chemistry/SS/Gemmi, placements, representations/density, appearance, picking,
+rendering, export/stereo and end-to-end acceptance. Earlier completed boundaries
+do not close the broader target.

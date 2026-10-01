@@ -17,6 +17,62 @@ Priority:
 A source audit is not a substitute for a rendered comparison. Every `[~]` item
 names the missing fixture, measurement, or semantic boundary.
 
+## Current execution checkpoint — 2026-09-30
+
+[plan.md](plan.md) preserves the complete agreed scope, ownership, sequence and
+acceptance criteria, including Gemmi → MolFrame. Historical checks below remain
+evidence for their specific boundary, not a green gate for the whole current tree.
+
+- [~] **P0** HighestFixed and canonical quality metadata are implemented across
+  Rust images/HDR, Python and WASM. Native Python observed High/64 completed
+  samples; WebGPU observed immutable completed metadata after resize. **Open:**
+  complete scene fidelity, effective spacing and full-resolution performance.
+- [ ] **P0** Fix full-residency certification. Current effective_quality.rs checks
+  only active upload tickets; zero tickets does not prove declared placements,
+  trajectory endpoints, relation dependencies or provider work are drawable.
+  Reuse authoritative lifecycle/draw state; do not add another membership store.
+- [~] **P0** Shared exposure recording, distinct uniform ranges and tracked fences
+  exist. **Open:** finish sequence/concurrency and whole-corpus acceptance; no
+  reused samples, stale-camera output or subsample-as-frame accounting.
+- [~] **P0** Actual per-pass profiling, coverage, persistent scratch and timestamp
+  absence reasons exist. Cancellation/stale-slot changes are in the tree.
+  **Open:** final observed real-device verification of those latest changes;
+  invalid_order/stale/unresolved remain null durations, not measured zero.
+- [~] **P0** Registered shared-corpus harness and real native, Mol* and PyMOL
+  adapters exist. Small-extent execution evidence is recorded below. **Open:**
+  finish maximum-quality reference recipes/corpus, resolve semantic differences,
+  then run full-resolution cold/warm/repeated acceptance. Interrupted large ray
+  cases are unfinished measurements, not missing reference capabilities.
+- [ ] **P2** Prove 120 completed outputs/s and p95 <= 8.333333 ms at maximum
+  effective quality, without lowering resolution, samples, geometry or effects.
+  Report p99/backlog/allocations/RSS and per-recipe settings. Offscreen completion
+  cannot certify 120-Hz presentation on the observed 30-Hz display.
+
+### MolFrame / Gemmi
+
+- [x] Reciprocal vectors/d-spacing and exact reflection centricity, systematic
+  absences and epsilon classification: MolFrame CellTransform/ReflectionSymmetry,
+  borrowed Miller iteration, shared MTZ calculation and Rust/Python facade.
+  **Observed:** differential against local Gemmi across all 530 Hall settings,
+  386,370 reflections and 2,187 spacing checks; maximum relative error 5.7e-16.
+  The temporary consumer was /tmp/molframe-gemmi-reciprocal-smoke.py.
+- [~] Integration gate for this slice: targeted formatting and Clippy for
+  molframe-xtal/molframe-py, all targets with -D warnings, passed. **Open:**
+  full gate, benchmark assessment and publication/pin verification; this is not
+  general Gemmi parity or a speedup claim.
+- [ ] Continue density affine/sampling consistency and the strongest missing
+  scattering/structure-factor, reciprocal-processing and FFT workflows after
+  source audit. Preserve existing CIF/PDB/BCIF, symmetry, crystal neighbors,
+  maps and reflection I/O; do not introduce Gemmi as a product dependency or
+  copy its implementation into the renderer.
+
+- [x] **P0** Close-camera analytic impostor payloads remain valid after proxy
+  clipping. Every vertex supplies flat data in the atom, bond, point, primitive,
+  instance, ligand, overlay and affected shadow paths. **Check:** same-camera
+  browser comparison removed the observed black triangle with empty runtime
+  and page errors; 381 render tests and 25 shader tests passed. Cross-engine
+  image parity and the vertex-work performance cost remain unmeasured.
+
 ## Phase A — MolFrame topology
 
 - [x] **P0** Standard-residue bonds come from a built-in constant component
@@ -71,9 +127,9 @@ names the missing fixture, measurement, or semantic boundary.
   for every pair within a cutoff (`../molframe/crates/molframe-xtal/src/assembly_spatial.rs`),
   and `molframe_xtal::collect_crystal_neighbors` covers bare crystal mates.
   What is missing is the consumer: `SourceTopology`/`BondGpu` carry no instance
-  index, and `scene/apply.rs` lowers `AssemblySpec.instances` to placement
-  metadata only. Adding it needs an `InstancedBond` row and an instance lane on
-  the packed bond record, both on the MolGFX side.
+  index, and the typed `SceneSpec.assembly.instances` state is not yet lowered to
+  molecular placements. Adding it needs an `InstancedBond` row and an instance
+  lane on the packed bond record, both on the MolGFX side.
 
 ## Phase C — representation fidelity
 
@@ -156,12 +212,25 @@ names the missing fixture, measurement, or semantic boundary.
     `RepresentationFormSpec`, `surface_round_trips_and_names_its_soft_union_style`,
     and `soft_union_is_explicit_and_keeps_the_exact_surface_path`; a device
     render at spans 0/0.6/2.5 differs by 138k/263k bytes.
-  - **Plane** and **unit cell** are guide geometry with a different lifecycle
-    from a representation: core lowers them through `Scene::add_planar_region`
-    and `Scene::add_unit_cell` into the guide table, but no engine-crate,
-    facade, command or Python path reaches those core methods. Making them
-    public means a guide-based scene item (patch operation, lowering and
-    resolved-handle plumbing), not a representation form.
+  - **Unit cell** is implemented as guide geometry, not a representation alias.
+    `AssemblySpec.unit_cell` is typed `SceneSpec` state; `SetAssembly` validates,
+    applies, inverts, and rebinds exactly twelve core guide handles per owner. The
+    `assembly {...}` command reaches the same path from Rust and Python. **Check:**
+    `assembly_unit_cell_rebinds_to_exactly_twelve_guides`,
+    `assembly_unit_cell_reaches_guide_geometry_and_undo_removes_it`, and the
+    Python `test_assembly_unit_cell_is_scene_state_and_undoable`.
+    Constructor and deserialized validation share core cell geometry checks,
+    including impossible angles and translated boundary collapse.
+    `assembly null` removes the cell; remove/undo/redo is covered in Rust/Python.
+  - **Plane** is caller-authored guide geometry with typed `PlaneSpec` state.
+    `Scene::add`, `PatchOperation::{AddPlane,RemovePlane}`, inversion and
+    lowering emit exactly four analytic guide segments; the `plane {...}`
+    command reaches the same path and is undoable. **Check:**
+    `plane_add_and_remove_rebinds_exactly_four_guides` and
+    `plane_reaches_guide_geometry_and_undo_removes_it`.
+    Core and scene share normalized-frame and representable-boundary validation.
+    Exact skew corners/style survive remove/inverse; invalid geometry leaves
+    semantic state and native guides unchanged (`overlay/planes_tests.rs`).
   - **Ellipsoid (ADP)** is implemented end to end. MolFrame parses
     `_atom_site_anisotrop` (mmCIF, U- and B-forms) and PDB `ANISOU`, exposes
     `Structure::anisotropy()`, and MolGFX carries the sparse `[U11..U23]`
@@ -255,10 +324,10 @@ names the missing fixture, measurement, or semantic boundary.
   Atom-count cap: `High` through 10,000 atoms, `Standard` through 100,000,
   `Reduced` through 500,000, and `Minimal` above that. **Check:** the render
   adaptive tests cover the bands and monotone scene shrinking. **Open:** the
-  upload budget is fixed at engine construction (`ResidencyConfig`), so a tier
-  cannot yet scale it; that needs a rebuildable staging configuration, not
-  another tier field, and a full Mol* policy comparison needs the reference
-  render.
+  upload budget remains fixed at engine construction. Preserve live tickets and
+  fences when adding budget changes; do not rebuild away in-flight ownership.
+  HighestFixed bypasses adaptive atom-count degradation, but full-detail field
+  residency and reference quality acceptance remain open.
 - [ ] **P2** Sphere stride-prefix LOD with Bayer/dither fade and GPU Hi-Z
   occlusion. Keep the current indirect culling path; do not add per-atom draw
   calls or CPU coordinate copies.
@@ -280,10 +349,10 @@ names the missing fixture, measurement, or semantic boundary.
 - [~] **P3** Image export is a deterministic native PNG (`Renderer::render_image`,
   `Image.save`) and a frame sequence (`Renderer::render_sequence`, Python
   `Renderer.render_sequence(scene, size=..., fps=..., frames=...)`), which
-  streams bounded frames and returns them in submission order. **Open:** movie
-  *encoding* (deliberately the caller's job), JPEG/WebP output, and Mol* `ImagePass`
-  / PyMOL ray-setting parity. **Check:** an observed Python run returning three
-  64×48 PNG frames.
+  streams bounded frames and returns them in submission order. **Open:**
+  JPEG/WebP, detached-image lifecycle and Mol* ImagePass/PyMOL ray-setting parity.
+  Movie encoding deliberately belongs to the caller. **Historical check:** a
+  Python run returned three 64×48 PNG frames; this alone did not prove convergence.
 
 ## Comparison and verification backlog
 
@@ -292,10 +361,10 @@ names the missing fixture, measurement, or semantic boundary.
   MolGFX used the same temporary PDB; Mol* browser cases used the checked-in
   browser fixtures. Results and blocked network/native paths are recorded in
   `mapping.md`.
-- [~] **P0** Same-input image comparison for protein, nucleic-acid, ligand, and
-  density fixtures. **Open:** add the fixtures and explicit camera/theme/form
-  settings to a reproducible comparison command; do not use raw pixel equality
-  across engines with different defaults.
+- [~] **P0** Same-input comparison uses the registered parity CLI and hashed
+  corpus. **Open:** resolve topology/SS differences, complete all maximum-quality
+  recipes and full-resolution runs. Small smoke fixtures do not certify parity;
+  raw pixel equality across different algorithms/defaults is not acceptance.
 - [x] **P1** Browser runtime release build and TypeScript typecheck completed
   with Nix; local selection/hover/clear interaction and rich JSON pick were
   observed without browser errors.
@@ -322,13 +391,13 @@ gap a user of either engine will notice. Priority follows the same P0–P3 scale
 | Blob surface | `[x]` | `[ ]` | `[x]` `soft_union` with a real `blob_spread` (0 Å = exact union), lowered in all three languages |
 | Gaussian volume (density as direct volume) | `[x]` | `[ ]` | `[ ]` (P2) |
 | Ellipsoids (ADP) | `[x]` | `[x]` | `[x]` MolFrame parses ANISOU/`anisotrop`; `EllipsoidSpec` overlay lowers one `AnisotropicEllipsoid` per tensor-bearing selected atom, exposed in Rust and Python |
-| Orientation glyph, polyhedron, plane | `[x]` | `[ ]` | `[ ]` orientation, polyhedron and plane: core has the guide primitives (`add_planar_region`, `add_unit_cell`) but no engine-crate, facade or Python path reaches them (P3) |
+| Orientation glyph, polyhedron, plane | `[x]` | `[ ]` | `[~]` public planar outline renders and picks as a Guide; orientation and polyhedron fidelity remain open (P3) |
 | SNFG carbohydrate symbols and links | `[x]` | `[ ]` | `[~]` glycan ribbon, no SNFG glyphs (P2) |
 | Residue beads / coarse | `[x]` | `[ ]` | `[x]` new |
 | Atom labels (text on atoms, by property) | `[x]` | `[x]` | `[~]` free labels only (P1) |
 | Label styling: font, size, background, connector, outline | `[x]` | `[x]` | `[ ]` (P1) |
 | Distance / angle / dihedral objects with dashes | `[x]` | `[x]` | `[~]` typed spec and commands; dash and arc styling open (P1) |
-| Unit cell, map extent | `[x]` | `[x]` | `[~]` core guide exists, no public form (P2) |
+| Unit cell, map extent | `[x]` | `[x]` | `[~]` public unit-cell guides and inverse exist; triclinic native smoke performed, map extent and cross-engine comparison remain open (P2) |
 | Symmetry mates / assemblies / supercell | `[x]` | `[x]` | `[ ]` placement lowering and instanced bonds open (P0) |
 | Isosurface / mesh / dot of density | `[x]` | `[x]` | `[~]` volume pass, no mesh or dot style (P1) |
 | Direct volume with transfer function | `[x]` | `[x]` | `[~]` (P1) |
@@ -391,19 +460,19 @@ gap a user of either engine will notice. Priority follows the same P0–P3 scale
 | Hover / click / marker | `[x]` | `[x]` | `[x]` |
 | Focus and context, orient-to-axes, snapshots | `[x]` | `[x]` | `[~]` focus; orient and snapshots open (P1) |
 | Representation presets | 11 | classified defaults | `[~]` size preset (P1) |
-| Image export | png / jpeg / webp | png / ray | `[x]` png (P1 other formats) |
-| Geometry export | glb, obj, stl, usdz | obj, stl, dae, wrl, idtf, pov | `[ ]` (P2) |
-| Movie export | mp4 | mpng + encode | `[ ]` (P2) |
+| Image export | png / jpeg / webp | png / ray | [~] PNG and Rust HDR/OpenEXR; JPEG/WebP open |
+| Geometry export | glb, obj, stl, usdz | obj, stl, dae, wrl, idtf, pov | [ ] (P2) |
+| Frame sequences / movie encoding | image sequences / mp4 | mpng + encode | [~] bounded converged sequences; MP4/GIF encoding is external |
 
 ## Performance
 
 Nothing in this repository supports a claim that MolGFX is faster than Mol* or
-PyMOL. The numbers below are MolGFX alone, measured with
-`cargo run --release -p molgfx-bench --bin frame_time STRUCTURE FORM` on an
+PyMOL. The table below is historical MolGFX-only evidence from
+`cargo run --release -p molgfx-bench --bin frame_time STRUCTURE FORM`,
 Apple GPU through Metal, 1280×720, structure 1AON (58 870 atoms), default
-adaptive profile, which holds the `Standard` tier at that size. The frame time
-is the blocking end-to-end duration of one frame; device timestamps do not
-resolve on this adapter.
+adaptive profile (`Standard` at that size). It is not a current maximum-quality
+comparison. Its device timestamps did not resolve; durations are blocking
+end-to-end wall time.
 
 | Form | Frame | Reading |
 |---|---|---|
@@ -412,15 +481,52 @@ resolve on this adapter.
 | Licorice over all atoms | 31.6 ms | too slow: about 32 fps |
 | Solvent-excluded surface of the whole complex | 138 ms | too slow: about 7 fps |
 
-- **Open, P0:** find where licorice and surface spend their time. There is no
-  per-pass GPU breakdown yet (the pass graph carries timestamp slots but no
-  reporter), so attribution is a guess until one exists. Add it first.
+- **Open, P0:** find where licorice and surface spend their time at the real
+  comparison settings. Actual per-pass capture now exists, including bounded
+  coverage and timestamp absence reasons; that is not yet attribution for
+  these historical runs.
 - **Open, P0:** the same four cases in Mol* (browser, `pickScale` default) and
   PyMOL (`png` without ray) on identical input and camera, before any
   comparative statement is made. Time to first frame and steady frame time are
   the two numbers.
 - **Open, P1:** memory per atom, upload volume per edit, and wasm cold start.
 - Publication rendering accumulates 64 samples and is not a frame rate.
+
+### Shared-corpus harness evidence
+
+The registered `parity` CLI verifies licensed input hashes before engine startup,
+inspects metadata before producing images, and retains per-recipe failures.
+Native cold, warm-up and measured outputs carry CPU stage intervals, actual
+per-pass device timings/reasons, capture coverage, allocator measurements and
+residency counters. The shared nearest-rank summarizer excludes cold/warm rows.
+External counters that are not instrumented are null with reasons, never measured
+zeros; external `cpu_ns` is completion-inclusive API wall time, not exclusive CPU.
+
+An actual 13-fixture run at 128×72, one cold output, one warm-up and one measured
+output is recorded in `/tmp/molgfx-parity-telemetry-full13/report.json`. Eleven
+native molecular cases completed all 64 publication samples and their PNGs
+decoded at the requested extent. Captures retained all 640 or 704 actual passes
+without overflow; several occurrences had `invalid_order` timestamps, while
+the measured lattice-8 output resolved all 640. Native density cases remain
+explicit prerequisites: volume-only scenes and an affine VolumeBinding, not
+a fake molecular anchor or flattened skew. The smoke is not a 120-FPS or
+maximum-resolution performance certification.
+
+Protein inspection is retained in
+`/tmp/molgfx-parity-telemetry-metadata/4HHB/metadata.json`: both engines saw
+4,779 atoms, but native/PyMOL counts were 801/584 residues, 4,475/4,700 bonds
+and 479/0 aromatic bonds; secondary-structure and provenance differences remain
+visible rather than reassigned to manufacture parity. The initial PyMOL raster
+boundary failed under headless `-cq`: `cmd.png(prior=1)` reported `no prior image
+available` after `cmd.draw` (retained in `/tmp/molgfx-parity-telemetry-pymol13`).
+The corrected invocation uses real `-q` OpenGL initialization for raster only,
+while inspection and ray remain headless. Its registered CLI run at the same
+128×72 extent completed all 13 fixtures, including both densities:
+`/tmp/molgfx-parity-telemetry-pymol-gl13/report.json`. All 13 PNGs decoded at
+the requested extent; actual cold/warm/measured wall-time rows and null+reason
+unmeasured-counter fields were verified at that image boundary. The manifest
+raster preset used antialias=0; these are execution-contract smoke results,
+not maximum-quality equivalence or comparative speedup evidence.
 
 ## Completed baseline contracts
 
@@ -449,11 +555,9 @@ remain intentionally open for the next contributor:
   *encoding* stays the caller's job.
 - Colour by SASA is a metric scheme (`AtomMetric::Sasa`) computed with
   Shrake–Rupley on the live coordinates; the named colour table is 42 names.
-- Adaptive quality has an atom-count cap at 10,000 / 100,000 / 500,000
-  atoms and drives surface spacing and ribbon samples through one `TierDetail`.
-  It does not yet control the upload budget, which is fixed at engine
-  construction in `ResidencyConfig`; scaling it per tier means a rebuildable
-  staging configuration, not another tier field.
+- Adaptive quality has atom-count caps; HighestFixed explicitly bypasses them.
+  Both consume the shared detail policy. Upload budget changes must preserve
+  live tickets/fences; full-residency certification remains open as noted above.
 - Shared interaction WGSL owns hidden-state visibility and state tinting.
   Marker-specific occluded edge ghosting is not implemented: it needs a mask of
   fragments that lost the depth test, which is a second draw of marked geometry
