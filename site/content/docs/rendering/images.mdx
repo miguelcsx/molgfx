@@ -13,6 +13,34 @@ image.save("figure.png")
 
 `Image` exposes `width`, `height`, RGBA `pixels()`, and `png_bytes()` when you need to pass the output to another system instead of saving it.
 
+## Fixed quality and completed exposures
+
+`molgfx.profile.highest_fixed(target_fps=120.0)` holds the highest tier independently of scene size or timing. The target is a scheduling goal, not a performance guarantee. Unlike `publication()`, it keeps realtime presentation settings; neither profile lowers analytic molecular detail through LOD.
+
+Publication images and the default camera sequence complete all 64 temporal samples for each output. Explicit progressive sequences submit one sample and must not be counted as converged outputs. Rust `Image::quality()` reports physical extent, selected detail, submitted samples and completion observed after readback; `EffectiveQuality::complete()` derives completion from those observations. Indirect illumination currently reports zero transport bounces.
+
+Python `json.loads(image.quality_json())` exposes the same canonical fields and
+derived `complete` value without copying pixels. Rust HDR images also retain
+their exposure quality. Browser `renderer.frameReportJSON()` is absent before
+the first render, then returns the latest report as JSON; read `last_completed`
+for fence-observed settings rather than treating the current submission as done.
+
+Converged outputs freeze scene, camera and time once per exposure. A persistent three-bank uniform arena retains all 64 distinct jittered payloads in aligned ranges with cached bindings; one encoder and one tracked submission record the exposure. Banks cannot be reused before their final fence completes. Native saturation waits for the oldest bank; browser saturation reports explicit backpressure.
+
+The native `frame_time` benchmark measures completed outputs, not temporal subsamples. It emits unavailable GPU timing as `null` with an explicit reason, keeps cold and warmed measurements separate, and reports allocator activity separately from residency events. Timestamp support is optional: completion is proved by the tracked submission fence even without usable timestamp queries. GPU timestamp intervals bracket the scheduled graph and are not sums of individual pass execution times. Real process RSS is measured by isolated `resources` child runs, not inferred from retained allocator bytes.
+
+Profiles record each actual render/compute pass occurrence with its temporal sample, raw timestamp ticks, duration or absence reason. `Renderer::last_pass_timings()` borrows the latest completed profile without copying engine storage. Capture holds at most 2048 occurrences per exposure; overflow is explicit and prevents a whole-GPU timing certificate. The whole interval uses the earliest beginning and latest ending of all resolved occurrences, so overlapping GPU passes do not imply CPU recording order. Any unavailable pass leaves the whole duration unavailable. Host stages separately report preparation, recording, submission, completion wait and timestamp readback; these are elapsed wall intervals, not exclusive CPU utilization.
+
+Presentation reports retain `last_completed` settings captured at submission, including submission identity. A later camera change or resize cannot retroactively change the completed output's metadata.
+
+Profiling cancellation retains the target, query storage and latest fence in
+the engine. The next profile waits before reuse. Timestamp resolution runs in
+a separate submission after exposure completion: on the verified Metal path,
+same-command-buffer resolution returned stale or unwritten final-pass values.
+Exact older same-slot tick reuse is reported as `stale`, not a new GPU duration.
+The additional resolve/wait/map interval belongs to timestamp readback overhead,
+not the rendered exposure GPU interval.
+
 ## Camera
 
 `render_image` uses a framing camera. For a repeatable viewpoint, set a validated camera on the scene first:

@@ -119,6 +119,7 @@ Without `as`, a layer is named after its form: `show cartoon` makes
 | `opacity VALUE, @LAYER` | set a layer's opacity, 0 to 1 |
 | `focus TARGET`, `unfocus` | highlight and frame a target, or clear it |
 | `undo`, `redo` | step through history |
+| `plane JSON` | add a finite rectangular guide owned by a structure; `undo` removes it |
 
 Separate statements with `;` or new lines. A program runs as one edit: if any
 statement fails, nothing changes.
@@ -134,6 +135,23 @@ statement fails, nothing changes.
 **Colours:** a scheme (`element`, `chain`, `residue`, `secondary_structure`),
 a name (`red`, `orange`, `slate`, …), or `#rrggbb`.
 
+
+## Planar guides
+
+`plane` takes a complete scene-space rectangle. Coordinates and full dimensions
+are in ångström; the outline width is in pixels. The normal and tangent must be
+non-zero and independent. The rectangle follows its owning structure placement
+and remains visible when molecular layers are hidden. It draws an outline, not
+a filled surface.
+
+```text
+plane {"structure":1,"center":[0,0,0],"normal":[0,0,1],"tangent":[1,0,0],"size":[4,2],"color":[226,232,240,255],"width_pixels":1.6,"opacity":1}
+undo
+redo
+```
+
+The same command runs through Python `Session.execute`. Rust callers can add a
+`PlaneSpec` with `Scene::add`; patches use `add_plane` and `remove_plane`.
 ## When something goes wrong
 
 Errors point at the problem and suggest a fix:
