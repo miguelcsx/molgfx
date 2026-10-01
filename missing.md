@@ -492,6 +492,32 @@ end-to-end wall time.
 - **Open, P1:** memory per atom, upload volume per edit, and wasm cold start.
 - Publication rendering accumulates 64 samples and is not a frame rate.
 
+### Measured baseline — 2026-10-01, Apple M5 Pro, Metal, 1280×720
+
+`frame_time` on 7qpd (11,521 atoms), HighestFixed, one completed output = 64
+converged samples, 10 warm-up and 60 measured outputs, serial. These are the
+first numbers recorded under the corrected completion contract; they replace the
+historical table above for any comparison.
+
+| Form | Completed outputs/s | Median per output | Per sample | CPU median | Reading |
+|---|---:|---:|---:|---:|---|
+| Cartoon | 16.8 | 59 ms | 0.93 ms | 11.7 ms | the 120 outputs/s target needs 0.13 ms per sample: 7× short |
+| Spacefill | 0.8 | 1263 ms | 19.7 ms | 15.3 ms | traced AO is ≈ 18.4 ms of every sample |
+| Surface | refused | — | — | — | `surface_spacing_effective` is 0.685 Å against 0.25 Å requested, so the output is correctly **not complete**; needs bricked fields |
+
+Attribution (per-pass actual timestamps, spacefill): sphere impostors 0.7 ms,
+scene-fit shadows 0.3 ms, traced ambient occlusion ≈ 18.4 ms. Setting the
+publication AO budget from 8 to 2 rays per sample gave 359 ms per output
+(3.5× faster), so the cost is linear in rays and the BVH traversal is not the
+bottleneck: 8 rays × 64 samples is 512 AO rays per pixel per output. Whether
+that budget can fall at equal converged error is a measurement still to be
+made (render N=8 and N=2 against a 1024-sample reference and compare error);
+it is not assumed here.
+
+Consequences for the stated goal: a 64-sample converged output at 120 per second
+is not reachable on this hardware by tuning. Interactive mode (one sample per
+frame with temporal accumulation) is a separate recipe and has its own number.
+
 ### Shared-corpus harness evidence
 
 The registered `parity` CLI verifies licensed input hashes before engine startup,
