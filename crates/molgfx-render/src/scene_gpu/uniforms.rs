@@ -166,7 +166,10 @@ impl FrameUniforms {
             viewport: [w, h, 1.0 / w.max(1.0), 1.0 / h.max(1.0)],
             temporal: [
                 if history_valid { 1.0 } else { 0.0 },
-                if temporal.quality { 1.0 } else { 0.0 },
+                f32::from(crate::engine::occlusion_rays(
+                    temporal.quality,
+                    temporal.publication,
+                )),
                 if temporal.publication { 1.0 } else { 0.0 },
                 f32::from(crate::fallback(
                     u16::try_from(temporal.sample_index.min(u32::from(u16::MAX))),

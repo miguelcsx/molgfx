@@ -73,6 +73,40 @@ class SessionTests(unittest.TestCase):
         self.assertIs(session.scene, scene)
         self.assertEqual(len(json.loads(scene.to_json())["representations"]), 1)
 
+    def test_assembly_unit_cell_is_scene_state_and_undoable(self):
+        session = Session(structure())
+        command = (
+            'assembly {"structures":[1],"instances":[],"unit_cell":'
+            '{"lengths":[10.0,11.0,12.0],"angles_degrees":[90.0,90.0,90.0],'
+            '"origin":[0.0,0.0,0.0]}}'
+        )
+        session.execute(command)
+        self.assertEqual(json.loads(session.scene.to_json())["assembly"]["structures"], [1])
+        session.execute("undo")
+        self.assertIsNone(json.loads(session.scene.to_json())["assembly"])
+
+    def test_removing_an_assembly_restores_its_exact_state_on_undo(self):
+        session = Session(structure())
+        assembly = {
+            "structures": [1],
+            "instances": [],
+            "unit_cell": {
+                "lengths": [10.0, 11.0, 12.0],
+                "angles_degrees": [80.0, 95.0, 105.0],
+                "origin": [1.0, 2.0, 3.0],
+            },
+        }
+        session.execute("assembly " + json.dumps(assembly))
+        clear = Command.from_json(
+            json.dumps({"command": "assembly", "assembly": None})
+        )
+        session.execute(Command.parse(str(clear)))
+        self.assertIsNone(json.loads(session.scene.to_json())["assembly"])
+        session.undo()
+        self.assertEqual(json.loads(session.scene.to_json())["assembly"], assembly)
+        session.redo()
+        self.assertIsNone(json.loads(session.scene.to_json())["assembly"])
+
     def test_show_is_idempotent(self):
         session = Session(structure())
         session.execute("show cartoon, protein")

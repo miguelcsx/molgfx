@@ -1,7 +1,8 @@
 //! Declarative overlay scene items whose bulk data stays in runtime bindings.
 
 use crate::id::{
-    AnnotationId, EllipsoidId, InteractionId, MeasurementId, StructureId, TrajectoryId, VolumeId,
+    AnnotationId, EllipsoidId, InteractionId, MeasurementId, PlaneId, StructureId, TrajectoryId,
+    VolumeId,
 };
 use crate::representation::Selection;
 use crate::representation::private::Sealed;
@@ -16,8 +17,10 @@ mod tests;
 pub(crate) mod bindings;
 mod builders;
 pub(crate) mod lower;
+mod lower_guides;
 #[cfg(test)]
 mod lower_tests;
+mod planes;
 mod surfaces;
 mod validation;
 pub(crate) use bindings::OverlayBindings;
@@ -25,6 +28,7 @@ pub use bindings::{
     OverlayHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding, VolumeStatistics,
 };
 pub use builders::{annotation, density, ellipsoid, interaction, measurement, trajectory};
+pub use planes::PlaneSpec;
 pub use surfaces::{
     AssemblyInstance, AssemblySpec, FitResult, MovieExportRequest, UnitCellSpec, ValidationFinding,
 };
@@ -354,6 +358,16 @@ impl SceneItem for EllipsoidSpec {
 
     fn add_to(self, scene: &mut Scene) -> Result<Self::Id, Error> {
         scene.insert_ellipsoids(self)
+    }
+}
+
+impl Sealed for PlaneSpec {}
+
+impl SceneItem for PlaneSpec {
+    type Id = PlaneId;
+
+    fn add_to(self, scene: &mut Scene) -> Result<Self::Id, Error> {
+        scene.insert_plane(self)
     }
 }
 

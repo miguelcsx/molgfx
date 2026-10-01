@@ -399,8 +399,12 @@ pub struct OverlayHandles {
     /// Structures holding a resident trajectory frame pair.
     pub trajectories: usize,
     /// Per-atom anisotropic-displacement ellipsoid overlays, with their
-    /// emitted primitive counts.
+    /// Number of analytic anisotropic ellipsoid primitives emitted.
     pub ellipsoids: usize,
+    /// Analytic guide segments emitted for caller-authored planes.
+    pub plane_guides: usize,
+    /// Analytic guide segments emitted for crystallographic unit cells.
+    pub unit_cell_guides: usize,
 }
 
 /// Whether two coordinate triples are bit-identical.

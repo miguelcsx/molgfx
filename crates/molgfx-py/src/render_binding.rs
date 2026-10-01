@@ -66,6 +66,11 @@ impl PyImage {
     fn height(&self) -> u32 {
         self.0.height()
     }
+    fn quality_json(&self) -> PyResult<String> {
+        serde_json::to_string(self.0.quality())
+            .map_err(|cause| crate::binding::MolgfxError::new_err(cause.to_string()))
+    }
+
     fn pixels<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, self.0.pixels())
     }

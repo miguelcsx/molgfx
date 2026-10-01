@@ -77,6 +77,11 @@ pub(crate) fn apply(candidate: &mut SceneSpec, operation: &PatchOperation) -> Re
         PatchOperation::RemoveEllipsoids { id } => {
             remove_existing(&mut candidate.ellipsoids, id)?;
         }
+        PatchOperation::AddPlane { id, spec } => {
+            spec.validate(candidate)?;
+            insert_unique(&mut candidate.planes, *id, *spec, "plane")?;
+        }
+        PatchOperation::RemovePlane { id } => remove_existing(&mut candidate.planes, id)?,
         _ => return Ok(false),
     }
     Ok(true)

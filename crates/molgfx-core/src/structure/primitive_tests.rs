@@ -1,19 +1,7 @@
 use super::*;
-use crate::fixture;
 use crate::{AnnotationAnchor, GuideStyle, MarkerStyle, Scene, ValidationKind, ValidationMarker};
+use crate::{CrystalCell, fixture};
 use molgfx_math::{Mat4, Quat, Rgba8, Vec3};
-
-#[test]
-fn a_triclinic_cell_produces_finite_corners_and_edges() {
-    let cell = match CrystalCell::new([10.0, 11.0, 12.0], [80.0, 90.0, 100.0]) {
-        Ok(cell) => cell,
-        Err(error) => panic!("cell validates: {error}"),
-    };
-    assert_eq!(cell.corners().len(), 8);
-    assert!(cell.corners().iter().all(|corner| corner.is_finite()));
-    assert_eq!(cell.edges().len(), 12);
-    assert!(cell.edges().iter().all(|(start, end)| start != end));
-}
 
 #[test]
 fn a_singular_cell_and_tensor_are_rejected() {

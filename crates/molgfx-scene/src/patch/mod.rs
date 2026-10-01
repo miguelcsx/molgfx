@@ -12,12 +12,12 @@ mod tests;
 use crate::appearance::AppearanceRuleSpec;
 use crate::color::ColorSpec;
 use crate::id::{
-    AnnotationId, AppearanceRuleId, EllipsoidId, InteractionId, MeasurementId, RepresentationId,
-    StructureId, TrajectoryId, VolumeId,
+    AnnotationId, AppearanceRuleId, EllipsoidId, InteractionId, MeasurementId, PlaneId,
+    RepresentationId, StructureId, TrajectoryId, VolumeId,
 };
 use crate::overlay::{
     AnnotationSpec, AssemblySpec, EllipsoidSpec, FitResult, InteractionSpec, MeasurementSpec,
-    MovieExportRequest, TrajectorySpec, ValidationFinding, VolumeSpec,
+    MovieExportRequest, PlaneSpec, TrajectorySpec, ValidationFinding, VolumeSpec,
 };
 use crate::representation::Selection;
 use crate::representation::form::RepresentationSpec;
@@ -126,6 +126,18 @@ pub enum PatchOperation {
     RemoveEllipsoids {
         /// Overlay to remove.
         id: EllipsoidId,
+    },
+    /// Inserts a caller-authored planar guide.
+    AddPlane {
+        /// Stable identity assigned by the authoring scene.
+        id: PlaneId,
+        /// Immutable planar guide value.
+        spec: PlaneSpec,
+    },
+    /// Removes a caller-authored planar guide.
+    RemovePlane {
+        /// Planar guide to remove.
+        id: PlaneId,
     },
     /// Removes a representation.
     RemoveRepresentation {

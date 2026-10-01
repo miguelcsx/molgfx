@@ -114,6 +114,8 @@ pub(super) fn parse(source: &str, span: Span) -> Result<Command, CommandError> {
                 _ => Command::Redo,
             })
         }
+        "assembly" => assembly(source, verb.span, span),
+        "plane" => plane(source, verb.span, span),
         "volume" => volume(source, verb.span, span),
         unknown => Err(CommandError::new(
             ErrorKind::Syntax,
@@ -122,6 +124,27 @@ pub(super) fn parse(source: &str, span: Span) -> Result<Command, CommandError> {
         .at(verb.span)
         .suggest(registry::suggest(unknown, registry::verb_names()))),
     }
+}
+
+/// Parses an assembly JSON object, or `null` to remove the assembly.
+fn assembly(source: &str, verb: Span, statement: Span) -> Result<Command, CommandError> {
+    let payload = source[verb.end..statement.end].trim();
+    if payload.is_empty() {
+        return Err(syntax("assembly needs a JSON specification or null", verb));
+    }
+    let assembly = serde_json::from_str(payload)
+        .map_err(|error| syntax(format!("invalid assembly specification: {error}"), verb))?;
+    Ok(Command::Assembly { assembly })
+}
+/// Parses a planar-guide JSON object.
+fn plane(source: &str, verb: Span, statement: Span) -> Result<Command, CommandError> {
+    let payload = source[verb.end..statement.end].trim();
+    if payload.is_empty() {
+        return Err(syntax("plane needs a JSON plane specification", verb));
+    }
+    let plane = serde_json::from_str(payload)
+        .map_err(|error| syntax(format!("invalid plane specification: {error}"), verb))?;
+    Ok(Command::Plane { plane })
 }
 
 /// `volume {"source": {...}, "dimensions": [...], ...}`.

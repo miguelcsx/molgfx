@@ -45,6 +45,10 @@ semantic_id!(
     "Identity of a per-atom anisotropic-displacement ellipsoid overlay in one scene."
 );
 semantic_id!(
+    PlaneId,
+    "Identity of a caller-authored planar guide in one scene."
+);
+semantic_id!(
     AppearanceRuleId,
     "Identity of a selection-scoped appearance rule in one scene. A higher identity takes precedence where rules overlap."
 );

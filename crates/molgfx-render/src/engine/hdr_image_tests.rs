@@ -19,6 +19,8 @@ fn hdr_capture_returns_tightly_packed_native_half_pixels() {
     };
     assert_eq!((image.width, image.height), (3, 2));
     assert_eq!(image.rgba16f.len(), 3 * 2 * 8);
+    assert!(image.quality().complete());
+    assert_eq!(image.quality().extent, [3, 2]);
     let Ok(textures) = engine.device.log.textures.lock() else {
         panic!("texture log locks")
     };
@@ -66,6 +68,7 @@ fn hdr_exr_rejects_dimensions_that_do_not_match_pixels() {
         width: 2,
         height: 2,
         rgba16f: Vec::new(),
+        quality: engine().effective_quality(64, 0),
     };
     assert!(image.write_exr(Vec::new()).is_err());
 }

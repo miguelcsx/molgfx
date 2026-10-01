@@ -24,44 +24,33 @@ impl UnitCellSpec {
     ///
     /// # Errors
     ///
-    /// Returns an error when a length or angle is non-finite or outside its
-    /// valid range.
+    /// Returns an error for non-finite, collapsed or geometrically impossible cells.
     pub fn new(lengths: [f32; 3], angles_degrees: [f32; 3]) -> Result<Self, Error> {
-        let valid_lengths = lengths
-            .iter()
-            .all(|value| value.is_finite() && *value > 0.0);
-        let valid_angles = angles_degrees
-            .iter()
-            .all(|value| value.is_finite() && *value > 0.0 && *value < 180.0);
-        if !valid_lengths || !valid_angles {
-            return Err(Error::InvalidSpec(
-                "unit-cell parameters are invalid".to_owned(),
-            ));
-        }
-        Ok(Self {
+        let cell = Self {
             lengths,
             angles_degrees,
             origin: [0.0; 3],
-        })
+        };
+        cell.validate()?;
+        Ok(cell)
     }
 
     /// Sets the Cartesian origin.
     ///
     /// # Errors
     ///
-    /// Returns an error when the origin is not finite.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the origin is not finite.
+    /// Returns an error if the translated boundary is non-finite or collapsed.
     pub fn with_origin(mut self, origin: [f32; 3]) -> Result<Self, Error> {
-        if origin.iter().any(|value| !value.is_finite()) {
-            return Err(Error::InvalidSpec(
-                "unit-cell origin must be finite".to_owned(),
-            ));
-        }
         self.origin = origin;
+        self.validate()?;
         Ok(self)
+    }
+
+    pub(crate) fn validate(&self) -> Result<(), Error> {
+        molgfx_core::CrystalCell::new(self.lengths, self.angles_degrees)
+            .and_then(|cell| cell.with_origin(molgfx_math::Vec3::from_array(self.origin)))
+            .map(|_| ())
+            .map_err(|error| Error::InvalidSpec(error.to_string()))
     }
 }
 
@@ -131,6 +120,9 @@ impl AssemblySpec {
     ///
     /// Returns an error when the assembly spec is invalid.
     pub fn validate(&self) -> Result<(), Error> {
+        if let Some(cell) = self.unit_cell {
+            cell.validate()?;
+        }
         let mut ids = std::collections::BTreeSet::new();
         let mut structures = std::collections::BTreeSet::new();
         for structure in &self.structures {

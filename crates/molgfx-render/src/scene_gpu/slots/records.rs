@@ -40,7 +40,12 @@ impl<D: Device> GpuSlot<D> {
     }
 
     /// The level-of-detail mode the cull shader reads for this slot.
-    pub(crate) const fn lod_mode(&self) -> u32 {
-        crate::scene_gpu::slot_types::lod_mode(self.atom_count, self.bond_count, self.kind)
+    pub(crate) const fn lod_mode(&self, detail: crate::scene_gpu::detail::TierDetail) -> u32 {
+        crate::scene_gpu::slot_types::lod_mode(
+            self.atom_count,
+            self.bond_count,
+            self.kind,
+            detail.lod_enabled,
+        )
     }
 }

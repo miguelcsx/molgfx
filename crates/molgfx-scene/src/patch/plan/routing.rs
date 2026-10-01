@@ -22,9 +22,11 @@ pub(super) fn is_structural(operation: &PatchOperation) -> bool {
             | PatchOperation::RemoveInteraction { .. }
             | PatchOperation::AddTrajectory { .. }
             | PatchOperation::RemoveTrajectory { .. }
-            | PatchOperation::AddEllipsoids { .. }
-            | PatchOperation::RemoveEllipsoids { .. }
-            // Domain values are retained in the scene extension namespace.
+ | PatchOperation::AddEllipsoids { .. }
+ | PatchOperation::RemoveEllipsoids { .. }
+ | PatchOperation::AddPlane { .. }
+ | PatchOperation::RemovePlane { .. }
+ // Domain values are retained in the scene extension namespace.
             // They still participate in full scene resolution so history and
             // renderer projections observe one atomic semantic transition.
             | PatchOperation::SetAssembly { .. }

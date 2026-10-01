@@ -88,19 +88,20 @@ fn a_single_slow_frame_is_reset_away_and_never_moves_the_tier() {
 fn a_publication_controller_holds_a_constant_tier_under_any_load() {
     let mut quality = AdaptiveQuality::new(AdaptiveQualityConfig::publication(), true);
     assert!(!quality.enabled());
+    quality.set_atom_count(1_500_000);
     for _ in 0..500 {
         quality.observe(50 * BUDGET_NS);
     }
-    assert_eq!(quality.tier(), QualityTier::Standard);
+    assert_eq!(quality.tier(), QualityTier::High);
     assert_eq!(quality.smoothed_ns(), 0);
     for _ in 0..500 {
         quality.observe(0);
     }
-    assert_eq!(quality.tier(), QualityTier::Standard);
+    assert_eq!(quality.tier(), QualityTier::High);
 }
 
 #[test]
-fn entering_publication_during_an_adaptive_run_holds_the_standard_tier() {
+fn entering_publication_during_an_adaptive_run_restores_maximum_detail() {
     let mut quality = controller();
     for _ in 0..200 {
         quality.observe(2 * BUDGET_NS);
@@ -108,28 +109,41 @@ fn entering_publication_during_an_adaptive_run_holds_the_standard_tier() {
     assert_eq!(quality.tier(), QualityTier::Minimal);
     quality.set_publication(true);
     assert!(!quality.enabled());
-    assert_eq!(quality.tier(), QualityTier::Standard);
+    assert_eq!(quality.tier(), QualityTier::High);
     for _ in 0..200 {
         quality.observe(8 * BUDGET_NS);
     }
-    assert_eq!(quality.tier(), QualityTier::Standard);
+    assert_eq!(quality.tier(), QualityTier::High);
 }
 
 #[test]
-fn a_disabled_controller_never_adapts_but_still_reports_its_tier() {
-    let mut quality = AdaptiveQuality::new(
-        AdaptiveQualityConfig {
-            target_fps: 60,
-            enabled: false,
-        },
-        false,
-    );
-    assert!(!quality.enabled());
-    let start = quality.tier();
-    for _ in 0..500 {
-        quality.observe(10 * BUDGET_NS);
+fn disabled_high_quality_never_degrades_with_scene_size_or_frame_time() {
+    let mut quality = AdaptiveQuality::new(AdaptiveQualityConfig::highest_fixed(120), false);
+    for count in [0, 10_001, 100_001, 500_001, 1_500_000, u64::MAX, 1] {
+        quality.set_atom_count(count);
+        for frame_ns in [0, 1, 50 * BUDGET_NS, u64::MAX] {
+            for _ in 0..500 {
+                assert_eq!(quality.observe(frame_ns), QualityTier::High);
+            }
+        }
+        assert_eq!(quality.tier(), QualityTier::High);
+        assert_eq!(quality.smoothed_ns(), 0);
     }
-    assert_eq!(quality.tier(), start, "a disabled loop never moves");
+}
+
+#[test]
+fn leaving_publication_restores_the_requested_fixed_tier() {
+    for tier in [QualityTier::Reduced, QualityTier::High] {
+        let mut quality = AdaptiveQuality::new(AdaptiveQualityConfig::fixed(120, tier), false);
+        quality.set_publication(true);
+        assert_eq!(quality.tier(), QualityTier::High);
+        quality.set_publication(false);
+        quality.set_atom_count(1_500_000);
+        for _ in 0..500 {
+            assert_eq!(quality.observe(u64::MAX), tier);
+            assert_eq!(quality.observe(1), tier);
+        }
+    }
 }
 
 #[test]
@@ -170,6 +184,7 @@ fn an_impossible_refresh_rate_is_clamped_instead_of_dividing_by_zero() {
         AdaptiveQualityConfig {
             target_fps: 0,
             enabled: true,
+            initial_tier: QualityTier::Reduced,
         },
         false,
     );

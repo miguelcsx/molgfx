@@ -85,6 +85,8 @@ pub(crate) fn apply_operation(
         | PatchOperation::AddTrajectory { .. }
         | PatchOperation::AddEllipsoids { .. }
         | PatchOperation::RemoveEllipsoids { .. }
+        | PatchOperation::AddPlane { .. }
+        | PatchOperation::RemovePlane { .. }
         | PatchOperation::SetAssembly { .. }
         | PatchOperation::SetFitting { .. }
         | PatchOperation::SetValidation { .. }
@@ -103,21 +105,14 @@ fn apply_domain_operation(
     candidate: &mut SceneSpec,
     operation: &PatchOperation,
 ) -> Result<bool, Error> {
-    let (key, value) = match operation {
-        PatchOperation::SetAssembly { assembly } => {
-            if let Some(value) = assembly {
-                value.validate()?;
-                (
-                    "molgfx.assembly",
-                    Some(
-                        serde_json::to_value(value)
-                            .map_err(|error| Error::InvalidSpec(error.to_string()))?,
-                    ),
-                )
-            } else {
-                ("molgfx.assembly", None)
-            }
+    if let PatchOperation::SetAssembly { assembly } = operation {
+        if let Some(value) = assembly {
+            value.validate()?;
         }
+        candidate.assembly.clone_from(assembly);
+        return Ok(true);
+    }
+    let (key, value) = match operation {
         PatchOperation::SetFitting { fitting } => {
             if let Some(value) = fitting {
                 value.validate()?;
@@ -319,6 +314,8 @@ pub(crate) fn validate_touched_domains(
             | PatchOperation::RemoveTrajectory { .. }
             | PatchOperation::AddEllipsoids { .. }
             | PatchOperation::RemoveEllipsoids { .. }
+            | PatchOperation::AddPlane { .. }
+            | PatchOperation::RemovePlane { .. }
             | PatchOperation::SetVisibility { .. }
             | PatchOperation::SetOpacity { .. }
             | PatchOperation::SetVisual { .. }

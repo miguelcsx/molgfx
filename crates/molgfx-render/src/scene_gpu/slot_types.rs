@@ -296,6 +296,7 @@ pub(crate) struct CullPolicy {
     pub(crate) records: super::record_cache::RecordKey,
     pub(crate) kind: RepresentationKind,
     pub(crate) visual_enabled: bool,
+    pub(crate) lod_enabled: bool,
     /// Model-space length past which a stretched bond is culled.
     pub(crate) bond_break_length: f32,
 }
@@ -305,8 +306,13 @@ pub(crate) struct CullPolicy {
 /// Two representations sharing records share this, because it depends only on
 /// the counts and the drawn form.
 #[must_use]
-pub(crate) const fn lod_mode(atoms: u32, bonds: u32, kind: RepresentationKind) -> u32 {
-    if atoms < LOD_ATOM_THRESHOLD {
+pub(crate) const fn lod_mode(
+    atoms: u32,
+    bonds: u32,
+    kind: RepresentationKind,
+    enabled: bool,
+) -> u32 {
+    if !enabled || atoms < LOD_ATOM_THRESHOLD {
         0
     } else if matches!(kind, RepresentationKind::Points)
         && bonds == 0

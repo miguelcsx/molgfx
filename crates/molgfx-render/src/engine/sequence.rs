@@ -9,6 +9,16 @@ use molgfx_math::Camera;
 use std::collections::VecDeque;
 use std::fmt;
 
+/// Exposure budget for every independently authored sequence output.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum SequenceExposure {
+    /// Reset history and complete the selected publication sample budget.
+    #[default]
+    Converged,
+    /// Submit one sample, retaining only compatible temporal history.
+    Progressive,
+}
+
 /// Fixed output and readback limits for one deterministic frame sequence.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct SequenceConfig {
@@ -18,9 +28,18 @@ pub struct SequenceConfig {
     pub timebase_nanoseconds: u64,
     /// Bounded number of submitted frames awaiting readback.
     pub max_in_flight: u8,
+    /// Converged output by default; progressive rendering must be explicit.
+    pub exposure: SequenceExposure,
 }
 
 impl SequenceConfig {
+    /// Selects the exposure policy without changing queue capacities or timing.
+    #[must_use]
+    pub const fn with_exposure(mut self, exposure: SequenceExposure) -> Self {
+        self.exposure = exposure;
+        self
+    }
+
     /// Creates a nanosecond timebase for a fixed integer frame rate.
     ///
     /// # Errors
@@ -42,6 +61,7 @@ impl SequenceConfig {
             image,
             timebase_nanoseconds,
             max_in_flight,
+            exposure: SequenceExposure::Converged,
         };
         config.validate()?;
         Ok(config)
@@ -72,7 +92,7 @@ pub struct FrameTicket {
 }
 
 /// One completed, ordered sequence frame.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct SequenceFrame {
     /// Submission identity retained through readback.
     pub ticket: FrameTicket,
@@ -237,7 +257,10 @@ impl<D: Device> SequenceRenderer<D> {
             scene,
             camera,
             self.config.image,
-            ImagePurpose::SequenceFrame,
+            match self.config.exposure {
+                SequenceExposure::Converged => ImagePurpose::Publication,
+                SequenceExposure::Progressive => ImagePurpose::ProgressiveSequence,
+            },
         )?;
         self.pending.push_back(PendingSequence { ticket, image });
         self.last_timestamp = Some(timestamp);

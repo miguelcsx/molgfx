@@ -20,6 +20,9 @@ impl<D: Device> GpuScene<D> {
         queue: &D::Queue,
         uniforms: &FrameUniforms,
     ) -> Result<(), RenderError> {
+        if let Some(arena) = &mut self.exposure_uniforms {
+            arena.restore(&mut self.group0);
+        }
         let bytes = bytemuck::bytes_of(uniforms);
         let reservation = self
             .residency
@@ -44,11 +47,11 @@ impl<D: Device> GpuScene<D> {
             let _cancelled = self.residency.uploads_mut().cancel(reservation.ticket());
             return Err(residency_error("frame command scratch exhausted"));
         }
-        let first_upload = self.residency_machine.state(self.frame_residency_ticket)
+        let first_upload = self.residency_machine.state(self.frame_residency.ticket)
             == Some(ResidencyState::ReadyCpu);
         if first_upload {
             self.residency_machine
-                .uploading(self.frame_residency_ticket)
+                .uploading(self.frame_residency.ticket)
                 .map_err(|_| residency_error("frame uniform lifecycle rejected upload"))?;
         }
         let start = command.offset;
@@ -59,8 +62,9 @@ impl<D: Device> GpuScene<D> {
             return Err(residency_error("frame uniform staging range is invalid"));
         };
         queue.write_buffer(&self.frame_uniforms, 0, staged);
-        self.upload_fence = self.upload_fence.wrapping_add(1).max(1);
-        let fence = FenceValue(self.upload_fence);
+        self.frame_residency.upload_fence =
+            self.frame_residency.upload_fence.wrapping_add(1).max(1);
+        let fence = FenceValue(self.frame_residency.upload_fence);
         self.residency
             .uploads_mut()
             .submit(command.ticket, fence)
@@ -71,7 +75,7 @@ impl<D: Device> GpuScene<D> {
         }
         if first_upload {
             self.residency_machine
-                .resident(self.frame_residency_ticket)
+                .resident(self.frame_residency.ticket)
                 .map_err(|_| residency_error("frame uniform lifecycle rejected residency"))?;
         }
         Ok(())
@@ -79,6 +83,10 @@ impl<D: Device> GpuScene<D> {
 
     pub(crate) fn residency_metrics(&self) -> ResidencyMetrics {
         let mut metrics = self.residency.metrics();
+        metrics.exposure_upload_bytes = self
+            .exposure_uniforms
+            .as_ref()
+            .map_or(0, |arena| arena.uploaded_bytes);
         metrics.machine = self.residency_machine.metrics();
         metrics.machine.resident_resources = metrics
             .machine

@@ -1,39 +1,37 @@
-//! Capability-gated whole-graph GPU and CPU frame timing.
+//! Completed-output latency and capability-gated whole-graph GPU timing.
 
 use super::image::ImagePurpose;
-use super::{Engine, ImageConfig, MotionBlur, QualityTier, TemporalOptions};
+use super::{Engine, ImageConfig, QualityTier};
 use crate::ResidencyMetrics;
 use crate::error::RenderError;
 use molgfx_core::Scene;
 use molgfx_gpu::{
-    BufferDesc, BufferUsage, CommandEncoder as _, Device, Queue as _, TextureDesc, TextureUsage,
-    TextureViewDesc,
+    CommandEncoder as _, Device, Queue as _, TextureDesc, TextureUsage, TextureViewDesc,
 };
 use molgfx_math::Camera;
 // Uses the host monotonic clock on both native and browser targets.
 use web_time::Instant;
 
-const QUERY_BYTES: u64 = 2 * std::mem::size_of::<u64>() as u64;
-
 /// One measured frame. GPU time covers the complete scheduled render graph;
 /// CPU time covers scene synchronization, graph recording, and submission.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct FrameTiming {
-    /// Device execution time in nanoseconds.
-    pub gpu_ns: u64,
-    /// Whether the timestamp query readback resolved this duration.
-    ///
-    /// A zero duration is evidence only when this is `true`. Backends may
-    /// expose timestamp queries while returning an unresolved zero sentinel.
-    pub gpu_timing_resolved: bool,
+    /// GPU interval or an explicit timestamp availability reason.
+    pub gpu_timing: super::GpuTiming,
     /// Host frame-construction time in nanoseconds.
     pub cpu_ns: u64,
+    /// Disjoint elapsed host intervals; waiting is not CPU utilization.
+    pub cpu_stages: super::CpuStages,
     /// End-to-end blocking profile duration, including device completion and
     /// timestamp readback. This is the conservative frame-budget metric when
     /// an adapter reports unusable timestamp values.
     pub frame_ns: u64,
     /// Real residency, upload, command and backpressure counters at completion.
     pub residency: ResidencyMetrics,
+    /// Selected settings and exposure completion observed with this timing.
+    pub quality: super::EffectiveQuality,
+    /// Actual pass capture coverage, including explicit bounded overflow.
+    pub pass_coverage: super::PassTimingCoverage,
 }
 
 impl FrameTiming {
@@ -46,14 +44,13 @@ impl FrameTiming {
 
 #[derive(Debug)]
 pub(crate) struct GpuProfiler<D: Device> {
-    queries: D::QuerySet,
-    resolve: D::Buffer,
-    readback: D::Buffer,
+    passes: super::pass_profiling::PassProfiler<D>,
+    completion: molgfx_gpu::FenceValue,
+    cpu_stages: super::CpuStages,
     target: Option<D::Texture>,
     target_view: Option<D::TextureView>,
     target_size: (u32, u32),
     target_format: molgfx_gpu::TextureFormat,
-    pending_start: Option<u64>,
 }
 
 impl<D: Device> GpuProfiler<D> {
@@ -61,26 +58,15 @@ impl<D: Device> GpuProfiler<D> {
         device: &D,
         target_format: molgfx_gpu::TextureFormat,
     ) -> Result<Option<Self>, RenderError> {
-        if !device.capabilities().timestamp_queries() {
-            return Ok(None);
-        }
+        let passes = super::pass_profiling::PassProfiler::new(device)?;
         Ok(Some(Self {
-            queries: device.create_timestamp_query_set(2)?,
-            resolve: device.create_buffer(&BufferDesc {
-                label: "frame timestamp resolve",
-                size: QUERY_BYTES,
-                usage: BufferUsage::QUERY_RESOLVE.union(BufferUsage::COPY_SRC),
-            })?,
-            readback: device.create_buffer(&BufferDesc {
-                label: "frame timestamp readback",
-                size: QUERY_BYTES,
-                usage: BufferUsage::COPY_DST.union(BufferUsage::MAP_READ),
-            })?,
+            passes,
+            completion: molgfx_gpu::FenceValue::default(),
+            cpu_stages: super::CpuStages::default(),
             target: None,
             target_view: None,
             target_size: (0, 0),
             target_format,
-            pending_start: None,
         }))
     }
 
@@ -107,101 +93,73 @@ impl<D: Device> GpuProfiler<D> {
         &mut self,
         device: &D,
         queue: &D::Queue,
-    ) -> Result<DecodedTiming, RenderError> {
-        let data = queue
-            .read_buffer_async(device, &self.readback, 0, QUERY_BYTES)
-            .await?;
-        self.decode_timing(&data, queue.timestamp_period())
+    ) -> Result<super::GpuTiming, RenderError> {
+        let wait_started = Instant::now();
+        queue.wait_fence(device, self.completion).await?;
+        self.cpu_stages.completion_wait_ns = self
+            .cpu_stages
+            .completion_wait_ns
+            .saturating_add(duration_ns(wait_started.elapsed()));
+        let read_started = Instant::now();
+        if let Some(completion) = self.passes.submit_resolve(device, queue) {
+            // Retain the second submission before suspension, just like the
+            // exposure fence, so cancellation cannot make scratch reusable.
+            self.completion = completion;
+            queue.wait_fence(device, completion).await?;
+        }
+        let timing = self.passes.read_async(device, queue).await;
+        self.cpu_stages.timestamp_readback_ns = duration_ns(read_started.elapsed());
+        timing
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn read_timing(&mut self, device: &D, queue: &D::Queue) -> Result<DecodedTiming, RenderError> {
-        let data = queue.read_buffer_blocking(device, &self.readback, 0, QUERY_BYTES)?;
-        self.decode_timing(&data, queue.timestamp_period())
+    fn read_timing(
+        &mut self,
+        device: &D,
+        queue: &D::Queue,
+    ) -> Result<super::GpuTiming, RenderError> {
+        let wait_started = Instant::now();
+        queue.wait_fence_blocking(device, self.completion)?;
+        self.cpu_stages.completion_wait_ns = self
+            .cpu_stages
+            .completion_wait_ns
+            .saturating_add(duration_ns(wait_started.elapsed()));
+        let read_started = Instant::now();
+        if let Some(completion) = self.passes.submit_resolve(device, queue) {
+            self.completion = completion;
+            queue.wait_fence_blocking(device, completion)?;
+        }
+        let timing = self.passes.read(device, queue);
+        self.cpu_stages.timestamp_readback_ns = duration_ns(read_started.elapsed());
+        timing
     }
 
-    fn decode_timing(
-        &mut self,
-        data: &[u8],
-        timestamp_period: f32,
-    ) -> Result<DecodedTiming, RenderError> {
-        let Some(start) = read_u64(data, 0) else {
-            return Err(molgfx_gpu::GpuError::DeviceLost.into());
+    #[cfg(test)]
+    fn decode_timing(data: &[u8], period: f32) -> Result<super::GpuTiming, RenderError> {
+        let (Some(start), Some(end)) = (read_u64(data, 0), read_u64(data, 8)) else {
+            return Ok(super::GpuTiming::Malformed);
         };
-        let Some(end) = read_u64(data, std::mem::size_of::<u64>()) else {
-            return Err(molgfx_gpu::GpuError::DeviceLost.into());
-        };
-        let previous_start = self.pending_start.replace(start);
-        let Some(ticks) = timestamp_delta(start, end, previous_start) else {
-            return Ok(DecodedTiming::unresolved());
-        };
-        let ticks = crate::fallback(u32::try_from(ticks), u32::MAX);
-        let seconds = f64::from(ticks) * f64::from(timestamp_period) / 1_000_000_000.0;
-        let duration = std::time::Duration::try_from_secs_f64(seconds)
-            .map_err(|_| molgfx_gpu::GpuError::DeviceLost)?;
-        Ok(DecodedTiming {
-            nanoseconds: duration_ns(duration),
-            resolved: true,
-        })
+        super::GpuTiming::from_timestamps(start, end, period)
     }
 }
 
 impl<D: Device> Engine<D> {
-    /// Measures sustained native throughput with several frames in flight and
-    /// one completion wait. The returned durations are per-frame averages;
-    /// unlike [`Self::profile_frame`], the end-to-end value does not charge a
-    /// blocking buffer map to every frame.
-    ///
-    /// # Errors
-    ///
-    /// Returns a capability error when timestamps are unavailable, or a typed
-    /// rendering/device error.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn profile_frame_batch(
-        &mut self,
-        scene: &Scene,
-        camera: &Camera,
-        config: ImageConfig,
-        frames: std::num::NonZeroU32,
-    ) -> Result<FrameTiming, RenderError> {
-        let frame_start = Instant::now();
-        let Some(mut profiler) = self.profiler.take() else {
-            return Err(molgfx_gpu::GpuError::Capability {
-                name: "timestamp queries",
-            }
-            .into());
-        };
-        let mut cpu_ns = 0_u64;
-        let result = (|| {
-            for _ in 0..frames.get() {
-                let (cpu_start, quality) = self.prepare_profile(scene, camera, config)?;
-                cpu_ns = cpu_ns.saturating_add(self.submit_profile(
-                    &mut profiler,
-                    cpu_start,
-                    config,
-                    quality,
-                )?);
-            }
-            let gpu = profiler.read_timing(&self.device, &self.queue)?;
-            let count = u64::from(frames.get());
-            Ok(FrameTiming {
-                gpu_ns: gpu.nanoseconds,
-                gpu_timing_resolved: gpu.resolved,
-                cpu_ns: cpu_ns / count,
-                frame_ns: duration_ns(frame_start.elapsed()) / count,
-                residency: self.scene_gpu.residency_metrics(),
-            })
-        })();
-        self.profiler = Some(profiler);
-        result
+    /// Actual passes from the latest completed profile; borrowed until the next profile.
+    #[must_use]
+    pub fn last_pass_timings(&self) -> &[super::PassTiming] {
+        self.profiler
+            .as_ref()
+            .map_or(&[], |profiler| profiler.passes.timings())
     }
-
     /// Asynchronously measures one headless frame using timestamp queries.
     ///
+    /// Dropping the future retains its storage and completion fence. The next
+    /// profile waits before reusing the target or timestamp capture.
+    ///
     /// # Errors
     ///
-    /// Returns a capability error when the adapter exposes no timestamps,
-    /// or a typed rendering/device error.
+    /// Returns a typed rendering/device error. Missing timestamps are reported
+    /// in `gpu_timing` without preventing completed-output measurement.
     pub async fn profile_frame_async(
         &mut self,
         scene: &Scene,
@@ -209,28 +167,41 @@ impl<D: Device> Engine<D> {
         config: ImageConfig,
     ) -> Result<FrameTiming, RenderError> {
         let frame_start = Instant::now();
+        // A cancelled profile still owns a submission. Do not overwrite its
+        // queries, readback storage or target until that submission completes.
+        let previous_wait_started = Instant::now();
+        self.wait_profile_completion_async().await?;
+        let previous_wait_ns = duration_ns(previous_wait_started.elapsed());
         let (cpu_start, quality) = self.prepare_profile(scene, camera, config)?;
         let Some(mut profiler) = self.profiler.take() else {
-            return Err(molgfx_gpu::GpuError::Capability {
-                name: "timestamp queries",
-            }
-            .into());
+            return Err(molgfx_gpu::GpuError::DeviceLost.into());
         };
-        let result = match self.submit_profile(&mut profiler, cpu_start, config, quality) {
-            Ok(cpu_ns) => profiler
-                .read_timing_async(&self.device, &self.queue)
-                .await
-                .map(|gpu| FrameTiming {
-                    gpu_ns: gpu.nanoseconds,
-                    gpu_timing_resolved: gpu.resolved,
-                    cpu_ns,
-                    frame_ns: duration_ns(frame_start.elapsed()),
-                    residency: self.scene_gpu.residency_metrics(),
-                }),
-            Err(error) => Err(error),
+        profiler.cpu_stages = super::CpuStages {
+            completion_wait_ns: previous_wait_ns,
+            ..super::CpuStages::default()
         };
+        let submitted = self.submit_profile(&mut profiler, cpu_start, config, quality);
+        // Only synchronous recording borrows the profiler out of the engine.
+        // Every suspension point keeps persistent storage in its owner.
         self.profiler = Some(profiler);
-        result
+        let cpu_ns = submitted?;
+        let Some(profiler) = &mut self.profiler else {
+            return Err(molgfx_gpu::GpuError::DeviceLost.into());
+        };
+        let gpu = profiler
+            .read_timing_async(&self.device, &self.queue)
+            .await?;
+        let cpu_stages = profiler.cpu_stages;
+        let pass_coverage = profiler.passes.coverage();
+        Ok(FrameTiming {
+            gpu_timing: gpu,
+            cpu_ns,
+            cpu_stages,
+            frame_ns: duration_ns(frame_start.elapsed()),
+            residency: self.scene_gpu.residency_metrics(),
+            quality: self.profile_quality(),
+            pass_coverage,
+        })
     }
 
     /// Measures one headless frame using device timestamp queries. Callers
@@ -238,8 +209,8 @@ impl<D: Device> Engine<D> {
     ///
     /// # Errors
     ///
-    /// Returns a capability error when the adapter exposes no timestamps,
-    /// or a typed rendering/device error.
+    /// Returns a typed rendering/device error. Missing timestamps are reported
+    /// in `gpu_timing` without preventing completed-output measurement.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn profile_frame(
         &mut self,
@@ -248,16 +219,36 @@ impl<D: Device> Engine<D> {
         config: ImageConfig,
     ) -> Result<FrameTiming, RenderError> {
         let frame_start = Instant::now();
+        let previous_wait_started = Instant::now();
+        if let Some(profiler) = &self.profiler
+            && self.queue.completed_fence(&self.device)? < profiler.completion
+        {
+            self.queue
+                .wait_fence_blocking(&self.device, profiler.completion)?;
+        }
+        let previous_wait_ns = duration_ns(previous_wait_started.elapsed());
         let (cpu_start, quality) = self.prepare_profile(scene, camera, config)?;
         let Some(mut profiler) = self.profiler.take() else {
-            return Err(molgfx_gpu::GpuError::Capability {
-                name: "timestamp queries",
-            }
-            .into());
+            return Err(molgfx_gpu::GpuError::DeviceLost.into());
+        };
+        profiler.cpu_stages = super::CpuStages {
+            completion_wait_ns: previous_wait_ns,
+            ..super::CpuStages::default()
         };
         let result = self.profile_with(&mut profiler, cpu_start, frame_start, config, quality);
         self.profiler = Some(profiler);
         result
+    }
+
+    async fn wait_profile_completion_async(&self) -> Result<(), RenderError> {
+        if let Some(profiler) = &self.profiler
+            && self.queue.completed_fence(&self.device)? < profiler.completion
+        {
+            self.queue
+                .wait_fence(&self.device, profiler.completion)
+                .await?;
+        }
+        Ok(())
     }
 
     fn prepare_profile(
@@ -265,49 +256,22 @@ impl<D: Device> Engine<D> {
         scene: &Scene,
         camera: &Camera,
         config: ImageConfig,
-    ) -> Result<(Instant, bool), RenderError> {
+    ) -> Result<(Instant, super::exposure::Exposure), RenderError> {
         config.validate(self.device.capabilities().max_texture_dim)?;
-        self.scene_gpu.begin_frame();
         let cpu_start = Instant::now();
         self.width = config.width;
         self.height = config.height;
-        let preparation = self.prepare_image(scene, ImagePurpose::Publication)?;
-        let identity = scene.cache_identity();
-        let scene_reset = self.temporal_scene_identity.replace(identity) != Some(identity);
-        let quality = self.tier() >= QualityTier::Standard;
-        let optics = self.resolve_optics(scene, camera)?;
-        let shadow = self.shadow_bound.fit(
-            scene,
-            camera,
-            self.resolved_plan.lighting(),
-            preparation.scene_changed || preparation.rebuild,
+        let exposure = self.prepare_exposure(scene, camera, ImagePurpose::Publication)?;
+        Ok((cpu_start, exposure))
+    }
+
+    fn profile_quality(&self) -> super::EffectiveQuality {
+        let mut quality = self.effective_quality(
+            self.tier().image_samples(),
+            self.temporal.prepared_samples(),
         );
-        let uniforms = self.temporal.prepare(
-            camera,
-            &TemporalOptions {
-                extent: [self.width, self.height],
-                reset: Self::temporal_reset_required(scene_reset, preparation.rebuild),
-                quality,
-                publication: false,
-                illustration: self.resolved_plan.illustration(),
-                depth_cue: self.resolved_plan.packed_depth_cue(),
-                optics,
-                motion_blur: self
-                    .resolved_plan
-                    .motion_blur()
-                    .map_or([0.0; 4], MotionBlur::packed),
-                atmosphere: self
-                    .resolved_plan
-                    .packed_presentation(self.scene_gpu.has_translucency()),
-                lighting: self.resolved_plan.packed_lighting(),
-                shadow_view: shadow.view,
-                shadow_projection: shadow.projection,
-                shadow_view_proj: shadow.view_projection,
-            },
-        );
-        self.scene_gpu
-            .write_frame_uniforms(&self.queue, &uniforms)?;
-        Ok((cpu_start, quality))
+        quality.observe_completion();
+        quality
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -317,16 +281,18 @@ impl<D: Device> Engine<D> {
         cpu_start: Instant,
         frame_start: Instant,
         config: ImageConfig,
-        quality: bool,
+        quality: super::exposure::Exposure,
     ) -> Result<FrameTiming, RenderError> {
         let cpu_ns = self.submit_profile(profiler, cpu_start, config, quality)?;
         let gpu = profiler.read_timing(&self.device, &self.queue)?;
         Ok(FrameTiming {
-            gpu_ns: gpu.nanoseconds,
-            gpu_timing_resolved: gpu.resolved,
+            gpu_timing: gpu,
             cpu_ns,
+            cpu_stages: profiler.cpu_stages,
             frame_ns: duration_ns(frame_start.elapsed()),
             residency: self.scene_gpu.residency_metrics(),
+            quality: self.profile_quality(),
+            pass_coverage: profiler.passes.coverage(),
         })
     }
 
@@ -335,100 +301,52 @@ impl<D: Device> Engine<D> {
         profiler: &mut GpuProfiler<D>,
         cpu_start: Instant,
         config: ImageConfig,
-        quality: bool,
+        mut exposure: super::exposure::Exposure,
     ) -> Result<u64, RenderError> {
+        profiler.cpu_stages.preparation_ns = profiler
+            .cpu_stages
+            .preparation_ns
+            .saturating_add(duration_ns(cpu_start.elapsed()));
+        let recording_started = Instant::now();
         profiler.ensure_target(&self.device, config)?;
         let Some(target) = &profiler.target_view else {
             return Err(molgfx_gpu::GpuError::DeviceLost.into());
         };
         let mut encoder = self.device.create_command_encoder();
-        self.passes
-            .cull
-            .record_attribute_timelines(&self.scene_gpu, &mut encoder);
-        self.passes
-            .cull
-            .record_instance_timelines(&self.scene_gpu, &mut encoder);
-        let point_coordinates_changed = self
-            .passes
-            .cull
-            .record_point_timelines(&self.scene_gpu, &mut encoder);
-        self.scene_gpu
-            .record_particle_motion(&mut encoder, &self.passes.particle_motion);
-        let timestamps_started = self.scene_gpu.record_trajectories(
-            &mut encoder,
-            &self.passes.trajectory,
-            Some(molgfx_gpu::TimestampWrites {
-                queries: &profiler.queries,
-                beginning: Some(0),
-                end: None,
-            }),
-        );
-        let paged_coordinates_changed = self
-            .passes
-            .cull
-            .record_paged_trajectories(&self.scene_gpu, &mut encoder);
-        self.scene_gpu.record_dynamic_relations(
-            &mut encoder,
-            &self.passes.relation_resolve,
-            timestamps_started || paged_coordinates_changed || point_coordinates_changed,
-        );
-        self.scene_gpu
-            .record_occupancies(&mut encoder, self.passes.occupancy.as_ref());
-        self.scene_gpu.record_surface_fields(
-            &mut encoder,
-            &self.passes.surface_field,
-            &self.passes.surface_components,
-        );
-        self.scene_gpu
-            .record_quality_hardware(&mut encoder, quality);
-        self.record_image(
-            &mut encoder,
-            target,
-            Some(&profiler.queries),
-            quality,
-            timestamps_started,
-        );
-        encoder.resolve_query_set(&profiler.queries, 0..2, &profiler.resolve, 0);
-        encoder.copy_buffer_to_buffer(&profiler.resolve, 0, &profiler.readback, 0, QUERY_BYTES);
-        self.queue.submit(encoder);
+        profiler.passes.attach(&mut encoder)?;
+        for sample in 0..exposure.samples {
+            encoder.set_timestamp_sample(Some(sample));
+            if let Err(error) = self.prepare_exposure_sample(&mut exposure, sample) {
+                profiler.passes.discard(&mut encoder)?;
+                return Err(error);
+            }
+            let quality = self.tier() >= QualityTier::Standard;
+            if sample == 0 {
+                self.record_scene_compute(&mut encoder, quality, None);
+            }
+            self.record_image(&mut encoder, target, None, quality, false);
+        }
+        profiler.passes.detach(&mut encoder)?;
+        profiler.cpu_stages.recording_ns = profiler
+            .cpu_stages
+            .recording_ns
+            .saturating_add(duration_ns(recording_started.elapsed()));
+        let submission_started = Instant::now();
+        profiler.completion = self.submit_exposure(&exposure, encoder)?;
+        profiler.cpu_stages.submission_ns = profiler
+            .cpu_stages
+            .submission_ns
+            .saturating_add(duration_ns(submission_started.elapsed()));
         Ok(duration_ns(cpu_start.elapsed()))
     }
 }
 
+#[cfg(test)]
 fn read_u64(bytes: &[u8], offset: usize) -> Option<u64> {
     let slice = bytes.get(offset..offset + std::mem::size_of::<u64>())?;
     let mut array = [0; std::mem::size_of::<u64>()];
     array.copy_from_slice(slice);
     Some(u64::from_le_bytes(array))
-}
-
-#[derive(Clone, Copy, Debug)]
-struct DecodedTiming {
-    nanoseconds: u64,
-    resolved: bool,
-}
-
-impl DecodedTiming {
-    const fn unresolved() -> Self {
-        Self {
-            nanoseconds: 0,
-            resolved: false,
-        }
-    }
-}
-
-fn timestamp_delta(
-    current_start: u64,
-    visible_end: u64,
-    previous_start: Option<u64>,
-) -> Option<u64> {
-    if current_start == 0 && visible_end == 0 {
-        return None;
-    }
-    if visible_end >= current_start {
-        return Some(visible_end - current_start);
-    }
-    previous_start.and_then(|start| visible_end.checked_sub(start))
 }
 
 fn duration_ns(duration: std::time::Duration) -> u64 {

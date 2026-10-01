@@ -12,11 +12,15 @@ mod chunk_residency;
 mod chunk_residency_support;
 mod chunk_residency_types;
 mod config;
+mod cpu_stages;
 mod depth_cue;
 mod derived_cache;
+mod effective_quality;
+mod exposure;
 mod exr;
 mod focus_target;
 mod frame;
+mod gpu_timing;
 mod graph_setup;
 mod graph_transparency;
 mod hdr_image;
@@ -24,6 +28,7 @@ mod image;
 mod init;
 mod lighting_environment;
 mod optics;
+mod pass_profiling;
 mod picking;
 pub(crate) mod pipeline_cache;
 mod presentation;
@@ -39,6 +44,7 @@ mod statistics;
 mod target;
 mod temporal;
 
+pub(crate) use adaptive::occlusion_rays;
 pub use adaptive::{AdaptiveQuality, AdaptiveQualityConfig, QualityTier};
 pub use backdrop::{BackdropStyle, DisplayGamut, DisplayTransform, ToneMapping, TransferFunction};
 pub use chunk_placement::{
@@ -51,16 +57,20 @@ pub use chunk_residency_types::{
     ResidentTrajectoryChunk,
 };
 pub use config::{
-    EngineConfig, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport, FrameStatus,
-    RenderMode,
+    CompletedFrame, EngineConfig, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport,
+    FrameStatus, RenderMode,
 };
+pub use cpu_stages::CpuStages;
 pub use depth_cue::DepthCue;
 pub use derived_cache::{DerivedCacheBudget, DerivedCacheUsage};
+pub use effective_quality::EffectiveQuality;
+pub use gpu_timing::GpuTiming;
 pub use hdr_image::HdrImage;
 pub use image::{Image, ImageConfig};
 pub use init::Engine;
 pub use lighting_environment::LightingEnvironment;
 pub use optics::{DepthOfField, FocusTarget, MotionBlur};
+pub use pass_profiling::{PassTiming, PassTimingCoverage};
 pub use picking::{PICK_READBACK_BYTES, Pick, PickEntity};
 pub use profile::{
     AntiAliasingStyle, BloomStyle, EffectLayer, IllustrationStyle, PresentationEffect,
@@ -68,7 +78,9 @@ pub use profile::{
 };
 pub use profiling::FrameTiming;
 #[cfg(not(target_arch = "wasm32"))]
-pub use sequence::{FrameTicket, SequenceConfig, SequenceFrame, SequenceRenderer};
+pub use sequence::{
+    FrameTicket, SequenceConfig, SequenceExposure, SequenceFrame, SequenceRenderer,
+};
 pub use session::RenderSession;
 pub use statistics::LigandPoseStats;
 
@@ -199,3 +211,6 @@ mod trajectory_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "volume_tests.rs"]
 mod volume_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod completion_tests;

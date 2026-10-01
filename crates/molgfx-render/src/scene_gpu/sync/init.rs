@@ -95,6 +95,8 @@ struct Prepared<D: Device> {
     cull_tiles: D::Buffer,
     cull_tiles_capacity: u64,
     initial: InitialResources<D>,
+    picking_pages: super::super::picking_pages::PickPages,
+    visual_fallback: VisualFallback<D>,
 }
 
 impl<D: Device> Prepared<D> {
@@ -102,6 +104,7 @@ impl<D: Device> Prepared<D> {
         device: &D,
         config: ResidencyConfig,
         frame_resident_bytes: u64,
+        picking_page_capacity: u32,
     ) -> Result<Self, RenderError> {
         let (cull_tiles, cull_tiles_capacity) = create_cull_tiles(device, 256)?;
         let frame = create_frame_binding(device, frame_resident_bytes)?;
@@ -114,6 +117,8 @@ impl<D: Device> Prepared<D> {
             cull_tiles,
             cull_tiles_capacity,
             initial: initial_resources(device, config)?,
+            picking_pages: super::super::picking_pages::PickPages::new(picking_page_capacity)?,
+            visual_fallback: VisualFallback::new(device)?,
         })
     }
 }
@@ -128,8 +133,13 @@ impl<D: Device> GpuScene<D> {
             config,
             std::mem::size_of::<super::FrameUniforms>() as u64,
         )?;
-        let prepared = Prepared::create(device, config, residency.frame_resident_bytes)?;
-        assemble(device, config, prepared, residency, picking_page_capacity)
+        let prepared = Prepared::create(
+            device,
+            config,
+            residency.frame_resident_bytes,
+            picking_page_capacity,
+        )?;
+        Ok(assemble(config, prepared, residency))
     }
     pub(crate) fn ensure_occupancy_layout(
         &mut self,
@@ -145,16 +155,15 @@ impl<D: Device> GpuScene<D> {
 
 /// Assembles the persistent scene state from its prepared pieces.
 fn assemble<D: Device>(
-    device: &D,
     config: ResidencyConfig,
     prepared: Prepared<D>,
     residency: super::residency_init::InitialResidency,
-    picking_page_capacity: u32,
-) -> Result<GpuScene<D>, RenderError> {
-    Ok(GpuScene {
+) -> GpuScene<D> {
+    GpuScene {
         frame_uniforms: prepared.frame_uniforms,
         group0: prepared.group0,
         group0_layout: prepared.group0_layout,
+        exposure_uniforms: None,
         indirect: super::super::indirect_arena::IndirectArgsArena::new(),
         argument_offsets: std::collections::BTreeMap::new(),
         group2_layout: prepared.layouts.group2,
@@ -217,13 +226,13 @@ fn assemble<D: Device>(
         overlays: GpuOverlays::new(),
         paged_chunks: prepared.initial.chunks,
         paged_bonds: prepared.initial.bonds,
-        picking_pages: super::super::picking_pages::PickPages::new(picking_page_capacity)?,
+        picking_pages: prepared.picking_pages,
         paged_instance_pick_scratch: Vec::with_capacity(config.machine_capacity),
         paged_relation_pick_scratch: Vec::with_capacity(config.machine_capacity),
         visual_properties: prepared.initial.visual_properties,
         visual_programs: prepared.initial.visual_programs,
         visual_parameters: prepared.initial.visual_parameters,
-        visual_fallback: VisualFallback::new(device)?,
+        visual_fallback: prepared.visual_fallback,
         specialized: crate::engine::pipeline_cache::SpecializedPipelines::new(),
         paged_visual_time_seconds: 0.0,
         paged_visual_time_revision: 0,
@@ -247,10 +256,8 @@ fn assemble<D: Device>(
         ribbon_scratch: molgfx_geometry::RibbonMesh::default(),
         residency: residency.workspace,
         residency_machine: residency.machine,
-        frame_residency_ticket: residency.frame_ticket,
-        _frame_allocation: residency.frame_allocation,
-        upload_fence: 0,
-    })
+        frame_residency: residency.frame,
+    }
 }
 
 fn initial_layouts<D: Device>(device: &D) -> Result<InitialLayouts<D>, RenderError> {

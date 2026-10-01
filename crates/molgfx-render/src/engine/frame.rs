@@ -199,7 +199,7 @@ impl<D: Device> Engine<D> {
                 extent: [self.width, self.height],
                 reset: Self::temporal_reset_required(scene_reset, pool_rebuilt),
                 quality: cinematic,
-                publication: false,
+                publication: self.tier() == QualityTier::High && !self.adaptive.enabled(),
                 illustration: self.resolved_plan.illustration(),
                 depth_cue: self.resolved_plan.packed_depth_cue(),
                 optics,
@@ -238,7 +238,7 @@ impl<D: Device> Engine<D> {
 
         let cinematic = self.tier() >= QualityTier::Standard;
 
-        self.record_scene_compute(encoder, cinematic);
+        self.record_scene_compute(encoder, cinematic, None);
 
         let Some(pool) = &self.pool else {
             return false;
@@ -284,6 +284,10 @@ impl<D: Device> Engine<D> {
 
         self.last_frame_submission = self.queue.submit_tracked(encoder);
         self.frame_submission_pending = true;
+        self.submitted_frame_quality = Some(self.effective_quality(
+            u32::from(self.tier().temporal_samples()),
+            self.temporal.prepared_samples(),
+        ));
 
         // Only the browser adaptive loop samples submission-to-completion
         // elapsed time, so only it needs the submission moment recorded.
@@ -323,6 +327,13 @@ impl<D: Device> Engine<D> {
 
         if was_pending && !self.frame_submission_pending {
             self.last_completion_timestamp_ns = Some(duration_ns(self.clock_origin.elapsed()));
+            if let Some(mut quality) = self.submitted_frame_quality.take() {
+                quality.observe_completion();
+                self.last_completed_frame = Some(super::CompletedFrame {
+                    submission_id: self.last_submission_id,
+                    quality,
+                });
+            }
 
             // Only the browser path has an empty controller sample here. On
             // native, `render` observed the complete CPU duration, so a fence
@@ -342,7 +353,12 @@ impl<D: Device> Engine<D> {
     ///
     /// Coordinate-change signals are combined without allocating and drive
     /// dynamic relation resolution exactly once.
-    fn record_scene_compute(&mut self, encoder: &mut D::CommandEncoder, cinematic: bool) {
+    pub(super) fn record_scene_compute(
+        &mut self,
+        encoder: &mut D::CommandEncoder,
+        cinematic: bool,
+        timestamps: Option<molgfx_gpu::TimestampWrites<'_, D>>,
+    ) -> bool {
         self.passes
             .cull
             .record_attribute_timelines(&self.scene_gpu, encoder);
@@ -361,7 +377,7 @@ impl<D: Device> Engine<D> {
 
         let structure_coordinates_changed =
             self.scene_gpu
-                .record_trajectories(encoder, &self.passes.trajectory, None);
+                .record_trajectories(encoder, &self.passes.trajectory, timestamps);
 
         let paged_coordinates_changed = self
             .passes
@@ -387,6 +403,7 @@ impl<D: Device> Engine<D> {
         );
 
         self.scene_gpu.record_quality_hardware(encoder, cinematic);
+        structure_coordinates_changed
     }
 
     /// Builds the externally visible report for the current frame state.
@@ -434,6 +451,15 @@ impl<D: Device> Engine<D> {
             },
             needs_another_frame: (status == FrameStatus::Skipped && !fence_pending) || pending != 0,
             quality_tier: self.tier(),
+            quality: self.effective_quality(
+                u32::from(self.tier().temporal_samples()),
+                if status == FrameStatus::Presented {
+                    self.temporal.prepared_samples()
+                } else {
+                    0
+                },
+            ),
+            last_completed: self.last_completed_frame,
         }
     }
 }

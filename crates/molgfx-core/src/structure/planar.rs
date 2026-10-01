@@ -44,32 +44,13 @@ impl PlanarRegion {
         tangent: Vec3,
         size: [f32; 2],
     ) -> Result<Self, CoreError> {
-        if !center.is_finite()
-            || !normal.is_finite()
-            || !tangent.is_finite()
-            || !size
-                .iter()
-                .all(|value| value.is_finite() && *value > EPSILON)
-            || normal.length_squared() <= EPSILON
-        {
-            return Err(invalid(
-                "planar region pose and size must be finite and non-degenerate",
-            ));
-        }
-        let normal = normal.normalize();
-        let tangent = tangent - normal * normal.dot(tangent);
-        if tangent.length_squared() <= EPSILON {
-            return Err(invalid(
-                "planar region tangent must not be parallel to its normal",
-            ));
-        }
-        let tangent = tangent.normalize();
+        let [normal, tangent, bitangent] = validated_frame(center, normal, tangent, size)?;
         Ok(Self {
             owner,
             center,
             normal,
             tangent,
-            bitangent: normal.cross(tangent).normalize(),
+            bitangent,
             size,
         })
     }
@@ -77,14 +58,7 @@ impl PlanarRegion {
     /// Four corners in winding order.
     #[must_use]
     pub fn corners(self) -> [Vec3; 4] {
-        let half_tangent = self.tangent * (self.size[0] * 0.5);
-        let half_bitangent = self.bitangent * (self.size[1] * 0.5);
-        [
-            self.center - half_tangent - half_bitangent,
-            self.center + half_tangent - half_bitangent,
-            self.center + half_tangent + half_bitangent,
-            self.center - half_tangent + half_bitangent,
-        ]
+        corners(self.center, self.tangent, self.bitangent, self.size)
     }
 
     /// Four boundary segments suitable for the existing guide path.
@@ -98,6 +72,76 @@ impl PlanarRegion {
             (corners[3], corners[0]),
         ]
     }
+
+    /// Validates portable geometry using the same contract as construction.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::InvalidPrimitive`] for a non-finite or collapsed
+    /// frame or boundary. No structure handle is needed until insertion.
+    pub fn validate_geometry(
+        center: Vec3,
+        normal: Vec3,
+        tangent: Vec3,
+        size: [f32; 2],
+    ) -> Result<(), CoreError> {
+        validated_frame(center, normal, tangent, size).map(|_| ())
+    }
+}
+
+fn validated_frame(
+    center: Vec3,
+    normal: Vec3,
+    tangent: Vec3,
+    size: [f32; 2],
+) -> Result<[Vec3; 3], CoreError> {
+    if !center.is_finite()
+        || !normal.is_finite()
+        || !tangent.is_finite()
+        || !size
+            .iter()
+            .all(|value| value.is_finite() && *value > EPSILON)
+        || normal.length_squared() <= EPSILON
+    {
+        return Err(invalid(
+            "planar region pose and size must be finite and non-degenerate",
+        ));
+    }
+    let normal = normal
+        .try_normalize()
+        .ok_or_else(|| invalid("planar region normal must normalize to a finite direction"))?;
+    let tangent = tangent - normal * normal.dot(tangent);
+    if tangent.length_squared() <= EPSILON {
+        return Err(invalid(
+            "planar region tangent must not be parallel to its normal",
+        ));
+    }
+    let tangent = tangent
+        .try_normalize()
+        .ok_or_else(|| invalid("planar region tangent must normalize to a finite direction"))?;
+    let bitangent = normal.cross(tangent).normalize();
+    let boundary = corners(center, tangent, bitangent, size);
+    for index in 0..4 {
+        if !boundary[index].is_finite()
+            || boundary[index].distance_squared(boundary[(index + 1) % 4]) <= f32::EPSILON
+        {
+            return Err(invalid(
+                "planar region boundary must be finite and non-degenerate",
+            ));
+        }
+    }
+    Ok([normal, tangent, bitangent])
+}
+
+fn corners(center: Vec3, tangent: Vec3, bitangent: Vec3, size: [f32; 2]) -> [Vec3; 4] {
+    let half_tangent = tangent * (size[0] * 0.5);
+    let half_bitangent = bitangent * (size[1] * 0.5);
+    [
+        center - half_tangent - half_bitangent,
+        center + half_tangent - half_bitangent,
+        center + half_tangent + half_bitangent,
+        center - half_tangent + half_bitangent,
+    ]
 }
 
 const fn invalid(reason: &'static str) -> CoreError {

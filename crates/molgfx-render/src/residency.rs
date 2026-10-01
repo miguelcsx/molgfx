@@ -58,6 +58,8 @@ pub struct ResidencyMetrics {
     pub machine: ResidencyMachineMetrics,
     /// Physical storage and traffic for immutable shared asset payloads.
     pub immutable_assets: ImmutableArenaMetrics,
+    /// Bytes uploaded from persistent converged-exposure staging, including padding.
+    pub exposure_upload_bytes: u64,
 }
 
 /// Physical counters for the immutable shared GPU arena.
@@ -89,7 +91,7 @@ pub struct ImmutableArenaMetrics {
 pub struct ResidencyCounters {
     /// Host backing-store allocations owned by residency primitives.
     pub allocation_events: u64,
-    /// Payload bytes submitted through the upload ring.
+    /// Payload bytes submitted through the upload ring and exposure staging.
     pub upload_bytes: u64,
     /// Page-rounded bytes currently reserved in the GPU arena.
     pub resident_bytes: u64,
@@ -107,7 +109,10 @@ impl ResidencyMetrics {
                 .host_allocation_events
                 .saturating_add(self.uploads.host_allocation_events)
                 .saturating_add(self.commands.host_allocation_events),
-            upload_bytes: self.uploads.bytes_submitted,
+            upload_bytes: self
+                .uploads
+                .bytes_submitted
+                .saturating_add(self.exposure_upload_bytes),
             resident_bytes: self.arena.resident_bytes,
             stall_events: self
                 .arena
@@ -239,6 +244,7 @@ impl<C: Copy> ResidencyWorkspace<C> {
             commands: self.commands.metrics(),
             machine: ResidencyMachineMetrics::default(),
             immutable_assets: ImmutableArenaMetrics::default(),
+            exposure_upload_bytes: 0,
         }
     }
 }

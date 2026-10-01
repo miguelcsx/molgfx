@@ -6,10 +6,19 @@
 mod contract;
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+mod quality;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+mod renderer;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 mod session;
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub use session::WebSession;
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-pub use contract::{WebPickReadback, WebRenderer, WebScene, WebScenePatch, WebSceneSpec};
+pub use contract::{WebScene, WebScenePatch, WebSceneSpec};
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub use renderer::{WebPickReadback, WebRenderer};

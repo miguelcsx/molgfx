@@ -21,6 +21,21 @@ use molgfx_core::Scene;
 use molgfx_gpu::Device;
 
 impl<D: Device> GpuScene<D> {
+    /// Reports live field spacing without allocating or rebuilding fields.
+    pub(crate) fn surface_spacing_range(&self) -> Option<[f32; 2]> {
+        self.surface_fields.spacing_range()
+    }
+
+    /// Largest active cull mode; zero means analytic geometry is not replaced.
+    pub(crate) fn lod_mode_max(&self) -> u32 {
+        self.slots
+            .iter()
+            .filter(|slot| slot.visible)
+            .filter_map(|slot| slot.visibility_key)
+            .map(|key| key.lod_mode)
+            .fold(0, u32::max)
+    }
+
     /// Resolves each slot's field key and builds every field the frame needs.
     ///
     /// A key shared by four surfaces builds one field: the cache keys on

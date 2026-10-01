@@ -101,6 +101,16 @@ pub const VERBS: &[VerbInfo] = &[
         summary: "draw a structure with the size-appropriate default forms",
     },
     VerbInfo {
+        name: "assembly",
+        synopsis: "assembly {\"structures\":[...],\"instances\":[...],\"unit_cell\":...} | null",
+        summary: "set or remove molecular assembly instances and crystallographic unit-cell guides",
+    },
+    VerbInfo {
+        name: "plane",
+        synopsis: "plane {\"structure\":1,\"center\":[...],...}",
+        summary: "add a finite caller-authored planar guide",
+    },
+    VerbInfo {
         name: "volume",
         synopsis: "volume {\"source\":{...},\"dimensions\":[...],...}",
         summary: "declare a density volume whose grid arrives through a binding",

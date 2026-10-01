@@ -95,6 +95,7 @@ struct OverlayDomains {
     interactions: Option<BTreeMap<InteractionId, InteractionSpec>>,
     trajectories: Option<BTreeMap<TrajectoryId, TrajectorySpec>>,
     ellipsoids: Option<BTreeMap<crate::EllipsoidId, crate::overlay::EllipsoidSpec>>,
+    planes: Option<BTreeMap<crate::PlaneId, crate::PlaneSpec>>,
 }
 
 #[derive(Clone, Default)]
@@ -236,6 +237,8 @@ impl LocalPatchPlan {
             | PatchOperation::RemoveTrajectory { .. }
             | PatchOperation::AddEllipsoids { .. }
             | PatchOperation::RemoveEllipsoids { .. }
+            | PatchOperation::AddPlane { .. }
+            | PatchOperation::RemovePlane { .. }
             | PatchOperation::AddAppearanceRule { .. }
             | PatchOperation::ReplaceAppearanceRule { .. }
             | PatchOperation::SetAssembly { .. }

@@ -1,7 +1,8 @@
 //! Lowering bound overlay data to renderer handles.
 
 use crate::appearance::tests::two_chains;
-use crate::{DataSource, Scene, VolumeBinding, density};
+use crate::overlay::UnitCellSpec;
+use crate::{AssemblySpec, DataSource, PatchOperation, Scene, ScenePatch, VolumeBinding, density};
 use std::sync::Arc;
 
 #[test]
@@ -74,4 +75,143 @@ fn an_ellipsoid_overlay_rejects_a_nonpositive_scale() {
     let mut spec = crate::ellipsoid::adp(structure, crate::Selection::from("all"));
     spec.scale = 0.0;
     assert!(scene.add(spec).is_err());
+}
+
+#[test]
+fn assembly_unit_cell_rebinds_to_exactly_twelve_guides() {
+    let mut scene = Scene::from_structure(&two_chains()).unwrap_or_else(|error| panic!("{error}"));
+    let structure = crate::StructureId::new(1);
+    let unit_cell =
+        UnitCellSpec::new([10.0, 11.0, 12.0], [90.0; 3]).unwrap_or_else(|error| panic!("{error}"));
+    let assembly = AssemblySpec {
+        structures: vec![structure],
+        instances: Vec::new(),
+        unit_cell: Some(unit_cell),
+    };
+    let patch = ScenePatch {
+        base_revision: scene.spec().revision,
+        operations: vec![PatchOperation::SetAssembly {
+            assembly: Some(assembly),
+        }],
+    };
+    scene
+        .apply(&patch)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(scene.overlay_handles().unit_cell_guides, 12);
+
+    let clear = ScenePatch {
+        base_revision: scene.spec().revision,
+        operations: vec![PatchOperation::SetAssembly { assembly: None }],
+    };
+    scene
+        .apply(&clear)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(scene.overlay_handles().unit_cell_guides, 0);
+}
+#[test]
+fn plane_add_and_remove_rebinds_exactly_four_guides() {
+    let mut scene = Scene::from_structure(&two_chains()).unwrap_or_else(|error| panic!("{error}"));
+    let id = scene
+        .add(crate::PlaneSpec::new(
+            crate::StructureId::new(1),
+            [0.0; 3],
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 0.0],
+            [4.0, 6.0],
+        ))
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(scene.overlay_handles().plane_guides, 4);
+    assert!(scene.spec().planes.contains_key(&id));
+    let patch = ScenePatch {
+        base_revision: scene.spec().revision,
+        operations: vec![PatchOperation::RemovePlane { id }],
+    };
+    scene
+        .apply(&patch)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(scene.overlay_handles().plane_guides, 0);
+    assert!(!scene.spec().planes.contains_key(&id));
+}
+#[test]
+fn invalid_plane_does_not_change_the_scene_or_its_guides() {
+    let mut scene = Scene::from_structure(&two_chains()).unwrap_or_else(|error| panic!("{error}"));
+    let base = scene.to_spec();
+    let mut plane = crate::PlaneSpec::new(
+        crate::StructureId::new(1),
+        [0.0; 3],
+        [0.0, 0.0, 1.0],
+        [1.0, 0.0, 0.0],
+        [4.0, 6.0],
+    );
+    plane.tangent = plane.normal;
+    assert!(matches!(
+        scene.add(plane),
+        Err(crate::Error::InvalidSpec(_))
+    ));
+    assert_eq!(scene.spec(), &base);
+    assert_eq!(scene.overlay_handles().plane_guides, 0);
+
+    plane.tangent = [1.0, 0.0, 0.0];
+    plane.structure = crate::StructureId::new(100);
+    assert!(matches!(
+        scene.add(plane),
+        Err(crate::Error::InvalidSpec(_))
+    ));
+    assert_eq!(scene.spec(), &base);
+    assert_eq!(scene.overlay_handles().plane_guides, 0);
+}
+
+#[test]
+fn removing_a_plane_and_cell_can_be_undone_without_losing_geometry() {
+    let mut scene = Scene::from_structure(&two_chains()).unwrap_or_else(|error| panic!("{error}"));
+    let id = scene
+        .add(crate::PlaneSpec::new(
+            crate::StructureId::new(1),
+            [1.0, 2.0, 3.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 1.0, 0.0],
+            [4.0, 6.0],
+        ))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let cell = UnitCellSpec::new([10.0, 11.0, 12.0], [80.0, 90.0, 100.0])
+        .unwrap_or_else(|error| panic!("{error}"));
+    let assembly = AssemblySpec {
+        structures: vec![crate::StructureId::new(1)],
+        instances: Vec::new(),
+        unit_cell: Some(cell),
+    };
+    scene
+        .apply(&ScenePatch {
+            base_revision: scene.spec().revision,
+            operations: vec![PatchOperation::SetAssembly {
+                assembly: Some(assembly),
+            }],
+        })
+        .unwrap_or_else(|error| panic!("{error}"));
+    let before = scene.to_spec();
+    assert_eq!(scene.overlay_handles().plane_guides, 4);
+    assert_eq!(scene.overlay_handles().unit_cell_guides, 12);
+
+    let patch = ScenePatch {
+        base_revision: before.revision,
+        operations: vec![
+            PatchOperation::RemovePlane { id },
+            PatchOperation::SetAssembly { assembly: None },
+        ],
+    };
+    let inverse = patch
+        .inverse(&before)
+        .unwrap_or_else(|error| panic!("{error}"));
+    scene
+        .apply(&patch)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(scene.overlay_handles().plane_guides, 0);
+    assert_eq!(scene.overlay_handles().unit_cell_guides, 0);
+    scene
+        .apply(&inverse)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(scene.spec().planes, before.planes);
+    assert_eq!(scene.spec().assembly, before.assembly);
+    assert_eq!(scene.overlay_handles().plane_guides, 4);
+    assert_eq!(scene.overlay_handles().unit_cell_guides, 12);
 }

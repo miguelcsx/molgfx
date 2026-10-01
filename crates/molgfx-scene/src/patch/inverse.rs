@@ -199,6 +199,11 @@ fn inverse_overlay(
                 .cloned()
                 .ok_or(crate::PatchError::MissingId)?,
         }),
+        PatchOperation::AddPlane { id, .. } => one(PatchOperation::RemovePlane { id: *id }),
+        PatchOperation::RemovePlane { id } => one(PatchOperation::AddPlane {
+            id: *id,
+            spec: *base.planes.get(id).ok_or(crate::PatchError::MissingId)?,
+        }),
         PatchOperation::AddMeasurement { id, .. } => {
             one(PatchOperation::RemoveMeasurement { id: *id })
         }
@@ -244,10 +249,7 @@ fn inverse_domain(
     let one = |operation| Some(vec![operation]);
     Ok(match operation {
         PatchOperation::SetAssembly { .. } => one(PatchOperation::SetAssembly {
-            assembly: restore("molgfx.assembly")
-                .map(serde_json::from_value)
-                .transpose()
-                .map_err(crate::Error::from)?,
+            assembly: base.assembly.clone(),
         }),
         PatchOperation::SetFitting { .. } => one(PatchOperation::SetFitting {
             fitting: restore("molgfx.fitting")

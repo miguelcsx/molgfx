@@ -43,6 +43,8 @@ impl molgfx_gpu::Device for MockDevice {
         Ok(MockBuffer {
             id,
             label: desc.label,
+            size: desc.size,
+            usage: desc.usage,
         })
     }
 
@@ -134,6 +136,7 @@ impl molgfx_gpu::Device for MockDevice {
     fn create_command_encoder(&self) -> MockEncoder {
         MockEncoder {
             log: Arc::clone(&self.log),
+            timestamps: None,
         }
     }
 

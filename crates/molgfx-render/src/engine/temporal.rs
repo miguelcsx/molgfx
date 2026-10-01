@@ -89,6 +89,7 @@ pub(crate) struct TemporalState {
     previous_view_proj: Option<Mat4>,
     previous_camera: Option<Camera>,
     write_index: usize,
+    occlusion_rays: u8,
 }
 
 #[derive(Clone, Copy)]
@@ -112,6 +113,15 @@ impl TemporalState {
     /// The tier the caller last published into this state.
     pub(crate) const fn tier(&self) -> QualityTier {
         self.tier
+    }
+
+    /// Prepared samples in the current stable exposure.
+    pub(crate) const fn prepared_samples(&self) -> u32 {
+        self.frame_index
+    }
+
+    pub(crate) const fn occlusion_rays(&self) -> u8 {
+        self.occlusion_rays
     }
 
     /// Records the tier the frame loop is rendering at.
@@ -141,10 +151,11 @@ impl TemporalState {
             // while the camera is stable; camera motion starts clean history.
             self.reset();
         }
+        self.occlusion_rays = super::occlusion_rays(options.quality, options.publication);
         // Camera motion is already changing the image every frame. Sampling a
         // different projection then creates visible subpixel swimming instead
         // of useful convergence, so only stable frames use the Halton sequence.
-        let jitter = if camera_changed {
+        let jitter = if camera_changed && !options.publication {
             [0.0; 2]
         } else {
             JITTER[(self.frame_index as usize) % JITTER.len()]

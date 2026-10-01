@@ -95,6 +95,17 @@ impl Scene {
         })?;
         Ok(id)
     }
+    pub(crate) fn insert_plane(&mut self, spec: crate::PlaneSpec) -> Result<crate::PlaneId, Error> {
+        let id = crate::PlaneId(next_id_for(
+            self.spec.planes.last_key_value().map(|(id, _)| id.get()),
+            "plane",
+        )?);
+        self.apply(&crate::ScenePatch {
+            base_revision: self.spec.revision,
+            operations: vec![crate::PatchOperation::AddPlane { id, spec }],
+        })?;
+        Ok(id)
+    }
 
     pub(crate) fn insert_trajectory(
         &mut self,

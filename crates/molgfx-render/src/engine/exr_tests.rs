@@ -7,6 +7,7 @@ fn exr_preserves_native_half_channels_without_a_colour_curve() {
         width: 1,
         height: 1,
         rgba16f: vec![0x00, 0x3c, 0x00, 0x40, 0x00, 0x42, 0x00, 0x38],
+        quality: crate::engine::tests::engine().effective_quality(64, 0),
     };
     let bytes = encoded(&image);
     assert_eq!(&bytes[0..4], MAGIC.to_le_bytes());
@@ -30,6 +31,7 @@ fn exr_rejects_a_malformed_half_pixel_buffer() {
         width: 2,
         height: 1,
         rgba16f: vec![0; 8],
+        quality: crate::engine::tests::engine().effective_quality(64, 0),
     };
     assert!(super::write(&image, Vec::new()).is_err());
 }
@@ -40,6 +42,7 @@ fn streamed_exr_is_byte_deterministic() {
         width: 2,
         height: 2,
         rgba16f: (0_u8..32).collect(),
+        quality: crate::engine::tests::engine().effective_quality(64, 0),
     };
     assert_eq!(encoded(&image), encoded(&image));
 }

@@ -9,6 +9,7 @@ pub(crate) mod color_uniforms;
 pub(crate) mod detail;
 mod dispatch;
 mod draw_family;
+pub(crate) mod exposure_arena;
 mod generic_visual;
 mod grow_buffer;
 mod indirect_arena;

@@ -31,16 +31,17 @@ pub use appearance::{AppearanceRuleSpec, MAX_APPEARANCE_CLASSES};
 pub use color::{Color, ColorSpec, Legend, LegendStop};
 pub use error::{Error, PatchError};
 pub use id::{
-    AnnotationId, AppearanceRuleId, EllipsoidId, InteractionId, MeasurementId, RepresentationId,
-    StructureId, TrajectoryId, VolumeId,
+    AnnotationId, AppearanceRuleId, EllipsoidId, InteractionId, MeasurementId, PlaneId,
+    RepresentationId, StructureId, TrajectoryId, VolumeId,
 };
 pub use interop::{Diagnostic, MvsDocument, MvsImport, from_mvsj, from_mvsx, to_mvsj, to_mvsx};
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_wgpu::{AdapterReport, SystemInfo, system_info};
 pub use overlay::{
     Anchor, AnnotationSpec, AssemblySpec, DataSource, EllipsoidSpec, FitResult, InteractionKind,
-    InteractionSpec, MeasurementSpec, MovieExportRequest, OverlayHandles, TrajectoryBinding,
-    TrajectoryFrame, TrajectorySpec, ValidationFinding, VolumeBinding, VolumeSpec,
+    InteractionSpec, MeasurementSpec, MovieExportRequest, OverlayHandles, PlaneSpec,
+    TrajectoryBinding, TrajectoryFrame, TrajectorySpec, UnitCellSpec, ValidationFinding,
+    VolumeBinding, VolumeSpec,
 };
 pub use patch::{PatchOperation, ScenePatch};
 pub use profile::{DepthCue, Quality, RenderProfile};
@@ -49,7 +50,10 @@ pub use property::{PropertySpec, ScalarProperty, ScalarPropertyBinding};
 pub use render::Image;
 pub use render::PickReadback;
 pub use render::Renderer;
-pub use render::{FrameReport, FrameTiming};
+pub use render::{
+    CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming, PassTiming,
+    PassTimingCoverage, QualityTier,
+};
 pub use render::{PickKind, PickResult};
 pub use representation::RepresentationSpec;
 pub use representation::{SceneItem, Selection};

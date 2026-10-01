@@ -9,9 +9,16 @@ use molgfx_gpu::ArenaAllocation;
 pub(super) struct InitialResidency {
     pub(super) workspace: ResidencyWorkspace<FrameUploadCommand>,
     pub(super) machine: ResidencyMachine,
-    pub(super) frame_ticket: ResidencyTicket,
-    pub(super) frame_allocation: ArenaAllocation,
+    pub(super) frame: FrameUniformResidency,
     pub(super) frame_resident_bytes: u64,
+}
+
+/// The frame allocation and its upload lifecycle stay owned together.
+#[derive(Debug)]
+pub(super) struct FrameUniformResidency {
+    pub(super) ticket: ResidencyTicket,
+    pub(super) _allocation: ArenaAllocation,
+    pub(super) upload_fence: u64,
 }
 
 pub(super) fn initialize(
@@ -49,8 +56,11 @@ pub(super) fn initialize(
     Ok(InitialResidency {
         workspace,
         machine,
-        frame_ticket,
-        frame_allocation,
+        frame: FrameUniformResidency {
+            ticket: frame_ticket,
+            _allocation: frame_allocation,
+            upload_fence: 0,
+        },
         frame_resident_bytes,
     })
 }
