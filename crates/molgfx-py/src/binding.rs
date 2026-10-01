@@ -65,6 +65,12 @@ impl PyRepresentation {
     fn visual(&self, style: &crate::visual_binding::PyVisualStyle) -> Self {
         self.with_visual(style.0.clone())
     }
+
+    /// A copy that draws on `structure`, for scenes with more than one.
+    fn on(&self, structure: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let id = crate::id_binding::structure_id(structure)?;
+        Ok(Self(self.0.clone().structure(molgfx::StructureId::new(id))))
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -326,6 +332,7 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     crate::authoring_binding::register(module)?;
     crate::pocket_binding::register(module)?;
     crate::camera_path_binding::register(module)?;
+    crate::scene_composition_binding::register(module)?;
     crate::render_binding::register(module)?;
     crate::overlay_binding::register(module)?;
     crate::visual_binding::register(module)?;

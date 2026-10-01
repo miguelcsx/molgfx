@@ -10,17 +10,17 @@ use std::sync::{Arc, OnceLock};
 pub(super) struct PyScene {
     pub(super) inner: molgfx::Scene,
     pub(super) pending: Option<Vec<molgfx::schema::PatchOperation>>,
-    structure_id: u64,
-    browser_sources: Vec<BrowserSource>,
+    pub(super) structure_id: u64,
+    pub(super) browser_sources: Vec<BrowserSource>,
     subscribers: Vec<Py<PyAny>>,
 }
 
-struct BrowserSource {
-    identity: u64,
-    name: String,
-    provider: crate::native_adapter::SharedNativeProvider,
+pub(super) struct BrowserSource {
+    pub(super) identity: u64,
+    pub(super) name: String,
+    pub(super) provider: crate::native_adapter::SharedNativeProvider,
     /// Compact `BinaryCIF` encoding, produced on the first browser transfer.
-    encoded: OnceLock<Vec<u8>>,
+    pub(super) encoded: Arc<OnceLock<Vec<u8>>>,
 }
 
 impl PyScene {
@@ -103,7 +103,7 @@ impl PyScene {
                 identity: 1,
                 name: "structure.bcif".to_owned(),
                 provider,
-                encoded: OnceLock::new(),
+                encoded: Arc::new(OnceLock::new()),
             }],
             subscribers: Vec::new(),
         })
@@ -145,107 +145,6 @@ impl PyScene {
             },
         )?;
         id.into_python(py)
-    }
-
-    #[pyo3(signature = (*, structure=None))]
-    fn auto(
-        &mut self,
-        py: Python<'_>,
-        structure: Option<&Bound<'_, PyAny>>,
-    ) -> PyResult<Vec<Py<PyAny>>> {
-        if self.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "default forms cannot be added inside a scene transaction",
-            ));
-        }
-        let target = match structure {
-            Some(structure) => crate::id_binding::structure_id(structure)?,
-            None => self.structure_id,
-        };
-        let base_revision = self.inner.revision();
-        let inserted = self
-            .inner
-            .add_auto(molgfx::StructureId::new(target))
-            .map_err(error)?;
-        let mut operations = Vec::with_capacity(inserted.len());
-        let mut ids = Vec::with_capacity(inserted.len());
-        for id in inserted {
-            let representation = self
-                .inner
-                .spec()
-                .representations
-                .get(&id)
-                .cloned()
-                .ok_or_else(|| PyValueError::new_err("inserted representation is unavailable"))?;
-            operations
-                .push(molgfx::schema::PatchOperation::AddRepresentation { id, representation });
-            ids.push(crate::id_binding::PySceneId::Representation(id.get()));
-        }
-        if !operations.is_empty() {
-            self.publish(
-                py,
-                &molgfx::ScenePatch {
-                    base_revision,
-                    operations,
-                },
-            )?;
-        }
-        ids.into_iter()
-            .map(|id| id.into_python(py))
-            .collect::<PyResult<Vec<_>>>()
-    }
-
-    #[pyo3(signature = (focus, *, structure=None, style=None))]
-    fn pocket(
-        &mut self,
-        py: Python<'_>,
-        focus: &Bound<'_, PyAny>,
-        structure: Option<&Bound<'_, PyAny>>,
-        style: Option<PyRef<'_, crate::pocket_binding::PyPocketStyle>>,
-    ) -> PyResult<Vec<Py<PyAny>>> {
-        if self.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "a pocket view cannot be added inside a scene transaction",
-            ));
-        }
-        let target = match structure {
-            Some(structure) => crate::id_binding::structure_id(structure)?,
-            None => self.structure_id,
-        };
-        let focus = molgfx::Selection::from(selection(focus)?);
-        let style = style.map_or_else(molgfx::preset::PocketStyle::default, |style| style.0);
-        let base_revision = self.inner.revision();
-        let inserted = self
-            .inner
-            .add_pocket(molgfx::StructureId::new(target), focus.clone(), style)
-            .map_err(error)?;
-        let mut operations = Vec::with_capacity(inserted.len() + 1);
-        let mut ids = Vec::with_capacity(inserted.len());
-        for id in inserted {
-            let representation = self
-                .inner
-                .spec()
-                .representations
-                .get(&id)
-                .cloned()
-                .ok_or_else(|| PyValueError::new_err("inserted representation is unavailable"))?;
-            operations
-                .push(molgfx::schema::PatchOperation::AddRepresentation { id, representation });
-            ids.push(crate::id_binding::PySceneId::Representation(id.get()));
-        }
-        operations.push(molgfx::schema::PatchOperation::SetFocus {
-            selection: Some(focus),
-        });
-        self.publish(
-            py,
-            &molgfx::ScenePatch {
-                base_revision,
-                operations,
-            },
-        )?;
-        ids.into_iter()
-            .map(|id| id.into_python(py))
-            .collect::<PyResult<Vec<_>>>()
     }
 
     #[pyo3(signature = (*, structure, name, source_hash, values, units=None, domain=None))]
@@ -468,7 +367,7 @@ impl PyScene {
                 identity: identity.get(),
                 name: format!("structure-{ordinal}.bcif"),
                 provider,
-                encoded: OnceLock::new(),
+                encoded: Arc::new(OnceLock::new()),
             });
             (
                 identity,

@@ -112,6 +112,13 @@ impl RepresentationSpec {
         }
     }
 
+    /// Targets a specific molecular structure in a multi-structure scene.
+    #[must_use]
+    pub fn structure(mut self, structure: crate::StructureId) -> Self {
+        self.common.structure = Some(structure);
+        self
+    }
+
     /// Applies one immutable typed visual expression graph.
     #[must_use]
     pub fn visual(mut self, visual: VisualStyle) -> Self {

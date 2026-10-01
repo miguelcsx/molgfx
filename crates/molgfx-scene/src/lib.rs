@@ -64,8 +64,8 @@ pub use scene::domains::{
 pub use scene::hashing::structure_hash;
 pub use scene::transaction::SceneTransaction;
 pub use scene::{
-    ResidueMetadata, ResolvedAtomPick, ResolvedBondPick, ResolvedLabelPick,
-    ResolvedMeasurementPick, ResolvedPick, ResolvedVolumeSegmentPick, Scene,
+    AssemblyCopy, ResidueMetadata, ResolvedAtomPick, ResolvedBondPick, ResolvedLabelPick,
+    ResolvedMeasurementPick, ResolvedPick, ResolvedVolumeSegmentPick, Scene, chain_selection,
 };
 pub use spec::{InteractionChannel, SceneSpec, StructureSource};
 pub use visual::{
