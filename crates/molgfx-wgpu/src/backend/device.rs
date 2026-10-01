@@ -420,6 +420,7 @@ impl molgfx_gpu::Device for WgpuDevice {
             encoder: self
                 .device
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None }),
+            timestamps: None,
         }
     }
 

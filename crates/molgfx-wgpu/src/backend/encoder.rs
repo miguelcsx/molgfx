@@ -5,7 +5,7 @@ use crate::convert;
 use crate::device::WgpuDevice;
 use molgfx_gpu::{
     BlasBuildDesc, BlasGeometries, ColorAttachment, ComputePassDesc, DepthAttachment, GpuError,
-    RenderPassDesc,
+    PassTimestampCapture, RenderPassDesc, TimestampPassKind, TimestampWrites,
 };
 use std::ops::Range;
 
@@ -27,11 +27,25 @@ pub enum WgpuPipeline {
 #[derive(Debug)]
 pub struct WgpuCommandEncoder {
     pub(crate) encoder: wgpu::CommandEncoder,
+    pub(crate) timestamps: Option<PassTimestampCapture<wgpu::QuerySet>>,
 }
 
 impl molgfx_gpu::CommandEncoder<WgpuDevice> for WgpuCommandEncoder {
     type RenderPass<'e> = WgpuRenderPass<'e>;
     type ComputePass<'e> = WgpuComputePass<'e>;
+
+    fn set_timestamp_capture(
+        &mut self,
+        capture: Option<PassTimestampCapture<wgpu::QuerySet>>,
+    ) -> Option<PassTimestampCapture<wgpu::QuerySet>> {
+        std::mem::replace(&mut self.timestamps, capture)
+    }
+
+    fn set_timestamp_sample(&mut self, sample: Option<u32>) {
+        if let Some(capture) = &mut self.timestamps {
+            capture.set_sample(sample);
+        }
+    }
 
     fn begin_render_pass<'e>(
         &'e mut self,
@@ -74,13 +88,17 @@ impl molgfx_gpu::CommandEncoder<WgpuDevice> for WgpuCommandEncoder {
                 }
             },
         );
-        let timestamp_writes = desc
-            .timestamps
-            .map(|timestamps| wgpu::RenderPassTimestampWrites {
-                query_set: timestamps.queries,
-                beginning_of_pass_write_index: timestamps.beginning,
-                end_of_pass_write_index: timestamps.end,
-            });
+        let timestamps = capture_writes(
+            &mut self.timestamps,
+            desc.label,
+            TimestampPassKind::Render,
+            desc.timestamps,
+        );
+        let timestamp_writes = timestamps.map(|timestamps| wgpu::RenderPassTimestampWrites {
+            query_set: timestamps.queries,
+            beginning_of_pass_write_index: timestamps.beginning,
+            end_of_pass_write_index: timestamps.end,
+        });
         WgpuRenderPass {
             pass: self.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some(desc.label),
@@ -97,13 +115,17 @@ impl molgfx_gpu::CommandEncoder<WgpuDevice> for WgpuCommandEncoder {
         &'e mut self,
         desc: &ComputePassDesc<'_, WgpuDevice>,
     ) -> WgpuComputePass<'e> {
-        let timestamp_writes = desc
-            .timestamps
-            .map(|timestamps| wgpu::ComputePassTimestampWrites {
-                query_set: timestamps.queries,
-                beginning_of_pass_write_index: timestamps.beginning,
-                end_of_pass_write_index: timestamps.end,
-            });
+        let timestamps = capture_writes(
+            &mut self.timestamps,
+            desc.label,
+            TimestampPassKind::Compute,
+            desc.timestamps,
+        );
+        let timestamp_writes = timestamps.map(|timestamps| wgpu::ComputePassTimestampWrites {
+            query_set: timestamps.queries,
+            beginning_of_pass_write_index: timestamps.beginning,
+            end_of_pass_write_index: timestamps.end,
+        });
         WgpuComputePass {
             pass: self
                 .encoder
@@ -241,6 +263,26 @@ impl molgfx_gpu::CommandEncoder<WgpuDevice> for WgpuCommandEncoder {
         self.encoder.build_acceleration_structures([], [tlas]);
         Ok(())
     }
+}
+
+fn capture_writes<'a>(
+    capture: &'a mut Option<PassTimestampCapture<wgpu::QuerySet>>,
+    label: &'static str,
+    kind: TimestampPassKind,
+    explicit: Option<TimestampWrites<'a, WgpuDevice>>,
+) -> Option<TimestampWrites<'a, WgpuDevice>> {
+    let Some(capture) = capture else {
+        return explicit;
+    };
+    let pair = capture.record_pass(label, kind, explicit.is_some());
+    explicit.or_else(|| {
+        let pair = pair?;
+        Some(TimestampWrites {
+            queries: capture.queries()?,
+            beginning: Some(pair.beginning),
+            end: Some(pair.end),
+        })
+    })
 }
 
 fn color_attachment<'a>(

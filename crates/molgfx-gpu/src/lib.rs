@@ -17,6 +17,7 @@ mod error;
 mod queue;
 mod residency;
 mod surface;
+mod timestamp_capture;
 
 pub use capabilities::{Capabilities, CapabilityFlags, RayQueryLimits, TextureFormatCapabilities};
 pub use descriptors::{
@@ -44,3 +45,7 @@ pub use residency::{
     UploadRing, UploadRingConfig, UploadState, UploadTicket,
 };
 pub use surface::{Surface, SurfaceConfig, SurfaceError, SurfaceFrame};
+pub use timestamp_capture::{
+    MAX_TIMESTAMP_CAPTURE_PASSES, PassTimestampAbsence, PassTimestampCapture, PassTimestampRecord,
+    TimestampCaptureError, TimestampCaptureIncomplete, TimestampPassKind, TimestampQueryPair,
+};

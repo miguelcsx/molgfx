@@ -5,7 +5,7 @@
 
 use crate::descriptors::{ComputePassDesc, RenderPassDesc};
 use crate::device::{Device, RayQueryDevice};
-use crate::{BlasBuildDesc, GpuError};
+use crate::{BlasBuildDesc, GpuError, PassTimestampCapture};
 use std::ops::Range;
 
 /// Records passes and copies into one submission.
@@ -18,6 +18,17 @@ pub trait CommandEncoder<D: Device>: Sized {
     type ComputePass<'e>: ComputePassEncoder<D>
     where
         Self: 'e;
+
+    /// Installs opt-in capture or takes it back with None.
+    /// The previous capture retains its query resource and preallocated metadata.
+    /// Disabled recording does not allocate or collect pass metadata.
+    fn set_timestamp_capture(
+        &mut self,
+        capture: Option<PassTimestampCapture<D::QuerySet>>,
+    ) -> Option<PassTimestampCapture<D::QuerySet>>;
+
+    /// Tags subsequent actual pass occurrences when capture is enabled.
+    fn set_timestamp_sample(&mut self, sample: Option<u32>);
 
     /// Begins a render pass over the given attachments.
     fn begin_render_pass<'e>(&'e mut self, desc: &RenderPassDesc<'_, D>) -> Self::RenderPass<'e>;
