@@ -9,7 +9,7 @@ use super::color::ColorValue;
 use super::form::Form;
 use super::name::Name;
 use super::target::{QueryText, Target};
-use super::value::Opacity;
+use super::value::{Opacity, Positive};
 use molgfx_scene::DomainSceneSnapshot as SceneSnapshot;
 use molgfx_scene::{
     AssemblySpec, FitResult, InteractionSpec, MovieExportRequest, PlaneSpec, ValidationFinding,
@@ -201,6 +201,25 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         structure: Option<Name>,
     },
+    /// Draws the pocket-and-pose composition around a query: the subject at
+    /// full detail, its interaction shell and orienting shell, a translucent
+    /// pocket surface and local solvent, with everything farther demoted.
+    ///
+    /// The bands are one policy owned by the scene layer; the command carries
+    /// only the subject and the two shell radii.
+    Pocket {
+        /// The subject the pocket is built around.
+        target: QueryText,
+        /// Interaction-shell radius in ångström; the scene default when absent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        near: Option<Positive>,
+        /// Orienting-shell radius in ångström; the scene default when absent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        mid: Option<Positive>,
+        /// The structure to draw; required only when a scene has several.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        structure: Option<Name>,
+    },
     /// Adds a caller-supplied explicit overlay interaction.
     ///
     /// The interaction is already resolved by the caller; command execution
@@ -274,6 +293,7 @@ impl Command {
             Self::Label { .. } => "label",
             Self::Measure { kind, .. } => kind.name(),
             Self::Auto { .. } => "auto",
+            Self::Pocket { .. } => "pocket",
             Self::Interaction { .. } => "interaction",
             Self::Assembly { .. } => "assembly",
             Self::Plane { .. } => "plane",
@@ -373,6 +393,12 @@ impl fmt::Display for Command {
             Self::Auto { structure } => {
                 write!(formatter, "auto{}", in_structure(structure))
             }
+            Self::Pocket {
+                target,
+                near,
+                mid,
+                structure,
+            } => write_pocket(formatter, target, [*near, *mid], &in_structure(structure)),
             Self::Interaction { interaction } => write_json(formatter, "interaction", interaction),
             Self::Assembly { assembly } => write_json(formatter, "assembly", assembly),
             Self::Plane { plane } => write_json(formatter, "plane", plane),
@@ -389,6 +415,22 @@ impl fmt::Display for Command {
 }
 
 /// Writes `verb` followed by the JSON form of a caller-supplied value.
+/// `pocket [near=N] [mid=M] [in S], TARGET`, with absent radii left out.
+fn write_pocket(
+    formatter: &mut fmt::Formatter<'_>,
+    target: &QueryText,
+    radii: [Option<Positive>; 2],
+    structure: &impl fmt::Display,
+) -> fmt::Result {
+    write!(formatter, "pocket")?;
+    for (key, radius) in ["near", "mid"].into_iter().zip(radii) {
+        if let Some(radius) = radius {
+            write!(formatter, " {key}={radius}")?;
+        }
+    }
+    write!(formatter, "{structure}, {target}")
+}
+
 fn write_json<T: Serialize + ?Sized>(
     formatter: &mut fmt::Formatter<'_>,
     verb: &str,

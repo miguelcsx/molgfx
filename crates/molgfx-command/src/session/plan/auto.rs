@@ -7,8 +7,9 @@
 use super::Planner;
 use super::scene_error;
 use crate::error::{CommandError, ErrorKind};
-use crate::ir::{Form, FormKind, Name, QueryText};
+use crate::ir::{Form, FormKind, Name, Positive, QueryText};
 use crate::session::state::LayerSpec;
+use molgfx_scene::preset::PocketStyle;
 
 impl Planner<'_> {
     /// Draws a structure with the size- and chemistry-appropriate default
@@ -29,6 +30,19 @@ impl Planner<'_> {
         };
         let forms = molgfx_scene::preset::auto_representations(source, structure)
             .map_err(|error| scene_error(&error))?;
+        let added = self.register_forms(forms, structure)?;
+        self.messages
+            .push(format!("{added} default layer(s) added"));
+        Ok(())
+    }
+
+    /// Adds each form and registers its layer under the form's name, so later
+    /// statements can hide, recolour or remove it like any other.
+    fn register_forms(
+        &mut self,
+        forms: Vec<molgfx_scene::RepresentationSpec>,
+        structure: molgfx_scene::StructureId,
+    ) -> Result<usize, CommandError> {
         let mut added = 0_usize;
         for form in forms {
             let kind = form.form_name().to_owned();
@@ -60,8 +74,33 @@ impl Planner<'_> {
             );
             added += 1;
         }
-        self.messages
-            .push(format!("{added} default layer(s) added"));
+        Ok(added)
+    }
+
+    /// Draws the pocket-and-pose composition around `target` and focuses it.
+    pub(super) fn pocket(
+        &mut self,
+        target: &QueryText,
+        near: Option<Positive>,
+        mid: Option<Positive>,
+        structure: Option<&Name>,
+    ) -> Result<(), CommandError> {
+        let structure = self.structure(structure)?;
+        let mut style = PocketStyle::default();
+        if let Some(near) = near {
+            style.near = near.get();
+        }
+        if let Some(mid) = mid {
+            style.mid = mid.get();
+        }
+        let focus = molgfx_scene::Selection::from(target.source());
+        let forms = molgfx_scene::preset::pocket_representations(&focus, structure, style)
+            .map_err(|error| scene_error(&error))?;
+        let added = self.register_forms(forms, structure)?;
+        let selection = self.resolver().selection(target)?;
+        self.transaction.focus(selection);
+        self.state.spec.focus = Some(target.clone());
+        self.messages.push(format!("{added} pocket layer(s) added"));
         Ok(())
     }
 }

@@ -259,6 +259,36 @@ impl PyCommand {
     }
 
     #[staticmethod]
+    #[pyo3(signature = (*, structure=None))]
+    fn auto(structure: Option<&str>) -> PyResult<Self> {
+        Ok(Self(command::Command::Auto {
+            structure: self::structure(structure)?,
+        }))
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (target, *, near=None, mid=None, structure=None))]
+    fn pocket(
+        py: Python<'_>,
+        target: &Bound<'_, PyAny>,
+        near: Option<f32>,
+        mid: Option<f32>,
+        structure: Option<&str>,
+    ) -> PyResult<Self> {
+        let radius = |value: Option<f32>| {
+            value
+                .map(|value| command::Positive::new(value).map_err(PyValueError::new_err))
+                .transpose()
+        };
+        Ok(Self(command::Command::Pocket {
+            target: query(py, &crate::binding::selection(target)?)?,
+            near: radius(near)?,
+            mid: radius(mid)?,
+            structure: self::structure(structure)?,
+        }))
+    }
+
+    #[staticmethod]
     fn unfocus() -> Self {
         Self(command::Command::Unfocus)
     }

@@ -257,8 +257,7 @@ class Scene:
         focus: _Target,
         *,
         structure: StructureId | None = None,
-        near: float = 4.0,
-        mid: float = 10.0,
+        style: PocketStyle | None = None,
     ) -> Sequence[RepresentationId]: ...
     def bind_property(
         self,
@@ -384,6 +383,16 @@ class Command:
     @staticmethod
     def focus(target: _Target) -> Command: ...
     @staticmethod
+    def auto(*, structure: str | None = None) -> Command: ...
+    @staticmethod
+    def pocket(
+        target: _Target,
+        *,
+        near: float | None = None,
+        mid: float | None = None,
+        structure: str | None = None,
+    ) -> Command: ...
+    @staticmethod
     def unfocus() -> Command: ...
     @staticmethod
     def undo() -> Command: ...
@@ -498,6 +507,34 @@ class RenderProfile:
     def with_edge_smoothing(self, *, enabled: bool) -> Self: ...
 
 def system_info() -> dict[str, object]: ...
+
+@final
+class PocketStyle:
+    def __new__(cls, *, near: float | None = None, mid: float | None = None) -> Self: ...
+    @property
+    def near(self) -> float: ...
+    @property
+    def mid(self) -> float: ...
+    @property
+    def pocket_opacity(self) -> float: ...
+    @property
+    def context_opacity(self) -> float: ...
+    @property
+    def solvent_opacity(self) -> float: ...
+    def with_opacity(
+        self,
+        *,
+        pocket: float | None = None,
+        context: float | None = None,
+        solvent: float | None = None,
+    ) -> PocketStyle: ...
+    def with_colors(
+        self,
+        *,
+        pocket: tuple[int, int, int] | None = None,
+        context: tuple[int, int, int] | None = None,
+        solvent: tuple[int, int, int] | None = None,
+    ) -> PocketStyle: ...
 
 @final
 class Renderer:
@@ -860,6 +897,7 @@ __all__ = [
     "color",
     "profile",
     "PickResult",
+    "PocketStyle",
     "Image",
     "Renderer",
     "system_info",

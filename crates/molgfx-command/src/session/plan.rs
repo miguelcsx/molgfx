@@ -97,6 +97,12 @@ impl Planner<'_> {
                 Ok(())
             }
             Command::Auto { structure } => self.auto(structure.as_ref()),
+            Command::Pocket {
+                target,
+                near,
+                mid,
+                structure,
+            } => self.pocket(target, *near, *mid, structure.as_ref()),
             Command::Undo | Command::Redo => Err(CommandError::new(
                 ErrorKind::History,
                 "undo and redo cannot be combined with edits in one program",

@@ -8,6 +8,7 @@ mod command_binding;
 mod id_binding;
 mod native_adapter;
 mod overlay_binding;
+mod pocket_binding;
 mod render_binding;
 mod scene_binding;
 mod scene_state_binding;

@@ -101,6 +101,11 @@ pub const VERBS: &[VerbInfo] = &[
         summary: "draw a structure with the size-appropriate default forms",
     },
     VerbInfo {
+        name: "pocket",
+        synopsis: "pocket [near=N] [mid=M] [in STRUCTURE], TARGET",
+        summary: "draw the pocket-and-pose composition around a target",
+    },
+    VerbInfo {
         name: "assembly",
         synopsis: "assembly {\"structures\":[...],\"instances\":[...],\"unit_cell\":...} | null",
         summary: "set or remove molecular assembly instances and crystallographic unit-cell guides",
