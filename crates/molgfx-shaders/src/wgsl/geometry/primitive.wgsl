@@ -80,22 +80,18 @@ fn vs_primitive(
     out.metadata = vec4u(0u);
     out.previous_world_center = world_center;
 
-    // Flat interpolation reads vertices 0 and 3 for the two triangles.
-    // Only those vertices pay for the remaining six storage-record fields and
-    // the previous-frame position; the other half perform geometry work only.
-    if primitive_flat_source(vertex) {
-        out.world_center = world_center;
-        out.radius = center_radius.w;
-        out.orientation = primitive[instance].orientation;
-        out.size = primitive[instance].size_opacity.xyz;
-        out.inverse_primary = primitive[instance].inverse_primary;
-        let inverse_cross = primitive[instance].inverse_cross;
-        out.inverse_cross = inverse_cross;
-        out.color = primitive[instance].color;
-        out.metadata = primitive[instance].metadata;
-        if inverse_cross.w > 0.5 {
-            out.previous_world_center = primitive_previous[instance].xyz;
-        }
+    // Clipping may select either provoking vertex; every vertex carries the payload.
+    out.world_center = world_center;
+    out.radius = center_radius.w;
+    out.orientation = primitive[instance].orientation;
+    out.size = primitive[instance].size_opacity.xyz;
+    out.inverse_primary = primitive[instance].inverse_primary;
+    let inverse_cross = primitive[instance].inverse_cross;
+    out.inverse_cross = inverse_cross;
+    out.color = primitive[instance].color;
+    out.metadata = primitive[instance].metadata;
+    if inverse_cross.w > 0.5 {
+        out.previous_world_center = primitive_previous[instance].xyz;
     }
 
     return out;

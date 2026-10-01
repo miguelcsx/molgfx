@@ -54,8 +54,6 @@ fn quality_bond(index: u32) -> BondRecord {
     );
 }
 
-const INTERACTIVE_RAYS: u32 = 2u;
-const PUBLICATION_RAYS: u32 = 8u;
 const AO_DISTANCE: f32 = 12.0;
 const SHADOW_DISTANCE: f32 = 40.0;
 const AO_STRENGTH: f32 = 0.72;
@@ -150,7 +148,7 @@ fn fs_quality_ao(in: FullscreenOut) -> @location(0) vec4f {
     let light_frame = tangent_frame(light_base);
     var ao_hits = 0.0;
     var shadow_hits = 0.0;
-    let ray_count = select(INTERACTIVE_RAYS, PUBLICATION_RAYS, frame.temporal.z > 0.5);
+    let ray_count = u32(frame.temporal.y);
     for (var ray_index = 0u; ray_index < ray_count; ray_index += 1u) {
         let stream = ray_index * 0x9e3779b9u;
         let ao_direction = cosine_direction(world_normal,

@@ -52,11 +52,9 @@ fn vs_overlay_glyph(
     out.color = vec4f(0.0);
     out.bits = vec2u(0u);
 
-    if flat_source(vertex_index) {
-        out.color = overlay.color_a;
+    out.color = overlay.color_a;
 
-        out.bits = overlay.metadata.yz;
-    }
+    out.bits = overlay.metadata.yz;
 
     return out;
 }
@@ -197,10 +195,8 @@ fn vs_overlay_scale(
     out.color =
         vec4f(0.0);
 
-    if flat_source(vertex_index) {
-        out.color =
-            overlay.color_a;
-    }
+    out.color =
+        overlay.color_a;
 
     return out;
 }
@@ -264,10 +260,8 @@ fn vs_overlay_axis(
     out.color =
         vec4f(0.0);
 
-    if flat_source(vertex_index) {
-        out.color =
-            overlay.color_a;
-    }
+    out.color =
+        overlay.color_a;
 
     return out;
 }

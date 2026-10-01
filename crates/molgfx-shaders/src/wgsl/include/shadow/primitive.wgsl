@@ -69,48 +69,46 @@ fn vs_shadow_primitive(
 
     out.shape = 0u;
 
-    // Only vertices 0 and 3 provide flat data for the independent triangles.
-    if shadow_flat_source(vertex) {
-        out.world_center =
-            center_radius.xyz;
+    // Every vertex carries the payload so clipped triangles retain valid data.
+    out.world_center =
+        center_radius.xyz;
+
+    if SHADOW_PRIMITIVE_KIND ==
+        SHADOW_KIND_ELLIPSOID {
+        out.inverse_primary =
+            shadow_primitives[instance]
+                .inverse_primary;
+
+        out.inverse_cross =
+            shadow_primitives[instance]
+                .inverse_cross;
+    } else {
+        out.size = shadow_primitive_size(
+            shadow_primitives[instance]
+                .size_opacity.xyz
+        );
+
+        if SHADOW_PRIMITIVE_KIND !=
+            SHADOW_KIND_PARTICLE_SPHERE {
+            out.orientation =
+                shadow_primitives[instance]
+                    .orientation;
+        }
 
         if SHADOW_PRIMITIVE_KIND ==
-            SHADOW_KIND_ELLIPSOID {
+            SHADOW_KIND_POLYGON_PENTAGON ||
+            SHADOW_PRIMITIVE_KIND ==
+            SHADOW_KIND_POLYGON_HEXAGON {
+            out.shape =
+                shadow_primitives[instance]
+                    .metadata.w;
+        }
+
+        if SHADOW_PRIMITIVE_KIND ==
+            SHADOW_KIND_PARTICLE_SUPERQUADRIC {
             out.inverse_primary =
                 shadow_primitives[instance]
                     .inverse_primary;
-
-            out.inverse_cross =
-                shadow_primitives[instance]
-                    .inverse_cross;
-        } else {
-            out.size = shadow_primitive_size(
-                shadow_primitives[instance]
-                    .size_opacity.xyz
-            );
-
-            if SHADOW_PRIMITIVE_KIND !=
-                SHADOW_KIND_PARTICLE_SPHERE {
-                out.orientation =
-                    shadow_primitives[instance]
-                        .orientation;
-            }
-
-            if SHADOW_PRIMITIVE_KIND ==
-                SHADOW_KIND_POLYGON_PENTAGON ||
-                SHADOW_PRIMITIVE_KIND ==
-                SHADOW_KIND_POLYGON_HEXAGON {
-                out.shape =
-                    shadow_primitives[instance]
-                        .metadata.w;
-            }
-
-            if SHADOW_PRIMITIVE_KIND ==
-                SHADOW_KIND_PARTICLE_SUPERQUADRIC {
-                out.inverse_primary =
-                    shadow_primitives[instance]
-                        .inverse_primary;
-            }
         }
     }
 

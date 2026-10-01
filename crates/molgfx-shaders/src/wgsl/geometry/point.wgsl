@@ -90,11 +90,6 @@ struct PointFsOut {
     @builtin(frag_depth) depth: f32,
 }
 
-/// Returns the provoking vertices of the two independent triangles.
-fn point_flat_source(vertex: u32) -> bool {
-    return vertex == 0u || vertex == 3u;
-}
-
 /// Builds the pixel-stable impostor geometry.
 fn point_geometry(
     world_position: vec3f,
@@ -157,30 +152,9 @@ fn vs_point(
             visible_atoms[instance]
         ];
 
-    let flat =
-        point_flat_source(vertex);
-
-    var world_position: vec3f;
-    var previous_world = vec3f(0.0);
-
-    // Previous coordinates are fetched only by the two provoking vertices.
-    if flat {
-        let positions =
-            atom_motion_positions(
-                atom.entity_id
-            );
-
-        world_position =
-            positions.current;
-
-        previous_world =
-            positions.previous;
-    } else {
-        world_position =
-            atom_position(
-                atom.entity_id
-            );
-    }
+    let positions = atom_motion_positions(atom.entity_id);
+    let world_position = positions.current;
+    let previous_world = positions.previous;
 
     let geometry =
         point_geometry(
@@ -216,27 +190,25 @@ fn vs_point(
         return out;
     }
 
-    if flat {
-        out.color =
-            atom_color(atom.color);
+    out.color =
+        atom_color(atom.color);
 
-        // Current clip XYW already exists; do not project current_world again.
-        out.motion =
-            screen_motion_from_clip(
-                geometry.clip.xyw,
+    // Current clip XYW already exists; do not project current_world again.
+    out.motion =
+        screen_motion_from_clip(
+            geometry.clip.xyw,
 
-                clip_xyw(
-                    frame.previous_view_proj,
-                    previous_world,
-                ),
-            );
+            clip_xyw(
+                frame.previous_view_proj,
+                previous_world,
+            ),
+        );
 
-        out.entity_id =
-            atom.entity_id;
+    out.entity_id =
+        atom.entity_id;
 
-        out.semantic =
-            atom.semantic;
-    }
+    out.semantic =
+        atom.semantic;
 
     return out;
 }
@@ -352,26 +324,24 @@ fn vs_point_transparent(
         return out;
     }
 
-    if point_flat_source(vertex) {
-        out.view_position =
-            geometry.view_position;
+    out.view_position =
+        geometry.view_position;
 
-        out.color =
-            atom_record_color(
-                atom
-            );
+    out.color =
+        atom_record_color(
+            atom
+        );
 
-        out.softness_pixels =
-            atom_softness_pixels(
-                atom.semantic
-            );
+    out.softness_pixels =
+        atom_softness_pixels(
+            atom.semantic
+        );
 
-        out.entity_id =
-            atom.entity_id;
+    out.entity_id =
+        atom.entity_id;
 
-        out.semantic =
-            atom.semantic;
-    }
+    out.semantic =
+        atom.semantic;
 
     return out;
 }

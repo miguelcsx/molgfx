@@ -72,11 +72,6 @@ fn overlay_uv(vertex_index: u32) -> vec2f {
     return corners[min(vertex_index, 5u)];
 }
 
-/// Vertices 0 and 3 provide flat data for the two independent triangles.
-fn flat_source(vertex_index: u32) -> bool {
-    return vertex_index == 0u || vertex_index == 3u;
-}
-
 /// Resolves an overlay anchor into pixel coordinates.
 fn overlay_origin(anchor: vec4f) -> vec2f {
     return fma(

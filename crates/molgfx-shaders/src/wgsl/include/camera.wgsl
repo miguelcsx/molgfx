@@ -59,6 +59,30 @@ fn camera_view_depth(view: vec3f) -> f32 {
 
     return zw.x / zw.y;
 }
+/// View-space near plane for either projection.
+fn camera_near_z() -> f32 {
+    return projection_near_z(frame.proj);
+}
+
+/// Returns the ray parameter of the camera near plane.
+///
+/// Analytic impostors rasterize a proxy quad before replacing its depth. When
+/// their front intersection crosses the near plane, selecting that clipped
+/// intersection would make every overlapping proxy write depth one. Resolve
+/// the plane in view space so those paths can expose the retained rear shell
+/// instead, matching clipped triangle geometry without moving the camera.
+fn camera_ray_near_t(
+    view_origin: vec3f,
+    view_direction: vec3f,
+) -> f32 {
+    let near_z = camera_near_z();
+
+    return max(
+        (near_z - view_origin.z) /
+            min(view_direction.z, -1.0e-12),
+        0.0,
+    );
+}
 
 /// Converts NDC XY to top-left-origin pixel coordinates.
 fn camera_ndc_to_pixel(ndc: vec2f) -> vec2f {

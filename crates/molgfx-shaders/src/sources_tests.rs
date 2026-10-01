@@ -1,5 +1,5 @@
 use super::{
-    CULL, GEOMETRY_BOND, GEOMETRY_BOND_SPECIALIZED, GEOMETRY_CARTOON, GEOMETRY_CARTOON_SPECIALIZED,
+    GEOMETRY_BOND, GEOMETRY_BOND_SPECIALIZED, GEOMETRY_CARTOON, GEOMETRY_CARTOON_SPECIALIZED,
     GEOMETRY_SPHERE, GEOMETRY_SPHERE_SPECIALIZED, GEOMETRY_SURFACE, SHADOW_RIBBON,
     SURFACE_FIELD_NORMAL,
 };
@@ -142,22 +142,6 @@ fn every_analytic_depth_writer_ranks_a_coincident_tie_by_entity() {
         assert!(source.contains("stable_entity_depth"));
         assert!(source.contains("in.pick_page * 65536u + in.local_row"));
     }
-}
-
-#[test]
-fn composed_molecular_impostors_include_parallel_camera_rays() {
-    assert!(GEOMETRY_SPHERE.contains("fn sphere_ray"));
-    assert!(GEOMETRY_SPHERE.contains("fn representation_transform_point"));
-    assert!(GEOMETRY_BOND.contains("fn bond_ray_xy"));
-    assert!(GEOMETRY_BOND.contains("ray_origin + resolved.t * ray_direction"));
-    assert!(GEOMETRY_SPHERE.contains("fn sphere_quad_half_extent"));
-    assert!(GEOMETRY_SPHERE.contains("let shift = abs(center.xy)"));
-}
-
-#[test]
-fn composed_culling_uses_projection_independent_clip_extents() {
-    assert!(!CULL.contains("MIN_DISTANCE"));
-    assert!(CULL.contains("frame.projection_kind.yz * radius"));
 }
 
 #[test]

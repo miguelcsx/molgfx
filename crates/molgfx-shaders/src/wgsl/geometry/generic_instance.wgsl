@@ -223,14 +223,12 @@ fn vs_generic_instance(
     out.color = vec4f(0.0);
     out.metadata = vec4u(0u);
     out.previous_world_center = world_center;
-    if primitive_flat_source(local_vertex) {
-        out.world_center = world_center;
-        out.radius = bound_radius;
-        out.orientation = orientation;
-        out.size = local_size;
-        out.color = generic_instance_color(instance_row);
-        out.metadata = vec4u(flattened, instance_config.picking_style.x, instance_row, flat_part);
-    }
+    out.world_center = world_center;
+    out.radius = bound_radius;
+    out.orientation = orientation;
+    out.size = local_size;
+    out.color = generic_instance_color(instance_row);
+    out.metadata = vec4u(flattened, instance_config.picking_style.x, instance_row, flat_part);
     return out;
 }
 

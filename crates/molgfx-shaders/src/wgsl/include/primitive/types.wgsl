@@ -104,11 +104,6 @@ fn primitive_corner(vertex: u32) -> vec2f {
     return corners[min(vertex, 5u)];
 }
 
-/// Returns the provoking vertex for each independent triangle.
-fn primitive_flat_source(vertex: u32) -> bool {
-    return vertex == 0u || vertex == 3u;
-}
-
 /// Transforms an affine point without computing the unused homogeneous W.
 fn transform_point(
     matrix: mat4x4f,

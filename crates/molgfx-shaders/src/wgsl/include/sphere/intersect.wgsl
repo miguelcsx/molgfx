@@ -21,7 +21,7 @@ fn sphere_ray(in: SphereVsOut) -> SphereRay {
 
     return SphereRay(
         vec3f(0.0),
-        vec3f(in.ray_xy, in.center_radius.z),
+        vec3f(in.ray_xy, -1.0),
     );
 }
 
@@ -120,9 +120,7 @@ fn sphere_surface_miss() -> SphereSurface {
 fn sphere_surface_unclipped(
     in: SphereVsOut,
 ) -> SphereSurface {
-    let ray =
-        sphere_ray(in);
-
+    let ray = sphere_ray(in);
     let intersection =
         sphere_intersection(
             ray.origin,
@@ -134,25 +132,29 @@ fn sphere_surface_unclipped(
         return sphere_surface_miss();
     }
 
-    let t =
-        nearest_positive_interval(
+    let resolved =
+        nearest_visible_interval(
             intersection.interval,
+            camera_ray_near_t(
+                ray.origin,
+                ray.direction,
+            ),
         );
 
-    if t <= 0.0 {
+    if !resolved.valid {
         return sphere_surface_miss();
     }
 
     let hit =
-        ray.origin + ray.direction * t;
+        ray.origin + ray.direction * resolved.t;
 
     // An analytic sphere hit lies exactly radius units from its center.
-    // Multiplying by the precomputed reciprocal avoids normalize().
+    // Multiplying by the precomputed reciprocal avoids normalize(). Rear-shell
+    // hits face inward so a camera crossing the surface keeps valid lighting.
     let normal =
-        (
-            hit -
-            in.center_radius.xyz
-        ) * in.material.w;
+        (hit - in.center_radius.xyz) *
+        in.material.w *
+        select(1.0, -1.0, resolved.interior);
 
     return SphereSurface(
         hit,
@@ -167,9 +169,7 @@ fn sphere_surface_unclipped(
 fn sphere_surface_clipped(
     in: SphereVsOut,
 ) -> SphereSurface {
-    let ray =
-        sphere_ray(in);
-
+    let ray = sphere_ray(in);
     let intersection =
         sphere_intersection(
             ray.origin,
@@ -187,6 +187,10 @@ fn sphere_surface_clipped(
             ray.direction,
             intersection.interval,
             frame.inv_view,
+            camera_ray_near_t(
+                ray.origin,
+                ray.direction,
+            ),
         );
 
     if !resolved.valid {
@@ -194,8 +198,7 @@ fn sphere_surface_clipped(
     }
 
     let hit =
-        ray.origin + ray.direction *
-        resolved.t;
+        ray.origin + ray.direction * resolved.t;
 
     var normal: vec3f;
 
@@ -207,11 +210,12 @@ fn sphere_surface_clipped(
                 frame.view,
             );
     } else {
+        let interior =
+            resolved.t == intersection.interval.y;
         normal =
-            (
-                hit -
-                in.center_radius.xyz
-            ) * in.material.w;
+            (hit - in.center_radius.xyz) *
+            in.material.w *
+            select(1.0, -1.0, interior);
     }
 
     return SphereSurface(

@@ -60,14 +60,12 @@ fn vs_ligand_pose(
     out.color = vec4f(0.0);
     out.metadata = vec4u(0u);
     out.previous_world_center = world_center;
-    if primitive_flat_source(local_vertex) {
-        out.world_center = world_center;
-        out.radius = value.center_radius.w;
-        out.orientation = value.orientation;
-        out.size = value.size;
-        out.color = value.color;
-        out.metadata = value.metadata;
-    }
+    out.world_center = world_center;
+    out.radius = value.center_radius.w;
+    out.orientation = value.orientation;
+    out.size = value.size;
+    out.color = value.color;
+    out.metadata = value.metadata;
     return out;
 }
 

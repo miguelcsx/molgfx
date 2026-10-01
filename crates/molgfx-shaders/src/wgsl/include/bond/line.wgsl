@@ -2,8 +2,7 @@
 //
 // A line is a pixel-width screen rectangle spanning two projected endpoints,
 // so it stays legible at any zoom without a geometry shader or a mesh. Flat
-// per-bond attributes are authored by the provoking vertices only, which
-// keeps the interpolator count down and the per-vertex work minimal.
+// attributes are identical at every vertex so clipping preserves the payload.
 
 const HIDDEN_WIRE_BOND: u32 = 0xffffffffu;
 
@@ -83,86 +82,84 @@ fn vs_bond_line(
         1.0,
     );
 
-    if bond_flat_source(vertex_index) {
-        let pixel_a_axis =
-            bond_pixel_a_axis(
-                ndc_a,
-                ndc_b,
-            );
-
-        let color_a =
-            atom_record_color(atom_a);
-
-        let color_b =
-            atom_record_color(atom_b);
-
-        let motion_a =
-            screen_motion(
-                world_a,
-                previous_atom_position(atom_a.entity_id),
-            );
-
-        let motion_b =
-            screen_motion(
-                world_b,
-                previous_atom_position(atom_b.entity_id),
-            );
-
-        let half_width =
-            line_width * 0.5;
-
-        out.endpoint_a =
-            endpoint_a;
-
-        out.endpoint_axis =
-            endpoint_b - endpoint_a;
-
-        out.pixel_a_axis =
-            pixel_a_axis;
-
-        out.color_a =
-            color_a;
-
-        out.color_delta =
-            color_b - color_a;
-
-        out.motion_a_delta =
-            vec4f(
-                motion_a,
-                motion_b - motion_a,
-            );
-
-        out.aux = vec4f(
-            varied_roughness(
-                bond.entity_id,
-                representation.material.x,
-            ),
-
-            1.0 / max(
-                dot(
-                    pixel_a_axis.zw,
-                    pixel_a_axis.zw,
-                ),
-                BOND_LINE_AXIS_EPSILON_SQ,
-            ),
-
-            half_width * half_width,
-
-            material_payload(
-                representation.material,
-            ),
+    let pixel_a_axis =
+        bond_pixel_a_axis(
+            ndc_a,
+            ndc_b,
         );
 
-        out.entity_id =
-            bond.entity_id;
+    let color_a =
+        atom_record_color(atom_a);
 
-        out.atom_entities =
-            vec2u(atom_a.entity_id, atom_b.entity_id);
+    let color_b =
+        atom_record_color(atom_b);
 
-        out.atom_records =
-            vec2u(bond.atom_a, bond.atom_b);
-        out.style = variant.style;
-    }
+    let motion_a =
+        screen_motion(
+            world_a,
+            previous_atom_position(atom_a.entity_id),
+        );
+
+    let motion_b =
+        screen_motion(
+            world_b,
+            previous_atom_position(atom_b.entity_id),
+        );
+
+    let half_width =
+        line_width * 0.5;
+
+    out.endpoint_a =
+        endpoint_a;
+
+    out.endpoint_axis =
+        endpoint_b - endpoint_a;
+
+    out.pixel_a_axis =
+        pixel_a_axis;
+
+    out.color_a =
+        color_a;
+
+    out.color_delta =
+        color_b - color_a;
+
+    out.motion_a_delta =
+        vec4f(
+            motion_a,
+            motion_b - motion_a,
+        );
+
+    out.aux = vec4f(
+        varied_roughness(
+            bond.entity_id,
+            representation.material.x,
+        ),
+
+        1.0 / max(
+            dot(
+                pixel_a_axis.zw,
+                pixel_a_axis.zw,
+            ),
+            BOND_LINE_AXIS_EPSILON_SQ,
+        ),
+
+        half_width * half_width,
+
+        material_payload(
+            representation.material,
+        ),
+    );
+
+    out.entity_id =
+        bond.entity_id;
+
+    out.atom_entities =
+        vec2u(atom_a.entity_id, atom_b.entity_id);
+
+    out.atom_records =
+        vec2u(bond.atom_a, bond.atom_b);
+    out.style = variant.style;
 
     return out;
 }
