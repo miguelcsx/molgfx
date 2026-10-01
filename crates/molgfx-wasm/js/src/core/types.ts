@@ -1,5 +1,5 @@
 // wasm-pack writes these bindings into pkg/ (git-ignored); see scripts/build.mjs.
-import type { Renderer, Scene } from "../../pkg/molgfx_wasm.js";
+import type { PickReadback, Renderer, Scene } from "../../pkg/molgfx_wasm.js";
 
 export type Cleanup = () => void;
 
@@ -7,6 +7,7 @@ export type RuntimeModule = typeof import("../../pkg/molgfx_wasm.js");
 
 export type WasmRenderer = Renderer;
 export type WasmScene = Scene;
+export type WasmPickReadback = PickReadback;
 
 export type Vec3 = [number, number, number];
 

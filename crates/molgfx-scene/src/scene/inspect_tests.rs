@@ -227,3 +227,30 @@ fn a_volume_segment_pick_resolves_to_its_volume_and_label() {
     assert_eq!(json["pick"], "volume_segment");
     assert_eq!(json["volume_label"], 42);
 }
+
+#[test]
+fn a_volume_segment_pick_is_not_attributed_when_several_volumes_could_own_it() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    for source in ["density-a", "density-b"] {
+        scene
+            .add(crate::density::volume(
+                crate::overlay::DataSource::new(source),
+                [2, 2, 2],
+            ))
+            .unwrap_or_else(|error| panic!("volume adds: {error}"));
+    }
+
+    let resolved = scene
+        .resolve_pick(&PickResult {
+            kind: PickKind::VolumeSegment,
+            dataset: None,
+            chunk: None,
+            row: None,
+            volume_label: Some(7),
+        })
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert!(
+        !matches!(resolved, ResolvedPick::VolumeSegment(_)),
+        "an ambiguous owner must not be named, got {resolved:?}"
+    );
+}

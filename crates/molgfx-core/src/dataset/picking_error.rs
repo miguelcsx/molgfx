@@ -15,6 +15,9 @@ pub enum PickingError {
     /// Fixed resolver storage could not be allocated.
     #[error("picking resolver storage allocation failed")]
     AllocationFailed,
+    /// Every readback buffer is awaiting an earlier pick.
+    #[error("every pick readback is already in flight")]
+    InFlightExhausted,
     /// Every slot belongs to the current resident working set.
     #[error("picking resolver working set is full")]
     WorkingSetFull,

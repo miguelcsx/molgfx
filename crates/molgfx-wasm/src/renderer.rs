@@ -159,14 +159,14 @@ impl WebRenderer {
             return Ok(None);
         };
         let bytes = readback.resolve().await?;
-        self.finish_pick(scene, &bytes)
+        self.finish_pick(scene, &readback, &bytes)
     }
 
     /// Records one pixel pick and detaches its readback.
     ///
     /// The returned handle borrows nothing, so a caller may render while the
     /// readback is awaited. `undefined` means the pixel is outside the target
-    /// or nothing is drawable. Hand the resolved bytes to [`Self::finish_pick`].
+    /// or nothing is drawable. Hand the readback and its resolved bytes to [`Self::finish_pick`].
     ///
     /// # Errors
     ///
@@ -184,13 +184,18 @@ impl WebRenderer {
     /// Returns a JavaScript error if the scene is unresolved or the identity
     /// cannot be resolved or encoded.
     #[wasm_bindgen(js_name = finishPick)]
-    pub fn finish_pick(&self, scene: &WebScene, bytes: &[u8]) -> Result<Option<String>, JsError> {
+    pub fn finish_pick(
+        &self,
+        scene: &WebScene,
+        readback: &WebPickReadback,
+        bytes: &[u8],
+    ) -> Result<Option<String>, JsError> {
         let resolved = scene
             .resolved
             .as_ref()
             .ok_or_else(|| JsError::new("scene must be resolved before picking"))?;
         self.inner
-            .finish_pick(resolved, bytes)
+            .finish_pick(resolved, &readback.inner, bytes)
             .map_err(javascript_error)?
             .map(|pick| serde_json::to_string(&pick).map_err(javascript_error))
             .transpose()

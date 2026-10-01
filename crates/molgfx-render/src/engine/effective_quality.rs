@@ -105,7 +105,8 @@ impl<D: Device> Engine<D> {
             lod_mode_max: self.scene_gpu.lod_mode_max(),
             progressive: false,
             adaptive: self.adaptive.enabled(),
-            full_residency: self.chunk_residency.metrics().uploads.active_tickets == 0,
+            full_residency: self.chunk_residency.metrics().uploads.active_tickets == 0
+                && self.scene_gpu.pending_drawables() == 0,
         }
     }
 }

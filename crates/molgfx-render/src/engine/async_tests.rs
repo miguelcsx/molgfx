@@ -76,15 +76,11 @@ fn a_detached_pick_readback_resolves_after_the_engine_is_idle() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("a frame renders while a readback is detached: {error}")
     }
-    let packed = match pollster::block_on(molgfx_gpu::Readback::resolve(
-        &readback,
-        0,
-        super::PICK_READBACK_BYTES,
-    )) {
+    let packed = match pollster::block_on(readback.resolve()) {
         Ok(packed) => packed,
         Err(error) => panic!("detached readback resolves: {error}"),
     };
-    let pick = match engine.finish_pick(&packed) {
+    let pick = match engine.finish_pick(&readback, &packed) {
         Ok(Some(pick)) => pick,
         Ok(None) => panic!("mock readback resolves zero ids"),
         Err(error) => panic!("detached pick resolves: {error}"),

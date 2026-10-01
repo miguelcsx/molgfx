@@ -9,9 +9,15 @@ use molgfx_core::{
     AtomSelection, EntityKind, GlobalPickIdentity, GpuPickToken, PickPageTicket, VolumeSegmentRef,
 };
 use molgfx_gpu::{BufferDesc, BufferUsage, CommandEncoder as _, Device, Queue as _, Readback as _};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 const READBACK_BYTES: u32 = 256;
 const PICK_FIELDS: u64 = 4;
+
+/// Picks that may be awaiting readback at once; further requests are refused
+/// rather than queued, so backpressure is explicit and memory is bounded.
+const PICKS_IN_FLIGHT: usize = 4;
 
 /// Bytes a pick readback resolves: one field per identity domain.
 pub const PICK_READBACK_BYTES: u64 = READBACK_BYTES as u64 * PICK_FIELDS;
@@ -35,24 +41,91 @@ pub enum PickEntity {
 }
 
 #[derive(Debug)]
+struct PickBuffer<D: Device> {
+    buffer: D::Buffer,
+    busy: Arc<AtomicBool>,
+}
+
+/// Bounded pool of readback buffers, one per pick in flight.
+#[derive(Debug)]
 pub(crate) struct Picker<D: Device> {
-    readback: D::Buffer,
-    submission: Box<[Option<PickPageTicket>]>,
+    buffers: Box<[PickBuffer<D>]>,
+    page_capacity: usize,
 }
 
 impl<D: Device> Picker<D> {
     pub(crate) fn new(device: &D, page_capacity: u32) -> Result<Self, RenderError> {
-        let capacity = usize::try_from(page_capacity)
+        let page_capacity = usize::try_from(page_capacity)
             .map_err(|_| molgfx_core::PickingError::CapacityTooLarge)?;
-        let mut submission = Vec::new();
-        submission
-            .try_reserve_exact(capacity)
+        let mut buffers = Vec::new();
+        buffers
+            .try_reserve_exact(PICKS_IN_FLIGHT)
             .map_err(|_| molgfx_core::PickingError::AllocationFailed)?;
-        submission.resize(capacity, None);
+        for _ in 0..PICKS_IN_FLIGHT {
+            buffers.push(PickBuffer {
+                buffer: readback(device, "packed pick readback")?,
+                busy: Arc::new(AtomicBool::new(false)),
+            });
+        }
         Ok(Self {
-            readback: readback(device, "packed pick readback")?,
-            submission: submission.into_boxed_slice(),
+            buffers: buffers.into_boxed_slice(),
+            page_capacity,
         })
+    }
+
+    /// Claims a free readback buffer, or reports that every one is awaited.
+    fn acquire(&self) -> Result<(usize, Arc<AtomicBool>), RenderError> {
+        for (index, slot) in self.buffers.iter().enumerate() {
+            if slot
+                .busy
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+            {
+                return Ok((index, Arc::clone(&slot.busy)));
+            }
+        }
+        Err(molgfx_core::PickingError::InFlightExhausted.into())
+    }
+}
+
+/// One recorded pick: its own readback buffer and the page generations that
+/// were resident when it was submitted.
+///
+/// Both belong to the request, so another pick, a later frame or a recycled
+/// page cannot change which entity these bytes name. Dropping the value frees
+/// its readback buffer for the next request.
+pub struct PendingPick<D: Device> {
+    readback: D::Readback,
+    submission: Box<[Option<PickPageTicket>]>,
+    busy: Arc<AtomicBool>,
+}
+
+impl<D: Device> std::fmt::Debug for PendingPick<D> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PendingPick")
+            .field("pages", &self.submission.len())
+            .finish_non_exhaustive()
+    }
+}
+
+impl<D: Device> PendingPick<D> {
+    /// Awaits the packed identity bytes without borrowing the engine.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed device error when the mapped readback fails.
+    pub async fn resolve(&self) -> Result<Vec<u8>, RenderError> {
+        Ok(self
+            .readback
+            .resolve(0, u64::from(READBACK_BYTES) * PICK_FIELDS)
+            .await?)
+    }
+}
+
+impl<D: Device> Drop for PendingPick<D> {
+    fn drop(&mut self) {
+        self.busy.store(false, Ordering::Release);
     }
 }
 
@@ -65,41 +138,59 @@ impl<D: Device> Engine<D> {
     /// Returns a typed device error when readback fails. A pixel outside the
     /// target or over the background resolves to `Ok(None)`.
     pub async fn pick_async(&mut self, x: u32, y: u32) -> Result<Option<Pick>, RenderError> {
-        let Some(readback) = self.begin_pick(x, y)? else {
+        let Some(pending) = self.begin_pick(x, y)? else {
             return Ok(None);
         };
-        let packed = readback
-            .resolve(0, u64::from(READBACK_BYTES) * PICK_FIELDS)
-            .await?;
-        self.finish_pick(&packed)
+        let packed = pending.resolve().await?;
+        self.finish_pick(&pending, &packed)
     }
 
     /// Records one pick and returns a detached readback handle.
     ///
     /// The handle borrows neither the engine nor its device, so on the
-    /// browser's single JavaScript thread a frame may render between this
-    /// call and [`Self::finish_pick`]. `None` means the pixel is outside the
-    /// target or nothing is drawable.
+    /// browser's single JavaScript thread a frame may render, and further
+    /// picks may begin, between this call and [`Self::finish_pick`]. `None`
+    /// means the pixel is outside the target or nothing is drawable.
     ///
     /// # Errors
     ///
-    /// Returns a typed error when the pick copies cannot be recorded.
-    pub fn begin_pick(&mut self, x: u32, y: u32) -> Result<Option<D::Readback>, RenderError> {
-        if !self.record_pick(x, y)? {
-            return Ok(None);
-        }
-        Ok(Some(
-            self.queue.readback(&self.device, &self.picker.readback),
-        ))
+    /// Returns a typed error when the pick copies cannot be recorded, or when
+    /// every readback buffer is already awaited.
+    pub fn begin_pick(&mut self, x: u32, y: u32) -> Result<Option<PendingPick<D>>, RenderError> {
+        let (index, busy) = self.picker.acquire()?;
+        let submission = match self.record_pick(index, x, y) {
+            Ok(Some(submission)) => submission,
+            Ok(None) => {
+                busy.store(false, Ordering::Release);
+                return Ok(None);
+            }
+            Err(error) => {
+                busy.store(false, Ordering::Release);
+                return Err(error);
+            }
+        };
+        let readback = self
+            .queue
+            .readback(&self.device, &self.picker.buffers[index].buffer);
+        Ok(Some(PendingPick {
+            readback,
+            submission,
+            busy,
+        }))
     }
 
-    /// Resolves the packed bytes a [`Self::begin_pick`] produced.
+    /// Resolves the packed bytes a [`Self::begin_pick`] produced, against the
+    /// page generations that request captured.
     ///
     /// # Errors
     ///
     /// Returns a typed error when the packed identity cannot be resolved.
-    pub fn finish_pick(&self, packed: &[u8]) -> Result<Option<Pick>, RenderError> {
-        self.resolve_pick(packed)
+    pub fn finish_pick(
+        &self,
+        pending: &PendingPick<D>,
+        packed: &[u8],
+    ) -> Result<Option<Pick>, RenderError> {
+        self.resolve_pick(packed, &pending.submission)
     }
 
     /// Resolves the exact visible entity at one top-left-origin pixel in
@@ -111,24 +202,37 @@ impl<D: Device> Engine<D> {
     /// target or over the background resolves to `Ok(None)`.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn pick(&mut self, x: u32, y: u32) -> Result<Option<Pick>, RenderError> {
-        if !self.record_pick(x, y)? {
+        let Some(pending) = self.begin_pick(x, y)? else {
             return Ok(None);
-        }
+        };
+        let index = self
+            .picker
+            .buffers
+            .iter()
+            .position(|slot| Arc::ptr_eq(&slot.busy, &pending.busy))
+            .ok_or(molgfx_core::PickingError::InFlightExhausted)?;
         let packed = self.queue.read_buffer_blocking(
             &self.device,
-            &self.picker.readback,
+            &self.picker.buffers[index].buffer,
             0,
             PICK_READBACK_BYTES,
         )?;
-        self.finish_pick(&packed)
+        self.finish_pick(&pending, &packed)
     }
 
-    fn record_pick(&mut self, x: u32, y: u32) -> Result<bool, RenderError> {
+    /// Copies the four identity texels into buffer `index` and captures the
+    /// page generations they were drawn against.
+    fn record_pick(
+        &mut self,
+        index: usize,
+        x: u32,
+        y: u32,
+    ) -> Result<Option<Box<[Option<PickPageTicket>]>>, RenderError> {
         if x >= self.width || y >= self.height {
-            return Ok(false);
+            return Ok(None);
         }
         let Some(pool) = &self.pool else {
-            return Ok(false);
+            return Ok(None);
         };
         let (
             Some(entity_texture),
@@ -142,10 +246,16 @@ impl<D: Device> Engine<D> {
             pool.texture(SEGMENT_LABEL_RESOURCE),
         )
         else {
-            return Ok(false);
+            return Ok(None);
         };
-        self.scene_gpu
-            .capture_pick_submission(&mut self.picker.submission)?;
+        let mut submission = Vec::new();
+        submission
+            .try_reserve_exact(self.picker.page_capacity)
+            .map_err(|_| molgfx_core::PickingError::AllocationFailed)?;
+        submission.resize(self.picker.page_capacity, None);
+        let mut submission = submission.into_boxed_slice();
+        self.scene_gpu.capture_pick_submission(&mut submission)?;
+        let destination = &self.picker.buffers[index].buffer;
         let mut encoder = self.device.create_command_encoder();
         encoder.copy_texture_to_buffer(
             entity_texture,
@@ -153,7 +263,7 @@ impl<D: Device> Engine<D> {
             (1, 1),
             READBACK_BYTES,
             0,
-            &self.picker.readback,
+            destination,
         );
         encoder.copy_texture_to_buffer(
             structure_texture,
@@ -161,7 +271,7 @@ impl<D: Device> Engine<D> {
             (1, 1),
             READBACK_BYTES,
             u64::from(READBACK_BYTES),
-            &self.picker.readback,
+            destination,
         );
         encoder.copy_texture_to_buffer(
             segment_volume_texture,
@@ -169,7 +279,7 @@ impl<D: Device> Engine<D> {
             (1, 1),
             READBACK_BYTES,
             u64::from(READBACK_BYTES) * 2,
-            &self.picker.readback,
+            destination,
         );
         encoder.copy_texture_to_buffer(
             segment_label_texture,
@@ -177,13 +287,17 @@ impl<D: Device> Engine<D> {
             (1, 1),
             READBACK_BYTES,
             u64::from(READBACK_BYTES) * 3,
-            &self.picker.readback,
+            destination,
         );
         self.queue.submit(encoder);
-        Ok(true)
+        Ok(Some(submission))
     }
 
-    fn resolve_pick(&self, packed: &[u8]) -> Result<Option<Pick>, RenderError> {
+    fn resolve_pick(
+        &self,
+        packed: &[u8],
+        submission: &[Option<PickPageTicket>],
+    ) -> Result<Option<Pick>, RenderError> {
         let local_row = pick_field(packed, 0);
         let resident_page = pick_field(packed, 1);
         let segment_volume = pick_field(packed, 2);
@@ -205,9 +319,7 @@ impl<D: Device> Engine<D> {
         if token == GpuPickToken::NONE {
             return Ok(None);
         }
-        let identity = self
-            .scene_gpu
-            .resolve_global_pick(token, &self.picker.submission)?;
+        let identity = self.scene_gpu.resolve_global_pick(token, submission)?;
         let selection = match (identity.kind(), u32::try_from(identity.row().get())) {
             (EntityKind::Atom, Ok(row)) => match row.checked_add(1) {
                 Some(end) => AtomSelection::Range(row..end),
@@ -222,9 +334,12 @@ impl<D: Device> Engine<D> {
     }
 
     #[cfg(test)]
-    pub(crate) fn capture_pick_submission_for_test(&mut self) -> Result<(), RenderError> {
-        self.scene_gpu
-            .capture_pick_submission(&mut self.picker.submission)
+    pub(crate) fn capture_pick_submission_for_test(
+        &mut self,
+    ) -> Result<Box<[Option<PickPageTicket>]>, RenderError> {
+        let mut submission = vec![None; self.picker.page_capacity].into_boxed_slice();
+        self.scene_gpu.capture_pick_submission(&mut submission)?;
+        Ok(submission)
     }
 
     #[cfg(test)]
@@ -232,8 +347,19 @@ impl<D: Device> Engine<D> {
         &self,
         token: GpuPickToken,
     ) -> Result<GlobalPickIdentity, RenderError> {
-        self.scene_gpu
-            .resolve_global_pick(token, &self.picker.submission)
+        let submission = vec![None; self.picker.page_capacity].into_boxed_slice();
+        let mut submission = submission;
+        self.scene_gpu.capture_pick_submission(&mut submission)?;
+        self.scene_gpu.resolve_global_pick(token, &submission)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn resolve_pick_token_against_for_test(
+        &self,
+        token: GpuPickToken,
+        submission: &[Option<PickPageTicket>],
+    ) -> Result<GlobalPickIdentity, RenderError> {
+        self.scene_gpu.resolve_global_pick(token, submission)
     }
 }
 

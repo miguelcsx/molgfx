@@ -16,7 +16,7 @@ use crate::{Error, PickKind, PickResult, ResolvedPick, Scene};
 /// other work — while the readback is awaited. Resolve it, then hand the
 /// bytes to [`Renderer::finish_pick`].
 #[derive(Debug)]
-pub struct PickReadback(molgfx_wgpu::WgpuReadback);
+pub struct PickReadback(molgfx_render::PendingPick<molgfx_wgpu::WgpuDevice>);
 
 impl PickReadback {
     /// Awaits the mapped identity bytes.
@@ -25,9 +25,7 @@ impl PickReadback {
     ///
     /// Returns a typed readback or device error.
     pub async fn resolve(&self) -> Result<Vec<u8>, Error> {
-        molgfx_gpu::Readback::resolve(&self.0, 0, molgfx_render::PICK_READBACK_BYTES)
-            .await
-            .map_err(|error| Error::Render(error.into()))
+        self.0.resolve().await.map_err(Error::from)
     }
 }
 
@@ -53,7 +51,8 @@ impl Renderer {
     ///
     /// # Errors
     ///
-    /// Returns a typed error when the pick copies cannot be recorded.
+    /// Returns a typed error when the pick copies cannot be recorded, or when
+    /// every readback buffer is already awaited.
     pub fn begin_pick(&mut self, x: u32, y: u32) -> Result<Option<PickReadback>, Error> {
         let readback = self.inner.begin_pick(x, y).map_err(Error::from)?;
         Ok(readback.map(PickReadback))
@@ -61,11 +60,24 @@ impl Renderer {
 
     /// Resolves a [`Self::begin_pick`] readback against the current scene.
     ///
+    /// The readback names the page generations it was submitted against, so a
+    /// later pick, frame or scene edit cannot change which entity it resolves
+    /// to; a recycled page is reported as stale.
+    ///
     /// # Errors
     ///
     /// Returns a typed error when the packed identity cannot be resolved.
-    pub fn finish_pick(&self, scene: &Scene, packed: &[u8]) -> Result<Option<ResolvedPick>, Error> {
-        let Some(raw) = self.inner.finish_pick(packed).map_err(Error::from)? else {
+    pub fn finish_pick(
+        &self,
+        scene: &Scene,
+        readback: &PickReadback,
+        packed: &[u8],
+    ) -> Result<Option<ResolvedPick>, Error> {
+        let Some(raw) = self
+            .inner
+            .finish_pick(&readback.0, packed)
+            .map_err(Error::from)?
+        else {
             return Ok(None);
         };
         scene.resolve_pick(&semantic_pick(&raw)).map(Some)

@@ -97,6 +97,16 @@ impl<D: Device> GpuSlot<D> {
         }
     }
 
+    /// Whether this slot has reached the GPU at least once for its plan.
+    pub(super) const fn is_synced(&self) -> bool {
+        self.synced.is_some()
+    }
+
+    #[cfg(test)]
+    pub(super) fn forget_sync(&mut self) {
+        self.synced = None;
+    }
+
     pub(super) fn sync(&mut self, mut input: SlotSync<'_, D>) -> Result<bool, RenderError> {
         self.visible = input.representation.visible;
         self.kind = input.representation.kind;

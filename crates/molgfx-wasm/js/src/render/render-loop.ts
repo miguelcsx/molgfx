@@ -1,5 +1,5 @@
 import { dimensions, sceneCamera } from "./camera.js";
-import type { Camera, WasmRenderer, WasmScene } from "../core/types.js";
+import type { Camera, WasmPickReadback, WasmRenderer, WasmScene } from "../core/types.js";
 
 export interface PickResult { performed: boolean; result?: string; }
 interface RenderCallbacks { onError: (error: unknown) => void; onSuccess: () => void; }
@@ -117,15 +117,18 @@ export class RenderLoop {
     // the identity. Every renderer call here is synchronous and complete before
     // the wait, so no renderer borrow is ever held across the readback: the
     // frame loop, a resize or a scene edit can run while it is in flight.
+    let readback: WasmPickReadback | undefined;
     try {
-      const readback = this.#renderer.beginPick(x, y);
+      readback = this.#renderer.beginPick(x, y);
       if (readback === undefined) return { performed: true };
       const bytes = await readback.resolve();
       if (epoch !== this.#sceneEpoch || this.#disposed) return { performed: false };
-      const result = this.#renderer.finishPick(this.#scene, bytes);
+      // The readback carries the page generations it was submitted against.
+      const result = this.#renderer.finishPick(this.#scene, readback, bytes);
       if (epoch !== this.#sceneEpoch || this.#disposed) return { performed: false };
       return result === undefined ? { performed: true } : { performed: true, result };
     } finally {
+      readback?.free();
       this.#picking = false;
       if (this.#redrawAfterPick && !this.#disposed) { this.#redrawAfterPick = false; this.requestFrame(); }
     }

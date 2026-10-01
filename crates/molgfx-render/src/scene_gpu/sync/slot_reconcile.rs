@@ -83,4 +83,25 @@ impl<D: Device> GpuScene<D> {
         }
         self.slots.sort_unstable_by_key(|slot| slot.draw_order);
     }
+
+    /// Planned representation work that is not yet drawable: slots whose sync
+    /// has not reached the GPU, and structures with trajectory interpolation
+    /// still queued. A selection that does not cover a structure plans no slot
+    /// for it, which is an exclusion rather than pending work.
+    pub(crate) fn pending_drawables(&self) -> usize {
+        self.slots.iter().filter(|slot| !slot.is_synced()).count()
+            + self
+                .structures
+                .iter()
+                .filter(|structure| structure.trajectory_dirty())
+                .count()
+    }
+
+    /// Test hook: marks every slot as never having reached the GPU.
+    #[cfg(test)]
+    pub(crate) fn forget_slot_sync(&mut self) {
+        for slot in &mut self.slots {
+            slot.forget_sync();
+        }
+    }
 }
