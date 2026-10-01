@@ -17,6 +17,8 @@ mod history;
 #[cfg(test)]
 mod overlay_tests;
 mod plan;
+#[cfg(test)]
+mod pocket_tests;
 mod property;
 mod resolve;
 mod state;

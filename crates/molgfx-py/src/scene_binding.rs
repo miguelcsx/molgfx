@@ -195,14 +195,13 @@ impl PyScene {
             .collect::<PyResult<Vec<_>>>()
     }
 
-    #[pyo3(signature = (focus, *, structure=None, near=4.0, mid=10.0))]
+    #[pyo3(signature = (focus, *, structure=None, style=None))]
     fn pocket(
         &mut self,
         py: Python<'_>,
         focus: &Bound<'_, PyAny>,
         structure: Option<&Bound<'_, PyAny>>,
-        near: f32,
-        mid: f32,
+        style: Option<PyRef<'_, crate::pocket_binding::PyPocketStyle>>,
     ) -> PyResult<Vec<Py<PyAny>>> {
         if self.pending.is_some() {
             return Err(PyValueError::new_err(
@@ -214,11 +213,7 @@ impl PyScene {
             None => self.structure_id,
         };
         let focus = molgfx::Selection::from(selection(focus)?);
-        let style = molgfx::preset::PocketStyle {
-            near,
-            mid,
-            ..molgfx::preset::PocketStyle::default()
-        };
+        let style = style.map_or_else(molgfx::preset::PocketStyle::default, |style| style.0);
         let base_revision = self.inner.revision();
         let inserted = self
             .inner

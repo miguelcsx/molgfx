@@ -262,18 +262,34 @@ class SceneSemanticsTests(unittest.TestCase):
 
     def test_pocket_composes_six_editable_forms_and_focuses_the_subject(self):
         scene = molgfx.Scene(structure())
-        ids = scene.pocket("name CA", near=3.0, mid=8.0)
+        style = molgfx.PocketStyle(near=3.0, mid=8.0).with_opacity(pocket=0.5)
+        ids = scene.pocket("name CA", style=style)
         self.assertEqual(len(ids), 6)
         for identifier in ids:
             self.assertIsInstance(identifier, molgfx.RepresentationId)
         self.assertEqual(len(json.loads(scene.to_json())["representations"]), 6)
+        self.assertEqual(style.pocket_opacity, 0.5)
+        self.assertEqual(style.near, 3.0)
+
+    def test_pocket_command_text_and_builder_agree(self):
+        scene = molgfx.Scene(structure())
+        session = molgfx.Session(scene)
+        session.execute("pocket near=3, name CA")
+        self.assertEqual(len(session.layers), 6)
+        built = molgfx.Command.pocket("name CA", near=3.0)
+        self.assertEqual(built.verb, "pocket")
+        self.assertEqual(json.loads(built.to_json())["near"], 3.0)
+        with self.assertRaises(ValueError):
+            molgfx.Command.pocket("name CA", near=-1.0)
 
     def test_pocket_rejects_an_empty_focus_and_unordered_distances(self):
         scene = molgfx.Scene(structure())
         with self.assertRaises(molgfx.SpecError):
             scene.pocket("resname NOPE")
         with self.assertRaises(molgfx.SpecError):
-            scene.pocket("name CA", near=9.0, mid=3.0)
+            scene.pocket("name CA", style=molgfx.PocketStyle(near=9.0, mid=3.0))
+        with self.assertRaises(molgfx.SpecError):
+            scene.pocket("name CA", style=molgfx.PocketStyle().with_opacity(solvent=2.0))
         self.assertEqual(json.loads(scene.to_json())["representations"], {})
 
 

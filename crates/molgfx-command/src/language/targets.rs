@@ -8,7 +8,7 @@
 use super::arguments::{Arguments, name_word, query_error, target};
 use super::statement::{following, syntax};
 use crate::error::{CommandError, Span};
-use crate::ir::{Command, QueryText, Target};
+use crate::ir::{Command, Positive, QueryText, Target};
 
 /// The target after a statement's comma, or everything when there is no comma.
 ///
@@ -57,4 +57,54 @@ pub(super) fn uncolor(
         None => None,
     };
     Ok(Command::Uncolor { target, structure })
+}
+
+/// `pocket [near=N] [mid=M] [in STRUCTURE], QUERY`: the subject follows the comma.
+pub(super) fn pocket(
+    source: &str,
+    arguments: &Arguments<'_>,
+    tail: Option<Span>,
+) -> Result<Command, CommandError> {
+    let (mut near, mut mid, mut structure) = (None, None, None);
+    let mut rest = arguments.words().iter().copied();
+    while let Some(word) = rest.next() {
+        if word.text == "in" {
+            structure = Some(name_word(following(&mut rest, word, "in STRUCTURE")?)?);
+            continue;
+        }
+        let radius = |value: &str| {
+            value
+                .parse::<f32>()
+                .map_err(|_| "a number")
+                .and_then(Positive::new)
+                .map_err(|reason| syntax(format!("pocket radii must be {reason}"), word.span))
+        };
+        match word.text.split_once('=') {
+            Some(("near", value)) => near = Some(radius(value)?),
+            Some(("mid", value)) => mid = Some(radius(value)?),
+            _ => {
+                return Err(syntax(
+                    format!(
+                        "'{}' is not an argument of pocket; write near=N, mid=M or in STRUCTURE",
+                        word.text
+                    ),
+                    word.span,
+                ));
+            }
+        }
+    }
+    let Some(tail) = tail.filter(|tail| tail.start < tail.end) else {
+        return Err(syntax(
+            "pocket needs a subject after the comma: pocket, QUERY",
+            arguments.anchor(),
+        ));
+    };
+    let target = QueryText::compile(&source[tail.start..tail.end])
+        .map_err(|diagnostics| query_error(&diagnostics, tail))?;
+    Ok(Command::Pocket {
+        target,
+        near,
+        mid,
+        structure,
+    })
 }

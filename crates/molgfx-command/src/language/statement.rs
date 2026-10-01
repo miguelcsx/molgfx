@@ -100,6 +100,7 @@ pub(super) fn parse(source: &str, span: Span) -> Result<Command, CommandError> {
             no_target(tail, "auto")?;
             Ok(Command::Auto { structure })
         }
+        "pocket" => super::targets::pocket(source, &arguments, tail),
         "unfocus" | "undo" | "redo" => {
             if let Some(extra) = arguments.first() {
                 return Err(syntax(
