@@ -158,7 +158,7 @@ class ViewerTransportTests(unittest.TestCase):
         spec_before = viewer.scene_spec
         self.assertEqual(scene.source_calls, 1)
 
-        scene._scene._add_structure(second_structure())
+        scene._scene.add_structure(second_structure())
 
         self.assertEqual(viewer.structure_ids, [1, 2])
         self.assertEqual(len(viewer.structure_payloads), 2)
@@ -212,7 +212,7 @@ class ViewerTransportTests(unittest.TestCase):
         scene = CountingScene(molgfx.Scene(structure()))
         scene._scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()))
 
-        identity = scene._scene._add_structure(second_structure())
+        identity = scene._scene.add_structure(second_structure())
         self.assertEqual(int(str(identity).split("(")[-1].rstrip(")")), 2)
 
         spec = json.loads(scene.to_json())
@@ -564,7 +564,7 @@ def _two_structure_columns():
     """Transport columns and spec for a page holding two structures."""
     scene = molgfx.Scene(structure())
     scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()))
-    scene._add_structure(second_structure())
+    scene.add_structure(second_structure())
     sources = scene._browser_sources()
     return {
         "ids": [source[0] for source in sources],

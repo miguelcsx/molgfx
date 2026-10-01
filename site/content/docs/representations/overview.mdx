@@ -106,3 +106,44 @@ The same call exists in Rust as `Scene::add_pocket` with a `PocketStyle`. An emp
 subject query, unordered radii, or an opacity outside zero to one are rejected
 before anything is added.
 
+
+## Ensembles
+
+`ensemble` overlays several structures of one scene as cartoons in colours you
+choose, with the heaviest member most opaque. Add each structure with
+`Scene.add_structure`, then give every member a weight and a colour:
+
+```python
+second = scene.add_structure(other_model)
+scene.ensemble([
+    (scene.structure_id, 3.0, (200, 40, 40)),
+    (second, 1.0, (40, 40, 200)),
+])
+```
+
+The member with the largest weight (the first on a tie) draws at
+`dominant_opacity`. Every other member's opacity is its weight relative to that
+one times `alternate_opacity`, never below `minimum_opacity`. Only weight ratios
+matter. A repeated structure, a negative or non-finite weight, all-zero weights,
+or an opacity outside zero to one is rejected before anything is added. The
+overlay does not align the structures; superimpose them first.
+
+## Differences
+
+`difference` draws a target as a cartoon coloured by a scalar property you have
+bound, with small values faded to context. The property is your own difference,
+score or uncertainty column:
+
+```python
+delta = scene.bind_property(
+    structure=scene.structure_id, name="delta",
+    source_hash="delta-sha256", values=values,
+)
+style = molgfx.DifferenceStyle(thresholds=(0.5, 3.0), domain=(0.0, 3.0))
+scene.difference(delta, "chain A", style=style)
+```
+
+Opacity rises linearly from `context_opacity` at the first threshold to full at
+the second, and the palette spans `domain`. Thresholds that are not increasing, a
+degenerate domain, an unknown palette, or a property bound to another scene are
+rejected.

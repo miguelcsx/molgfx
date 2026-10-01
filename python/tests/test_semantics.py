@@ -350,6 +350,54 @@ class SceneSemanticsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             molgfx.CameraPath([(0.0, camera(0.0)), (1.0, camera(1.0))], easing="bounce")
 
+    def test_an_ensemble_overlays_structures_by_weight(self):
+        scene = molgfx.Scene(structure())
+        second = scene.add_structure(structure())
+        self.assertNotEqual(second, scene.structure_id)
+        ids = scene.ensemble(
+            [
+                (scene.structure_id, 3.0, (200, 40, 40)),
+                (second, 1.0, (40, 40, 200)),
+            ]
+        )
+        self.assertEqual(len(ids), 2)
+        representations = json.loads(scene.to_json())["representations"]
+        opacity = {
+            entry["common"]["structure"]: entry["common"]["opacity"]
+            for entry in representations.values()
+        }
+        self.assertEqual(opacity[int(scene.structure_id)], 1.0)
+        self.assertAlmostEqual(opacity[int(second)], 0.55 / 3.0, places=5)
+        with self.assertRaises(molgfx.SpecError):
+            scene.ensemble([(scene.structure_id, 0.0, (1, 2, 3))])
+        with self.assertRaises(molgfx.SpecError):
+            scene.ensemble(
+                [(scene.structure_id, 1.0, (1, 2, 3)), (scene.structure_id, 1.0, (1, 2, 3))]
+            )
+
+    def test_a_difference_view_colours_by_the_bound_property(self):
+        scene = molgfx.Scene(structure())
+        prop = scene.bind_property(
+            structure=scene.structure_id,
+            name="delta",
+            source_hash="delta-sha256",
+            values=(0.0, 2.0),
+        )
+        style = molgfx.DifferenceStyle(
+            thresholds=(0.0, 2.0), domain=(0.0, 2.0), palette="viridis"
+        )
+        self.assertEqual(style.thresholds, (0.0, 2.0))
+        representation = scene.difference(prop, "all", style=style)
+        self.assertIsInstance(representation, molgfx.RepresentationId)
+        with self.assertRaises(molgfx.SpecError):
+            scene.difference(
+                prop, "all", style=molgfx.DifferenceStyle(thresholds=(2.0, 1.0))
+            )
+        with self.assertRaises(molgfx.SpecError):
+            scene.difference(
+                prop, "all", style=molgfx.DifferenceStyle(palette="no-such-palette")
+            )
+
     def test_a_placed_copy_is_a_structure_of_its_own_with_its_own_forms(self):
         scene = molgfx.Scene(structure())
         shift = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 25.0, 0, 0, 1]

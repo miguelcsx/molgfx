@@ -67,4 +67,60 @@ impl Scene {
         self.focus(focus)?;
         Ok(ids)
     }
+
+    /// Overlays several structures of this scene, the heaviest most opaque.
+    ///
+    /// See [`crate::preset::ensemble_representations`] for the opacity policy.
+    /// Every member is checked before any representation is added, so a bad
+    /// member leaves the scene unchanged.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an unknown member structure or an invalid ensemble.
+    pub fn add_ensemble(
+        &mut self,
+        members: &[crate::preset::EnsembleMember],
+        style: crate::preset::EnsembleStyle,
+    ) -> Result<Vec<RepresentationId>, Error> {
+        for member in members {
+            if !self.structures.contains_key(&member.structure) {
+                return Err(Error::InvalidSpec(format!(
+                    "structure {} is not part of this scene",
+                    member.structure.0
+                )));
+            }
+        }
+        let forms = crate::preset::ensemble_representations(members, style)?;
+        forms.into_iter().map(|form| self.add(form)).collect()
+    }
+
+    /// Draws `target` as a cartoon coloured by a bound property, fading small
+    /// values to context.
+    ///
+    /// See [`crate::preset::difference_visual`] for the mapping.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an unknown structure, an invalid style, or a
+    /// property that is not bound to this scene.
+    pub fn add_difference(
+        &mut self,
+        structure: StructureId,
+        target: impl Into<Selection>,
+        property: crate::ScalarProperty,
+        style: &crate::preset::DifferenceStyle,
+    ) -> Result<RepresentationId, Error> {
+        if !self.structures.contains_key(&structure) {
+            return Err(Error::InvalidSpec(format!(
+                "structure {} is not part of this scene",
+                structure.0
+            )));
+        }
+        let visual = crate::preset::difference_visual(property, style)?;
+        self.add(
+            crate::rep::cartoon(target.into())
+                .visual(visual)
+                .structure(structure),
+        )
+    }
 }

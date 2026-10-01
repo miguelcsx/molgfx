@@ -333,6 +333,7 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     crate::pocket_binding::register(module)?;
     crate::camera_path_binding::register(module)?;
     crate::scene_composition_binding::register(module)?;
+    crate::ensemble_binding::register(module)?;
     crate::render_binding::register(module)?;
     crate::overlay_binding::register(module)?;
     crate::visual_binding::register(module)?;
