@@ -55,6 +55,26 @@ scene.set_camera(molgfx.Camera(
 
 Choose coordinates from your structure and keep `near`, `far`, and camera vectors physically meaningful. The camera constructor rejects degenerate and invalid values.
 
+## Camera paths
+
+A `CameraPath` interpolates a camera between keyframes at strictly increasing
+times. It orbits the target, so the in-between cameras keep the target in view
+instead of cutting a straight line through it, and it clamps at both ends.
+`render_camera_path` renders one fully converged frame per tick, covering the
+path's time range inclusively; encoding the frames into a movie is left to the
+caller.
+
+```python
+def at(x):
+    return molgfx.Camera(position=(x, 20.0, 60.0), target=(0.0, 0.0, 0.0))
+
+path = molgfx.CameraPath([(0.0, at(-40.0)), (2.0, at(40.0))])
+frames = molgfx.Renderer().render_camera_path(scene, path, size=(1280, 720), fps=30)
+```
+
+Repeated renders of the same scene on the same adapter are byte-identical, and a
+camera path repeats exactly as well; frames can differ between adapters.
+
 <Callout type="warn" title="Device availability">
 Renderer initialization can fail when the platform has no compatible graphics device. Use `molgfx.system_info()` to inspect compiled backends and visible adapters when diagnosing a native environment.
 </Callout>
