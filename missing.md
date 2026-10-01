@@ -82,11 +82,28 @@ evidence for their specific boundary, not a green gate for the whole current tre
   (anisotropic) and I 2 2 2, agreement ≈1e-5 relative. A PDB `CRYST1` space
   group is now kept and resolved to symmetry operations (it was dropped).
   **Open:** anomalous dispersion, neutron/electron tables, ions.
+- [x] Resolution shells (equal-count, 1/d, 1/d², 1/d³) and normalized
+  amplitudes (`F` to `E`, multiplicity-corrected, smoothed and interpolated):
+  MolFrame `ResolutionBinner`/`amplitude_normalizers`, Python
+  `crystal.ResolutionBins`/`crystal.normalizers`. **Observed:** against Gemmi
+  0.7.5 on P 1, P 1 21 1, P 21 21 21 and C 1 2 1 the shell limits are exact and
+  the d-star multipliers agree to about 1e-15; equal-count shells share the limits
+  but a reflection within an ulp of a limit can take the neighbouring shell,
+  which moves other multipliers by about 1e-3. A Gemmi reference is pinned in a
+  Rust test.
 - [ ] Continue density affine/sampling consistency and the remaining
-  reciprocal-processing, density-from-model and FFT workflows after
+  reciprocal-processing (cell reduction), density-from-model and FFT workflows after
   source audit. Preserve existing CIF/PDB/BCIF, symmetry, crystal neighbors,
   maps and reflection I/O; do not introduce Gemmi as a product dependency or
   copy its implementation into the renderer.
+
+- [x] Ensemble overlays and property-difference views are declarative presets:
+  `Scene::add_ensemble`/`add_difference` and Python `Scene.ensemble`,
+  `Scene.difference`, `DifferenceStyle`. Python can now add a second structure
+  (`Scene.add_structure`). **Open:** the `molgfx-semantic` generic compositions
+  (`compose_focus/difference/ensemble`) still act on the core scene only and are
+  not reachable from the declarative scene; the command language has no
+  `ensemble`/`difference`; no browser or golden-image check of either view.
 
 - [x] **P0** Close-camera analytic impostor payloads remain valid after proxy
   clipping. Every vertex supplies flat data in the atom, bond, point, primitive,
