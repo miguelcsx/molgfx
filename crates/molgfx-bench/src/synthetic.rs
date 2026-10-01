@@ -60,7 +60,69 @@ pub fn alanine_chain(residues: usize) -> Vec<u8> {
 pub fn structure(residues: usize) -> molframe::Structure {
     let bytes = alanine_chain(residues);
     match molframe::read_bytes(bytes, Some("synthetic.cif"), &molframe::ReadOptions::new()) {
-        Ok((structure, _)) => structure,
+        Ok((structure, _)) => assign_fixture_roles(&structure),
         Err(error) => panic!("generated mmCIF must parse: {error:?}"),
+    }
+}
+
+// The synthetic generator owns this explicit, versioned ALA role profile.
+// Production readers and viewer queries must not infer roles from these names.
+fn assign_fixture_roles(structure: &molframe::Structure) -> molframe::Structure {
+    use molframe::chemistry::{
+        Component, ComponentAtom, ComponentKind, MemoryProvider, PolymerAtomRole,
+        PolymerRoleProfile, PolymerRoleRule, apply_polymer_role_profile,
+    };
+    use std::sync::Arc;
+    let atoms = ATOMS.map(|(element, name, _)| ComponentAtom {
+        name: name.into(),
+        alternate_name: None,
+        element: match element {
+            "N" => molframe::Element::NITROGEN,
+            "O" => molframe::Element::OXYGEN,
+            _ => molframe::Element::CARBON,
+        },
+        charge: 0,
+        aromatic: false,
+        leaving: false,
+        stereo: None,
+    });
+    let component = Component {
+        id: "ALA".into(),
+        name: "synthetic alanine fixture".into(),
+        kind: ComponentKind::AminoAcid,
+        parent: None,
+        one_letter_code: Some(b'A'),
+        formula: None,
+        atoms: Arc::from(atoms),
+        bonds: Arc::from([]),
+        ideal_coordinates: None,
+        model_coordinates: None,
+    };
+    let provider = match MemoryProvider::new(
+        molframe::DictionaryVersion::new("molgfx-synthetic-ala-v1"),
+        [component],
+    ) {
+        Ok(provider) => provider,
+        Err(error) => panic!("invalid synthetic component: {error:?}"),
+    };
+    let roles = [
+        ("N", PolymerAtomRole::PROTEIN_NITROGEN),
+        ("CA", PolymerAtomRole::PROTEIN_ALPHA_CARBON),
+        ("C", PolymerAtomRole::PROTEIN_CARBONYL_CARBON),
+        ("O", PolymerAtomRole::PROTEIN_CARBONYL_OXYGEN),
+        ("CB", PolymerAtomRole::PROTEIN_SIDECHAIN),
+    ];
+    let profile = PolymerRoleProfile {
+        id: "molgfx-synthetic-ala-roles-v1".into(),
+        rules: Arc::from(roles.map(|(name, role)| PolymerRoleRule {
+            component_id: Some("ALA".into()),
+            component_kind: Some(ComponentKind::AminoAcid),
+            atom_name: name.into(),
+            role,
+        })),
+    };
+    match apply_polymer_role_profile(structure.engine(), &provider, &profile) {
+        Ok(report) => report.structure.into(),
+        Err(error) => panic!("invalid synthetic role profile: {error:?}"),
     }
 }
