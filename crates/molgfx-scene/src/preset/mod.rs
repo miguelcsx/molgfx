@@ -10,10 +10,12 @@
 //! polymer atoms to count residues, `O(atoms)`, and nothing per frame.
 
 mod auto;
+mod pocket;
 mod size;
 
 #[cfg(test)]
 mod tests;
 
 pub use auto::auto_representations;
+pub use pocket::{PocketStyle, pocket_representations};
 pub use size::StructureSize;

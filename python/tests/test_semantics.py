@@ -260,6 +260,22 @@ class SceneSemanticsTests(unittest.TestCase):
         spec = json.loads(scene.to_json())
         self.assertEqual(len(spec["representations"]), len(ids))
 
+    def test_pocket_composes_six_editable_forms_and_focuses_the_subject(self):
+        scene = molgfx.Scene(structure())
+        ids = scene.pocket("name CA", near=3.0, mid=8.0)
+        self.assertEqual(len(ids), 6)
+        for identifier in ids:
+            self.assertIsInstance(identifier, molgfx.RepresentationId)
+        self.assertEqual(len(json.loads(scene.to_json())["representations"]), 6)
+
+    def test_pocket_rejects_an_empty_focus_and_unordered_distances(self):
+        scene = molgfx.Scene(structure())
+        with self.assertRaises(molgfx.SpecError):
+            scene.pocket("resname NOPE")
+        with self.assertRaises(molgfx.SpecError):
+            scene.pocket("name CA", near=9.0, mid=3.0)
+        self.assertEqual(json.loads(scene.to_json())["representations"], {})
+
 
 class ViewerTransportTests(unittest.TestCase):
     def test_direct_mutations_publish_exact_incremental_patches(self):

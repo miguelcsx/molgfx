@@ -195,6 +195,64 @@ impl PyScene {
             .collect::<PyResult<Vec<_>>>()
     }
 
+    #[pyo3(signature = (focus, *, structure=None, near=4.0, mid=10.0))]
+    fn pocket(
+        &mut self,
+        py: Python<'_>,
+        focus: &Bound<'_, PyAny>,
+        structure: Option<&Bound<'_, PyAny>>,
+        near: f32,
+        mid: f32,
+    ) -> PyResult<Vec<Py<PyAny>>> {
+        if self.pending.is_some() {
+            return Err(PyValueError::new_err(
+                "a pocket view cannot be added inside a scene transaction",
+            ));
+        }
+        let target = match structure {
+            Some(structure) => crate::id_binding::structure_id(structure)?,
+            None => self.structure_id,
+        };
+        let focus = molgfx::Selection::from(selection(focus)?);
+        let style = molgfx::preset::PocketStyle {
+            near,
+            mid,
+            ..molgfx::preset::PocketStyle::default()
+        };
+        let base_revision = self.inner.revision();
+        let inserted = self
+            .inner
+            .add_pocket(molgfx::StructureId::new(target), focus.clone(), style)
+            .map_err(error)?;
+        let mut operations = Vec::with_capacity(inserted.len() + 1);
+        let mut ids = Vec::with_capacity(inserted.len());
+        for id in inserted {
+            let representation = self
+                .inner
+                .spec()
+                .representations
+                .get(&id)
+                .cloned()
+                .ok_or_else(|| PyValueError::new_err("inserted representation is unavailable"))?;
+            operations
+                .push(molgfx::schema::PatchOperation::AddRepresentation { id, representation });
+            ids.push(crate::id_binding::PySceneId::Representation(id.get()));
+        }
+        operations.push(molgfx::schema::PatchOperation::SetFocus {
+            selection: Some(focus),
+        });
+        self.publish(
+            py,
+            &molgfx::ScenePatch {
+                base_revision,
+                operations,
+            },
+        )?;
+        ids.into_iter()
+            .map(|id| id.into_python(py))
+            .collect::<PyResult<Vec<_>>>()
+    }
+
     #[pyo3(signature = (*, structure, name, source_hash, values, units=None, domain=None))]
     fn bind_property(
         &mut self,
