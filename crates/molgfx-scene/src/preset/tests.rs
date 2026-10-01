@@ -214,3 +214,154 @@ fn a_scene_adds_the_pocket_in_one_call_and_rejects_an_empty_focus() {
             .is_err()
     );
 }
+
+fn member(structure: u64, weight: f32) -> super::EnsembleMember {
+    super::EnsembleMember {
+        structure: StructureId(structure),
+        weight,
+        color: crate::Color::rgb(10, 20, 30),
+    }
+}
+
+fn opacities(forms: &[crate::RepresentationSpec]) -> Vec<f32> {
+    forms
+        .iter()
+        .map(crate::RepresentationSpec::opacity)
+        .collect()
+}
+
+#[test]
+fn an_ensemble_draws_the_heaviest_member_most_opaque() {
+    let members = [member(1, 1.0), member(2, 3.0), member(3, 0.0)];
+    let style = super::EnsembleStyle::default();
+    let Ok(forms) = super::ensemble_representations(&members, style) else {
+        panic!("a valid ensemble builds");
+    };
+    assert_eq!(forms.len(), 3);
+    let drawn = opacities(&forms);
+    assert_eq!(drawn[1].to_bits(), style.dominant_opacity.to_bits());
+    let light = style.alternate_opacity / 3.0;
+    assert_eq!(drawn[0].to_bits(), light.to_bits());
+    assert_eq!(drawn[2].to_bits(), style.minimum_opacity.to_bits());
+}
+
+#[test]
+fn equal_weights_make_the_first_member_dominant() {
+    let members = [member(1, 2.0), member(2, 2.0)];
+    let style = super::EnsembleStyle::default();
+    let Ok(forms) = super::ensemble_representations(&members, style) else {
+        panic!("a valid ensemble builds");
+    };
+    let drawn = opacities(&forms);
+    assert_eq!(drawn[0].to_bits(), style.dominant_opacity.to_bits());
+    assert_eq!(drawn[1].to_bits(), style.alternate_opacity.to_bits());
+}
+
+#[test]
+fn an_invalid_ensemble_is_rejected() {
+    let style = super::EnsembleStyle::default();
+    assert!(super::ensemble_representations(&[], style).is_err());
+    assert!(super::ensemble_representations(&[member(1, 0.0)], style).is_err());
+    assert!(super::ensemble_representations(&[member(1, -1.0)], style).is_err());
+    assert!(super::ensemble_representations(&[member(1, f32::NAN)], style).is_err());
+    assert!(super::ensemble_representations(&[member(1, 1.0), member(1, 2.0)], style).is_err());
+    let inverted = super::EnsembleStyle {
+        minimum_opacity: 0.9,
+        ..style
+    };
+    assert!(super::ensemble_representations(&[member(1, 1.0)], inverted).is_err());
+}
+
+#[test]
+fn a_scene_overlays_known_structures_and_leaves_itself_unchanged_on_a_bad_member() {
+    let structure = structure_of(&peptide_pdb(6, 20.0));
+    let mut scene = crate::Scene::from_structure(&structure).unwrap_or_else(|e| panic!("{e}"));
+    let second = scene
+        .add_source(&source_of(&peptide_pdb(6, 20.0)))
+        .unwrap_or_else(|e| panic!("{e}"));
+    let before = scene.spec().representations.len();
+    let unknown = [member(1, 1.0), member(second.0, 1.0), member(99, 1.0)];
+    assert!(
+        scene
+            .add_ensemble(&unknown, super::EnsembleStyle::default())
+            .is_err()
+    );
+    assert_eq!(scene.spec().representations.len(), before);
+    let ids = scene
+        .add_ensemble(
+            &[member(1, 2.0), member(second.0, 1.0)],
+            super::EnsembleStyle::default(),
+        )
+        .unwrap_or_else(|e| panic!("{e}"));
+    assert_eq!(ids.len(), 2);
+}
+
+fn bound_property(scene: &mut crate::Scene, rows: usize) -> crate::ScalarProperty {
+    let values: std::sync::Arc<[f32]> = vec![0.5; rows].into();
+    scene
+        .bind_property(crate::ScalarPropertyBinding::new(
+            StructureId(1),
+            "delta",
+            crate::DataSource::new("delta-source"),
+            values,
+        ))
+        .unwrap_or_else(|e| panic!("{e}"))
+}
+
+#[test]
+fn a_difference_cartoon_is_coloured_by_the_bound_property() {
+    let structure = structure_of(&peptide_pdb(6, 20.0));
+    let mut scene = crate::Scene::from_structure(&structure).unwrap_or_else(|e| panic!("{e}"));
+    let rows = usize::try_from(structure.atom_count()).unwrap_or_else(|e| panic!("{e}"));
+    let property = bound_property(&mut scene, rows);
+    let style = super::DifferenceStyle::default();
+    let id = scene
+        .add_difference(StructureId(1), "all", property, &style)
+        .unwrap_or_else(|e| panic!("{e}"));
+    let spec = scene.spec();
+    let Some(added) = spec.representations.get(&id) else {
+        panic!("the representation was added");
+    };
+    let plain = crate::rep::cartoon("all").structure(StructureId(1));
+    assert_ne!(added.stable_hash(), plain.stable_hash());
+}
+
+#[test]
+fn a_difference_style_with_unordered_thresholds_is_rejected() {
+    let structure = structure_of(&peptide_pdb(6, 20.0));
+    let mut scene = crate::Scene::from_structure(&structure).unwrap_or_else(|e| panic!("{e}"));
+    let rows = usize::try_from(structure.atom_count()).unwrap_or_else(|e| panic!("{e}"));
+    let property = bound_property(&mut scene, rows);
+    for style in [
+        super::DifferenceStyle {
+            context_threshold: 2.0,
+            emphasis_threshold: 1.0,
+            ..super::DifferenceStyle::default()
+        },
+        super::DifferenceStyle {
+            domain: [1.0, 1.0],
+            ..super::DifferenceStyle::default()
+        },
+        super::DifferenceStyle {
+            context_opacity: 2.0,
+            ..super::DifferenceStyle::default()
+        },
+    ] {
+        assert!(super::difference_visual(property.clone(), &style).is_err());
+    }
+}
+
+#[test]
+fn a_difference_over_a_property_of_another_scene_is_rejected() {
+    let structure = structure_of(&peptide_pdb(6, 20.0));
+    let rows = usize::try_from(structure.atom_count()).unwrap_or_else(|e| panic!("{e}"));
+    let mut owner = crate::Scene::from_structure(&structure).unwrap_or_else(|e| panic!("{e}"));
+    let property = bound_property(&mut owner, rows);
+    let mut other = crate::Scene::from_structure(&structure).unwrap_or_else(|e| panic!("{e}"));
+    let style = super::DifferenceStyle::default();
+    assert!(
+        other
+            .add_difference(StructureId(1), "all", property, &style)
+            .is_err()
+    );
+}

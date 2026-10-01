@@ -35,7 +35,7 @@ impl PyScene {
 
     /// Publishes inserted representations, then any extra operations, as one
     /// patch, and returns the new identities.
-    fn publish_added(
+    pub(super) fn publish_added(
         &mut self,
         py: Python<'_>,
         base_revision: u64,

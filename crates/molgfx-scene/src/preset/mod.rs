@@ -10,6 +10,7 @@
 //! polymer atoms to count residues, `O(atoms)`, and nothing per frame.
 
 mod auto;
+mod ensemble;
 mod pocket;
 mod size;
 
@@ -17,5 +18,8 @@ mod size;
 mod tests;
 
 pub use auto::auto_representations;
+pub use ensemble::{
+    DifferenceStyle, EnsembleMember, EnsembleStyle, difference_visual, ensemble_representations,
+};
 pub use pocket::{PocketStyle, pocket_representations};
 pub use size::StructureSize;

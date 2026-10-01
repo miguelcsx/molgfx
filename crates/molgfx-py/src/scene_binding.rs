@@ -337,7 +337,7 @@ impl PyScene {
     /// representation path above. Subscribers are called with no borrow held on
     /// this object, because a viewer answering the announcement reads the new
     /// payload back through `_browser_sources` re-entrantly.
-    fn _add_structure(
+    fn add_structure(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
         structure: &Bound<'_, PyAny>,

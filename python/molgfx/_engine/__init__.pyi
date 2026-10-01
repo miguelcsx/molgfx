@@ -250,9 +250,26 @@ class Scene:
     def add(self, item: Trajectory) -> TrajectoryId: ...
     @overload
     def add(self, item: Ellipsoid) -> EllipsoidId: ...
+    def add_structure(self, structure: object) -> StructureId: ...
     def auto(
         self, *, structure: StructureId | None = None
     ) -> Sequence[RepresentationId]: ...
+    def ensemble(
+        self,
+        members: Sequence[tuple[StructureId, float, tuple[int, int, int]]],
+        *,
+        dominant_opacity: float | None = None,
+        alternate_opacity: float | None = None,
+        minimum_opacity: float | None = None,
+    ) -> Sequence[RepresentationId]: ...
+    def difference(
+        self,
+        property: ScalarProperty,
+        target: _Target,
+        *,
+        structure: StructureId | None = None,
+        style: DifferenceStyle | None = None,
+    ) -> RepresentationId: ...
     def place(
         self, matrix: Sequence[float], *, structure: StructureId | None = None
     ) -> StructureId: ...
@@ -564,6 +581,26 @@ class PocketStyle:
         context: tuple[int, int, int] | None = None,
         solvent: tuple[int, int, int] | None = None,
     ) -> PocketStyle: ...
+
+@final
+class DifferenceStyle:
+    def __new__(
+        cls,
+        *,
+        thresholds: tuple[float, float] | None = None,
+        context_opacity: float | None = None,
+        palette: str | None = None,
+        domain: tuple[float, float] | None = None,
+        missing: tuple[int, int, int] | None = None,
+    ) -> Self: ...
+    @property
+    def thresholds(self) -> tuple[float, float]: ...
+    @property
+    def context_opacity(self) -> float: ...
+    @property
+    def palette(self) -> str: ...
+    @property
+    def domain(self) -> tuple[float, float]: ...
 
 @final
 class Renderer:
@@ -936,6 +973,7 @@ __all__ = [
     "PickResult",
     "AssemblyCopy",
     "CameraPath",
+    "DifferenceStyle",
     "PocketStyle",
     "Image",
     "Renderer",
