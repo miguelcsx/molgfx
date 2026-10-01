@@ -202,6 +202,7 @@ class Camera:
 class Representation:
     def explain(self) -> str: ...
     def visual(self, style: VisualStyle) -> Representation: ...
+    def on(self, structure: StructureId) -> Representation: ...
 
 @final
 class SceneSpec:
@@ -252,6 +253,12 @@ class Scene:
     def auto(
         self, *, structure: StructureId | None = None
     ) -> Sequence[RepresentationId]: ...
+    def place(
+        self, matrix: Sequence[float], *, structure: StructureId | None = None
+    ) -> StructureId: ...
+    def assembly(
+        self, instances: Sequence[object], *, of: StructureId | None = None
+    ) -> list[AssemblyCopy]: ...
     def pocket(
         self,
         focus: _Target,
@@ -507,6 +514,15 @@ class RenderProfile:
     def with_edge_smoothing(self, *, enabled: bool) -> Self: ...
 
 def system_info() -> dict[str, object]: ...
+
+@final
+class AssemblyCopy:
+    @property
+    def structure(self) -> StructureId: ...
+    @property
+    def chains(self) -> list[str]: ...
+    @property
+    def selection(self) -> str: ...
 
 @final
 class CameraPath:
@@ -918,6 +934,7 @@ __all__ = [
     "color",
     "profile",
     "PickResult",
+    "AssemblyCopy",
     "CameraPath",
     "PocketStyle",
     "Image",

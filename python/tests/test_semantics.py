@@ -30,6 +30,47 @@ def structure():
     return molframe.read(MMCIF, name="one.cif")
 
 
+ASSEMBLY = b"""data_demo
+loop_
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_seq_id
+_atom_site.auth_seq_id
+_atom_site.auth_asym_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+1 C CA GLY A 1 1 A 1 0 0
+2 C CA GLY B 1 1 B 0 2 0
+loop_
+_pdbx_struct_oper_list.id
+_pdbx_struct_oper_list.matrix[1][1]
+_pdbx_struct_oper_list.matrix[1][2]
+_pdbx_struct_oper_list.matrix[1][3]
+_pdbx_struct_oper_list.vector[1]
+_pdbx_struct_oper_list.matrix[2][1]
+_pdbx_struct_oper_list.matrix[2][2]
+_pdbx_struct_oper_list.matrix[2][3]
+_pdbx_struct_oper_list.vector[2]
+_pdbx_struct_oper_list.matrix[3][1]
+_pdbx_struct_oper_list.matrix[3][2]
+_pdbx_struct_oper_list.matrix[3][3]
+_pdbx_struct_oper_list.vector[3]
+I 1 0 0 0 0 1 0 0 0 0 1 0
+S 1 0 0 30 0 1 0 0 0 0 1 0
+_pdbx_struct_assembly.id 1
+loop_
+_pdbx_struct_assembly_gen.assembly_id
+_pdbx_struct_assembly_gen.oper_expression
+_pdbx_struct_assembly_gen.asym_id_list
+1 I A,B
+1 S A
+"""
+
+
 class SceneSemanticsTests(unittest.TestCase):
     def test_transaction_commits_one_revision(self):
         scene = molgfx.Scene(structure())
@@ -308,6 +349,43 @@ class SceneSemanticsTests(unittest.TestCase):
             molgfx.CameraPath([(1.0, camera(0.0)), (1.0, camera(1.0))])
         with self.assertRaises(ValueError):
             molgfx.CameraPath([(0.0, camera(0.0)), (1.0, camera(1.0))], easing="bounce")
+
+    def test_a_placed_copy_is_a_structure_of_its_own_with_its_own_forms(self):
+        scene = molgfx.Scene(structure())
+        shift = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 25.0, 0, 0, 1]
+        copy = scene.place(shift)
+        self.assertIsInstance(copy, molgfx.StructureId)
+        self.assertNotEqual(copy, scene.structure_id)
+        scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()).on(copy))
+        spec = json.loads(scene.to_json())
+        self.assertEqual(len(spec["structures"]), 2)
+        placed = [s for s in spec["structures"].values() if "placement" in s]
+        self.assertEqual(len(placed), 1)
+        self.assertEqual(placed[0]["placement"][12], 25.0)
+        with self.assertRaises(ValueError):
+            scene.place([1.0] * 15)
+        with self.assertRaises(molgfx.SpecError):
+            scene.place([0.0] * 16)
+
+    @unittest.skipUnless(
+        hasattr(molframe, "crystal") and hasattr(molframe.crystal, "assembly"),
+        "needs a molframe that exposes biological assemblies",
+    )
+    def test_an_assembly_becomes_placed_copies_each_drawn_with_its_own_chains(self):
+        assembled = molframe.read(ASSEMBLY, name="assembly.cif")
+        scene = molgfx.Scene(assembled)
+        copies = scene.assembly(molframe.crystal.assembly(assembled, "1"))
+        self.assertEqual([copy.chains for copy in copies], [["A", "B"], ["A"]])
+        self.assertEqual(copies[1].selection, "label_chain A")
+        for copy in copies:
+            scene.add(molgfx.rep.spacefill(target=copy.selection).on(copy.structure))
+        spec = json.loads(scene.to_json())
+        self.assertEqual(len(spec["structures"]), 3)
+        self.assertEqual(len(spec["representations"]), 2)
+        shifted = [s for s in spec["structures"].values() if "placement" in s]
+        self.assertEqual(sorted(s["placement"][12] for s in shifted), [0.0, 30.0])
+        with self.assertRaises(AttributeError):
+            scene.assembly([molgfx.Scene])  # no matrix or chains attribute
 
 
 class ViewerTransportTests(unittest.TestCase):

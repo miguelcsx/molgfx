@@ -3,7 +3,7 @@
 use crate::error::Error;
 use crate::id::StructureId;
 use crate::scene::Resolution;
-use crate::spec::SceneSpec;
+use crate::spec::{SceneSpec, StructureSource};
 use std::collections::BTreeMap;
 
 /// Identity of the structures a resolution is built over.
@@ -112,6 +112,7 @@ pub(crate) fn resolve_reusing(
         .copied()
         .zip(scene.structures().map(|(handle, _)| handle))
         .collect::<BTreeMap<_, _>>();
+    place_structures(spec, &structure_handles, &mut scene)?;
     let channels: Vec<Box<str>> = spec.custom_interactions.keys().cloned().collect();
     let properties = crate::scene::properties::resolve_bindings(
         spec,
@@ -193,6 +194,26 @@ pub(crate) fn resolve_reusing(
         overlay,
         appearance,
     })
+}
+
+/// Applies each structure's declared placement to its placed copy.
+fn place_structures(
+    spec: &SceneSpec,
+    handles: &BTreeMap<StructureId, molgfx_core::StructureHandle>,
+    scene: &mut molgfx_core::Scene,
+) -> Result<(), Error> {
+    for (id, source) in &spec.structures {
+        let Some(matrix) = &source.placement else {
+            continue;
+        };
+        StructureSource::validate_placement(matrix)?;
+        let placed = handles
+            .get(id)
+            .and_then(|handle| scene.structure_mut(*handle))
+            .ok_or_else(|| Error::InvalidSpec("a placed structure is not bound".to_owned()))?;
+        placed.model_to_world = molgfx_math::Mat4::from_cols_array(matrix);
+    }
+    Ok(())
 }
 
 /// A core scene holding every bound structure, built from earlier assets

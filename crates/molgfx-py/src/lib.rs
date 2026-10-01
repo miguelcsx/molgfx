@@ -12,6 +12,7 @@ mod overlay_binding;
 mod pocket_binding;
 mod render_binding;
 mod scene_binding;
+mod scene_composition_binding;
 mod scene_state_binding;
 mod session_binding;
 mod transaction_binding;

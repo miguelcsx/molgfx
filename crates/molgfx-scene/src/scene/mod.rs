@@ -9,6 +9,7 @@ use crate::spec::{InteractionChannel, PatchOperation, ScenePatch, SceneSpec, Str
 use molgfx_core::{RepresentationHandle, SelectionHandle};
 use std::collections::BTreeMap;
 
+pub use assembly::{AssemblyCopy, chain_selection};
 pub use inspect::{
     ResidueMetadata, ResolvedAtomPick, ResolvedBondPick, ResolvedLabelPick,
     ResolvedMeasurementPick, ResolvedPick, ResolvedVolumeSegmentPick,
@@ -50,6 +51,7 @@ pub(crate) struct Resolution {
 
 pub(crate) mod appearance;
 pub(crate) mod apply;
+mod assembly;
 mod atom_pick;
 pub(crate) mod domains;
 #[cfg(test)]
@@ -69,6 +71,7 @@ pub(crate) mod runtime;
 #[cfg(test)]
 mod runtime_tests;
 pub(crate) mod selection_rows;
+mod structures;
 pub(crate) mod transaction;
 
 impl Scene {
@@ -95,6 +98,7 @@ impl Scene {
                 content_hash: structure_hash(&source),
                 uri: None,
                 format: None,
+                placement: None,
             },
         );
         let mut structures = BTreeMap::new();
@@ -252,48 +256,6 @@ impl Scene {
         self.add_source(&molgfx_core::MolecularSource::from_molframe(structure))
     }
 
-    /// Adds another provider-neutral source without copying coordinates.
-    ///
-    /// Announces the structure through an atomic `AddStructure` patch so the
-    /// patch stream reaches remote scenes and browser viewers. The molecular
-    /// data stays in the local binding map; the patch carries only the portable
-    /// descriptor.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the source cannot be adapted or IDs are exhausted.
-    pub fn add_source(
-        &mut self,
-        source: &molgfx_core::MolecularSource,
-    ) -> Result<StructureId, Error> {
-        let id = StructureId(self.next_structure);
-        let next_structure = self.next_structure.checked_add(1).ok_or_else(|| {
-            Error::InvalidSpec("structure identity space is exhausted".to_owned())
-        })?;
-        let patch = ScenePatch {
-            base_revision: self.revision(),
-            operations: vec![PatchOperation::AddStructure {
-                id,
-                source: StructureSource {
-                    content_hash: structure_hash(source),
-                    uri: None,
-                    format: None,
-                },
-            }],
-        };
-        // The patch plan resolves against this binding map, so the source must
-        // be present while the structural patch is prepared and committed.
-        let mut bound = std::mem::take(&mut self.structures);
-        let _ = bound.insert(id, source.clone());
-        let previous = std::mem::replace(&mut self.structures, bound);
-        if let Err(error) = self.apply(&patch) {
-            self.structures = previous;
-            return Err(error);
-        }
-        self.next_structure = next_structure;
-        Ok(id)
-    }
-
     /// The scene's molecular sources, keyed by structure.
     ///
     /// Read-only: the coordinates and topology behind these sources are what
@@ -435,6 +397,8 @@ impl Scene {
 
 #[cfg(test)]
 mod inspect_tests;
+#[cfg(test)]
+mod placement_tests;
 #[cfg(test)]
 mod tests;
 

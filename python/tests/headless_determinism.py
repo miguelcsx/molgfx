@@ -65,6 +65,22 @@ def camera_path_frames():
     return [bytes(frame.pixels()) for frame in frames]
 
 
+def placed_copies():
+    scene = molgfx.Scene(molframe.read(PDB, name="t.pdb"))
+    scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()))
+    alone = bytes(molgfx.Renderer().render_image(scene, size=(96, 72)).pixels())
+    copy = scene.place([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 6.0, 0, 0, 1])
+    scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()).on(copy))
+    both = bytes(molgfx.Renderer().render_image(scene, size=(96, 72)).pixels())
+    return alone, both
+
+
+alone, both = placed_copies()
+if alone == both:
+    failures.append("a placed copy changed nothing in the render")
+else:
+    print("placement: a placed copy changes the render")
+
 first, second = camera_path_frames(), camera_path_frames()
 if len(first) != 4:
     failures.append(f"a one-second path at 3 fps should yield 4 frames, got {len(first)}")

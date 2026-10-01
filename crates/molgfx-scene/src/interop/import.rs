@@ -70,6 +70,7 @@ impl ImportState {
                 content_hash: hash.into(),
                 uri: ancestor_param(ancestors, "download", "url").map(Into::into),
                 format: ancestor_param(ancestors, "parse", "format").map(Into::into),
+                placement: None,
             },
         );
     }

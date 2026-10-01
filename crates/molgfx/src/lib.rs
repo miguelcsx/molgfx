@@ -14,14 +14,14 @@ pub use molgfx_scene::Renderer;
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_scene::{AdapterReport, SystemInfo, system_info};
 pub use molgfx_scene::{
-    Anchor, AnnotationId, AnnotationSpec, AppearanceRuleId, AppearanceRuleSpec, AssemblySpec,
-    Camera, Color, ColorSpec, DepthCue, EllipsoidId, EllipsoidSpec, Error, InteractionChannel,
-    InteractionId, InteractionKind, InteractionSpec, Legend, LegendStop, MAX_APPEARANCE_CLASSES,
-    MeasurementId, MeasurementSpec, Parameter, ParameterType, ParameterValue, PatchError, PickKind,
-    PickResult, PlaneId, PlaneSpec, Quality, RenderProfile, RepresentationId, RepresentationSpec,
-    ScalarProperty, ScalarPropertyBinding, Scene, SceneItem, ScenePatch, SceneSpec,
-    SceneTransaction, Selection, StructureId, TrajectoryId, TrajectorySpec, UnitCellSpec,
-    VisualStyle, VolumeId, VolumeSpec, molframe,
+    Anchor, AnnotationId, AnnotationSpec, AppearanceRuleId, AppearanceRuleSpec, AssemblyCopy,
+    AssemblySpec, Camera, Color, ColorSpec, DepthCue, EllipsoidId, EllipsoidSpec, Error,
+    InteractionChannel, InteractionId, InteractionKind, InteractionSpec, Legend, LegendStop,
+    MAX_APPEARANCE_CLASSES, MeasurementId, MeasurementSpec, Parameter, ParameterType,
+    ParameterValue, PatchError, PickKind, PickResult, PlaneId, PlaneSpec, Quality, RenderProfile,
+    RepresentationId, RepresentationSpec, ScalarProperty, ScalarPropertyBinding, Scene, SceneItem,
+    ScenePatch, SceneSpec, SceneTransaction, Selection, StructureId, TrajectoryId, TrajectorySpec,
+    UnitCellSpec, VisualStyle, VolumeId, VolumeSpec, chain_selection, molframe,
 };
 pub use molgfx_scene::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, PassTiming, PassTimingCoverage,

@@ -58,7 +58,11 @@ pub(crate) fn apply_operation(
                 content_hash: source.content_hash.clone(),
                 uri: None,
                 format: None,
+                placement: source.placement,
             };
+            if let Some(matrix) = &descriptor.placement {
+                StructureSource::validate_placement(matrix)?;
+            }
             insert_unique(&mut candidate.structures, *id, descriptor, "structure")?;
         }
         PatchOperation::AddRepresentation { .. }
