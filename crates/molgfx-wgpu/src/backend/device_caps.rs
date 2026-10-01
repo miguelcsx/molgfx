@@ -50,6 +50,7 @@ impl WgpuDevice {
         }
         Capabilities {
             flags,
+            min_uniform_buffer_offset_alignment: limits.min_uniform_buffer_offset_alignment,
             max_storage_buffer_bytes: limits.max_storage_buffer_binding_size,
             max_storage_buffers_per_shader_stage: limits.max_storage_buffers_per_shader_stage,
             max_texture_dim: limits.max_texture_dimension_2d,

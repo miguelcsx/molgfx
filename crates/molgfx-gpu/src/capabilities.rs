@@ -35,6 +35,8 @@ pub struct TextureFormatCapabilities {
 pub struct Capabilities {
     /// The boolean capabilities.
     pub flags: CapabilityFlags,
+    /// Required byte alignment for a uniform-buffer binding offset.
+    pub min_uniform_buffer_offset_alignment: u32,
     /// Largest single storage buffer binding, bytes.
     pub max_storage_buffer_bytes: u64,
     /// Maximum storage-buffer bindings visible to one shader stage.
