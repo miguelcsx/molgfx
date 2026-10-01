@@ -139,6 +139,12 @@ jobs:
           else
             WGPU_BACKEND="${{ matrix.backend }}" python python/tests/headless_render.py
           fi
+      - run: |
+          if [ "${{ matrix.name }}" = default ]; then
+            env -u WGPU_BACKEND python python/tests/headless_determinism.py
+          else
+            WGPU_BACKEND="${{ matrix.backend }}" python python/tests/headless_determinism.py
+          fi
 
   browser:
     needs: browser-runtime
