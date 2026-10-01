@@ -80,7 +80,7 @@ fn vs_bond_capsule(
     let ndc_b =
         bond_project_ndc(endpoint_b);
 
-    let ndc =
+    var ndc =
         bond_quad_ndc(
             ndc_a,
             ndc_b,
@@ -92,6 +92,10 @@ fn vs_bond_capsule(
             vertex_index,
         );
 
+    if max(endpoint_a.z, endpoint_b.z) + strand_radius >= camera_near_z() {
+        ndc = bond_quad_uv(vertex_index) * 2.0 - vec2f(1.0);
+    }
+
     out.position =
         vec4f(
             ndc,
@@ -102,86 +106,84 @@ fn vs_bond_capsule(
     out.ray_xy =
         bond_ray_xy(ndc);
 
-    if bond_flat_source(vertex_index) {
-        let axis =
-            endpoint_b -
-            endpoint_a;
+    let axis =
+        endpoint_b -
+        endpoint_a;
 
-        let color_a =
-            atom_color(atom_a.color);
+    let color_a =
+        atom_color(atom_a.color);
 
-        let color_b =
-            atom_color(atom_b.color);
+    let color_b =
+        atom_color(atom_b.color);
 
-        let motion_a =
-            screen_motion(
-                world_a,
-                previous_atom_position(atom_a.entity_id),
-            );
+    let motion_a =
+        screen_motion(
+            world_a,
+            previous_atom_position(atom_a.entity_id),
+        );
 
-        let motion_b =
-            screen_motion(
-                world_b,
-                previous_atom_position(atom_b.entity_id),
-            );
+    let motion_b =
+        screen_motion(
+            world_b,
+            previous_atom_position(atom_b.entity_id),
+        );
 
-        out.endpoint_a_radius =
-            vec4f(
-                endpoint_a,
-                strand_radius,
-            );
+    out.endpoint_a_radius =
+        vec4f(
+            endpoint_a,
+            strand_radius,
+        );
 
-        out.endpoint_b_inv_axis_sq =
-            vec4f(
-                endpoint_b,
+    out.endpoint_b_inv_axis_sq =
+        vec4f(
+            endpoint_b,
 
-                1.0 / max(
-                    dot(axis, axis),
-                    BOND_AXIS_EPSILON_SQ,
-                ),
-            );
+            1.0 / max(
+                dot(axis, axis),
+                BOND_AXIS_EPSILON_SQ,
+            ),
+        );
 
-        out.color_a =
-            color_a;
+    out.color_a =
+        color_a;
 
-        out.color_delta =
-            color_b - color_a;
+    out.color_delta =
+        color_b - color_a;
 
-        out.motion_a_delta =
-            vec4f(
-                motion_a,
-                motion_b - motion_a,
-            );
+    out.motion_a_delta =
+        vec4f(
+            motion_a,
+            motion_b - motion_a,
+        );
 
-        out.aux =
-            vec4f(
-                varied_roughness(
-                    bond.entity_id,
-                    representation.material.x,
-                ),
+    out.aux =
+        vec4f(
+            varied_roughness(
+                bond.entity_id,
+                representation.material.x,
+            ),
 
-                varied_roughness(
-                    bond.entity_id,
-                    BOND_CAP_ROUGHNESS,
-                ),
+            varied_roughness(
+                bond.entity_id,
+                BOND_CAP_ROUGHNESS,
+            ),
 
-                1.0 / strand_radius,
+            1.0 / strand_radius,
 
-                material_payload(
-                    representation.material,
-                ),
-            );
+            material_payload(
+                representation.material,
+            ),
+        );
 
-        out.entity_id =
-            bond.entity_id;
+    out.entity_id =
+        bond.entity_id;
 
-        out.atom_entities =
-            vec2u(atom_a.entity_id, atom_b.entity_id);
+    out.atom_entities =
+        vec2u(atom_a.entity_id, atom_b.entity_id);
 
-        out.atom_records =
-            vec2u(bond.atom_a, bond.atom_b);
-        out.style = variant.style;
-    }
+    out.atom_records =
+        vec2u(bond.atom_a, bond.atom_b);
+    out.style = variant.style;
 
     return out;
 }
@@ -196,7 +198,7 @@ fn bond_capsule_miss() -> BondCapsuleHit {
     );
 }
 
-/// Resolves the nearest capsule intersection and optional clipping.
+/// Resolves the nearest visible capsule intersection and optional clipping.
 fn bond_capsule_resolve(
     in: BondCapsuleVsOut,
     ray_origin: vec3f,
@@ -210,46 +212,48 @@ fn bond_capsule_resolve(
             in.endpoint_a_radius.w,
         );
 
+    let minimum_t =
+        camera_ray_near_t(
+            ray_origin,
+            ray_direction,
+        );
+
     if representation.clip_meta.x != 0u {
         return representation_primitive_hit(
             ray_origin,
             ray_direction,
             interval,
             frame.inv_view,
+            minimum_t,
         );
     }
 
-    let t =
-        nearest_positive_interval(
+    let visible =
+        nearest_visible_interval(
             interval,
+            minimum_t,
         );
 
     return RepresentationPrimitiveHit(
-        t,
+        visible.t,
         NO_CLIP_PLANE,
         false,
-        t > 0.0,
+        visible.valid,
     );
 }
 
 fn bond_capsule_hit(
     in: BondCapsuleVsOut,
 ) -> BondCapsuleHit {
-    var ray_origin =
-        vec3f(0.0);
-
-    var ray_direction =
-        vec3f(
-            in.ray_xy,
-            -1.0,
-        );
+    var ray_origin = vec3f(0.0);
+    var ray_direction = vec3f(
+        in.ray_xy,
+        -1.0,
+    );
 
     if frame.projection_kind.x > 0.5 {
-        ray_origin =
-            vec3f(in.ray_xy, 0.0);
-
-        ray_direction =
-            vec3f(0.0, 0.0, -1.0);
+        ray_origin = vec3f(in.ray_xy, 0.0);
+        ray_direction = vec3f(0.0, 0.0, -1.0);
     }
 
     let resolved =
@@ -265,29 +269,18 @@ fn bond_capsule_hit(
 
     let position =
         ray_origin + resolved.t * ray_direction;
-
-    let endpoint_a =
-        in.endpoint_a_radius.xyz;
-
+    let endpoint_a = in.endpoint_a_radius.xyz;
     let axis =
-        in.endpoint_b_inv_axis_sq.xyz -
-        endpoint_a;
-
+        in.endpoint_b_inv_axis_sq.xyz - endpoint_a;
     let along = clamp(
-        dot(
-            position - endpoint_a,
-            axis,
-        ) * in.endpoint_b_inv_axis_sq.w,
+        dot(position - endpoint_a, axis) *
+            in.endpoint_b_inv_axis_sq.w,
         0.0,
         1.0,
     );
-
-    let nearest =
-        endpoint_a +
-        axis * along;
+    let nearest = endpoint_a + axis * along;
 
     var normal: vec3f;
-
     if resolved.cap {
         normal =
             primitive_view_normal(
@@ -296,10 +289,13 @@ fn bond_capsule_hit(
                 frame.view,
             );
     } else {
-        // Analytic capsule hits are radius units from the nearest axis point.
+        // An exiting shell faces inward when the camera or its near plane is
+        // inside the capsule.
+        let radial = position - nearest;
+        let interior = dot(radial, ray_direction) > 0.0;
         normal =
-            (position - nearest) *
-            in.aux.z;
+            radial * in.aux.z *
+            select(1.0, -1.0, interior);
     }
 
     return BondCapsuleHit(

@@ -15,8 +15,7 @@ const SPHERE_SOFTNESS_EPSILON: f32 = 1.0e-6;
 struct SphereVsOut {
     @builtin(position) position: vec4f,
 
-    // Quad view-space XY. Z is constant for the impostor and reconstructed
-    // from center_radius.z in the fragment stage.
+    // Perspective ray direction XY (Z = -1), or orthographic origin XY.
     @location(0) ray_xy: vec2f,
 
     // xyz = view-space center
@@ -86,11 +85,6 @@ fn sphere_corner(vertex: u32) -> vec2f {
     return corners[min(vertex, 5u)];
 }
 
-/// Returns the first vertex of each independent triangle.
-fn sphere_flat_source(vertex: u32) -> bool {
-    return vertex == 0u || vertex == 3u;
-}
-
 /// Transforms a world-space point to view space without computing W.
 fn sphere_view_position(world: vec3f) -> vec3f {
     return frame.view[0].xyz * world.x
@@ -135,6 +129,14 @@ fn sphere_geometry(
     if visual_counts.visual_enabled != 0u {
         radius *= atom_visual_geometry(atom.entity_id).z * 4.0;
     }
+    if center.z + radius >= camera_near_z() {
+        let ndc = sphere_corner(vertex);
+        let projected = frame.inv_proj * vec4f(ndc, 1.0, 1.0);
+        let view = projected.xyz / projected.w;
+        let ray_xy = select(view.xy / -view.z, view.xy, frame.projection_kind.x > 0.5);
+        return SphereGeometry(vec4f(ndc, 0.0, 1.0), ray_xy, vec4f(center, radius), world_center);
+    }
+
     var half_size = vec2f(radius);
 
     if frame.projection_kind.x < 0.5 {
@@ -157,7 +159,7 @@ fn sphere_geometry(
         frame.proj *
             vec4f(view_position, 1.0),
 
-        view_position.xy,
+        select(view_position.xy / -center.z, view_position.xy, frame.projection_kind.x > 0.5),
 
         vec4f(
             center,
@@ -168,7 +170,7 @@ fn sphere_geometry(
     );
 }
 
-/// Initializes outputs whose flat fields are supplied only by vertices 0/2.
+/// Initializes the interpolated sphere geometry.
 fn sphere_vertex_output(
     geometry: SphereGeometry,
 ) -> SphereVsOut {

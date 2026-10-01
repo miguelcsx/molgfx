@@ -73,6 +73,17 @@ fn resolved_position(entity_id: u32) -> vec3f {
     return position + visual_result_offset(entity_id & ENTITY_ID_MASK);
 }
 
+// 0: wholly before near; 1: crossing near; 2: fully beyond near.
+fn near_visibility(world: vec3f, radius: f32) -> u32 {
+    let view_z = dot(vec3f(frame.view[0].z, frame.view[1].z, frame.view[2].z), world)
+        + frame.view[3].z;
+    let near_z = projection_near_z(frame.proj);
+    if view_z - radius >= near_z {
+        return 0u;
+    }
+    return select(2u, 1u, view_z + radius >= near_z);
+}
+
 /// Performs the expensive geometric visibility test once per atom.
 fn project_atom(index: u32) -> AtomProjection {
     let atom = input_atoms[index];
@@ -102,6 +113,14 @@ fn project_atom(index: u32) -> AtomProjection {
         + model_to_world[1].xyz * local.y
         + model_to_world[2].xyz * local.z
         + model_to_world[3].xyz;
+
+    let near_state = near_visibility(world, radius);
+    if near_state == 0u {
+        return AtomProjection(0u, 0u, 0u, 0u);
+    }
+    if near_state == 1u && counts.lod_enabled != 2u {
+        return AtomProjection(1u, 0u, 0u, 0u);
+    }
 
     let clip = frame.view_proj * vec4f(world, 1.0);
     let w = clip.w;
@@ -192,6 +211,11 @@ fn is_visible(index: u32) -> bool {
         + model_to_world[1].xyz * local.y
         + model_to_world[2].xyz * local.z
         + model_to_world[3].xyz;
+    let near_state = near_visibility(world, radius);
+    if near_state != 2u {
+        return near_state == 1u;
+    }
+
     let clip = frame.view_proj * vec4f(world, 1.0);
     let w = clip.w;
     if w <= 0.0 || clip.z < 0.0 || clip.z > w {

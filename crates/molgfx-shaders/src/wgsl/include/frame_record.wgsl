@@ -30,3 +30,9 @@ struct FrameUniforms {
     atmosphere: array<vec4f, 6>,
     lighting: array<vec4f, 8>,
 }
+
+/// View-space near plane from the reversed-Z projection equation z = w.
+fn projection_near_z(projection: mat4x4f) -> f32 {
+    return (projection[3].w - projection[3].z) /
+        (projection[2].z - projection[2].w);
+}

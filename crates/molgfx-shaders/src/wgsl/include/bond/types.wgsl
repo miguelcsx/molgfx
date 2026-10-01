@@ -296,11 +296,6 @@ fn bond_quad_uv(vertex_index: u32) -> vec2f {
     return corners[min(vertex_index, 5u)];
 }
 
-/// Returns true for the provoking vertex of each independent triangle.
-fn bond_flat_source(vertex_index: u32) -> bool {
-    return vertex_index == 0u || vertex_index == 3u;
-}
-
 /// Expands two projected endpoints into a screen rectangle.
 fn bond_quad_ndc(
     a: vec2f,

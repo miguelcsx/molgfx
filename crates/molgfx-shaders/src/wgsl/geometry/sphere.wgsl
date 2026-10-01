@@ -47,29 +47,27 @@ fn vs_sphere_opaque(
             geometry,
         );
 
-    if sphere_flat_source(vertex) {
-        out.center_radius =
-            geometry.center_radius;
+    out.center_radius =
+        geometry.center_radius;
 
-        out.color =
-            atom_color(atom.color);
+    out.color =
+        atom_color(atom.color);
 
-        out.previous_softness =
-            vec4f(
-                previous_atom_position(atom.entity_id) -
-                    geometry.world_center,
-                0.0,
-            );
+    out.previous_softness =
+        vec4f(
+            previous_atom_position(atom.entity_id) -
+                geometry.world_center,
+            0.0,
+        );
 
-        out.material =
-            sphere_flat_material(atom);
+    out.material =
+        sphere_flat_material(atom);
 
-        out.entity_id =
-            atom.entity_id;
+    out.entity_id =
+        atom.entity_id;
 
-        out.semantic =
-            atom.semantic;
-    }
+    out.semantic =
+        atom.semantic;
 
     return out;
 }
@@ -95,30 +93,28 @@ fn vs_sphere_transparent(
             geometry,
         );
 
-    if sphere_flat_source(vertex) {
-        out.center_radius =
-            geometry.center_radius;
+    out.center_radius =
+        geometry.center_radius;
 
-        out.color =
-            atom_color(atom.color);
+    out.color =
+        atom_color(atom.color);
 
-        out.previous_softness =
-            vec4f(
-                0.0,
-                0.0,
-                0.0,
-                atom_softness_pixels(atom.semantic),
-            );
+    out.previous_softness =
+        vec4f(
+            0.0,
+            0.0,
+            0.0,
+            atom_softness_pixels(atom.semantic),
+        );
 
-        out.material =
-            sphere_flat_material(atom);
+    out.material =
+        sphere_flat_material(atom);
 
-        out.entity_id =
-            atom.entity_id;
+    out.entity_id =
+        atom.entity_id;
 
-        out.semantic =
-            atom.semantic;
-    }
+    out.semantic =
+        atom.semantic;
 
     return out;
 }

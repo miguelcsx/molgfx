@@ -42,15 +42,13 @@ fn vs_shadow_ligand_pose(
     out.inverse_primary = vec4f(0.0);
     out.inverse_cross = vec4f(0.0);
     out.shape = 0u;
-    if shadow_flat_source(local_vertex) {
-        out.world_center =
-            value.center_radius.xyz;
-        out.size = value.size;
-        if LIGAND_POSE_SHAPE !=
-            LIGAND_POSE_SPHERE {
-            out.orientation =
-                value.orientation;
-        }
+    out.world_center =
+        value.center_radius.xyz;
+    out.size = value.size;
+    if LIGAND_POSE_SHAPE !=
+        LIGAND_POSE_SPHERE {
+        out.orientation =
+            value.orientation;
     }
     return out;
 }

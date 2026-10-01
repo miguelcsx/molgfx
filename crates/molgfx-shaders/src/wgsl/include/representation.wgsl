@@ -219,37 +219,59 @@ fn representation_clip_interval(
     );
 }
 
+struct VisibleIntervalHit {
+    t: f32,
+    interior: bool,
+    valid: bool,
+}
+
+/// Chooses the first primitive shell retained by a ray lower bound.
+///
+/// If the front shell is clipped, the rear endpoint becomes an interior
+/// surface. Callers flip its analytic normal so lighting remains front-facing.
+fn nearest_visible_interval(
+    interval: vec2f,
+    minimum_t: f32,
+) -> VisibleIntervalHit {
+    if !representation_interval_valid(interval)
+        || interval.y < minimum_t {
+        return VisibleIntervalHit(-1.0, false, false);
+    }
+
+    let interior = interval.x < minimum_t;
+    return VisibleIntervalHit(
+        select(interval.x, interval.y, interior),
+        interior,
+        true,
+    );
+}
+
 /// Resolves clipping against a complete analytic primitive interval.
 ///
 /// Open cuts expose the retained rear shell. Solid cuts return the geometric
 /// entry-plane cap. With clipping disabled this reduces directly to the
-/// nearest positive primitive endpoint.
+/// nearest primitive endpoint retained by the camera near plane.
 fn representation_primitive_hit(
     view_origin: vec3f,
     view_direction: vec3f,
     primitive: vec2f,
     world_from_view: mat4x4f,
+    minimum_t: f32,
 ) -> RepresentationPrimitiveHit {
-    if !representation_interval_valid(
-        primitive
-    ) {
+    if !representation_interval_valid(primitive) {
         return representation_miss_hit();
     }
 
-    let clip_count =
-        representation_clip_count();
+    let clip_count = representation_clip_count();
 
     // Common no-clipping path: avoid world-ray transformation entirely.
     if clip_count == 0u {
+        let visible = nearest_visible_interval(primitive, minimum_t);
         return RepresentationPrimitiveHit(
-            select(
-                primitive.y,
-                primitive.x,
-                primitive.x > 0.0,
-            ),
+            visible.t,
             NO_CLIP_PLANE,
             false,
-            true,
+            visible.valid,
         );
     }
 
@@ -273,15 +295,14 @@ fn representation_primitive_hit(
             clip_count,
         );
 
-    if !representation_interval_valid(
-        clipped.range
-    ) {
+    if !representation_interval_valid(clipped.range) {
         return representation_miss_hit();
     }
 
     // range.x begins at primitive.x and can only increase. Therefore this is
-    // equivalent to testing whether the original front shell survived.
-    if primitive.x > 0.0
+    // equivalent to testing whether the original front shell survived both
+    // the representation clip and the camera near plane.
+    if primitive.x >= minimum_t
         && clipped.range.x <= primitive.x {
         return RepresentationPrimitiveHit(
             primitive.x,
@@ -291,10 +312,12 @@ fn representation_primitive_hit(
         );
     }
 
-    // A lower-bound clipping plane replaced the front shell.
+    // A lower-bound representation plane replaced the front shell. The camera
+    // plane never creates a material cap; an entry hidden by it falls through
+    // to the retained rear shell.
     if representation.clip_meta.y != 0u
         && clipped.entry_plane != NO_CLIP_PLANE
-        && clipped.range.x > 0.0 {
+        && clipped.range.x >= minimum_t {
         return RepresentationPrimitiveHit(
             clipped.range.x,
             clipped.entry_plane,
@@ -305,7 +328,8 @@ fn representation_primitive_hit(
 
     // range.y begins at primitive.y and can only decrease. Equality means the
     // original rear shell was retained after clipping.
-    if primitive.y <= clipped.range.y {
+    if primitive.y >= minimum_t
+        && primitive.y <= clipped.range.y {
         return RepresentationPrimitiveHit(
             primitive.y,
             NO_CLIP_PLANE,
