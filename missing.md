@@ -525,7 +525,7 @@ historical table above for any comparison.
 |---|---:|---:|---:|---:|---|
 | Cartoon | 16.8 | 59 ms | 0.93 ms | 11.7 ms | the 120 outputs/s target needs 0.13 ms per sample: 7× short |
 | Spacefill | 0.8 | 1263 ms | 19.7 ms | 15.3 ms | traced AO is ≈ 18.4 ms of every sample |
-| Surface | refused | — | — | — | `surface_spacing_effective` is 0.685 Å against 0.25 Å requested, so the output is correctly **not complete**; needs bricked fields |
+| Surface | 0.21 | 4806 ms | 75 ms | — | measured after the field cap became a per-tier limit: effective spacing 0.25 Å, accepted as complete; before it, 0.685 Å and correctly refused |
 
 Attribution (per-pass actual timestamps, spacefill): sphere impostors 0.7 ms,
 scene-fit shadows 0.3 ms, traced ambient occlusion ≈ 18.4 ms. Setting the
@@ -541,6 +541,13 @@ The publication budget is now **4** rays per sample (spacefill on 7qpd: 1263 ms 
 stays below the half-level quantization noise of an 8-bit image; 8 would be
 reachable again by one constant. The reference is itself noisy, so these are
 upper bounds on the true error.
+
+The 192-cell surface-field cap is now a per-tier limit: interactive tiers keep 192,
+`High` (and so `HighestFixed` and publication) is bounded only by the device's
+3-D texture limit, and the report states the spacing actually used. Memory is
+the next constraint, not a silent coarsening: a 520³ field holds about 2 GB, and
+a sparse brick atlas is still the way to make that scale; marching through it
+costs 75 ms per sample.
 
 Consequences for the stated goal: a 64-sample converged output at 120 per second
 is not reachable on this hardware by tuning. Interactive mode (one sample per

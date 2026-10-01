@@ -137,6 +137,11 @@ impl QualityTier {
             surface_spacing: self.surface_grid_spacing(),
             ribbon_steps: self.ribbon_steps(),
             lod_enabled: !matches!(self, Self::High),
+            surface_max_dimension: if matches!(self, Self::High) {
+                u32::MAX
+            } else {
+                crate::scene_gpu::detail::INTERACTIVE_SURFACE_DIMENSION
+            },
         }
     }
 

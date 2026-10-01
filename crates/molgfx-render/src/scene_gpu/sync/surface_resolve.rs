@@ -46,7 +46,7 @@ impl<D: Device> GpuScene<D> {
         device: &D,
         queue: &D::Queue,
         scene: &Scene,
-        surface_spacing: f32,
+        detail: super::super::detail::TierDetail,
     ) -> Result<(), RenderError> {
         // Destructured so the slot list can be walked mutably while the shared
         // tables stay borrowed immutably, exactly as the binding pass does.
@@ -96,7 +96,8 @@ impl<D: Device> GpuScene<D> {
                 representation,
                 selection_bounds,
                 overlay_volume,
-                surface_spacing,
+                detail.surface_spacing,
+                detail.surface_dimension_limit(device.capabilities().max_texture_dim_3d),
             );
             // Every colour column is resolved from the same arena the visual
             // programs sample, so a property or category scheme, an overlay
