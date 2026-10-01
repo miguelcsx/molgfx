@@ -114,7 +114,11 @@ impl Scene {
         pick: &crate::PickResult,
     ) -> Option<ResolvedVolumeSegmentPick> {
         let label = pick.volume_label?;
-        let (volume, _) = self.spec.volumes.first_key_value()?;
+        // Attribution needs exactly one candidate: with several volumes the
+        // renderer's segment record cannot say which one the label belongs to,
+        // and naming the first would be a guess presented as provenance.
+        let mut volumes = self.spec.volumes.keys();
+        let volume = volumes.next().filter(|_| volumes.next().is_none())?;
         Some(ResolvedVolumeSegmentPick {
             volume: *volume,
             volume_label: label,

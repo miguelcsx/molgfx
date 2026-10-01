@@ -71,7 +71,7 @@ pub use init::Engine;
 pub use lighting_environment::LightingEnvironment;
 pub use optics::{DepthOfField, FocusTarget, MotionBlur};
 pub use pass_profiling::{PassTiming, PassTimingCoverage};
-pub use picking::{PICK_READBACK_BYTES, Pick, PickEntity};
+pub use picking::{PICK_READBACK_BYTES, PendingPick, Pick, PickEntity};
 pub use profile::{
     AntiAliasingStyle, BloomStyle, EffectLayer, IllustrationStyle, PresentationEffect,
     RenderProfile, ResolvedRenderPlan,

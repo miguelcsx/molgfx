@@ -27,3 +27,24 @@ fn completion_keeps_submitted_settings_when_the_next_output_changes() {
     assert_eq!(next.quality.samples_completed, None);
     assert!(next.metrics.last_submission_id > completed.submission_id);
 }
+
+#[test]
+fn a_synced_scene_is_fully_resident_and_an_unsynced_slot_is_not() {
+    let mut engine = engine();
+    let scene = super::tests::represented_scene(1, 1);
+    let image = engine
+        .render_image(
+            &scene,
+            &camera(),
+            ImageConfig {
+                width: 16,
+                height: 16,
+            },
+        )
+        .unwrap();
+    assert!(image.quality.full_residency);
+    assert_eq!(engine.scene_gpu.pending_drawables(), 0);
+    engine.scene_gpu.forget_slot_sync();
+    assert!(engine.scene_gpu.pending_drawables() > 0);
+    assert!(!engine.effective_quality(1, 1).full_residency);
+}

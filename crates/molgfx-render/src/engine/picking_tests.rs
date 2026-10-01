@@ -35,7 +35,7 @@ fn recycled_pick_page_rejects_an_older_submission_generation() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    engine
+    let submission = engine
         .capture_pick_submission_for_test()
         .unwrap_or_else(|error| panic!("{error}"));
     let old = molgfx_core::GpuPickToken::new(0, 0);
@@ -49,7 +49,7 @@ fn recycled_pick_page_rejects_an_older_submission_generation() {
         .unwrap_or_else(|error| panic!("{error}"));
 
     let error = engine
-        .resolve_pick_token_for_test(old)
+        .resolve_pick_token_against_for_test(old, &submission)
         .expect_err("recycled page generation must be stale");
     assert_eq!(error.code(), "MOLGFX-E0082");
     assert!(matches!(
@@ -66,7 +66,7 @@ fn changing_to_a_distinct_scene_rebuilds_equal_revision_pick_pages() {
     engine
         .render(&first, &camera())
         .unwrap_or_else(|error| panic!("first scene renders: {error}"));
-    engine
+    let submission = engine
         .capture_pick_submission_for_test()
         .unwrap_or_else(|error| panic!("first picking table is captured: {error}"));
     let old = molgfx_core::GpuPickToken::new(0, 0);
@@ -76,10 +76,39 @@ fn changing_to_a_distinct_scene_rebuilds_equal_revision_pick_pages() {
         .unwrap_or_else(|error| panic!("second scene renders: {error}"));
 
     let error = engine
-        .resolve_pick_token_for_test(old)
+        .resolve_pick_token_against_for_test(old, &submission)
         .expect_err("a different scene must recycle equal-revision pages");
     assert!(matches!(
         error,
         crate::RenderError::Picking(molgfx_core::PickingError::StaleGeneration)
     ));
+}
+
+#[test]
+fn concurrent_picks_are_bounded_and_each_owns_its_readback() {
+    let mut engine = engine();
+    let scene = represented_scene(1, 1);
+    engine
+        .render(&scene, &camera())
+        .unwrap_or_else(|error| panic!("{error}"));
+    let mut pending = Vec::new();
+    for _ in 0..4 {
+        let Some(pick) = engine
+            .begin_pick(0, 0)
+            .unwrap_or_else(|error| panic!("{error}"))
+        else {
+            panic!("a drawable pixel begins a pick")
+        };
+        pending.push(pick);
+    }
+    let Err(error) = engine.begin_pick(0, 0) else {
+        panic!("a fifth in-flight pick is refused, not queued")
+    };
+    assert!(matches!(
+        error,
+        crate::RenderError::Picking(molgfx_core::PickingError::InFlightExhausted)
+    ));
+    drop(pending.remove(0));
+    assert!(matches!(engine.begin_pick(0, 0), Ok(Some(_))));
+    assert!(matches!(engine.begin_pick(engine.width, 0), Ok(None)));
 }
