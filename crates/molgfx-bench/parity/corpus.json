@@ -1,0 +1,767 @@
+{
+  "extent": [
+    1280,
+    720
+  ],
+  "warmup_outputs": 120,
+  "measured_outputs": 1200,
+  "style": {
+    "color_rgb": [
+      49,
+      104,
+      142
+    ],
+    "atom_radius_scale": 1,
+    "bond_radius_angstrom": 0.25,
+    "cartoon_width_angstrom": 1.2,
+    "opacity": 1
+  },
+  "physical": {
+    "coordinate_unit": "angstrom",
+    "pixel_scale": 1,
+    "model_index": 0,
+    "selection": "all source atoms including hydrogen, water, alternate conformers; first model only",
+    "lighting": "engine-specific physical settings explicitly captured in effective_settings; not assumed equivalent",
+    "effects": "recipe-specific fixed settings; no adaptive resolution/LOD"
+  },
+  "recipes": [
+    "molgfx-highest-fixed",
+    "molgfx-publication",
+    "molstar-raster",
+    "molstar-imagepass",
+    "molstar-tracing",
+    "pymol-raster",
+    "pymol-ray"
+  ],
+  "fixtures": [
+    {
+      "id": "4HHB",
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "form": "cartoon",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "1AON",
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "form": "cartoon",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "1BNA",
+      "category": "dna",
+      "file": "1BNA.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1BNA.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1BNA/pdb",
+      "sha256": "76d550f32963de46f4f3c63caacb530f91a24f333fbc4312766d240b14e8cf30",
+      "selection": "all",
+      "form": "ball_and_stick",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "1EHZ",
+      "category": "rna",
+      "file": "1EHZ.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1EHZ.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1EHZ/pdb",
+      "sha256": "3021dd2b6461f850bb66d6748d3c22a5e1bb6cc891c625c15d793f38215b28ab",
+      "selection": "all",
+      "form": "ball_and_stick",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "1HVR",
+      "category": "ligand_aromatic_orders",
+      "file": "1HVR.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1HVR.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1HVR/pdb",
+      "sha256": "88ae65ea8ab9756b408a94ab02fe922c1d80a79e6226d796f2a565aea3c0dda6",
+      "selection": "all",
+      "form": "ball_and_stick",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "1IGT",
+      "category": "glycan",
+      "file": "1IGT.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1IGT.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1IGT/pdb",
+      "sha256": "d7b1a560ed993c7be669a15530b64f37e2af8e978c321a5779d20ab75746b63f",
+      "selection": "all",
+      "form": "ball_and_stick",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "4HHB-assembly1",
+      "category": "assembly",
+      "file": "4HHB-assembly1.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB-assembly1.cif.gz",
+      "compression": "gzip",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "54c2b76cd6f009f0902f11a28162eccb71dd24375e00481639a2d2ec55a2e6e2",
+      "selection": "all",
+      "form": "cartoon",
+      "assembly": "archive-expanded biological assembly 1; not engine placement validation",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "lattice-8",
+      "category": "smoke",
+      "file": "lattice-8.cif",
+      "format": "mmcif",
+      "generator": "helium_lattice",
+      "atoms": 8,
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "sha256": "7e43ffdcdf7b95c5dcec828a0630e06bca3ff34617ce2c77a291218d3cb3f37d",
+      "selection": "all",
+      "form": "spacefill",
+      "camera": {
+        "position": [
+          0,
+          0,
+          20
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "lattice-100000",
+      "category": "synthetic",
+      "file": "lattice-100000.cif",
+      "format": "mmcif",
+      "generator": "helium_lattice",
+      "atoms": 100000,
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "sha256": "4c3a9094637e162525d3737ae79b6655bc0e794db20d0c3894289f960b73b179",
+      "selection": "all",
+      "form": "spacefill",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "lattice-500000",
+      "category": "synthetic",
+      "file": "lattice-500000.cif",
+      "format": "mmcif",
+      "generator": "helium_lattice",
+      "atoms": 500000,
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "sha256": "ed231c0f3312f26be2e1c284332dffc10c94b0c6c5bbe52a3279a9a3a3e31993",
+      "selection": "all",
+      "form": "spacefill",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "lattice-1000000",
+      "category": "synthetic",
+      "file": "lattice-1000000.cif",
+      "format": "mmcif",
+      "generator": "helium_lattice",
+      "atoms": 1000000,
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "sha256": "3f3e1139f47f07f4a72391d09c4b5222b62bebe38a45dab869a49067e61ca2ef",
+      "selection": "all",
+      "form": "spacefill",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "analytic-gaussian",
+      "category": "analytic_field",
+      "file": "gaussian.mrc",
+      "format": "mrc",
+      "generator": "world_gaussian",
+      "skew": false,
+      "dimensions": [
+        32,
+        32,
+        32
+      ],
+      "cell_lengths": [
+        32,
+        32,
+        32
+      ],
+      "cell_angles": [
+        90,
+        90,
+        90
+      ],
+      "origin": [
+        -16,
+        -16,
+        -16
+      ],
+      "isovalue": 0.35,
+      "analytic_formula": "exp(-(x*x+y*y+z*z)/32), world coordinates in angstrom",
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "sha256": "7c2460b68288da12de9e7e19297492c23300761b9ec69c4b3d3ff51036517ac2",
+      "selection": "all",
+      "form": "isosurface",
+      "camera": {
+        "position": [
+          0,
+          0,
+          80
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "skewMRC",
+      "category": "analytic_field",
+      "file": "skew.mrc",
+      "format": "mrc",
+      "generator": "world_gaussian",
+      "skew": true,
+      "dimensions": [
+        32,
+        32,
+        32
+      ],
+      "cell_lengths": [
+        32,
+        32,
+        32
+      ],
+      "cell_angles": [
+        90,
+        90,
+        70
+      ],
+      "origin": [
+        -16,
+        -16,
+        -16
+      ],
+      "isovalue": 0.35,
+      "analytic_formula": "exp(-(x*x+y*y+z*z)/32), world coordinates in angstrom",
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "sha256": "c2db0cfc0cba899f276d0c2146094c3af4f2e1643b17e9fd272756a29c202853",
+      "selection": "all",
+      "form": "isosurface",
+      "camera": {
+        "position": [
+          0,
+          0,
+          80
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    }
+  ],
+  "recipe_policy": {
+    "scope": "Algorithm-specific maximum bounded sampling at fixed extent; effects and geometry are explicit, not assumed physically equivalent. Unbounded controls have no absolute maximum.",
+    "molstar-raster": {
+      "source_revision": "0efa4dfa5844a7ab879f905374b5813524383ba8",
+      "sampling": "Single raster output, highest supported SMAA sensitivity/search: edgeThreshold=0.05 and maxSearchSteps=32. Multisampling belongs to the separate ImagePass recipe.",
+      "source": "src/mol-canvas3d/passes/smaa.ts SmaaParams"
+    },
+    "molstar-imagepass": {
+      "source_revision": "0efa4dfa5844a7ab879f905374b5813524383ba8",
+      "sampling": "multiSample sampleLevel=5: maximum 32 jitter vectors, mode=on, no occlusion reuse; SMAA edgeThreshold=0.05/maxSearchSteps=32",
+      "source": "src/mol-canvas3d/passes/multi-sample.ts MultiSampleParams/JitterVectors and smaa.ts SmaaParams"
+    },
+    "molstar-tracing": {
+      "source_revision": "0efa4dfa5844a7ab879f905374b5813524383ba8",
+      "sampling": "maxIterations=16: complete 65536 iterations; targetFps=0 disables FPS-driven downshift. Unmodified initial half-step/min-refine ramp is preserved and effective adjusted settings are captured.",
+      "source": "src/mol-canvas3d/passes/illumination.ts IlluminationParams/getMaxIterations",
+      "historical_diagnostic": "maxIterations=6 completes 64 iterations only; previous 64-iteration smoke is not maximum-quality evidence"
+    },
+    "pymol-raster": {
+      "source_revision": "5e8bfca5a7f5dc4d5e7f84fa1d15af707cc86e69",
+      "installed_source": "PyMOL 3.1.0 Scene.cpp ExtentGetUpscaleInfo matches local source",
+      "sampling": "antialias=4 selects the highest supported draw supersampling: 4x per axis (16 uniform samples per output pixel). Values 2/3/4 map to the same raster factor. Runtime GL viewport limit is checked; reduction fails explicitly.",
+      "geometry": "sphere_quality=4 is the source maximum. stick_quality=32 and cartoon_sampling=32 are fixed facet controls, not maxima: source declares no actual maximum for sticks and no bounded cartoon sampling domain.",
+      "source": "layer1/Scene.cpp ExtentGetUpscaleInfo/SceneMakeSizedImage; layer1/SettingInfo.h MAX_SPHERE_QUALITY and stick_quality/cartoon_sampling",
+      "historical_diagnostic": "Raster antialias=0 and 128x72 framebuffer smoke prove the adapter only, not maximum-quality performance"
+    },
+    "pymol-ray": {
+      "source_revision": "5e8bfca5a7f5dc4d5e7f84fa1d15af707cc86e69",
+      "sampling": "antialias=4: source-clamped highest 4x uniform oversampling per axis plus adaptive edge sampling; ray_trace_mode=0 normal ray transport",
+      "geometry": "sphere_quality=4; fixed stick_quality=32/cartoon_sampling=32 are not absolute maxima of their unbounded domains",
+      "source": "layer1/Ray.cpp RayRender; data/setting_help.csv antialias; layer1/SettingInfo.h",
+      "historical_diagnostic": "Previous antialias=2 smoke is not maximum-quality evidence"
+    },
+    "prerequisites": [
+      "Native standalone scalar-volume scenes and skew MRC rendering remain an explicit engine prerequisite, not an external skip or ray substitution",
+      "Full corpus 1280x720 with 120 warmups and 1200 measured outputs is required for the requested performance acceptance; smaller/count-reduced smoke is diagnostic only"
+    ]
+  },
+  "recipe_settings": {
+    "molgfx-highest-fixed": {
+      "quality": "HighestFixed",
+      "fixed_samples": 64,
+      "lighting": "observed EffectiveQuality.lighting",
+      "effects": "observed production facade profile; not external-equivalent"
+    },
+    "molgfx-publication": {
+      "quality": "Publication",
+      "fixed_samples": 64,
+      "lighting": "observed EffectiveQuality.lighting",
+      "effects": "observed production facade profile; not external-equivalent"
+    },
+    "molstar-raster": {
+      "renderer": {
+        "backgroundColor": 0,
+        "ambientIntensity": 0.4,
+        "light": [
+          {
+            "inclination": 150,
+            "azimuth": 320,
+            "color": 16777215,
+            "intensity": 0.6
+          }
+        ],
+        "enableAnimation": false
+      },
+      "postprocessing": {
+        "occlusion": {
+          "name": "off",
+          "params": {}
+        },
+        "outline": {
+          "name": "off",
+          "params": {}
+        },
+        "bloom": {
+          "name": "off",
+          "params": {}
+        },
+        "dof": {
+          "name": "off",
+          "params": {}
+        },
+        "antialiasing": {
+          "name": "smaa",
+          "params": { "edgeThreshold": 0.05, "maxSearchSteps": 32 }
+        }
+      },
+      "multiSample": {
+        "mode": "off",
+        "sampleLevel": 5,
+        "reduceFlicker": false,
+        "reuseOcclusion": false
+      },
+      "illumination": {
+        "enabled": false,
+        "maxIterations": 6,
+        "denoise": true
+      }
+    },
+    "molstar-imagepass": {
+      "renderer": {
+        "backgroundColor": 0,
+        "ambientIntensity": 0.4,
+        "light": [
+          {
+            "inclination": 150,
+            "azimuth": 320,
+            "color": 16777215,
+            "intensity": 0.6
+          }
+        ],
+        "enableAnimation": false
+      },
+      "postprocessing": {
+        "occlusion": {
+          "name": "off",
+          "params": {}
+        },
+        "outline": {
+          "name": "off",
+          "params": {}
+        },
+        "bloom": {
+          "name": "off",
+          "params": {}
+        },
+        "dof": {
+          "name": "off",
+          "params": {}
+        },
+        "antialiasing": {
+          "name": "smaa",
+          "params": { "edgeThreshold": 0.05, "maxSearchSteps": 32 }
+        }
+      },
+      "multiSample": {
+        "mode": "on",
+        "sampleLevel": 5,
+        "reduceFlicker": false,
+        "reuseOcclusion": false
+      },
+      "illumination": {
+        "enabled": false,
+        "maxIterations": 6,
+        "denoise": true
+      }
+    },
+    "molstar-tracing": {
+      "renderer": {
+        "backgroundColor": 0,
+        "ambientIntensity": 0.4,
+        "light": [
+          {
+            "inclination": 150,
+            "azimuth": 320,
+            "color": 16777215,
+            "intensity": 0.6
+          }
+        ],
+        "enableAnimation": false
+      },
+      "postprocessing": {
+        "occlusion": {
+          "name": "off",
+          "params": {}
+        },
+        "outline": {
+          "name": "off",
+          "params": {}
+        },
+        "bloom": {
+          "name": "off",
+          "params": {}
+        },
+        "dof": {
+          "name": "off",
+          "params": {}
+        },
+        "antialiasing": {
+          "name": "smaa",
+          "params": { "edgeThreshold": 0.05, "maxSearchSteps": 32 }
+        }
+      },
+      "multiSample": {
+        "mode": "off",
+        "sampleLevel": 5,
+        "reduceFlicker": false,
+        "reuseOcclusion": false
+      },
+      "illumination": {
+        "enabled": true,
+        "maxIterations": 16,
+        "targetFps": 0,
+        "rendersPerFrame": [64, 64],
+        "denoise": true
+      }
+    },
+    "pymol-raster": {
+      "orthoscopic": 0,
+      "antialias": 4,
+      "ray_trace_mode": 0,
+      "ray_shadows": 1,
+      "ambient": 0.4,
+      "direct": 0.6,
+      "specular": 0.5,
+      "shininess": 40,
+      "light": [
+        -0.4,
+        0.5,
+        1
+      ],
+      "light_count": 1,
+      "depth_cue": 0,
+      "fog": 0,
+      "opaque_background": 1,
+      "bg_rgb": [
+        0,
+        0,
+        0
+      ],
+      "cif_use_auth": 0,
+      "sphere_quality": 4,
+      "stick_quality": 32,
+      "cartoon_sampling": 32
+    },
+    "pymol-ray": {
+      "orthoscopic": 0,
+      "antialias": 4,
+      "ray_trace_mode": 0,
+      "ray_shadows": 1,
+      "ambient": 0.4,
+      "direct": 0.6,
+      "specular": 0.5,
+      "shininess": 40,
+      "light": [
+        -0.4,
+        0.5,
+        1
+      ],
+      "light_count": 1,
+      "depth_cue": 0,
+      "fog": 0,
+      "opaque_background": 1,
+      "bg_rgb": [
+        0,
+        0,
+        0
+      ],
+      "cif_use_auth": 0,
+      "sphere_quality": 4,
+      "stick_quality": 32,
+      "cartoon_sampling": 32
+    }
+  }
+}
