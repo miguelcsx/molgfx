@@ -509,6 +509,19 @@ class RenderProfile:
 def system_info() -> dict[str, object]: ...
 
 @final
+class CameraPath:
+    def __new__(
+        cls,
+        keyframes: Sequence[tuple[float, Camera]],
+        *,
+        easing: Literal["linear", "smooth_step"] = "smooth_step",
+    ) -> Self: ...
+    def sample(self, seconds: float) -> Camera | None: ...
+    @property
+    def range(self) -> tuple[float, float]: ...
+    def __len__(self) -> int: ...
+
+@final
 class PocketStyle:
     def __new__(cls, *, near: float | None = None, mid: float | None = None) -> Self: ...
     @property
@@ -542,6 +555,14 @@ class Renderer:
     def render_image(self, scene: Scene, *, size: tuple[int, int]) -> Image: ...
     def render_sequence(
         self, scene: Scene, *, size: tuple[int, int], fps: int, frames: int
+    ) -> list[Image]: ...
+    def render_camera_path(
+        self,
+        scene: Scene,
+        path: CameraPath,
+        *,
+        size: tuple[int, int],
+        fps: int,
     ) -> list[Image]: ...
     def pick(self, x: int, y: int) -> PickResult | None: ...
     def explain(self, scene: Scene) -> str: ...
@@ -897,6 +918,7 @@ __all__ = [
     "color",
     "profile",
     "PickResult",
+    "CameraPath",
     "PocketStyle",
     "Image",
     "Renderer",

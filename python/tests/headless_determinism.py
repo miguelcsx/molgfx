@@ -52,5 +52,28 @@ for name, build in (("spacefill", spacefill), ("pocket", pocket)):
         failures.append(f"{name}: the render is entirely transparent black")
     else:
         print(f"{name}: two renders are byte-identical")
+def camera_path_frames():
+    scene = molgfx.Scene(molframe.read(PDB, name="t.pdb"))
+    scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()))
+
+    def at(x):
+        return molgfx.Camera(position=(x, 3.0, 14.0), target=(2.5, 2.0, 1.0))
+
+    path = molgfx.CameraPath([(0.0, at(-4.0)), (1.0, at(9.0))])
+    renderer = molgfx.Renderer()
+    frames = renderer.render_camera_path(scene, path, size=(64, 48), fps=3)
+    return [bytes(frame.pixels()) for frame in frames]
+
+
+first, second = camera_path_frames(), camera_path_frames()
+if len(first) != 4:
+    failures.append(f"a one-second path at 3 fps should yield 4 frames, got {len(first)}")
+elif first != second:
+    failures.append("camera-path frames differ between identical runs")
+elif len(set(first)) != 4:
+    failures.append("camera-path frames are not all distinct: the camera did not move")
+else:
+    print("camera path: 4 distinct, repeatable frames")
+
 if failures:
     sys.exit("\n".join(failures))

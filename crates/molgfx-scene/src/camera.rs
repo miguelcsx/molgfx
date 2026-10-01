@@ -49,3 +49,31 @@ pub fn perspective(
         },
     })
 }
+
+pub use molgfx_core::{CameraEasing, CameraKeyframe, CameraPath};
+
+/// Builds a camera path from `(seconds, camera)` keyframes.
+///
+/// # Errors
+///
+/// Returns an invalid-specification error for fewer than two keyframes,
+/// timestamps that are not strictly increasing, mixed projection models, or a
+/// non-finite or degenerate camera.
+pub fn path(
+    keyframes: &[(f64, crate::Camera)],
+    easing: CameraEasing,
+) -> Result<CameraPath, crate::Error> {
+    let frames = keyframes
+        .iter()
+        .map(|(seconds, camera)| {
+            CameraKeyframe::new(*seconds, *camera)
+                .map_err(|error| crate::Error::InvalidSpec(error.to_string()))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    CameraPath::new(frames.into(), easing)
+        .map_err(|error| crate::Error::InvalidSpec(error.to_string()))
+}
+
+#[cfg(test)]
+#[path = "camera_tests.rs"]
+mod tests;
