@@ -1,11 +1,37 @@
 use super::grow_capacity;
 
 #[test]
-fn a_requirement_rounds_up_to_the_next_power_of_two() {
+fn a_requirement_rounds_up_to_an_eighth_of_its_octave() {
     let Ok(capacity) = grow_capacity(1_000, 1 << 30, "test") else {
         panic!("a small requirement fits")
     };
     assert_eq!(capacity, 1_024);
+    let Ok(capacity) = grow_capacity(17 << 20, 1 << 30, "test") else {
+        panic!("a large requirement fits")
+    };
+    assert_eq!(capacity, 18 << 20, "17 MiB does not reserve 32 MiB");
+}
+
+#[test]
+fn rounding_wastes_at_most_an_eighth_and_stays_four_byte_aligned() {
+    for needed in [
+        257_u64,
+        1_000,
+        4_097,
+        65_537,
+        (3 << 20) + 1,
+        (100 << 20) + 7,
+    ] {
+        let Ok(capacity) = grow_capacity(needed, 1 << 40, "test") else {
+            panic!("the requirement fits")
+        };
+        assert!(capacity >= needed, "{capacity} holds {needed}");
+        assert!(
+            capacity - needed <= needed / 8 + 1,
+            "{capacity} for {needed}"
+        );
+        assert_eq!(capacity % 4, 0, "{capacity} is aligned");
+    }
 }
 
 #[test]

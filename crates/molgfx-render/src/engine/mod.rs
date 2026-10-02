@@ -98,6 +98,10 @@ pub(crate) use temporal::{TemporalOptions, TemporalState};
 #[path = "engine_tests.rs"]
 pub(crate) mod tests;
 
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "exposure_tests.rs"]
+mod exposure_tests;
+
 #[cfg(test)]
 #[path = "pipeline_cache_tests.rs"]
 mod pipeline_cache_tests;
