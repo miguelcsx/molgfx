@@ -62,3 +62,27 @@ fn the_frame_looks_at_the_selection_and_leaves_the_scene_alone() {
 fn an_invalid_query_is_an_error_not_an_empty_frame() {
     assert!(two_chains().frame("chain (", 1.0).is_err());
 }
+
+#[test]
+fn a_framed_atom_is_not_cropped() {
+    let scene = two_chains();
+    let camera = scene
+        .frame("name N and chain A", 1.0)
+        .unwrap_or_else(|error| panic!("{error}"));
+    // The nitrogen at the origin has a 1.55 A radius: the points a radius
+    // above and below its centre, across the screen, must both be on screen.
+    let forward = (camera.target - camera.eye).normalize();
+    let up = forward.cross(camera.up).cross(forward).normalize();
+    let size = (400, 400);
+    for sign in [-1.0f32, 1.0] {
+        let edge = Vec3::ZERO + up * (1.55 * sign);
+        let Some(point) = camera.project(edge, size) else {
+            panic!("the edge is in front of the camera")
+        };
+        assert!(
+            (0.0..400.0).contains(&point.y),
+            "the atom's edge lands at y = {}",
+            point.y
+        );
+    }
+}

@@ -7,7 +7,7 @@ MolGFX renders a camera's view; it draws no panel, caption or control of its own
 
 ## Frame a selection
 
-`Scene.frame` returns the camera that fits a selection on a target of a given aspect, and leaves the scene as it is:
+`Scene.frame` returns the camera that fits a selection, atoms as van der Waals spheres rather than points, on a target of a given aspect, and leaves the scene as it is:
 
 ```python
 camera = scene.frame("resname HEM", aspect=1920 / 1080)

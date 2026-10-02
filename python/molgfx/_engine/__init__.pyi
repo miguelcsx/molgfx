@@ -340,7 +340,7 @@ class Scene:
     ) -> None: ...
     def focus(self, target: _Target) -> None: ...
     def frame(self, target: _Target, *, aspect: float = 1.0) -> Camera:
-        """A camera that frames a selection, leaving the scene as it is."""
+        """A camera that frames a selection as atom spheres, leaving the scene as it is."""
     def selection_bounds(
         self, target: _Target
     ) -> tuple[tuple[float, float, float], tuple[float, float, float]] | None:

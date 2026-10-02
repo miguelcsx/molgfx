@@ -49,3 +49,25 @@ pixels = image.pixels()
 assert any(pixel != 0 for pixel in pixels), "render output is entirely transparent black"
 assert image.png_bytes().startswith(b"\x89PNG")
 print("rendered a non-empty 64x64 PNG")
+
+# The camera primitives must agree with where the renderer draws: an atom's
+# projected pixel lies on the drawn atom, and a far corner does not.
+view = scene.frame(molgfx.sel.all(), aspect=1.0)
+scene.set_camera(view)
+framed = molgfx.Renderer().render_image(scene, size=(128, 128))
+framed_pixels = bytes(framed.pixels())
+
+
+def differs_from_background(x, y):
+    """Whether a pixel is far from the gradient background at the corner."""
+    at = (y * 128 + x) * 4
+    return any(
+        abs(framed_pixels[at + channel] - framed_pixels[channel]) > 24
+        for channel in range(3)
+    )
+
+
+x, y, _ = view.project((12.560, 13.318, 9.111), (128, 128))
+assert differs_from_background(int(x), int(y)), ("projected atom is not drawn", x, y)
+assert not differs_from_background(2, 2), "the corner is background"
+print("projection lands on the drawn atom")
