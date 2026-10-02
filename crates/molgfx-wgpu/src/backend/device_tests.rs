@@ -13,8 +13,11 @@ fn this_host_can_open_the_portable_headless_device() {
 
 #[test]
 fn capabilities_include_only_features_enabled_on_the_device() {
-    let capabilities =
-        WgpuDevice::probe_capabilities(wgpu::Features::TIMESTAMP_QUERY, &wgpu::Limits::default());
+    let capabilities = WgpuDevice::probe_capabilities(
+        wgpu::Features::TIMESTAMP_QUERY,
+        &wgpu::Limits::default(),
+        wgpu::DownlevelFlags::empty(),
+    );
 
     assert!(capabilities.timestamp_queries());
     assert!(!capabilities.hardware_ray_tracing());
@@ -27,10 +30,26 @@ fn capabilities_include_only_features_enabled_on_the_device() {
 }
 
 #[test]
+fn depth_read_while_sampled_follows_the_adapters_downlevel_flag() {
+    let probe = |flags| {
+        WgpuDevice::probe_capabilities(wgpu::Features::empty(), &wgpu::Limits::default(), flags)
+    };
+    assert!(
+        probe(wgpu::DownlevelFlags::READ_ONLY_DEPTH_STENCIL).depth_read_while_sampled(),
+        "an adapter that supports it reports it"
+    );
+    assert!(
+        !probe(wgpu::DownlevelFlags::empty()).depth_read_while_sampled(),
+        "an OpenGL-class adapter does not"
+    );
+}
+
+#[test]
 fn ray_query_capability_requires_the_enabled_device_feature() {
     let capabilities = WgpuDevice::probe_capabilities(
         wgpu::Features::EXPERIMENTAL_RAY_QUERY,
         &wgpu::Limits::default().using_minimum_supported_acceleration_structure_values(),
+        wgpu::DownlevelFlags::empty(),
     );
 
     assert!(capabilities.ray_query());

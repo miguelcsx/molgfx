@@ -5,7 +5,8 @@ use crate::passes::{
     ALBEDO_RESOURCE, AO_DENOISED_RESOURCE, AO_RESOURCE, BLOOM_A_RESOURCE, BLOOM_B_RESOURCE,
     BLOOM_C_RESOURCE, COMPOSITE_RESOURCE, DEPTH_RESOURCE, DOF_RESOURCE, DOF_TILE_RESOURCE,
     HDR_RESOURCE, HISTORY_A_RESOURCE, HISTORY_B_RESOURCE, MOTION_BLUR_RESOURCE, MOTION_RESOURCE,
-    NORMAL_RESOURCE, OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE, PassRegistry, SHADOW_RESOURCE,
+    NORMAL_RESOURCE, OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE, OPAQUE_DEPTH_RESOURCE, PassRegistry,
+    SHADOW_RESOURCE,
 };
 use molgfx_gpu::{BindGroupDesc, BindGroupEntry, Device};
 
@@ -131,6 +132,9 @@ impl<D: Device> FrameBindings<D> {
 
 struct FrameViews<'a, D: Device> {
     depth: &'a D::TextureView,
+    /// What transparent passes bind: a copy where the live depth cannot be both
+    /// attachment and binding, else the live depth itself.
+    oit_depth: &'a D::TextureView,
     albedo: &'a D::TextureView,
     normal: &'a D::TextureView,
     ao: &'a D::TextureView,
@@ -153,8 +157,14 @@ struct FrameViews<'a, D: Device> {
 
 impl<'a, D: Device> FrameViews<'a, D> {
     fn new(pool: &'a TransientPool<D>) -> Option<Self> {
+        let depth = pool.view(DEPTH_RESOURCE)?;
+        let oit_depth = match pool.view(OPAQUE_DEPTH_RESOURCE) {
+            Some(copy) => copy,
+            None => depth,
+        };
         Some(Self {
-            depth: pool.view(DEPTH_RESOURCE)?,
+            depth,
+            oit_depth,
             albedo: pool.view(ALBEDO_RESOURCE)?,
             normal: pool.view(NORMAL_RESOURCE)?,
             ao: pool.view(AO_RESOURCE)?,
@@ -258,7 +268,7 @@ fn base_bindings<D: Device>(
             },
             BindGroupEntry::Texture {
                 binding: 1,
-                view: views.depth,
+                view: views.oit_depth,
             },
         ],
     });

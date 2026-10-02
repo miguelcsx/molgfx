@@ -1,5 +1,5 @@
 //! Engine construction: device open, pass creation, graph declaration.
-use super::graph_setup::{realtime_nodes, realtime_resources};
+use super::graph_setup::{GraphTopology, realtime_nodes, realtime_resources};
 use super::{
     AdaptiveQuality, DerivedCache, EngineConfig, FocusTracker, GpuProfiler, PassRegistry, Picker,
     RenderMode, RenderProfile, ResolvedRenderPlan, ShadowBoundCache, TemporalState,
@@ -250,7 +250,10 @@ impl<D: Device> Engine<D> {
         Self::from_opened(config, opened)
     }
 
-    fn from_opened(config: &EngineConfig, opened: Opened<D>) -> Result<Self, RenderError> {
+    pub(super) fn from_opened(
+        config: &EngineConfig,
+        opened: Opened<D>,
+    ) -> Result<Self, RenderError> {
         let mut surface = opened.surface;
         let device = opened.device;
 
@@ -260,11 +263,7 @@ impl<D: Device> Engine<D> {
         let resolved_plan = profile.resolve();
         let scene_gpu = GpuScene::new(&device, config.residency, config.picking_page_capacity)?;
         let passes = realtime_passes(&device, target_format, &scene_gpu, &resolved_plan)?;
-        let pass_nodes = realtime_nodes(
-            resolved_plan.depth_of_field().is_some(),
-            resolved_plan.bloom().is_some(),
-            resolved_plan.motion_blur().is_some(),
-        );
+        let pass_nodes = realtime_nodes(GraphTopology::of(&resolved_plan, &device));
         let resources = realtime_resources();
         let order = graph::schedule(&pass_nodes)?;
 

@@ -27,6 +27,16 @@ impl<D: Device> ResourceTable<'_, D> {
         }
         self.pool.view(id)
     }
+
+    /// The physical texture behind a declared resource.
+    pub(crate) fn texture(&self, id: ResourceId) -> Option<&D::Texture> {
+        self.pool.texture(id)
+    }
+
+    /// The full-resolution frame extent.
+    pub(crate) fn extent(&self) -> (u32, u32) {
+        self.pool.extent()
+    }
 }
 
 /// The display output format one frame is encoded for.

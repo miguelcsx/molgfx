@@ -10,8 +10,14 @@ impl WgpuDevice {
     pub(super) fn probe_capabilities(
         features: wgpu::Features,
         limits: &wgpu::Limits,
+        downlevel: wgpu::DownlevelFlags,
     ) -> Capabilities {
-        Self::probe_with_formats(features, limits, [TextureFormatCapabilities::default(); 3])
+        Self::probe_with_formats(
+            features,
+            limits,
+            downlevel,
+            [TextureFormatCapabilities::default(); 3],
+        )
     }
 
     pub(super) fn probe_adapter_capabilities(
@@ -19,15 +25,24 @@ impl WgpuDevice {
         features: wgpu::Features,
         limits: &wgpu::Limits,
     ) -> Capabilities {
-        Self::probe_with_formats(features, limits, texture_capabilities(adapter))
+        Self::probe_with_formats(
+            features,
+            limits,
+            adapter.get_downlevel_capabilities().flags,
+            texture_capabilities(adapter),
+        )
     }
 
     fn probe_with_formats(
         features: wgpu::Features,
         limits: &wgpu::Limits,
+        downlevel: wgpu::DownlevelFlags,
         formats: [TextureFormatCapabilities; 3],
     ) -> Capabilities {
         let mut flags = CapabilityFlags::empty();
+        if downlevel.contains(wgpu::DownlevelFlags::READ_ONLY_DEPTH_STENCIL) {
+            flags |= CapabilityFlags::DEPTH_READ_WHILE_SAMPLED;
+        }
         let feature_map = [
             (
                 wgpu::Features::EXPERIMENTAL_RAY_QUERY,

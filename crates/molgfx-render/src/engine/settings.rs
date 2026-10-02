@@ -1,7 +1,7 @@
 //! Runtime engine settings and render-profile topology updates.
 
 use super::{Engine, QualityTier, RenderMode, RenderProfile, ResolvedRenderPlan};
-use crate::engine::graph_setup::realtime_nodes;
+use crate::engine::graph_setup::{GraphTopology, realtime_nodes};
 use crate::error::RenderError;
 use crate::graph;
 use molgfx_gpu::{Device, Surface as _, SurfaceConfig};
@@ -99,30 +99,23 @@ impl<D: Device> Engine<D> {
             return Ok(());
         }
         let resolved_plan = profile.resolve();
-        let old_topology = (
-            self.resolved_plan.depth_of_field().is_some(),
-            self.resolved_plan.bloom().is_some(),
-            self.resolved_plan.motion_blur().is_some(),
-        );
-        let new_topology = (
-            resolved_plan.depth_of_field().is_some(),
-            resolved_plan.bloom().is_some(),
-            resolved_plan.motion_blur().is_some(),
-        );
+        let old_topology = GraphTopology::of(&self.resolved_plan, &self.device);
+        let new_topology = GraphTopology::of(&resolved_plan, &self.device);
         if old_topology != new_topology {
-            let pass_nodes = realtime_nodes(new_topology.0, new_topology.1, new_topology.2);
+            let pass_nodes = realtime_nodes(new_topology);
             let order = graph::schedule(&pass_nodes)?;
             // Prepare new pipelines before replacing any live state so a
             // failed profile transition leaves the previous frame usable.
-            let depth_of_field = if new_topology.0 && self.passes.depth_of_field.is_none() {
-                Some(crate::passes::DepthOfFieldPass::new(
-                    &self.device,
-                    &self.scene_gpu.group0_layout,
-                )?)
-            } else {
-                None
-            };
-            let bloom = if new_topology.1 && self.passes.bloom.is_none() {
+            let depth_of_field =
+                if new_topology.depth_of_field && self.passes.depth_of_field.is_none() {
+                    Some(crate::passes::DepthOfFieldPass::new(
+                        &self.device,
+                        &self.scene_gpu.group0_layout,
+                    )?)
+                } else {
+                    None
+                };
+            let bloom = if new_topology.bloom && self.passes.bloom.is_none() {
                 Some(crate::passes::BloomPass::new(
                     &self.device,
                     &self.scene_gpu.group0_layout,
@@ -130,7 +123,7 @@ impl<D: Device> Engine<D> {
             } else {
                 None
             };
-            let motion_blur = if new_topology.2 && self.passes.motion_blur.is_none() {
+            let motion_blur = if new_topology.motion_blur && self.passes.motion_blur.is_none() {
                 Some(crate::passes::MotionBlurPass::new(
                     &self.device,
                     &self.scene_gpu.group0_layout,
@@ -138,17 +131,17 @@ impl<D: Device> Engine<D> {
             } else {
                 None
             };
-            self.passes.depth_of_field = if new_topology.0 {
+            self.passes.depth_of_field = if new_topology.depth_of_field {
                 self.passes.depth_of_field.take().or(depth_of_field)
             } else {
                 None
             };
-            self.passes.bloom = if new_topology.1 {
+            self.passes.bloom = if new_topology.bloom {
                 self.passes.bloom.take().or(bloom)
             } else {
                 None
             };
-            self.passes.motion_blur = if new_topology.2 {
+            self.passes.motion_blur = if new_topology.motion_blur {
                 self.passes.motion_blur.take().or(motion_blur)
             } else {
                 None
