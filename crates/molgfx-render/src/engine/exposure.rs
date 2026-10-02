@@ -4,11 +4,25 @@ use super::image::ImagePurpose;
 use super::{Engine, MotionBlur, QualityTier, TemporalOptions};
 use crate::RenderError;
 use molgfx_core::Scene;
+#[cfg(not(target_arch = "wasm32"))]
+use molgfx_gpu::Queue;
 use molgfx_gpu::{Device, FenceValue};
 use molgfx_math::Camera;
 
+/// Samples recorded into one command buffer before it is submitted.
+///
+/// Every render encoder holds driver memory until its command buffer retires,
+/// so a publication exposure that queues all of its samples at once keeps
+/// hundreds of encoders alive together. Runs of this size, with at most two
+/// in flight, bound that without leaving the device idle.
+pub(super) const EXPOSURE_RUN: u32 = 4;
+
 pub(super) struct Exposure {
     pub(super) samples: u32,
+    submitted: u32,
+    /// The previous run, awaited before the next is queued (native only).
+    #[cfg(not(target_arch = "wasm32"))]
+    in_flight: Option<FenceValue>,
     bank: usize,
     camera: Camera,
     options: TemporalOptions,
@@ -48,6 +62,9 @@ impl<D: Device> Engine<D> {
         );
         Ok(Exposure {
             samples,
+            submitted: 0,
+            #[cfg(not(target_arch = "wasm32"))]
+            in_flight: None,
             bank,
             camera: *camera,
             options: TemporalOptions {
@@ -97,6 +114,39 @@ impl<D: Device> Engine<D> {
         Ok(())
     }
 
+    /// Submits the samples recorded so far once a run is full, and starts a
+    /// fresh encoder for the rest. The last run goes through
+    /// [`Self::submit_exposure`].
+    pub(super) fn flush_exposure_run(
+        &mut self,
+        exposure: &mut Exposure,
+        sample: u32,
+        encoder: &mut D::CommandEncoder,
+    ) -> Result<(), RenderError> {
+        let recorded = sample + 1;
+        if !recorded.is_multiple_of(EXPOSURE_RUN) || recorded >= exposure.samples {
+            return Ok(());
+        }
+        let full = std::mem::replace(encoder, self.device.create_command_encoder());
+        let fence = self.scene_gpu.flush_exposure_uniforms(
+            &self.queue,
+            exposure.bank,
+            exposure.submitted as usize..recorded as usize,
+            full,
+        )?;
+        exposure.submitted = recorded;
+        // Native callers may block; a browser cannot, and keeps its queue.
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(previous) = exposure.in_flight.replace(fence) {
+            self.queue
+                .wait_fence_blocking(&self.device, previous)
+                .map_err(RenderError::from)?;
+        }
+        #[cfg(target_arch = "wasm32")]
+        let _ = fence;
+        Ok(())
+    }
+
     pub(super) fn submit_exposure(
         &mut self,
         exposure: &Exposure,
@@ -105,7 +155,7 @@ impl<D: Device> Engine<D> {
         self.scene_gpu.submit_exposure_uniforms(
             &self.queue,
             exposure.bank,
-            exposure.samples as usize,
+            exposure.submitted as usize..exposure.samples as usize,
             encoder,
         )
     }

@@ -18,6 +18,8 @@ use molgfx_gpu::{BufferDesc, BufferUsage, Device, Queue};
 /// The smallest allocation worth making. Below this, a buffer costs the same
 /// as a larger one and reallocating it costs more than the space saved.
 const MINIMUM_BYTES: u64 = 256;
+/// Capacities per doubling; the largest share of a table that may sit unused.
+const OCTAVE_STEPS: u64 = 8;
 
 /// A grow-only device buffer and the capacity it currently holds.
 #[derive(Debug)]
@@ -117,7 +119,11 @@ impl<D: Device> GrowBuffer<D> {
     }
 }
 
-/// Rounds a requirement up to the next power of two within the device's limit.
+/// Rounds a requirement up to an eighth of its octave within the device's limit.
+///
+/// A power of two wastes up to half of a large table, which is resident device
+/// memory; an eighth of an octave wastes at most an eighth and still lets a
+/// table that grows steadily reuse its allocation for many appends.
 fn grow_capacity(needed: u64, limit: u64, label: &'static str) -> Result<u64, RenderError> {
     if needed > limit || limit == 0 {
         return Err(molgfx_gpu::GpuError::LimitExceeded {
@@ -126,10 +132,13 @@ fn grow_capacity(needed: u64, limit: u64, label: &'static str) -> Result<u64, Re
         }
         .into());
     }
-    let grown = match needed.checked_next_power_of_two() {
-        Some(value) => value,
-        None => needed,
+    let octave = if needed == 0 {
+        1
+    } else {
+        1u64 << needed.ilog2()
     };
+    let step = (octave / OCTAVE_STEPS).max(1);
+    let grown = needed.div_ceil(step).saturating_mul(step);
     Ok(grown.max(MINIMUM_BYTES).min(limit))
 }
 

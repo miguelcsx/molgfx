@@ -220,6 +220,7 @@ impl<D: Device> Engine<D> {
                     &readback,
                 );
             }
+            self.flush_exposure_run(&mut exposure, sample, &mut encoder)?;
         }
         let completion = self.submit_exposure(&exposure, encoder)?;
         let mut quality = self.effective_quality(

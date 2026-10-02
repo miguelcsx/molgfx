@@ -1,7 +1,8 @@
 //! Three completion-protected banks of distinct temporal uniform ranges.
 //!
-//! The CPU staging storage and ranged bind groups are created once. One upload
-//! and one submission publish an exposure; bank reuse requires its final fence.
+//! The CPU staging storage and ranged bind groups are created once. An exposure
+//! uploads each run of samples just before the submission that records it; bank
+//! reuse requires the final fence.
 
 use super::FrameUniforms;
 use super::sync::GpuScene;
@@ -9,6 +10,7 @@ use crate::RenderError;
 use molgfx_gpu::{
     BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, FenceValue, Queue,
 };
+use std::ops::Range;
 
 pub(crate) const EXPOSURE_SAMPLES: usize = 64;
 const BANKS: usize = 3;
@@ -94,15 +96,14 @@ impl<D: Device> ExposureArena<D> {
         Ok(())
     }
 
-    pub(super) fn upload(&mut self, queue: &D::Queue, bank: usize, samples: usize) {
+    pub(super) fn upload(&mut self, queue: &D::Queue, bank: usize, run: Range<usize>) {
+        let bytes = &self.staging[run.start * self.stride..run.end * self.stride];
         queue.write_buffer(
             &self.buffer,
-            (bank * EXPOSURE_SAMPLES * self.stride) as u64,
-            &self.staging[..samples * self.stride],
+            ((bank * EXPOSURE_SAMPLES + run.start) * self.stride) as u64,
+            bytes,
         );
-        self.uploaded_bytes = self
-            .uploaded_bytes
-            .saturating_add((samples * self.stride) as u64);
+        self.uploaded_bytes = self.uploaded_bytes.saturating_add(bytes.len() as u64);
     }
 
     pub(super) fn submit(&mut self, bank: usize, fence: FenceValue, group: &mut D::BindGroup) {
@@ -156,17 +157,32 @@ impl<D: Device> GpuScene<D> {
         arena.stage(bank, sample, uniforms, &mut self.group0)
     }
 
-    pub(crate) fn submit_exposure_uniforms(
+    /// Submits a run of samples that is not the last; the final run follows.
+    pub(crate) fn flush_exposure_uniforms(
         &mut self,
         queue: &D::Queue,
         bank: usize,
-        samples: usize,
+        run: Range<usize>,
         encoder: D::CommandEncoder,
     ) -> Result<FenceValue, RenderError> {
         let Some(arena) = &mut self.exposure_uniforms else {
             return Err(error("exposure uniform arena is unavailable"));
         };
-        arena.upload(queue, bank, samples);
+        arena.upload(queue, bank, run);
+        Ok(queue.submit_tracked(encoder))
+    }
+
+    pub(crate) fn submit_exposure_uniforms(
+        &mut self,
+        queue: &D::Queue,
+        bank: usize,
+        run: Range<usize>,
+        encoder: D::CommandEncoder,
+    ) -> Result<FenceValue, RenderError> {
+        let Some(arena) = &mut self.exposure_uniforms else {
+            return Err(error("exposure uniform arena is unavailable"));
+        };
+        arena.upload(queue, bank, run);
         let fence = queue.submit_tracked(encoder);
         arena.submit(bank, fence, &mut self.group0);
         Ok(fence)

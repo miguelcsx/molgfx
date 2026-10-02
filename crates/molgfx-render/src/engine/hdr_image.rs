@@ -164,6 +164,7 @@ impl<D: Device> Engine<D> {
                     &readback,
                 );
             }
+            self.flush_exposure_run(&mut exposure, sample, &mut encoder)?;
         }
         self.submit_exposure(&exposure, encoder)?;
         Ok(PendingHdrImage {
