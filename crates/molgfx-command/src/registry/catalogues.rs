@@ -9,6 +9,7 @@ pub fn schemes() -> Vec<&'static str> {
         molgfx_scene::color::AtomCategory::ALL.map(molgfx_scene::color::AtomCategory::name),
     );
     words.extend(molgfx_scene::color::AtomMetric::ALL.map(molgfx_scene::color::AtomMetric::name));
+    words.extend(molgfx_scene::color::AtomMetric::alias_names());
     words
 }
 

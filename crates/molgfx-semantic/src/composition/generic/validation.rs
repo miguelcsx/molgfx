@@ -1,6 +1,6 @@
 //! Atomic validation shared by every generic composition.
 
-use super::{CompositionError, DifferenceLayer, EnsembleCompositionStyle, EnsembleLayer};
+use super::{CompositionError, DifferenceLayer, EnsembleLayer};
 use molgfx_core::{AttributeHandle, CoreError, RowDomain, Scene};
 use std::collections::BTreeSet;
 
@@ -41,27 +41,10 @@ pub(super) fn difference(
     Ok(())
 }
 
-pub(super) fn ensemble(
-    scene: &Scene,
-    layers: &[EnsembleLayer],
-    style: EnsembleCompositionStyle,
-) -> Result<(), CompositionError> {
-    if layers.is_empty()
-        || layers
-            .iter()
-            .any(|layer| !layer.weight.is_finite() || layer.weight < 0.0)
-        || layers.iter().all(|layer| layer.weight == 0.0)
-        || !style.dominant_opacity.is_finite()
-        || !style.alternate_opacity.is_finite()
-        || !style.minimum_opacity.is_finite()
-        || !(0.0..=1.0).contains(&style.minimum_opacity)
-        || !(style.minimum_opacity..=style.dominant_opacity).contains(&style.alternate_opacity)
-        || !(style.alternate_opacity..=1.0).contains(&style.dominant_opacity)
-    {
-        return Err(CompositionError::Invalid(
-            "ensemble weights or opacity bounds",
-        ));
-    }
+/// Checks that every layer names a live, distinct row domain. Weights and
+/// opacity bounds are checked where they are used, by
+/// [`molgfx_core::ensemble_opacities`].
+pub(super) fn ensemble(scene: &Scene, layers: &[EnsembleLayer]) -> Result<(), CompositionError> {
     domains(scene, layers.iter().map(|layer| layer.domain))
 }
 

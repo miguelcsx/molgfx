@@ -438,3 +438,14 @@ fn explanations_name_declared_and_resolved_targets() {
     assert!(layer.contains("declared: $site"), "{layer}");
     assert!(layer.contains("resname HEM"), "{layer}");
 }
+
+#[test]
+fn rainbow_and_confidence_colour_by_their_metrics() {
+    let mut scene = scene();
+    let mut session = Session::new(&scene);
+    run(&mut session, &mut scene, "show cartoon as main, protein");
+    for word in ["rainbow", "confidence", "plddt", "sequence_position"] {
+        let outcome = run(&mut session, &mut scene, &format!("color {word}, @main"));
+        assert_eq!(operations(&outcome), ["color"], "{word}");
+    }
+}

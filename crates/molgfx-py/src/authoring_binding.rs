@@ -190,9 +190,7 @@ fn category(by: &str, palette: Option<&str>, carbon_only: bool) -> PyResult<PyCo
 #[pyfunction]
 #[pyo3(signature = (name, *, ramp=None, domain=None))]
 fn metric(name: &str, ramp: Option<&str>, domain: Option<(f32, f32)>) -> PyResult<PyColorSpec> {
-    let metric = molgfx::color::AtomMetric::ALL
-        .into_iter()
-        .find(|known| known.name() == name)
+    let metric = molgfx::color::AtomMetric::from_name(name)
         .ok_or_else(|| PyValueError::new_err(format!("unknown metric '{name}'")))?;
     let mut spec = molgfx::color::metric(metric);
     if let Some(ramp) = ramp {

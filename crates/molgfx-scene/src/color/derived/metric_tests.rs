@@ -106,3 +106,37 @@ fn every_metric_has_a_distinct_name_and_a_ramp_that_covers_its_domain() {
         );
     }
 }
+
+#[test]
+fn confidence_reads_the_score_column_and_is_named_for_what_it_means() {
+    assert_eq!(
+        column(AtomMetric::Plddt),
+        column(AtomMetric::BFactor),
+        "predicted structures store the score where experiments store B"
+    );
+    assert_eq!(
+        AtomMetric::Plddt.domain().map(f32::to_bits),
+        [0.0_f32, 100.0].map(f32::to_bits)
+    );
+    assert_eq!(AtomMetric::Plddt.units(), Some("pLDDT"));
+    assert!(crate::color::ramps::lookup(AtomMetric::Plddt.ramp()).is_some());
+}
+
+#[test]
+fn aliases_name_the_same_metric_without_adding_one() {
+    assert_eq!(
+        AtomMetric::from_name("rainbow"),
+        Some(AtomMetric::SequencePosition)
+    );
+    assert_eq!(AtomMetric::from_name("confidence"), Some(AtomMetric::Plddt));
+    assert_eq!(AtomMetric::from_name("b_factor"), Some(AtomMetric::BFactor));
+    assert_eq!(AtomMetric::from_name("nope"), None);
+    for metric in AtomMetric::ALL {
+        assert_eq!(AtomMetric::from_name(metric.name()), Some(metric));
+    }
+    assert!(
+        AtomMetric::alias_names()
+            .iter()
+            .all(|alias| AtomMetric::ALL.iter().all(|metric| metric.name() != *alias))
+    );
+}

@@ -16,44 +16,9 @@ pub struct EnsembleMember {
     pub color: Color,
 }
 
-/// Opacity policy for [`ensemble_representations`].
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub struct EnsembleStyle {
-    /// Opacity of the highest-weight member.
-    pub dominant_opacity: f32,
-    /// Opacity of the other members when their weight equals the dominant one.
-    pub alternate_opacity: f32,
-    /// Floor that keeps a light member visible.
-    pub minimum_opacity: f32,
-}
-
-impl Default for EnsembleStyle {
-    fn default() -> Self {
-        Self {
-            dominant_opacity: 1.0,
-            alternate_opacity: 0.55,
-            minimum_opacity: 0.08,
-        }
-    }
-}
-
-impl EnsembleStyle {
-    fn validate(self) -> Result<(), Error> {
-        let unit = |value: f32| value.is_finite() && (0.0..=1.0).contains(&value);
-        let ordered = self.minimum_opacity <= self.alternate_opacity;
-        if unit(self.dominant_opacity)
-            && unit(self.alternate_opacity)
-            && unit(self.minimum_opacity)
-            && ordered
-        {
-            Ok(())
-        } else {
-            Err(Error::InvalidSpec(
-                "ensemble opacities must lie in zero to one with minimum <= alternate".to_owned(),
-            ))
-        }
-    }
-}
+/// Opacity policy for [`ensemble_representations`]; one definition shared with
+/// the validated ensemble and the generic composition.
+pub type EnsembleStyle = molgfx_core::EnsembleOpacity;
 
 /// Draws each member as a cartoon in its own colour, the heaviest most opaque.
 ///
@@ -71,50 +36,23 @@ pub fn ensemble_representations(
     members: &[EnsembleMember],
     style: EnsembleStyle,
 ) -> Result<Vec<RepresentationSpec>, Error> {
-    style.validate()?;
-    if members.is_empty() {
-        return Err(Error::InvalidSpec(
-            "an ensemble needs at least one member".to_owned(),
-        ));
-    }
     let mut seen = BTreeSet::new();
-    for member in members {
-        if !seen.insert(member.structure) {
-            return Err(Error::InvalidSpec(format!(
-                "structure {} appears twice in the ensemble",
-                member.structure.0
-            )));
-        }
-        if !member.weight.is_finite() || member.weight < 0.0 {
-            return Err(Error::InvalidSpec(
-                "ensemble weights must be finite and non-negative".to_owned(),
-            ));
-        }
+    if let Some(repeated) = members.iter().find(|member| !seen.insert(member.structure)) {
+        return Err(Error::InvalidSpec(format!(
+            "structure {} appears twice in the ensemble",
+            repeated.structure.0
+        )));
     }
-    let total = members.iter().map(|member| member.weight).sum::<f32>();
-    if total <= 0.0 {
-        return Err(Error::InvalidSpec(
-            "ensemble weights must not all be zero".to_owned(),
-        ));
-    }
-    let dominant = members.iter().enumerate().fold(0, |best, (index, member)| {
-        if member.weight > members[best].weight {
-            index
-        } else {
-            best
-        }
-    });
-    let heaviest = members[dominant].weight;
+    let weights = members
+        .iter()
+        .map(|member| member.weight)
+        .collect::<Vec<_>>();
+    let opacities = molgfx_core::ensemble_opacities(&weights, style)
+        .map_err(|error| Error::InvalidSpec(error.to_string()))?;
     Ok(members
         .iter()
-        .enumerate()
-        .map(|(index, member)| {
-            let opacity = if index == dominant {
-                style.dominant_opacity
-            } else {
-                (member.weight / heaviest * style.alternate_opacity)
-                    .clamp(style.minimum_opacity, style.alternate_opacity)
-            };
+        .zip(opacities)
+        .map(|(member, opacity)| {
             rep::cartoon(sel::polymer())
                 .opacity(opacity)
                 .color(uniform(member.color))

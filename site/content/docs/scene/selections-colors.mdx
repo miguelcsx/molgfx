@@ -29,6 +29,29 @@ scene.add(molgfx.rep.ball_and_stick(
 
 Available mappings are `uniform`, `element`, `chain`, `residue`, `secondary_structure`, and `property`. `property` takes a bound scalar property, a supported ramp, and an explicit domain. Its `ColorSpec.legend_json()` provides legend data for an application UI.
 
+## Colouring by what the structure already knows
+
+`molgfx.color.metric(name)` colours by a value derived from the structure, so nothing is extracted by hand. Each metric brings a default domain and ramp, which you can override:
+
+| Metric | Reads | Default ramp |
+| --- | --- | --- |
+| `occupancy` | site occupancy, 0 to 1 | `purples` |
+| `b_factor` | temperature factor, Å² | `blue_white_red` |
+| `formal_charge` | formal charge | `red_white_blue` |
+| `hydrophobicity` | Kyte–Doolittle hydropathy of the residue | `red_yellow_green` |
+| `sequence_position` | position along the chain, 0 to 1 (alias `rainbow`) | `rainbow` |
+| `sasa` | solvent-accessible area of the atom, Å² | `blue_white_red` |
+| `plddt` | per-atom confidence on a 0 to 100 scale (alias `confidence`) | `plddt` |
+
+```python
+scene.add(molgfx.rep.cartoon(target="protein", color=molgfx.color.metric("rainbow")))
+scene.add(molgfx.rep.cartoon(target="protein", color=molgfx.color.metric("plddt")))
+```
+
+`plddt` reads the temperature-factor column, where predicted structures store their score; for an experimental structure use `b_factor`. The `plddt` ramp lays the four AlphaFold confidence bands (below 50, to 70, to 90, above) over a 0 to 100 domain with eleven anchors, so each band edge blends over ten score points instead of stepping. The mapping is stated, the domain is fixed, and the colour is reversible to the value through its legend.
+
+A continuous colour is set on a representation, not on a query rule: in command text write `show cartoon as main, protein` and then `color rainbow, @main`.
+
 A uniform colour in Python is an RGB triple or a `ColorSpec`: `color=(178, 34, 34)`. In command text, a colour may also be a named colour or a hex triple: `color firebrick, protein` and `color #b22222, protein` are the same rule. The named set covers the conventional element and presentation names; any other colour is written as hex.
 
 ## Opacity and visual state

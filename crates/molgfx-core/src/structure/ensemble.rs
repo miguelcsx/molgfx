@@ -60,11 +60,7 @@ impl Ensemble {
             .iter()
             .map(|weight| weight / sum)
             .collect::<Arc<[_]>>();
-        let dominant = weights
-            .iter()
-            .enumerate()
-            .max_by(|left, right| left.1.total_cmp(right.1).then_with(|| right.0.cmp(&left.0)))
-            .map_or(0, |(index, _)| index);
+        let dominant = super::dominant_index(&weights);
         Ok(Self {
             members,
             weights,

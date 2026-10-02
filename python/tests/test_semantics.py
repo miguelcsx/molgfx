@@ -350,6 +350,15 @@ class SceneSemanticsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             molgfx.CameraPath([(0.0, camera(0.0)), (1.0, camera(1.0))], easing="bounce")
 
+    def test_confidence_and_rainbow_are_metrics_with_aliases(self):
+        scene = molgfx.Scene(structure())
+        for name in ("plddt", "confidence", "rainbow", "sequence_position", "b_factor"):
+            spec = molgfx.color.metric(name)
+            scene.add(molgfx.rep.cartoon(target=molgfx.sel.all(), color=spec))
+        with self.assertRaises(ValueError):
+            molgfx.color.metric("no-such-metric")
+        self.assertIn("plddt", molgfx.color.ramp_names())
+
     def test_an_ensemble_overlays_structures_by_weight(self):
         scene = molgfx.Scene(structure())
         second = scene.add_structure(structure())

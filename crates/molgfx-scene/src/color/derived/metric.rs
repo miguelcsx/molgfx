@@ -37,18 +37,56 @@ pub enum AtomMetric {
     /// recompute rather than cache: this is the one metric whose value depends
     /// on the coordinates rather than on the deposited annotation.
     Sasa,
+    /// Per-atom confidence score on a 0-100 scale, such as `AlphaFold`'s `pLDDT`.
+    ///
+    /// Predicted-structure files store the score in the temperature-factor
+    /// column, so this reads that column; the metric exists to say what the
+    /// number means and to colour it with the published bands rather than a
+    /// B-factor ramp. Experimental structures have no such score: use
+    /// [`Self::BFactor`] for them.
+    Plddt,
 }
 
 impl AtomMetric {
     /// Every metric, in a stable order.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Occupancy,
         Self::BFactor,
         Self::FormalCharge,
         Self::Hydrophobicity,
         Self::SequencePosition,
         Self::Sasa,
+        Self::Plddt,
     ];
+
+    /// Names that stand for a metric in commands and scripts.
+    ///
+    /// `rainbow` is the sequence sweep and `confidence` the confidence bands;
+    /// neither is a second metric, so a column is still bound under one name.
+    const ALIASES: [(&'static str, Self); 2] = [
+        ("rainbow", Self::SequencePosition),
+        ("confidence", Self::Plddt),
+    ];
+
+    /// The metric a name or alias refers to.
+    #[must_use]
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|metric| metric.name() == name)
+            .or_else(|| {
+                Self::ALIASES
+                    .into_iter()
+                    .find(|(alias, _)| *alias == name)
+                    .map(|(_, metric)| metric)
+            })
+    }
+
+    /// The alias words, for completion and help.
+    #[must_use]
+    pub fn alias_names() -> [&'static str; 2] {
+        Self::ALIASES.map(|(alias, _)| alias)
+    }
 
     /// Stable property name the derived column is bound under.
     #[must_use]
@@ -60,6 +98,7 @@ impl AtomMetric {
             Self::Hydrophobicity => "hydrophobicity",
             Self::SequencePosition => "sequence_position",
             Self::Sasa => "sasa",
+            Self::Plddt => "plddt",
         }
     }
 
@@ -72,6 +111,7 @@ impl AtomMetric {
             Self::FormalCharge => "red_white_blue",
             Self::Hydrophobicity => "red_yellow_green",
             Self::SequencePosition => "rainbow",
+            Self::Plddt => "plddt",
         }
     }
 
@@ -85,7 +125,7 @@ impl AtomMetric {
             // A fully exposed atom in a protein is at most a few square
             // ångström per atom; this range covers an exposed-to-buried spread
             // and clamps the rare buried outlier.
-            Self::BFactor | Self::Sasa => [0.0, 100.0],
+            Self::BFactor | Self::Sasa | Self::Plddt => [0.0, 100.0],
         }
     }
 
@@ -95,6 +135,7 @@ impl AtomMetric {
         match self {
             Self::BFactor | Self::Sasa => Some("Å²"),
             Self::FormalCharge => Some("e"),
+            Self::Plddt => Some("pLDDT"),
             _ => None,
         }
     }
@@ -115,7 +156,7 @@ impl AtomMetric {
         let mut values = vec![f32::NAN; structure.atom_count() as usize];
         match self {
             Self::Occupancy => fill_atoms(structure, &mut values, atom_occupancy),
-            Self::BFactor => fill_atoms(structure, &mut values, atom_b_factor),
+            Self::BFactor | Self::Plddt => fill_atoms(structure, &mut values, atom_b_factor),
             Self::FormalCharge => fill_atoms(structure, &mut values, |atom| {
                 atom.formal_charge().map(f32::from)
             }),
