@@ -391,8 +391,23 @@ evidence for their specific boundary, not a green gate for the whole current tre
   **Check:** `preset::tests`, `auto_adds_the_size_appropriate_default_layers_and_registers_them`,
   `auto_round_trips_through_its_canonical_text`, and
   `test_auto_draws_the_default_forms_and_returns_typed_ids`.
-- [ ] **P2** Wasm release cold-start and large-scene benchmark evidence.
-  **Owner:** `molgfx-bench` and the browser runtime build.
+- [~] **P2** Wasm release cold-start and large-scene benchmark evidence.
+  **Owner:** `molgfx-bench` and the browser runtime build. **Measured
+  (2026-10-01, Apple M5 Pro, built-in Chromium with real WebGPU, local static
+  server, 8.6 MB release wasm, `quality: auto`):** fetch 21-29 ms, instantiate
+  10-22 ms, renderer creation 84-188 ms. Bind and parse of a BinaryCIF payload:
+  4HHB (4.4k atoms, 189 kB) 44 ms; 1AON (58,870 atoms, 2.2 MB) 436-500 ms before
+  and 184-248 ms after the molecular read path was sped up (MolFrame `ab2ec55`:
+  default bond perception on a dense cell grid, 114 ms to 40 ms natively). The
+  same wasm under Node takes 140 ms before and 54 ms after, so a browser's first
+  call costs about three times a warmed one. The first `render` call returns in
+  9 ms (4HHB cartoon), 55-84 ms (1AON cartoon) and 18 ms (1AON spacefill). Every
+  load here was warm in the browser's code cache except the very first, which took
+  parse 120 ms and renderer creation 188 ms on 4HHB. **Not measured:** time to a
+  completed frame (the pane was hidden, so animation frames did not run and the GPU
+  completion fence was not awaited), network transfer, a cold HTTP cache, memory
+  of the wasm heap, and any structure above 60k atoms. The harness was a scratch
+  page, not a committed benchmark.
 - [~] **P3** Image export is a deterministic native PNG (`Renderer::render_image`,
   `Image.save`) and a frame sequence (`Renderer::render_sequence`, Python
   `Renderer.render_sequence(scene, size=..., fps=..., frames=...)`), which
