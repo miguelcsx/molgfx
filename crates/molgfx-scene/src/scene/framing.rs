@@ -41,7 +41,8 @@ impl Scene {
                             .model_to_world
                             .transform_point3(Vec3::from_array(*position)),
                     );
-                    largest = largest.max(radii.get(row as usize).copied().unwrap_or(0.0) * scale);
+                    largest =
+                        largest.max(radii.get(row as usize).map_or(0.0, |radius| *radius) * scale);
                     any = true;
                 }
             });
