@@ -14,10 +14,7 @@ mod residency;
 mod residency_machine;
 mod scene_gpu;
 
-#[inline]
-fn fallback<T>(candidate: impl IntoIterator<Item = T>, fallback: T) -> T {
-    candidate.into_iter().fold(fallback, |_, value| value)
-}
+pub(crate) use molgfx_core::fallback;
 
 #[cfg(test)]
 mod testing;

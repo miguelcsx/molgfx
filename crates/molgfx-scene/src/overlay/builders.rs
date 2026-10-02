@@ -2,7 +2,8 @@
 
 /// Density-volume authoring.
 pub mod density {
-    use super::super::{Color, DataSource, Volume, VolumeSpec};
+    use super::super::{DataSource, Volume, VolumeSpec};
+    use crate::Color;
 
     /// Declares a density grid whose values will be supplied at runtime.
     #[must_use]
@@ -20,7 +21,8 @@ pub mod density {
 
 /// Label and annotation authoring.
 pub mod annotation {
-    use super::super::{Anchor, AnnotationSpec, Color, Label};
+    use super::super::{Anchor, AnnotationSpec, Label};
+    use crate::Color;
 
     /// Creates a text label anchored to world or molecular state.
     #[must_use]
@@ -74,7 +76,8 @@ pub mod interaction {
 
 /// Trajectory authoring.
 pub mod trajectory {
-    use super::super::{DataSource, StructureId, TrajectorySpec};
+    use super::super::{DataSource, TrajectorySpec};
+    use crate::StructureId;
 
     /// Binds an external frame sequence to an existing structure topology.
     #[must_use]
@@ -95,7 +98,8 @@ pub mod trajectory {
 
 /// Per-atom anisotropic-displacement ellipsoid authoring.
 pub mod ellipsoid {
-    use super::super::{Color, EllipsoidSpec, Selection, StructureId};
+    use super::super::EllipsoidSpec;
+    use crate::{Color, Selection, StructureId};
 
     /// Draws one ellipsoid per selected atom that carries a displacement tensor.
     ///

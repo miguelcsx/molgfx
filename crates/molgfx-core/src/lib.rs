@@ -13,6 +13,7 @@ mod fixture;
 
 mod controls;
 mod dataset;
+mod fallback;
 mod gpu;
 mod representation;
 mod scene;
@@ -50,6 +51,7 @@ pub use dataset::{
     StructureChunkPayload, TemplatePartChunkRef, TrajectoryChunkPayload, TrajectoryFramesPayload,
     Usage, VolumeBrickPayload,
 };
+pub use fallback::fallback;
 pub use gpu::{
     AtomFlags, AtomGpu, BondGpu, BondStyle, DrawIndirectArgs, EntityId, EntityIdError, EntityKind,
     EntityRef, InteractionGpu, ParticleMotionGpu, PrimitiveGpu, SemanticTag, VolumeSegmentRef,

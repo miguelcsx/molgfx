@@ -1,5 +1,7 @@
 use super::tests::structure;
 use super::*;
+use crate::id::StructureId;
+use crate::spec::SceneSpec;
 use crate::{rep, sel};
 
 const SHIFT_X: [f32; 16] = [

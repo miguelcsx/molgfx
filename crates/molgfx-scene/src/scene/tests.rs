@@ -1,5 +1,8 @@
 use super::*;
 use crate::PatchError;
+use crate::error::Error;
+use crate::id::{RepresentationId, StructureId};
+use crate::spec::{InteractionChannel, PatchOperation, ScenePatch, SceneSpec};
 use crate::{rep, sel};
 
 pub(super) fn structure() -> molframe::Structure {

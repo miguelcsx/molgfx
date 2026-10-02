@@ -1,8 +1,9 @@
 //! Prepared overlay-domain table updates.
 
-use super::{OverlayDomains, SceneSpec};
+use super::OverlayDomains;
 use crate::error::{Error, PatchError};
 use crate::spec::PatchOperation;
+use crate::spec::SceneSpec;
 use std::collections::BTreeMap;
 
 impl OverlayDomains {
