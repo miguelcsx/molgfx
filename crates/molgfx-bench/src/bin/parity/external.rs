@@ -7,6 +7,7 @@ pub(super) struct Programs {
     pub node: String,
     pub molstar_root: String,
     pub pymol: String,
+    pub ffmpeg: Option<String>,
 }
 pub(super) fn invoke(
     catalog: &Catalog,

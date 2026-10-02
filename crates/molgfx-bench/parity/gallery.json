@@ -1,0 +1,3023 @@
+{
+  "extent": [
+    768,
+    768
+  ],
+  "physical": {
+    "coordinate_unit": "angstrom",
+    "pixel_scale": 1,
+    "model_index": 0,
+    "selection": "all source atoms including hydrogen, water, alternate conformers; first model only",
+    "lighting": "engine-specific physical settings explicitly captured in effective_settings; not assumed equivalent",
+    "effects": "recipe-specific fixed settings; no adaptive resolution/LOD"
+  },
+  "style": {
+    "color_rgb": [
+      49,
+      104,
+      142
+    ],
+    "atom_radius_scale": 1,
+    "bond_radius_angstrom": 0.25,
+    "cartoon_width_angstrom": 1.2,
+    "opacity": 1
+  },
+  "recipe_policy": {
+    "scope": "Algorithm-specific maximum bounded sampling at fixed extent; effects and geometry are explicit, not assumed physically equivalent. Unbounded controls have no absolute maximum.",
+    "molstar-raster": {
+      "source_revision": "0efa4dfa5844a7ab879f905374b5813524383ba8",
+      "sampling": "Single raster output, highest supported SMAA sensitivity/search: edgeThreshold=0.05 and maxSearchSteps=32. Multisampling belongs to the separate ImagePass recipe.",
+      "source": "src/mol-canvas3d/passes/smaa.ts SmaaParams"
+    },
+    "molstar-imagepass": {
+      "source_revision": "0efa4dfa5844a7ab879f905374b5813524383ba8",
+      "sampling": "multiSample sampleLevel=5: maximum 32 jitter vectors, mode=on, no occlusion reuse; SMAA edgeThreshold=0.05/maxSearchSteps=32",
+      "source": "src/mol-canvas3d/passes/multi-sample.ts MultiSampleParams/JitterVectors and smaa.ts SmaaParams"
+    },
+    "molstar-tracing": {
+      "source_revision": "0efa4dfa5844a7ab879f905374b5813524383ba8",
+      "sampling": "maxIterations=16: complete 65536 iterations; targetFps=0 disables FPS-driven downshift. Unmodified initial half-step/min-refine ramp is preserved and effective adjusted settings are captured.",
+      "source": "src/mol-canvas3d/passes/illumination.ts IlluminationParams/getMaxIterations",
+      "historical_diagnostic": "maxIterations=6 completes 64 iterations only; previous 64-iteration smoke is not maximum-quality evidence"
+    },
+    "pymol-raster": {
+      "source_revision": "5e8bfca5a7f5dc4d5e7f84fa1d15af707cc86e69",
+      "installed_source": "PyMOL 3.1.0 Scene.cpp ExtentGetUpscaleInfo matches local source",
+      "sampling": "antialias=4 selects the highest supported draw supersampling: 4x per axis (16 uniform samples per output pixel). Values 2/3/4 map to the same raster factor. Runtime GL viewport limit is checked; reduction fails explicitly.",
+      "geometry": "sphere_quality=4 is the source maximum. stick_quality=32 and cartoon_sampling=32 are fixed facet controls, not maxima: source declares no actual maximum for sticks and no bounded cartoon sampling domain.",
+      "source": "layer1/Scene.cpp ExtentGetUpscaleInfo/SceneMakeSizedImage; layer1/SettingInfo.h MAX_SPHERE_QUALITY and stick_quality/cartoon_sampling",
+      "historical_diagnostic": "Raster antialias=0 and 128x72 framebuffer smoke prove the adapter only, not maximum-quality performance"
+    },
+    "pymol-ray": {
+      "source_revision": "5e8bfca5a7f5dc4d5e7f84fa1d15af707cc86e69",
+      "sampling": "antialias=4: source-clamped highest 4x uniform oversampling per axis plus adaptive edge sampling; ray_trace_mode=0 normal ray transport",
+      "geometry": "sphere_quality=4; fixed stick_quality=32/cartoon_sampling=32 are not absolute maxima of their unbounded domains",
+      "source": "layer1/Ray.cpp RayRender; data/setting_help.csv antialias; layer1/SettingInfo.h",
+      "historical_diagnostic": "Previous antialias=2 smoke is not maximum-quality evidence"
+    },
+    "prerequisites": [
+      "Native standalone scalar-volume scenes and skew MRC rendering remain an explicit engine prerequisite, not an external skip or ray substitution",
+      "Full corpus 1280x720 with 120 warmups and 1200 measured outputs is required for the requested performance acceptance; smaller/count-reduced smoke is diagnostic only"
+    ]
+  },
+  "recipe_settings": {
+    "molgfx-publication": {
+      "quality": "Publication",
+      "fixed_samples": 64,
+      "lighting": "observed EffectiveQuality.lighting",
+      "effects": "observed production facade profile; not external-equivalent"
+    },
+    "molstar-imagepass": {
+      "renderer": {
+        "backgroundColor": 0,
+        "ambientIntensity": 0.4,
+        "light": [
+          {
+            "inclination": 150,
+            "azimuth": 320,
+            "color": 16777215,
+            "intensity": 0.6
+          }
+        ],
+        "enableAnimation": false
+      },
+      "postprocessing": {
+        "occlusion": {
+          "name": "off",
+          "params": {}
+        },
+        "outline": {
+          "name": "off",
+          "params": {}
+        },
+        "bloom": {
+          "name": "off",
+          "params": {}
+        },
+        "dof": {
+          "name": "off",
+          "params": {}
+        },
+        "antialiasing": {
+          "name": "smaa",
+          "params": {
+            "edgeThreshold": 0.05,
+            "maxSearchSteps": 32
+          }
+        }
+      },
+      "multiSample": {
+        "mode": "on",
+        "sampleLevel": 5,
+        "reduceFlicker": false,
+        "reuseOcclusion": false
+      },
+      "illumination": {
+        "enabled": false,
+        "maxIterations": 6,
+        "denoise": true
+      }
+    },
+    "pymol-ray": {
+      "orthoscopic": 0,
+      "antialias": 4,
+      "ray_trace_mode": 0,
+      "ray_shadows": 1,
+      "ambient": 0.4,
+      "direct": 0.6,
+      "specular": 0.5,
+      "shininess": 40,
+      "light": [
+        -0.4,
+        0.5,
+        1
+      ],
+      "light_count": 1,
+      "depth_cue": 0,
+      "fog": 0,
+      "opaque_background": 1,
+      "bg_rgb": [
+        0,
+        0,
+        0
+      ],
+      "cif_use_auth": 0,
+      "sphere_quality": 4,
+      "stick_quality": 32,
+      "cartoon_sampling": 32
+    },
+    "molgfx-interactive": {
+      "quality": "HighestFixed",
+      "output": "interactive",
+      "camera_motion": true,
+      "lighting": "observed EffectiveQuality.lighting",
+      "effects": "observed production facade profile; one single-sample frame, temporal history reset"
+    }
+  },
+  "warmup_outputs": 0,
+  "measured_outputs": 1,
+  "recipes": [
+    "molgfx-publication",
+    "molgfx-interactive",
+    "pymol-ray",
+    "molstar-imagepass"
+  ],
+  "fixtures": [
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-cartoon-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "CT-1",
+          "CT-2",
+          "CT-5",
+          "SS-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-cartoon-ss-1AON",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color secondary_structure, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "color red, ss h",
+          "color yellow, ss s",
+          "color green, ss l+''"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "secondary-structure",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "CT-6",
+          "SS-2",
+          "SS-3"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "dna",
+      "file": "1BNA.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1BNA.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1BNA/pdb",
+      "sha256": "76d550f32963de46f4f3c63caacb530f91a24f333fbc4312766d240b14e8cf30",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-dna-1BNA",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show nucleic_acid as main, nucleic",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "set cartoon_ring_mode, 0",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform",
+              "typeParams": {
+                "visuals": [
+                  "polymer-trace"
+                ]
+              }
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "NA-1",
+          "NA-2",
+          "NA-6"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "rna",
+      "file": "1EHZ.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1EHZ.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1EHZ/pdb",
+      "sha256": "3021dd2b6461f850bb66d6748d3c22a5e1bb6cc891c625c15d793f38215b28ab",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-trna-1EHZ",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show nucleic_acid as main, nucleic",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "NA-5"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "dna",
+      "file": "1BNA.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1BNA.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1BNA/pdb",
+      "sha256": "76d550f32963de46f4f3c63caacb530f91a24f333fbc4312766d240b14e8cf30",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-bases-1BNA",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show nucleic_acid as main, nucleic",
+          "show bases, nucleic",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "set cartoon_ring_mode, 3",
+          "set cartoon_ring_finder, 1",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "NA-2",
+          "NA-3"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "dna",
+      "file": "1BNA.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1BNA.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1BNA/pdb",
+      "sha256": "76d550f32963de46f4f3c63caacb530f91a24f333fbc4312766d240b14e8cf30",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-basepairs-1BNA",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show nucleic_acid as main, nucleic",
+          "show base_pairs, nucleic"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "set cartoon_ladder_mode, 1",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "NA-4"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "ligand_orders",
+      "file": "bond_order_ligand.cif",
+      "format": "mmcif",
+      "generator": "bond_order_ligand",
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "sha256": "6a5c38280970d6eeb5e8f29f955e53a178f3dfb9dd0db2c7bb545b3b761f48f4",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          40
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-bas-ligand-orders",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show ball_and_stick, all",
+          "color element, all"
+        ],
+        "pymol": [
+          "show sticks, fixture",
+          "show spheres, fixture",
+          "set sphere_scale, 0.25",
+          "set valence, 1",
+          "util.cbag fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "ball-and-stick",
+              "color": "element-symbol",
+              "size": "uniform",
+              "typeParams": {
+                "sizeFactor": 0.2,
+                "multipleBonds": "symmetric"
+              }
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "EL-1",
+          "EL-2",
+          "BS-1",
+          "BS-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.1
+        }
+      }
+    },
+    {
+      "category": "ligand_aromatic_orders",
+      "file": "1HVR.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1HVR.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1HVR/pdb",
+      "sha256": "88ae65ea8ab9756b408a94ab02fe922c1d80a79e6226d796f2a565aea3c0dda6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-licorice-1HVR",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show licorice, hetero",
+          "show cartoon, protein",
+          "color element, hetero"
+        ],
+        "pymol": [
+          "show cartoon, polymer",
+          "show sticks, hetatm",
+          "util.cbag hetatm"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          },
+          {
+            "kind": "representation",
+            "params": {
+              "type": "ball-and-stick",
+              "color": "element-symbol",
+              "size": "uniform",
+              "typeParams": {
+                "sizeFactor": 0.2
+              }
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "EL-1",
+          "EL-2",
+          "BS-4",
+          "BS-5"
+        ],
+        "fit": {
+          "selection": "hetero",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "ligand_aromatic_orders",
+      "file": "1HVR.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1HVR.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1HVR/pdb",
+      "sha256": "88ae65ea8ab9756b408a94ab02fe922c1d80a79e6226d796f2a565aea3c0dda6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-lines-1HVR",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show lines, hetero",
+          "show cartoon, protein",
+          "color element, hetero"
+        ],
+        "pymol": [
+          "show cartoon, polymer",
+          "show lines, hetatm",
+          "util.cbag hetatm"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          },
+          {
+            "kind": "representation",
+            "params": {
+              "type": "line",
+              "color": "element-symbol",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "EL-1",
+          "EL-2",
+          "BS-7"
+        ],
+        "fit": {
+          "selection": "hetero",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-spacefill-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show spacefill, protein",
+          "color element, protein"
+        ],
+        "pymol": [
+          "show spheres, polymer",
+          "util.cbag polymer"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "spacefill",
+              "color": "element-symbol",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "EL-1",
+          "EL-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-points-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show points, protein",
+          "color element, protein"
+        ],
+        "pymol": [
+          "show nonbonded, polymer",
+          "util.cbag polymer"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "point",
+              "color": "element-symbol",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "EL-1",
+          "EL-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-dots-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show dots, protein",
+          "color element, protein"
+        ],
+        "pymol": [
+          "show dots, polymer",
+          "util.cbag polymer"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "point",
+              "color": "element-symbol",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "DOT-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-surface-vdw-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon, protein",
+          "show surface kind=van_der_waals as shell, protein",
+          "opacity 0.6, @shell",
+          "color chain, @shell"
+        ],
+        "pymol": [
+          "set surface_type, 5",
+          "show surface, fixture",
+          "util.cbc fixture",
+          "set transparency, 0.4"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "molecular-surface",
+              "color": "chain-id",
+              "size": "uniform",
+              "typeParams": {
+                "alpha": 0.6,
+                "probeRadius": 0
+              }
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "SURF-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-surface-sas-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon, protein",
+          "show surface kind=solvent_accessible as shell, protein",
+          "opacity 0.6, @shell",
+          "color chain, @shell"
+        ],
+        "pymol": [
+          "set surface_type, 6",
+          "show surface, fixture",
+          "util.cbc fixture",
+          "set transparency, 0.4"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "molecular-surface",
+              "color": "chain-id",
+              "size": "uniform",
+              "typeParams": {
+                "alpha": 0.6,
+                "probeRadius": 1.4,
+                "ignoreHydrogens": true
+              }
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "SURF-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-surface-ses-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon, protein",
+          "show surface kind=solvent_excluded as shell, protein",
+          "opacity 0.6, @shell",
+          "color chain, @shell"
+        ],
+        "pymol": [
+          "set surface_type, 0",
+          "show surface, fixture",
+          "util.cbc fixture",
+          "set transparency, 0.4"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "molecular-surface",
+              "color": "chain-id",
+              "size": "uniform",
+              "typeParams": {
+                "alpha": 0.6,
+                "probeRadius": 1.4
+              }
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "SURF-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-surface-gaussian-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon, protein",
+          "show surface kind=gaussian as shell, protein",
+          "opacity 0.6, @shell",
+          "color chain, @shell"
+        ],
+        "pymol": [
+          "set surface_type, 0",
+          "show surface, fixture",
+          "util.cbc fixture",
+          "set transparency, 0.4"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "gaussian-surface",
+              "color": "chain-id",
+              "size": "uniform",
+              "typeParams": {
+                "alpha": 0.6
+              }
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "SURF-3"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-surface-blob-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon, protein",
+          "show surface kind=gaussian style=soft_union as shell, protein",
+          "opacity 0.6, @shell",
+          "color chain, @shell"
+        ],
+        "pymol": [
+          "set surface_type, 0",
+          "show surface, fixture",
+          "util.cbc fixture",
+          "set transparency, 0.4"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "gaussian-surface",
+              "color": "chain-id",
+              "size": "uniform",
+              "typeParams": {
+                "alpha": 0.6,
+                "smoothness": 1.5
+              }
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "SURF-3"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-putty-bfactor-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show putty as main, protein",
+          "color b_factor, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "cartoon putty",
+          "spectrum b, blue_white_red, fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "putty",
+              "color": "uncertainty",
+              "size": "uncertainty"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "COL-2",
+          "SIZE-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-tube-1AON",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show tube as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "cartoon tube",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform",
+              "typeParams": {
+                "aspectRatio": 1,
+                "tubularHelices": true,
+                "visuals": [
+                  "polymer-trace"
+                ]
+              }
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "CT-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-trace-1AON",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show trace as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show ribbon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform",
+              "typeParams": {
+                "sizeFactor": 0.05,
+                "aspectRatio": 1,
+                "visuals": [
+                  "polymer-trace"
+                ]
+              }
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "CT-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-backbone-1AON",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show backbone as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show sticks, name ca+n+c",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "backbone",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "CT-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-beads-1AON",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show beads as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show spheres, name ca",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "spacefill",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "EL-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "glycan",
+      "file": "1HZH.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1HZH.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1HZH/pdb",
+      "sha256": "5793921cc7dcc2317e1892edcbf32b2a8e11a7bef81d2eb25d94c6165f0b01ab",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          320
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-glycan-1HZH",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon, protein",
+          "show glycan, glycans"
+        ],
+        "pymol": [
+          "show cartoon, polymer",
+          "show sticks, not polymer and not solvent",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          },
+          {
+            "kind": "representation",
+            "params": {
+              "type": "carbohydrate",
+              "color": "carbohydrate-symbol",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "GLY-4"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-color-element-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color element, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbag fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "element-symbol",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "COL-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-color-chain-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "COL-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-color-entity-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color entity, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "entity-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "COL-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-color-molecule_type-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color molecule_type, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "molecule-type",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "COL-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-color-residue_name-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color residue_name, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "residue-name",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "COL-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-color-secondary_structure-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color secondary_structure, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "color red, ss h",
+          "color yellow, ss s",
+          "color green, ss l+''"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "secondary-structure",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "COL-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-color-carbon_by_chain-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color carbon_by_chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "COL-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-color-b_factor-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color b_factor, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "spectrum b, blue_white_red, fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "uncertainty",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "COL-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-color-hydrophobicity-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color hydrophobicity, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "spectrum resi, red_yellow_green, fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "hydrophobicity",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "COL-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-color-rainbow-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color rainbow, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "spectrum count, rainbow, fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "sequence-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "COL-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-color-plddt-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color plddt, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "spectrum b, blue_white_red, fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "uncertainty",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "COL-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-color-sasa-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color sasa, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "spectrum b, blue_white_red, fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "uncertainty",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "COL-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-pocket-HEM-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "pocket, resname HEM"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "show sticks, resn HEM",
+          "show lines, byres (resn HEM around 6)",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          },
+          {
+            "kind": "representation",
+            "params": {
+              "type": "ball-and-stick",
+              "color": "element-symbol",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "BS-3",
+          "SURF-5"
+        ],
+        "fit": {
+          "selection": "resname HEM",
+          "fov_y_degrees": 45,
+          "margin": 2.5
+        }
+      }
+    },
+    {
+      "category": "ligand_aromatic_orders",
+      "file": "1HVR.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1HVR.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1HVR/pdb",
+      "sha256": "88ae65ea8ab9756b408a94ab02fe922c1d80a79e6226d796f2a565aea3c0dda6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-unitcell-1HVR",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon, protein",
+          "assembly {\"unit_cell\":{\"lengths\":[58.4,86.1,46.2],\"angles\":[90,90,90]}}"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "ASM-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-plane",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon, protein",
+          "plane {\"structure\":1,\"center\":[0,0,0],\"normal\":[0,0,1],\"size\":[40,40]}"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-label-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon, protein",
+          "label \"Heme\", resname HEM"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "label resn HEM and name FE, resn"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          },
+          {
+            "kind": "label",
+            "atoms": [
+              {
+                "auth_asym_id": "A",
+                "auth_seq_id": 142,
+                "auth_atom_id": "FE"
+              }
+            ]
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "LBL-1",
+          "LBL-5"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-distance-angle-dihedral-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon, protein",
+          "distance, resname HEM, resid 87 and name NE2"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "distance d1, resn HEM and name FE and chain A, resi 87 and name NE2 and chain A"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          },
+          {
+            "kind": "measurement",
+            "measure": "distance",
+            "atoms": [
+              {
+                "auth_asym_id": "A",
+                "auth_seq_id": 142,
+                "auth_atom_id": "FE"
+              },
+              {
+                "auth_asym_id": "A",
+                "auth_seq_id": 87,
+                "auth_atom_id": "NE2"
+              }
+            ]
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "MEAS-1"
+        ],
+        "fit": {
+          "selection": "resname HEM",
+          "fov_y_degrees": 45,
+          "margin": 3.0
+        }
+      }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-orbit-video-1AON",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "VID-1",
+          "CT-6"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        },
+        "video": {
+          "kind": "orbit_y",
+          "frames": 120,
+          "fps": 30
+        }
+      }
+    },
+    {
+      "category": "nmr_ensemble",
+      "file": "1D3Z.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1D3Z.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1D3Z/pdb",
+      "sha256": "7242859f3508ff1711e5b38a78b14c960f137c096f36302406223c93b909c407",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          120
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "B-trajectory-video-1D3Z",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "VID-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        },
+        "video": {
+          "kind": "trajectory",
+          "frames": 10,
+          "fps": 5
+        }
+      }
+    }
+  ]
+}

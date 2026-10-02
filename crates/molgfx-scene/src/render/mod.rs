@@ -1,8 +1,8 @@
 //! Physical renderer wrapper with target-sized rendering.
 
 pub use molgfx_render::{
-    CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming, PassTiming,
-    PassTimingCoverage, QualityTier, SurfaceLimit,
+    CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming,
+    MeasuredOutput, PassTiming, PassTimingCoverage, QualityTier, SurfaceLimit,
 };
 
 mod engine_config;

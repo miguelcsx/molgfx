@@ -110,7 +110,11 @@ def main():
         style, camera = catalog["style"], fixture["camera"]
         cmd.hide("everything", "all")
         cmd.set_color("parity_color", [v / 255 for v in style["color_rgb"]])
-        if fixture["format"] == "mrc":
+        script = fixture.get("script")
+        if script:
+            for line in script["pymol"]:
+                cmd.do(line)
+        elif fixture["format"] == "mrc":
             cmd.isosurface("iso", "fixture", fixture["isovalue"])
             cmd.color("parity_color", "iso")
         else:

@@ -259,7 +259,7 @@ impl<D: Device> SequenceRenderer<D> {
             self.config.image,
             match self.config.exposure {
                 SequenceExposure::Converged => ImagePurpose::Publication,
-                SequenceExposure::Progressive => ImagePurpose::ProgressiveSequence,
+                SequenceExposure::Progressive => ImagePurpose::Progressive,
             },
         )?;
         self.pending.push_back(PendingSequence { ticket, image });

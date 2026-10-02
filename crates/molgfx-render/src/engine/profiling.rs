@@ -12,6 +12,23 @@ use molgfx_math::Camera;
 // Uses the host monotonic clock on both native and browser targets.
 use web_time::Instant;
 
+/// Which kind of output a profile measures.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum MeasuredOutput {
+    /// A publication exposure averaging the tier's full sample count.
+    Converged,
+    /// One single-sample frame that keeps temporal history, as presented while interacting.
+    Interactive,
+}
+
+impl MeasuredOutput {
+    pub(super) const fn purpose(self) -> ImagePurpose {
+        match self {
+            Self::Converged => ImagePurpose::Publication,
+            Self::Interactive => ImagePurpose::Progressive,
+        }
+    }
+}
 /// One measured frame. GPU time covers the complete scheduled render graph;
 /// CPU time covers scene synchronization, graph recording, and submission.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -165,6 +182,7 @@ impl<D: Device> Engine<D> {
         scene: &Scene,
         camera: &Camera,
         config: ImageConfig,
+        output: MeasuredOutput,
     ) -> Result<FrameTiming, RenderError> {
         let frame_start = Instant::now();
         // A cancelled profile still owns a submission. Do not overwrite its
@@ -172,7 +190,7 @@ impl<D: Device> Engine<D> {
         let previous_wait_started = Instant::now();
         self.wait_profile_completion_async().await?;
         let previous_wait_ns = duration_ns(previous_wait_started.elapsed());
-        let (cpu_start, quality) = self.prepare_profile(scene, camera, config)?;
+        let (cpu_start, quality) = self.prepare_profile(scene, camera, config, output)?;
         let Some(mut profiler) = self.profiler.take() else {
             return Err(molgfx_gpu::GpuError::DeviceLost.into());
         };
@@ -199,7 +217,7 @@ impl<D: Device> Engine<D> {
             cpu_stages,
             frame_ns: duration_ns(frame_start.elapsed()),
             residency: self.scene_gpu.residency_metrics(),
-            quality: self.profile_quality(),
+            quality: self.profile_quality(output),
             pass_coverage,
         })
     }
@@ -217,6 +235,7 @@ impl<D: Device> Engine<D> {
         scene: &Scene,
         camera: &Camera,
         config: ImageConfig,
+        output: MeasuredOutput,
     ) -> Result<FrameTiming, RenderError> {
         let frame_start = Instant::now();
         let previous_wait_started = Instant::now();
@@ -227,7 +246,7 @@ impl<D: Device> Engine<D> {
                 .wait_fence_blocking(&self.device, profiler.completion)?;
         }
         let previous_wait_ns = duration_ns(previous_wait_started.elapsed());
-        let (cpu_start, quality) = self.prepare_profile(scene, camera, config)?;
+        let (cpu_start, quality) = self.prepare_profile(scene, camera, config, output)?;
         let Some(mut profiler) = self.profiler.take() else {
             return Err(molgfx_gpu::GpuError::DeviceLost.into());
         };
@@ -235,7 +254,14 @@ impl<D: Device> Engine<D> {
             completion_wait_ns: previous_wait_ns,
             ..super::CpuStages::default()
         };
-        let result = self.profile_with(&mut profiler, cpu_start, frame_start, config, quality);
+        let result = self.profile_with(
+            &mut profiler,
+            cpu_start,
+            frame_start,
+            config,
+            quality,
+            output,
+        );
         self.profiler = Some(profiler);
         result
     }
@@ -256,20 +282,30 @@ impl<D: Device> Engine<D> {
         scene: &Scene,
         camera: &Camera,
         config: ImageConfig,
+        output: MeasuredOutput,
     ) -> Result<(Instant, super::exposure::Exposure), RenderError> {
         config.validate(self.device.capabilities().max_texture_dim)?;
         let cpu_start = Instant::now();
         self.width = config.width;
         self.height = config.height;
-        let exposure = self.prepare_exposure(scene, camera, ImagePurpose::Publication)?;
+        let exposure = self.prepare_exposure(scene, camera, output.purpose())?;
         Ok((cpu_start, exposure))
     }
 
-    fn profile_quality(&self) -> super::EffectiveQuality {
-        let mut quality = self.effective_quality(
-            self.tier().image_samples(),
-            self.temporal.prepared_samples(),
-        );
+    fn profile_quality(&self, output: MeasuredOutput) -> super::EffectiveQuality {
+        let mut quality = match output {
+            MeasuredOutput::Converged => self.effective_quality(
+                self.tier().image_samples(),
+                self.temporal.prepared_samples(),
+            ),
+            // One sample is submitted per interactive output; the temporal
+            // history it accumulates into is deeper but is not this output's cost.
+            MeasuredOutput::Interactive => {
+                let mut quality = self.effective_quality(1, 1);
+                quality.progressive = true;
+                quality
+            }
+        };
         quality.observe_completion();
         quality
     }
@@ -282,6 +318,7 @@ impl<D: Device> Engine<D> {
         frame_start: Instant,
         config: ImageConfig,
         quality: super::exposure::Exposure,
+        output: MeasuredOutput,
     ) -> Result<FrameTiming, RenderError> {
         let cpu_ns = self.submit_profile(profiler, cpu_start, config, quality)?;
         let gpu = profiler.read_timing(&self.device, &self.queue)?;
@@ -291,7 +328,7 @@ impl<D: Device> Engine<D> {
             cpu_stages: profiler.cpu_stages,
             frame_ns: duration_ns(frame_start.elapsed()),
             residency: self.scene_gpu.residency_metrics(),
-            quality: self.profile_quality(),
+            quality: self.profile_quality(output),
             pass_coverage: profiler.passes.coverage(),
         })
     }

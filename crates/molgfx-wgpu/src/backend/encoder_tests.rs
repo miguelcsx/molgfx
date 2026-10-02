@@ -28,10 +28,14 @@ fn completed_profiles_resolve_the_last_render_pass_after_sampling_finishes() {
             width: 128 + output * 8,
             height: 72,
         };
+        let converged = molgfx_render::MeasuredOutput::Converged;
         let timing = if output == 1 {
-            pollster::block_on(engine.profile_frame_async(&scene, &camera, config)).unwrap()
+            pollster::block_on(engine.profile_frame_async(&scene, &camera, config, converged))
+                .unwrap()
         } else {
-            engine.profile_frame(&scene, &camera, config).unwrap()
+            engine
+                .profile_frame(&scene, &camera, config, converged)
+                .unwrap()
         };
         assert!(timing.quality.complete());
         assert_eq!(timing.quality.samples_completed, Some(64));

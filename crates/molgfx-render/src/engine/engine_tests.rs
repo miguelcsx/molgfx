@@ -474,6 +474,7 @@ fn profiling_without_timestamps_still_completes_the_exposure() {
                 width: 64,
                 height: 64,
             },
+            MeasuredOutput::Converged,
         )
         .unwrap();
     assert_eq!(timing.gpu_timing, super::GpuTiming::Unsupported);
