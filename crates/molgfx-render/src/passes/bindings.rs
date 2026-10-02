@@ -260,7 +260,7 @@ fn base_bindings<D: Device>(
     });
     let oit = device.create_bind_group(&BindGroupDesc {
         label: "transparent opaque-scene inputs",
-        layout: &passes.oit.layout,
+        layout: &passes.oit_layout,
         entries: &[
             BindGroupEntry::Texture {
                 binding: 0,
@@ -274,7 +274,7 @@ fn base_bindings<D: Device>(
     });
     let oit_composite = device.create_bind_group(&BindGroupDesc {
         label: "weighted transparency composite inputs",
-        layout: &passes.oit_composite.layout,
+        layout: &passes.oit_composite_layout,
         entries: &[
             BindGroupEntry::Texture {
                 binding: 0,

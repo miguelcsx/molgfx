@@ -51,11 +51,15 @@ impl<D: Device> LabelPass<D> {
         let Some(group) = ctx.scene.label_declutter() else {
             return;
         };
+        let passes = ctx.passes;
+        let Some(label) = ctx.build(&passes.label, super::build::label) else {
+            return;
+        };
         let mut pass = ctx.encoder.begin_compute_pass(&ComputePassDesc {
             label: "deterministic label decluttering",
             timestamps: ctx.timestamps,
         });
-        pass.set_pipeline(&ctx.passes.label.declutter);
+        pass.set_pipeline(&label.declutter);
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         pass.set_bind_group(2, group, &[]);
         pass.dispatch(1, 1, 1);
@@ -72,6 +76,10 @@ impl<D: Device> LabelPass<D> {
             ctx.resources.view(STRUCTURE_RESOURCE),
             ctx.resources.view(DEPTH_RESOURCE),
         ) else {
+            return;
+        };
+        let passes = ctx.passes;
+        let Some(label) = ctx.build(&passes.label, super::build::label) else {
             return;
         };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
@@ -103,7 +111,7 @@ impl<D: Device> LabelPass<D> {
         });
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         pass.set_bind_group(2, group, &[]);
-        for pipeline in &ctx.passes.label.render {
+        for pipeline in &label.render {
             pass.set_pipeline(pipeline);
             pass.draw_indirect(args, 0);
         }

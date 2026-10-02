@@ -37,20 +37,13 @@ pub(crate) struct OitPass<D: Device> {
     generic_instance_capsule: VisualPipelineSet<D>,
     volume: pipelines::VolumePipelineSet<D>,
     segmentation: pipelines::SegmentationPipelineSet<D>,
-    pub(crate) layout: D::BindGroupLayout,
 }
 
 impl<D: Device> OitPass<D> {
-    pub(crate) fn new(
-        device: &D,
-        group0: &D::BindGroupLayout,
-        group2: &D::BindGroupLayout,
-        ribbon: &D::BindGroupLayout,
-        analytic: (&D::BindGroupLayout, &D::BindGroupLayout),
-        generic: (&D::BindGroupLayout, &D::BindGroupLayout),
-        categorical: (&D::BindGroupLayout, &D::BindGroupLayout),
-    ) -> Result<Self, RenderError> {
-        let layout = device.create_bind_group_layout(&BindGroupLayoutDesc {
+    /// The opaque-scene inputs every transparent pipeline reads; the frame's
+    /// bind groups are made over it whether or not the pipelines exist yet.
+    pub(crate) fn layout(device: &D) -> D::BindGroupLayout {
+        device.create_bind_group_layout(&BindGroupLayoutDesc {
             label: "group1: transparent opaque-scene inputs",
             entries: &[
                 BindGroupLayoutEntry {
@@ -64,18 +57,30 @@ impl<D: Device> OitPass<D> {
                     ty: BindingType::DepthTexture,
                 },
             ],
-        });
-        let (sphere, sphere_clipped) = sphere_pipelines(device, group0, &layout, group2)?;
-        let (union_surface, grid_surface) = surface_pipelines(device, group0, &layout, group2)?;
+        })
+    }
+
+    pub(crate) fn new(
+        device: &D,
+        layout: &D::BindGroupLayout,
+        group0: &D::BindGroupLayout,
+        group2: &D::BindGroupLayout,
+        ribbon: &D::BindGroupLayout,
+        analytic: (&D::BindGroupLayout, &D::BindGroupLayout),
+        generic: (&D::BindGroupLayout, &D::BindGroupLayout),
+        categorical: (&D::BindGroupLayout, &D::BindGroupLayout),
+    ) -> Result<Self, RenderError> {
+        let (sphere, sphere_clipped) = sphere_pipelines(device, group0, layout, group2)?;
+        let (union_surface, grid_surface) = surface_pipelines(device, group0, layout, group2)?;
         let (generic_instance_sphere, generic_instance_capsule) =
-            generic_instance_pipelines(device, group0, &layout, generic.1)?;
+            generic_instance_pipelines(device, group0, layout, generic.1)?;
         Ok(Self {
             sphere,
             sphere_clipped,
             point: visual_pipeline(
                 device,
                 group0,
-                &layout,
+                layout,
                 &OitPipelineDesc {
                     label: "transparent atom points",
                     wgsl: molgfx_shaders::GEOMETRY_POINT,
@@ -87,7 +92,7 @@ impl<D: Device> OitPass<D> {
             generic_point: visual_pipeline(
                 device,
                 group0,
-                &layout,
+                layout,
                 &OitPipelineDesc {
                     label: "transparent generic analytic points",
                     wgsl: molgfx_shaders::GENERIC_POINT,
@@ -99,7 +104,7 @@ impl<D: Device> OitPass<D> {
             bond: visual_pipeline(
                 device,
                 group0,
-                &layout,
+                layout,
                 &OitPipelineDesc {
                     label: "transparent bond capsules",
                     wgsl: molgfx_shaders::GEOMETRY_BOND,
@@ -111,7 +116,7 @@ impl<D: Device> OitPass<D> {
             wire: visual_pipeline(
                 device,
                 group0,
-                &layout,
+                layout,
                 &OitPipelineDesc {
                     label: "transparent bond wires",
                     wgsl: molgfx_shaders::GEOMETRY_BOND,
@@ -123,7 +128,7 @@ impl<D: Device> OitPass<D> {
             cartoon: visual_pipeline(
                 device,
                 group0,
-                &layout,
+                layout,
                 &OitPipelineDesc {
                     label: "transparent cartoon ribbons",
                     wgsl: molgfx_shaders::GEOMETRY_CARTOON,
@@ -134,11 +139,11 @@ impl<D: Device> OitPass<D> {
             )?,
             union_surface,
             grid_surface,
-            primitive: primitive_pipelines(device, group0, &layout, analytic.0)?,
+            primitive: primitive_pipelines(device, group0, layout, analytic.0)?,
             ligand_pose: LigandPosePipelineSet::geometry(
                 device,
                 group0,
-                Some(&layout),
+                Some(layout),
                 analytic.1,
                 true,
                 &pipelines::oit_targets(),
@@ -146,9 +151,8 @@ impl<D: Device> OitPass<D> {
             )?,
             generic_instance_sphere,
             generic_instance_capsule,
-            volume: volume_pipelines(device, group0, &layout, categorical.0)?,
-            segmentation: segmentation_pipelines(device, group0, &layout, categorical.1)?,
-            layout,
+            volume: volume_pipelines(device, group0, layout, categorical.0)?,
+            segmentation: segmentation_pipelines(device, group0, layout, categorical.1)?,
         })
     }
 
@@ -252,6 +256,12 @@ impl<D: Device> OitPass<D> {
         let Some(FrameBindings { oit, .. }) = ctx.bindings else {
             return;
         };
+        let passes = ctx.passes;
+        let Some(oit_pass) = ctx.build(&passes.oit, |env| {
+            super::build::oit(env, &passes.oit_layout)
+        }) else {
+            return;
+        };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
             label: "categorical segmentation volumes",
             colors: &[
@@ -284,7 +294,7 @@ impl<D: Device> OitPass<D> {
         let mut current = None;
         for (key, group) in ctx.scene.segmentation_draws() {
             if current != Some(key) {
-                pass.set_pipeline(ctx.passes.oit.segmentation.get(key));
+                pass.set_pipeline(oit_pass.segmentation.get(key));
                 current = Some(key);
             }
             pass.set_bind_group(2, group, &[]);
@@ -315,6 +325,12 @@ fn record<D: Device>(ctx: &mut PassContext<'_, D>, primitive: Primitive) {
     let Some(FrameBindings { oit, .. }) = ctx.bindings else {
         return;
     };
+    let passes = ctx.passes;
+    let Some(oit_pass) = ctx.build(&passes.oit, |env| {
+        super::build::oit(env, &passes.oit_layout)
+    }) else {
+        return;
+    };
     let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
         label: "weighted blended transparent geometry",
         colors: &[
@@ -337,16 +353,16 @@ fn record<D: Device>(ctx: &mut PassContext<'_, D>, primitive: Primitive) {
     pass.set_bind_group(0, &ctx.scene.group0, &[]);
     pass.set_bind_group(1, oit, &[]);
     match primitive {
-        Primitive::Spheres => record_spheres(ctx.passes, ctx.scene, &mut pass),
+        Primitive::Spheres => record_spheres(oit_pass, ctx.scene, &mut pass),
         Primitive::Bonds => {
             let mut bound = None;
             if let Some(arena) = ctx.scene.indirect_args() {
                 for (group, offset, shading, _) in ctx.scene.bond_draws(true) {
                     if bound != Some(shading) {
                         pass.set_pipeline(if shading.wire() {
-                            ctx.passes.oit.wire.get(shading)
+                            oit_pass.wire.get(shading)
                         } else {
-                            ctx.passes.oit.bond.get(shading)
+                            oit_pass.bond.get(shading)
                         });
                         bound = Some(shading);
                     }
@@ -360,14 +376,14 @@ fn record<D: Device>(ctx: &mut PassContext<'_, D>, primitive: Primitive) {
             if let Some(arena) = ctx.scene.indirect_args() {
                 for (group, offset, shading, _) in ctx.scene.point_draws(true) {
                     if bound != Some(shading) {
-                        pass.set_pipeline(ctx.passes.oit.point.get(shading));
+                        pass.set_pipeline(oit_pass.point.get(shading));
                         bound = Some(shading);
                     }
                     pass.set_bind_group(2, group, &[]);
                     pass.draw_indirect(arena, offset);
                 }
             }
-            record_generic_points(ctx.passes, ctx.scene, &mut pass);
+            record_generic_points(oit_pass, ctx.scene, &mut pass);
         }
         Primitive::Cartoons => {
             let mut bound = None;
@@ -377,23 +393,23 @@ fn record<D: Device>(ctx: &mut PassContext<'_, D>, primitive: Primitive) {
                 .chain(ctx.scene.mesh_draws(true))
             {
                 if bound != Some(shading) {
-                    pass.set_pipeline(ctx.passes.oit.cartoon.get(shading));
+                    pass.set_pipeline(oit_pass.cartoon.get(shading));
                     bound = Some(shading);
                 }
                 pass.set_bind_group(2, group, &[]);
                 pass.draw_indirect(args, 0);
             }
         }
-        Primitive::Surfaces => record_surfaces(ctx.passes, ctx.scene, &mut pass),
+        Primitive::Surfaces => record_surfaces(oit_pass, ctx.scene, &mut pass),
         Primitive::Analytic => {
-            record_primitives(ctx.passes, ctx.scene, &mut pass);
-            record_generic_instances(ctx.passes, ctx.scene, &mut pass);
+            record_primitives(oit_pass, ctx.scene, &mut pass);
+            record_generic_instances(oit_pass, ctx.scene, &mut pass);
         }
         Primitive::Volumes => {
             let mut current = None;
             for (rendering, group) in ctx.scene.volume_draws() {
                 if current != Some(rendering) {
-                    pass.set_pipeline(ctx.passes.oit.volume.get(rendering));
+                    pass.set_pipeline(oit_pass.volume.get(rendering));
                     current = Some(rendering);
                 }
                 pass.set_bind_group(2, group, &[]);
@@ -413,14 +429,14 @@ use pipelines::{generic_instance_pipelines, sphere_pipelines, surface_pipelines}
 use record::{record_primitives, record_spheres, record_surfaces};
 
 fn record_generic_points<D: Device, P: molgfx_gpu::RenderPassEncoder<D>>(
-    passes: &crate::passes::PassRegistry<D>,
+    oit: &OitPass<D>,
     scene: &crate::scene_gpu::GpuScene<D>,
     pass: &mut P,
 ) {
     let mut bound = None;
     for (group, args, shading) in scene.generic_point_draws(true) {
         if bound != Some(shading) {
-            pass.set_pipeline(passes.oit.generic_point.get(shading));
+            pass.set_pipeline(oit.generic_point.get(shading));
             bound = Some(shading);
         }
         pass.set_bind_group(2, group, &[]);
@@ -429,15 +445,15 @@ fn record_generic_points<D: Device, P: molgfx_gpu::RenderPassEncoder<D>>(
 }
 
 fn record_generic_instances<D: Device, P: molgfx_gpu::RenderPassEncoder<D>>(
-    passes: &crate::passes::PassRegistry<D>,
+    oit: &OitPass<D>,
     scene: &crate::scene_gpu::GpuScene<D>,
     pass: &mut P,
 ) {
     for draw in scene.generic_instance_draws(true) {
         let pipelines = if draw.shape == GENERIC_INSTANCE_SPHERE {
-            &passes.oit.generic_instance_sphere
+            &oit.generic_instance_sphere
         } else if draw.shape == GENERIC_INSTANCE_CAPSULE {
-            &passes.oit.generic_instance_capsule
+            &oit.generic_instance_capsule
         } else {
             continue;
         };

@@ -106,6 +106,10 @@ impl<D: Device> CartoonPass<D> {
         {
             return;
         }
+        let passes = ctx.passes;
+        let Some(cartoon) = ctx.build(&passes.cartoon, super::build::cartoon) else {
+            return;
+        };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
             label: "cartoon ribbons",
             colors: &[
@@ -144,7 +148,7 @@ impl<D: Device> CartoonPass<D> {
             .cartoon_draws(false, DrawFamily::Cartoon)
             .chain(ctx.scene.mesh_draws(false))
         {
-            let pipeline = ctx.passes.cartoon.pipeline.select(shading, specialized);
+            let pipeline = cartoon.pipeline.select(shading, specialized);
             if bound != Some(std::ptr::from_ref(pipeline)) {
                 pass.set_pipeline(pipeline);
                 bound = Some(std::ptr::from_ref(pipeline));

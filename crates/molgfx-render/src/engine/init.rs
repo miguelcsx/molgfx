@@ -8,11 +8,10 @@ use super::{
 use crate::error::RenderError;
 use crate::graph::{self, PassNode, ResourceDesc, TransientPool};
 use crate::passes::{
-    AmbientOcclusionPass, AoDenoisePass, BloomPass, BondPass, CartoonPass, CullPass,
-    DepthOfFieldPass, FrameBindings, InteractionPass, LabelPass, LightingPass, MotionBlurPass,
-    OccupancyBoundsFormat, OccupancyPass, OitCompositePass, OitPass, OverlayPass,
-    ParticleMotionPass, PointPass, PrimitivePass, RelationResolvePass, ShadowPass, SpherePass,
-    SurfaceComponentPass, SurfaceFieldPass, SurfacePass, TemporalPass, TonemapPass, TrajectoryPass,
+    AmbientOcclusionPass, AoDenoisePass, BloomPass, CullPass, DepthOfFieldPass, FrameBindings,
+    Lazy, LightingPass, MotionBlurPass, OccupancyBoundsFormat, OccupancyPass, OitCompositePass,
+    OitPass, OverlayPass, ParticleMotionPass, RelationResolvePass, ShadowPass,
+    SurfaceComponentPass, SurfaceFieldPass, TemporalPass, TonemapPass, TrajectoryPass,
 };
 use crate::scene_gpu::GpuScene;
 
@@ -95,28 +94,10 @@ fn realtime_passes<D: Device>(
     plan: &ResolvedRenderPlan,
 ) -> Result<PassRegistry<D>, RenderError> {
     Ok(PassRegistry {
-        sphere: SpherePass::new(
-            device,
-            target_format,
-            &scene.group0_layout,
-            &scene.group2_layout,
-            scene.paged_chunk_layout(),
-        )?,
-        point: PointPass::new(
-            device,
-            &scene.group0_layout,
-            &scene.group2_layout,
-            scene.paged_chunk_layout(),
-            &scene.generic_point_render_layout,
-        )?,
-        primitive: PrimitivePass::new(
-            device,
-            &scene.group0_layout,
-            &scene.primitive_layout,
-            &scene.ligand_pose_layout,
-            &scene.generic_instance_render_layout,
-        )?,
-        surface: SurfacePass::new(device, &scene.group0_layout, &scene.group2_layout)?,
+        sphere: Lazy::default(),
+        point: Lazy::default(),
+        primitive: Lazy::default(),
+        surface: Lazy::default(),
         surface_field: SurfaceFieldPass::new(
             device,
             &scene.surface_field_output_layout,
@@ -125,14 +106,8 @@ fn realtime_passes<D: Device>(
             &scene.surface_field_input_layout,
         )?,
         surface_components: SurfaceComponentPass::new(device, &scene.surface_component_layout)?,
-        bond: BondPass::new(
-            device,
-            target_format,
-            &scene.group0_layout,
-            &scene.group2_layout,
-            scene.paged_bond_layout(),
-        )?,
-        cartoon: CartoonPass::new(device, &scene.group0_layout, &scene.ribbon_layout)?,
+        bond: Lazy::default(),
+        cartoon: Lazy::default(),
         cull: cull_pass(device, scene)?,
         depth_of_field: plan
             .depth_of_field()
@@ -145,35 +120,14 @@ fn realtime_passes<D: Device>(
         )?,
         ao_denoise: AoDenoisePass::new(device, &scene.group0_layout)?,
         lighting: LightingPass::new(device, &scene.group0_layout)?,
-        shadow: ShadowPass::new(
-            device,
-            &scene.group0_layout,
-            &scene.group2_layout,
-            &scene.ribbon_layout,
-            &scene.primitive_shadow_layout,
-            &scene.ligand_pose_layout,
-        )?,
-        oit: OitPass::new(
-            device,
-            &scene.group0_layout,
-            &scene.group2_layout,
-            &scene.ribbon_layout,
-            (&scene.primitive_layout, &scene.ligand_pose_layout),
-            (
-                &scene.generic_point_render_layout,
-                &scene.generic_instance_render_layout,
-            ),
-            (&scene.volume_layout, &scene.segmentation_layout),
-        )?,
-        interaction: InteractionPass::new(device, &scene.group0_layout, &scene.interaction_layout)?,
+        shadow: ShadowPass::new(),
+        oit: Lazy::default(),
+        oit_layout: OitPass::layout(device),
+        interaction: Lazy::default(),
         relation_resolve: RelationResolvePass::new(device, &scene.relation_resolve_layout)?,
-        label: LabelPass::new(
-            device,
-            &scene.group0_layout,
-            &scene.label_declutter_layout,
-            &scene.label_render_layout,
-        )?,
-        oit_composite: OitCompositePass::new(device)?,
+        label: Lazy::default(),
+        oit_composite: Lazy::default(),
+        oit_composite_layout: OitCompositePass::layout(device),
         temporal: TemporalPass::new(device, &scene.group0_layout)?,
         bloom: plan
             .bloom()

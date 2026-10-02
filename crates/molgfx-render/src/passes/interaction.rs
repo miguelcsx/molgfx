@@ -74,6 +74,10 @@ impl<D: Device> InteractionPass<D> {
         ) else {
             return;
         };
+        let passes = ctx.passes;
+        let Some(interaction) = ctx.build(&passes.interaction, super::build::interaction) else {
+            return;
+        };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
             label: "interaction glyphs",
             colors: &[
@@ -101,7 +105,7 @@ impl<D: Device> InteractionPass<D> {
             }),
             timestamps: ctx.timestamps,
         });
-        pass.set_pipeline(&ctx.passes.interaction.pipeline);
+        pass.set_pipeline(&interaction.pipeline);
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         pass.set_bind_group(2, interaction_group, &[]);
         pass.draw_indirect(args, 0);

@@ -324,7 +324,7 @@ impl<D: Device> Engine<D> {
             if sample == 0 {
                 self.record_scene_compute(&mut encoder, quality, None);
             }
-            self.record_image(&mut encoder, target, None, quality, false);
+            self.record_image(&mut encoder, target, None, quality, false)?;
         }
         profiler.passes.detach(&mut encoder)?;
         profiler.cpu_stages.recording_ns = profiler

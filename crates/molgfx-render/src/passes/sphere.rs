@@ -177,6 +177,10 @@ impl<D: Device> SpherePass<D> {
         if !ctx.scene.has_atom_draws(false) && ctx.scene.paged_spacefill_draw().is_none() {
             return;
         }
+        let passes = ctx.passes;
+        let Some(sphere) = ctx.build(&passes.sphere, super::build::sphere) else {
+            return;
+        };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
             label: "sphere impostors",
             colors: &[
@@ -215,9 +219,9 @@ impl<D: Device> SpherePass<D> {
         if let Some(arena) = ctx.scene.indirect_args() {
             for (group2, offset, shading, specialized) in ctx.scene.atom_draws(false) {
                 let pipeline = if shading.clipped() {
-                    ctx.passes.sphere.clipped.select(shading, specialized)
+                    sphere.clipped.select(shading, specialized)
                 } else {
-                    ctx.passes.sphere.unclipped.select(shading, specialized)
+                    sphere.unclipped.select(shading, specialized)
                 };
                 if bound != Some(std::ptr::from_ref(pipeline)) {
                     pass.set_pipeline(pipeline);
@@ -228,7 +232,7 @@ impl<D: Device> SpherePass<D> {
             }
         }
         if let Some((group, args, offset)) = ctx.scene.paged_spacefill_draw() {
-            pass.set_pipeline(&ctx.passes.sphere.paged);
+            pass.set_pipeline(&sphere.paged);
             pass.set_bind_group(1, group, &[]);
             pass.draw_indirect(args, offset);
         }

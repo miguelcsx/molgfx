@@ -12,27 +12,31 @@ use molgfx_gpu::{
 #[derive(Debug)]
 pub(crate) struct OitCompositePass<D: Device> {
     pipeline: D::Pipeline,
-    pub(crate) layout: D::BindGroupLayout,
 }
 
 impl<D: Device> OitCompositePass<D> {
-    pub(crate) fn new(device: &D) -> Result<Self, RenderError> {
+    /// The inputs the composite reads; the frame's bind groups are made over
+    /// it whether or not the pipeline exists yet.
+    pub(crate) fn layout(device: &D) -> D::BindGroupLayout {
         let texture = |binding| BindGroupLayoutEntry {
             binding,
             visibility: ShaderStages::FRAGMENT,
             ty: BindingType::Texture { filterable: true },
         };
-        let layout = device.create_bind_group_layout(&BindGroupLayoutDesc {
+        device.create_bind_group_layout(&BindGroupLayoutDesc {
             label: "group1: transparency composite inputs",
             entries: &[texture(0), texture(1), texture(2)],
-        });
+        })
+    }
+
+    pub(crate) fn new(device: &D, layout: &D::BindGroupLayout) -> Result<Self, RenderError> {
         let shader = device.create_shader_module(&ShaderModuleDesc {
             label: "weighted transparency composite",
             wgsl: molgfx_shaders::OIT_COMPOSITE,
         })?;
         let pipeline = device.create_render_pipeline(&RenderPipelineDesc {
             label: "weighted transparency composite",
-            layouts: &[None, Some(&layout)],
+            layouts: &[None, Some(layout)],
             shader: &shader,
             vs_entry: "vs_fullscreen",
             fs_entry: Some("fs_oit_composite"),
@@ -44,7 +48,7 @@ impl<D: Device> OitCompositePass<D> {
             constants: &[],
             topology: PrimitiveTopology::TriangleList,
         })?;
-        Ok(Self { pipeline, layout })
+        Ok(Self { pipeline })
     }
 
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
@@ -57,6 +61,12 @@ impl<D: Device> OitCompositePass<D> {
         let Some(FrameBindings { oit_composite, .. }) = ctx.bindings else {
             return;
         };
+        let passes = ctx.passes;
+        let Some(composite) = ctx.build(&passes.oit_composite, |env| {
+            OitCompositePass::new(env.device, &passes.oit_composite_layout)
+        }) else {
+            return;
+        };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
             label: "weighted transparency composite",
             colors: &[ColorAttachment {
@@ -66,7 +76,7 @@ impl<D: Device> OitCompositePass<D> {
             depth: None,
             timestamps: ctx.timestamps,
         });
-        pass.set_pipeline(&ctx.passes.oit_composite.pipeline);
+        pass.set_pipeline(&composite.pipeline);
         pass.set_bind_group(1, oit_composite, &[]);
         pass.draw(0..3, 0..1);
     }
