@@ -151,11 +151,15 @@ fn overlay_sample(
 
 /// Maps a scalar value through the caller-authored ramp table.
 fn overlay_ramp(value: f32) -> vec3f {
-    let ramp = representation.overlay_ramp;
-    let tap = ramp_tap(value, ramp.domain.x, ramp.domain.y);
+    // Indexed in place; a local copy of the table is private memory per thread.
+    let tap = ramp_tap(
+        value,
+        representation.overlay_ramp.domain.x,
+        representation.overlay_ramp.domain.y,
+    );
     return ramp_mix(
-        ramp.colors[tap.low >> 2u][tap.low & 3u],
-        ramp.colors[tap.high >> 2u][tap.high & 3u],
+        representation.overlay_ramp.colors[tap.low >> 2u][tap.low & 3u],
+        representation.overlay_ramp.colors[tap.high >> 2u][tap.high & 3u],
         tap.fraction,
     ).rgb;
 }
