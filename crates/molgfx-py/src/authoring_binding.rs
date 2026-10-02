@@ -4,6 +4,9 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyModule;
 
+/// Three coordinates.
+type Triple = (f32, f32, f32);
+
 #[derive(Clone, Debug)]
 #[pyclass(name = "ColorSpec", frozen, skip_from_py_object)]
 pub(super) struct PyColorSpec(pub(super) molgfx::ColorSpec);
@@ -63,6 +66,24 @@ impl PyCamera {
     #[getter]
     fn up(&self) -> (f32, f32, f32) {
         (self.0.up.x, self.0.up.y, self.0.up.z)
+    }
+
+    /// Where a world point lands on a render target of `size`, as pixels from
+    /// the top-left plus the distance from the eye, or `None` behind the eye.
+    fn project(&self, point: (f32, f32, f32), size: (u32, u32)) -> Option<(f32, f32, f32)> {
+        molgfx::camera::project(&self.0, [point.0, point.1, point.2], size)
+            .map(|screen| (screen.x, screen.y, screen.depth))
+    }
+
+    /// The ray through a pixel of a render target of `size`, as an origin and a
+    /// unit direction, or `None` for a degenerate camera.
+    fn ray(&self, x: f32, y: f32, size: (u32, u32)) -> Option<(Triple, Triple)> {
+        molgfx::camera::ray(&self.0, x, y, size).map(|ray| {
+            (
+                (ray.origin.x, ray.origin.y, ray.origin.z),
+                (ray.direction.x, ray.direction.y, ray.direction.z),
+            )
+        })
     }
 }
 

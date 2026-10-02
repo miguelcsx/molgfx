@@ -35,7 +35,25 @@ impl Renderer {
     /// Returns a typed renderer error when no compatible device can be opened.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn with_profile(profile: RenderProfile) -> Result<Self, Error> {
-        let config = engine_config(profile);
+        Self::with_surface_budget(profile, None)
+    }
+
+    /// Opens the preferred device with an explicit profile and a device-memory
+    /// budget for one implicit-surface field, in bytes.
+    ///
+    /// A surface that would not fit is sampled more coarsely; the output reports
+    /// the spacing it used. `None` keeps the default of 384 MiB, which holds a
+    /// protein of about 80 Å at the finest spacing.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed renderer error when no compatible device can be opened.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn with_surface_budget(
+        profile: RenderProfile,
+        surface_field_budget_bytes: Option<u64>,
+    ) -> Result<Self, Error> {
+        let config = engine_config(profile, surface_field_budget_bytes);
         let inner = molgfx_render::Engine::new(&config, None)?;
         Ok(Self { inner, profile })
     }
@@ -50,7 +68,7 @@ impl Renderer {
         canvas: web_sys::HtmlCanvasElement,
         profile: RenderProfile,
     ) -> Result<Self, Error> {
-        let config = engine_config(profile);
+        let config = engine_config(profile, None);
         let inner = molgfx_render::Engine::new_async(&config, Some(canvas)).await?;
         Ok(Self { inner, profile })
     }

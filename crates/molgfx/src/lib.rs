@@ -25,7 +25,7 @@ pub use molgfx_scene::{
 };
 pub use molgfx_scene::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, PassTiming, PassTimingCoverage,
-    QualityTier,
+    QualityTier, SurfaceLimit,
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_scene::{FrameTiming, GpuTiming};
@@ -64,9 +64,20 @@ pub mod schema {
     pub use molgfx_scene::{DataSource, PatchOperation, StructureSource};
 }
 
-/// Validated camera construction from facade-native values.
+/// Validated camera construction, and the mapping between world points and
+/// screen pixels.
 pub mod camera {
-    pub use molgfx_scene::camera::{CameraEasing, CameraKeyframe, CameraPath, path, perspective};
+    pub use molgfx_scene::camera::{
+        CameraEasing, CameraKeyframe, CameraPath, Ray, ScreenPoint, path, perspective, project, ray,
+    };
+}
+
+/// Camera controllers: pure functions from abstract input events to camera
+/// edits. The host translates its toolkit's events; no window is named here.
+pub mod controls {
+    pub use molgfx_scene::controls::{
+        ArcballController, Button, FlyController, InputEvent, Key, OrbitController,
+    };
 }
 
 /// Immutable representation specifications and constructors.

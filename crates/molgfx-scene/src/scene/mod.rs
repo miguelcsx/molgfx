@@ -13,6 +13,7 @@ mod atom_pick;
 pub(crate) mod domains;
 #[cfg(test)]
 mod domains_tests;
+mod framing;
 pub(crate) mod hashing;
 mod insertion;
 mod inspect;

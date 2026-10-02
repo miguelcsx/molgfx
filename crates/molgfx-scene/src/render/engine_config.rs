@@ -3,7 +3,10 @@
 use crate::{Quality, RenderProfile};
 use molgfx_render::{AdaptiveQualityConfig, QualityTier};
 
-pub(super) fn engine_config(profile: RenderProfile) -> molgfx_render::EngineConfig {
+pub(super) fn engine_config(
+    profile: RenderProfile,
+    surface_field_budget_bytes: Option<u64>,
+) -> molgfx_render::EngineConfig {
     let mut presentation = match profile.quality {
         Quality::Publication => molgfx_render::RenderProfile::illustrative(),
         Quality::Auto | Quality::Interactive | Quality::HighestFixed => {
@@ -41,6 +44,10 @@ pub(super) fn engine_config(profile: RenderProfile) -> molgfx_render::EngineConf
         },
         profile: presentation,
         adaptive,
+        surface_field_budget_bytes: match surface_field_budget_bytes {
+            Some(bytes) => bytes,
+            None => molgfx_render::DEFAULT_SURFACE_FIELD_BUDGET_BYTES,
+        },
         ..molgfx_render::EngineConfig::default()
     }
 }

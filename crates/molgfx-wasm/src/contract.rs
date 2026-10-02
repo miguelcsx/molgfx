@@ -262,6 +262,44 @@ impl WebScene {
             .map_err(javascript_error)
     }
 
+    /// The inferred or explicitly authored camera for a canvas.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JavaScript error while the scene remains unresolved.
+    pub fn camera(&self, width: u32, height: u32) -> Result<crate::camera::WebCamera, JsError> {
+        let aspect = Self::aspect(width, height)?;
+        let resolved = self
+            .resolved
+            .as_ref()
+            .ok_or_else(|| JsError::new("scene must be resolved before framing"))?;
+        Ok(crate::camera::WebCamera {
+            inner: resolved.framing_camera(aspect),
+        })
+    }
+
+    /// A camera that frames the atoms a selection picks on a canvas, leaving
+    /// the scene as it is.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JavaScript error while the scene is unresolved, when the query
+    /// is invalid, or when it picks no atom.
+    pub fn frame(
+        &self,
+        selection: &str,
+        width: u32,
+        height: u32,
+    ) -> Result<crate::camera::WebCamera, JsError> {
+        let aspect = Self::aspect(width, height)?;
+        self.resolved
+            .as_ref()
+            .ok_or_else(|| JsError::new("scene must be resolved before framing"))?
+            .frame(selection, aspect)
+            .map(|inner| crate::camera::WebCamera { inner })
+            .map_err(javascript_error)
+    }
+
     /// Returns the inferred or explicitly authored camera for a canvas aspect.
     ///
     /// # Errors
@@ -289,6 +327,21 @@ impl WebScene {
             "distance": distance(camera.eye.to_array(), camera.target.to_array()),
         }))
         .map_err(javascript_error)
+    }
+}
+
+impl WebScene {
+    /// Width over height of a canvas, from its pixel size.
+    fn aspect(width: u32, height: u32) -> Result<f32, JsError> {
+        let width = width
+            .max(1)
+            .to_f32()
+            .ok_or_else(|| JsError::new("canvas width cannot be represented"))?;
+        let height = height
+            .max(1)
+            .to_f32()
+            .ok_or_else(|| JsError::new("canvas height cannot be represented"))?;
+        Ok(width / height)
     }
 }
 

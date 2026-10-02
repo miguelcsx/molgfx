@@ -332,6 +332,7 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     crate::authoring_binding::register(module)?;
     crate::pocket_binding::register(module)?;
     crate::camera_path_binding::register(module)?;
+    crate::controls_binding::register(module)?;
     crate::scene_composition_binding::register(module)?;
     crate::ensemble_binding::register(module)?;
     crate::render_binding::register(module)?;
