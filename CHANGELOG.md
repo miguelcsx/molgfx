@@ -53,6 +53,28 @@ that first.
   a power of two. Measured on 1AON at 1280x720 through `render_image`, peak
   footprint of cartoon fell from 2.50 to 1.12 GB and of spacefill from 2.25 to
   0.83 GB, with no increase in time per output.
+- **Peak memory, measured.** A fragment shader that copied a 1 KiB colour-ramp
+  table into a local, and a surface shader that held eight corner normals live
+  across its field loads, made the Metal driver reserve private memory for every
+  thread the GPU can run at once; both now read the table in place and blend the
+  normals as they go. A cartoon is also sampled coarser, down to two samples per
+  interval, until it fits 400,000 vertices, and its host scratch mesh is
+  released after upload. Peak process footprint (`footprint`, Apple M5 Pro,
+  macOS 26, `Renderer()` through `render_image`, whole structure in one form):
+
+  | structure | cartoon | spacefill | licorice | surface |
+  |---|---|---|---|---|
+  | 1CRN, 1280x720 | 353 MB | 363 | 378 | 396 |
+  | 4HHB, 1280x720 | 407 | 368 | 387 | 543 |
+  | 4HHB, 1920x1080 | 505 | 461 | 480 | 627 |
+  | 1AON, 1280x720 | 670 | 481 | 577 | 722 |
+
+  Before, the same renders took 1CRN 354-673, 4HHB 428-820 and 1AON 607-986 MB.
+  About 150 MB of every figure is the first Metal render pass, which a bare wgpu
+  program also pays; the driver gives much of it back when the renderer is idle
+  (a 4HHB cartoon at 1280x720 falls from 430 to 221 MB after three seconds and
+  returns to 428 MB on the next render). A surface of a large complex holds two fields while it is built, so its
+  peak follows `surface_memory_mib`.
 - Module roots declare and re-export only; the ensemble opacity policy has one
   definition in `molgfx-core`.
 
