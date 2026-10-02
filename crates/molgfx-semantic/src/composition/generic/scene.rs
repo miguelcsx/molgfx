@@ -67,31 +67,23 @@ impl GenericCompositionScene for Scene {
         layers: &[EnsembleLayer],
         style: EnsembleCompositionStyle,
     ) -> Result<GenericCompositionView, CompositionError> {
-        validation::ensemble(self, layers, style)?;
-        let total = layers.iter().map(|layer| layer.weight).sum::<f32>();
-        let normalized = layers
+        validation::ensemble(self, layers)?;
+        let weights = layers.iter().map(|layer| layer.weight).collect::<Vec<_>>();
+        let total = weights.iter().sum::<f32>();
+        let normalized = weights
             .iter()
-            .map(|layer| layer.weight / total)
+            .map(|weight| weight / total)
             .collect::<Vec<_>>();
-        let dominant = normalized
-            .iter()
-            .copied()
-            .enumerate()
-            .max_by(|left, right| {
-                left.1
-                    .total_cmp(&right.1)
-                    .then_with(|| right.0.cmp(&left.0))
-            })
-            .map_or(0, |(index, _)| index);
-        let dominant_weight = normalized[dominant];
+        let opacities = molgfx_core::ensemble_opacities(
+            &weights,
+            molgfx_core::EnsembleOpacity {
+                dominant_opacity: style.dominant_opacity,
+                alternate_opacity: style.alternate_opacity,
+                minimum_opacity: style.minimum_opacity,
+            },
+        )?;
         let mut descriptors = Vec::with_capacity(layers.len());
-        for (index, layer) in layers.iter().copied().enumerate() {
-            let opacity = if index == dominant {
-                style.dominant_opacity
-            } else {
-                (normalized[index] / dominant_weight * style.alternate_opacity)
-                    .clamp(style.minimum_opacity, style.alternate_opacity)
-            };
+        for (index, (layer, opacity)) in layers.iter().copied().zip(opacities).enumerate() {
             let mut builder = VisualProgramBuilder::new();
             let color = builder.color(layer.color.to_f32())?;
             let opacity = builder.scalar(opacity)?;

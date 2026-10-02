@@ -108,7 +108,7 @@ impl ColorValue {
                 carbon_only: false,
             });
         }
-        if let Some(metric) = AtomMetric::ALL.into_iter().find(|m| m.name() == word) {
+        if let Some(metric) = AtomMetric::from_name(word) {
             return Some(Self::Metric {
                 metric,
                 ramp: None,

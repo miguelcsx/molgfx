@@ -134,9 +134,9 @@ surface, point, label, volume, and interaction passes.
 | Chain/entity/polymer | chain/entity/source themes and legends | `chainbow`, object/chain cycles | **have** for chain and related semantic colors; palette parity is not promised. |
 | Residue/secondary structure | residue, cartoon, secondary-structure themes | `resn`, `cbss`, cartoon defaults | **have** as API values; useful SS colors require the enriched SS column. |
 | Uniform/hex colors | arbitrary color and opacity | named/hex colors and transparency | **have** through `ColorSpec`, command `color`, and `opacity`. |
-| Scalar ramps | uncertainty, occupancy, volume, hydrophobicity, charge, property legends | `spectrum b`, charge and property settings | **partial**: bound scalar-property/ramp color specs exist; occupancy, hydrophobicity, molecule-type, and all built-in Mol* palettes are not exposed. |
-| Carbon-by-chain element behavior | Mol* special carbon-by-chain default | PyMOL object/chain color defaults | **missing as a single default policy**: MolGFX's element scheme keeps carbon neutral unless the caller chooses chain color. |
-| Sequence rainbow | spectrum/turbo style palettes | spectrum rainbow | **missing** as a named command/theme. |
+| Scalar ramps | uncertainty, occupancy, volume, hydrophobicity, charge, property legends | `spectrum b`, charge and property settings | **have** for the structure's own columns: occupancy, B-factor, formal charge, Kyte–Doolittle hydropathy, sequence position, solvent-accessible area and a `plddt` confidence metric (`color.metric`, and the `color` command), plus bound caller properties. **Open:** the full Mol* and PyMOL palette sets are not all catalogued. |
+| Carbon-by-chain element behavior | Mol* special carbon-by-chain default | PyMOL object/chain color defaults | **have** as an explicit scheme: `color.carbon_by_chain()` and the `carbon_by_chain` command word; the default `element` scheme keeps carbon neutral. |
+| Sequence rainbow | spectrum/turbo style palettes | spectrum rainbow | **have**: `color.metric("sequence_position")`, aliased `rainbow` in the command language, over the `rainbow` ramp. |
 | Physical atom/bond size | vdW, coarse, endpoint-dependent bond size | vdW and stick/sphere settings | **have** for physical/uniform form parameters; exact default constants differ. |
 | Uncertainty size | uncertainty/putty | putty and B-factor settings | **partial**: Putty is available; uncertainty is not a universal size theme. |
 

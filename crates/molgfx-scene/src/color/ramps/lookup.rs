@@ -1,6 +1,6 @@
 //! Finding a ramp by name, reversed or not.
 
-use super::{NamedRamp, diverging, sequential, spectral};
+use super::{NamedRamp, confidence, diverging, sequential, spectral};
 use crate::Color;
 
 /// Every catalogued ramp, sequential first.
@@ -9,6 +9,7 @@ pub(super) fn catalogue() -> impl Iterator<Item = &'static NamedRamp> {
         .iter()
         .chain(diverging::RAMPS)
         .chain(spectral::RAMPS)
+        .chain(confidence::RAMPS)
 }
 
 /// The colours legends fall back to when a ramp name is unknown.

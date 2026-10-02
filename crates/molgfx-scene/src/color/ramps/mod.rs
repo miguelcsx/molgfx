@@ -7,6 +7,7 @@
 //! which is a few dozen entries and is consulted when a colour is authored, not
 //! per atom or per frame.
 
+mod confidence;
 mod diverging;
 mod sequential;
 mod spectral;
