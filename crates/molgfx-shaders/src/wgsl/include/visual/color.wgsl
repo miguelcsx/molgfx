@@ -78,14 +78,16 @@ fn missing_sample() -> f32 {
 ///
 /// A non-finite value resolves to the missing colour the table carries.
 fn color_ramp(value: f32) -> vec4f {
-    let ramp = color_uniforms.ramp;
+    // Indexed in place: a local copy of the table would give every fragment a
+    // kilobyte of private stack, and the driver reserves that for every thread
+    // the GPU can run at once.
     if !(value == value) {
-        return unpack4x8unorm(bitcast<u32>(ramp.domain.z));
+        return unpack4x8unorm(bitcast<u32>(color_uniforms.ramp.domain.z));
     }
-    let tap = ramp_tap(value, ramp.domain.x, ramp.domain.y);
+    let tap = ramp_tap(value, color_uniforms.ramp.domain.x, color_uniforms.ramp.domain.y);
     return ramp_mix(
-        ramp.colors[tap.low >> 2u][tap.low & 3u],
-        ramp.colors[tap.high >> 2u][tap.high & 3u],
+        color_uniforms.ramp.colors[tap.low >> 2u][tap.low & 3u],
+        color_uniforms.ramp.colors[tap.high >> 2u][tap.high & 3u],
         tap.fraction,
     );
 }

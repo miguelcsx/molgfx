@@ -203,32 +203,25 @@ fn grid_surface_normal_sample(
     coordinate: GridCoordinate,
 ) -> vec3f {
     let lower = vec3i(coordinate.lower);
-    let upper = lower + vec3i(1);
-    let x00 = mix(
-        grid_vertex_normal(lower),
-        grid_vertex_normal(vec3i(upper.x, lower.y, lower.z)),
-        coordinate.fraction.x,
-    );
-    let x10 = mix(
-        grid_vertex_normal(vec3i(lower.x, upper.y, lower.z)),
-        grid_vertex_normal(vec3i(upper.x, upper.y, lower.z)),
-        coordinate.fraction.x,
-    );
-    let x01 = mix(
-        grid_vertex_normal(vec3i(lower.x, lower.y, upper.z)),
-        grid_vertex_normal(vec3i(upper.x, lower.y, upper.z)),
-        coordinate.fraction.x,
-    );
-    let x11 = mix(
-        grid_vertex_normal(vec3i(lower.x, upper.y, upper.z)),
-        grid_vertex_normal(upper),
-        coordinate.fraction.x,
-    );
-    return mix(
-        mix(x00, x10, coordinate.fraction.y),
-        mix(x01, x11, coordinate.fraction.y),
-        coordinate.fraction.z,
-    );
+    // The eight corner normals are blended one at a time with their trilinear
+    // weights. Holding all eight and mixing them as a tree keeps dozens of
+    // values live across the field loads, and the spill that results is
+    // private memory the driver reserves for every thread the GPU can run.
+    var blended = vec3f(0.0);
+    for (var corner = 0u; corner < 8u; corner++) {
+        let offset = vec3i(
+            i32(corner & 1u),
+            i32((corner >> 1u) & 1u),
+            i32((corner >> 2u) & 1u),
+        );
+        let weight = select(
+            vec3f(1.0) - coordinate.fraction,
+            coordinate.fraction,
+            offset == vec3i(1),
+        );
+        blended += weight.x * weight.y * weight.z * grid_vertex_normal(lower + offset);
+    }
+    return blended;
 }
 
 fn grid_surface_normal(
