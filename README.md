@@ -1,6 +1,6 @@
 # MolGFX
 
-[Documentation](https://miguelcsx.github.io/molgfx/) · [Runnable Workbench notebook](examples/workbench.ipynb)
+[Documentation](https://miguelcsx.github.io/molgfx/)
 
 MolGFX is a semantic molecular-rendering library for Python, Rust, and WebGPU.
 It renders structures supplied by [MolFrame](https://github.com/miguelcsx/molframe)
@@ -12,7 +12,7 @@ parse, fetch, dock, simulate, or open an application window.
 ## Install
 
 ```bash
-python -m pip install --upgrade "molgfx[jupyter]>=0.4.0"
+python -m pip install --upgrade molgfx
 ```
 
 ## Render a structure
@@ -30,12 +30,8 @@ scene.add(molgfx.rep.ball_and_stick(target=molgfx.sel.ligands()))
 molgfx.Renderer().render_image(scene, size=(1920, 1080)).save("structure.png")
 ```
 
-Use `molgfx.viewer.Workbench` in Jupyter for a browser WebGPU canvas, selection
-commands, completion, history, and undo/redo. See the
-[Workbench notebook](examples/workbench.ipynb) for haemoglobin (PDB 4HHB).
-
-Targets are MolFrame queries, and the Workbench console speaks a small command
-language around them:
+Targets are MolFrame queries, and a small command language works around them
+through `molgfx.Session`:
 
 ```text
 show cartoon, protein
@@ -43,6 +39,12 @@ select pocket, byres (within 5 of resname HEM) and protein
 show licorice, $pocket
 color orange, $pocket
 ```
+
+MolGFX is an engine: it opens no window and ships no panels or notebook widgets.
+A page, a notebook or an application draws what it likes around the scene and
+the rendered frames. The camera primitives (`Scene.frame`, `Camera.project`,
+`Camera.ray` and the arcball, orbit and fly controllers) are what such a host
+builds navigation and overlays from.
 
 [Writing queries and commands](https://miguelcsx.github.io/molgfx/docs/commands/queries)
 walks through both, and the

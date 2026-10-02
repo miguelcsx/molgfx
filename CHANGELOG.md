@@ -16,14 +16,30 @@ that first.
 - **Placed copies.** `Scene.place` draws a structure at an affine transform and
   `Scene.assembly` lays out a biological assembly from `molframe.crystal.assembly`;
   `Scene.add_structure` is public, so a scene can hold several structures from
-  Python. The browser receives each distinct source once.
+  Python. Each distinct source is encoded once.
 - **Camera paths** (`CameraPath`) and `Renderer.render_camera_path` for converged
   frame sequences along them.
 - **Colour by what the structure knows:** a `plddt` confidence metric with the
   four AlphaFold bands, and the aliases `rainbow` and `confidence`.
 - Picking returns detached results from a bounded pool, so interleaved picks keep
   their own provenance.
+- **Camera primitives for hosts.** `Camera.project` and `Camera.ray` map world
+  points and pixels with the renderer's conventions; `Scene.frame` and
+  `Scene.selection_bounds` frame a selection without changing the scene; the
+  arcball, orbit and fly controllers turn abstract input events into camera
+  moves, in Rust (`molgfx::controls`), Python and the WebAssembly bindings.
+- `Renderer(surface_memory_mib=...)` sets the device memory one implicit-surface
+  field may take (384 MiB by default).
 - `CHANGELOG.md`.
+
+### Removed
+
+- The application shell: the notebook `Viewer` and `Workbench`, the TypeScript
+  viewer host with its console and plain-page `mount()`, the `jupyter` extra, the
+  example notebook and the documentation home page's embedded viewer. The
+  specification keeps the engine free of an application shell (§4.4, ADR-0012);
+  a notebook, page or application is built on the bindings and the camera
+  primitives. The code is set aside outside the repository for later review.
 
 ### Changed
 
@@ -32,7 +48,7 @@ that first.
   occlusion uses 4 rays per sample, measured against 16.
 - A frame is complete only when every drawable is resident, not when uploads have
   drained.
-- A converged output submits its samples in runs of four and waits for the run
+- A converged output submits its samples one at a time and waits for the run
   before last, and growable buffers round up to an eighth of an octave instead of
   a power of two. Measured on 1AON at 1280x720 through `render_image`, peak
   footprint of cartoon fell from 2.50 to 1.12 GB and of spacefill from 2.25 to

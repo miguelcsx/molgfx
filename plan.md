@@ -177,7 +177,7 @@ Rutas existentes; nuevos módulos se sitúan junto al owner, no en lib/mod:
 - MolFrame: `molframe-chem/src/{bonds,secondary,standard_bonds}.rs`, source enums/core tables, CIF/PDB lowering/writers, `molframe-query/src/language/ast.rs` y consumers; `molframe-xtal/src/{assembly_spatial,mrc}.rs`; surface sampler/geom/PEOE y fachada.
 - MolGFX source/placement: `molgfx-core/src/structure/source.rs`, dataset/structure/gpu tables y scene/inspect; `molgfx-scene/src/{spec,scene,patch,representation,overlay,appearance,visual,property,interop,preset}/`. Prioridad `scene/runtime.rs`, `scene/overlay_pick.rs`, `render/pick.rs`, `interop/snapshot.rs`.
 - Renderer: `molgfx-render/src/engine/{image,picking,profiling,graph_setup}.rs`, scene_gpu/sync/shared_caches/draws/segmentations, passes/fields/BVH/label packing; HAL descriptors/queue/readback y molgfx-wgpu conversión/capabilities; WGSL único de molgfx-shaders.
-- Publicación: fachada `molgfx`, command ir/session/registry, PyO3 bindings/.pyi y WASM contract/session; viewer.ts, render-loop.ts e interactions.ts. Runtime build.mjs único compartido wheel/docs.
+- Publicación: fachada `molgfx`, command ir/session/registry, PyO3 bindings/.pyi y WASM contract/session/camera. El host de navegador (viewer, consola, widget) salió del repo: es aplicación, no engine (spec §4.4, ADR-0012).
 - Medición: molgfx-bench fixtures/metrics/runner, `bin/{frame_time,resources}.rs`, Cargo registro binary y manifest de comparación; suites browser/Python existentes y ledgers.
 
 ## Verificación y criterios de aceptación
@@ -205,7 +205,7 @@ Desde cada repo, usando Nix y entorno de bindings correcto:
 - `nix develop -c cargo check -p molgfx-wasm --target wasm32-unknown-unknown`
 - `nix develop -c cargo clippy -p molgfx-wasm --target wasm32-unknown-unknown --all-targets -- -D warnings`
 - Rebuild extensión Python con maturin/entorno Nix del repo; `python -m unittest discover -s python/tests` y `python -m mypy.stubtest molgfx._engine` contra extensión nueva, no wheel viejo.
-- `nix develop -c node crates/molgfx-wasm/js/scripts/build.mjs --out python/molgfx/viewer/static --out site/public/runtime`; TypeScript typecheck del package runtime y suite browser existente con WebGPU real. Skips por falta de device no certifican aceptación.
+- `nix develop -c wasm-pack build crates/molgfx-wasm --target web --release --out-dir pkg`; el paquete debe traer `molgfx_wasm.d.ts`. Skips por falta de device no certifican aceptación.
 - Policy scans según RULES usando herramientas especializadas: cero allow/expect lint attrs, unwrap fuera de tests, unsafe no autorizado, source >500 líneas Rust/WGSL; independencia de bindings/facade y mod/lib sólo declaraciones.
 
 **MolFrame**

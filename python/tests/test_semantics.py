@@ -445,16 +445,26 @@ class SceneSemanticsTests(unittest.TestCase):
             scene.assembly([molgfx.Scene])  # no matrix or chains attribute
 
 
-class ViewerTransportTests(unittest.TestCase):
+class PatchStreamTests(unittest.TestCase):
+    """What a host that mirrors a scene receives, without any host present."""
+
     def test_direct_mutations_publish_exact_incremental_patches(self):
-        from molgfx.viewer import Viewer
+        import weakref
+
+        class Host:
+            def __init__(self):
+                self.received = []
+
+            def on_patch(self, patch_json):
+                self.received.append(json.loads(patch_json))
 
         scene = molgfx.Scene(structure())
-        viewer = Viewer(scene)
+        host = Host()
+        scene._subscribe(weakref.WeakMethod(host.on_patch))
         representation = scene.add(molgfx.rep.points(target=molgfx.sel.all()))
 
-        self.assertEqual(viewer.patch_sequence, 1)
-        patch = json.loads(viewer.scene_patch)
+        self.assertEqual(len(host.received), 1)
+        patch = host.received[0]
         self.assertEqual(patch["base_revision"], 0)
         self.assertEqual(patch["operations"][0]["op"], "add_representation")
 
@@ -462,11 +472,9 @@ class ViewerTransportTests(unittest.TestCase):
             scene.set_visible(representation, False)
             scene.set_opacity(representation, 0.4)
 
-        self.assertEqual(viewer.patch_sequence, 2)
-        patch = json.loads(viewer.scene_patch)
-        self.assertEqual(len(patch["operations"]), 2)
+        self.assertEqual(len(host.received), 2)
         self.assertEqual(
-            [operation["op"] for operation in patch["operations"]],
+            [operation["op"] for operation in host.received[1]["operations"]],
             ["set_visibility", "set_opacity"],
         )
 

@@ -6,7 +6,6 @@ on:
     paths:
       - "site/**"
       - "crates/**"
-      - ".github/actions/browser-runtime/**"
       - "Cargo.lock"
       - "Cargo.toml"
       - ".github/workflows/pages.yml"
@@ -26,9 +25,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/browser-runtime
-        with:
-          out: site/public/runtime
       - uses: actions/setup-node@v4
         with:
           node-version: 22

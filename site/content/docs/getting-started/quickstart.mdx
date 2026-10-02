@@ -42,9 +42,9 @@ renderer = molgfx.Renderer(profile=molgfx.profile.publication())
 renderer.render_image(scene, size=(1600, 1000)).save("4hhb-pocket.png")
 ```
 
-`render_image` frames the scene for the requested size. For an interactive version of the same scene, use `Workbench` in a notebook.
+`render_image` frames the scene for the requested size. To draw it on a canvas you own, bind the scene to the WebAssembly bindings or render frames from Python; MolGFX opens no window of its own.
 
 <Cards>
   <Card title="Your first scene" href="/docs/getting-started/first-scene" description="Learn the Scene → representation → renderer model." />
-  <Card title="Workbench" href="/docs/jupyter/viewer-workbench" description="Use the same selections interactively." />
+  <Card title="Camera primitives" href="/docs/rendering/camera" description="Project atoms to pixels, frame a selection, and drive the camera from your own events." />
 </Cards>

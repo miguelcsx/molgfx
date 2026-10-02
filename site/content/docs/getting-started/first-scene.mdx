@@ -17,10 +17,10 @@ image.save("protein.png")
 
 All target arguments accept MolFrame query text. Python also accepts a MolFrame query object. Keep selection meaning in MolFrame; MolGFX does not define a second query language.
 
-## Python, Jupyter, and Rust
+## Python, the browser, and Rust
 
 - **Python** is the fastest path for scripts and images.
-- **Jupyter** adds `Viewer` or `Workbench` for a browser WebGPU canvas.
+- **The browser** uses the WebAssembly bindings on a canvas your page owns.
 - **Rust** uses the same scene vocabulary and is useful when embedding MolGFX in an application.
 
 ```rust
