@@ -34,6 +34,8 @@ pub(crate) struct MockLog {
     pub bind_group_layouts: Mutex<Vec<(&'static str, [u32; 3])>>,
     /// (texture label, byte length, source pointer) per upload.
     pub texture_writes: Mutex<Vec<(&'static str, usize, usize)>>,
+    /// Whole-texture copies recorded, as (source label, destination label).
+    pub texture_copies: Mutex<Vec<(&'static str, &'static str)>>,
     /// Draw calls: (pipeline set count irrelevant) — records direct draws.
     pub draws: Mutex<Vec<(Range<u32>, Range<u32>)>>,
     /// Indirect draws: (args buffer id, offset).
@@ -85,6 +87,7 @@ impl Default for MockLog {
             buffer_bindings: Mutex::default(),
             bind_group_layouts: Mutex::default(),
             texture_writes: Mutex::default(),
+            texture_copies: Mutex::default(),
             draws: Mutex::default(),
             indirect_draws: Mutex::default(),
             dispatches: Mutex::default(),
@@ -122,7 +125,7 @@ impl Default for MockDevice {
         Self {
             log: Arc::new(MockLog::default()),
             capabilities: Capabilities {
-                flags: molgfx_gpu::CapabilityFlags::empty(),
+                flags: molgfx_gpu::CapabilityFlags::DEPTH_READ_WHILE_SAMPLED,
                 min_uniform_buffer_offset_alignment: 256,
                 max_storage_buffer_bytes: 1 << 30,
                 max_storage_buffers_per_shader_stage: 8,
@@ -148,7 +151,11 @@ impl Default for MockDevice {
 
 impl MockDevice {
     fn opened() -> Opened<Self> {
-        let device = Self::default();
+        Self::opened_with(Self::default())
+    }
+
+    /// Opens a prepared device, for engines whose capabilities a test sets.
+    pub(crate) fn opened_with(device: Self) -> Opened<Self> {
         let queue = MockQueue {
             log: Arc::clone(&device.log),
         };
@@ -183,6 +190,14 @@ impl MockDevice {
     pub(crate) fn with_ray_query() -> Self {
         let mut device = Self::default();
         device.capabilities.flags |= molgfx_gpu::CapabilityFlags::RAY_QUERY;
+        device
+    }
+
+    /// A device like OpenGL's, where a depth texture cannot be tested against
+    /// and sampled by one pass.
+    pub(crate) fn without_depth_read_while_sampled() -> Self {
+        let mut device = Self::default();
+        device.capabilities.flags -= molgfx_gpu::CapabilityFlags::DEPTH_READ_WHILE_SAMPLED;
         device
     }
 

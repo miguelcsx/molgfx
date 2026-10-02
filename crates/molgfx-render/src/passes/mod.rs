@@ -18,6 +18,7 @@ mod motion_blur;
 mod occupancy;
 mod oit;
 mod oit_composite;
+mod opaque_depth;
 mod overlay;
 mod particle_motion;
 mod point;
@@ -53,6 +54,7 @@ pub(crate) use motion_blur::MotionBlurPass;
 pub(crate) use occupancy::{OccupancyBoundsFormat, OccupancyPass};
 pub(crate) use oit::OitPass;
 pub(crate) use oit_composite::OitCompositePass;
+pub(crate) use opaque_depth::OpaqueDepthPass;
 pub(crate) use overlay::OverlayPass;
 pub(crate) use particle_motion::ParticleMotionPass;
 pub(crate) use point::PointPass;
@@ -64,9 +66,9 @@ pub(crate) use resources::{
     BLOOM_B_RESOURCE, BLOOM_C_RESOURCE, COMPOSITE_RESOURCE, DOF_RESOURCE, DOF_TILE_RESOURCE,
     ENTITY_RESOURCE, GBUFFER_ALBEDO_FORMAT, GBUFFER_MOTION_FORMAT, GBUFFER_NORMAL_FORMAT,
     HDR_RESOURCE, HISTORY_A_RESOURCE, HISTORY_B_RESOURCE, MOTION_BLUR_RESOURCE, MOTION_RESOURCE,
-    NORMAL_RESOURCE, OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE, SEGMENT_LABEL_RESOURCE,
-    SEGMENT_VOLUME_RESOURCE, SHADOW_RESOURCE, STRUCTURE_RESOURCE, gbuffer_targets,
-    segmentation_targets,
+    NORMAL_RESOURCE, OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE, OPAQUE_DEPTH_RESOURCE,
+    SEGMENT_LABEL_RESOURCE, SEGMENT_VOLUME_RESOURCE, SHADOW_RESOURCE, STRUCTURE_RESOURCE,
+    gbuffer_targets, segmentation_targets,
 };
 pub(crate) use shadow::ShadowPass;
 pub(crate) use sphere::{DEPTH_RESOURCE, SpherePass};

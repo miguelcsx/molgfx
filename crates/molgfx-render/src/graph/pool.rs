@@ -183,6 +183,11 @@ impl<D: Device> TransientPool<D> {
         self.textures.get(slot).map(|(texture, _)| texture)
     }
 
+    /// The full-resolution frame extent this pool was built for.
+    pub(crate) fn extent(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
+
     /// Whether this pool matches the given frame size.
     pub(crate) fn matches(&self, width: u32, height: u32) -> bool {
         self.width == width && self.height == height

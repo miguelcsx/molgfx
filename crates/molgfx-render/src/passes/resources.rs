@@ -100,6 +100,9 @@ pub(crate) const BLOOM_B_RESOURCE: crate::graph::ResourceId = crate::graph::Reso
 pub(crate) const BLOOM_C_RESOURCE: crate::graph::ResourceId = crate::graph::ResourceId(17);
 /// Full-resolution HDR after camera-shutter motion blur.
 pub(crate) const MOTION_BLUR_RESOURCE: crate::graph::ResourceId = crate::graph::ResourceId(22);
+/// A copy of the opaque depth for passes that test against the live depth and
+/// so may not also bind it, on devices that cannot do both.
+pub(crate) const OPAQUE_DEPTH_RESOURCE: crate::graph::ResourceId = crate::graph::ResourceId(23);
 
 #[cfg(test)]
 #[path = "resources_tests.rs"]

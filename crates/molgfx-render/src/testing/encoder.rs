@@ -61,6 +61,17 @@ impl molgfx_gpu::CommandEncoder<MockDevice> for MockEncoder {
         }
     }
 
+    fn copy_texture_to_texture(
+        &mut self,
+        source: &MockTexture,
+        destination: &MockTexture,
+        _size: (u32, u32),
+    ) {
+        if let Ok(mut copies) = self.log.texture_copies.lock() {
+            copies.push((source.0, destination.0));
+        }
+    }
+
     fn copy_texture_to_buffer(
         &mut self,
         _src: &MockTexture,

@@ -148,6 +148,28 @@ impl molgfx_gpu::CommandEncoder<WgpuDevice> for WgpuCommandEncoder {
             .copy_buffer_to_buffer(&src.raw, src_offset, &dst.raw, dst_offset, size);
     }
 
+    fn copy_texture_to_texture(&mut self, src: &WgpuTexture, dst: &WgpuTexture, size: (u32, u32)) {
+        self.encoder.copy_texture_to_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &src.raw,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyTextureInfo {
+                texture: &dst.raw,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::Extent3d {
+                width: size.0,
+                height: size.1,
+                depth_or_array_layers: 1,
+            },
+        );
+    }
+
     fn copy_texture_to_buffer(
         &mut self,
         src: &WgpuTexture,

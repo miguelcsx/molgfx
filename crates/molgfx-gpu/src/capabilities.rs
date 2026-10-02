@@ -18,6 +18,10 @@ bitflags::bitflags! {
         const TIMESTAMP_QUERIES = 1 << 3;
         /// Subgroup (wave/warp) operations in compute.
         const SUBGROUP_OPS = 1 << 4;
+        /// A depth texture may be a read-only attachment and a bound texture in
+        /// one pass. Without it a pass that samples depth cannot also test
+        /// against it, and reads a copy instead.
+        const DEPTH_READ_WHILE_SAMPLED = 1 << 5;
     }
 }
 
@@ -104,6 +108,13 @@ impl Capabilities {
     #[must_use]
     pub fn subgroup_ops(&self) -> bool {
         self.flags.contains(CapabilityFlags::SUBGROUP_OPS)
+    }
+
+    /// One pass may depth-test against a texture it also samples.
+    #[must_use]
+    pub fn depth_read_while_sampled(&self) -> bool {
+        self.flags
+            .contains(CapabilityFlags::DEPTH_READ_WHILE_SAMPLED)
     }
 }
 

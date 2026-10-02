@@ -60,6 +60,10 @@ pub trait CommandEncoder<D: Device>: Sized {
         dst: &D::Buffer,
     );
 
+    /// GPU-to-GPU copy of the whole of one texture's first mip into another of
+    /// the same format and size.
+    fn copy_texture_to_texture(&mut self, src: &D::Texture, dst: &D::Texture, size: (u32, u32));
+
     /// Resolves query values into a GPU buffer for later copy/readback.
     fn resolve_query_set(
         &mut self,

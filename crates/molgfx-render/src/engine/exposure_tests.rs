@@ -36,3 +36,28 @@ fn a_publication_image_is_submitted_in_bounded_runs_covering_every_sample() {
         "every sample's uniforms are uploaded exactly once"
     );
 }
+
+#[test]
+fn transparent_passes_read_a_depth_copy_only_where_the_live_depth_cannot_be_bound() {
+    use crate::engine::{Engine, EngineConfig};
+    use crate::testing::MockDevice;
+    let copies = |device: MockDevice| {
+        let mut engine = Engine::<MockDevice>::from_opened(
+            &EngineConfig::default(),
+            MockDevice::opened_with(device),
+        )
+        .unwrap_or_else(|error| panic!("mock engine opens: {error}"));
+        if let Err(error) = engine.render(&Scene::new(), &camera()) {
+            panic!("frame renders: {error}")
+        }
+        let Ok(copies) = engine.device.log.texture_copies.lock() else {
+            panic!("log lock")
+        };
+        copies.clone()
+    };
+    assert!(copies(MockDevice::default()).is_empty());
+    assert_eq!(
+        copies(MockDevice::without_depth_read_while_sampled()),
+        vec![("frame depth", "opaque depth snapshot")]
+    );
+}

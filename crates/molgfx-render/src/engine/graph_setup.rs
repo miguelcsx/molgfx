@@ -5,6 +5,7 @@
 //! its own concern, and it changes for different reasons than device opening
 //! and pipeline creation do.
 
+use crate::engine::profile::ResolvedRenderPlan;
 use crate::graph::{self, PassKind, PassNode, ResourceDesc, SizeClass};
 use crate::passes::{
     ALBEDO_RESOURCE, AO_DENOISED_RESOURCE, AO_RESOURCE, AmbientOcclusionPass, AoDenoisePass,
@@ -22,11 +23,47 @@ use smallvec::smallvec;
 #[path = "graph_setup_tests.rs"]
 mod tests;
 
-pub(super) fn realtime_nodes<D: Device>(
-    depth_of_field: bool,
-    bloom: bool,
-    motion_blur: bool,
-) -> Vec<PassNode<D>> {
+/// The optional passes a frame graph includes.
+///
+/// Every field changes the graph's shape, so a change to any of them rebuilds
+/// the schedule and the transient pool.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub(super) struct GraphTopology {
+    pub(super) depth_of_field: bool,
+    pub(super) bloom: bool,
+    pub(super) motion_blur: bool,
+    pub(super) transparent_depth: TransparentDepth,
+}
+
+/// What transparent passes bind as the opaque scene's depth.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub(super) enum TransparentDepth {
+    /// The live depth, which the passes also test against.
+    #[default]
+    Live,
+    /// A copy, because the device cannot bind the live depth beside testing
+    /// against it.
+    Copy,
+}
+
+impl GraphTopology {
+    /// The topology a plan needs on a device.
+    pub(super) fn of<D: Device>(plan: &ResolvedRenderPlan, device: &D) -> Self {
+        Self {
+            depth_of_field: plan.depth_of_field().is_some(),
+            bloom: plan.bloom().is_some(),
+            motion_blur: plan.motion_blur().is_some(),
+            transparent_depth: if device.capabilities().depth_read_while_sampled() {
+                TransparentDepth::Live
+            } else {
+                TransparentDepth::Copy
+            },
+        }
+    }
+}
+
+pub(super) fn realtime_nodes<D: Device>(topology: GraphTopology) -> Vec<PassNode<D>> {
+    let depth_snapshot = topology.transparent_depth == TransparentDepth::Copy;
     let gbuffer = smallvec![
         ALBEDO_RESOURCE,
         NORMAL_RESOURCE,
@@ -93,6 +130,22 @@ pub(super) fn realtime_nodes<D: Device>(
             kind: PassKind::Graphics,
             record: SurfacePass::record,
         },
+    ];
+    nodes.extend(lighting_nodes());
+    nodes.extend(super::graph_transparency::transparency_nodes(
+        depth_snapshot,
+    ));
+    nodes.extend(presentation_nodes(
+        topology.depth_of_field,
+        topology.bloom,
+        topology.motion_blur,
+    ));
+    nodes
+}
+
+/// Ambient occlusion, its denoise and the deferred lighting of the opaque scene.
+fn lighting_nodes<D: Device>() -> [PassNode<D>; 3] {
+    [
         PassNode {
             name: "molecular ambient occlusion",
             reads: smallvec![DEPTH_RESOURCE, NORMAL_RESOURCE],
@@ -120,10 +173,7 @@ pub(super) fn realtime_nodes<D: Device>(
             kind: PassKind::Graphics,
             record: LightingPass::record,
         },
-    ];
-    nodes.extend(super::graph_transparency::transparency_nodes());
-    nodes.extend(presentation_nodes(depth_of_field, bloom, motion_blur));
-    nodes
+    ]
 }
 
 fn presentation_nodes<D: Device>(
@@ -266,7 +316,13 @@ pub(super) fn realtime_resources() -> Vec<ResourceDesc> {
     let sampled_target = TextureUsage::RENDER_ATTACHMENT.union(TextureUsage::TEXTURE_BINDING);
     let readback_target = sampled_target.union(TextureUsage::COPY_SRC);
     let mut resources = vec![
-        resource("frame depth", TextureFormat::Depth32Float, sampled_target),
+        // Copyable so a device that cannot sample the live depth beside testing
+        // against it can hand transparent passes a copy.
+        resource(
+            "frame depth",
+            TextureFormat::Depth32Float,
+            sampled_target.union(TextureUsage::COPY_SRC),
+        ),
         resource(
             "gbuffer albedo material",
             crate::passes::GBUFFER_ALBEDO_FORMAT,
@@ -340,7 +396,7 @@ pub(super) fn realtime_resources() -> Vec<ResourceDesc> {
     resources
 }
 
-fn presentation_resources(sampled_target: TextureUsage) -> [ResourceDesc; 8] {
+fn presentation_resources(sampled_target: TextureUsage) -> [ResourceDesc; 9] {
     [
         ResourceDesc {
             label: "bloom ping",
@@ -391,6 +447,11 @@ fn presentation_resources(sampled_target: TextureUsage) -> [ResourceDesc; 8] {
             "camera-shutter motion-blurred HDR",
             TextureFormat::Rgba16Float,
             sampled_target.union(TextureUsage::COPY_SRC),
+        ),
+        resource(
+            "opaque depth snapshot",
+            TextureFormat::Depth32Float,
+            TextureUsage::TEXTURE_BINDING.union(TextureUsage::COPY_DST),
         ),
     ]
 }
