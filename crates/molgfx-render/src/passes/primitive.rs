@@ -153,6 +153,10 @@ impl<D: Device> PrimitivePass<D> {
         if !primitive_opaque && !pose_opaque && !has_generic {
             return;
         }
+        let passes = ctx.passes;
+        let Some(primitive) = ctx.build(&passes.primitive, super::build::primitive) else {
+            return;
+        };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
             label: "analytic primitives",
             colors: &[
@@ -173,7 +177,7 @@ impl<D: Device> PrimitivePass<D> {
         if let Some((table, runs)) = primitives {
             pass.set_bind_group(2, table, &[]);
             for run in runs.iter().filter(|run| !run.translucent) {
-                let Some(pipeline) = ctx.passes.primitive.pipelines.pipeline(run) else {
+                let Some(pipeline) = primitive.pipelines.pipeline(run) else {
                     continue;
                 };
                 pass.set_pipeline(pipeline);
@@ -183,7 +187,7 @@ impl<D: Device> PrimitivePass<D> {
         if let Some((table, args, runs)) = poses {
             pass.set_bind_group(2, table, &[]);
             for run in runs.iter().filter(|run| !run.translucent) {
-                let Some(pipeline) = ctx.passes.primitive.ligand_pose.pipeline(run) else {
+                let Some(pipeline) = primitive.ligand_pose.pipeline(run) else {
                     continue;
                 };
                 pass.set_pipeline(pipeline);
@@ -192,15 +196,9 @@ impl<D: Device> PrimitivePass<D> {
         }
         for draw in ctx.scene.generic_instance_draws(false) {
             let pipeline = if draw.shape == GENERIC_INSTANCE_SPHERE {
-                ctx.passes
-                    .primitive
-                    .generic_instance_sphere
-                    .get(draw.shading)
+                primitive.generic_instance_sphere.get(draw.shading)
             } else {
-                ctx.passes
-                    .primitive
-                    .generic_instance_capsule
-                    .get(draw.shading)
+                primitive.generic_instance_capsule.get(draw.shading)
             };
             pass.set_pipeline(pipeline);
             pass.set_bind_group(2, draw.group, &[]);

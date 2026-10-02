@@ -122,6 +122,10 @@ impl<D: Device> SurfacePass<D> {
         if ctx.scene.surface_draws(false).next().is_none() {
             return;
         }
+        let passes = ctx.passes;
+        let Some(surface) = ctx.build(&passes.surface, super::build::surface) else {
+            return;
+        };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
             label: "implicit molecular surfaces",
             colors: &[
@@ -143,12 +147,9 @@ impl<D: Device> SurfacePass<D> {
         if let Some(arena) = ctx.scene.indirect_args() {
             for (group, offset, shading, specialized) in ctx.scene.surface_draws(false) {
                 let pipeline = if shading.surface_grid() {
-                    ctx.passes.surface.grid_surface.select(shading, specialized)
+                    surface.grid_surface.select(shading, specialized)
                 } else {
-                    ctx.passes
-                        .surface
-                        .union_surface
-                        .select(shading, specialized)
+                    surface.union_surface.select(shading, specialized)
                 };
                 if bound != Some(std::ptr::from_ref(pipeline)) {
                     pass.set_pipeline(pipeline);

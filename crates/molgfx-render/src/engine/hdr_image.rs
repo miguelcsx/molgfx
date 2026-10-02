@@ -150,7 +150,7 @@ impl<D: Device> Engine<D> {
             let Some(target) = pool.view(source) else {
                 return Err(molgfx_gpu::GpuError::DeviceLost.into());
             };
-            self.record_image_until(&mut encoder, target, None, quality, false, Some(source));
+            self.record_image_until(&mut encoder, target, None, quality, false, Some(source))?;
             if sample + 1 == samples {
                 let Some(texture) = pool.texture(source) else {
                     return Err(molgfx_gpu::GpuError::DeviceLost.into());

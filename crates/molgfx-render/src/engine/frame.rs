@@ -141,7 +141,7 @@ impl<D: Device> Engine<D> {
 
         let mut encoder = self.device.create_command_encoder();
 
-        if !self.record_frame(&mut encoder, scene, frame.view()) {
+        if !self.record_frame(&mut encoder, scene, frame.view())? {
             return Ok(self.frame_report(FrameStatus::Skipped, false));
         }
 
@@ -232,7 +232,7 @@ impl<D: Device> Engine<D> {
         encoder: &mut D::CommandEncoder,
         scene: &Scene,
         swapchain: &D::TextureView,
-    ) -> bool {
+    ) -> Result<bool, RenderError> {
         // Preserve the existing signature without repeating specialization work.
         let _ = scene;
 
@@ -241,10 +241,11 @@ impl<D: Device> Engine<D> {
         self.record_scene_compute(encoder, cinematic, None);
 
         let Some(pool) = &self.pool else {
-            return false;
+            return Ok(false);
         };
 
         let table = ResourceTable { pool, swapchain };
+        let mut failure = None;
 
         for &index in &self.order {
             let Some(node) = self.pass_nodes.get(index) else {
@@ -253,6 +254,9 @@ impl<D: Device> Engine<D> {
 
             let mut ctx = PassContext {
                 encoder: &mut *encoder,
+                device: &self.device,
+                target_format: self.target_format,
+                failure: &mut failure,
                 resources: &table,
                 passes: &self.passes,
                 bindings: self.bindings.as_ref(),
@@ -267,7 +271,10 @@ impl<D: Device> Engine<D> {
             (node.record)(&mut ctx);
         }
 
-        true
+        match failure {
+            Some(error) => Err(error),
+            None => Ok(true),
+        }
     }
 
     /// Submits the recorded frame once and updates submission bookkeeping.

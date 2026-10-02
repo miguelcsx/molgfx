@@ -209,7 +209,7 @@ impl<D: Device> Engine<D> {
             if sample == 0 {
                 self.record_scene_compute(&mut encoder, cinematic, None);
             }
-            self.record_image(&mut encoder, &view, None, cinematic, false);
+            self.record_image(&mut encoder, &view, None, cinematic, false)?;
             if sample + 1 == samples {
                 encoder.copy_texture_to_buffer(
                     &texture,
@@ -295,8 +295,8 @@ impl<D: Device> Engine<D> {
         queries: Option<&D::QuerySet>,
         quality: bool,
         timestamps_started: bool,
-    ) {
-        self.record_image_until(encoder, target, queries, quality, timestamps_started, None);
+    ) -> Result<(), RenderError> {
+        self.record_image_until(encoder, target, queries, quality, timestamps_started, None)
     }
 
     pub(super) fn record_image_until(
@@ -307,10 +307,11 @@ impl<D: Device> Engine<D> {
         quality: bool,
         timestamps_started: bool,
         stop_after: Option<crate::graph::ResourceId>,
-    ) {
+    ) -> Result<(), RenderError> {
         let Some(pool) = &self.pool else {
-            return;
+            return Ok(());
         };
+        let mut failure = None;
         let table = ResourceTable {
             pool,
             swapchain: target,
@@ -322,6 +323,9 @@ impl<D: Device> Engine<D> {
             let boundary = position == 0 || position + 1 == self.order.len();
             (node.record)(&mut PassContext {
                 encoder,
+                device: &self.device,
+                target_format: self.target_format,
+                failure: &mut failure,
                 resources: &table,
                 passes: &self.passes,
                 bindings: self.bindings.as_ref(),
@@ -343,6 +347,10 @@ impl<D: Device> Engine<D> {
             if stop_after.is_some_and(|resource| node.writes.contains(&resource)) {
                 break;
             }
+        }
+        match failure {
+            Some(error) => Err(error),
+            None => Ok(()),
         }
     }
 }

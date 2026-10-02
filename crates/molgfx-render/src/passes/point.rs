@@ -160,6 +160,10 @@ impl<D: Device> PointPass<D> {
         {
             return;
         }
+        let passes = ctx.passes;
+        let Some(point) = ctx.build(&passes.point, super::build::point) else {
+            return;
+        };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
             label: "atom points",
             colors: &[
@@ -180,7 +184,7 @@ impl<D: Device> PointPass<D> {
         let mut bound: Option<*const D::Pipeline> = None;
         if let Some(arena) = ctx.scene.indirect_args() {
             for (group, offset, shading, specialized) in ctx.scene.point_draws(false) {
-                let pipeline = ctx.passes.point.pipeline.select(shading, specialized);
+                let pipeline = point.pipeline.select(shading, specialized);
                 if bound != Some(std::ptr::from_ref(pipeline)) {
                     pass.set_pipeline(pipeline);
                     bound = Some(std::ptr::from_ref(pipeline));
@@ -190,14 +194,14 @@ impl<D: Device> PointPass<D> {
             }
         }
         if let Some((group, args, offset)) = ctx.scene.paged_point_draw() {
-            pass.set_pipeline(&ctx.passes.point.paged_pipeline);
+            pass.set_pipeline(&point.paged_pipeline);
             pass.set_bind_group(1, group, &[]);
             pass.draw_indirect(args, offset);
         }
         let mut generic_bound = None;
         for (group, args, shading) in ctx.scene.generic_point_draws(false) {
             if generic_bound != Some(shading) {
-                pass.set_pipeline(ctx.passes.point.generic_pipeline.get(shading));
+                pass.set_pipeline(point.generic_pipeline.get(shading));
                 generic_bound = Some(shading);
             }
             pass.set_bind_group(2, group, &[]);

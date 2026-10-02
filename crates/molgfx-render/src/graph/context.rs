@@ -5,11 +5,12 @@
 //! registry holding pipelines created at load.
 
 use crate::engine::{DisplayGamut, TransferFunction};
+use crate::error::RenderError;
 use crate::graph::node::ResourceId;
 use crate::graph::pool::TransientPool;
-use crate::passes::{FrameBindings, PassRegistry};
+use crate::passes::{FrameBindings, Lazy, PassRegistry};
 use crate::scene_gpu::GpuScene;
-use molgfx_gpu::{Device, TimestampWrites};
+use molgfx_gpu::{Device, TextureFormat, TimestampWrites};
 
 /// Resolves declared resource ids to concrete views for one frame.
 pub(crate) struct ResourceTable<'a, D: Device> {
@@ -51,10 +52,23 @@ pub(crate) struct DisplayEncoding {
     pub transfer: TransferFunction,
 }
 
+/// What a pass needs to build itself the first time a frame draws with it.
+pub(crate) struct PassEnv<'a, D: Device> {
+    pub(crate) device: &'a D,
+    pub(crate) target_format: TextureFormat,
+    pub(crate) scene: &'a GpuScene<D>,
+}
+
 /// Everything a record function receives.
 pub(crate) struct PassContext<'a, D: Device> {
     /// The open command encoder.
     pub encoder: &'a mut D::CommandEncoder,
+    /// The device passes build themselves on.
+    pub device: &'a D,
+    /// The presentation format pipelines are specialized for.
+    pub target_format: TextureFormat,
+    /// The first failure a pass met while building; the frame reports it.
+    pub failure: &'a mut Option<RenderError>,
     /// Resolves resource ids to views.
     pub resources: &'a ResourceTable<'a, D>,
     /// Pass state created at load: pipelines, layouts, bind groups.
@@ -81,4 +95,28 @@ pub(crate) struct PassContext<'a, D: Device> {
     /// decoding them per pixel, so the pass selects a pre-built variant here
     /// instead of branching in the fragment stage.
     pub display_encoding: DisplayEncoding,
+}
+
+impl<'a, D: Device> PassContext<'a, D> {
+    /// A pass built on first use, or `None` once building it failed.
+    ///
+    /// A failure is kept for the frame to report, so a record function can
+    /// simply draw nothing; the pass stays unbuilt and a later frame retries.
+    pub(crate) fn build<'p, T>(
+        &mut self,
+        cell: &'p Lazy<T>,
+        make: impl FnOnce(&PassEnv<'_, D>) -> Result<T, RenderError>,
+    ) -> Option<&'p T> {
+        let env = self.env();
+        cell.build_in(&env, &mut *self.failure, make)
+    }
+
+    /// The device, format and scene a pass builds itself from.
+    pub(crate) fn env(&self) -> PassEnv<'a, D> {
+        PassEnv {
+            device: self.device,
+            target_format: self.target_format,
+            scene: self.scene,
+        }
+    }
 }

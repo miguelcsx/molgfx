@@ -2,8 +2,8 @@
 
 use crate::engine::{DisplayGamut, TransferFunction};
 use crate::error::RenderError;
-use crate::graph::{DisplayEncoding, PassContext, ResourceId};
-use crate::passes::FrameBindings;
+use crate::graph::{DisplayEncoding, PassContext, PassEnv, ResourceId};
+use crate::passes::{FrameBindings, Lazy};
 use molgfx_gpu::{
     BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, ColorTarget,
     CommandEncoder as _, Device, LoadOp, PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _,
@@ -14,11 +14,14 @@ use molgfx_gpu::{
 ///
 /// The shader takes the gamut and transfer curve as pipeline constants, so the
 /// fragment stage encodes for exactly one output instead of branching through
-/// every curve on every pixel. The encoding set is closed and small, so every
-/// variant is built at load and none is ever created inside the frame loop.
+/// every curve on every pixel. The encoding set is closed and small; a variant
+/// is built the first frame that presents with it, and a session presents with
+/// one or two of the twenty-four.
 #[derive(Debug)]
 pub(crate) struct TonemapPass<D: Device> {
-    variants: Vec<D::Pipeline>,
+    shader: D::ShaderModule,
+    target_format: TextureFormat,
+    variants: Vec<Lazy<D::Pipeline>>,
     pub(crate) layout: D::BindGroupLayout,
 }
 
@@ -68,32 +71,42 @@ impl<D: Device> TonemapPass<D> {
             label: "tonemap",
             wgsl: molgfx_shaders::TONEMAP,
         })?;
-        let mut variants = Vec::with_capacity(2 * ENCODINGS);
-        for smoothed in [false, true] {
-            for gamut in DisplayGamut::ALL {
-                for transfer in TransferFunction::ALL {
-                    variants.push(device.create_render_pipeline(&RenderPipelineDesc {
-                        label: "HDR tonemap",
-                        layouts: &[Some(group0), Some(&layout)],
-                        shader: &shader,
-                        vs_entry: "vs_fullscreen",
-                        fs_entry: Some("fs_tonemap"),
-                        color_targets: &[ColorTarget {
-                            format: target_format,
-                            blend: molgfx_gpu::BlendMode::Replace,
-                        }],
-                        depth: None,
-                        constants: &[
-                            ("PRESENTATION_GAMUT_TAG", f64::from(gamut.tag())),
-                            ("PRESENTATION_TRANSFER_TAG", f64::from(transfer.tag())),
-                            ("FXAA_ENABLED", f64::from(u8::from(smoothed))),
-                        ],
-                        topology: PrimitiveTopology::TriangleList,
-                    })?);
-                }
-            }
-        }
-        Ok(Self { variants, layout })
+        let variants = (0..2 * ENCODINGS).map(|_| Lazy::default()).collect();
+        Ok(Self {
+            shader,
+            target_format,
+            variants,
+            layout,
+        })
+    }
+
+    fn build_variant(
+        &self,
+        env: &PassEnv<'_, D>,
+        encoding: DisplayEncoding,
+        smoothed: bool,
+    ) -> Result<D::Pipeline, RenderError> {
+        Ok(env.device.create_render_pipeline(&RenderPipelineDesc {
+            label: "HDR tonemap",
+            layouts: &[Some(&env.scene.group0_layout), Some(&self.layout)],
+            shader: &self.shader,
+            vs_entry: "vs_fullscreen",
+            fs_entry: Some("fs_tonemap"),
+            color_targets: &[ColorTarget {
+                format: self.target_format,
+                blend: molgfx_gpu::BlendMode::Replace,
+            }],
+            depth: None,
+            constants: &[
+                ("PRESENTATION_GAMUT_TAG", f64::from(encoding.gamut.tag())),
+                (
+                    "PRESENTATION_TRANSFER_TAG",
+                    f64::from(encoding.transfer.tag()),
+                ),
+                ("FXAA_ENABLED", f64::from(u8::from(smoothed))),
+            ],
+            topology: PrimitiveTopology::TriangleList,
+        })?)
     }
 
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
@@ -106,6 +119,7 @@ impl<D: Device> TonemapPass<D> {
         let Some(bindings) = tonemap.get(ctx.temporal_write) else {
             return;
         };
+        let env = ctx.env();
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
             label: "HDR tonemap",
             colors: &[ColorAttachment {
@@ -115,13 +129,15 @@ impl<D: Device> TonemapPass<D> {
             depth: None,
             timestamps: ctx.timestamps,
         });
+        let tonemap = &ctx.passes.tonemap;
+        let encoding = ctx.display_encoding;
         let smoothed = ctx.edge_smoothing;
-        let Some(pipeline) = ctx
-            .passes
-            .tonemap
-            .variants
-            .get(variant_index(ctx.display_encoding, smoothed))
-        else {
+        let Some(cell) = tonemap.variants.get(variant_index(encoding, smoothed)) else {
+            return;
+        };
+        let Some(pipeline) = cell.build_in(&env, &mut *ctx.failure, |env| {
+            tonemap.build_variant(env, encoding, smoothed)
+        }) else {
             return;
         };
         pass.set_pipeline(pipeline);
