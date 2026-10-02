@@ -32,6 +32,11 @@ that first.
   occlusion uses 4 rays per sample, measured against 16.
 - A frame is complete only when every drawable is resident, not when uploads have
   drained.
+- A converged output submits its samples in runs of four and waits for the run
+  before last, and growable buffers round up to an eighth of an octave instead of
+  a power of two. Measured on 1AON at 1280x720 through `render_image`, peak
+  footprint of cartoon fell from 2.50 to 1.12 GB and of spacefill from 2.25 to
+  0.83 GB, with no increase in time per output.
 - Module roots declare and re-export only; the ensemble opacity policy has one
   definition in `molgfx-core`.
 
@@ -40,6 +45,13 @@ that first.
 - `Scene.place` and `Scene.assembly` failed with "Already borrowed" when a viewer
   was attached.
 - A volume-segment pick named the first volume even when several existed.
+- On OpenGL, every transparent, volume and segmentation draw failed validation:
+  wgpu treats a read-only depth attachment there as a write, so the live depth
+  could not also be bound. Those passes now read a copy of the opaque depth on
+  devices that cannot do both.
+- The stub of the engine lacked the reflected operators (`__radd__`, `__rmul__`,
+  `__rand__`, `__ror__`), and a broken documentation link failed the release
+  check; rustdoc with warnings denied now runs on every push.
 
 ### Known limits
 
@@ -49,6 +61,9 @@ that first.
   have no command-language form.
 - No timeline or segmentation specification, no geometry export (GLB/OBJ/STL), no
   JPEG or WebP export, no sparse surface-field atlas, and no golden-image test.
+- An implicit surface of a large complex holds three full-resolution fields: 1AON
+  (58,870 atoms) at 0.25 Å takes about 3.5 GB of device memory and 28 s for one
+  converged output. A sparse brick atlas is the fix and is not built.
 - A continuous colour is set on a representation, not on a query rule.
 - Bonds between placed copies are not generated, and a pick in a placed copy
   resolves against that copy's own structure.
