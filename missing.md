@@ -633,7 +633,8 @@ not maximum-quality equivalence or comparative speedup evidence.
 
 ## Completed baseline contracts
 
-- [x] One browser runtime for Jupyter and the docs site.
+- [x] One WebAssembly binding for browsers; a page or notebook widget is an
+  application built on it and on the camera primitives, not part of the engine.
 - [x] Coordinates remain borrowed through the MolFrame seam; no scene copy was
   introduced for rendering.
 - [x] Shared GPU record sets, indirect draws, lazy residency, and capability-
