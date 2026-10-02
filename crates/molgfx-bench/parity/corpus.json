@@ -31,7 +31,8 @@
     "molstar-imagepass",
     "molstar-tracing",
     "pymol-raster",
-    "pymol-ray"
+    "pymol-ray",
+    "molgfx-interactive"
   ],
   "fixtures": [
     {
@@ -508,6 +509,237 @@
         "near": 1,
         "far": 2000
       }
+    },
+    {
+      "id": "7QPD",
+      "category": "protein",
+      "file": "7QPD.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/7QPD.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb7QPD/pdb",
+      "sha256": "6cd4e30194caf887b75198e04e7e9afcce1445ec28aa331f6b38c8d323627104",
+      "selection": "all",
+      "form": "cartoon",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "1D3Z",
+      "category": "nmr_ensemble",
+      "file": "1D3Z.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1D3Z.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1D3Z/pdb",
+      "sha256": "7242859f3508ff1711e5b38a78b14c960f137c096f36302406223c93b909c407",
+      "selection": "all",
+      "form": "cartoon",
+      "camera": {
+        "position": [
+          0,
+          0,
+          120
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "1HZH",
+      "category": "glycan",
+      "file": "1HZH.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1HZH.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1HZH/pdb",
+      "sha256": "5793921cc7dcc2317e1892edcbf32b2a8e11a7bef81d2eb25d94c6165f0b01ab",
+      "selection": "all",
+      "form": "cartoon",
+      "camera": {
+        "position": [
+          0,
+          0,
+          320
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "bond_order_ligand",
+      "category": "ligand_orders",
+      "file": "bond_order_ligand.cif",
+      "format": "mmcif",
+      "generator": "bond_order_ligand",
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "sha256": "6a5c38280970d6eeb5e8f29f955e53a178f3dfb9dd0db2c7bb545b3b761f48f4",
+      "selection": "all",
+      "form": "ball_and_stick",
+      "camera": {
+        "position": [
+          0,
+          0,
+          40
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "model_density",
+      "category": "model_density",
+      "file": "model_density.mrc",
+      "format": "mrc",
+      "generator": "model_density",
+      "structure": "4HHB.cif",
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "isovalue": 0.5,
+      "sha256": "a9e7f880f4e4421992b5ce075000c5470a499625f9e996dfaf3ece8840860731",
+      "selection": "all",
+      "form": "isosurface",
+      "camera": {
+        "position": [
+          0,
+          0,
+          160
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "lattice-10000000",
+      "category": "huge_lattice",
+      "file": "lattice-10000000.cif",
+      "format": "mmcif",
+      "generator": "helium_lattice",
+      "atoms": 10000000,
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "sha256": "e4522df5c6dc5f89d7b0b7da458c8e6a8ca7666637ff5fcb39ca6e71250c513c",
+      "selection": "all",
+      "form": "spacefill",
+      "camera": {
+        "position": [
+          0,
+          0,
+          2400
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
+    },
+    {
+      "id": "1EJG",
+      "category": "protein",
+      "file": "1EJG.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1EJG.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1EJG/pdb",
+      "sha256": "c59b29d7f079064d73667d3b510fdd9d39eb74e04cbd485022bcc9fc2383978d",
+      "selection": "all",
+      "form": "cartoon",
+      "camera": {
+        "position": [
+          0,
+          0,
+          60
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      }
     }
   ],
   "recipe_policy": {
@@ -594,7 +826,10 @@
         },
         "antialiasing": {
           "name": "smaa",
-          "params": { "edgeThreshold": 0.05, "maxSearchSteps": 32 }
+          "params": {
+            "edgeThreshold": 0.05,
+            "maxSearchSteps": 32
+          }
         }
       },
       "multiSample": {
@@ -642,7 +877,10 @@
         },
         "antialiasing": {
           "name": "smaa",
-          "params": { "edgeThreshold": 0.05, "maxSearchSteps": 32 }
+          "params": {
+            "edgeThreshold": 0.05,
+            "maxSearchSteps": 32
+          }
         }
       },
       "multiSample": {
@@ -690,7 +928,10 @@
         },
         "antialiasing": {
           "name": "smaa",
-          "params": { "edgeThreshold": 0.05, "maxSearchSteps": 32 }
+          "params": {
+            "edgeThreshold": 0.05,
+            "maxSearchSteps": 32
+          }
         }
       },
       "multiSample": {
@@ -703,7 +944,10 @@
         "enabled": true,
         "maxIterations": 16,
         "targetFps": 0,
-        "rendersPerFrame": [64, 64],
+        "rendersPerFrame": [
+          64,
+          64
+        ],
         "denoise": true
       }
     },
@@ -762,6 +1006,13 @@
       "sphere_quality": 4,
       "stick_quality": 32,
       "cartoon_sampling": 32
+    },
+    "molgfx-interactive": {
+      "quality": "HighestFixed",
+      "output": "interactive",
+      "camera_motion": true,
+      "lighting": "observed EffectiveQuality.lighting",
+      "effects": "observed production facade profile; one single-sample frame, temporal history reset"
     }
   }
 }

@@ -28,7 +28,9 @@ cargo test  --workspace                      # all tests
 cargo test  -p molgfx-core                  # one crate
 cargo check -p molgfx-wasm --target wasm32-unknown-unknown   # the wasm leaf, on its real target
 cargo bench -p molgfx-bench                    # declarative/runtime performance matrix
-cargo run --release -p molgfx-bench --bin frame_time STRUCTURE [FORM]   # one-frame cost of a form, publication and interactive
+cargo run --release -p molgfx-bench --bin frame_time STRUCTURE [FORM]   # one-frame cost of a form
+cargo run --release -p molgfx-bench --bin frame_time -- --case L2 --cache ~/.cache/molgfx-corpus --recipe interactive   # ladder scene; interactive = one single-sample frame per output, converged = full exposure
+cargo run --release -p molgfx-bench --bin parity -- --manifest crates/molgfx-bench/parity/gallery.json --cache ~/.cache/molgfx-corpus --output target/gallery --case B-cartoon-4HHB --recipe molgfx-publication --recipe molgfx-interactive   # gallery sheets; add --references DIR [--bless] for golden checks
 wasm-pack build crates/molgfx-wasm --target web --release --out-dir pkg   # the browser bindings and their TypeScript declarations
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --all

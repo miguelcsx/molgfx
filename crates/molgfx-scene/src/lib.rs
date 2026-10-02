@@ -55,8 +55,8 @@ pub use render::Image;
 pub use render::PickReadback;
 pub use render::Renderer;
 pub use render::{
-    CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming, PassTiming,
-    PassTimingCoverage, QualityTier, SurfaceLimit,
+    CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming,
+    MeasuredOutput, PassTiming, PassTimingCoverage, QualityTier, SurfaceLimit,
 };
 pub use render::{PickKind, PickResult};
 pub use representation::RepresentationSpec;

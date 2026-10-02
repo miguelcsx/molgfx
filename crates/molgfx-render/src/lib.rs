@@ -27,11 +27,12 @@ pub use engine::{
     DerivedCacheUsage, DisplayGamut, DisplayTransform, EffectLayer, Engine, EngineConfig,
     FocusTarget, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport, FrameStatus,
     FrameTiming, GpuTiming, HdrImage, IllustrationStyle, Image, ImageConfig,
-    InstanceChunkPlacement, InstanceChunkWindow, LigandPoseStats, LightingEnvironment, MotionBlur,
-    PICK_READBACK_BYTES, PendingPick, Pick, PickEntity, PointChunkPlacement, PresentationEffect,
-    QualityTier, RelationChunkPlacement, RenderMode, RenderProfile, RenderSession,
-    ResidentGenericChunk, ResidentStructureChunk, ResidentTrajectoryChunk, ResolvedRenderPlan,
-    StructureChunkPlacement, ToneMapping, TrajectoryChunkWindow, TransferFunction,
+    InstanceChunkPlacement, InstanceChunkWindow, LigandPoseStats, LightingEnvironment,
+    MeasuredOutput, MotionBlur, PICK_READBACK_BYTES, PendingPick, Pick, PickEntity,
+    PointChunkPlacement, PresentationEffect, QualityTier, RelationChunkPlacement, RenderMode,
+    RenderProfile, RenderSession, ResidentGenericChunk, ResidentStructureChunk,
+    ResidentTrajectoryChunk, ResolvedRenderPlan, StructureChunkPlacement, ToneMapping,
+    TrajectoryChunkWindow, TransferFunction,
 };
 pub use engine::{CompletedFrame, CpuStages, EffectiveQuality, SurfaceLimit};
 pub(crate) use engine::{

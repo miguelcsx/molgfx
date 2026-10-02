@@ -10,6 +10,53 @@ const { Ccp4Provider } = require('@molstar/mol-plugin-state/formats/volume');
 const { createVolumeRepresentationParams } = require('@molstar/mol-plugin-state/helpers/volume-representation-params');
 const { StateTransforms } = require('@molstar/mol-plugin-state/transforms');
 const { PixelData } = require('@molstar/mol-util/image');
+const { Script } = require('@molstar/mol-script/script');
+const { MolScriptBuilder } = require('@molstar/mol-script/language/builder');
+const { StructureSelection, StructureElement } = require('@molstar/mol-model/structure');
+// `entry.atoms` selects one atom each by auth ids; the loci come from the state structure.
+function atomLoci(structure, atom) {
+    const MS = MolScriptBuilder, P = MS.struct.atomProperty.macromolecular;
+    const expr = MS.struct.generator.atomGroups({
+        'chain-test': MS.core.rel.eq([P.auth_asym_id(), atom.auth_asym_id]),
+        'residue-test': MS.core.rel.eq([P.auth_seq_id(), atom.auth_seq_id]),
+        'atom-test': MS.core.rel.eq([P.auth_atom_id(), atom.auth_atom_id]) });
+    const loci = StructureSelection.toLociWithSourceUnits(Script.getStructureSelection(expr, structure));
+    if (StructureElement.Loci.isEmpty(loci)) throw new Error(`Mol* script atom not found: ${JSON.stringify(atom)}`);
+    return loci;
+}
+
+// Each entry is literal Mol* input; an unknown kind is an error, never skipped.
+async function applyScript(plugin, object, entries) {
+    let last;
+    for (const entry of entries) {
+        switch (entry.kind) {
+            case 'representation':
+                last = await plugin.builders.structure.representation.addRepresentation(object, entry.params);
+                break;
+            case 'volume':
+                last = await plugin.build().to(object).apply(StateTransforms.Representation.VolumeRepresentation3D,
+                    createVolumeRepresentationParams(plugin, object.data, entry.params)).commit();
+                break;
+            case 'measurement': {
+                const loci = entry.atoms.map(a => atomLoci(object.data, a));
+                const m = plugin.managers.structure.measurement;
+                const add = { distance: () => m.addDistance(...loci), angle: () => m.addAngle(...loci),
+                    dihedral: () => m.addDihedral(...loci) }[entry.measure];
+                if (!add) throw new Error(`unknown Mol* measurement ${entry.measure}`);
+                await add();
+                last = last || { data: true };
+                break;
+            }
+            case 'label':
+                await plugin.managers.structure.measurement.addLabel(atomLoci(object.data, entry.atoms[0]));
+                last = last || { data: true };
+                break;
+            default:
+                throw new Error(`unknown Mol* script entry kind ${entry.kind}`);
+        }
+    }
+    return last;
+}
 
 async function execute(request, bytes) {
     const { catalog, fixture, recipe } = request;
@@ -85,7 +132,9 @@ async function execute(request, bytes) {
         if (request.inspect) return response;
         const style = catalog.style;
         const color = (style.color_rgb[0] << 16) | (style.color_rgb[1] << 8) | style.color_rgb[2];
-        if (fixture.format === 'mrc') {
+        if (fixture.script) {
+            representation = await applyScript(plugin, object, fixture.script.molstar);
+        } else if (fixture.format === 'mrc') {
             representation = await plugin.build().to(object).apply(StateTransforms.Representation.VolumeRepresentation3D,
                 createVolumeRepresentationParams(plugin, object.data, { type: 'isosurface', typeParams: { isoValue: { kind: 'absolute', absoluteValue: fixture.isovalue }, alpha: style.opacity, quality: 'highest' }, color: 'uniform', colorParams: { value: color } })).commit();
         } else {

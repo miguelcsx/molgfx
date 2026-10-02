@@ -21,12 +21,22 @@ fn cancelling_a_submitted_profile_preserves_storage_and_waits_before_reuse() {
         log.hold_fence_from.store(held_fence, Ordering::Release);
         log.hold_fence.store(true, Ordering::Release);
         let mut context = std::task::Context::from_waker(std::task::Waker::noop());
-        let mut future = Box::pin(engine.profile_frame_async(&scene, &camera, config));
+        let mut future = Box::pin(engine.profile_frame_async(
+            &scene,
+            &camera,
+            config,
+            MeasuredOutput::Converged,
+        ));
         assert!(future.as_mut().poll(&mut context).is_pending());
         drop(future);
         assert_eq!(log.submitted_fence.load(Ordering::Acquire), held_fence);
         let writes = log.writes.lock().unwrap().len();
-        let mut resumed = Box::pin(engine.profile_frame_async(&scene, &camera, config));
+        let mut resumed = Box::pin(engine.profile_frame_async(
+            &scene,
+            &camera,
+            config,
+            MeasuredOutput::Converged,
+        ));
         assert!(resumed.as_mut().poll(&mut context).is_pending());
         assert_eq!(log.submitted_fence.load(Ordering::Acquire), held_fence);
         assert_eq!(log.writes.lock().unwrap().len(), writes);
@@ -47,7 +57,9 @@ fn sample_preparation_failure_does_not_destroy_reusable_capture() {
         width: 8,
         height: 8,
     };
-    let (started, mut exposure) = engine.prepare_profile(&scene, &camera, config).unwrap();
+    let (started, mut exposure) = engine
+        .prepare_profile(&scene, &camera, config, MeasuredOutput::Converged)
+        .unwrap();
     exposure.samples = 65;
     let mut profiler = engine.profiler.take().unwrap();
     let error = engine
@@ -61,9 +73,31 @@ fn sample_preparation_failure_does_not_destroy_reusable_capture() {
     ));
     engine.profiler = Some(profiler);
     let timing = engine
-        .profile_frame(&scene, &camera, config)
+        .profile_frame(&scene, &camera, config, MeasuredOutput::Converged)
         .expect("profile resumes after a recording failure");
     assert!(timing.quality.complete());
+}
+
+#[test]
+fn an_interactive_profile_completes_exactly_one_sample_and_reports_itself_progressive() {
+    let mut engine = super::super::tests::engine();
+    let config = ImageConfig {
+        width: 64,
+        height: 64,
+    };
+    for _ in 0..2 {
+        let timing = engine
+            .profile_frame(
+                &Scene::new(),
+                &super::super::tests::camera(),
+                config,
+                MeasuredOutput::Interactive,
+            )
+            .unwrap();
+        assert_eq!(timing.quality.samples_required, 1);
+        assert_eq!(timing.quality.samples_completed, Some(1));
+        assert!(timing.quality.progressive);
+    }
 }
 
 #[test]

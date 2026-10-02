@@ -76,7 +76,7 @@ pub use profile::{
     AntiAliasingStyle, BloomStyle, EffectLayer, IllustrationStyle, PresentationEffect,
     RenderProfile, ResolvedRenderPlan,
 };
-pub use profiling::FrameTiming;
+pub use profiling::{FrameTiming, MeasuredOutput};
 #[cfg(not(target_arch = "wasm32"))]
 pub use sequence::{
     FrameTicket, SequenceConfig, SequenceExposure, SequenceFrame, SequenceRenderer,

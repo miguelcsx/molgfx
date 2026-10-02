@@ -4,6 +4,8 @@
 use super::FrameTiming;
 #[cfg(not(target_arch = "wasm32"))]
 use super::Image;
+#[cfg(not(target_arch = "wasm32"))]
+use super::MeasuredOutput;
 use super::engine_config::engine_config;
 use super::{FrameReport, PassTiming};
 use crate::{Error, RenderProfile, Scene};
@@ -143,17 +145,52 @@ impl Renderer {
             .map_err(Error::from)
     }
 
-    /// Measures one fully converged output with a framing camera.
+    /// Renders one image of the requested kind with the caller's camera:
+    /// the converged exposure, or the single-sample frame an interactive
+    /// session presents.
     ///
-    /// All exposure samples are included; discard warmup outputs before
-    /// percentile gates. Pixel export is outside this measurement.
+    /// # Errors
+    ///
+    /// Returns invalid extent, rendering or device errors.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn render_output_with_camera(
+        &mut self,
+        scene: &Scene,
+        camera: &molgfx_math::Camera,
+        size: (u32, u32),
+        output: MeasuredOutput,
+    ) -> Result<Image, Error> {
+        self.inner
+            .render_output(
+                scene.resolved(),
+                camera,
+                molgfx_render::ImageConfig {
+                    width: size.0,
+                    height: size.1,
+                },
+                output,
+            )
+            .map(Image)
+            .map_err(Error::from)
+    }
+
+    /// Measures one output with a framing camera.
+    ///
+    /// `Converged` includes all exposure samples; `Interactive` is one
+    /// single-sample frame that keeps temporal history. Discard warmup outputs
+    /// before percentile gates. Pixel export is outside this measurement.
     ///
     /// # Errors
     ///
     /// Returns a typed renderer or device error. Missing timestamp capability
     /// leaves GPU timing unresolved while the completion fence is still awaited.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn measure_frame(&mut self, scene: &Scene, size: (u32, u32)) -> Result<FrameTiming, Error> {
+    pub fn measure_frame(
+        &mut self,
+        scene: &Scene,
+        size: (u32, u32),
+        output: MeasuredOutput,
+    ) -> Result<FrameTiming, Error> {
         let (Some(width), Some(height)) = (size.0.to_f32(), size.1.to_f32()) else {
             return Err(Error::InvalidSpec(
                 "image size cannot be represented".to_owned(),
@@ -161,10 +198,10 @@ impl Renderer {
         };
         let aspect = width / height.max(1.0);
         let camera = scene.framing_camera(aspect);
-        self.measure_frame_with_camera(scene, &camera, size)
+        self.measure_frame_with_camera(scene, &camera, size, output)
     }
 
-    /// Measures a converged output using the caller's physical camera.
+    /// Measures an output using the caller's physical camera.
     ///
     /// # Errors
     ///
@@ -175,6 +212,7 @@ impl Renderer {
         scene: &Scene,
         camera: &molgfx_math::Camera,
         size: (u32, u32),
+        output: MeasuredOutput,
     ) -> Result<FrameTiming, Error> {
         self.inner
             .profile_frame(
@@ -184,6 +222,7 @@ impl Renderer {
                     width: size.0,
                     height: size.1,
                 },
+                output,
             )
             .map_err(Error::from)
     }

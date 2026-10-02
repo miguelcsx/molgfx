@@ -1,5 +1,9 @@
 //! Production facade adapter; measurement excludes screenshot readback.
-use super::catalog::{Catalog, Fixture, Result, Style};
+use super::{
+    catalog::{Catalog, Fixture, Result, Style},
+    script,
+};
+use molgfx::profile::MeasuredOutput;
 use molgfx::{Color, ColorSpec, FrameTiming, PassTiming, Renderer, Scene, profile, rep, sel};
 use molgfx_bench::{
     CumulativeTelemetry, FrameSample, HeapMeasurement, measure_heap, profile_metadata_json,
@@ -48,10 +52,16 @@ pub(super) fn render(
     cache: &Path,
     output: &Path,
     recipe: &str,
+    ffmpeg: Option<&str>,
 ) -> Result<Value> {
-    let (structure, metadata) = structure(fixture, cache)?;
-    let mut scene = Scene::from_structure(&structure)?;
-    add_form(&mut scene, &fixture.form, &catalog.style)?;
+    let (scene, metadata) = if fixture.script.is_some() {
+        script::scene(fixture, cache)?
+    } else {
+        let (structure, metadata) = structure(fixture, cache)?;
+        let mut scene = Scene::from_structure(&structure)?;
+        add_form(&mut scene, &fixture.form, &catalog.style)?;
+        (scene, metadata)
+    };
     let c = &fixture.camera;
     let aspect = num_traits::ToPrimitive::to_f32(&catalog.extent[0])
         .ok_or_else(|| io::Error::other("invalid width"))?
@@ -66,6 +76,11 @@ pub(super) fn render(
         c.near,
         c.far,
     )?;
+    let kind = if recipe == "molgfx-interactive" {
+        MeasuredOutput::Interactive
+    } else {
+        MeasuredOutput::Converged
+    };
     let profile = if recipe == "molgfx-publication" {
         profile::publication()
     } else {
@@ -73,9 +88,10 @@ pub(super) fn render(
     };
     let mut renderer = Renderer::with_profile(profile)?;
     let size = (catalog.extent[0], catalog.extent[1]);
-    let (heap, cold) = measure_heap(|| renderer.measure_frame_with_camera(&scene, &camera, size));
+    let (heap, cold) =
+        measure_heap(|| renderer.measure_frame_with_camera(&scene, &camera, size, kind));
     let cold = cold?;
-    validate(&cold, catalog.extent)?;
+    validate(&cold, catalog.extent, kind)?;
     let (_, cold_output) = record(
         &cold,
         renderer.last_pass_timings(),
@@ -86,9 +102,9 @@ pub(super) fn render(
     let mut warmup_samples = Vec::with_capacity(catalog.warmup_outputs);
     for _ in 0..catalog.warmup_outputs {
         let (heap, timing) =
-            measure_heap(|| renderer.measure_frame_with_camera(&scene, &camera, size));
+            measure_heap(|| renderer.measure_frame_with_camera(&scene, &camera, size, kind));
         let timing = timing?;
-        validate(&timing, catalog.extent)?;
+        validate(&timing, catalog.extent, kind)?;
         let (_, row) = record(&timing, renderer.last_pass_timings(), previous, heap)?;
         warmup_samples.push(row);
         previous = telemetry(&timing);
@@ -98,20 +114,29 @@ pub(super) fn render(
     let mut settings = Vec::with_capacity(catalog.measured_outputs);
     for _ in 0..catalog.measured_outputs {
         let (heap, timing) =
-            measure_heap(|| renderer.measure_frame_with_camera(&scene, &camera, size));
+            measure_heap(|| renderer.measure_frame_with_camera(&scene, &camera, size, kind));
         let timing = timing?;
-        validate(&timing, catalog.extent)?;
+        validate(&timing, catalog.extent, kind)?;
         let (sample, row) = record(&timing, renderer.last_pass_timings(), previous, heap)?;
         measurements.push(sample);
         samples.push(row);
         settings.push(serde_json::to_value(timing.quality)?);
         previous = telemetry(&timing);
     }
-    let image = renderer.render_image_with_camera(&scene, &camera, size)?;
-    if !image.quality().complete() {
+    let image = renderer.render_output_with_camera(&scene, &camera, size, kind)?;
+    if kind == MeasuredOutput::Converged && !image.quality().complete() {
         return Err(io::Error::other("incomplete native screenshot").into());
     }
     std::fs::write(output.join("image.png"), image.png_bytes()?)?;
+    if recipe == "molgfx-publication"
+        && let (Some(video), Some(directory)) = (
+            fixture.script.as_ref().and_then(|s| s.video.as_ref()),
+            output.parent(),
+        )
+    {
+        script::frames(catalog, fixture, &scene, &mut renderer, video, directory)?;
+        script::encode(ffmpeg, video, directory)?;
+    }
     let mut scratch = Vec::with_capacity(measurements.len());
     let summary = summarize(&measurements, &mut scratch)?;
     Ok(
@@ -155,11 +180,14 @@ fn add_form(scene: &mut Scene, form: &str, style: &Style) -> Result<()> {
     Ok(())
 }
 
-fn validate(timing: &FrameTiming, extent: [u32; 2]) -> Result<()> {
-    if !timing.quality.complete() || timing.quality.adaptive || timing.quality.extent != extent {
-        return Err(
-            io::Error::other(format!("incomplete native exposure: {:?}", timing.quality)).into(),
-        );
+fn validate(timing: &FrameTiming, extent: [u32; 2], kind: MeasuredOutput) -> Result<()> {
+    let quality = &timing.quality;
+    let satisfied = match kind {
+        MeasuredOutput::Converged => quality.complete(),
+        MeasuredOutput::Interactive => quality.samples_completed == Some(1),
+    };
+    if !satisfied || quality.adaptive || quality.extent != extent {
+        return Err(io::Error::other(format!("incomplete native exposure: {quality:?}")).into());
     }
     Ok(())
 }

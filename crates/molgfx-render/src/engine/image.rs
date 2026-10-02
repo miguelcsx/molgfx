@@ -14,8 +14,7 @@ pub(super) use layout::ImageLayout;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ImagePurpose {
     Publication,
-    #[cfg(not(target_arch = "wasm32"))]
-    ProgressiveSequence,
+    Progressive,
 }
 #[derive(Clone, Copy)]
 pub(super) struct ImagePreparation {
@@ -161,8 +160,26 @@ impl<D: Device> Engine<D> {
         camera: &Camera,
         config: ImageConfig,
     ) -> Result<Image, RenderError> {
-        let pending =
-            self.render_image_to_buffer(scene, camera, config, ImagePurpose::Publication)?;
+        self.render_output(scene, camera, config, super::MeasuredOutput::Converged)
+    }
+
+    /// Renders one off-screen image of the requested kind: the converged
+    /// publication exposure, or the single-sample frame an interactive
+    /// session presents under the configured realtime policy.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed device error, graph allocation failure, or
+    /// [`RenderError::InvalidImageSize`] for zero or overflowing dimensions.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn render_output(
+        &mut self,
+        scene: &Scene,
+        camera: &Camera,
+        config: ImageConfig,
+        output: super::MeasuredOutput,
+    ) -> Result<Image, RenderError> {
+        let pending = self.render_image_to_buffer(scene, camera, config, output.purpose())?;
         let mapped = self.queue.read_buffer_blocking(
             &self.device,
             &pending.buffer,
