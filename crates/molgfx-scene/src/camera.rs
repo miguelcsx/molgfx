@@ -51,6 +51,21 @@ pub fn perspective(
 }
 
 pub use molgfx_core::{CameraEasing, CameraKeyframe, CameraPath};
+pub use molgfx_math::{Ray, ScreenPoint};
+
+/// Where a world point lands on a render target of `size`, in pixels from the
+/// top-left, with the renderer's conventions; `None` behind the eye.
+#[must_use]
+pub fn project(camera: &crate::Camera, point: [f32; 3], size: (u32, u32)) -> Option<ScreenPoint> {
+    camera.project(molgfx_math::Vec3::from_array(point), size)
+}
+
+/// The ray through pixel `(x, y)` of a render target of `size`; `None` for a
+/// degenerate camera.
+#[must_use]
+pub fn ray(camera: &crate::Camera, x: f32, y: f32, size: (u32, u32)) -> Option<Ray> {
+    camera.ray(x, y, size)
+}
 
 /// Builds a camera path from `(seconds, camera)` keyframes.
 ///

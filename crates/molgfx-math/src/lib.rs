@@ -24,7 +24,7 @@ pub use bounds::{
     Aabb, BoundingSphere, Bvh, BvhBuildError, BvhBuildScratch, BvhNode, BvhSource, SphereBounds,
     SweptSphereBounds,
 };
-pub use camera::{Camera, Projection};
+pub use camera::{Camera, Projection, Ray, ScreenPoint};
 pub use curves::{
     CurveSample, TransportFrame, parallel_transport, sample_catmull_rom,
     sample_catmull_rom_demanding, sample_catmull_rom_fixed, sample_cubic_bezier,

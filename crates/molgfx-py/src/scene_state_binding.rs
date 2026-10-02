@@ -6,8 +6,41 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
 
+/// The minimum and maximum corners of an axis-aligned box.
+type Bounds = ((f32, f32, f32), (f32, f32, f32));
+
 #[pymethods]
 impl PyScene {
+    /// A camera that frames a selection on a target of `aspect` width over
+    /// height, leaving the scene as it is.
+    #[pyo3(signature = (target, *, aspect=1.0))]
+    fn frame(
+        &self,
+        target: &Bound<'_, PyAny>,
+        aspect: f32,
+    ) -> PyResult<crate::authoring_binding::PyCamera> {
+        self.inner
+            .frame(selection(target)?, aspect)
+            .map(crate::authoring_binding::PyCamera)
+            .map_err(crate::binding::error)
+    }
+
+    /// The world-space minimum and maximum corners of the atoms a selection
+    /// picks, or `None` when it picks none.
+    fn selection_bounds(&self, target: &Bound<'_, PyAny>) -> PyResult<Option<Bounds>> {
+        self.inner
+            .selection_bounds(selection(target)?)
+            .map(|bounds| {
+                bounds.map(|bounds| {
+                    (
+                        (bounds.min.x, bounds.min.y, bounds.min.z),
+                        (bounds.max.x, bounds.max.y, bounds.max.z),
+                    )
+                })
+            })
+            .map_err(crate::binding::error)
+    }
+
     fn set_parameter(
         &mut self,
         py: Python<'_>,

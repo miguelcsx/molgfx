@@ -2,7 +2,7 @@
 
 pub use molgfx_render::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming, PassTiming,
-    PassTimingCoverage, QualityTier,
+    PassTimingCoverage, QualityTier, SurfaceLimit,
 };
 
 mod engine_config;

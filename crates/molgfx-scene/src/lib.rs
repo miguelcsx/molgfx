@@ -4,6 +4,13 @@
 
 mod appearance;
 pub mod camera;
+
+/// Camera controllers and the abstract input events that drive them.
+pub mod controls {
+    pub use molgfx_core::{
+        ArcballController, Button, FlyController, InputEvent, Key, OrbitController,
+    };
+}
 pub mod color;
 mod error;
 mod id;
@@ -49,7 +56,7 @@ pub use render::PickReadback;
 pub use render::Renderer;
 pub use render::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming, PassTiming,
-    PassTimingCoverage, QualityTier,
+    PassTimingCoverage, QualityTier, SurfaceLimit,
 };
 pub use render::{PickKind, PickResult};
 pub use representation::RepresentationSpec;

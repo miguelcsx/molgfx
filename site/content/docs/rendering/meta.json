@@ -2,6 +2,7 @@
   "title": "Rendering",
   "pages": [
     "images",
+    "camera",
     "troubleshooting"
   ]
 }

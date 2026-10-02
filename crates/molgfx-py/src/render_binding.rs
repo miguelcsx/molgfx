@@ -91,18 +91,17 @@ struct PyRenderer(molgfx::Renderer);
 #[pymethods]
 impl PyRenderer {
     #[new]
-    #[pyo3(signature = (*, profile=None))]
+    #[pyo3(signature = (*, profile=None, surface_memory_mib=None))]
     fn new(
         py: Python<'_>,
         profile: Option<&crate::authoring_binding::PyRenderProfile>,
+        surface_memory_mib: Option<u64>,
     ) -> PyResult<Self> {
-        let profile = profile.map(|profile| profile.0);
-        py.detach(|| match profile {
-            Some(profile) => molgfx::Renderer::with_profile(profile),
-            None => molgfx::Renderer::new(),
-        })
-        .map(Self)
-        .map_err(error)
+        let profile = profile.map_or_else(molgfx::RenderProfile::default, |profile| profile.0);
+        let budget = surface_memory_mib.map(|mib| mib.saturating_mul(1024 * 1024));
+        py.detach(|| molgfx::Renderer::with_surface_budget(profile, budget))
+            .map(Self)
+            .map_err(error)
     }
 
     #[pyo3(signature = (scene, *, size))]

@@ -203,6 +203,14 @@ class Camera:
     def target(self) -> tuple[float, float, float]: ...
     @property
     def up(self) -> tuple[float, float, float]: ...
+    def project(
+        self, point: tuple[float, float, float], size: tuple[int, int]
+    ) -> tuple[float, float, float] | None:
+        """Pixels from the top-left and distance from the eye, or ``None`` behind it."""
+    def ray(
+        self, x: float, y: float, size: tuple[int, int]
+    ) -> tuple[tuple[float, float, float], tuple[float, float, float]] | None:
+        """The origin and unit direction of the ray through a pixel."""
 
 @final
 class Representation:
@@ -331,6 +339,12 @@ class Scene:
         self, representation: RepresentationId, parameter: ColorParameter, value: _Rgb
     ) -> None: ...
     def focus(self, target: _Target) -> None: ...
+    def frame(self, target: _Target, *, aspect: float = 1.0) -> Camera:
+        """A camera that frames a selection, leaving the scene as it is."""
+    def selection_bounds(
+        self, target: _Target
+    ) -> tuple[tuple[float, float, float], tuple[float, float, float]] | None:
+        """The minimum and maximum corners of a selection in world space."""
     def set_camera(self, camera: Camera | None) -> None: ...
     def transaction(self) -> SceneTransaction: ...
     @overload
@@ -547,6 +561,35 @@ class AssemblyCopy:
     @property
     def selection(self) -> str: ...
 
+_Button = Literal["left", "right", "middle"]
+
+class _CameraController:
+    def pointer_move(self, x: float, y: float, camera: Camera) -> Camera: ...
+    def pointer_button(
+        self, button_name: _Button, pressed: bool, x: float, y: float, camera: Camera
+    ) -> Camera: ...
+    def scroll(self, delta: float, camera: Camera) -> Camera: ...
+    def pinch(self, scale: float, camera: Camera) -> Camera: ...
+
+@final
+class ArcballController(_CameraController):
+    def __new__(cls) -> Self: ...
+
+@final
+class OrbitController(_CameraController):
+    def __new__(cls) -> Self: ...
+
+@final
+class FlyController(_CameraController):
+    def __new__(cls) -> Self: ...
+    def key(
+        self,
+        name: Literal["forward", "backward", "left", "right", "up", "down"],
+        pressed: bool,
+        camera: Camera,
+    ) -> Camera: ...
+    def advance(self, camera: Camera, seconds: float, speed: float) -> Camera: ...
+
 @final
 class CameraPath:
     def __new__(
@@ -610,7 +653,12 @@ class DifferenceStyle:
 
 @final
 class Renderer:
-    def __new__(cls, *, profile: RenderProfile | None = None) -> Self: ...
+    def __new__(
+        cls,
+        *,
+        profile: RenderProfile | None = None,
+        surface_memory_mib: int | None = None,
+    ) -> Self: ...
     def render_image(self, scene: Scene, *, size: tuple[int, int]) -> Image: ...
     def render_sequence(
         self, scene: Scene, *, size: tuple[int, int], fps: int, frames: int
@@ -978,7 +1026,10 @@ __all__ = [
     "profile",
     "PickResult",
     "AssemblyCopy",
+    "ArcballController",
     "CameraPath",
+    "FlyController",
+    "OrbitController",
     "DifferenceStyle",
     "PocketStyle",
     "Image",

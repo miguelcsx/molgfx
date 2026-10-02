@@ -1,0 +1,46 @@
+---
+title: Cameras and screen coordinates
+description: Frame a selection, move the camera from your own input events, and map atoms to pixels.
+---
+
+MolGFX renders a camera's view; it draws no panel, caption or control of its own. These are the pieces a host needs to build one: a camera for a selection, the camera controllers that turn abstract input events into camera moves, and the mapping between world points and pixels, with the renderer's own conventions.
+
+## Frame a selection
+
+`Scene.frame` returns the camera that fits a selection on a target of a given aspect, and leaves the scene as it is:
+
+```python
+camera = scene.frame("resname HEM", aspect=1920 / 1080)
+scene.set_camera(camera)
+image = renderer.render_image(scene, size=(1920, 1080))
+```
+
+`Scene.selection_bounds` returns the world-space corners of the same atoms. A selection that picks nothing has no bounds, and framing it is an error rather than an empty view.
+
+## Move the camera from your own events
+
+A controller keeps only drag state; the camera is a value, so each call returns the camera the event leads to and your code decides when to show it. `ArcballController` tumbles about the target in any direction, `OrbitController` keeps the horizon level and `FlyController` turns the view and moves the eye.
+
+```python
+controller = molgfx.ArcballController()
+camera = controller.pointer_button("left", True, x, y, camera)
+camera = controller.pointer_move(x + 40, y, camera)
+camera = controller.scroll(1.0, camera)
+```
+
+The same controllers exist in Rust (`molgfx::controls`) and in the WebAssembly bindings, where the page translates DOM events into these calls; none of the motion arithmetic is written in JavaScript.
+
+## Map atoms to pixels
+
+`Camera.project` gives the pixel an atom lands on and its distance from the eye, and `Camera.ray` gives the ray through a pixel. The aspect follows the target, as it does when the renderer draws:
+
+```python
+x, y, depth = camera.project((4.0, 2.5, 0.0), size=(1920, 1080))   # pixels from the top-left
+origin, direction = camera.ray(960.0, 540.0, size=(1920, 1080))
+```
+
+That is the anchor for a callout, a leader line, a legend beside a residue or a hit test on a shape you draw yourself. A point behind the eye has no pixel and returns `None`.
+
+## Smooth moves
+
+`CameraPath` interpolates between cameras at given times and `Renderer.render_camera_path` renders the frames along it. Anything built on top of it, such as a guided tour with words and captions, is yours to write against these calls.
