@@ -15,7 +15,7 @@ use molgfx_math::Camera;
 /// so a publication exposure that queues all of its samples at once keeps
 /// hundreds of encoders alive together. Runs of this size, with at most two
 /// in flight, bound that without leaving the device idle.
-pub(super) const EXPOSURE_RUN: u32 = 4;
+pub(super) const EXPOSURE_RUN: u32 = 1;
 
 pub(super) struct Exposure {
     pub(super) samples: u32,
