@@ -1,7 +1,7 @@
 {
   "name": "molgfx-wasm-host",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "type": "module",
   "description": "The MolGFX browser runtime: the wasm bindings plus the thin viewer host shared by the Jupyter widget and the documentation site.",
   "license": "MIT",

@@ -12,7 +12,7 @@ parse, fetch, dock, simulate, or open an application window.
 ## Install
 
 ```bash
-python -m pip install --upgrade "molgfx[jupyter]>=0.3.0"
+python -m pip install --upgrade "molgfx[jupyter]>=0.4.0"
 ```
 
 ## Render a structure
