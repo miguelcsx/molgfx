@@ -37,11 +37,7 @@ const fn variant_index(encoding: DisplayEncoding, smoothed: bool) -> usize {
 }
 
 impl<D: Device> TonemapPass<D> {
-    pub(crate) fn new(
-        device: &D,
-        target_format: TextureFormat,
-        group0: &D::BindGroupLayout,
-    ) -> Result<Self, RenderError> {
+    pub(crate) fn new(device: &D, target_format: TextureFormat) -> Result<Self, RenderError> {
         let layout = device.create_bind_group_layout(&BindGroupLayoutDesc {
             label: "group1: tonemap input",
             entries: &[

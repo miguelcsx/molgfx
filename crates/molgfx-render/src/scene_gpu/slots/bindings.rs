@@ -40,7 +40,6 @@ pub(super) struct RepresentationBinding<'a, D: Device> {
     pub(super) structure: &'a GpuStructure<D>,
     pub(super) asset_arena: &'a AssetArena<D>,
     pub(super) surface_field_fallback: &'a D::TextureView,
-    pub(super) surface_normal_fallback: &'a D::TextureView,
     /// The scene-wide fields this slot's textures are looked up in.
     pub(super) surface_fields: &'a crate::scene_gpu::surface_cache::SurfaceFieldCache<D>,
     pub(super) overlay: &'a D::TextureView,
@@ -64,7 +63,6 @@ struct Resolved<'a, D: Device> {
     uniforms: &'a D::Buffer,
     counts: &'a D::Buffer,
     surface_grid: &'a D::TextureView,
-    surface_normals: &'a D::TextureView,
     visual: crate::scene_gpu::visual::VisualCullEntries<'a, D>,
 }
 
@@ -156,20 +154,13 @@ impl<D: Device> GpuSlot<D> {
         }));
     }
 
-    /// The shared field views this slot's group2 binds.
+    /// The shared field view this slot's group2 binds.
     ///
     /// Kept out of `bind` so that function stays about the groups it builds
     /// rather than about resolving three tables first.
-    fn surface_views<'a>(
-        &'a self,
-        input: &'a RepresentationBinding<'a, D>,
-    ) -> (&'a D::TextureView, &'a D::TextureView) {
-        (
-            self.surface
-                .field_binding(input.surface_fields, input.surface_field_fallback),
-            self.surface
-                .normal_binding(input.surface_fields, input.surface_normal_fallback),
-        )
+    fn surface_view<'a>(&'a self, input: &'a RepresentationBinding<'a, D>) -> &'a D::TextureView {
+        self.surface
+            .field_binding(input.surface_fields, input.surface_field_fallback)
     }
 
     /// Resolves every handle the two groups bind, or nothing when one is absent.
@@ -179,7 +170,7 @@ impl<D: Device> GpuSlot<D> {
             input.visual_parameters?,
             input.visual_properties?,
         )?;
-        let (surface_grid, surface_normals) = self.surface_views(input);
+        let surface_grid = self.surface_view(input);
         Some(Resolved {
             atoms: input.records.atoms,
             bonds: input.records.bonds,
@@ -190,7 +181,6 @@ impl<D: Device> GpuSlot<D> {
             uniforms: self.representation_uniforms.as_ref()?,
             counts: input.visibility.counts,
             surface_grid,
-            surface_normals,
             visual,
         })
     }
@@ -222,7 +212,6 @@ impl<D: Device> GpuSlot<D> {
             uniforms,
             counts,
             surface_grid,
-            surface_normals,
             visual,
             ..
         } = *resolved;
@@ -243,10 +232,6 @@ impl<D: Device> GpuSlot<D> {
                 BindGroupEntry::Texture {
                     binding: 10,
                     view: surface_grid,
-                },
-                BindGroupEntry::Texture {
-                    binding: 11,
-                    view: surface_normals,
                 },
                 BindGroupEntry::Texture {
                     binding: 12,

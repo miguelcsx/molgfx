@@ -7,6 +7,7 @@ use molgfx_core::{ClipSet, MAX_CLIP_PLANES, Material, Representation, ScalarVolu
 use molgfx_gpu::{Device, Queue};
 use molgfx_math::{Aabb, Camera, Mat4, Projection, Vec3};
 
+use super::grid_fit::fit_grid;
 use super::probe_offsets::PROBE_SAMPLE_COUNT;
 use overlay::overlay_uniforms;
 
@@ -213,7 +214,7 @@ pub(super) struct RepresentationUniforms {
     pub(super) surface: [f32; 4],
     /// Local-space grid minimum and padding.
     pub(super) grid_min: [f32; 4],
-    /// Local-space cell size and padding.
+    /// Local-space cell size, and one when the memory budget coarsened it.
     pub(super) grid_cell: [f32; 4],
     /// Surface kind, maximum steps, reentrant directions and presentation.
     pub(super) options: [u32; 4],
@@ -252,19 +253,21 @@ impl RepresentationUniforms {
             representation,
             bounds,
             overlay_volume,
-            super::detail::FINEST_SURFACE_SPACING,
-            super::detail::INTERACTIVE_SURFACE_DIMENSION,
+            super::detail::GridLimits {
+                spacing: super::detail::FINEST_SURFACE_SPACING,
+                max_dimension: super::detail::INTERACTIVE_SURFACE_DIMENSION,
+                max_cells: u32::MAX,
+            },
         )
     }
 
-    /// Uniforms for a surface field sampled at `target_spacing` ångström, coarsened
-    /// only where an axis would exceed `max_dimension` cells.
+    /// Uniforms for a surface field sampled at the spacing `limits` ask for,
+    /// coarsened only where an axis or the whole field would exceed them.
     pub(super) fn for_spacing(
         representation: &Representation,
         bounds: Aabb,
         overlay_volume: Option<&ScalarVolume>,
-        target_spacing: f32,
-        max_dimension: u32,
+        limits: super::detail::GridLimits,
     ) -> Self {
         let gaussian = representation.params.surface_kind == SurfaceKind::Gaussian;
         let sigma = representation.params.gaussian_sigma.max(0.05);
@@ -287,19 +290,18 @@ impl RepresentationUniforms {
         let minimum = bounds.min - Vec3::splat(probe);
         let maximum = bounds.max + Vec3::splat(probe);
         let extent = maximum - minimum;
-        let max_divisions = dimension_f32(max_dimension.saturating_sub(1));
-        let cell = (extent.max_element() / max_divisions).max(target_spacing);
-        let dimensions = [
-            axis_cells(extent.x, cell, max_dimension),
-            axis_cells(extent.y, cell, max_dimension),
-            axis_cells(extent.z, cell, max_dimension),
-        ];
+        let super::grid_fit::GridFit {
+            cell,
+            dimensions,
+            memory_limited,
+        } = fit_grid(extent, limits);
+        let max_dimension = limits.max_dimension;
         let total = dimensions.iter().copied().fold(1u32, u32::saturating_mul);
         let overlay = overlay_uniforms(representation, overlay_volume);
         Self {
             surface: [probe, isolevel, if gaussian { sigma } else { 0.02 }, 0.02],
             grid_min: [minimum.x, minimum.y, minimum.z, 0.0],
-            grid_cell: [cell, cell, cell, 0.0],
+            grid_cell: [cell, cell, cell, f32::from(u8::from(memory_limited))],
             options: [
                 representation.params.surface_kind as u32,
                 march_steps(dimensions, max_dimension),
@@ -342,15 +344,9 @@ pub(super) fn write_representation_uniforms<D: Device>(
     representation: &Representation,
     bounds: Aabb,
     overlay_volume: Option<&ScalarVolume>,
-    (target_spacing, max_dimension): (f32, u32),
+    limits: super::detail::GridLimits,
 ) {
-    let value = RepresentationUniforms::for_spacing(
-        representation,
-        bounds,
-        overlay_volume,
-        target_spacing,
-        max_dimension,
-    );
+    let value = RepresentationUniforms::for_spacing(representation, bounds, overlay_volume, limits);
     queue.write_buffer(buffer, 0, bytemuck::bytes_of(&value));
 }
 
@@ -471,18 +467,6 @@ pub(super) fn clip_meta(clipping: &ClipSet) -> [u32; 4] {
         0,
         0,
     ]
-}
-
-fn axis_cells(extent: f32, cell: f32, max_dimension: u32) -> u32 {
-    let mut cells = 2u32;
-    while cells < max_dimension && dimension_f32(cells.saturating_sub(1)) * cell < extent {
-        cells += 1;
-    }
-    cells
-}
-
-fn dimension_f32(value: u32) -> f32 {
-    f32::from(crate::fallback(u16::try_from(value), u16::MAX))
 }
 
 #[cfg(test)]

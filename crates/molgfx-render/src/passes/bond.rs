@@ -139,7 +139,7 @@ impl<D: Device> BondPass<D> {
             return;
         }
         let passes = ctx.passes;
-        let Some(bond) = ctx.build(&passes.bond, super::build::bond) else {
+        let Some(bond_pass) = ctx.build(&passes.bond, super::build::bond) else {
             return;
         };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
@@ -178,9 +178,9 @@ impl<D: Device> BondPass<D> {
         if let Some(arena) = ctx.scene.indirect_args() {
             for (group2, offset, shading, specialized) in ctx.scene.bond_draws(false) {
                 let pipeline = if shading.wire() {
-                    bond.wire.select(shading, specialized)
+                    bond_pass.wire.select(shading, specialized)
                 } else {
-                    bond.capsule.select(shading, specialized)
+                    bond_pass.capsule.select(shading, specialized)
                 };
                 if bound != Some(std::ptr::from_ref(pipeline)) {
                     pass.set_pipeline(pipeline);
@@ -191,7 +191,7 @@ impl<D: Device> BondPass<D> {
             }
         }
         if let Some((group, args)) = ctx.scene.paged_bond_draw() {
-            pass.set_pipeline(&bond.paged);
+            pass.set_pipeline(&bond_pass.paged);
             pass.set_bind_group(1, group, &[]);
             pass.draw_indirect(args, 0);
         }

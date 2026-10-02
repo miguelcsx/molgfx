@@ -45,7 +45,6 @@ struct SurfaceLayouts<D: Device> {
     output: D::BindGroupLayout,
     input: D::BindGroupLayout,
     erosion: D::BindGroupLayout,
-    normal: D::BindGroupLayout,
     component: D::BindGroupLayout,
 }
 
@@ -53,8 +52,6 @@ struct SurfaceInit<D: Device> {
     layouts: SurfaceLayouts<D>,
     field_texture: D::Texture,
     field: D::TextureView,
-    normal_texture: D::Texture,
-    normal: D::TextureView,
 }
 
 struct InitialLayouts<D: Device> {
@@ -173,7 +170,6 @@ fn assemble<D: Device>(
         surface_field_output_layout: prepared.surface.layouts.output,
         surface_field_input_layout: prepared.surface.layouts.input,
         surface_field_erosion_layout: prepared.surface.layouts.erosion,
-        surface_field_normal_layout: prepared.surface.layouts.normal,
         surface_component_layout: prepared.surface.layouts.component,
         ribbon_layout: prepared.layouts.ribbon,
         atom_cull_layout: prepared.layouts.atom_cull,
@@ -204,8 +200,6 @@ fn assemble<D: Device>(
         surface_fields: crate::scene_gpu::surface_cache::SurfaceFieldCache::new(),
         _surface_field_fallback_texture: prepared.surface.field_texture,
         surface_field_fallback: prepared.surface.field,
-        _surface_normal_fallback_texture: prepared.surface.normal_texture,
-        surface_normal_fallback: prepared.surface.normal,
         asset_arena: prepared.initial.assets,
         assets: Vec::new(),
         structures: Vec::new(),
@@ -344,20 +338,15 @@ fn initial_resources<D: Device>(
 fn surface_init<D: Device>(device: &D) -> Result<SurfaceInit<D>, RenderError> {
     let (field_texture, field) =
         fallback_texture(device, "unused surface field", TextureFormat::R32Float)?;
-    let (normal_texture, normal) =
-        fallback_texture(device, "unused surface normals", TextureFormat::Rgba8Snorm)?;
     Ok(SurfaceInit {
         layouts: SurfaceLayouts {
             output: SurfaceFieldPass::<D>::output_layout(device),
             input: SurfaceFieldPass::<D>::input_layout(device),
             erosion: SurfaceFieldPass::<D>::erosion_layout(device),
-            normal: SurfaceFieldPass::<D>::normal_layout(device),
             component: SurfaceComponentPass::<D>::layout(device),
         },
         field_texture,
         field,
-        normal_texture,
-        normal,
     })
 }
 

@@ -68,20 +68,12 @@ impl SurfaceSlot {
         fields: &'a SurfaceFieldCache<D>,
         fallback: &'a D::TextureView,
     ) -> &'a D::TextureView {
-        match self.key.and_then(|key| fields.get(key)) {
-            Some(field) => field.shading_field(),
-            None => fallback,
-        }
-    }
-
-    /// The normals of [`Self::field_binding`], or the scene fallback.
-    pub(super) fn normal_binding<'a, D: Device>(
-        &self,
-        fields: &'a SurfaceFieldCache<D>,
-        fallback: &'a D::TextureView,
-    ) -> &'a D::TextureView {
-        match self.key.and_then(|key| fields.get(key)) {
-            Some(field) => &field.normals.view,
+        match self
+            .key
+            .and_then(|key| fields.get(key))
+            .and_then(SharedField::shading_field)
+        {
+            Some(view) => view,
             None => fallback,
         }
     }
@@ -109,6 +101,7 @@ pub(super) fn key_of(
             ],
             grid_cell: uniforms.grid_cell[0],
             grid_size: uniforms.grid_size,
+            memory_limited: uniforms.grid_cell[3] > 0.5,
         },
     )
 }
@@ -126,13 +119,15 @@ pub(super) fn record_generation<D: Device>(
     if !field.pending {
         return;
     }
-    pass.record_generate(
-        encoder,
-        &field.output,
-        &field.input,
-        field.dimensions,
-        field.gaussian,
-    );
+    if let Some(output) = &field.output {
+        pass.record_generate(
+            encoder,
+            output,
+            &field.input,
+            field.dimensions,
+            field.gaussian,
+        );
+    }
     if let Some(erosion) = &field.erosion {
         pass.record_erode(encoder, erosion, &field.input, field.dimensions);
     }
@@ -143,11 +138,6 @@ pub(super) fn record_generation<D: Device>(
     {
         components.record(encoder, group, field.dimensions);
     }
-    pass.record_normals(
-        encoder,
-        &field.normal_output,
-        &field.input,
-        field.dimensions,
-    );
     field.pending = false;
+    field.release_generation_input();
 }

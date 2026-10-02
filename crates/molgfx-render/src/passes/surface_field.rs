@@ -18,7 +18,6 @@ pub(crate) struct SurfaceFieldPass<D: Device> {
     generate_union: D::Pipeline,
     generate_gaussian: D::Pipeline,
     erode: D::Pipeline,
-    normals: D::Pipeline,
 }
 
 impl<D: Device> SurfaceFieldPass<D> {
@@ -83,31 +82,10 @@ impl<D: Device> SurfaceFieldPass<D> {
         })
     }
 
-    pub(crate) fn normal_layout(device: &D) -> D::BindGroupLayout {
-        device.create_bind_group_layout(&BindGroupLayoutDesc {
-            label: "group1: surface field normals",
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Texture3dFloat { filterable: false },
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::StorageTexture3dWrite {
-                        format: molgfx_gpu::TextureFormat::Rgba8Snorm,
-                    },
-                },
-            ],
-        })
-    }
-
     pub(crate) fn new(
         device: &D,
         output: &D::BindGroupLayout,
         erosion: &D::BindGroupLayout,
-        normals: &D::BindGroupLayout,
         representation: &D::BindGroupLayout,
     ) -> Result<Self, RenderError> {
         let shader = device.create_shader_module(&ShaderModuleDesc {
@@ -117,10 +95,6 @@ impl<D: Device> SurfaceFieldPass<D> {
         let erosion_shader = device.create_shader_module(&ShaderModuleDesc {
             label: "rolling-probe surface erosion",
             wgsl: molgfx_shaders::SURFACE_FIELD_ERODE,
-        })?;
-        let normal_shader = device.create_shader_module(&ShaderModuleDesc {
-            label: "continuous surface field normals",
-            wgsl: molgfx_shaders::SURFACE_FIELD_NORMAL,
         })?;
         Ok(Self {
             // The probe-inflated union and the Gaussian density sum are
@@ -145,12 +119,6 @@ impl<D: Device> SurfaceFieldPass<D> {
                 layouts: &[None, Some(erosion), Some(representation)],
                 shader: &erosion_shader,
                 entry: "cs_surface_field_erode",
-            })?,
-            normals: device.create_compute_pipeline(&ComputePipelineDesc {
-                label: "continuous surface field normals",
-                layouts: &[None, Some(normals), Some(representation)],
-                shader: &normal_shader,
-                entry: "cs_surface_field_normal",
             })?,
         })
     }
@@ -191,24 +159,6 @@ impl<D: Device> SurfaceFieldPass<D> {
         });
         pass.set_pipeline(&self.erode);
         pass.set_bind_group(1, erosion, &[]);
-        pass.set_bind_group(2, representation, &[]);
-        let [x, y, z] = dispatch_grid(dimensions);
-        pass.dispatch(x, y, z);
-    }
-
-    pub(crate) fn record_normals(
-        &self,
-        encoder: &mut D::CommandEncoder,
-        normals: &D::BindGroup,
-        representation: &D::BindGroup,
-        dimensions: [u32; 3],
-    ) {
-        let mut pass = encoder.begin_compute_pass(&ComputePassDesc {
-            label: "continuous surface field normals",
-            timestamps: None,
-        });
-        pass.set_pipeline(&self.normals);
-        pass.set_bind_group(1, normals, &[]);
         pass.set_bind_group(2, representation, &[]);
         let [x, y, z] = dispatch_grid(dimensions);
         pass.dispatch(x, y, z);

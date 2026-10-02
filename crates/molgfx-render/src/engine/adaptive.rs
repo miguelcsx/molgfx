@@ -142,6 +142,11 @@ impl QualityTier {
             } else {
                 crate::scene_gpu::detail::INTERACTIVE_SURFACE_DIMENSION
             },
+            surface_max_cells: if matches!(self, Self::High) {
+                u32::MAX
+            } else {
+                crate::scene_gpu::detail::INTERACTIVE_SURFACE_DIMENSION.pow(3)
+            },
         }
     }
 

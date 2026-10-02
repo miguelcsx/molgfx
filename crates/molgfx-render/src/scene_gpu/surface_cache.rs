@@ -31,6 +31,11 @@ impl<D: Device> SurfaceFieldCache<D> {
         }
     }
 
+    /// Whether the memory budget coarsened any retained live field.
+    pub(crate) fn memory_limited(&self) -> bool {
+        self.entries.iter().any(|(key, _)| key.memory_limited)
+    }
+
     /// Physical spacing range of the retained live sampled grids.
     pub(crate) fn spacing_range(&self) -> Option<[f32; 2]> {
         self.entries.iter().fold(None, |range, (key, _)| {
