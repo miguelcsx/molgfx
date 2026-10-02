@@ -91,9 +91,13 @@ evidence for their specific boundary, not a green gate for the whole current tre
   but a reflection within an ulp of a limit can take the neighbouring shell,
   which moves other multipliers by about 1e-3. A Gemmi reference is pinned in a
   Rust test.
+- [x] Niggli cell reduction (Gruber normalization, Krivy-Gruber steps) with the
+  integer change of basis: MolFrame `niggli_reduce`, Python
+  `crystal.reduce_cell`. **Observed:** 400 random triclinic cells against Gemmi
+  0.7.5, reduced parameters to 1e-14 relative and identical bases. Primitive
+  cells only; Selling-Delaunay and Buerger-only reduction are not exposed.
 - [ ] Continue density affine/sampling consistency and the remaining
-  reciprocal-processing (cell reduction), density-from-model and FFT workflows after
-  source audit. Preserve existing CIF/PDB/BCIF, symmetry, crystal neighbors,
+  density-from-model and FFT workflows after source audit. Preserve existing CIF/PDB/BCIF, symmetry, crystal neighbors,
   maps and reflection I/O; do not introduce Gemmi as a product dependency or
   copy its implementation into the renderer.
 
