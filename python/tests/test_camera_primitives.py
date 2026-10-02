@@ -55,7 +55,12 @@ class ProjectionTests(unittest.TestCase):
         view = camera()
         scene.set_camera(view)
         size = (400, 300)
-        image = molgfx.Renderer().render_image(scene, size=size)
+        try:
+            image = molgfx.Renderer().render_image(scene, size=size)
+        except molgfx.MolgfxError as error:
+            if "no compatible GPU adapter" in str(error):
+                self.skipTest("needs a graphics adapter; headless_render.py covers it")
+            raise
         pixels = bytes(image.pixels())
         dark = [
             (index // 4 % size[0], index // 4 // size[0])
