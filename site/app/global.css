@@ -8,10 +8,6 @@ html { scrollbar-gutter: stable; }
 body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 html > body[data-scroll-locked] { margin-right: 0 !important; --removed-body-scroll-bar-size: 0 !important; }
 .hero-grid { background-color:var(--fd-background); background-image:linear-gradient(rgb(94 234 212 / 8%) 1px, transparent 1px), linear-gradient(90deg, rgb(94 234 212 / 8%) 1px, transparent 1px); background-size:28px 28px; }
-.workbench-shell { overflow:hidden; border:1px solid color-mix(in srgb, var(--fd-primary) 35%, var(--fd-border)); border-radius:1rem; background:var(--fd-card); box-shadow:0 24px 70px color-mix(in srgb, #000 16%, transparent); }
-.workbench-shell-bar { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem 1.125rem; border-bottom:1px solid var(--fd-border); background:color-mix(in srgb, var(--fd-card) 86%, var(--fd-primary) 14%); }
-.workbench-shell-status { display:inline-flex; align-items:center; gap:.4rem; border:1px solid color-mix(in srgb, var(--fd-primary) 45%, var(--fd-border)); border-radius:999px; padding:.3rem .55rem; color:var(--fd-muted-foreground); font:600 .7rem ui-monospace, SFMono-Regular, Menlo, monospace; }
-.workbench-shell-status span { width:.4rem; height:.4rem; border-radius:999px; background:var(--fd-primary); box-shadow:0 0 .6rem var(--fd-primary); }
 .home-path-card { display:flex; min-height:10.5rem; flex-direction:column; gap:.6rem; border:1px solid var(--fd-border); border-radius:.75rem; padding:1.25rem; background:color-mix(in srgb, var(--fd-card) 88%, transparent); text-decoration:none; transition:border-color .15s ease, transform .15s ease; }
 .home-path-card:hover { border-color:color-mix(in srgb, var(--fd-primary) 65%, var(--fd-border)); transform:translateY(-2px); }
 .home-path-card strong { font-size:1rem; color:var(--fd-foreground); }
@@ -21,12 +17,4 @@ html > body[data-scroll-locked] { margin-right: 0 !important; --removed-body-scr
 .figure-card img { width:100%; height:auto; display:block; background:#071d25; }
 .figure-card figcaption { padding:.75rem 1rem; font-size:.875rem; color:var(--fd-muted-foreground); }
 .figure-card strong { display:block; color:var(--fd-foreground); margin-bottom:.15rem; }
-/* Site theming for the shared viewer's plain-page embed (crates/molgfx-wasm/js). */
-.workbench-shell .molgfx-toolbar { padding:.875rem 1rem; border-bottom:1px solid var(--fd-border); }
-.workbench-shell .molgfx-file { border-color:color-mix(in srgb, var(--fd-primary) 50%, var(--fd-border)); color:var(--fd-foreground); }
-.workbench-shell .molgfx-file:hover { border-color:var(--fd-primary); background:color-mix(in srgb, var(--fd-primary) 10%, transparent); }
-.workbench-shell .molgfx-file:focus-within { outline-color:var(--fd-primary); }
-.workbench-shell .molgfx-toolbar-status { color:var(--fd-muted-foreground); }
-.workbench-shell .molgfx-toolbar-status.is-error { color:#dc2626; }
-.workbench-shell .molgfx-viewer { border:0; border-radius:0; }
-@media (max-width: 640px) { .figure-grid { grid-template-columns:1fr; } .workbench-shell-bar { align-items:flex-start; flex-direction:column; } .workbench-shell .molgfx-file { width:100%; justify-content:space-between; } }
+@media (max-width: 640px) { .figure-grid { grid-template-columns:1fr; } }

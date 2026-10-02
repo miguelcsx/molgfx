@@ -1,5 +1,5 @@
 """The authoring command language through Python: sessions, typed commands,
-errors and the Workbench transport, all without a browser."""
+errors and completion, all without a browser."""
 
 import json
 import unittest
@@ -188,48 +188,6 @@ class SessionTests(unittest.TestCase):
         vocabulary = molgfx.vocabulary()
         self.assertIn("cartoon", vocabulary["forms"])
         self.assertIn("show", [verb[0] for verb in vocabulary["verbs"]])
-
-
-class WorkbenchTransportTests(unittest.TestCase):
-    """What the Workbench exchanges with its page, driven without a browser."""
-
-    def test_a_page_command_reaches_the_canvas_as_a_patch(self):
-        from molgfx.viewer import Workbench
-
-        bench = Workbench(structure())
-        bench.command_request = {"type": "execute", "id": "1", "text": "show cartoon, protein"}
-        self.assertTrue(bench.command_reply["ok"], bench.command_reply)
-        self.assertEqual(bench.command_reply["id"], "1")
-        self.assertEqual(bench.history, ["show cartoon, protein"])
-        self.assertEqual(bench.patch_sequence, 1)
-        self.assertIn("add_representation", bench.scene_patch)
-
-    def test_a_page_error_is_reported_not_raised(self):
-        from molgfx.viewer import Workbench
-
-        bench = Workbench(structure())
-        bench.command_request = {"type": "execute", "id": "2", "text": "shwo cartoon, all"}
-        reply = bench.command_reply
-        self.assertFalse(reply["ok"])
-        self.assertEqual(reply["errors"][0]["suggestion"], "show")
-        self.assertEqual(bench.patch_sequence, 0)
-
-    def test_a_page_completion_request_is_answered(self):
-        from molgfx.viewer import Workbench
-
-        bench = Workbench(structure())
-        bench.command_request = {"type": "complete", "id": "3", "text": "show car", "cursor": 8}
-        texts = [item["text"] for item in bench.command_reply["items"]]
-        self.assertIn("cartoon", texts)
-
-    def test_kernel_commands_share_the_page_history(self):
-        from molgfx.viewer import Workbench
-
-        bench = Workbench(structure())
-        bench.execute("select site, resname HEM")
-        bench.execute("show spacefill, $site")
-        self.assertEqual(bench.history, ["select site, resname HEM", "show spacefill, $site"])
-        self.assertEqual(bench.patch_sequence, 1)
 
 
 if __name__ == "__main__":

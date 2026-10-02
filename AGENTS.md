@@ -29,7 +29,7 @@ cargo test  -p molgfx-core                  # one crate
 cargo check -p molgfx-wasm --target wasm32-unknown-unknown   # the wasm leaf, on its real target
 cargo bench -p molgfx-bench                    # declarative/runtime performance matrix
 cargo run --release -p molgfx-bench --bin frame_time STRUCTURE [FORM]   # one-frame cost of a form, publication and interactive
-node crates/molgfx-wasm/js/scripts/build.mjs --out python/molgfx/viewer/static --out site/public/runtime   # the browser runtime
+wasm-pack build crates/molgfx-wasm --target web --release --out-dir pkg   # the browser bindings and their TypeScript declarations
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --all
 ```
@@ -60,7 +60,7 @@ everywhere; the only `unsafe` is `bytemuck` POD casts for GPU upload.
 | `molgfx-command` | The authoring command language: typed commands, parser, session, undo/redo |
 | `molgfx` | Curated facade: `Scene`, `Renderer`, specs, values, and explicit namespaces |
 | `molgfx-py` | PyO3 type adapters and registration over the facade |
-| `molgfx-wasm` | Browser bindings, plus the viewer host in `js/`; builds the one browser runtime the wheel and the docs site both ship |
+| `molgfx-wasm` | Browser bindings over the facade: scene, renderer, picking, camera and controllers; renders to a canvas the page provides |
 | `molgfx-bench` | Benchmark harness |
 
 Ordinary callers import from `molgfx` only. Backends are chosen by capability,
@@ -77,6 +77,14 @@ tests beside the code they cover. Do not add a flat module at its root, and do
 not use `#[path]` or `include!` to keep one module's text in several files: a
 file that has outgrown the cap has outgrown its responsibility, so split the
 module.
+
+## What the engine is not
+
+`molgfx` is an engine, not an application. It opens no window and ships no panels,
+widgets, consoles, captions, tours or workflows; those are applications built on
+the Rust, Python and WebAssembly surfaces (`docs/00-vision-and-scope.md` §4.4 and
+ADR-0012 of the specification). When a flow cannot be written from the public API,
+add the missing general primitive to the lowest crate that owns it, never the flow.
 
 ## Project-specific gotchas
 

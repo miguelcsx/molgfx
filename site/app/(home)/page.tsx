@@ -1,7 +1,5 @@
 import Link from 'next/link';
 
-import { LiveDemo } from '@/components/live-demo';
-
 export default function HomePage() {
   return (
     <main className="hero-grid min-h-screen">
@@ -24,7 +22,7 @@ export default function HomePage() {
               Molecular structure, rendered with intent.
             </h1>
             <p className="mt-7 max-w-lg text-lg leading-8 text-fd-muted-foreground">
-              MolGFX turns MolFrame structures into interactive WebGPU scenes and deterministic images.
+              MolGFX turns MolFrame structures into GPU-rendered scenes and deterministic images, for the application you build around them.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
               <Link href="/docs" className="rounded-lg bg-fd-primary px-5 py-3 font-medium text-fd-primary-foreground">
@@ -45,20 +43,14 @@ export default function HomePage() {
               </div>
               <div>
                 <dt className="font-mono text-xs text-fd-muted-foreground">OUTPUT</dt>
-                <dd className="mt-1 font-medium">Interactive</dd>
+                <dd className="mt-1 font-medium">Images / frames</dd>
               </div>
             </dl>
           </div>
-          <div className="workbench-shell">
-            <div className="workbench-shell-bar">
-              <div>
-                <p className="font-mono text-xs font-medium tracking-wider text-teal-700 dark:text-teal-300">LIVE WORKBENCH</p>
-                <p className="mt-1 text-sm text-fd-muted-foreground">Inspect the bundled structure, then load your own.</p>
-              </div>
-              <span className="workbench-shell-status"><span aria-hidden="true" /> WebGPU</span>
-            </div>
-            <LiveDemo />
-          </div>
+          <figure className="figure-card">
+            <img src="/molgfx/images/haemoglobin-pocket.png" alt="Haemoglobin rendered by MolGFX with heme groups and an orange local protein pocket" />
+            <figcaption><strong>Haemoglobin, PDB 4HHB</strong>Cartoon context, space-filling hemes and the pocket around them, rendered by MolGFX.</figcaption>
+          </figure>
         </section>
         <section className="mt-16 grid gap-4 border-t border-fd-border pt-8 sm:grid-cols-3">
           <Link href="/docs/getting-started/first-scene" className="home-path-card">

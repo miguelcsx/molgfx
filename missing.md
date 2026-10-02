@@ -175,7 +175,7 @@ evidence for their specific boundary, not a green gate for the whole current tre
   picks resolve per copy. **Open:** the typed `SceneSpec.assembly.instances` state is
   still not lowered to placements; bonds between copies need an `InstancedBond` row
   and an instance lane on the packed bond record; copies do not yet share one
-  dataset (the viewer transports one payload per distinct source but parses one per
+  dataset (a host transports one payload per distinct source but parses one per
   copy); MolViewSpec export drops placements.
 
 ## Phase C — representation fidelity
@@ -305,10 +305,12 @@ evidence for their specific boundary, not a green gate for the whole current tre
 - [x] **P0** Selected, hovered, focused, muted, and hidden state bits are
   consumed by the shared atom/bond/visual shaders. **Check:** shader tests and
   browser selected/hovered/cleared interaction smoke.
-- [x] **P0** Browser local-file click applies replace, Shift-add, Alt-remove,
-  and Escape-clear through a scene patch and publishes one typed interaction
-  event. The patch selects the picked residue while preserving the atom pick
-  report. **Owner:** `crates/molgfx-wasm/js/src/viewer.ts`.
+- [-] **Out of scope** Browser click selection (replace, Shift-add, Alt-remove,
+  Escape-clear). It was a viewer-host behaviour; the specification keeps the
+  application shell out of the engine (`docs/00-vision-and-scope.md` §4.4,
+  ADR-0012). The engine keeps what a host builds it from: detached GPU picking,
+  `set_interaction` patches and the camera controllers. The host that did this is
+  set aside in `../backup/molgfx-shell`.
 - [~] **P0** Marker edge outline. Every G-buffer form folds its strongest
   marker (selected > focused > hovered) into the material payload
   (`visual/marker.wgsl`) and the lighting pass draws a two-pixel edge from it

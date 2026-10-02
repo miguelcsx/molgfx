@@ -8,9 +8,6 @@ license.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
-# The viewer host under js/ ships with the crate as source; its dependencies
-# and build outputs do not.
-exclude = ["js/node_modules", "js/pkg", "js/dist"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

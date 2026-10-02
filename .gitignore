@@ -28,9 +28,6 @@ target
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# The browser runtime, copied in whole from crates/molgfx-wasm/js/dist by
-# `node crates/molgfx-wasm/js/scripts/build.mjs --out python/molgfx/viewer/static`.
-python/molgfx/viewer/static/
 **/*.dSYM/
 .DS_Store
 *.log

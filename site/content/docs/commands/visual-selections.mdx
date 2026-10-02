@@ -3,7 +3,7 @@ title: Query-driven visualization
 description: Turn MolFrame queries into named visual selections, representations, color, and focus in a live MolGFX scene.
 ---
 
-MolGFX does not define a second selection language. Every representation target and Workbench `select` statement uses a MolFrame query unchanged; see [Writing queries and commands](/docs/commands/queries).
+MolGFX does not define a second selection language. Every representation target and `select` statement uses a MolFrame query unchanged; see [Writing queries and commands](/docs/commands/queries).
 
 Use a raw query for a one-off representation. Use a named selection when several visual operations should follow the same molecular region.
 
@@ -14,7 +14,7 @@ scene.add(molgfx.rep.spacefill(target="resname HEM"))
 
 ## Name a visual selection
 
-In a `Session` or `Workbench`, `select NAME, QUERY` stores the query under `$NAME`. It is a declarative definition, not a frozen list of atom rows.
+In a `Session`, `select NAME, QUERY` stores the query under `$NAME`. It is a declarative definition, not a frozen list of atom rows.
 
 ```text
 select heme, resname HEM
@@ -36,9 +36,9 @@ focus $heme
 
 Redefining `select pocket, …` retargets visual layers and color rules that use `$pocket`. The scene stays coherent without reconstructing unrelated representations.
 
-## Build a pocket in the Workbench
+## Build a pocket
 
-Paste this program into the Workbench console or pass it to `Session.execute()`:
+Pass this program to `Session.execute()`:
 
 ```text
 select heme, resname HEM
@@ -52,29 +52,17 @@ focus $heme
 
 A multi-statement program is validated as one atomic scene edit. If one statement is invalid, the scene does not change.
 
-## Work efficiently in the console
+## Completion, history and undo
 
-- **Tab** asks the session for a completion. After a command comma, it offers MolFrame query keywords and your named selections (not yet the values in the structure, such as residue names).
-- **Enter** runs the program in the current command input.
-- **Up/Down** walk Workbench command history.
+- `Session.completions(text, cursor)` offers MolFrame query keywords and your named selections after a command comma (not yet the values in the structure, such as residue names).
+- `Session.history` lists the programs that ran.
 - **Undo/redo** reverse or restore a complete successful program.
 - Errors identify their source span and may offer a spelling suggestion.
 
-The current Workbench console is the authoring interface for visual queries. Clicking the canvas reports the semantic entity under the pointer through `Workbench.pick`; it does not create or edit a selection. Application-specific click, lasso, or selection-editor UI belongs above the MolGFX scene API.
+Picking reports the semantic entity under a pixel through `Renderer.pick`; it does not create or edit a selection. Click, lasso, or selection-editor interfaces belong to the application above the MolGFX scene API.
+
 ## Interaction and verification boundary
 
-Dollar-prefixed selection references are dynamic MolFrame query dependencies; at-prefixed layer references identify retained visual layers. They are intentionally distinct. Selection mutations belong to the Session transaction/history path, while hover is local, latest-only presentation state and must not enter undo history or Python communication. A semantic pick carries structure/topology identity, instance provenance, and generation checks; stale or non-atom picks must be rejected rather than reinterpreted as atom rows. Shift adds, Alt removes (Alt takes precedence when both are held), a plain click replaces, and Escape or a background click clears.
+Dollar-prefixed selection references are dynamic MolFrame query dependencies; at-prefixed layer references identify retained visual layers. They are intentionally distinct. Selection mutations belong to the Session transaction and history path, while hover is local, latest-only presentation state and must not enter undo history. A semantic pick carries structure and topology identity, instance provenance, and generation checks; stale or non-atom picks are rejected rather than reinterpreted as atom rows.
 
-The query and command examples above remain documentation examples. No browser, Python, or Workbench scenario is claimed as passed here; rapid modifier clicks, duplicate/out-of-order events, replacement during readback, hover traffic, and selective selection invalidation require end-to-end verification.
-
-
-## Use state for reactive appearance
-
-`Scene.set_interaction()` records a MolFrame target in a state channel such as `selected`, `hovered`, or `focused`. Pair that state with a visual style when an application needs feedback beyond a static representation.
-
-```python
-scene.set_interaction(channel="selected", target="resname HEM")
-scene.set_interaction(channel="hovered", target="chain A")
-```
-
-See [Focus, interaction, and picking](/docs/scene/interaction) for the scene-state boundary, and [Commands, undo, and sessions](/docs/commands/sessions) for persistence and typed command APIs.
+The query and command examples above are documentation examples; this page does not certify any browser or device run.

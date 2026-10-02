@@ -1,6 +1,6 @@
 ---
 title: Writing queries and commands
-description: How to pick atoms with a MolFrame query, and how the Workbench command language uses them.
+description: How to pick atoms with a MolFrame query, and how the command language uses them.
 ---
 
 Two small languages work together in MolGFX:
@@ -9,8 +9,7 @@ Two small languages work together in MolGFX:
   `byres (within 5 of resname HEM) and protein`. It is MolFrame's selection
   language, used unchanged.
 - A **command** does something with a query: `show cartoon, protein`,
-  `color orange, $pocket`. Commands are what you type in the Workbench console
-  or pass to `Session.execute()`.
+  `color orange, $pocket`. Commands are text you pass to `Session.execute()`.
 
 In a command, the query always comes **after the comma**:
 
@@ -23,16 +22,14 @@ show cartoon, protein
 
 ## Try it
 
-In a notebook, open a Workbench and type in the console under the canvas
-(**Enter** runs, **Tab** completes, **↑/↓** recall):
+Open a session over a structure and run a program on it:
 
 ```python
 import molframe
-from molgfx.viewer import Workbench
+import molgfx
 
 structure = molframe.read("4hhb.cif").infer_bonds()
-bench = Workbench(structure)
-bench
+session = molgfx.Session(structure)
 ```
 
 ```text
@@ -43,7 +40,7 @@ show licorice, $pocket
 color orange, $pocket
 ```
 
-The same program runs from Python with `bench.execute("...")`. To test a
+Pass the program to `session.execute("...")`; `session.completions(text, cursor)` lists what could come next. To test a
 query without drawing anything, ask MolFrame how many atoms it selects:
 
 ```python

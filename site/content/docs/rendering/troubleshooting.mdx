@@ -3,9 +3,9 @@ title: Troubleshooting
 description: Resolve common structure, browser, command, and device issues.
 ---
 
-## The viewer says WebGPU is unavailable
+## The browser bindings report that WebGPU is unavailable
 
-Use current Chrome or Edge. Safari and Firefox require WebGPU to be enabled. The Jupyter viewer is browser-rendered; changing the Python kernel does not add browser WebGPU support.
+Use current Chrome or Edge. Safari and Firefox require WebGPU to be enabled. The bindings render in the page's browser; changing a Python kernel does not add browser WebGPU support.
 
 ## Atoms appear without sticks
 
@@ -21,7 +21,7 @@ Catch `molgfx.CommandError` and inspect its located errors. A multi-statement pr
 
 ## The scene is blank or too broad
 
-Start from `protein`, `ligand`, or a named ligand selection. Use `scene.focus("resname HEM")` or a Workbench `focus` command to direct attention to a local region. When no atoms match, test the query alone with `len(structure.select(...))` and see [Writing queries and commands](/docs/commands/queries).
+Start from `protein`, `ligand`, or a named ligand selection. Use `scene.focus("resname HEM")` or a `focus` command to direct attention to a local region. When no atoms match, test the query alone with `len(structure.select(...))` and see [Writing queries and commands](/docs/commands/queries).
 
 ## Native image rendering cannot open a device
 
