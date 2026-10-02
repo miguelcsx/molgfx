@@ -22,17 +22,18 @@ mod testing;
 pub use engine::{
     AdaptiveQuality, AdaptiveQualityConfig, AntiAliasingStyle, AttributeChunkWindow, BackdropStyle,
     BloomStyle, BondChunkPlacement, ChunkPlacementError, ChunkPlacementId, ChunkPlacementStatus,
-    ChunkRepresentation, ChunkResidencyError, ChunkResidencyMetrics, DepthCue, DepthOfField,
-    DerivedCacheBudget, DerivedCacheUsage, DisplayGamut, DisplayTransform, EffectLayer, Engine,
-    EngineConfig, FocusTarget, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport,
-    FrameStatus, FrameTiming, GpuTiming, HdrImage, IllustrationStyle, Image, ImageConfig,
+    ChunkRepresentation, ChunkResidencyError, ChunkResidencyMetrics,
+    DEFAULT_SURFACE_FIELD_BUDGET_BYTES, DepthCue, DepthOfField, DerivedCacheBudget,
+    DerivedCacheUsage, DisplayGamut, DisplayTransform, EffectLayer, Engine, EngineConfig,
+    FocusTarget, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport, FrameStatus,
+    FrameTiming, GpuTiming, HdrImage, IllustrationStyle, Image, ImageConfig,
     InstanceChunkPlacement, InstanceChunkWindow, LigandPoseStats, LightingEnvironment, MotionBlur,
     PICK_READBACK_BYTES, PendingPick, Pick, PickEntity, PointChunkPlacement, PresentationEffect,
     QualityTier, RelationChunkPlacement, RenderMode, RenderProfile, RenderSession,
     ResidentGenericChunk, ResidentStructureChunk, ResidentTrajectoryChunk, ResolvedRenderPlan,
     StructureChunkPlacement, ToneMapping, TrajectoryChunkWindow, TransferFunction,
 };
-pub use engine::{CompletedFrame, CpuStages, EffectiveQuality};
+pub use engine::{CompletedFrame, CpuStages, EffectiveQuality, SurfaceLimit};
 pub(crate) use engine::{
     DerivedCache, DerivedCacheClass, DerivedCacheKey, DerivedFootprint, MaterializationPlan,
 };

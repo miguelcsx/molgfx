@@ -367,7 +367,6 @@ pub(super) struct SlotSync<'a, D: Device> {
     pub(super) bond_cull_layout: &'a D::BindGroupLayout,
     pub(super) visual_cull_layout: &'a D::BindGroupLayout,
     pub(super) surface_field_fallback: &'a D::TextureView,
-    pub(super) surface_normal_fallback: &'a D::TextureView,
     pub(super) overlay_volume: Option<&'a ScalarVolume>,
     pub(super) overlay_view: &'a D::TextureView,
     pub(super) overlay_binding_revision: u64,

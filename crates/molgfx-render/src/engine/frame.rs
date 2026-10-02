@@ -54,7 +54,10 @@ impl<D: Device> Engine<D> {
             queue: &self.queue,
             scene,
             quality: self.tier() >= QualityTier::Standard,
-            detail: self.tier().detail(),
+            detail: self
+                .tier()
+                .detail()
+                .with_cell_budget(self.surface_field_cells),
             extent: [self.width, self.height],
             ray_query_layout: self.passes.ambient_occlusion.ray_query_layout(),
             derived_cache: &mut self.derived_cache,

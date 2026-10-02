@@ -129,6 +129,10 @@ pub enum RenderMode {
     Cinematic,
 }
 
+/// Default [`EngineConfig::surface_field_budget_bytes`]: 384 MiB, which holds a
+/// field of 33 million voxels, a cube 80 Å across at 0.25 Å spacing.
+pub const DEFAULT_SURFACE_FIELD_BUDGET_BYTES: u64 = 384 * 1024 * 1024;
+
 /// Engine construction options.
 #[derive(Clone, Debug)]
 pub struct EngineConfig {
@@ -153,6 +157,12 @@ pub struct EngineConfig {
     pub derived_cache: DerivedCacheBudget,
     /// Hard ceiling for live physical GPU buffers and textures.
     pub resource_memory_limit_bytes: Option<u64>,
+    /// Device memory one implicit-surface field may take while it is built.
+    ///
+    /// A field that would not fit is sampled more coarsely, and the output
+    /// reports the spacing it used; a larger budget buys finer surfaces of
+    /// larger structures.
+    pub surface_field_budget_bytes: u64,
     /// Maximum number of simultaneously resident dataset/namespace pick pages.
     pub picking_page_capacity: u32,
 }
@@ -170,6 +180,7 @@ impl Default for EngineConfig {
             source_budget: ResidencyBudget::default(),
             derived_cache: DerivedCacheBudget::default(),
             resource_memory_limit_bytes: None,
+            surface_field_budget_bytes: DEFAULT_SURFACE_FIELD_BUDGET_BYTES,
             picking_page_capacity: 1_024,
         }
     }

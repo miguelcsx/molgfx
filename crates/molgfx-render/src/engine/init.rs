@@ -26,6 +26,8 @@ pub struct Engine<D: Device> {
     pub(crate) queue: D::Queue,
     pub(crate) surface: Option<D::Surface>,
     pub(crate) passes: PassRegistry<D>,
+    /// Most voxels one implicit-surface field may hold.
+    pub(crate) surface_field_cells: u32,
     pub(crate) resources: Vec<ResourceDesc>,
     pub(crate) pass_nodes: Vec<PassNode<D>>,
     pub(crate) order: Vec<usize>,
@@ -70,6 +72,16 @@ pub struct Engine<D: Device> {
     pub(crate) frame_submitted_at: Option<std::time::Duration>,
 }
 
+/// The voxel count a surface-field memory budget allows, never below a field
+/// that can hold a few cells.
+fn field_budget_cells(bytes: u64) -> u32 {
+    let cells = bytes / crate::scene_gpu::detail::FIELD_BYTES_PER_VOXEL;
+    crate::fallback(u32::try_from(cells.max(MINIMUM_FIELD_CELLS)), u32::MAX)
+}
+
+/// Fewest voxels a budget may leave: a 16-cell cube.
+const MINIMUM_FIELD_CELLS: u64 = 4096;
+
 fn cull_pass<D: Device>(device: &D, scene: &GpuScene<D>) -> Result<CullPass<D>, RenderError> {
     let layouts = crate::passes::CullLayouts {
         atoms: &scene.atom_cull_layout,
@@ -102,7 +114,6 @@ fn realtime_passes<D: Device>(
             device,
             &scene.surface_field_output_layout,
             &scene.surface_field_erosion_layout,
-            &scene.surface_field_normal_layout,
             &scene.surface_field_input_layout,
         )?,
         surface_components: SurfaceComponentPass::new(device, &scene.surface_component_layout)?,
@@ -137,7 +148,7 @@ fn realtime_passes<D: Device>(
             .motion_blur()
             .map(|_| MotionBlurPass::new(device, &scene.group0_layout))
             .transpose()?,
-        tonemap: TonemapPass::new(device, target_format, &scene.group0_layout)?,
+        tonemap: TonemapPass::new(device, target_format)?,
         overlay: OverlayPass::new(
             device,
             target_format,
@@ -229,6 +240,7 @@ impl<D: Device> Engine<D> {
             queue: opened.queue,
             surface,
             passes,
+            surface_field_cells: field_budget_cells(config.surface_field_budget_bytes),
             resources,
             pass_nodes,
             order,

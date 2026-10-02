@@ -160,34 +160,68 @@ fn grid_level_value(field: f32) -> f32 {
     );
 }
 
-/// Interpolates central-difference normals generated at grid vertices.
+/// The unit normal at one grid vertex: the central difference of the field.
+///
+/// The difference runs one cell either way, or one-sided at the border, over
+/// the span it covers, and points the way the field decreases for a Gaussian
+/// density. A vertex where the field is flat has no direction and reads +z.
+fn grid_vertex_normal(vertex: vec3i) -> vec3f {
+    let size = vec3i(representation.grid_size.xyz);
+    let lower = max(vertex, vec3i(1)) - vec3i(1);
+    let upper = min(vertex + vec3i(1), size - vec3i(1));
+    let span = max(
+        vec3f(upper - lower) * representation.grid_cell.xyz,
+        vec3f(1.0e-6),
+    );
+    var gradient = vec3f(
+        textureLoad(surface_grid, vec3i(upper.x, vertex.y, vertex.z), 0).x -
+            textureLoad(surface_grid, vec3i(lower.x, vertex.y, vertex.z), 0).x,
+        textureLoad(surface_grid, vec3i(vertex.x, upper.y, vertex.z), 0).x -
+            textureLoad(surface_grid, vec3i(vertex.x, lower.y, vertex.z), 0).x,
+        textureLoad(surface_grid, vec3i(vertex.x, vertex.y, upper.z), 0).x -
+            textureLoad(surface_grid, vec3i(vertex.x, vertex.y, lower.z), 0).x,
+    ) / span;
+    if representation.options.x == SURFACE_KIND_GAUSSIAN {
+        gradient = -gradient;
+    }
+    let magnitude_sq = dot(gradient, gradient);
+    return select(
+        vec3f(0.0, 0.0, 1.0),
+        gradient * inverseSqrt(magnitude_sq),
+        magnitude_sq >= 1.0e-10,
+    );
+}
+
+/// Interpolates the central-difference normals of the eight cell vertices.
 ///
 /// Interpolating one shared value at every vertex makes the normal continuous
-/// across cell boundaries. The old derivative of each independent trilinear
-/// scalar cell jumped at those boundaries and exposed the grid in lighting.
+/// across cell boundaries. The derivative of each independent trilinear scalar
+/// cell jumped at those boundaries and exposed the grid in lighting. The
+/// vertex normals are derived here, from the field already bound, because a
+/// stored normal volume would cost as much device memory as the field itself.
 fn grid_surface_normal_sample(
     coordinate: GridCoordinate,
 ) -> vec3f {
     let lower = vec3i(coordinate.lower);
     let upper = lower + vec3i(1);
     let x00 = mix(
-        textureLoad(surface_normals, lower, 0).xyz,
-        textureLoad(surface_normals, vec3i(upper.x, lower.y, lower.z), 0).xyz,
+        grid_vertex_normal(lower),
+        grid_vertex_normal(vec3i(upper.x, lower.y, lower.z)),
         coordinate.fraction.x,
     );
     let x10 = mix(
-        textureLoad(surface_normals, vec3i(lower.x, upper.y, lower.z), 0).xyz,
-        textureLoad(surface_normals, vec3i(upper.x, upper.y, lower.z), 0).xyz,
+        grid_vertex_normal(vec3i(lower.x, upper.y, lower.z)),
+        grid_vertex_normal(vec3i(upper.x, upper.y, lower.z)),
         coordinate.fraction.x,
     );
     let x01 = mix(
-        textureLoad(surface_normals, vec3i(lower.x, lower.y, upper.z), 0).xyz,
-        textureLoad(surface_normals, vec3i(upper.x, lower.y, upper.z), 0).xyz,
+        grid_vertex_normal(vec3i(lower.x, lower.y, upper.z)),
+        grid_vertex_normal(vec3i(upper.x, lower.y, upper.z)),
         coordinate.fraction.x,
     );
     let x11 = mix(
-        textureLoad(surface_normals, vec3i(lower.x, upper.y, upper.z), 0).xyz,
-        textureLoad(surface_normals, upper, 0).xyz,
+        grid_vertex_normal(vec3i(lower.x, upper.y, upper.z)),
+        grid_vertex_normal(upper),
         coordinate.fraction.x,
     );
     return mix(

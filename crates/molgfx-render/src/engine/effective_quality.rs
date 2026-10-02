@@ -3,6 +3,19 @@
 use super::{Engine, QualityTier};
 use molgfx_gpu::Device;
 
+/// What bounded the sampling of the implicit-surface fields.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SurfaceLimit {
+    /// Nothing: every field has the spacing the tier asks for, or a limit of the
+    /// tier or device that the spacing range already reports.
+    #[default]
+    None,
+    /// The surface-field memory budget coarsened at least one field to the finest
+    /// spacing it allows.
+    Memory,
+}
+
 /// Physical output settings and the exposure work actually observed.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct EffectiveQuality {
@@ -20,6 +33,9 @@ pub struct EffectiveQuality {
     pub surface_spacing_requested: f32,
     /// Minimum and maximum spacing of the live sampled fields; absent without fields.
     pub surface_spacing_effective: Option<[f32; 2]>,
+    /// What, if anything, held the sampled surface fields to a spacing coarser
+    /// than the one requested.
+    pub surface_limit: SurfaceLimit,
     /// Selected maximum ribbon samples per trace interval.
     pub ribbon_steps_max: u8,
     /// Analytic occlusion and area-light rays per covered pixel per sample.
@@ -41,7 +57,7 @@ pub struct EffectiveQuality {
 impl serde::Serialize for EffectiveQuality {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct as _;
-        let mut state = serializer.serialize_struct("EffectiveQuality", 16)?;
+        let mut state = serializer.serialize_struct("EffectiveQuality", 17)?;
         state.serialize_field("extent", &self.extent)?;
         state.serialize_field("tier", &self.tier)?;
         state.serialize_field("samples_required", &self.samples_required)?;
@@ -49,6 +65,7 @@ impl serde::Serialize for EffectiveQuality {
         state.serialize_field("samples_completed", &self.samples_completed)?;
         state.serialize_field("surface_spacing_requested", &self.surface_spacing_requested)?;
         state.serialize_field("surface_spacing_effective", &self.surface_spacing_effective)?;
+        state.serialize_field("surface_limit", &self.surface_limit)?;
         state.serialize_field("ribbon_steps_max", &self.ribbon_steps_max)?;
         state.serialize_field("occlusion_rays_per_sample", &self.occlusion_rays_per_sample)?;
         state.serialize_field("lighting", &self.lighting)?;
@@ -68,6 +85,10 @@ impl EffectiveQuality {
     }
 
     /// Whether observed samples, residency and sampled detail satisfy the request.
+    ///
+    /// A surface coarsened by the memory budget is complete: the budget is the
+    /// engine's stated limit, and `surface_memory_limited` and
+    /// `surface_spacing_effective` report what it cost.
     #[must_use]
     pub fn complete(&self) -> bool {
         self.samples_required > 0
@@ -77,9 +98,10 @@ impl EffectiveQuality {
             && !self.progressive
             && self.lod_mode_max == 0
             && self.full_residency
-            && self.surface_spacing_effective.is_none_or(|spacing| {
-                spacing[1] <= self.surface_spacing_requested * (1.0 + f32::EPSILON)
-            })
+            && (self.surface_limit == SurfaceLimit::Memory
+                || self.surface_spacing_effective.is_none_or(|spacing| {
+                    spacing[1] <= self.surface_spacing_requested * (1.0 + f32::EPSILON)
+                }))
     }
 }
 
@@ -98,6 +120,11 @@ impl<D: Device> Engine<D> {
             samples_completed: None,
             surface_spacing_requested: tier.surface_grid_spacing(),
             surface_spacing_effective: self.scene_gpu.surface_spacing_range(),
+            surface_limit: if self.scene_gpu.surface_memory_limited() {
+                SurfaceLimit::Memory
+            } else {
+                SurfaceLimit::None
+            },
             ribbon_steps_max: tier.ribbon_steps(),
             occlusion_rays_per_sample: self.temporal.occlusion_rays(),
             lighting: self.resolved_plan.lighting(),

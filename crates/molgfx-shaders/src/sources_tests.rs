@@ -1,7 +1,6 @@
 use super::{
     GEOMETRY_BOND, GEOMETRY_BOND_SPECIALIZED, GEOMETRY_CARTOON, GEOMETRY_CARTOON_SPECIALIZED,
     GEOMETRY_SPHERE, GEOMETRY_SPHERE_SPECIALIZED, GEOMETRY_SURFACE, SHADOW_RIBBON,
-    SURFACE_FIELD_NORMAL,
 };
 
 #[test]
@@ -187,7 +186,10 @@ fn grid_surfaces_use_sign_bracketed_hits_and_continuous_normals() {
     assert!(GEOMETRY_SURFACE.contains("if level <= 0.0"));
     assert!(!GEOMETRY_SURFACE.contains("SURFACE_MARCH_CELL_FRACTION"));
     assert!(GEOMETRY_SURFACE.contains("surface_nearest_atom(hit)"));
-    assert!(SURFACE_FIELD_NORMAL.contains("texture_storage_3d<rgba8snorm, write>"));
+    // The normal is interpolated between vertex normals taken from the field
+    // itself, so no second volume is stored beside it.
+    assert!(GEOMETRY_SURFACE.contains("fn grid_vertex_normal"));
+    assert!(!GEOMETRY_SURFACE.contains("surface_normals"));
 }
 
 #[test]

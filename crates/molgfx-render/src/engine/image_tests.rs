@@ -9,6 +9,7 @@ fn unrendered_quality() -> crate::EffectiveQuality {
         samples_completed: None,
         surface_spacing_requested: 0.25,
         surface_spacing_effective: None,
+        surface_limit: crate::SurfaceLimit::None,
         ribbon_steps_max: 8,
         occlusion_rays_per_sample: 0,
         lighting: crate::LightingEnvironment::neutral(),

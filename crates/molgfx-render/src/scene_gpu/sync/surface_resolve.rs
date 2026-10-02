@@ -26,6 +26,11 @@ impl<D: Device> GpuScene<D> {
         self.surface_fields.spacing_range()
     }
 
+    /// Whether the memory budget coarsened any live surface field.
+    pub(crate) fn surface_memory_limited(&self) -> bool {
+        self.surface_fields.memory_limited()
+    }
+
     /// Largest active cull mode; zero means analytic geometry is not replaced.
     pub(crate) fn lod_mode_max(&self) -> u32 {
         self.slots
@@ -96,8 +101,7 @@ impl<D: Device> GpuScene<D> {
                 representation,
                 selection_bounds,
                 overlay_volume,
-                detail.surface_spacing,
-                detail.surface_dimension_limit(device.capabilities().max_texture_dim_3d),
+                detail.grid_limits(device.capabilities().max_texture_dim_3d),
             );
             // Every colour column is resolved from the same arena the visual
             // programs sample, so a property or category scheme, an overlay
@@ -114,7 +118,6 @@ impl<D: Device> GpuScene<D> {
                 output_layout: &self.surface_field_output_layout,
                 input_layout: &self.surface_field_input_layout,
                 erosion_layout: &self.surface_field_erosion_layout,
-                normal_layout: &self.surface_field_normal_layout,
                 component_layout: &self.surface_component_layout,
                 key,
                 policy: representation.params.surface_components,

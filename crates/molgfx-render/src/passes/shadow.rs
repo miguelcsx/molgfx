@@ -7,11 +7,11 @@ use crate::passes::primitive_pipelines::PRIMITIVE_QUAD_VERTICES;
 use crate::passes::primitive_shadow_pipelines::PrimitiveShadowPipelineSet;
 use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
 use crate::passes::{Lazy, SHADOW_RESOURCE};
-use crate::scene_gpu::DrawFamily;
+use crate::scene_gpu::{DrawFamily, GpuScene};
 use molgfx_gpu::{
     CommandEncoder as _, CompareFunction, DepthAttachment, DepthLoadOp, DepthState, Device,
-    PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _, RenderPipelineDesc,
-    ShaderModuleDesc, TextureFormat,
+    PrimitiveTopology, RenderPassDesc, RenderPassEncoder, RenderPipelineDesc, ShaderModuleDesc,
+    TextureFormat,
 };
 
 /// The shadow-map pipelines, one family per kind of caster, each built the
@@ -207,52 +207,46 @@ impl<D: Device> ShadowPass<D> {
             timestamps: ctx.timestamps,
         });
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
-        let mut bound: Option<*const D::Pipeline> = None;
-        if let Some(arena) = ctx.scene.indirect_args() {
-            for (group, offset, shading, specialized) in ctx.scene.shadow_atom_draws(ctx.quality) {
-                let Some(set) = shadow.sphere.build_in(&env, &mut *ctx.failure, |env| {
-                    analytic_set(
-                        env,
-                        "sphere shadow map",
-                        "vs_shadow_sphere",
-                        "fs_shadow_sphere",
-                    )
-                }) else {
-                    break;
-                };
-                let pipeline = set.select(shading, specialized);
-                if bound != Some(std::ptr::from_ref(pipeline)) {
-                    pass.set_pipeline(pipeline);
-                    bound = Some(std::ptr::from_ref(pipeline));
-                }
-                pass.set_bind_group(2, group, &[]);
-                pass.draw_indirect(arena, offset);
-            }
-        }
-        bound = None;
-        if let Some(arena) = ctx.scene.indirect_args() {
-            for (group, offset, shading, specialized) in ctx.scene.shadow_bond_draws(ctx.quality) {
-                let Some(set) = shadow.bond.build_in(&env, &mut *ctx.failure, |env| {
-                    analytic_set(env, "bond shadow map", "vs_shadow_bond", "fs_shadow_bond")
-                }) else {
-                    break;
-                };
-                let pipeline = set.select(shading, specialized);
-                if bound != Some(std::ptr::from_ref(pipeline)) {
-                    pass.set_pipeline(pipeline);
-                    bound = Some(std::ptr::from_ref(pipeline));
-                }
-                pass.set_bind_group(2, group, &[]);
-                pass.draw_indirect(arena, offset);
-            }
-        }
-        bound = None;
-        for (group, args, shading, specialized) in ctx
-            .scene
-            .cartoon_draws(false, DrawFamily::ShadowRibbon)
-            .chain(ctx.scene.mesh_draws(false))
-        {
-            let Some(set) = shadow.ribbon.build_in(&env, &mut *ctx.failure, ribbon_set) else {
+        let quality = ctx.quality;
+        record_analytic_casters(
+            &mut pass,
+            ctx.scene,
+            shadow,
+            &env,
+            &mut *ctx.failure,
+            quality,
+        );
+        record_primitive_casters(
+            &mut pass,
+            ctx.scene,
+            shadow,
+            &env,
+            &mut *ctx.failure,
+            quality,
+        );
+    }
+}
+
+/// Spheres, bonds and ribbons: the casters that share one pipeline-change rule.
+fn record_analytic_casters<D: Device, P: RenderPassEncoder<D>>(
+    pass: &mut P,
+    scene: &GpuScene<D>,
+    shadow: &ShadowPass<D>,
+    env: &PassEnv<'_, D>,
+    failure: &mut Option<RenderError>,
+    quality: bool,
+) {
+    let mut bound: Option<*const D::Pipeline> = None;
+    if let Some(arena) = scene.indirect_args() {
+        for (group, offset, shading, specialized) in scene.shadow_atom_draws(quality) {
+            let Some(set) = shadow.sphere.build_in(env, &mut *failure, |env| {
+                analytic_set(
+                    env,
+                    "sphere shadow map",
+                    "vs_shadow_sphere",
+                    "fs_shadow_sphere",
+                )
+            }) else {
                 break;
             };
             let pipeline = set.select(shading, specialized);
@@ -261,47 +255,91 @@ impl<D: Device> ShadowPass<D> {
                 bound = Some(std::ptr::from_ref(pipeline));
             }
             pass.set_bind_group(2, group, &[]);
-            pass.draw_indirect(args, 0);
+            pass.draw_indirect(arena, offset);
         }
-        if let Some((group, runs)) = ctx.scene.primitive_shadow_draw(ctx.quality) {
-            pass.set_bind_group(2, group, &[]);
-            for run in runs {
-                let Some(set) = shadow.primitive.build_in(&env, &mut *ctx.failure, |env| {
-                    PrimitiveShadowPipelineSet::new(
-                        env.device,
-                        &env.scene.group0_layout,
-                        &env.scene.primitive_shadow_layout,
-                        SHADOW_DEPTH,
-                    )
-                }) else {
-                    break;
-                };
-                let Some(pipeline) = set.pipeline(run) else {
-                    continue;
-                };
+    }
+    bound = None;
+    if let Some(arena) = scene.indirect_args() {
+        for (group, offset, shading, specialized) in scene.shadow_bond_draws(quality) {
+            let Some(set) = shadow.bond.build_in(env, &mut *failure, |env| {
+                analytic_set(env, "bond shadow map", "vs_shadow_bond", "fs_shadow_bond")
+            }) else {
+                break;
+            };
+            let pipeline = set.select(shading, specialized);
+            if bound != Some(std::ptr::from_ref(pipeline)) {
                 pass.set_pipeline(pipeline);
-                pass.draw(0..PRIMITIVE_QUAD_VERTICES, run.first..run.first + run.len);
+                bound = Some(std::ptr::from_ref(pipeline));
             }
+            pass.set_bind_group(2, group, &[]);
+            pass.draw_indirect(arena, offset);
         }
-        if let Some((group, args, runs)) = ctx.scene.ligand_pose_shadow_draws(ctx.quality) {
-            pass.set_bind_group(2, group, &[]);
-            for run in runs.iter().filter(|run| !run.translucent) {
-                let Some(set) = shadow.ligand_pose.build_in(&env, &mut *ctx.failure, |env| {
-                    LigandPosePipelineSet::shadow(
-                        env.device,
-                        &env.scene.group0_layout,
-                        &env.scene.ligand_pose_layout,
-                        SHADOW_DEPTH,
-                    )
-                }) else {
-                    break;
-                };
-                let Some(pipeline) = set.pipeline(run) else {
-                    continue;
-                };
-                pass.set_pipeline(pipeline);
-                pass.draw_indirect(args, run.args_offset);
-            }
+    }
+    bound = None;
+    for (group, args, shading, specialized) in scene
+        .cartoon_draws(false, DrawFamily::ShadowRibbon)
+        .chain(scene.mesh_draws(false))
+    {
+        let Some(set) = shadow.ribbon.build_in(env, &mut *failure, ribbon_set) else {
+            break;
+        };
+        let pipeline = set.select(shading, specialized);
+        if bound != Some(std::ptr::from_ref(pipeline)) {
+            pass.set_pipeline(pipeline);
+            bound = Some(std::ptr::from_ref(pipeline));
+        }
+        pass.set_bind_group(2, group, &[]);
+        pass.draw_indirect(args, 0);
+    }
+}
+
+/// Heterogeneous analytic primitives and ligand poses.
+fn record_primitive_casters<D: Device, P: RenderPassEncoder<D>>(
+    pass: &mut P,
+    scene: &GpuScene<D>,
+    shadow: &ShadowPass<D>,
+    env: &PassEnv<'_, D>,
+    failure: &mut Option<RenderError>,
+    quality: bool,
+) {
+    if let Some((group, runs)) = scene.primitive_shadow_draw(quality) {
+        pass.set_bind_group(2, group, &[]);
+        for run in runs {
+            let Some(set) = shadow.primitive.build_in(env, &mut *failure, |env| {
+                PrimitiveShadowPipelineSet::new(
+                    env.device,
+                    &env.scene.group0_layout,
+                    &env.scene.primitive_shadow_layout,
+                    SHADOW_DEPTH,
+                )
+            }) else {
+                break;
+            };
+            let Some(pipeline) = set.pipeline(run) else {
+                continue;
+            };
+            pass.set_pipeline(pipeline);
+            pass.draw(0..PRIMITIVE_QUAD_VERTICES, run.first..run.first + run.len);
+        }
+    }
+    if let Some((group, args, runs)) = scene.ligand_pose_shadow_draws(quality) {
+        pass.set_bind_group(2, group, &[]);
+        for run in runs.iter().filter(|run| !run.translucent) {
+            let Some(set) = shadow.ligand_pose.build_in(env, &mut *failure, |env| {
+                LigandPosePipelineSet::shadow(
+                    env.device,
+                    &env.scene.group0_layout,
+                    &env.scene.ligand_pose_layout,
+                    SHADOW_DEPTH,
+                )
+            }) else {
+                break;
+            };
+            let Some(pipeline) = set.pipeline(run) else {
+                continue;
+            };
+            pass.set_pipeline(pipeline);
+            pass.draw_indirect(args, run.args_offset);
         }
     }
 }

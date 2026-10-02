@@ -72,9 +72,11 @@ pub(crate) fn oit<D: Device>(
     OitPass::new(
         env.device,
         layout,
-        &env.scene.group0_layout,
-        &env.scene.group2_layout,
-        &env.scene.ribbon_layout,
+        (
+            &env.scene.group0_layout,
+            &env.scene.group2_layout,
+            &env.scene.ribbon_layout,
+        ),
         (&env.scene.primitive_layout, &env.scene.ligand_pose_layout),
         (
             &env.scene.generic_point_render_layout,

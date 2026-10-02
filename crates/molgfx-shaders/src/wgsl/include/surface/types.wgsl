@@ -63,7 +63,6 @@ struct SurfaceFrame {
 }
 
 @group(2) @binding(10) var surface_grid: texture_3d<f32>;
-@group(2) @binding(11) var surface_normals: texture_3d<f32>;
 
 fn surface_miss() -> SurfaceHit {
     return SurfaceHit(

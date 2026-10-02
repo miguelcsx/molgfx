@@ -29,6 +29,8 @@ pub(crate) struct FieldSampling {
     pub(crate) grid_min: [f32; 3],
     pub(crate) grid_cell: f32,
     pub(crate) grid_size: [u32; 4],
+    /// The memory budget, not the device or an axis limit, coarsened the cell.
+    pub(crate) memory_limited: bool,
 }
 
 /// Everything that forces a field to be generated, and nothing else.
@@ -52,6 +54,8 @@ pub(crate) struct SurfaceFieldKey {
     pub(crate) grid_cell: u32,
     /// Sampled grid dimensions.
     pub(crate) grid_size: [u32; 4],
+    /// Whether the memory budget coarsened the sampled grid.
+    pub(crate) memory_limited: bool,
     /// Connected-component policy: threshold tag, payload and ceiling.
     pub(crate) components: [u64; 3],
 }
@@ -72,6 +76,7 @@ impl SurfaceFieldKey {
             grid_min,
             grid_cell,
             grid_size,
+            memory_limited,
         } = sampling;
         Self {
             geometry,
@@ -83,6 +88,7 @@ impl SurfaceFieldKey {
             grid_min: grid_min.map(f32::to_bits),
             grid_cell: grid_cell.to_bits(),
             grid_size,
+            memory_limited,
             components: component_key(representation.params.surface_components),
         }
     }
@@ -164,18 +170,17 @@ impl<D: Device> FieldTexture<D> {
 #[derive(Debug)]
 pub(super) struct SharedField<D: Device> {
     /// Probe-inflated distance field: the generation input, and the shading
-    /// field for boundaries that neither erode nor filter.
-    pub(super) inflated: FieldTexture<D>,
+    /// field for boundaries that neither erode nor filter. A boundary that
+    /// erodes lets it go once the eroded field exists, since nothing reads it
+    /// again and it is as large as the field shading uses.
+    pub(super) inflated: Option<FieldTexture<D>>,
     /// Eroded solvent-excluded field, for boundaries that erode.
     pub(super) field: Option<FieldTexture<D>>,
-    /// Compact normals of whichever field shading reads.
-    pub(super) normals: FieldTexture<D>,
     /// Connected-component working set, for policies that filter.
     pub(super) components: Option<SurfaceComponents<D>>,
-    /// Generation output, erosion pair, normals pair and generation input.
-    pub(super) output: D::BindGroup,
+    /// Generation output, erosion pair and generation input.
+    pub(super) output: Option<D::BindGroup>,
     pub(super) erosion: Option<D::BindGroup>,
-    pub(super) normal_output: D::BindGroup,
     pub(super) input: D::BindGroup,
     /// The field's own copy of the representation uniforms.
     ///
@@ -199,14 +204,27 @@ pub(super) struct SharedField<D: Device> {
 
 impl<D: Device> SharedField<D> {
     /// The field shading reads: filtered, eroded or inflated, in that order.
+    ///
+    /// Absent only for a boundary that erodes and has not yet released its
+    /// input, which never leaves it without the eroded field.
     #[must_use]
-    pub(super) fn shading_field(&self) -> &D::TextureView {
+    pub(super) fn shading_field(&self) -> Option<&D::TextureView> {
         if let Some(filtered) = self.components.as_ref().and_then(SurfaceComponents::field) {
-            return filtered;
+            return Some(filtered);
         }
-        match &self.field {
-            Some(field) => &field.view,
-            None => &self.inflated.view,
+        match (&self.field, &self.inflated) {
+            (Some(field), _) => Some(&field.view),
+            (None, inflated) => inflated.as_ref().map(|inflated| &inflated.view),
+        }
+    }
+
+    /// Lets the generation input go; only a boundary that erodes may, because
+    /// otherwise the inflated field is the one shading reads.
+    pub(super) fn release_generation_input(&mut self) {
+        if self.field.is_some() {
+            self.inflated = None;
+            self.output = None;
+            self.erosion = None;
         }
     }
 
@@ -218,14 +236,14 @@ impl<D: Device> SharedField<D> {
             .iter()
             .copied()
             .fold(1u64, |each, axis| each.saturating_mul(u64::from(axis)));
-        // One R32Float field always, a second when the boundary erodes, one
-        // Rgba8Snorm for the normals, and one more when the component filter
-        // retains a working set.
-        let fields = 1 + u64::from(self.field.is_some());
+        // The R32Float fields still held, and one more when the component
+        // filter retains a working set. Shading derives normals from the
+        // field itself, so none is stored.
+        let fields = u64::from(self.inflated.is_some()) + u64::from(self.field.is_some());
         let filtered = u64::from(self.components.is_some());
         cells
             .saturating_mul(4)
-            .saturating_mul(fields + 1 + filtered)
+            .saturating_mul(fields + filtered)
             .saturating_add(self.erosion_offsets_size)
             .saturating_add(std::mem::size_of::<RepresentationUniforms>() as u64)
     }
@@ -238,7 +256,6 @@ pub(super) struct FieldSync<'a, D: Device> {
     pub(super) output_layout: &'a D::BindGroupLayout,
     pub(super) input_layout: &'a D::BindGroupLayout,
     pub(super) erosion_layout: &'a D::BindGroupLayout,
-    pub(super) normal_layout: &'a D::BindGroupLayout,
     pub(super) component_layout: &'a D::BindGroupLayout,
     pub(super) key: SurfaceFieldKey,
     /// The policy the key encodes, for the component uniforms.
@@ -273,12 +290,6 @@ pub(super) fn build_field<D: Device>(
     } else {
         None
     };
-    let normals = FieldTexture::create(
-        sync.device,
-        dimensions,
-        "continuous surface normals",
-        TextureFormat::Rgba8Snorm,
-    )?;
     let (erosion_offsets, erosion_offsets_size) = match &field {
         Some(_) => {
             let (buffer, size) = probe_buffer(sync)?;
@@ -314,18 +325,15 @@ pub(super) fn build_field<D: Device>(
         sync,
         &inflated,
         field.as_ref(),
-        &normals,
         &uniforms,
         erosion_offsets.as_ref(),
     );
     Ok(SharedField {
-        inflated,
+        inflated: Some(inflated),
         field,
-        normals,
         components,
-        output: groups.output,
+        output: Some(groups.output),
         erosion: groups.erosion,
-        normal_output: groups.normal_output,
         input: groups.input,
         _uniforms: uniforms,
         _erosion_offsets: erosion_offsets,
@@ -340,7 +348,6 @@ pub(super) fn build_field<D: Device>(
 struct FieldGroups<D: Device> {
     output: D::BindGroup,
     erosion: Option<D::BindGroup>,
-    normal_output: D::BindGroup,
     input: D::BindGroup,
 }
 
@@ -354,7 +361,6 @@ impl<D: Device> FieldGroups<D> {
         sync: &FieldSync<'_, D>,
         inflated: &FieldTexture<D>,
         field: Option<&FieldTexture<D>>,
-        normals: &FieldTexture<D>,
         uniforms: &D::Buffer,
         erosion_offsets: Option<&D::Buffer>,
     ) -> Self {
@@ -411,24 +417,9 @@ impl<D: Device> FieldGroups<D> {
                 ],
             })
         });
-        let normal_output = sync.device.create_bind_group(&BindGroupDesc {
-            label: "surface field normals",
-            layout: sync.normal_layout,
-            entries: &[
-                BindGroupEntry::Texture {
-                    binding: 0,
-                    view: &shading.view,
-                },
-                BindGroupEntry::Texture {
-                    binding: 1,
-                    view: &normals.view,
-                },
-            ],
-        });
         Self {
             output,
             erosion,
-            normal_output,
             input,
         }
     }

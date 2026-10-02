@@ -19,6 +19,7 @@ impl<T> Default for Lazy<T> {
 
 impl<T> Lazy<T> {
     /// The value if some frame has already built it.
+    #[cfg(test)]
     pub(crate) fn get(&self) -> Option<&T> {
         self.0.get()
     }
@@ -35,8 +36,8 @@ impl<T> Lazy<T> {
         if let Some(value) = self.0.get() {
             return Ok(value);
         }
-        let built = build()?;
-        Ok(self.0.get_or_init(|| built))
+        let fresh = build()?;
+        Ok(self.0.get_or_init(|| fresh))
     }
 }
 

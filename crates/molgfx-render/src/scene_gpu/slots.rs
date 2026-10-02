@@ -255,7 +255,6 @@ impl<D: Device> GpuSlot<D> {
             structure: input.structure_gpu,
             asset_arena: input.asset_arena,
             surface_field_fallback: input.surface_field_fallback,
-            surface_normal_fallback: input.surface_normal_fallback,
             surface_fields: input.surface_fields,
             overlay: input.overlay_view,
             visual_programs: input.visual_program_buffer,
@@ -417,12 +416,9 @@ impl<D: Device> GpuSlot<D> {
                 input.representation,
                 selection_bounds,
                 input.overlay_volume,
-                (
-                    input.detail.surface_spacing,
-                    input
-                        .detail
-                        .surface_dimension_limit(input.device.capabilities().max_texture_dim_3d),
-                ),
+                input
+                    .detail
+                    .grid_limits(input.device.capabilities().max_texture_dim_3d),
             );
         }
         // The colour block changes with the scheme, which is presentation

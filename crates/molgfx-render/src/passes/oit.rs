@@ -63,9 +63,11 @@ impl<D: Device> OitPass<D> {
     pub(crate) fn new(
         device: &D,
         layout: &D::BindGroupLayout,
-        group0: &D::BindGroupLayout,
-        group2: &D::BindGroupLayout,
-        ribbon: &D::BindGroupLayout,
+        (group0, group2, ribbon): (
+            &D::BindGroupLayout,
+            &D::BindGroupLayout,
+            &D::BindGroupLayout,
+        ),
         analytic: (&D::BindGroupLayout, &D::BindGroupLayout),
         generic: (&D::BindGroupLayout, &D::BindGroupLayout),
         categorical: (&D::BindGroupLayout, &D::BindGroupLayout),
@@ -354,35 +356,9 @@ fn record<D: Device>(ctx: &mut PassContext<'_, D>, primitive: Primitive) {
     pass.set_bind_group(1, oit, &[]);
     match primitive {
         Primitive::Spheres => record_spheres(oit_pass, ctx.scene, &mut pass),
-        Primitive::Bonds => {
-            let mut bound = None;
-            if let Some(arena) = ctx.scene.indirect_args() {
-                for (group, offset, shading, _) in ctx.scene.bond_draws(true) {
-                    if bound != Some(shading) {
-                        pass.set_pipeline(if shading.wire() {
-                            oit_pass.wire.get(shading)
-                        } else {
-                            oit_pass.bond.get(shading)
-                        });
-                        bound = Some(shading);
-                    }
-                    pass.set_bind_group(2, group, &[]);
-                    pass.draw_indirect(arena, offset);
-                }
-            }
-        }
+        Primitive::Bonds => record_bonds(oit_pass, ctx.scene, &mut pass),
         Primitive::Points => {
-            let mut bound = None;
-            if let Some(arena) = ctx.scene.indirect_args() {
-                for (group, offset, shading, _) in ctx.scene.point_draws(true) {
-                    if bound != Some(shading) {
-                        pass.set_pipeline(oit_pass.point.get(shading));
-                        bound = Some(shading);
-                    }
-                    pass.set_bind_group(2, group, &[]);
-                    pass.draw_indirect(arena, offset);
-                }
-            }
+            record_points(oit_pass, ctx.scene, &mut pass);
             record_generic_points(oit_pass, ctx.scene, &mut pass);
         }
         Primitive::Cartoons => {
@@ -427,6 +403,46 @@ use pipelines::{
 };
 use pipelines::{generic_instance_pipelines, sphere_pipelines, surface_pipelines};
 use record::{record_primitives, record_spheres, record_surfaces};
+
+fn record_bonds<D: Device, P: molgfx_gpu::RenderPassEncoder<D>>(
+    oit: &OitPass<D>,
+    scene: &crate::scene_gpu::GpuScene<D>,
+    pass: &mut P,
+) {
+    let mut bound = None;
+    if let Some(arena) = scene.indirect_args() {
+        for (group, offset, shading, _) in scene.bond_draws(true) {
+            if bound != Some(shading) {
+                pass.set_pipeline(if shading.wire() {
+                    oit.wire.get(shading)
+                } else {
+                    oit.bond.get(shading)
+                });
+                bound = Some(shading);
+            }
+            pass.set_bind_group(2, group, &[]);
+            pass.draw_indirect(arena, offset);
+        }
+    }
+}
+
+fn record_points<D: Device, P: molgfx_gpu::RenderPassEncoder<D>>(
+    oit: &OitPass<D>,
+    scene: &crate::scene_gpu::GpuScene<D>,
+    pass: &mut P,
+) {
+    let mut bound = None;
+    if let Some(arena) = scene.indirect_args() {
+        for (group, offset, shading, _) in scene.point_draws(true) {
+            if bound != Some(shading) {
+                pass.set_pipeline(oit.point.get(shading));
+                bound = Some(shading);
+            }
+            pass.set_bind_group(2, group, &[]);
+            pass.draw_indirect(arena, offset);
+        }
+    }
+}
 
 fn record_generic_points<D: Device, P: molgfx_gpu::RenderPassEncoder<D>>(
     oit: &OitPass<D>,

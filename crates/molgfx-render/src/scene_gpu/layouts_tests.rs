@@ -103,7 +103,7 @@ fn every_representation_binding_is_declared_in_both_layouts() {
     assert_eq!(
         representation,
         vec![
-            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19, 20
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 16, 17, 18, 19, 20
         ],
         "the representation layout's bindings are fixed by the group2 a slot builds"
     );

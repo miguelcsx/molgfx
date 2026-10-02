@@ -370,14 +370,11 @@ fn solvent_excluded_field_generates_once_and_not_on_an_unchanged_frame() {
     };
     assert_eq!(
         before.len(),
-        3,
-        "SES generates its field, erosion and continuous normals once"
+        2,
+        "SES generates its field and erosion once; shading derives its own normals"
     );
     assert!(before[0].0 > 1, "the field contains many workgroups");
-    assert!(
-        before.windows(2).all(|pair| pair[0] == pair[1]),
-        "all three stages cover the same grid"
-    );
+    assert_eq!(before[0], before[1], "both stages cover the same grid");
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("unchanged frame renders: {error}")
     }
@@ -416,14 +413,13 @@ fn gaussian_surface_generates_one_persistent_field_dispatch() {
     };
     assert_eq!(
         before.len(),
-        2,
-        "Gaussian surfaces generate one scalar field and its normals"
+        1,
+        "Gaussian surfaces generate one scalar field and nothing beside it"
     );
     assert!(
         before[0].0 > 1,
         "the Gaussian field contains many workgroups"
     );
-    assert_eq!(before[0], before[1], "both stages cover the same grid");
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("unchanged Gaussian frame renders: {error}")
     }

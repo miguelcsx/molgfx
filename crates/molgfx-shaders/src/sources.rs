@@ -157,10 +157,6 @@ pub const SURFACE_FIELD_COMPUTE: &str =
 pub const SURFACE_FIELD_ERODE: &str =
     include_str!(concat!(env!("OUT_DIR"), "/surface_field_erode.wgsl"));
 
-/// Compact continuous normals generated from the final molecular field.
-pub const SURFACE_FIELD_NORMAL: &str =
-    include_str!(concat!(env!("OUT_DIR"), "/surface_field_normal.wgsl"));
-
 /// Working-set connected-component labeling and sampled-field filtering.
 pub const SURFACE_COMPONENT_FILTER: &str =
     include_str!(concat!(env!("OUT_DIR"), "/surface_component_filter.wgsl"));
@@ -277,7 +273,6 @@ pub const UNITS: &[(&str, &str)] = &[
     ("surface_component_filter", SURFACE_COMPONENT_FILTER),
     ("surface_field_compute", SURFACE_FIELD_COMPUTE),
     ("surface_field_erode", SURFACE_FIELD_ERODE),
-    ("surface_field_normal", SURFACE_FIELD_NORMAL),
     ("temporal_resolve", TEMPORAL_RESOLVE),
     ("tonemap", TONEMAP),
     ("trajectory", TRAJECTORY),

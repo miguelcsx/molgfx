@@ -57,13 +57,13 @@ pub use chunk_residency_types::{
     ResidentTrajectoryChunk,
 };
 pub use config::{
-    CompletedFrame, EngineConfig, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport,
-    FrameStatus, RenderMode,
+    CompletedFrame, DEFAULT_SURFACE_FIELD_BUDGET_BYTES, EngineConfig, FrameCompleteness,
+    FrameDegradation, FrameMetrics, FrameReport, FrameStatus, RenderMode,
 };
 pub use cpu_stages::CpuStages;
 pub use depth_cue::DepthCue;
 pub use derived_cache::{DerivedCacheBudget, DerivedCacheUsage};
-pub use effective_quality::EffectiveQuality;
+pub use effective_quality::{EffectiveQuality, SurfaceLimit};
 pub use gpu_timing::GpuTiming;
 pub use hdr_image::HdrImage;
 pub use image::{Image, ImageConfig};

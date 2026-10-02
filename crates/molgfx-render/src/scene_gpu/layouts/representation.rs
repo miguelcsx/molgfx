@@ -13,7 +13,7 @@ pub(super) fn representation_layout<D: Device>(
     }))
 }
 
-fn representation_entries() -> [BindGroupLayoutEntry; 20] {
+fn representation_entries() -> [BindGroupLayoutEntry; 19] {
     [
         storage_visible(0, all_stages()),
         storage_visible(1, all_stages()),
@@ -37,11 +37,6 @@ fn representation_entries() -> [BindGroupLayoutEntry; 20] {
         },
         BindGroupLayoutEntry {
             binding: 10,
-            visibility: ShaderStages::FRAGMENT,
-            ty: BindingType::Texture3dFloat { filterable: false },
-        },
-        BindGroupLayoutEntry {
-            binding: 11,
             visibility: ShaderStages::FRAGMENT,
             ty: BindingType::Texture3dFloat { filterable: false },
         },
