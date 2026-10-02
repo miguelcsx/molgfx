@@ -21,6 +21,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - run: cargo test --workspace --all-features
       - run: RUSTDOCFLAGS='-Dwarnings' cargo test --workspace --all-features --doc
+      - run: RUSTDOCFLAGS='-Dwarnings' cargo doc --workspace --all-features --no-deps
       - run: cargo test -p molgfx-shaders --all-features
       - run: cargo bench --workspace --no-run
       - name: Repository policy

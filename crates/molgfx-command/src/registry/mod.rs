@@ -1,7 +1,7 @@
 //! The command vocabulary, listed for completion, help and suggestions.
 //!
 //! Everything the parser accepts by name is declared here once: the verbs, the
-//! forms and their controls (through [`FormKind`]), the colour schemes, the
+//! forms and their controls (through [`FormKind`](crate::ir::FormKind)), the colour schemes, the
 //! named colours and the property ramps. A user interface lists exactly what
 //! the parser accepts, and a misspelling is matched against the same table.
 
