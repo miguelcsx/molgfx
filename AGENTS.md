@@ -32,6 +32,9 @@ cargo run --release -p molgfx-bench --bin frame_time STRUCTURE [FORM]   # one-fr
 cargo run --release -p molgfx-bench --bin frame_time -- --case L2 --cache ~/.cache/molgfx-corpus --recipe interactive   # ladder scene; interactive = one single-sample frame per output, converged = full exposure
 cargo run --release -p molgfx-bench --bin parity -- --manifest crates/molgfx-bench/parity/gallery.json --cache ~/.cache/molgfx-corpus --output target/gallery --case B-cartoon-4HHB --recipe molgfx-converged --recipe molgfx-interactive   # gallery sheets; add --references DIR [--bless] for golden checks
 wasm-pack build crates/molgfx-wasm --target web --release --out-dir pkg   # the browser bindings and their TypeScript declarations
+ruff format .                              # every Python file in the repository
+ruff check                                 # the shipped surface, every rule enabled
+mypy                                       # the shipped surface, strict mode
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --all
 ```
@@ -82,11 +85,17 @@ module.
 
 ## What the engine is not
 
-`molgfx` is an engine, not an application. It opens no window and ships no panels,
-widgets, consoles, captions, tours or workflows; those are applications built on
-the Rust, Python and WebAssembly surfaces (`docs/00-vision-and-scope.md` §4.4 and
-ADR-0012 of the specification). When a flow cannot be written from the public API,
-add the missing general primitive to the lowest crate that owns it, never the flow.
+The Rust engine is not an application: it opens no window and owns no DOM,
+panels, consoles, tours or workflows. The repository also ships the canonical
+interactive canvas host in `web/`, published as the single npm package `molgfx`.
+`molgfx-wasm` remains a Rust-only binding; generated JS/WASM is internal to the
+web runtime. Canvas lifecycle, DPR, scheduling and browser input belong to the
+web viewer. React and Python AnyWidget are lifecycle/transport adapters over
+that same viewer, not independent renderers. Commands delegate to Session and
+molecular semantics remain in MolFrame. Application UI belongs to MolStation;
+do not restore Workbench, toolbar, console or file-picker UI here. When a flow
+cannot be written from the public API, add the missing general primitive to
+the lowest layer that owns it, never an application-specific flow.
 
 ## Project-specific gotchas
 
@@ -116,6 +125,12 @@ Things an agent would get wrong without being told (full rules in `RULES.md`):
   must lower cleanly; two validators that disagree is the bug that registry
   exists to prevent.
 - **No `unsafe` in product code.** POD upload types use audited `bytemuck` derives.
+- **The Python surface is linted with every rule and typed strictly.** Fix what
+  ruff or mypy reports where they report it — no `noqa`, no `# type: ignore`,
+  no threshold lowered. A test that must feed the binding a value outside an
+  enumerated set cannot write it as a literal: mypy would refuse the call before
+  the binding ever saw it, which is the opposite of what the test is for. Hold
+  the value as `Any` with a comment saying the refusal is the point.
 - **No ad-hoc generated source or local policy scripts.** Build-time WGSL
   composition is part of the committed build architecture.
 
@@ -129,6 +144,9 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 cargo check  -p molgfx-wasm --target wasm32-unknown-unknown
 cargo clippy -p molgfx-wasm --target wasm32-unknown-unknown --all-targets -- -D warnings
+ruff format --check .
+ruff check
+mypy
 python -m unittest discover -s python/tests
 python -m mypy.stubtest molgfx._engine
 grep -rnE '#\[(allow|expect)\b' crates/ --include='*.rs'  # must be empty

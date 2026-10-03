@@ -7,8 +7,10 @@ bytes may differ between adapters, which is why nothing is compared across them.
 
 import json
 import sys
+from collections.abc import Callable
 
 import molframe
+
 import molgfx
 
 PDB = b"""\
@@ -25,7 +27,7 @@ END
 """
 
 
-def render(build) -> bytes:
+def _render(build: Callable[[molgfx.Scene], None]) -> bytes:
     scene = molgfx.Scene(molframe.read(PDB, name="t.pdb"))
     build(scene)
     image = molgfx.Renderer().render_image(scene, size=(96, 72))
@@ -34,17 +36,17 @@ def render(build) -> bytes:
     return bytes(image.pixels())
 
 
-def spacefill(scene):
+def _spacefill(scene: molgfx.Scene) -> None:
     scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()))
 
 
-def pocket(scene):
+def _pocket(scene: molgfx.Scene) -> None:
     scene.pocket("resname LIG", style=molgfx.PocketStyle(near=5.0, mid=9.0))
 
 
 failures = []
-for name, build in (("spacefill", spacefill), ("pocket", pocket)):
-    first, second = render(build), render(build)
+for name, build in (("spacefill", _spacefill), ("pocket", _pocket)):
+    first, second = _render(build), _render(build)
     if first != second:
         differing = sum(a != b for a, b in zip(first, second, strict=True))
         failures.append(f"{name}: {differing} bytes differ between identical renders")
@@ -52,11 +54,13 @@ for name, build in (("spacefill", spacefill), ("pocket", pocket)):
         failures.append(f"{name}: the render is entirely transparent black")
     else:
         print(f"{name}: two renders are byte-identical")
-def camera_path_frames():
+
+
+def _camera_path_frames() -> list[bytes]:
     scene = molgfx.Scene(molframe.read(PDB, name="t.pdb"))
     scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()))
 
-    def at(x):
+    def at(x: float) -> molgfx.Camera:
         return molgfx.Camera(position=(x, 3.0, 14.0), target=(2.5, 2.0, 1.0))
 
     path = molgfx.CameraPath([(0.0, at(-4.0)), (1.0, at(9.0))])
@@ -65,7 +69,7 @@ def camera_path_frames():
     return [bytes(frame.pixels()) for frame in frames]
 
 
-def placed_copies():
+def _placed_copies() -> tuple[bytes, bytes]:
     scene = molgfx.Scene(molframe.read(PDB, name="t.pdb"))
     scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()))
     alone = bytes(molgfx.Renderer().render_image(scene, size=(96, 72)).pixels())
@@ -75,18 +79,18 @@ def placed_copies():
     return alone, both
 
 
-alone, both = placed_copies()
+alone, both = _placed_copies()
 if alone == both:
     failures.append("a placed copy changed nothing in the render")
 else:
     print("placement: a placed copy changes the render")
 
-first, second = camera_path_frames(), camera_path_frames()
-if len(first) != 4:
-    failures.append(f"a one-second path at 3 fps should yield 4 frames, got {len(first)}")
-elif first != second:
+run, again = _camera_path_frames(), _camera_path_frames()
+if len(run) != 4:
+    failures.append(f"a one-second path at 3 fps should yield 4 frames, got {len(run)}")
+elif run != again:
     failures.append("camera-path frames differ between identical runs")
-elif len(set(first)) != 4:
+elif len(set(run)) != 4:
     failures.append("camera-path frames are not all distinct: the camera did not move")
 else:
     print("camera path: 4 distinct, repeatable frames")

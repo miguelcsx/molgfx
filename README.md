@@ -40,11 +40,82 @@ show licorice, $pocket
 color orange, $pocket
 ```
 
-MolGFX is an engine: it opens no window and ships no panels or notebook widgets.
-A page, a notebook or an application draws what it likes around the scene and
-the rendered frames. The camera primitives (`Scene.frame`, `Camera.project`,
-`Camera.ray` and the arcball, orbit and fly controllers) are what such a host
-builds navigation and overlays from.
+The Rust engine opens no window and owns no application panels. This repository
+also supplies the official browser host: a canvas, navigation and semantic picks,
+not a Workbench, console, toolbar or file picker. `Session` remains the sole
+command and undo/redo authority. Python notebooks use this same frontend through
+AnyWidget, a normal package dependency.
+
+```python
+session = molgfx.Session(structure)
+session.execute("show cartoon, protein")
+viewer = molgfx.Viewer(session)
+viewer  # Display in Jupyter.
+```
+
+## Browser SDK
+
+```bash
+npm install molgfx
+```
+
+```typescript
+import { Viewer } from "molgfx";
+import "molgfx/viewer.css";
+
+const viewer = await Viewer.create(document.getElementById("scene")!);
+await viewer.load(await fetch("structure.cif").then(r => r.arrayBuffer()), { name: "structure.cif" });
+viewer.execute("show cartoon, protein");
+// On host teardown:
+await viewer.dispose();
+```
+
+The one npm package exports `molgfx`, `molgfx/viewer`, `molgfx/anywidget` and
+`molgfx/react`. The React adapter owns viewer mount/dispose, not molecular state.
+Public TypeScript declarations never expose the raw wasm ABI.
+
+```tsx
+"use client";
+import { MolGFXViewer } from "molgfx/react";
+import "molgfx/viewer.css";
+
+export function Protein({ bytes }: { bytes: Uint8Array }) {
+  return <MolGFXViewer structure={bytes} name="protein.cif"
+    style={{ width: "100%", height: 480 }}
+    onError={error => console.error(error.message)} />;
+}
+```
+
+Keep the input byte object stable between unchanged React renders. The adapter
+reuses its Viewer for structure updates and disposes it on unmount; it does not
+duplicate Scene, Session or rendering semantics.
+
+## Shared frontend build
+
+```bash
+nix develop -c npm ci --prefix web
+nix develop -c npm run build --prefix web
+nix develop -c npm test --prefix web
+nix develop -c npm pack ./web --pack-destination web
+```
+
+`web/scripts/build.mjs` runs wasm-pack into ignored `web/generated`, then emits
+the official package into ignored `web/dist` and copies identical artifacts to
+Python static assets. The documentation site imports the public npm package;
+Next.js emits its WASM asset rather than loading a private runtime directory.
+A content-hash manifest and archive-level checks prove that npm tarballs and
+Python wheels carry identical runtime bytes. Build before running maturin from
+a source checkout; PyPI source distributions include the prebuilt runtime and
+need Python >=3.12, Rust and dependency fetching, but no Node, wasm-pack or
+adjacent MolFrame checkout. Cargo, Python and npm versions must match.
+Native wheel builds repair external libraries; release gates rebuild the source
+archive and exercise fresh installed wheels before publication.
+
+Python and npm have separate release workflows. Published versions are immutable;
+release 0.4.1 supersedes the existing PyPI 0.4.0 package. npm trusted publishing
+requires the package owner to authorize this repository and release workflow.
+Until the first registry publication, the docs use the public package through a
+local npm dependency, exercising the same exports and bundler asset resolution.
 
 [Writing queries and commands](https://miguelcsx.github.io/molgfx/docs/commands/queries)
 walks through both, and the

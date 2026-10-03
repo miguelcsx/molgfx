@@ -24,7 +24,7 @@ on:
         required: false
         type: string
       dry-run:
-        description: "Build and check every wheel, then stop before uploading"
+        description: "Build and check wheels and source distribution, then stop before uploading"
         required: false
         default: false
         type: boolean
@@ -90,6 +90,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/browser-runtime
+      - run: npm test --prefix web
+      - run: npm pack ./web --pack-destination web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: browser-runtime
+          path: |
+            web/dist
+            web/*.tgz
 
       - uses: actions/setup-python@v5
         with:
@@ -100,10 +109,41 @@ jobs:
           set -euo pipefail
           python -m venv .venv
           . .venv/bin/activate
-          python -m pip install --upgrade pip maturin mypy numpy 'molframe>=0.4.0'
+          python -m pip install --upgrade pip 'maturin>=1.15,<2' mypy numpy 'molframe>=0.4.0'
+          python build_backend.py
+          python .github/scripts/test-python-packaging.py
           maturin develop -m crates/molgfx-py/Cargo.toml
           python -m unittest discover -s python/tests
           python -m mypy.stubtest molgfx._engine
+
+  sdist:
+    needs: [detect, verify]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: browser-runtime
+          path: web
+      - name: Reuse the canonical browser assets
+        run: cp -R web/dist python/molgfx/static
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build and rebuild the source distribution
+        run: |
+          set -euo pipefail
+          python -m pip install build 'maturin>=1.15,<2'
+          python -m build --sdist --outdir dist
+          python .github/scripts/check-python-distributions.py dist/*.tar.gz --rebuild target/sdist-wheels
+          python web/scripts/check-distributions.py web/molgfx-*.tgz "target/sdist-wheels/*.whl"
+          python -m venv .venv
+          .venv/bin/python -m pip install target/sdist-wheels/*.whl
+          .venv/bin/python -m unittest discover -s python/tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-sdist
+          path: dist/*.tar.gz
 
   wheels:
     needs: [detect, verify]
@@ -124,12 +164,25 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: browser-runtime
+          path: web
+      - name: Reuse the canonical browser assets
+        shell: bash
+        run: cp -R web/dist python/molgfx/static
 
       # The wheels are abi3-py312, so the interpreter that installs them must
       # be at least 3.12; a runner's default python is not guaranteed to be.
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+
+      - name: Verify the prebuilt runtime
+        shell: bash
+        run: |
+          python -m pip install 'maturin>=1.15,<2'
+          python build_backend.py
 
       # Linux wheels are built inside the manylinux_2_28 container, so they
       # need glibc 2.28 rather than whatever the runner's newer glibc lets the
@@ -141,22 +194,26 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           manylinux: "2_28"
-          args: --release --out dist
+          maturin-version: "v1.15.0"
+          args: --release --auditwheel repair --out dist
+      - name: Identical npm and wheel assets
+        shell: bash
+        run: python web/scripts/check-distributions.py web/molgfx-*.tgz "dist/*.whl"
 
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.label }}
           path: dist
 
-      # A wheel that installs but cannot import is the failure this catches.
-      - name: Install and import
+      # Exercise the actual installed extension and notebook assets, not the source tree.
+      - name: Test the installed wheel
         shell: bash
         run: |
           set -euo pipefail
           python -m venv .venv
           if [ -d .venv/Scripts ]; then py=.venv/Scripts/python; else py=.venv/bin/python; fi
           "$py" -m pip install dist/*.whl
-          "$py" -c 'import molgfx; print("molgfx imports")'
+          "$py" -m unittest discover -s python/tests
 
   # Importing is not rendering: this installs the built wheel on a bare Linux
   # host with no GPU and renders a PNG, so a wheel that cannot open a graphics
@@ -204,7 +261,7 @@ jobs:
           fi
 
   publish:
-    needs: [wheels, headless-render]
+    needs: [wheels, sdist, headless-render]
     if: ${{ !inputs.dry-run }}
     runs-on: ubuntu-latest
     # Part of the identity PyPI's trusted publisher checks: without it the
@@ -215,6 +272,11 @@ jobs:
         with:
           pattern: wheels-*
           merge-multiple: true
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-sdist
           path: dist
 
       - name: List the distribution

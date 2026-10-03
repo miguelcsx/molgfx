@@ -2,21 +2,18 @@
 
 from collections.abc import Callable, Sequence
 from os import PathLike
+from types import TracebackType
 from typing import Literal, Protocol, Self, final, overload
 
 class _QueryLike(Protocol):
     @property
     def source(self) -> str: ...
 
-_Target = str | _QueryLike
-_Rgb = tuple[int, int, int]
-_CartoonStyle = Literal["ribbon", "rocket", "nucleic_acid", "glycan"]
-_SurfaceKind = Literal[
-    "van_der_waals", "solvent_accessible", "solvent_excluded", "gaussian"
-]
-_SurfaceStyle = Literal[
-    "solid", "contour", "dots", "filled_contour", "mesh", "soft_union"
-]
+type _Target = str | _QueryLike
+type _Rgb = tuple[int, int, int]
+type _CartoonStyle = Literal["ribbon", "rocket", "nucleic_acid", "glycan"]
+type _SurfaceKind = Literal["van_der_waals", "solvent_accessible", "solvent_excluded", "gaussian"]
+type _SurfaceStyle = Literal["solid", "contour", "dots", "filled_contour", "mesh", "soft_union"]
 
 @final
 class RepresentationId:
@@ -102,11 +99,11 @@ class Ellipsoid: ...
 class ColorSpec:
     def legend_json(self) -> str | None: ...
 
-_ColorLike = _Rgb | ColorSpec
-_Category = Literal[
+type _ColorLike = _Rgb | ColorSpec
+type _Category = Literal[
     "chain", "entity", "molecule_type", "residue_name", "residue", "secondary_structure"
 ]
-_Metric = Literal[
+type _Metric = Literal[
     "occupancy", "b_factor", "formal_charge", "hydrophobicity", "sequence_position"
 ]
 
@@ -130,7 +127,7 @@ class ScalarParameter:
     def default(self) -> float: ...
     def expression(self) -> ScalarExpr: ...
 
-_ScalarLike = float | ScalarExpr | ScalarParameter
+type _ScalarLike = float | ScalarExpr | ScalarParameter
 
 @final
 class VectorExpr:
@@ -149,7 +146,7 @@ class VectorParameter:
     def default(self) -> tuple[float, float, float]: ...
     def expression(self) -> VectorExpr: ...
 
-_VectorLike = tuple[float, float, float] | VectorExpr | VectorParameter
+type _VectorLike = tuple[float, float, float] | VectorExpr | VectorParameter
 
 @final
 class BoolExpr:
@@ -159,7 +156,7 @@ class BoolExpr:
     def __ror__(self, left: BoolExpr, /) -> BoolExpr: ...
     def __invert__(self) -> BoolExpr: ...
 
-_BoolLike = bool | BoolExpr
+type _BoolLike = bool | BoolExpr
 
 @final
 class ColorExpr: ...
@@ -172,7 +169,7 @@ class ColorParameter:
     def default(self) -> _Rgb: ...
     def expression(self) -> ColorExpr: ...
 
-_ColorExprLike = _Rgb | ColorExpr | ColorParameter
+type _ColorExprLike = _Rgb | ColorExpr | ColorParameter
 
 @final
 class VisualStyle:
@@ -206,11 +203,11 @@ class Camera:
     def project(
         self, point: tuple[float, float, float], size: tuple[int, int]
     ) -> tuple[float, float, float] | None:
-        """Pixels from the top-left and distance from the eye, or ``None`` behind it."""
+        """Return pixels from the top-left and distance from the eye, or ``None`` behind it."""
     def ray(
         self, x: float, y: float, size: tuple[int, int]
     ) -> tuple[tuple[float, float, float], tuple[float, float, float]] | None:
-        """The origin and unit direction of the ray through a pixel."""
+        """Return the origin and unit direction of the ray through a pixel."""
 
 @final
 class Representation:
@@ -221,6 +218,7 @@ class Representation:
 @final
 class SceneSpec:
     """Canonical JSON scene state, including planes and assembly unit-cell guides."""
+
     def __new__(cls, source: str) -> Self: ...
     @property
     def revision(self) -> int: ...
@@ -231,6 +229,7 @@ class SceneSpec:
 @final
 class ScenePatch:
     """Revision-checked JSON edits, including add_plane/remove_plane/set_assembly."""
+
     def __new__(cls, source: str) -> Self: ...
     @property
     def base_revision(self) -> int: ...
@@ -242,9 +241,9 @@ class SceneTransaction:
     def __enter__(self) -> Scene: ...
     def __exit__(
         self,
-        exception_type: object | None,
-        exception: object | None,
-        traceback: object | None,
+        exception_type: type[BaseException] | None,
+        exception: BaseException | None,
+        traceback: TracebackType | None,
     ) -> Literal[False]: ...
 
 @final
@@ -265,9 +264,7 @@ class Scene:
     @overload
     def add(self, item: Ellipsoid) -> EllipsoidId: ...
     def add_structure(self, structure: object) -> StructureId: ...
-    def auto(
-        self, *, structure: StructureId | None = None
-    ) -> Sequence[RepresentationId]: ...
+    def auto(self, *, structure: StructureId | None = None) -> Sequence[RepresentationId]: ...
     def ensemble(
         self,
         members: Sequence[tuple[StructureId, float, tuple[int, int, int]]],
@@ -315,14 +312,10 @@ class Scene:
         end: TrajectoryFrame,
         sample_time: float | None = None,
     ) -> None: ...
-    def set_trajectory_time(
-        self, *, structure: StructureId, seconds: float
-    ) -> None: ...
+    def set_trajectory_time(self, *, structure: StructureId, seconds: float) -> None: ...
     def set_visible(self, representation: RepresentationId, visible: bool) -> None: ...
     def set_opacity(self, representation: RepresentationId, opacity: float) -> None: ...
-    def set_visual(
-        self, representation: RepresentationId, visual: VisualStyle | None
-    ) -> None: ...
+    def set_visual(self, representation: RepresentationId, visual: VisualStyle | None) -> None: ...
     @overload
     def set_parameter(
         self, representation: RepresentationId, parameter: ScalarParameter, value: float
@@ -340,11 +333,11 @@ class Scene:
     ) -> None: ...
     def focus(self, target: _Target) -> None: ...
     def frame(self, target: _Target, *, aspect: float = 1.0) -> Camera:
-        """A camera that frames a selection as atom spheres, leaving the scene as it is."""
+        """Return a camera framing a selection as atom spheres, leaving the scene as it is."""
     def selection_bounds(
         self, target: _Target
     ) -> tuple[tuple[float, float, float], tuple[float, float, float]] | None:
-        """The minimum and maximum corners of a selection in world space."""
+        """Return the minimum and maximum corners of a selection in world space."""
     def set_camera(self, camera: Camera | None) -> None: ...
     def transaction(self) -> SceneTransaction: ...
     @overload
@@ -368,15 +361,17 @@ class Scene:
     @property
     def spec(self) -> SceneSpec: ...
     def explain(self) -> str: ...
-    def _browser_sources(self) -> list[tuple[int, str, bytes]]: ...
-    def _subscribe(
-        self, subscriber: Callable[[], Callable[[str], object] | None]
-    ) -> None: ...
+    def browser_sources(self) -> list[tuple[int, str, bytes]]:
+        """Return compact structure payloads; encoding is cached by the scene."""
+    def subscribe(self, subscriber: Callable[[], Callable[[str], object] | None]) -> None:
+        """Register a weak callable receiving each committed patch as JSON."""
+    def unsubscribe(self, subscriber: Callable[[], Callable[[str], object] | None]) -> None:
+        """Remove the exact weak subscription previously registered."""
 
 class CommandError(MolgfxError):
     errors: list[dict[str, object]]
 
-_Form = Literal[
+type _Form = Literal[
     "cartoon",
     "ball_and_stick",
     "spacefill",
@@ -407,6 +402,9 @@ class Command:
     @staticmethod
     def unselect(selection: str) -> Command: ...
     @staticmethod
+    def set_selection(target: _Target | None = None) -> Command:
+        """Atomically replace or clear current selection through Session history."""
+    @staticmethod
     def show(form: _Form | str, target: _Target, **options: object) -> Command: ...
     @staticmethod
     def reveal(layer: str) -> Command: ...
@@ -415,13 +413,9 @@ class Command:
     @staticmethod
     def remove(layer: str) -> Command: ...
     @staticmethod
-    def color(
-        color: str, target: _Target, *, structure: str | None = None
-    ) -> Command: ...
+    def color(color: str, target: _Target, *, structure: str | None = None) -> Command: ...
     @staticmethod
-    def uncolor(
-        target: _Target | None = None, *, structure: str | None = None
-    ) -> Command: ...
+    def uncolor(target: _Target | None = None, *, structure: str | None = None) -> Command: ...
     @staticmethod
     def opacity(value: float, layer: str) -> Command: ...
     @staticmethod
@@ -478,9 +472,7 @@ class Session:
     def layers(self) -> dict[str, tuple[str, str, int]]: ...
     @property
     def structures(self) -> dict[str, int]: ...
-    def completions(
-        self, text: str, cursor: int | None = None
-    ) -> list[tuple[str, str, str]]: ...
+    def completions(self, text: str, cursor: int | None = None) -> list[tuple[str, str, str]]: ...
     def explain_selection(self, name: str) -> str: ...
     def explain_layer(self, name: str) -> str: ...
     def summary(self) -> str: ...
@@ -561,7 +553,7 @@ class AssemblyCopy:
     @property
     def selection(self) -> str: ...
 
-_Button = Literal["left", "right", "middle"]
+type _Button = Literal["left", "right", "middle"]
 
 class _CameraController:
     def pointer_move(self, x: float, y: float, camera: Camera) -> Camera: ...
@@ -881,9 +873,7 @@ class _Visual:
         domain: tuple[float, float],
         missing: _Rgb = (128, 128, 128),
     ) -> ColorExpr: ...
-    def where(
-        self, condition: BoolExpr, yes: _ColorExprLike, no: _ColorExprLike
-    ) -> ColorExpr: ...
+    def where(self, condition: BoolExpr, yes: _ColorExprLike, no: _ColorExprLike) -> ColorExpr: ...
     def style(
         self,
         *,
@@ -900,9 +890,7 @@ class _Data:
 class _Annotation:
     def world(self, position: tuple[float, float, float]) -> Anchor: ...
     def selection(self, *, structure: StructureId, target: _Target) -> Anchor: ...
-    def label(
-        self, *, anchor: Anchor, text: str, color: _Rgb = (255, 255, 255)
-    ) -> Label: ...
+    def label(self, *, anchor: Anchor, text: str, color: _Rgb = (255, 255, 255)) -> Label: ...
 
 class _Density:
     def volume(
@@ -923,7 +911,7 @@ class _Measurement:
         self, first: Anchor, second: Anchor, third: Anchor, fourth: Anchor
     ) -> Measurement: ...
 
-_InteractionKind = Literal[
+type _InteractionKind = Literal[
     "hydrogen_bond",
     "salt_bridge",
     "pi_stacking",
@@ -934,15 +922,11 @@ _InteractionKind = Literal[
 ]
 
 class _Interaction:
-    def explicit(
-        self, *, kind: _InteractionKind, first: Anchor, second: Anchor
-    ) -> Interaction: ...
+    def explicit(self, *, kind: _InteractionKind, first: Anchor, second: Anchor) -> Interaction: ...
 
 @final
 class TrajectoryFrame:
-    def __new__(
-        cls, index: int, time: float, positions: Sequence[Sequence[float]]
-    ) -> Self: ...
+    def __new__(cls, index: int, time: float, positions: Sequence[Sequence[float]]) -> Self: ...
     @property
     def index(self) -> int: ...
     @property
@@ -988,69 +972,69 @@ trajectory: _Trajectory
 ellipsoid: _Ellipsoid
 __version__: str
 __all__ = [
-    "__version__",
+    "Anchor",
+    "AnnotationId",
+    "ArcballController",
+    "AssemblyCopy",
+    "BoolExpr",
+    "Camera",
+    "CameraPath",
+    "ColorExpr",
+    "ColorParameter",
+    "ColorSpec",
     "Command",
     "CommandError",
     "CommandResult",
-    "Session",
-    "vocabulary",
-    "MolgfxError",
-    "SpecError",
-    "RevisionConflict",
-    "Representation",
-    "RepresentationId",
-    "StructureId",
-    "VolumeId",
-    "AnnotationId",
-    "MeasurementId",
-    "InteractionId",
-    "TrajectoryId",
-    "EllipsoidId",
     "DataSource",
-    "Anchor",
-    "Volume",
+    "DifferenceStyle",
+    "Ellipsoid",
+    "EllipsoidId",
+    "FlyController",
+    "Image",
+    "Interaction",
+    "InteractionId",
     "Label",
     "Measurement",
-    "Interaction",
-    "Trajectory",
-    "Ellipsoid",
-    "TrajectoryFrame",
-    "SceneSpec",
-    "ScenePatch",
-    "Scene",
-    "SceneTransaction",
-    "ColorSpec",
-    "RenderProfile",
-    "Camera",
-    "color",
-    "profile",
-    "PickResult",
-    "AssemblyCopy",
-    "ArcballController",
-    "CameraPath",
-    "FlyController",
+    "MeasurementId",
+    "MolgfxError",
     "OrbitController",
-    "DifferenceStyle",
+    "PickResult",
     "PocketStyle",
-    "Image",
+    "RenderProfile",
     "Renderer",
-    "system_info",
+    "Representation",
+    "RepresentationId",
+    "RevisionConflict",
     "ScalarExpr",
-    "ScalarProperty",
     "ScalarParameter",
+    "ScalarProperty",
+    "Scene",
+    "ScenePatch",
+    "SceneSpec",
+    "SceneTransaction",
+    "Session",
+    "SpecError",
+    "StructureId",
+    "Trajectory",
+    "TrajectoryFrame",
+    "TrajectoryId",
     "VectorExpr",
     "VectorParameter",
-    "BoolExpr",
-    "ColorExpr",
-    "ColorParameter",
     "VisualStyle",
-    "visual",
-    "rep",
-    "data",
+    "Volume",
+    "VolumeId",
+    "__version__",
     "annotation",
+    "color",
+    "data",
     "density",
-    "measurement",
-    "interaction",
-    "trajectory",
     "ellipsoid",
+    "interaction",
+    "measurement",
+    "profile",
+    "rep",
+    "system_info",
+    "trajectory",
+    "visual",
+    "vocabulary",
 ]

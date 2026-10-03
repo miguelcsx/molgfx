@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { LiveDemo } from '../../components/live-demo';
 
 export default function HomePage() {
   return (
@@ -51,6 +52,11 @@ export default function HomePage() {
             <img src="/molgfx/images/haemoglobin-pocket.png" alt="Haemoglobin rendered by MolGFX with heme groups and an orange local protein pocket" />
             <figcaption><strong>Haemoglobin, PDB 4HHB</strong>Cartoon context, space-filling hemes and the pocket around them, rendered by MolGFX.</figcaption>
           </figure>
+        </section>
+        <section className="mt-12" aria-label="Live browser SDK example">
+          <h2 className="mb-4 text-2xl font-semibold">Explore haemoglobin</h2>
+          <LiveDemo />
+          <p className="mt-3 text-sm text-fd-muted-foreground">The official browser host, shared unchanged with Python notebooks. Drag to rotate, scroll to zoom and click to pick. Requires WebGPU and an RCSB download.</p>
         </section>
         <section className="mt-16 grid gap-4 border-t border-fd-border pt-8 sm:grid-cols-3">
           <Link href="/docs/getting-started/first-scene" className="home-path-card">
