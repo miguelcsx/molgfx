@@ -26,6 +26,11 @@ pub const VERBS: &[VerbInfo] = &[
         summary: "remove a named selection nothing uses",
     },
     VerbInfo {
+        name: "selection",
+        synopsis: "selection [QUERY]",
+        summary: "replace the current semantic selection, or clear it without a query",
+    },
+    VerbInfo {
         name: "show",
         synopsis: "show FORM [control=value]... [duplicate] [as LAYER] [in STRUCTURE] [, TARGET] | show @LAYER",
         summary: "draw a target with a form, reusing an identical layer, or reveal a layer",

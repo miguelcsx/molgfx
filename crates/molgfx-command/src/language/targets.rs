@@ -108,3 +108,21 @@ pub(super) fn pocket(
         structure,
     })
 }
+
+/// Replaces the current semantic selection; an absent query clears it.
+pub(super) fn selection(
+    source: &str,
+    verb: Span,
+    statement: Span,
+) -> Result<Command, CommandError> {
+    let rest = super::words::trim(source, Span::new(verb.end, statement.end));
+    let query = if rest.start == rest.end {
+        None
+    } else {
+        Some(
+            QueryText::compile(&source[rest.start..rest.end])
+                .map_err(|diagnostics| query_error(&diagnostics, rest))?,
+        )
+    };
+    Ok(Command::SetSelection { query })
+}
