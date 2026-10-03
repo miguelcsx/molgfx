@@ -177,7 +177,7 @@ Rutas existentes; nuevos módulos se sitúan junto al owner, no en lib/mod:
 - MolFrame: `molframe-chem/src/{bonds,secondary,standard_bonds}.rs`, source enums/core tables, CIF/PDB lowering/writers, `molframe-query/src/language/ast.rs` y consumers; `molframe-xtal/src/{assembly_spatial,mrc}.rs`; surface sampler/geom/PEOE y fachada.
 - MolGFX source/placement: `molgfx-core/src/structure/source.rs`, dataset/structure/gpu tables y scene/inspect; `molgfx-scene/src/{spec,scene,patch,representation,overlay,appearance,visual,property,interop,preset}/`. Prioridad `scene/runtime.rs`, `scene/overlay_pick.rs`, `render/pick.rs`, `interop/snapshot.rs`.
 - Renderer: `molgfx-render/src/engine/{image,picking,profiling,graph_setup}.rs`, scene_gpu/sync/shared_caches/draws/segmentations, passes/fields/BVH/label packing; HAL descriptors/queue/readback y molgfx-wgpu conversión/capabilities; WGSL único de molgfx-shaders.
-- Publicación: fachada `molgfx`, command ir/session/registry, PyO3 bindings/.pyi y WASM contract/session/camera. El host de navegador (viewer, consola, widget) salió del repo: es aplicación, no engine (spec §4.4, ADR-0012).
+- Publicación: fachada `molgfx`, command ir/session/registry, PyO3 bindings/.pyi y WASM contract/session/camera. El host canónico del canvas pertenece a `web/`, fuera del engine Rust y del crate WASM; React y AnyWidget adaptan ese mismo viewer. Consola, Workbench y UI de aplicación pertenecen a MolStation.
 - Medición: molgfx-bench fixtures/metrics/runner, `bin/{frame_time,resources}.rs`, Cargo registro binary y manifest de comparación; suites browser/Python existentes y ledgers.
 
 ## Verificación y criterios de aceptación

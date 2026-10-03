@@ -7,13 +7,27 @@ each one.
 """
 
 import unittest
+from collections.abc import Callable
+from typing import Any
 
 import molgfx
 
 
+def _with(constructor: Callable[..., Any], **controls: object) -> object:
+    """Build a form with controls a stub cannot be handed as keywords.
+
+    The stub is precise about which keyword each form takes, so a control
+    belonging to another form cannot be written where mypy can see it. These
+    tests exist precisely to watch the binding refuse it.
+    """
+    return constructor(target="all", **controls)
+
+
 class RepresentationControlTests(unittest.TestCase):
-    def test_each_form_accepts_its_own_controls(self):
-        cases = [
+    """Which controls each form accepts, and which it refuses."""
+
+    def test_each_form_accepts_its_own_controls(self) -> None:
+        cases: list[tuple[Callable[..., Any], dict[str, Any]]] = [
             (molgfx.rep.cartoon, {"width": 2.0, "style": "rocket"}),
             (molgfx.rep.ball_and_stick, {"radius": 0.3, "bond_radius": 0.2}),
             (molgfx.rep.spacefill, {"radius": 1.2}),
@@ -39,22 +53,22 @@ class RepresentationControlTests(unittest.TestCase):
                 representation = constructor(target="all", **controls)
                 self.assertIsInstance(representation, molgfx.Representation)
 
-    def test_a_form_rejects_a_control_belonging_to_another_form(self):
+    def test_a_form_rejects_a_control_belonging_to_another_form(self) -> None:
         with self.assertRaises(TypeError):
-            molgfx.rep.spacefill(target="all", bond_radius=0.2)
+            _with(molgfx.rep.spacefill, bond_radius=0.2)
         with self.assertRaises(TypeError):
-            molgfx.rep.lines(target="all", radius=0.2)
+            _with(molgfx.rep.lines, radius=0.2)
         with self.assertRaises(TypeError):
-            molgfx.rep.cartoon(target="all", isolevel=0.5)
+            _with(molgfx.rep.cartoon, isolevel=0.5)
 
-    def test_an_unknown_enumerated_control_names_the_valid_spellings(self):
+    def test_an_unknown_enumerated_control_names_the_valid_spellings(self) -> None:
         with self.assertRaises(ValueError) as caught:
-            molgfx.rep.cartoon(target="all", style="squiggle")
+            _with(molgfx.rep.cartoon, style="squiggle")
         self.assertIn("squiggle", str(caught.exception))
         self.assertIn("ribbon", str(caught.exception))
 
         with self.assertRaises(ValueError) as caught:
-            molgfx.rep.surface(target="all", kind="nope")
+            _with(molgfx.rep.surface, kind="nope")
         self.assertIn("solvent_excluded", str(caught.exception))
 
 

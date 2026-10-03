@@ -1,9 +1,13 @@
+"""Scene semantics through Python: typed ids, patches, properties and interactions."""
+
 import json
 import unittest
+import weakref
+from typing import Any
 
 import molframe
-import molgfx
 
+import molgfx
 
 MMCIF = b"""data_one
 _entry.id one
@@ -26,7 +30,7 @@ ATOM 2 C CA ALA A 1 1 12.560 13.318 9.111 1.00 20.00
 """
 
 
-def structure():
+def _structure() -> molframe.Structure:
     return molframe.read(MMCIF, name="one.cif")
 
 
@@ -72,16 +76,16 @@ _pdbx_struct_assembly_gen.asym_id_list
 
 
 class SceneSemanticsTests(unittest.TestCase):
-    def test_transaction_commits_one_revision(self):
-        scene = molgfx.Scene(structure())
+    """What the scene hands back, and what it refuses."""
+
+    def test_transaction_commits_one_revision(self) -> None:
+        scene = molgfx.Scene(_structure())
         opacity = molgfx.visual.parameter(0.5, name="opacity_scale")
         style = molgfx.visual.style(
             color=molgfx.visual.color((30, 120, 220)),
             opacity=opacity,
         )
-        representation = scene.add(
-            molgfx.rep.spacefill(target=molgfx.sel.all()).visual(style)
-        )
+        representation = scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()).visual(style))
         revision = scene.revision
 
         with scene.transaction():
@@ -91,21 +95,23 @@ class SceneSemanticsTests(unittest.TestCase):
         self.assertEqual(scene.revision, revision + 1)
         self.assertIn("opacity_scale", scene.to_json())
 
-    def test_invalid_transaction_rolls_back_every_operation(self):
-        scene = molgfx.Scene(structure())
+    def test_invalid_transaction_rolls_back_every_operation(self) -> None:
+        scene = molgfx.Scene(_structure())
         representation = scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()))
         revision = scene.revision
         before = scene.to_json()
+        # An id no representation holds: the stub promises `RepresentationId`,
+        # and the rollback is what has to survive the binding refusing it.
+        absent: Any = 2**63
 
-        with self.assertRaises(TypeError):
-            with scene.transaction():
-                scene.set_opacity(representation, 0.5)
-                scene.set_opacity(2**63, 0.3)
+        with self.assertRaises(TypeError), scene.transaction():
+            scene.set_opacity(representation, 0.5)
+            scene.set_opacity(absent, 0.3)
 
         self.assertEqual(scene.revision, revision)
         self.assertEqual(scene.to_json(), before)
 
-    def test_parameter_types_preserve_their_values(self):
+    def test_parameter_types_preserve_their_values(self) -> None:
         vector = molgfx.visual.vector_parameter(
             (1.0, 0.0, 0.0),
             name="direction",
@@ -115,8 +121,8 @@ class SceneSemanticsTests(unittest.TestCase):
         self.assertEqual(vector.default, (1.0, 0.0, 0.0))
         self.assertEqual(color.default, (10, 20, 30))
 
-    def test_scene_returns_typed_semantic_ids(self):
-        scene = molgfx.Scene(structure())
+    def test_scene_returns_typed_semantic_ids(self) -> None:
+        scene = molgfx.Scene(_structure())
         representation = scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()))
 
         self.assertIsInstance(scene.structure_id, molgfx.StructureId)
@@ -124,8 +130,8 @@ class SceneSemanticsTests(unittest.TestCase):
         self.assertEqual(int(scene.structure_id), 1)
         self.assertEqual(int(representation), 1)
 
-    def test_all_overlay_items_use_the_common_add_path(self):
-        scene = molgfx.Scene(structure())
+    def test_all_overlay_items_use_the_common_add_path(self) -> None:
+        scene = molgfx.Scene(_structure())
         origin = molgfx.annotation.world((0.0, 0.0, 0.0))
         x_axis = molgfx.annotation.world((1.0, 0.0, 0.0))
         y_axis = molgfx.annotation.world((1.0, 1.0, 0.0))
@@ -136,21 +142,13 @@ class SceneSemanticsTests(unittest.TestCase):
             format="ccp4",
         )
 
-        volume = scene.add(
-            molgfx.density.volume(source=source, dimensions=(8, 8, 8))
-        )
-        label = scene.add(
-            molgfx.annotation.label(anchor=origin, text="active site")
-        )
+        volume = scene.add(molgfx.density.volume(source=source, dimensions=(8, 8, 8)))
+        label = scene.add(molgfx.annotation.label(anchor=origin, text="active site"))
         distance = scene.add(molgfx.measurement.distance(origin, x_axis))
         angle = scene.add(molgfx.measurement.angle(origin, x_axis, y_axis))
-        dihedral = scene.add(
-            molgfx.measurement.dihedral(origin, x_axis, y_axis, z_axis)
-        )
+        dihedral = scene.add(molgfx.measurement.dihedral(origin, x_axis, y_axis, z_axis))
         explicit = scene.add(
-            molgfx.interaction.explicit(
-                kind="contact", first=origin, second=x_axis
-            )
+            molgfx.interaction.explicit(kind="contact", first=origin, second=x_axis)
         )
         trajectory = scene.add(
             molgfx.trajectory.bind(
@@ -176,8 +174,8 @@ class SceneSemanticsTests(unittest.TestCase):
         self.assertEqual(len(spec["interactions"]), 1)
         self.assertEqual(len(spec["trajectories"]), 1)
 
-    def test_a_bound_trajectory_pair_reaches_the_renderer(self):
-        scene = molgfx.Scene(structure())
+    def test_a_bound_trajectory_pair_reaches_the_renderer(self) -> None:
+        scene = molgfx.Scene(_structure())
         source = molgfx.data.source("trajectory-sha256")
         scene.add(
             molgfx.trajectory.bind(
@@ -199,8 +197,8 @@ class SceneSemanticsTests(unittest.TestCase):
         with self.assertRaises(molgfx.MolgfxError):
             scene.set_trajectory_time(structure=scene.structure_id, seconds=5.0)
 
-    def test_an_unbound_trajectory_source_stays_unresolved(self):
-        scene = molgfx.Scene(structure())
+    def test_an_unbound_trajectory_source_stays_unresolved(self) -> None:
+        scene = molgfx.Scene(_structure())
         scene.add(
             molgfx.trajectory.bind(
                 structure=scene.structure_id,
@@ -216,8 +214,8 @@ class SceneSemanticsTests(unittest.TestCase):
         # different source does not satisfy it.
         self.assertEqual(len(json.loads(scene.to_json())["trajectories"]), 1)
 
-    def test_property_binding_is_owned_by_its_structure(self):
-        scene = molgfx.Scene(structure())
+    def test_property_binding_is_owned_by_its_structure(self) -> None:
+        scene = molgfx.Scene(_structure())
         prop = scene.bind_property(
             structure=scene.structure_id,
             name="confidence",
@@ -233,19 +231,15 @@ class SceneSemanticsTests(unittest.TestCase):
                 domain=(0.0, 1.0),
             )
         )
-        representation = scene.add(
-            molgfx.rep.spacefill(target=molgfx.sel.all()).visual(style)
-        )
+        representation = scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()).visual(style))
 
         self.assertIsInstance(representation, molgfx.RepresentationId)
         self.assertIn("confidence", scene.to_json())
 
-    def test_interaction_channels_serialize_and_validate_names(self):
-        scene = molgfx.Scene(structure())
+    def test_interaction_channels_serialize_and_validate_names(self) -> None:
+        scene = molgfx.Scene(_structure())
         scene.set_interaction(channel="selected", target=molgfx.sel.all())
-        scene.set_interaction(
-            channel="custom", name="candidate", target=molgfx.sel.water()
-        )
+        scene.set_interaction(channel="custom", name="candidate", target=molgfx.sel.water())
 
         spec = json.loads(scene.to_json())
         self.assertIsNotNone(spec["selected"])
@@ -253,29 +247,32 @@ class SceneSemanticsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             scene.set_interaction(channel="custom", name="")
 
-    def test_browser_sources_are_encoded_lazily_and_stable(self):
-        scene = molgfx.Scene(structure())
-        first = scene._browser_sources()
-        second = scene._browser_sources()
+    def test_browser_sources_are_encoded_lazily_and_stable(self) -> None:
+        scene = molgfx.Scene(_structure())
+        first = scene.browser_sources()
+        second = scene.browser_sources()
 
         self.assertEqual(len(first), 1)
         self.assertEqual(first, second)
         self.assertGreater(len(first[0][2]), 0)
 
-
-    def test_detected_interactions_are_not_exposed(self):
+    def test_detected_interactions_are_not_exposed(self) -> None:
         self.assertFalse(hasattr(molgfx.interaction, "detected"))
         self.assertFalse(hasattr(molgfx.Interaction, "detected"))
 
-    def test_a_covalent_disulfide_is_not_an_authorable_interaction(self):
+    def test_a_covalent_disulfide_is_not_an_authorable_interaction(self) -> None:
+        # A disulfide is a bond in the structure, not an interaction a caller
+        # may name, so the stub cannot offer the spelling and the binding has
+        # to refuse it.
+        covalent: Any = "disulfide"
         with self.assertRaises(TypeError):
             molgfx.interaction.explicit(
-                kind="disulfide",
+                kind=covalent,
                 first=molgfx.annotation.world((0.0, 0.0, 0.0)),
                 second=molgfx.annotation.world((1.0, 0.0, 0.0)),
             )
 
-    def test_every_remaining_interaction_kind_is_authorable(self):
+    def test_every_remaining_interaction_kind_is_authorable(self) -> None:
         first = molgfx.annotation.world((0.0, 0.0, 0.0))
         second = molgfx.annotation.world((1.0, 0.0, 0.0))
         for kind in (
@@ -292,8 +289,8 @@ class SceneSemanticsTests(unittest.TestCase):
                 molgfx.Interaction,
             )
 
-    def test_auto_draws_the_default_forms_and_returns_typed_ids(self):
-        scene = molgfx.Scene(structure())
+    def test_auto_draws_the_default_forms_and_returns_typed_ids(self) -> None:
+        scene = molgfx.Scene(_structure())
         ids = scene.auto()
         self.assertTrue(ids)
         for identifier in ids:
@@ -301,8 +298,8 @@ class SceneSemanticsTests(unittest.TestCase):
         spec = json.loads(scene.to_json())
         self.assertEqual(len(spec["representations"]), len(ids))
 
-    def test_pocket_composes_six_editable_forms_and_focuses_the_subject(self):
-        scene = molgfx.Scene(structure())
+    def test_pocket_composes_six_editable_forms_and_focuses_the_subject(self) -> None:
+        scene = molgfx.Scene(_structure())
         style = molgfx.PocketStyle(near=3.0, mid=8.0).with_opacity(pocket=0.5)
         ids = scene.pocket("name CA", style=style)
         self.assertEqual(len(ids), 6)
@@ -312,8 +309,8 @@ class SceneSemanticsTests(unittest.TestCase):
         self.assertEqual(style.pocket_opacity, 0.5)
         self.assertEqual(style.near, 3.0)
 
-    def test_pocket_command_text_and_builder_agree(self):
-        scene = molgfx.Scene(structure())
+    def test_pocket_command_text_and_builder_agree(self) -> None:
+        scene = molgfx.Scene(_structure())
         session = molgfx.Session(scene)
         session.execute("pocket near=3, name CA")
         self.assertEqual(len(session.layers), 6)
@@ -323,8 +320,8 @@ class SceneSemanticsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             molgfx.Command.pocket("name CA", near=-1.0)
 
-    def test_pocket_rejects_an_empty_focus_and_unordered_distances(self):
-        scene = molgfx.Scene(structure())
+    def test_pocket_rejects_an_empty_focus_and_unordered_distances(self) -> None:
+        scene = molgfx.Scene(_structure())
         with self.assertRaises(molgfx.SpecError):
             scene.pocket("resname NOPE")
         with self.assertRaises(molgfx.SpecError):
@@ -333,35 +330,42 @@ class SceneSemanticsTests(unittest.TestCase):
             scene.pocket("name CA", style=molgfx.PocketStyle().with_opacity(solvent=2.0))
         self.assertEqual(json.loads(scene.to_json())["representations"], {})
 
-    def test_camera_paths_sample_validate_and_reject_bad_keyframes(self):
-        def camera(x):
+    def test_camera_paths_sample_validate_and_reject_bad_keyframes(self) -> None:
+        def camera(x: float) -> molgfx.Camera:
             return molgfx.Camera(position=(x, 0.0, 10.0), target=(0.0, 0.0, 0.0))
 
         path = molgfx.CameraPath([(0.0, camera(0.0)), (2.0, camera(8.0))], easing="linear")
         self.assertEqual((len(path), path.range), (2, (0.0, 2.0)))
         # Paths orbit the target: the midpoint is between the ends, not their mean.
-        self.assertTrue(1.0 < path.sample(1.0).position[0] < 7.0)
-        self.assertEqual(path.sample(-3.0).position[0], 0.0)
+        middle = path.sample(1.0)
+        assert middle is not None, "a time inside the path samples a camera"
+        self.assertTrue(1.0 < middle.position[0] < 7.0)
+        before = path.sample(-3.0)
+        assert before is not None, "a time before the path clamps to the first keyframe"
+        self.assertEqual(before.position[0], 0.0)
         self.assertIsNone(path.sample(float("nan")))
+        # An easing the path cannot express is not one the stub may offer.
+        unknown_easing: Any = "bounce"
         with self.assertRaises(ValueError):
             molgfx.CameraPath([(0.0, camera(0.0))])
         with self.assertRaises(ValueError):
             molgfx.CameraPath([(1.0, camera(0.0)), (1.0, camera(1.0))])
         with self.assertRaises(ValueError):
-            molgfx.CameraPath([(0.0, camera(0.0)), (1.0, camera(1.0))], easing="bounce")
+            molgfx.CameraPath([(0.0, camera(0.0)), (1.0, camera(1.0))], easing=unknown_easing)
 
-    def test_confidence_and_rainbow_are_metrics_with_aliases(self):
-        scene = molgfx.Scene(structure())
+    def test_confidence_and_rainbow_are_metrics_with_aliases(self) -> None:
+        scene = molgfx.Scene(_structure())
         for name in ("plddt", "confidence", "rainbow", "sequence_position", "b_factor"):
             spec = molgfx.color.metric(name)
             scene.add(molgfx.rep.cartoon(target=molgfx.sel.all(), color=spec))
+        unknown_metric: Any = "no-such-metric"
         with self.assertRaises(ValueError):
-            molgfx.color.metric("no-such-metric")
+            molgfx.color.metric(unknown_metric)
         self.assertIn("plddt", molgfx.color.ramp_names())
 
-    def test_an_ensemble_overlays_structures_by_weight(self):
-        scene = molgfx.Scene(structure())
-        second = scene.add_structure(structure())
+    def test_an_ensemble_overlays_structures_by_weight(self) -> None:
+        scene = molgfx.Scene(_structure())
+        second = scene.add_structure(_structure())
         self.assertNotEqual(second, scene.structure_id)
         ids = scene.ensemble(
             [
@@ -384,31 +388,25 @@ class SceneSemanticsTests(unittest.TestCase):
                 [(scene.structure_id, 1.0, (1, 2, 3)), (scene.structure_id, 1.0, (1, 2, 3))]
             )
 
-    def test_a_difference_view_colours_by_the_bound_property(self):
-        scene = molgfx.Scene(structure())
+    def test_a_difference_view_colours_by_the_bound_property(self) -> None:
+        scene = molgfx.Scene(_structure())
         prop = scene.bind_property(
             structure=scene.structure_id,
             name="delta",
             source_hash="delta-sha256",
             values=(0.0, 2.0),
         )
-        style = molgfx.DifferenceStyle(
-            thresholds=(0.0, 2.0), domain=(0.0, 2.0), palette="viridis"
-        )
+        style = molgfx.DifferenceStyle(thresholds=(0.0, 2.0), domain=(0.0, 2.0), palette="viridis")
         self.assertEqual(style.thresholds, (0.0, 2.0))
         representation = scene.difference(prop, "all", style=style)
         self.assertIsInstance(representation, molgfx.RepresentationId)
         with self.assertRaises(molgfx.SpecError):
-            scene.difference(
-                prop, "all", style=molgfx.DifferenceStyle(thresholds=(2.0, 1.0))
-            )
+            scene.difference(prop, "all", style=molgfx.DifferenceStyle(thresholds=(2.0, 1.0)))
         with self.assertRaises(molgfx.SpecError):
-            scene.difference(
-                prop, "all", style=molgfx.DifferenceStyle(palette="no-such-palette")
-            )
+            scene.difference(prop, "all", style=molgfx.DifferenceStyle(palette="no-such-palette"))
 
-    def test_a_placed_copy_is_a_structure_of_its_own_with_its_own_forms(self):
-        scene = molgfx.Scene(structure())
+    def test_a_placed_copy_is_a_structure_of_its_own_with_its_own_forms(self) -> None:
+        scene = molgfx.Scene(_structure())
         shift = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 25.0, 0, 0, 1]
         copy = scene.place(shift)
         self.assertIsInstance(copy, molgfx.StructureId)
@@ -428,7 +426,7 @@ class SceneSemanticsTests(unittest.TestCase):
         hasattr(molframe, "crystal") and hasattr(molframe.crystal, "assembly"),
         "needs a molframe that exposes biological assemblies",
     )
-    def test_an_assembly_becomes_placed_copies_each_drawn_with_its_own_chains(self):
+    def test_an_assembly_becomes_placed_copies_each_drawn_with_its_own_chains(self) -> None:
         assembled = molframe.read(ASSEMBLY, name="assembly.cif")
         scene = molgfx.Scene(assembled)
         copies = scene.assembly(molframe.crystal.assembly(assembled, "1"))
@@ -448,19 +446,17 @@ class SceneSemanticsTests(unittest.TestCase):
 class PatchStreamTests(unittest.TestCase):
     """What a host that mirrors a scene receives, without any host present."""
 
-    def test_direct_mutations_publish_exact_incremental_patches(self):
-        import weakref
-
+    def test_direct_mutations_publish_exact_incremental_patches(self) -> None:
         class Host:
-            def __init__(self):
-                self.received = []
+            def __init__(self) -> None:
+                self.received: list[dict[str, Any]] = []
 
-            def on_patch(self, patch_json):
+            def on_patch(self, patch_json: str) -> None:
                 self.received.append(json.loads(patch_json))
 
-        scene = molgfx.Scene(structure())
+        scene = molgfx.Scene(_structure())
         host = Host()
-        scene._subscribe(weakref.WeakMethod(host.on_patch))
+        scene.subscribe(weakref.WeakMethod(host.on_patch))
         representation = scene.add(molgfx.rep.points(target=molgfx.sel.all()))
 
         self.assertEqual(len(host.received), 1)
@@ -469,7 +465,7 @@ class PatchStreamTests(unittest.TestCase):
         self.assertEqual(patch["operations"][0]["op"], "add_representation")
 
         with scene.transaction():
-            scene.set_visible(representation, False)
+            scene.set_visible(representation, visible=False)
             scene.set_opacity(representation, 0.4)
 
         self.assertEqual(len(host.received), 2)

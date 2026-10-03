@@ -5,6 +5,37 @@ All notable changes to MolGFX are recorded here. The project follows
 change the public API. MolGFX 0.4 needs `molframe>=0.4.0`: publish or install
 that first.
 
+## 0.4.1
+
+### Added
+
+- The official canvas-only `molgfx` browser SDK, with viewer, React and
+  AnyWidget entry points. Python `Viewer` accepts a Structure, Scene or Session;
+  commands and history remain Session-owned. Application panels stay outside
+  the SDK. AnyWidget is a normal dependency, loaded lazily by the Python API.
+- Atomic current selection: `Command::SetSelection`, Python
+  `Command.set_selection`, and `selection QUERY` update the selected overlay
+  and `$sel` together, with rollback and undo/redo.
+- Explicit Python scene transport through `browser_sources`, `subscribe` and
+  `unsubscribe`; reentrant subscription changes survive publication.
+
+### Fixed
+
+- Demand-driven rendering requests skipped frames, pending uploads and
+  incomplete temporal exposure. Successful scene synchronization records the
+  representation revision, so exposure converges, idles and restarts on motion.
+
+### Distribution
+
+- One content-keyed browser build supplies npm and Python static assets; actual
+  archive checks enforce matching versions and bytes. Documentation imports the
+  public npm package and lets its bundler emit the WASM asset.
+- Python source distributions ship the prebuilt browser runtime; Python builds
+  do not require Node or wasm-pack. Release verification covers source rebuilds
+  and installed widgets, not only core imports.
+- npm release automation uses a separate trusted-publisher workflow; registry
+  authorization remains account-owned.
+
 ## 0.4.0
 
 ### Changed
@@ -43,12 +74,9 @@ that first.
 
 ### Removed
 
-- The application shell: the notebook `Viewer` and `Workbench`, the TypeScript
-  viewer host with its console and plain-page `mount()`, the `jupyter` extra, the
-  example notebook and the documentation home page's embedded viewer. The
-  specification keeps the engine free of an application shell (§4.4, ADR-0012);
-  a notebook, page or application is built on the bindings and the camera
-  primitives. The code is set aside outside the repository for later review.
+- The application shell: the notebook Viewer and Workbench, console, toolbar,
+  file picker, optional `jupyter` extra and embedded documentation viewer.
+  Reusable browser hosting returns in 0.4.1 without application UI.
 
 ### Changed
 
