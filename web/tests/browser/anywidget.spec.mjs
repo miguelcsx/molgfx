@@ -52,24 +52,28 @@ async function prepare(page) {
 test("real Python AnyWidget state renders, picks, patches, resyncs and closes", async ({ page }) => {
   const errors = []; page.on("pageerror", error => errors.push(error.message));
   await prepare(page);
-  await page.waitForTimeout(700);
   const canvas = page.locator("canvas");
   await expect(canvas).toBeVisible();
-  const initial = await canvas.screenshot();
-  const coloredPixels = await page.evaluate(async encoded => {
-    const bytes = Uint8Array.from(atob(encoded), char => char.charCodeAt(0));
-    const image = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
-    const context = new OffscreenCanvas(image.width, image.height).getContext("2d");
-    context.drawImage(image, 0, 0); image.close();
-    const pixels = context.getImageData(0, 0, context.canvas.width, context.canvas.height).data;
-    let count = 0;
-    for (let index = 0; index < pixels.length; index += 4) {
-      if (Math.max(pixels[index], pixels[index + 1], pixels[index + 2]) - Math.min(pixels[index], pixels[index + 1], pixels[index + 2]) > 24) count++;
-    }
-    return count;
-  }, initial.toString("base64"));
+  let initial;
+  // Observe presentation, not a fixed delay or a pick that forces another draw.
+  await expect.poll(async () => {
+    expect(errors).toEqual([]);
+    expect(await page.evaluate(() => window.widget.model.get("error"))).toBe("");
+    initial = await canvas.screenshot();
+    return page.evaluate(async encoded => {
+      const bytes = Uint8Array.from(atob(encoded), char => char.charCodeAt(0));
+      const image = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+      const context = new OffscreenCanvas(image.width, image.height).getContext("2d");
+      context.drawImage(image, 0, 0); image.close();
+      const pixels = context.getImageData(0, 0, context.canvas.width, context.canvas.height).data;
+      let count = 0;
+      for (let index = 0; index < pixels.length; index += 4) {
+        if (Math.max(pixels[index], pixels[index + 1], pixels[index + 2]) - Math.min(pixels[index], pixels[index + 1], pixels[index + 2]) > 24) count++;
+      }
+      return count;
+    }, initial.toString("base64"));
+  }, { timeout: 30000 }).toBeGreaterThan(20);
   // Background-only presentation must not pass just because later picks draw.
-  expect(coloredPixels).toBeGreaterThan(20);
   const pick = await page.evaluate(async () => {
     const { model } = window.widget, canvas = document.querySelector("canvas"), bounds = canvas.getBoundingClientRect();
     const spec = model.get("scene_spec");

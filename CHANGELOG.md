@@ -5,6 +5,19 @@ All notable changes to MolGFX are recorded here. The project follows
 change the public API. MolGFX 0.4 needs `molframe>=0.4.0`: publish or install
 that first.
 
+## 0.4.2
+
+### Fixed
+
+- Windows x86-64 MSVC builds embed DXC instead of relying on an ambient
+  compiler or FXC for dynamic visual-program shaders. Installed-wheel release
+  verification explicitly renders through DX12 with the embedded compiler.
+- Linux browser verification uses full Chromium with the headed Xvfb
+  compositor: headless SwiftShader can complete GPU submissions while
+  presenting a blank canvas. Pixel, picking and resize checks remain required.
+- Python colour metric typing includes all seven canonical metrics and the
+  existing `rainbow` and `confidence` aliases.
+
 ## 0.4.1
 
 ### Added
