@@ -100,7 +100,7 @@ impl PyRenderProfile {
             molgfx::Quality::Auto => "auto",
             molgfx::Quality::Interactive => "interactive",
             molgfx::Quality::HighestFixed => "highest_fixed",
-            molgfx::Quality::Publication => "publication",
+            molgfx::Quality::Converged => "converged",
         }
     }
 
@@ -264,8 +264,8 @@ fn interactive() -> PyRenderProfile {
 }
 
 #[pyfunction]
-fn publication() -> PyRenderProfile {
-    PyRenderProfile(molgfx::profile::publication())
+fn converged() -> PyRenderProfile {
+    PyRenderProfile(molgfx::profile::converged())
 }
 
 #[pyfunction]
@@ -301,7 +301,7 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_submodule(&color)?;
     let profile = PyModule::new(module.py(), "profile")?;
     profile.add_function(wrap_pyfunction!(interactive, &profile)?)?;
-    profile.add_function(wrap_pyfunction!(publication, &profile)?)?;
+    profile.add_function(wrap_pyfunction!(converged, &profile)?)?;
     profile.add_function(wrap_pyfunction!(adaptive, &profile)?)?;
     profile.add_function(wrap_pyfunction!(highest_fixed, &profile)?)?;
     module.add_submodule(&profile)

@@ -133,7 +133,7 @@ impl Material {
         }
     }
 
-    /// Creates an explicit art-directed principled material.
+    /// Creates an explicit principled material.
     #[must_use]
     pub fn principled(metallic: f32) -> Self {
         Self {

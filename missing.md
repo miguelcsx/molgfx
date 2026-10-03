@@ -73,7 +73,7 @@ evidence for their specific boundary, not a green gate for the whole current tre
   The temporary consumer was /tmp/molframe-gemmi-reciprocal-smoke.py.
 - [~] Integration gate for this slice: targeted formatting and Clippy for
   molframe-xtal/molframe-py, all targets with -D warnings, passed. **Open:**
-  full gate, benchmark assessment and publication/pin verification; this is not
+  full gate, benchmark assessment and converged/pin verification; this is not
   general Gemmi parity or a speedup claim.
 - [x] X-ray form factors (International Tables, H–Cf) and direct structure
   factors over the full space group with occupancy and isotropic/anisotropic
@@ -354,7 +354,7 @@ evidence for their specific boundary, not a green gate for the whole current tre
 - [x] **P1** Fog/depth cue is a dedicated `DepthCue` profile input with
   finite ordered-distance and unit-strength validation. It lowers through
   `PresentationEffect::DepthCue` into `FrameUniforms.depth_cue` and the
-  deferred view-space cue path without changing legacy illustration semantics.
+  deferred view-space cue path without changing legacy shape_cues semantics.
   **Check:** render 369-test suite and API 125-test suite pass in this pass.
   **Open:** no same-input browser fog fixture or cross-engine distance golden.
 - [~] **P1** FXAA is fused into the tonemap pass (`FXAA_ENABLED` pipeline
@@ -498,7 +498,7 @@ gap a user of either engine will notice. Priority follows the same P0–P3 scale
 | Analytic impostors, deferred lighting | `[x]` | `[x]` | `[x]` |
 | Ambient occlusion | multi-scale SSAO | `[x]` | `[~]` single scale (P1) |
 | Shadows | `[x]` | ray | `[x]` |
-| Outline (depth edge) | `[x]` | ray modes 1–3 | `[x]` illustration silhouette and cavity |
+| Outline (depth edge) | `[x]` | ray modes 1–3 | `[x]` shape_cues silhouette and cavity |
 | Marker edge and ghost | `[x]` | overlays | `[~]` edge yes, ghost no (P0) |
 | Fog / depth cue | `[x]` | `[x]` | `[x]` |
 | Transparency | WBOIT, DPOIT | multilayer, OIT | `[~]` WBOIT (P2 DPOIT) |
@@ -554,7 +554,7 @@ end-to-end wall time.
   comparative statement is made. Time to first frame and steady frame time are
   the two numbers.
 - **Open, P1:** memory per atom, upload volume per edit, and wasm cold start.
-- Publication rendering accumulates 64 samples and is not a frame rate.
+- Converged rendering accumulates 64 samples and is not a frame rate.
 
 ### Measured baseline — 2026-10-01, Apple M5 Pro, Metal, 1280×720
 
@@ -571,7 +571,7 @@ historical table above for any comparison.
 
 Attribution (per-pass actual timestamps, spacefill): sphere impostors 0.7 ms,
 scene-fit shadows 0.3 ms, traced ambient occlusion ≈ 18.4 ms. Setting the
-publication AO budget from 8 to 2 rays per sample gave 359 ms per output
+converged AO budget from 8 to 2 rays per sample gave 359 ms per output
 (3.5× faster), so the cost is linear in rays and the BVH traversal is not the
 bottleneck: 8 rays × 64 samples is 512 AO rays per pixel per output. That
 budget was then measured rather than assumed: the same 64-sample output of a
@@ -579,13 +579,13 @@ spacefill scene (4oz7, 480×360) rendered at 1, 2, 4, 8 and 16 rays per sample,
 each compared with the 16-ray render. RMS difference in 8-bit levels: 1.06, 0.73,
 0.47, 0.29 (and p99.9 of 14, 9, 6, 3 levels); a cartoon scene differs by zero at
 every count because it has no traced AO, and a pocket scene stays under 0.35.
-The publication budget is now **4** rays per sample (spacefill on 7qpd: 1263 ms → 636 ms per output, 0.8 → 1.57 outputs/s), the largest saving that
+The converged budget is now **4** rays per sample (spacefill on 7qpd: 1263 ms → 636 ms per output, 0.8 → 1.57 outputs/s), the largest saving that
 stays below the half-level quantization noise of an 8-bit image; 8 would be
 reachable again by one constant. The reference is itself noisy, so these are
 upper bounds on the true error.
 
 The 192-cell surface-field cap is now a per-tier limit: interactive tiers keep 192,
-`High` (and so `HighestFixed` and publication) is bounded only by the device's
+`High` (and so `HighestFixed` and converged) is bounded only by the device's
 3-D texture limit, and the report states the spacing actually used. Memory is
 the next constraint, not a silent coarsening: a 520³ field holds about 2 GB, and
 a sparse brick atlas is still the way to make that scale; marching through it
@@ -607,7 +607,7 @@ zeros; external `cpu_ns` is completion-inclusive API wall time, not exclusive CP
 
 An actual 13-fixture run at 128×72, one cold output, one warm-up and one measured
 output is recorded in `/tmp/molgfx-parity-telemetry-full13/report.json`. Eleven
-native molecular cases completed all 64 publication samples and their PNGs
+native molecular cases completed all 64 converged samples and their PNGs
 decoded at the requested extent. Captures retained all 640 or 704 actual passes
 without overflow; several occurrences had `invalid_order` timestamps, while
 the measured lattice-8 output resolved all 640. Native density cases remain

@@ -255,7 +255,7 @@ impl<D: Device> Engine<D> {
             temporal: TemporalState::default(),
             temporal_scene_identity: None,
             mode: config.mode,
-            adaptive: AdaptiveQuality::new(config.adaptive, config.mode == RenderMode::Cinematic),
+            adaptive: AdaptiveQuality::new(config.adaptive, config.mode == RenderMode::Converged),
             profile,
             resolved_plan,
             focus_tracker: FocusTracker::default(),

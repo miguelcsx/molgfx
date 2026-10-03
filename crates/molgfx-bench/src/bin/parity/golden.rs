@@ -9,7 +9,7 @@ const MAX_MEAN_DELTA_E: f64 = 1.0;
 const MAX_P99_DELTA_E: f64 = 8.0;
 const ADAPTER_FILE: &str = "adapter.json";
 /// The recipe whose image is the reference.
-pub(super) const REFERENCE_RECIPE: &str = "molgfx-publication";
+pub(super) const REFERENCE_RECIPE: &str = "molgfx-converged";
 
 fn adapter() -> Value {
     let info = molgfx::system_info();

@@ -3,10 +3,10 @@ title: Rendering images
 description: Create deterministic off-screen PNG output from a semantic scene.
 ---
 
-`Renderer` opens a compatible native graphics device and renders a scene to an `Image`. Use `publication()` when a saved image matters more than interactive adaptation.
+`Renderer` opens a compatible native graphics device and renders a scene to an `Image`. Use `converged()` when a saved image matters more than interactive adaptation.
 
 ```python
-renderer = molgfx.Renderer(profile=molgfx.profile.publication())
+renderer = molgfx.Renderer(profile=molgfx.profile.converged())
 image = renderer.render_image(scene, size=(1920, 1080))
 image.save("figure.png")
 ```
@@ -15,9 +15,9 @@ image.save("figure.png")
 
 ## Fixed quality and completed exposures
 
-`molgfx.profile.highest_fixed(target_fps=120.0)` holds the highest tier independently of scene size or timing. The target is a scheduling goal, not a performance guarantee. Unlike `publication()`, it keeps realtime presentation settings; neither profile lowers analytic molecular detail through LOD.
+`molgfx.profile.highest_fixed(target_fps=120.0)` holds the highest tier independently of scene size or timing. The target is a scheduling goal, not a performance guarantee. Unlike `converged()`, it keeps realtime presentation settings; neither profile lowers analytic molecular detail through LOD.
 
-Publication images and the default camera sequence complete all 64 temporal samples for each output. Explicit progressive sequences submit one sample and must not be counted as converged outputs. Rust `Image::quality()` reports physical extent, selected detail, submitted samples and completion observed after readback; `EffectiveQuality::complete()` derives completion from those observations. Indirect illumination currently reports zero transport bounces.
+Converged images and the default camera sequence complete all 64 temporal samples for each output. Explicit progressive sequences submit one sample and must not be counted as converged outputs. Rust `Image::quality()` reports physical extent, selected detail, submitted samples and completion observed after readback; `EffectiveQuality::complete()` derives completion from those observations. Indirect illumination currently reports zero transport bounces.
 
 Python `json.loads(image.quality_json())` exposes the same canonical fields and
 derived `complete` value without copying pixels. Rust HDR images also retain

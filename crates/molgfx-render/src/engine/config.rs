@@ -126,7 +126,7 @@ pub enum RenderMode {
     Realtime,
     /// Progressive, deterministic high-fidelity rendering. Camera motion
     /// resets temporal history but never changes the selected render path.
-    Cinematic,
+    Converged,
 }
 
 /// Default [`EngineConfig::surface_field_budget_bytes`]: 384 MiB, which holds a
@@ -175,7 +175,7 @@ impl Default for EngineConfig {
             height: 800,
             mode: RenderMode::Realtime,
             adaptive: AdaptiveQualityConfig::default(),
-            profile: RenderProfile::inspection(),
+            profile: RenderProfile::bare(),
             residency: ResidencyConfig::default(),
             source_budget: ResidencyBudget::default(),
             derived_cache: DerivedCacheBudget::default(),

@@ -12,7 +12,7 @@ use molgfx_math::Camera;
 /// Samples recorded into one command buffer before it is submitted.
 ///
 /// Every render encoder holds driver memory until its command buffer retires,
-/// so a publication exposure that queues all of its samples at once keeps
+/// so a converged exposure that queues all of its samples at once keeps
 /// hundreds of encoders alive together. Runs of this size, with at most two
 /// in flight, bound that without leaving the device idle.
 pub(super) const EXPOSURE_RUN: u32 = 1;
@@ -38,8 +38,8 @@ impl<D: Device> Engine<D> {
         let preparation = self.prepare_image(scene, purpose)?;
         let scene_reset = self.temporal_scene_identity.replace(scene.cache_identity())
             != Some(scene.cache_identity());
-        let publication = purpose == ImagePurpose::Publication;
-        let samples = if publication {
+        let converged = purpose == ImagePurpose::Converged;
+        let samples = if converged {
             self.tier().image_samples()
         } else {
             1
@@ -69,10 +69,10 @@ impl<D: Device> Engine<D> {
             camera: *camera,
             options: TemporalOptions {
                 extent: [self.width, self.height],
-                reset: publication || scene_reset || preparation.rebuild,
+                reset: converged || scene_reset || preparation.rebuild,
                 quality: self.tier() >= QualityTier::Standard,
-                publication,
-                illustration: self.resolved_plan.illustration(),
+                converged,
+                shape_cues: self.resolved_plan.shape_cues(),
                 depth_cue: self.resolved_plan.packed_depth_cue(),
                 optics,
                 motion_blur: self
@@ -108,7 +108,7 @@ impl<D: Device> Engine<D> {
         }
         self.scene_gpu
             .stage_exposure_uniforms(exposure.bank, sample as usize, &uniforms)?;
-        if exposure.options.publication && sample + 1 == exposure.samples {
+        if exposure.options.converged && sample + 1 == exposure.samples {
             self.temporal_scene_identity = None;
         }
         Ok(())

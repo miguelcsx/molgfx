@@ -65,9 +65,9 @@ impl LightingEnvironment {
         }
     }
 
-    /// Soft documentary rig with stronger shape separation.
+    /// Soft key rig with stronger shape separation.
     #[must_use]
-    pub const fn documentary() -> Self {
+    pub const fn soft_key() -> Self {
         Self {
             // A specimen lit against a dark sweep sits in a dark environment:
             // dimming the ambient lets the key shape the form and keeps albedo
@@ -158,7 +158,7 @@ impl LightingEnvironment {
 
 impl Default for LightingEnvironment {
     fn default() -> Self {
-        Self::documentary()
+        Self::soft_key()
     }
 }
 

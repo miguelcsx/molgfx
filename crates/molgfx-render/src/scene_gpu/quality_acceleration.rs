@@ -1,4 +1,4 @@
-//! Persistent bond acceleration used by publication-quality ray traversal.
+//! Persistent bond acceleration used by traced ray traversal.
 
 use super::buffers::upload_grow;
 use crate::error::RenderError;

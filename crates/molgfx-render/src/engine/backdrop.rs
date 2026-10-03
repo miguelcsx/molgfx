@@ -20,7 +20,7 @@ pub struct BackdropStyle {
 }
 
 impl BackdropStyle {
-    /// Neutral publication/compositing fallback.
+    /// Neutral converged/compositing fallback.
     #[must_use]
     pub const fn compositing() -> Self {
         Self {
@@ -96,7 +96,7 @@ impl Default for BackdropStyle {
 /// Scene-linear exposure and display grading, independent of the backdrop.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum ToneMapping {
-    /// ACES fitted SDR curve used by the publication and cinematic defaults.
+    /// ACES fitted SDR curve used by the converged and optical defaults.
     AcesFitted,
     /// Simple scene-linear Reinhard compression for diagnostic output.
     Reinhard,
@@ -211,9 +211,9 @@ pub struct DisplayTransform {
 }
 
 impl DisplayTransform {
-    /// Restrained art-directed grade without selecting a backdrop.
+    /// Restrained tone grade without selecting a backdrop.
     #[must_use]
-    pub const fn cinematic() -> Self {
+    pub const fn filmic() -> Self {
         Self {
             exposure_ev: 0.22,
             contrast: 1.18,

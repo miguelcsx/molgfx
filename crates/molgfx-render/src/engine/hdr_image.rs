@@ -129,7 +129,7 @@ impl<D: Device> Engine<D> {
         let layout = ImageLayout::new(config, 8)?;
         self.width = config.width;
         self.height = config.height;
-        let mut exposure = self.prepare_exposure(scene, camera, ImagePurpose::Publication)?;
+        let mut exposure = self.prepare_exposure(scene, camera, ImagePurpose::Converged)?;
         let readback = self.device.create_buffer(&BufferDesc {
             label: "scene-linear HDR readback",
             size: layout.buffer_size,

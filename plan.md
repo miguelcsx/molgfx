@@ -49,7 +49,7 @@ Conventional Commits/scopes de AGENTS, cuerpo en bullets <=72 columnas, `git com
 
 ### 2. Medición verdadera y baseline antes de optimizar
 
-Extender `Quality` existente con HighestFixed y trasladar implementación fuera de profile/mod.rs. Fixed tier High permanece fijo aunque disabled/adaptive=false, incluso con millones de átomos; target_fps es objetivo, no permiso para degradar. Publication/HighestFixed comparten detalle máximo declarado. Añadir metadata observable al report/image/profiler: extent, tier, samples required/submitted/completed, spacing solicitado/efectivo, ribbon steps, AO/illumination, bounces, LOD, adaptation/degradation, full residency y complete.
+Extender `Quality` existente con HighestFixed y trasladar implementación fuera de profile/mod.rs. Fixed tier High permanece fijo aunque disabled/adaptive=false, incluso con millones de átomos; target_fps es objetivo, no permiso para degradar. Converged/HighestFixed comparten detalle máximo declarado. Añadir metadata observable al report/image/profiler: extent, tier, samples required/submitted/completed, spacing solicitado/efectivo, ribbon steps, AO/illumination, bounces, LOD, adaptation/degradation, full residency y complete.
 
 Consolidar recorder/exposure de render/image/sequence/profile: congelar escena/tiempo/cámara por output, sync sólo por revisiones, muestras jitter en uniform arena con offsets/bind groups persistentes, history correcto por output y fence final. No escribir 64 uniforms al mismo rango antes de una submission. Un output convergido de 64 muestras cuenta **uno**. No avanzar trayectoria 64 veces ni reusar exposición vieja tras cámara/pose distinta. Bounded in-flight slots no reutilizados hasta completion.
 

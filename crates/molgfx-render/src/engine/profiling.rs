@@ -15,7 +15,7 @@ use web_time::Instant;
 /// Which kind of output a profile measures.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum MeasuredOutput {
-    /// A publication exposure averaging the tier's full sample count.
+    /// A converged exposure averaging the tier's full sample count.
     Converged,
     /// One single-sample frame that keeps temporal history, as presented while interacting.
     Interactive,
@@ -24,7 +24,7 @@ pub enum MeasuredOutput {
 impl MeasuredOutput {
     pub(super) const fn purpose(self) -> ImagePurpose {
         match self {
-            Self::Converged => ImagePurpose::Publication,
+            Self::Converged => ImagePurpose::Converged,
             Self::Interactive => ImagePurpose::Progressive,
         }
     }

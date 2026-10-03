@@ -4,7 +4,7 @@ use super::tests::{camera, engine};
 use molgfx_core::Scene;
 
 #[test]
-fn a_publication_image_is_submitted_in_bounded_runs_covering_every_sample() {
+fn a_converged_image_is_submitted_in_bounded_runs_covering_every_sample() {
     let mut engine = engine();
     let image = match engine.render_image(
         &Scene::new(),

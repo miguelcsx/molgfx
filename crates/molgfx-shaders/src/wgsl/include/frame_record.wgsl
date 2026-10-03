@@ -14,7 +14,7 @@ struct FrameUniforms {
 
     viewport: vec4f,
     temporal: vec4f,
-    illustration: vec4f,
+    shape_cues: vec4f,
     depth_cue: vec4f,
     npr: vec4f,
     optics: vec4f,

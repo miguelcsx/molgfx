@@ -47,7 +47,7 @@ fn completion_requires_a_fence_and_requested_detail() {
 }
 
 #[test]
-fn publication_png_round_trips_rgba_pixels() {
+fn converged_png_round_trips_rgba_pixels() {
     let image = Image {
         width: 2,
         height: 1,
@@ -75,7 +75,7 @@ fn publication_png_round_trips_rgba_pixels() {
 }
 
 #[test]
-fn malformed_publication_image_is_rejected_before_encoding() {
+fn malformed_converged_image_is_rejected_before_encoding() {
     let image = Image {
         width: 2,
         height: 1,

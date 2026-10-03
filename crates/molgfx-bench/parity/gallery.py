@@ -159,7 +159,7 @@ def build():
     out = {key: corpus[key] for key in ("extent", "physical", "style", "recipe_policy", "recipe_settings")}
     out["extent"] = [768, 768]
     out["warmup_outputs"], out["measured_outputs"] = 0, 1
-    out["recipes"] = ["molgfx-publication", "molgfx-interactive", "pymol-ray", "molstar-imagepass"]
+    out["recipes"] = ["molgfx-converged", "molgfx-interactive", "pymol-ray", "molstar-imagepass"]
     out["recipe_settings"] = {k: v for k, v in corpus["recipe_settings"].items() if k in out["recipes"]}
     fixtures = []
     for c in CASES:

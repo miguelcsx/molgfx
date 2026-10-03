@@ -1,6 +1,6 @@
 //! Deterministic temporal camera state and low-discrepancy subpixel sampling.
 
-use super::{IllustrationStyle, QualityTier};
+use super::{QualityTier, ShapeCueStyle};
 use crate::scene_gpu::{FrameUniforms, TemporalFrame};
 use molgfx_math::{Camera, Mat4};
 
@@ -97,8 +97,8 @@ pub(crate) struct TemporalOptions {
     pub(crate) extent: [u32; 2],
     pub(crate) reset: bool,
     pub(crate) quality: bool,
-    pub(crate) publication: bool,
-    pub(crate) illustration: IllustrationStyle,
+    pub(crate) converged: bool,
+    pub(crate) shape_cues: ShapeCueStyle,
     pub(crate) depth_cue: [f32; 4],
     pub(crate) optics: [f32; 4],
     pub(crate) motion_blur: [f32; 4],
@@ -151,11 +151,11 @@ impl TemporalState {
             // while the camera is stable; camera motion starts clean history.
             self.reset();
         }
-        self.occlusion_rays = super::occlusion_rays(options.quality, options.publication);
+        self.occlusion_rays = super::occlusion_rays(options.quality, options.converged);
         // Camera motion is already changing the image every frame. Sampling a
         // different projection then creates visible subpixel swimming instead
         // of useful convergence, so only stable frames use the Halton sequence.
-        let jitter = if camera_changed && !options.publication {
+        let jitter = if camera_changed && !options.converged {
             [0.0; 2]
         } else {
             JITTER[(self.frame_index as usize) % JITTER.len()]
@@ -172,10 +172,10 @@ impl TemporalState {
                 shadow_view_proj: options.shadow_view_proj,
                 sample_index: self.frame_index,
                 quality: options.quality,
-                publication: options.publication,
-                illustration: options.illustration.packed(camera.focus_distance()),
+                converged: options.converged,
+                shape_cues: options.shape_cues.packed(camera.focus_distance()),
                 depth_cue: options.depth_cue,
-                npr: options.illustration.npr_packed(),
+                npr: options.shape_cues.npr_packed(),
                 optics: options.optics,
                 motion_blur: options.motion_blur,
                 atmosphere: options.atmosphere,

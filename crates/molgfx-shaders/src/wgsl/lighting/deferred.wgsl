@@ -4,14 +4,14 @@
 // without inventing texture. Material response remains reversible and tied
 // to the packed gbuffer properties.
 //
-// This file holds the pass; the gbuffer decode, illustration cues and shadow
+// This file holds the pass; the gbuffer decode, shape cues and shadow
 // filtering it composes live beside it under include/deferred/.
 
 //!include "include/camera.wgsl"
 //!include "include/fullscreen.wgsl"
 //!include "include/material_lighting.wgsl"
 //!include "include/deferred/gbuffer.wgsl"
-//!include "include/deferred/illustration.wgsl"
+//!include "include/deferred/shape_cues.wgsl"
 //!include "include/deferred/marker_edge.wgsl"
 //!include "include/deferred/shadow.wgsl"
 
@@ -119,7 +119,7 @@ fn fs_lighting(
     lit = apply_marker_edge(lit, pixel, dimensions, marker);
 
     return vec4f(
-        apply_illustration(
+        apply_shape_cues(
             lit,
             pixel,
             position,

@@ -12,7 +12,7 @@
 @group(1) @binding(3) var ao_texture: texture_2d<f32>;
 @group(1) @binding(4) var shadow_texture: texture_2d<f32>;
 
-const ILLUSTRATION_OFFSETS: array<vec2i, 4> = array<vec2i, 4>(
+const SHAPE_CUES_OFFSETS: array<vec2i, 4> = array<vec2i, 4>(
     vec2i(1, 0),
     vec2i(-1, 0),
     vec2i(0, 1),
@@ -51,16 +51,16 @@ const SHADOW_OFFSETS: array<vec2i, 4> = array<vec2i, 4>(
     vec2i(1, 1),
 );
 
-struct IllustrationDepthParams {
+struct ShapeCueDepthParams {
     pixel_x_zw: vec2f,
     pixel_y_zw: vec2f,
     depth_zw: vec2f,
     bias_zw: vec2f,
 }
 
-fn illustration_depth_params(
+fn shape_cues_depth_params(
     dimensions: vec2i,
-) -> IllustrationDepthParams {
+) -> ShapeCueDepthParams {
     let scale =
         vec2f(2.0, -2.0) /
         vec2f(dimensions);
@@ -69,7 +69,7 @@ fn illustration_depth_params(
         vec2f(-1.0, 1.0) +
         scale * 0.5;
 
-    return IllustrationDepthParams(
+    return ShapeCueDepthParams(
         frame.inv_proj[0].zw * scale.x,
         frame.inv_proj[1].zw * scale.y,
         frame.inv_proj[2].zw,
@@ -79,19 +79,19 @@ fn illustration_depth_params(
     );
 }
 
-fn illustration_pixel_zw(
+fn shape_cues_pixel_zw(
     pixel: vec2i,
-    params: IllustrationDepthParams,
+    params: ShapeCueDepthParams,
 ) -> vec2f {
     return params.bias_zw
         + params.pixel_x_zw * f32(pixel.x)
         + params.pixel_y_zw * f32(pixel.y);
 }
 
-fn illustration_view_z(
+fn shape_cues_view_z(
     pixel_zw: vec2f,
     depth: f32,
-    params: IllustrationDepthParams,
+    params: ShapeCueDepthParams,
 ) -> f32 {
     let zw =
         pixel_zw +

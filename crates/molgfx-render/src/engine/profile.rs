@@ -15,7 +15,7 @@ mod resolve;
 /// Screen-space cues that clarify molecular shape without changing geometry
 /// or physical colour mappings.
 #[derive(Clone, Copy, PartialEq, Debug, Default, Serialize, Deserialize)]
-pub struct IllustrationStyle {
+pub struct ShapeCueStyle {
     /// Darkening at relative depth and normal discontinuities, in `[0, 1]`.
     pub silhouette_strength: f32,
     /// Bounded emphasis of locally concave depth, in `[0, 1]`.
@@ -34,7 +34,7 @@ pub struct IllustrationStyle {
     pub outline_width: f32,
 }
 
-/// Bright-pass highlight bleed for cinematic presentation.
+/// Bright-pass highlight bleed for optical presentation.
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub struct BloomStyle {
     /// Scene-linear luminance above which light begins to bleed.
@@ -48,7 +48,7 @@ pub struct BloomStyle {
 impl BloomStyle {
     /// A restrained lens bleed that only the brightest speculars trigger.
     #[must_use]
-    pub const fn cinematic() -> Self {
+    pub const fn restrained() -> Self {
         Self {
             threshold: 1.7,
             intensity: 0.26,
@@ -80,10 +80,10 @@ impl BloomStyle {
     }
 }
 
-impl IllustrationStyle {
-    /// A restrained publication-style treatment.
+impl ShapeCueStyle {
+    /// A restrained treatment.
     #[must_use]
-    pub const fn publication() -> Self {
+    pub const fn restrained() -> Self {
         Self {
             silhouette_strength: 0.65,
             cavity_strength: 0.35,
@@ -170,7 +170,7 @@ impl AntiAliasingStyle {
         }
     }
 
-    /// Edge smoothing off: the choice for publication, where the accumulated
+    /// Edge smoothing off: the choice for converged, where the accumulated
     /// image needs no post-filter.
     #[must_use]
     pub const fn none() -> Self {
@@ -191,8 +191,8 @@ impl AntiAliasingStyle {
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum PresentationEffect {
-    /// Molecular illustration applied after opaque lighting.
-    Illustration(IllustrationStyle),
+    /// Molecular shape cues applied after opaque lighting.
+    ShapeCues(ShapeCueStyle),
     /// Explicit view-space fog/depth cue applied after lighting.
     DepthCue(DepthCue),
     /// Camera-space thin-lens depth of field after temporal resolution.
@@ -256,28 +256,26 @@ pub struct RenderProfile {
 }
 
 impl RenderProfile {
-    /// The quantitative inspection baseline with no optional presentation
+    /// The baseline with no optional presentation
     /// modules.
     #[must_use]
-    pub const fn inspection() -> Self {
+    pub const fn bare() -> Self {
         Self { layers: Vec::new() }
     }
 
-    /// A restrained publication illustration recipe.
+    /// A restrained shape-cue recipe.
     #[must_use]
-    pub fn illustrative() -> Self {
-        Self::inspection().with_effect(PresentationEffect::Illustration(
-            IllustrationStyle::publication(),
-        ))
+    pub fn shape_cues() -> Self {
+        Self::bare().with_effect(PresentationEffect::ShapeCues(ShapeCueStyle::restrained()))
     }
 
-    /// Art-directed molecular-film optics and grading. It deliberately leaves
+    /// Lens optics and tone grading. It deliberately leaves
     /// the fallback backdrop unchanged: biological context must be represented
     /// by structures, solvent, membranes or caller density.
     #[must_use]
-    pub fn cinematic() -> Self {
-        Self::inspection()
-            .with_effect(PresentationEffect::Illustration(IllustrationStyle {
+    pub fn optical() -> Self {
+        Self::bare()
+            .with_effect(PresentationEffect::ShapeCues(ShapeCueStyle {
                 silhouette_strength: 0.5,
                 cavity_strength: 0.4,
                 depth_cue_strength: 0.28,
@@ -285,13 +283,11 @@ impl RenderProfile {
                 motion_persistence: 0.0,
                 outline_width: 0.0,
             }))
-            .with_effect(PresentationEffect::Lighting(
-                LightingEnvironment::documentary(),
-            ))
-            .with_effect(PresentationEffect::Display(DisplayTransform::cinematic()))
-            .with_effect(PresentationEffect::Bloom(BloomStyle::cinematic()))
-            .with_effect(PresentationEffect::DepthOfField(DepthOfField::cinematic()))
-            .with_effect(PresentationEffect::MotionBlur(MotionBlur::cinematic()))
+            .with_effect(PresentationEffect::Lighting(LightingEnvironment::soft_key()))
+            .with_effect(PresentationEffect::Display(DisplayTransform::filmic()))
+            .with_effect(PresentationEffect::Bloom(BloomStyle::restrained()))
+            .with_effect(PresentationEffect::DepthOfField(DepthOfField::macro_lens()))
+            .with_effect(PresentationEffect::MotionBlur(MotionBlur::restrained()))
     }
 
     /// Appends a fully weighted module.
@@ -317,7 +313,7 @@ impl RenderProfile {
 /// The compact, sanitized plan the frame loop actually consumes.
 #[derive(Clone, Copy, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct ResolvedRenderPlan {
-    illustration: IllustrationStyle,
+    shape_cues: ShapeCueStyle,
     depth_cue: DepthCue,
     depth_of_field: Option<DepthOfField>,
     motion_blur: Option<MotionBlur>,
@@ -329,10 +325,10 @@ pub struct ResolvedRenderPlan {
 }
 
 impl ResolvedRenderPlan {
-    /// The final molecular illustration settings after ordered blending.
+    /// The final molecular shape-cue settings after ordered blending.
     #[must_use]
-    pub const fn illustration(&self) -> IllustrationStyle {
-        self.illustration
+    pub const fn shape_cues(&self) -> ShapeCueStyle {
+        self.shape_cues
     }
     /// The explicit view-space fog/depth cue, if enabled.
     #[must_use]

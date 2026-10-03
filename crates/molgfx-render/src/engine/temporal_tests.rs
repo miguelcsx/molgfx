@@ -1,4 +1,4 @@
-use super::{IllustrationStyle, TemporalOptions, TemporalState};
+use super::{ShapeCueStyle, TemporalOptions, TemporalState};
 use crate::{BackdropStyle, DisplayTransform};
 use molgfx_math::{Camera, Mat4, Projection, Vec3};
 
@@ -21,8 +21,8 @@ fn options(quality: bool) -> TemporalOptions {
         extent: [800, 800],
         reset: false,
         quality,
-        publication: false,
-        illustration: IllustrationStyle::default(),
+        converged: false,
+        shape_cues: ShapeCueStyle::default(),
         depth_cue: [0.0; 4],
         optics: [8.0, 0.0, 0.0, 0.0],
         motion_blur: [0.0; 4],
@@ -43,7 +43,7 @@ fn options(quality: bool) -> TemporalOptions {
 fn converged_exposure_retains_maximum_ray_budget_across_camera_cuts() {
     let mut state = TemporalState::default();
     let mut selected = options(true);
-    selected.publication = true;
+    selected.converged = true;
     let first = state.prepare(&camera(), &selected);
     let mut moved = camera();
     moved.eye.x += 1.0;

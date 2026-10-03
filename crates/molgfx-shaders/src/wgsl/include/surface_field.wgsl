@@ -77,7 +77,7 @@ fn union_sample(point: vec3f, probe: f32) -> DistanceSample {
     return best;
 }
 
-// Atom-centred Gaussian density used for publication-style molecular surfaces.
+// Atom-centred Gaussian density used for smooth molecular surfaces.
 // The value is a unit-weight sum, so the caller's iso-level remains a direct
 // and reversible density control rather than a distance disguised as one.
 fn gaussian_sample(point: vec3f) -> DistanceSample {

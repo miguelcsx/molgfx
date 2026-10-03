@@ -19,7 +19,7 @@ fn camera() -> Camera {
 
 #[test]
 fn session_json_round_trips_camera_and_ordered_profile() {
-    let mut profile = RenderProfile::cinematic();
+    let mut profile = RenderProfile::optical();
     profile = profile.with_effect(crate::PresentationEffect::Display(
         crate::DisplayTransform {
             tone_mapping: ToneMapping::Reinhard,
@@ -40,7 +40,7 @@ fn session_json_round_trips_camera_and_ordered_profile() {
 
 #[test]
 fn session_rejects_a_different_schema() {
-    let mut session = RenderSession::new(&Scene::new(), camera(), RenderProfile::inspection());
+    let mut session = RenderSession::new(&Scene::new(), camera(), RenderProfile::bare());
     session.schema += 1;
     let json = match serde_json::to_string(&session) {
         Ok(json) => json,
