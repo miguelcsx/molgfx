@@ -1,4 +1,5 @@
 """Populate content-addressed parity inputs. Network/hash failures are fatal."""
+
 import argparse
 import gzip
 import hashlib
@@ -20,10 +21,14 @@ def lattice(path, count):
         out.write("data_lattice\n#\nloop_\n_entity.id\n_entity.type\n1 non-polymer\n#\n")
         out.write("loop_\n" + "".join("_atom_site." + x + "\n" for x in ATOM_COLUMNS))
         for i in range(count):
-            x, y, z = ((i % side - side / 2) * 4,
-                       ((i // side) % side - side / 2) * 4,
-                       (i // (side * side) - side / 2) * 4)
-            out.write(f"HETATM {i + 1} He HE . HE A 1 . ? {x:.3f} {y:.3f} {z:.3f} 1 0 {i + 1} HE A HE 1\n")
+            x, y, z = (
+                (i % side - side / 2) * 4,
+                ((i // side) % side - side / 2) * 4,
+                (i // (side * side) - side / 2) * 4,
+            )
+            out.write(
+                f"HETATM {i + 1} He HE . HE A 1 . ? {x:.3f} {y:.3f} {z:.3f} 1 0 {i + 1} HE A HE 1\n"
+            )
         out.write("#\n")
 
 
@@ -48,7 +53,9 @@ def analytic_map(path, skew):
                 values.append(math.exp(-(wx * wx + wy * wy + wz * wz) / 32))
     mean = sum(values) / len(values)
     struct.pack_into("<3f", header, 76, min(values), max(values), mean)
-    struct.pack_into("<f", header, 216, math.sqrt(sum((v - mean) ** 2 for v in values) / len(values)))
+    struct.pack_into(
+        "<f", header, 216, math.sqrt(sum((v - mean) ** 2 for v in values) / len(values))
+    )
     with path.open("wb") as out:
         out.write(header)
         out.write(struct.pack("<" + "f" * len(values), *values))
@@ -118,7 +125,9 @@ def bond_order_ligand(path):
         mx, my = cx + sign * 1.54 * math.sin(math.radians(60)), -1.54 * math.cos(math.radians(60))
         methyl = atom(f"CC{n}", "C", mx, my, 0.0)
         bond(carbonyl, methyl, "SING")
-        for m, (hx, hy, hz) in enumerate(_methyl_hydrogens((mx, my, 0.0), (mx - cx, my, 0.0)), start=1):
+        for m, (hx, hy, hz) in enumerate(
+            _methyl_hydrogens((mx, my, 0.0), (mx - cx, my, 0.0)), start=1
+        ):
             hname = atom(f"HC{n}{m}", "H", hx, hy, hz)
             bond(methyl, hname, "SING")
     # Dirhenium core: Re-Re quadruple bond, 2.24 A.
@@ -128,16 +137,25 @@ def bond_order_ligand(path):
         out.write("data_bond_orders\n#\nloop_\n_entity.id\n_entity.type\n1 non-polymer\n#\n")
         items = ["id", "conn_type_id", "pdbx_value_order"]
         for side in ("1", "2"):
-            items += [f"ptnr{side}_label_asym_id", f"ptnr{side}_label_comp_id", f"ptnr{side}_label_seq_id",
-                      f"ptnr{side}_label_atom_id", f"ptnr{side}_auth_asym_id", f"ptnr{side}_auth_comp_id",
-                      f"ptnr{side}_auth_seq_id", f"ptnr{side}_auth_atom_id"]
+            items += [
+                f"ptnr{side}_label_asym_id",
+                f"ptnr{side}_label_comp_id",
+                f"ptnr{side}_label_seq_id",
+                f"ptnr{side}_label_atom_id",
+                f"ptnr{side}_auth_asym_id",
+                f"ptnr{side}_auth_comp_id",
+                f"ptnr{side}_auth_seq_id",
+                f"ptnr{side}_auth_atom_id",
+            ]
         out.write("loop_\n" + "".join(f"_struct_conn.{item}\n" for item in items))
         for i, (a, b, order, _) in enumerate(bonds, start=1):
             ends = " ".join(f"A LIG . {n} A LIG 1 {n}" for n in (a, b))
             out.write(f"c{i} covale {order} {ends}\n")
         out.write("#\nloop_\n" + "".join("_atom_site." + x + "\n" for x in ATOM_COLUMNS))
         for i, (name, element, x, y, z) in enumerate(atoms, start=1):
-            out.write(f"HETATM {i} {element} {name} . LIG A 1 . ? {_fmt(x)} {_fmt(y)} {_fmt(z)} 1 0 1 LIG A {name} 1\n")
+            out.write(
+                f"HETATM {i} {element} {name} . LIG A 1 . ? {_fmt(x)} {_fmt(y)} {_fmt(z)} 1 0 1 LIG A {name} 1\n"
+            )
         out.write("#\n")
 
 
@@ -157,7 +175,14 @@ def _first_model_atoms(path):
                 continue
             row = dict(zip(columns, fields))
             if row.get("pdbx_PDB_model_num", "1") == "1":
-                atoms.append((row["type_symbol"].upper(), float(row["Cartn_x"]), float(row["Cartn_y"]), float(row["Cartn_z"])))
+                atoms.append(
+                    (
+                        row["type_symbol"].upper(),
+                        float(row["Cartn_x"]),
+                        float(row["Cartn_y"]),
+                        float(row["Cartn_z"]),
+                    )
+                )
         elif in_loop and (line.startswith("#") or line.startswith("loop_")):
             break
     return atoms
@@ -205,8 +230,12 @@ def model_density(path, structure_path):
     struct.pack_into("<3i", header, 64, 1, 2, 3)
     mean = sum(grid) / len(grid)
     struct.pack_into("<3f", header, 76, min(grid), max(grid), mean)
-    struct.pack_into("<3f", header, 196, *(
-        (lo[0] + lo[1] * cos_g) * spacing, lo[1] * sin_g * spacing, lo[2] * spacing))
+    struct.pack_into(
+        "<3f",
+        header,
+        196,
+        *((lo[0] + lo[1] * cos_g) * spacing, lo[1] * sin_g * spacing, lo[2] * spacing),
+    )
     header[208:212], header[212:216] = b"MAP ", b"DA\x00\x00"
     struct.pack_into("<f", header, 216, math.sqrt(sum((v - mean) ** 2 for v in grid) / len(grid)))
     with path.open("wb") as out:
@@ -247,7 +276,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", type=Path)
     parser.add_argument("cache", type=Path)
-    parser.add_argument("--lock", action="store_true", help="Explicitly record newly fetched hashes in the manifest")
+    parser.add_argument(
+        "--lock", action="store_true", help="Explicitly record newly fetched hashes in the manifest"
+    )
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text())
     populate(manifest, args.cache, args.lock)
