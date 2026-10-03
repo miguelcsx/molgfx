@@ -336,6 +336,7 @@ impl<D: Device> GpuScene<D> {
             (derived_cache, derived_frame),
         )?;
         changed |= self.sync_auxiliary_slots(device, queue, scene)?;
+        self.representation_revision = Some(scene.representation_revision());
         Ok(changed)
     }
 

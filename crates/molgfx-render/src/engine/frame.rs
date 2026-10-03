@@ -128,24 +128,22 @@ impl<D: Device> Engine<D> {
         let render_started_at = self.clock_origin.elapsed();
 
         if self.poll_pending_submission()? {
-            // Fence-only skip: the previous submission is still pending.
-            // This is not surface/pool work that a retry produces; whether
-            // another frame is needed is decided by the report's upload and
-            // temporal conditions below.
+            // A skipped caller request has not presented its desired scene/view.
+            // Keep demand alive even when the previous exposure was converged.
             #[cfg(not(test))]
-            return Ok(self.frame_report(FrameStatus::Skipped, true));
+            return Ok(self.frame_report(FrameStatus::Skipped));
         }
 
         self.prepare_frame(scene, camera)?;
 
         let Some(frame) = self.acquire_surface_frame()? else {
-            return Ok(self.frame_report(FrameStatus::Skipped, false));
+            return Ok(self.frame_report(FrameStatus::Skipped));
         };
 
         let mut encoder = self.device.create_command_encoder();
 
         if !self.record_frame(&mut encoder, scene, frame.view())? {
-            return Ok(self.frame_report(FrameStatus::Skipped, false));
+            return Ok(self.frame_report(FrameStatus::Skipped));
         }
 
         self.submit_frame(encoder);
@@ -161,7 +159,7 @@ impl<D: Device> Engine<D> {
                 .saturating_sub(render_started_at),
         ));
 
-        Ok(self.frame_report(FrameStatus::Presented, false))
+        Ok(self.frame_report(FrameStatus::Presented))
     }
 
     /// Synchronizes CPU/GPU state and prepares per-frame temporal uniforms.
@@ -421,13 +419,10 @@ impl<D: Device> Engine<D> {
     /// The report samples existing counters and resource metrics without
     /// introducing heap allocation in this layer.
     ///
-    /// `fence_pending` marks the skip as a poll of a still-pending previous
-    /// submission. Such a skip is not surface or pool work that the next
-    /// frame recovers, so it does not by itself request another frame:
-    /// pending uploads and temporal convergence remain authoritative. A
-    /// surface/pool skip (`fence_pending == false`) keeps the existing
-    /// retry-next-frame contract.
-    fn frame_report(&self, status: FrameStatus, fence_pending: bool) -> FrameReport {
+    /// A skipped call has not fulfilled the caller's requested scene/view, even
+    /// when an older exposure is already converged. Retry until it is presented;
+    /// successful submissions idle only after streaming and exposure settle.
+    fn frame_report(&self, status: FrameStatus) -> FrameReport {
         let residency = self.chunk_residency.metrics();
         let derived = self.derived_cache.usage();
         let physical = self.device.resource_memory();
@@ -459,7 +454,11 @@ impl<D: Device> Engine<D> {
                 physical_total_bytes: physical.total_bytes(),
                 physical_peak_bytes: physical.peak_bytes,
             },
-            needs_another_frame: (status == FrameStatus::Skipped && !fence_pending) || pending != 0,
+            needs_another_frame: status == FrameStatus::Skipped
+                || pending != 0
+                || self
+                    .temporal
+                    .needs_another_frame(self.tier().temporal_samples()),
             quality_tier: self.tier(),
             quality: self.effective_quality(
                 u32::from(self.tier().temporal_samples()),
