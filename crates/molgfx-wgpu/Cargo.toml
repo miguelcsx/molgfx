@@ -29,6 +29,13 @@ wgpu = { workspace = true, features = ["std", "webgpu", "wgsl"] }
 [target.'cfg(windows)'.dependencies]
 wgpu = { workspace = true, features = ["std", "parking_lot", "vulkan", "dx12", "wgsl"] }
 
+# Ship the compiler with the backend: wgpu's Auto selection uses embedded DXC
+# rather than depending on an ambient DLL and falling back to legacy FXC,
+# which cannot compile the visual-program evaluator's dynamic register loops.
+# The embedded redistributable is available for x86-64 MSVC Windows.
+[target.'cfg(all(windows, target_env = "msvc", target_arch = "x86_64"))'.dependencies]
+wgpu = { workspace = true, features = ["static-dxc"] }
+
 # Vulkan is not a given on Linux: a container, a CI runner or a hosted notebook
 # often exposes a GPU for compute only, with no Vulkan ICD. `gles` lets wgpu
 # fall back to EGL/OpenGL there (Mesa's llvmpipe included), so a wheel does not

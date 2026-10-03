@@ -43,7 +43,7 @@ jobs:
         run: npx --prefix web playwright install --with-deps chromium
       - name: Exercise production docs WebGPU demo
         working-directory: site
-        run: npm run test:demo
+        run: xvfb-run -a npm run test:demo
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

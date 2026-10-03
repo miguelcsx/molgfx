@@ -4,6 +4,13 @@ test("measure real small, medium and large atom workloads", async ({ page }) => 
   await page.goto("/tests/browser/host.html");
   const measurements = await page.evaluate(async () => {
     const { Viewer } = await import("/dist/index.js");
+    const { Renderer } = await import("/dist/molgfx_wasm.js");
+    const render = Renderer.prototype.renderCamera;
+    let needsFrame = true;
+    Renderer.prototype.renderCamera = function (...args) {
+      needsFrame = render.apply(this, args);
+      return needsFrame;
+    };
     const results = [];
     let queue, submits = 0;
     const submit = GPUQueue.prototype.submit;
@@ -33,14 +40,18 @@ test("measure real small, medium and large atom workloads", async ({ page }) => 
         await queue.onSubmittedWorkDone();
         const cameraMs = performance.now() - cameraStart;
         const redrawSubmits = submits - cameraSubmits;
-        await new Promise(resolve => setTimeout(resolve, 100));
+        const deadline = performance.now() + 30000;
+        while (needsFrame && performance.now() < deadline)
+          await new Promise(resolve => requestAnimationFrame(resolve));
+        if (needsFrame) throw new Error("Workload did not finish its frame demand");
+        await queue.onSubmittedWorkDone();
         const idleStart = submits;
         await new Promise(resolve => setTimeout(resolve, 300));
         if (submits !== idleStart) throw new Error("Idle workload continues GPU submission");
         await viewer.dispose();
         results.push({atoms, load_ms: loadMs, command_ms: commandMs, gpu_ready_ms: readyMs, camera_12_frames_ms: cameraMs, camera_submissions: redrawSubmits, idle_submissions_300ms: submits - idleStart});
       }
-    } finally { GPUQueue.prototype.submit = submit; }
+    } finally { Renderer.prototype.renderCamera = render; GPUQueue.prototype.submit = submit; }
     return results;
   });
   console.log("real workload measurements", JSON.stringify(measurements));

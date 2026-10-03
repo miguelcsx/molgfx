@@ -104,7 +104,15 @@ type _Category = Literal[
     "chain", "entity", "molecule_type", "residue_name", "residue", "secondary_structure"
 ]
 type _Metric = Literal[
-    "occupancy", "b_factor", "formal_charge", "hydrophobicity", "sequence_position"
+    "occupancy",
+    "b_factor",
+    "formal_charge",
+    "hydrophobicity",
+    "sequence_position",
+    "sasa",
+    "plddt",
+    "rainbow",
+    "confidence",
 ]
 
 @final

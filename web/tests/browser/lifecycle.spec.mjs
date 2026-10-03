@@ -23,8 +23,12 @@ test("real WebGPU viewer loads, commands, resizes and disposes repeatedly", asyn
       const canvas = root.querySelector("canvas");
       if (!canvas || canvas.width < 600 || canvas.height < 400) throw new Error("Canvas failed to acquire its physical extent");
       root.style.width = "320px";
-      await new Promise(resolve => setTimeout(resolve, 250));
-      if (canvas.width >= 600) throw new Error("Resize failed: " + JSON.stringify({physical:[canvas.width,canvas.height],css:[canvas.clientWidth,canvas.clientHeight],dpr:devicePixelRatio,error:root.textContent}));
+      const deadline = performance.now() + 30000;
+      const width = Math.round(320 * devicePixelRatio);
+      const height = Math.round(480 * devicePixelRatio);
+      while ((canvas.width !== width || canvas.height !== height) && performance.now() < deadline)
+        await new Promise(resolve => setTimeout(resolve, 10));
+      if (canvas.width !== width || canvas.height !== height) throw new Error("Resize failed: " + JSON.stringify({physical:[canvas.width,canvas.height],css:[canvas.clientWidth,canvas.clientHeight],dpr:devicePixelRatio,error:root.textContent}));
       await viewer.dispose();
       if (root.querySelector("canvas")) throw new Error("Dispose left a canvas mounted");
       root.style.width = "640px";

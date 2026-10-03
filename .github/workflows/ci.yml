@@ -65,10 +65,10 @@ jobs:
       - run: python -m pip install 'maturin>=1.15'
       - run: maturin build -m crates/molgfx-py/Cargo.toml --out dist
       - run: python -m pip install dist/*.whl
-      - run: npm run test:browser --prefix web
+      - run: xvfb-run -a npm run test:browser --prefix web
         env:
           MOLGFX_PYTHON: python
-      - run: npm run test:bundler --prefix web
+      - run: xvfb-run -a npm run test:bundler --prefix web
       - name: Identical npm and wheel assets
         run: python web/scripts/check-distributions.py web/molgfx-*.tgz "dist/*.whl"
       - uses: actions/upload-artifact@v4

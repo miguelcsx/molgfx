@@ -74,7 +74,7 @@ jobs:
       - name: Install real browser
         run: npx --prefix web playwright install --with-deps chromium
       - name: Verify packed public exports, SSR and emitted WebGPU wasm
-        run: npm run test:bundler --prefix web
+        run: xvfb-run -a npm run test:bundler --prefix web
       - name: Pack the verified canonical assets
         run: |
           mkdir npm-release

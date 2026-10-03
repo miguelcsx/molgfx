@@ -1,7 +1,9 @@
-// The full Chromium channel uses the modern compositor; headless-shell on macOS
-// cannot reliably deliver resize frames or keep multiple WebGPU devices alive.
+// Use full Chromium: headless-shell has unreliable WebGPU lifecycle on macOS.
+// Linux SwiftShader also needs the headed compositor (run under xvfb-run in CI);
+// headless Chromium can submit valid GPU work while presenting a blank canvas.
 export const browserLaunchOptions = {
   channel: "chromium",
+  headless: process.platform !== "linux",
   args:
     process.platform === "linux"
       ? [

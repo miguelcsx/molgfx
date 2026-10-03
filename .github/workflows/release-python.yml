@@ -215,6 +215,17 @@ jobs:
           "$py" -m pip install dist/*.whl
           "$py" -m unittest discover -s python/tests
 
+      - name: Render with the embedded Windows compiler
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          WGPU_BACKEND: dx12
+          WGPU_DX12_COMPILER: staticdxc
+        run: |
+          set -euo pipefail
+          .venv/Scripts/python python/tests/headless_render.py
+          .venv/Scripts/python python/tests/headless_determinism.py
+
   # Importing is not rendering: this installs the built wheel on a bare Linux
   # host with no GPU and renders a PNG, so a wheel that cannot open a graphics
   # device is caught here. Mesa supplies software Vulkan (lavapipe) and GL.

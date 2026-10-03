@@ -171,6 +171,24 @@ Browser compatibility claims are capability-based. Chromium evidence does not
 prove Firefox, Safari or every GPU/driver combination. Unsupported or unavailable
 browser environments must be reported explicitly, not counted as passing.
 
+Linux browser verification runs full Chromium with a headed compositor under
+`xvfb-run -a`, using the shared SwiftShader/Vulkan launch options. With Playwright
+1.63.0 / Chromium 153.0.8010.12, a Linux x86_64 container submitted and converged
+real GPU frames in headless mode but its canvas screenshots remained blank.
+The identical runtime and launch flags under Xvfb presented molecular pixels
+and resized correctly. This is a verification-harness configuration, not a
+Viewer timer fallback or a different rendering implementation. Pixel and resize
+checks wait for observable presentation/physical extents rather than assuming
+software GPU work finishes within a fixed delay; semantic pick assertions remain
+independent of the initial visible-pixel check.
+Workload idle measurements first wait for the renderer's frame-demand signal to
+clear and for submitted GPU work to complete, then require zero submissions
+through the same 300 ms idle window. A fixed settling delay is not a completion
+boundary on a software GPU. Linux runs exercised all eight browser scenarios
+across the full suite and targeted idle regression; the production documentation
+demo presented 34,909 coloured pixels, loaded the canonical emitted WASM and
+unmounted its canvas on navigation.
+
 ## Initial SDK verification and measurements
 
 On the macOS arm64 workstation, the release build, strict TypeScript, ten
