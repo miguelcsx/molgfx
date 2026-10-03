@@ -1,0 +1,5 @@
+{
+  "backend": "metal",
+  "device_type": "integrated",
+  "name": "Apple M5 Pro"
+}

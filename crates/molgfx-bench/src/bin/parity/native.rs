@@ -46,6 +46,24 @@ pub(super) fn structure(fixture: &Fixture, cache: &Path) -> Result<(molframe::St
     Ok((structure, metadata))
 }
 
+/// The explicit camera of a case at the catalog's aspect ratio.
+pub(super) fn camera(catalog: &Catalog, fixture: &Fixture) -> Result<molgfx::Camera> {
+    let c = &fixture.camera;
+    let aspect = num_traits::ToPrimitive::to_f32(&catalog.extent[0])
+        .ok_or_else(|| io::Error::other("invalid width"))?
+        / num_traits::ToPrimitive::to_f32(&catalog.extent[1])
+            .ok_or_else(|| io::Error::other("invalid height"))?;
+    Ok(molgfx::camera::perspective(
+        c.position,
+        c.target,
+        c.up,
+        c.fov_y_degrees.to_radians(),
+        aspect,
+        c.near,
+        c.far,
+    )?)
+}
+
 pub(super) fn render(
     catalog: &Catalog,
     fixture: &Fixture,
@@ -62,20 +80,7 @@ pub(super) fn render(
         add_form(&mut scene, &fixture.form, &catalog.style)?;
         (scene, metadata)
     };
-    let c = &fixture.camera;
-    let aspect = num_traits::ToPrimitive::to_f32(&catalog.extent[0])
-        .ok_or_else(|| io::Error::other("invalid width"))?
-        / num_traits::ToPrimitive::to_f32(&catalog.extent[1])
-            .ok_or_else(|| io::Error::other("invalid height"))?;
-    let camera = molgfx::camera::perspective(
-        c.position,
-        c.target,
-        c.up,
-        c.fov_y_degrees.to_radians(),
-        aspect,
-        c.near,
-        c.far,
-    )?;
+    let camera = camera(catalog, fixture)?;
     let kind = if recipe == "molgfx-interactive" {
         MeasuredOutput::Interactive
     } else {
@@ -134,7 +139,15 @@ pub(super) fn render(
             output.parent(),
         )
     {
-        script::frames(catalog, fixture, &scene, &mut renderer, video, directory)?;
+        script::frames(
+            catalog,
+            fixture,
+            cache,
+            &scene,
+            &mut renderer,
+            video,
+            directory,
+        )?;
         script::encode(ffmpeg, video, directory)?;
     }
     let mut scratch = Vec::with_capacity(measurements.len());

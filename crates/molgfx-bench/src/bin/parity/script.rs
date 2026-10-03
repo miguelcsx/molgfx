@@ -3,7 +3,11 @@ use super::{
     catalog::{Camera, Catalog, FitCamera, Fixture, Result, Video, VideoKind},
     native,
 };
-use molgfx::{Renderer, Scene, camera, command::Session};
+use molgfx::{
+    Renderer, Scene, StructureId, TrajectoryBinding, TrajectoryFrame, camera, command::Session,
+    profile::MeasuredOutput, schema::DataSource, trajectory,
+};
+use molgfx_bench::fallback;
 use num_traits::ToPrimitive;
 use serde_json::Value;
 use std::{io, path::Path};
@@ -55,14 +59,15 @@ pub(super) fn fit(fixture: &Fixture, cache: &Path, fit: &FitCamera) -> Result<Ca
 pub(super) fn frames(
     catalog: &Catalog,
     fixture: &Fixture,
+    cache: &Path,
     scene: &Scene,
     renderer: &mut Renderer,
     video: &Video,
     directory: &Path,
 ) -> Result<()> {
-    let VideoKind::OrbitY = video.kind else {
-        return Err(io::Error::other("prerequisite: trajectory video stepping").into());
-    };
+    if let VideoKind::Trajectory = video.kind {
+        return trajectory(catalog, fixture, cache, renderer, video, directory);
+    }
     let size = (catalog.extent[0], catalog.extent[1]);
     let aspect = (f64::from(size.0) / f64::from(size.1))
         .to_f32()
@@ -104,6 +109,73 @@ pub(super) fn frames(
     let frames = directory.join("frames");
     std::fs::create_dir_all(&frames)?;
     for (index, image) in images.iter().enumerate() {
+        image.save(frames.join(format!("{:04}.png", index + 1)))?;
+    }
+    Ok(())
+}
+
+/// Steps the structure's models: one interpolation interval is resident at a time.
+fn trajectory(
+    catalog: &Catalog,
+    fixture: &Fixture,
+    cache: &Path,
+    renderer: &mut Renderer,
+    video: &Video,
+    directory: &Path,
+) -> Result<()> {
+    let models = molgfx_bench::reader::read_model_positions(&cache.join(&fixture.file))?;
+    let Some(last) = models.len().checked_sub(1).filter(|last| *last > 0) else {
+        return Err(io::Error::other(format!(
+            "trajectory video needs a multi-model structure, read {} model(s)",
+            models.len()
+        ))
+        .into());
+    };
+    let size = (catalog.extent[0], catalog.extent[1]);
+    let camera = native::camera(catalog, fixture)?;
+    let frames = directory.join("frames");
+    std::fs::create_dir_all(&frames)?;
+    let span = fallback(last.to_f64(), 1.0);
+    let steps = f64::from(video.frames.saturating_sub(1).max(1));
+    let mut resident: Option<(usize, Scene, StructureId)> = None;
+    for index in 0..video.frames {
+        let time = f64::from(index) / steps * span;
+        let interval = fallback(time.floor().to_usize(), 0).min(last - 1);
+        let sample = time
+            .to_f32()
+            .ok_or_else(|| io::Error::other("trajectory time is not representable"))?;
+        let stale = resident.as_ref().is_none_or(|(held, ..)| *held != interval);
+        if stale {
+            let (mut scene, _) = scene(fixture, cache)?;
+            let structure = StructureId::new(1);
+            let source = DataSource::new(format!("{}:{interval}", fixture.id));
+            scene.add(trajectory::trajectory(
+                structure,
+                source.clone(),
+                fallback(models.len().to_u64(), 0),
+            ))?;
+            let frame = |model: usize| -> Result<TrajectoryFrame> {
+                let time = model
+                    .to_f32()
+                    .ok_or_else(|| io::Error::other("model index is not representable"))?;
+                Ok(TrajectoryFrame::new(
+                    fallback(model.to_u64(), 0),
+                    time,
+                    std::sync::Arc::clone(&models[model]),
+                ))
+            };
+            scene.bind_trajectory(
+                TrajectoryBinding::new(source, frame(interval)?, frame(interval + 1)?)
+                    .sample_seconds(sample),
+            )?;
+            resident = Some((interval, scene, structure));
+        }
+        let Some((_, scene, structure)) = resident.as_mut() else {
+            continue;
+        };
+        scene.set_trajectory_time(*structure, sample)?;
+        let image =
+            renderer.render_output_with_camera(scene, &camera, size, MeasuredOutput::Converged)?;
         image.save(frames.join(format!("{:04}.png", index + 1)))?;
     }
     Ok(())

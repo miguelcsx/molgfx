@@ -687,3 +687,56 @@ The exact changed files, observed test counts, and recommended implementation
 order are recorded in the continuation checkpoint at the end of `mapping.md`.
 Do not promote `[~]` or `[ ]` entries to `[x]` without the named fixture,
 measurement, or serialization boundary.
+
+## Baseline review 2026-10
+
+Reference adapter Apple M5 Pro (Metal), 768x768, commit `aec2220`+bench changes. Every case directory under `target/gallery/<case>/` holds `sheet.png` (MolGFX converged | MolGFX interactive | PyMOL ray | Mol* ImagePass) and `review.json`. 42 cases reviewed; the two video cases hold `video.mp4` and 120/10 distinct frames.
+
+Tile caveats: the Mol* adapter draws molecular surfaces as dot clouds; plddt/sasa colour cases reuse the b-factor entry in Mol*; PyMOL and Mol* show no measurements. These tiles are omitted from judgement, not failed.
+
+## Visual review defects
+
+| case | item | observation | owner |
+|---|---|---|---|
+| B-bas-ligand-orders | BS-2 | triple, double and aromatic bonds draw as one strand; no inner dashed aromatic line | Phase 3.2 |
+| B-basepairs-1BNA | NA-4 | paired bases draw as slabs, not one rung per Watson-Crick pair | Phase 3.1 |
+| B-bases-1BNA | NA-3 | square slabs, no ring shapes | Phase 3.1 |
+| B-color-sasa-4HHB | COL-2 | cartoon renders neutral grey: the SASA metric is not computed for this colour scheme | Phase 4.1 |
+| B-distance-angle-dihedral-4HHB | MEAS-1 | no measurement overlay is visible | Phase 5.3 |
+| B-glycan-1HZH | GLY-4 | no glycan geometry is drawn; Mol* shows sugars as spheres | Phase 3.5 |
+| B-label-4HHB | LBL-1 | no HEM label is visible; PyMOL shows four | Phase 5.1 |
+| B-licorice-1HVR | BS-5 | not reviewable: fit="hetero" includes all waters so the inhibitor covers under 2% of the frame; Mol* tile draws every atom | bench case |
+| B-lines-1HVR | BS-7 | not reviewable: same framing defect as the licorice case | bench case |
+| B-plane | GEN-1 | the plane outline is not visible in any molgfx tile | Phase 2 |
+| B-pocket-HEM-4HHB | BS-3 | HEM and its Fe coordination are not visible; the pocket view is four small slivers | Phase 3.2 |
+| B-pocket-HEM-4HHB | SURF-5 | no surface in this case, the haem cleft is not shown | Phase 3.4 |
+| B-surface-blob-4HHB | SURF-3 | blob (soft union) is pixel-identical to gaussian; the style is not applied | Phase 3.4 |
+| B-trna-1EHZ | NA-5 | L-shape unreadable: base slabs float detached from the backbone, one far outside the fold | Phase 3.1 |
+| B-unitcell-1HVR | ASM-2 | only an L of two edges is drawn instead of the full box | Phase 6 |
+
+General observation (not a failure): the interactive tile is paler and lower contrast than the converged tile, as expected from one sample without traced AO; the camera for DNA cases looks down the helix axis because the fit direction is fixed +Z.
+
+## Measured baseline - interactive
+
+1920x1080, `highest_fixed(120)`, serial, one process per scene, camera yaw 0.5 degrees per output; converged rows are 64 samples per output. Interactive: 1200 outputs after 120 warm-up (L8: 300/10); converged: 10 after 2. RSS is peak resident set from `/usr/bin/time -l` (MiB). L8 converged did not finish: its `time -l` log shows a 5.7 GB peak footprint and no JSON.
+
+| scene | recipe | p50 ms | p95 ms | p99 ms | FPS at p50 | budget FPS | met | heap allocs/output | RSS MiB |
+|---|---|---|---|---|---|---|---|---|---|
+| L1 | interactive | 10.1 | 14.2 | 16.2 | 98.7 | 120 | unmet | 410 | 112 |
+| L1 | converged | 1181.7 | 1258.0 | 1258.0 | 0.8 | 120 | unmet | 21074 | 890 |
+| L2 | interactive | 4.8 | 5.7 | 6.1 | 207.1 | 120 | met | 226 | 208 |
+| L2 | converged | 256.7 | 290.1 | 290.1 | 3.9 | 120 | unmet | 9298 | 523 |
+| L3 | interactive | 23.2 | 27.6 | 32.5 | 43.1 | 120 | unmet | 244 | 84 |
+| L3 | converged | 2991.7 | 3428.4 | 3428.4 | 0.3 | 120 | unmet | 10387 | 464 |
+| L4 | interactive | 19.3 | 22.3 | 23.7 | 51.8 | 120 | unmet | 244 | 103 |
+| L4 | converged | 1695.9 | 1981.6 | 1981.6 | 0.6 | 120 | unmet | 10387 | 490 |
+| L5 | interactive | 32.6 | 61.2 | 71.6 | 30.7 | 120 | unmet | 276 | 105 |
+| L5 | converged | 3797.7 | 4774.1 | 4774.1 | 0.3 | 120 | unmet | 12561 | 668 |
+| L6 | interactive | 252.8 | 441.5 | 495.5 | 4.0 | 120 | unmet | 222 | 83 |
+| L6 | converged | 23201.8 | 24720.8 | 24720.8 | 0.0 | 120 | unmet | 8916 | 395 |
+| L7 | interactive | 39.5 | 46.1 | 54.8 | 25.3 | 60 | unmet | 246 | 437 |
+| L7 | converged | 3480.7 | 4124.1 | 4124.1 | 0.3 | 60 | unmet | 10515 | 774 |
+| L8 | interactive | 64.4 | 75.8 | 84.8 | 15.5 | 30 | unmet | 2080 | 3219 |
+| L8 | converged | - | - | - | - | - | not measured | - | - |
+
+Only L2 meets its interactive budget. Per-pass attribution is Phase 9 work.
