@@ -48,3 +48,38 @@ fn a_synced_scene_is_fully_resident_and_an_unsynced_slot_is_not() {
     assert!(engine.scene_gpu.pending_drawables() > 0);
     assert!(!engine.effective_quality(1, 1).full_residency);
 }
+
+#[test]
+fn frame_report_requests_convergence_then_idles_and_restarts_after_camera_motion() {
+    let mut engine = engine();
+    engine.set_render_mode(RenderMode::Converged);
+    let scene = super::tests::represented_scene(1, 1);
+    let first = engine.render(&scene, &camera()).expect("first frame");
+    assert!(
+        first.needs_another_frame,
+        "a partial exposure must not idle"
+    );
+    let mut samples = 1;
+    loop {
+        engine.device.complete_submissions();
+        let next = engine.render(&scene, &camera()).expect("convergence frame");
+        samples += 1;
+        assert!(samples <= 64, "stable exposure must terminate: {next:?}");
+        if !next.needs_another_frame {
+            assert_eq!(
+                next.quality.samples_submitted,
+                next.quality.samples_required
+            );
+            break;
+        }
+    }
+    engine.device.complete_submissions();
+    let mut moved = camera();
+    moved.eye.x += 1.0;
+    assert!(
+        engine
+            .render(&scene, &moved)
+            .expect("changed view")
+            .needs_another_frame
+    );
+}

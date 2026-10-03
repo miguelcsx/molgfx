@@ -189,7 +189,7 @@ impl TemporalState {
         self.settled_frames = self.settled_frames.saturating_add(1);
         uniforms
     }
-    #[cfg(test)]
+    /// Whether the stable exposure still needs samples before the host can idle.
     pub(crate) fn needs_another_frame(&self, sample_budget: u8) -> bool {
         self.settled_frames < sample_budget
     }
