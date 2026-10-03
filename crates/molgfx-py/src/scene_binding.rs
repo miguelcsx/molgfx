@@ -60,16 +60,16 @@ fn deliver_subscribers(
     patch: &molgfx::ScenePatch,
 ) -> PyResult<()> {
     let encoded = patch.to_json().map_err(error)?;
-    let mut live = Vec::with_capacity(subscribers.len());
-    for reference in subscribers.drain(..) {
-        let callback = reference.call0(py)?;
+    let mut index = 0;
+    while index < subscribers.len() {
+        let callback = subscribers[index].call0(py)?;
         if callback.bind(py).is_none() {
-            continue;
+            subscribers.remove(index);
+        } else {
+            let _ = callback.call1(py, (&encoded,))?;
+            index += 1;
         }
-        let _ = callback.call1(py, (&encoded,))?;
-        live.push(reference);
     }
-    *subscribers = live;
     Ok(())
 }
 
@@ -79,13 +79,34 @@ pub(super) fn deliver(
     py: Python<'_>,
     patch: &molgfx::ScenePatch,
 ) -> PyResult<()> {
-    let mut subscribers = {
-        let mut this = slf.borrow_mut();
-        std::mem::take(&mut this.subscribers)
-    };
-    let result = deliver_subscribers(py, &mut subscribers, patch);
-    slf.borrow_mut().subscribers = subscribers;
-    result
+    let encoded = patch.to_json().map_err(error)?;
+    // Keep the authoritative list in the scene while callbacks run: a callback
+    // can unsubscribe itself, subscribe another view, or publish a nested edit.
+    let subscribers: Vec<_> = slf
+        .borrow()
+        .subscribers
+        .iter()
+        .map(|reference| reference.clone_ref(py))
+        .collect();
+    for reference in subscribers {
+        if !slf
+            .borrow()
+            .subscribers
+            .iter()
+            .any(|current| current.bind(py).is(reference.bind(py)))
+        {
+            continue;
+        }
+        let callback = reference.call0(py)?;
+        if callback.bind(py).is_none() {
+            slf.borrow_mut()
+                .subscribers
+                .retain(|current| !current.bind(py).is(reference.bind(py)));
+        } else {
+            let _ = callback.call1(py, (&encoded,))?;
+        }
+    }
+    Ok(())
 }
 
 #[pymethods]
@@ -303,7 +324,8 @@ impl PyScene {
         self.inner.explain()
     }
 
-    fn _browser_sources<'py>(
+    /// Materializes compact browser sources once per molecular provider.
+    fn browser_sources<'py>(
         &mut self,
         py: Python<'py>,
     ) -> PyResult<Vec<(u64, &str, Bound<'py, PyBytes>)>> {
@@ -332,11 +354,11 @@ impl PyScene {
 
     /// Adds another molecular source and announces it to subscribers.
     ///
-    /// The payload travels to the browser through `_browser_sources`; the patch
+    /// The payload travels to the browser through `browser_sources`; the patch
     /// stream carries only the portable structure descriptor, exactly like the
     /// representation path above. Subscribers are called with no borrow held on
     /// this object, because a viewer answering the announcement reads the new
-    /// payload back through `_browser_sources` re-entrantly.
+    /// payload back through `browser_sources` re-entrantly.
     fn add_structure(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
@@ -384,7 +406,14 @@ impl PyScene {
         Ok(crate::id_binding::PyStructureId(identity.get()))
     }
 
-    fn _subscribe(&mut self, subscriber: Py<PyAny>) {
+    /// Registers a weak callable receiving committed scene patches as JSON.
+    fn subscribe(&mut self, subscriber: Py<PyAny>) {
         self.subscribers.push(subscriber);
+    }
+
+    /// Detaches one weak subscription without waiting for another scene edit.
+    fn unsubscribe(&mut self, py: Python<'_>, subscriber: &Bound<'_, PyAny>) {
+        self.subscribers
+            .retain(|reference| !reference.bind(py).is(subscriber));
     }
 }

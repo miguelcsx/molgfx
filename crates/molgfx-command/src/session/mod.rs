@@ -21,6 +21,8 @@ mod plan;
 mod pocket_tests;
 mod property;
 mod resolve;
+#[cfg(test)]
+mod selection_tests;
 mod state;
 #[cfg(test)]
 mod tests;

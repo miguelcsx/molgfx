@@ -161,6 +161,19 @@ impl PyCommand {
         }))
     }
 
+    /// Replaces or clears the scene's current selection through Session history.
+    #[staticmethod]
+    #[pyo3(signature = (target=None))]
+    fn set_selection(py: Python<'_>, target: Option<&Bound<'_, PyAny>>) -> PyResult<Self> {
+        let query = target
+            .map(|target| {
+                let text = crate::binding::selection(target)?;
+                query(py, &text)
+            })
+            .transpose()?;
+        Ok(Self(command::Command::SetSelection { query }))
+    }
+
     /// Draws a target with a form.
     ///
     /// Keywords `layer`, `structure`, `color`, `opacity` and `duplicate` set

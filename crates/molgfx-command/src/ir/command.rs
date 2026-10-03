@@ -117,6 +117,11 @@ pub enum Command {
         /// The selection to remove.
         name: Name,
     },
+    /// Replaces the current semantic selection, or clears it when absent.
+    SetSelection {
+        /// `MolFrame` query, with Session aliases resolved at execution time.
+        query: Option<QueryText>,
+    },
     /// Draws a target, idempotently.
     Show(Show),
     /// Makes a hidden layer visible again.
@@ -283,6 +288,7 @@ impl Command {
         match self {
             Self::Select { .. } => "select",
             Self::Unselect { .. } => "unselect",
+            Self::SetSelection { .. } => "selection",
             Self::Show(_) | Self::Reveal { .. } => "show",
             Self::Hide { .. } => "hide",
             Self::Remove { .. } => "remove",
@@ -326,6 +332,10 @@ impl fmt::Display for Command {
         match self {
             Self::Select { name, query } => write!(formatter, "select {name}, {query}"),
             Self::Unselect { name } => write!(formatter, "unselect {name}"),
+            Self::SetSelection { query } => match query {
+                Some(query) => write!(formatter, "selection {query}"),
+                None => formatter.write_str("selection"),
+            },
             Self::Show(show) => {
                 write!(formatter, "show {}", show.form.kind().name())?;
                 super::form_text::write_options(formatter, &show.form)?;

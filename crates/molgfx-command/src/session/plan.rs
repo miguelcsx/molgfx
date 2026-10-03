@@ -13,6 +13,7 @@ use molgfx_scene::{AppearanceRuleSpec, PatchOperation, SceneTransaction, Structu
 use std::collections::BTreeMap;
 mod auto;
 mod overlay;
+mod selection;
 
 pub(crate) struct Planner<'a> {
     pub(crate) state: State,
@@ -30,6 +31,7 @@ impl Planner<'_> {
         match command {
             Command::Select { name, query } => self.select(name, query),
             Command::Unselect { name } => self.unselect(name),
+            Command::SetSelection { query } => self.set_selection(query.as_ref()),
             Command::Show(show) => self.show(show),
             Command::Reveal { layer } => self.visibility(layer, true),
             Command::Hide { layer } => self.visibility(layer, false),

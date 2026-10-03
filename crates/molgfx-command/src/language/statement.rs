@@ -55,6 +55,7 @@ pub(super) fn parse(source: &str, span: Span) -> Result<Command, CommandError> {
     let arguments = Arguments::new(head_words, verb.span);
     match verb.text {
         "select" => select(source, &arguments, tail),
+        "selection" => super::targets::selection(source, verb.span, span),
         "unselect" => {
             let name = arguments.single("unselect NAME")?;
             no_target(tail, "unselect")?;
