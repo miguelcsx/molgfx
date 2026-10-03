@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "site/**"
+      - "web/**"
+      - ".github/actions/browser-runtime/**"
       - "crates/**"
       - "Cargo.lock"
       - "Cargo.toml"
@@ -25,6 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/browser-runtime
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -36,6 +39,11 @@ jobs:
       - name: Build static documentation
         working-directory: site
         run: npm run build
+      - name: Install real browser
+        run: npx --prefix web playwright install --with-deps chromium
+      - name: Exercise production docs WebGPU demo
+        working-directory: site
+        run: npm run test:demo
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

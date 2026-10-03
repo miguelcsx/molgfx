@@ -2596,7 +2596,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "molgfx-command",
  "molgfx-scene",
@@ -2604,7 +2604,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-bench"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "criterion",
  "molframe",
@@ -2624,7 +2624,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-command"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "molframe",
  "molgfx-scene",
@@ -2635,7 +2635,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-core"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "bytemuck",
  "hashbrown 0.17.1",
@@ -2654,7 +2654,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-geometry"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "bytemuck",
  "molframe",
@@ -2666,7 +2666,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-gpu"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "bitflags 2.13.2",
  "raw-window-handle",
@@ -2676,7 +2676,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-math"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "bytemuck",
  "criterion",
@@ -2689,7 +2689,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-py"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "molframe-py",
  "molgfx",
@@ -2699,7 +2699,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-render"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "bytemuck",
  "hashbrown 0.17.1",
@@ -2721,7 +2721,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-scene"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "molframe",
  "molgfx-core",
@@ -2740,7 +2740,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-semantic"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "molframe",
  "molgfx-core",
@@ -2750,14 +2750,14 @@ dependencies = [
 
 [[package]]
 name = "molgfx-shaders"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "naga",
 ]
 
 [[package]]
 name = "molgfx-wasm"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "js-sys",
  "molframe",
@@ -2772,7 +2772,7 @@ dependencies = [
 
 [[package]]
 name = "molgfx-wgpu"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "futures-channel",
  "molframe",

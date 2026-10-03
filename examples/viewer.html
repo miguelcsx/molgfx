@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>MolGFX canvas host</title>
+        <link rel="stylesheet" href="../web/dist/viewer.css" />
+    </head>
+    <body>
+        <div id="scene" style="height: 80vh"></div>
+        <p id="error" role="alert"></p>
+        <script type="module">
+            import { Viewer } from "../web/dist/index.js";
+            let viewer;
+            try {
+                viewer = await Viewer.create(document.getElementById("scene"));
+                const response = await fetch(
+                    "https://files.rcsb.org/download/4HHB.cif",
+                );
+                if (!response.ok)
+                    throw new Error(
+                        "Structure download failed: " + response.status,
+                    );
+                await viewer.load(await response.arrayBuffer(), {
+                    name: "4hhb.cif",
+                });
+                viewer.execute(
+                    "show cartoon color=chain, protein; show spacefill color=orange, resname HEM; focus all",
+                );
+            } catch (error) {
+                document.getElementById("error").textContent = String(error);
+            }
+            window.addEventListener(
+                "pagehide",
+                () => {
+                    if (viewer) void viewer.dispose();
+                },
+                { once: true },
+            );
+        </script>
+    </body>
+</html>

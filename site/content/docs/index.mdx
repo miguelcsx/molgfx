@@ -20,8 +20,9 @@ The quickstart uses haemoglobin (PDB 4HHB), cartoon context, and a space-filling
 ## What MolGFX owns
 
 - **MolFrame**: structure input, molecular selections, and bond inference.
-- **MolGFX**: scenes, representations, appearance, interaction state, cameras and their controllers, rendering, picking, and the patch stream a host mirrors.
-- **Your application**: where structures come from, when to render, the window or notebook or page that shows the result, and every panel, caption, tour or workflow built around it.
+- **Rust engine**: scenes, representations, appearance, interaction state, cameras and their controllers, rendering, picking, and the patch stream a host mirrors.
+- **Official `web/` host**: one npm SDK, DOM input, canvas lifecycle and notebook adapter. Python uses its exact built artifacts through AnyWidget. `Session` alone owns command truth.
+- **Your application**: where structures come from and every panel, caption, tour or workflow around the canvas. The host is not a Workbench and supplies no console, toolbar or file picker.
 
 That division keeps the selection syntax consistent. Pass a MolFrame query object or its query text to a MolGFX target; consult the [MolFrame documentation](https://miguelcsx.github.io/molframe/) for the full query language.
 ## Verification status

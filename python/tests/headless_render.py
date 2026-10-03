@@ -7,8 +7,10 @@ workflow provides, and it must run against the wheel, not a development build.
 import json
 import os
 import sys
+from typing import cast
 
 import molframe
+
 import molgfx
 
 MMCIF = b"""data_one
@@ -33,12 +35,16 @@ ATOM 2 C CA ALA A 1 1 12.560 13.318 9.111 1.00 20.00
 
 info = molgfx.system_info()
 print(json.dumps(info, indent=2))
-if sys.platform.startswith("linux") and "gl" not in info["compiled_backends"]:
+# `system_info` hands back parsed JSON, so each entry is whatever the engine
+# reported; the two this script reads are pinned here rather than guessed.
+backends = cast("list[str]", info["compiled_backends"])
+adapters = cast("list[dict[str, str]]", info["available_adapters"])
+if sys.platform.startswith("linux") and "gl" not in backends:
     sys.exit("the Linux wheel was built without the OpenGL backend")
 
 expected_backend = os.environ.get("WGPU_BACKEND")
 if expected_backend:
-    discovered = {adapter["backend"] for adapter in info["available_adapters"]}
+    discovered = {adapter["backend"] for adapter in adapters}
     assert discovered == {expected_backend}, (expected_backend, discovered)
 
 scene = molgfx.Scene(molframe.read(MMCIF, name="one.cif"))
@@ -58,16 +64,17 @@ framed = molgfx.Renderer().render_image(scene, size=(128, 128))
 framed_pixels = bytes(framed.pixels())
 
 
-def differs_from_background(x, y):
+def differs_from_background(x: int, y: int) -> bool:
     """Whether a pixel is far from the gradient background at the corner."""
     at = (y * 128 + x) * 4
     return any(
-        abs(framed_pixels[at + channel] - framed_pixels[channel]) > 24
-        for channel in range(3)
+        abs(framed_pixels[at + channel] - framed_pixels[channel]) > 24 for channel in range(3)
     )
 
 
-x, y, _ = view.project((12.560, 13.318, 9.111), (128, 128))
+projected = view.project((12.560, 13.318, 9.111), (128, 128))
+assert projected is not None, "a point in front of the eye projects"
+x, y, _ = projected
 assert differs_from_background(int(x), int(y)), ("projected atom is not drawn", x, y)
 assert not differs_from_background(2, 2), "the corner is background"
 print("projection lands on the drawn atom")

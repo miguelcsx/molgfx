@@ -32,4 +32,19 @@ Frame reports distinguish submission, callback-recorded host completion, and dev
 
 ## Verification status
 
-The renderer lifecycle contract above is documented for the current workbench effort. No browser or native performance run is claimed here. The known settled-scene regression remains recorded as observed in the Python run: `test_a_settled_scene_does_not_schedule_more_browser_frames` at `molgfx/python/tests/test_workbench_viewer.py:325` saw two frames instead of zero. Cross-engine WebGPU capability, idle RAF/submission counts, queue bounds, timestamp support, high-DPI picking, and before/after frame-path measurements remain unverified.
+The canonical browser suite passed on macOS arm64 with Playwright 1.63.0 and
+Chromium 153.0.8010.12, using the full `chromium` channel and
+`--enable-unsafe-webgpu`. It covers physical resize, exact semantic atom picks,
+camera input, independent viewers, disposal during real GPU readback and React
+StrictMode. Idle and post-disposal GPU submissions were zero over 300 ms.
+Synthetic 1,000-, 10,000- and 50,000-atom workloads measure load, command,
+host-observed GPU completion and camera redraw costs; these are measurements,
+not a claimed speedup or exact device execution times.
+
+The older Chromium headless-shell on this macOS host failed physical resize and
+multiple-device lifetime checks; the suite therefore uses full Chromium. Linux
+CI additionally requests ANGLE/Vulkan SwiftShader and disables Vulkan surface
+presentation. This change has not been exercised here on Linux, Safari or
+Firefox. Cross-engine capability, device timestamps and high-DPI picks are not
+claimed by this run. Packed npm consumers passed production Vite 6.4.3 and Next
+16.3.5 builds and loaded their emitted wasm assets in the real browser.

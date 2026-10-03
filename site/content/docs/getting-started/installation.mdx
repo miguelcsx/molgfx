@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Install MolGFX for Python or Rust.
+description: Install MolGFX for Python, Rust or TypeScript.
 ---
 
 ## Python
@@ -18,6 +18,10 @@ import molframe
 import molgfx
 ```
 
+Notebook display is included: AnyWidget and traitlets are normal dependencies,
+not an optional Jupyter extra. `molgfx.Viewer(session)` shows the same frontend
+as the browser package; `Session` owns commands and undo/redo.
+
 ## Rust
 
 Add the facade crate and MolFrame to `Cargo.toml`:
@@ -30,6 +34,41 @@ molframe = "0.4"
 
 Use `molgfx` rather than an internal renderer crate. The facade exposes `Scene`, `Renderer`, `rep`, `sel`, `color`, and the public command API.
 
-## Browser requirements
+## TypeScript and browser requirements
 
-The WebAssembly bindings render on a canvas you provide, through WebGPU. Use a current Chrome or Edge; Safari and Firefox need WebGPU enabled. Opening the device reports a typed error when no adapter is available.
+```bash
+npm install molgfx
+```
+
+The registry install command becomes available after the first maintainer
+publication. Until then, build the package from this repository checkout; the
+documentation site uses `file:../web` with these same public imports.
+
+The official package provides `molgfx`, `molgfx/viewer`, `molgfx/anywidget` and
+`molgfx/react`. Import `molgfx/viewer.css` for the canvas host styling. It supplies
+navigation and semantic picking, not an application console, toolbar or file
+picker. Your host supplies molecular bytes or a browser `File`.
+
+```typescript
+import { Viewer } from "molgfx";
+import "molgfx/viewer.css";
+
+const viewer = await Viewer.create(document.getElementById("scene")!);
+await viewer.load(file);
+viewer.execute("show cartoon, protein");
+// During application teardown:
+await viewer.dispose();
+```
+
+Use a WebGPU-capable browser on a secure origin (HTTPS or localhost). Renderer
+initialization rejects when a compatible adapter is unavailable; the host must
+show the error rather than substitute a fake runtime.
+
+## Source distributions
+
+Build the frontend once with `npm ci --prefix web` and `npm run build --prefix web`
+inside `nix develop`, before maturin or the site build. This emits declarations
+and copies `web/dist` unchanged to Python static assets. The site imports the
+public `molgfx` package; Next.js emits its wasm under the site asset prefix.
+The manifest records content hashes; CI compares actual npm tarball and wheel
+bytes, including wasm. Cargo, Python and npm package versions must agree.

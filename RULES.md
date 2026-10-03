@@ -292,13 +292,39 @@ seam an invariant:
 grep -rn "benchmarks/" crates/ --include="*.rs"
 ```
 
-The Python binding is checked against runtime behavior and its precise stubs:
+The Python binding is checked against runtime behavior, its precise stubs, and
+its own lint and type contracts:
 
 ```bash
 maturin develop -m crates/molgfx-py/Cargo.toml
+ruff format --check .
+ruff check
+mypy
 python -m unittest discover -s python/tests
 python -m mypy.stubtest molgfx._engine
 ```
+
+`ruff` runs every rule it has and `mypy` runs in strict mode, so a finding is
+fixed where it is reported rather than silenced with a `noqa`, a `# type: ignore`
+or a lowered threshold. The config is `[tool.ruff]` and `[tool.mypy]` in
+`pyproject.toml`; every entry in its `ignore` and `per-file-ignores` lists
+carries the reason it is there, and a rule that starts firing for a real reason
+belongs in the code, not in those lists.
+
+Three scopes, deliberately:
+
+- **The stub** (`python/molgfx/_engine/__init__.pyi`) restates names the Rust
+  binding already fixed. A keyword spelled `property` and an exception called
+  `RevisionConflict` are the contract, not a style the stub may choose, and its
+  docstrings are the documentation a Python reader has.
+- **The suite** (`python/tests/`) asserts with `unittest` and bare `assert`,
+  runs by path rather than as a package, and reaches internals the public
+  surface does not expose. Everything else applies to it as to the package.
+- **The tooling scripts** (`crates/molgfx-bench/parity/`, `.github/scripts/`)
+  are formatted with everything else and held out of the lint contract: they
+  drive third-party programs, PyMOL above all, whose API is a C extension with
+  no stubs. Putting them under the strict surface would mean excusing a rule at
+  a time for code whose shape is not ours to choose.
 
 `mypy.stubtest` runs with no allowlist. Anything it cannot express is fixed in
 the stub or in the binding, not excused. Repository policies such as line count,
