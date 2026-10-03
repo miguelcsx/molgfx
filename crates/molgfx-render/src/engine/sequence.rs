@@ -12,7 +12,7 @@ use std::fmt;
 /// Exposure budget for every independently authored sequence output.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum SequenceExposure {
-    /// Reset history and complete the selected publication sample budget.
+    /// Reset history and complete the selected converged sample budget.
     #[default]
     Converged,
     /// Submit one sample, retaining only compatible temporal history.
@@ -258,7 +258,7 @@ impl<D: Device> SequenceRenderer<D> {
             camera,
             self.config.image,
             match self.config.exposure {
-                SequenceExposure::Converged => ImagePurpose::Publication,
+                SequenceExposure::Converged => ImagePurpose::Converged,
                 SequenceExposure::Progressive => ImagePurpose::Progressive,
             },
         )?;

@@ -5,7 +5,7 @@
 // The whole block is skipped when a pixel's cues are inactive, keeping the
 // cost off fragments that would not show them.
 
-fn illustration_cues_active(
+fn shape_cues_active(
     pixel: vec2i,
     center: vec3f,
     normal: vec3f,
@@ -18,12 +18,12 @@ fn illustration_cues_active(
     }
 
     let params =
-        illustration_depth_params(
+        shape_cues_depth_params(
             dimensions,
         );
 
     let center_pixel_zw =
-        illustration_pixel_zw(
+        shape_cues_pixel_zw(
             pixel,
             params,
         );
@@ -53,7 +53,7 @@ fn illustration_cues_active(
     ) {
         let sample_pixel = clamp(
             pixel +
-            ILLUSTRATION_OFFSETS[index] *
+            SHAPE_CUES_OFFSETS[index] *
                 outline_width,
             vec2i(0),
             dimensions - 1,
@@ -90,7 +90,7 @@ fn illustration_cues_active(
                 f32(delta_pixel.y);
 
         let sample_z =
-            illustration_view_z(
+            shape_cues_view_z(
                 sample_pixel_zw,
                 sample_depth,
                 params,
@@ -191,13 +191,13 @@ fn illustration_cues_active(
     );
 }
 
-fn illustration_cues(
+fn shape_cue_terms(
     pixel: vec2i,
     center: vec3f,
     normal: vec3f,
     dimensions: vec2i,
 ) -> vec2f {
-    return illustration_cues_active(
+    return shape_cues_active(
         pixel,
         center,
         normal,
@@ -222,7 +222,7 @@ fn posterize_tone(color: vec3f, levels: f32) -> vec3f {
     return color * (banded / luma);
 }
 
-fn apply_illustration(
+fn apply_shape_cues(
     color: vec3f,
     pixel: vec2i,
     position: vec3f,
@@ -231,7 +231,7 @@ fn apply_illustration(
     uv: vec2f,
 ) -> vec3f {
     let style =
-        frame.illustration.xyz;
+        frame.shape_cues.xyz;
 
     let posterize =
         frame.npr.x;
@@ -254,7 +254,7 @@ fn apply_illustration(
 
     if need_edge || need_cavity {
         let cues =
-            illustration_cues_active(
+            shape_cues_active(
                 pixel,
                 position,
                 normal,
@@ -304,7 +304,7 @@ fn apply_illustration(
         ) * cue.z;
     } else {
         let focus_distance = max(
-            frame.illustration.w,
+            frame.shape_cues.w,
             MIN_FOCUS_DISTANCE,
         );
         depth_cue = smoothstep(

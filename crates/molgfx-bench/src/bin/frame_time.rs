@@ -11,7 +11,7 @@
 //! Defaults: 120 warmup outputs, 1200 measured outputs, 1280x720 for files and
 //! 1920x1080 for ladder scenes. `interactive` renders one single-sample frame
 //! per output with the camera yawing `--orbit` degrees per output (0.5 by
-//! default); `converged` renders the full publication exposure on a still camera.
+//! default); `converged` renders the full converged exposure on a still camera.
 
 use molgfx::command::Session;
 use molgfx::profile::MeasuredOutput;

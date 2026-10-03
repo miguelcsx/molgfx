@@ -15,7 +15,7 @@ pub struct LigandPoseStats {
     pub resident_poses: u64,
     /// Alpha-positive candidates in visible batches whose owner is resident.
     pub visible_poses: u64,
-    /// Candidates retained by the active realtime or cinematic workload policy.
+    /// Candidates retained by the active realtime or converged workload policy.
     pub selected_poses: u64,
     /// Topology-expanded analytic instances submitted to beauty passes.
     pub beauty_instances: u64,

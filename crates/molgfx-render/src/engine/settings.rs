@@ -35,9 +35,9 @@ impl<D: Device> Engine<D> {
     pub fn set_render_mode(&mut self, mode: RenderMode) {
         if self.mode != mode {
             self.mode = mode;
-            // The cinematic path is the deterministic publication path, so it
+            // The converged path is the deterministic converged path, so it
             // holds one tier.
-            self.adaptive.set_publication(mode == RenderMode::Cinematic);
+            self.adaptive.set_converged(mode == RenderMode::Converged);
             self.temporal.reset();
         }
     }

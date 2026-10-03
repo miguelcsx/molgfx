@@ -61,8 +61,8 @@
     ]
   },
   "recipe_settings": {
-    "molgfx-publication": {
-      "quality": "Publication",
+    "molgfx-converged": {
+      "quality": "Converged",
       "fixed_samples": 64,
       "lighting": "observed EffectiveQuality.lighting",
       "effects": "observed production facade profile; not external-equivalent"
@@ -157,7 +157,7 @@
   "warmup_outputs": 0,
   "measured_outputs": 1,
   "recipes": [
-    "molgfx-publication",
+    "molgfx-converged",
     "molgfx-interactive",
     "pymol-ray",
     "molstar-imagepass"

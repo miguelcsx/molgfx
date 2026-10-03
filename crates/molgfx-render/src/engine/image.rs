@@ -1,4 +1,4 @@
-//! Off-screen rendering and mapped publication images.
+//! Off-screen rendering and mapped converged images.
 use super::{Engine, QualityTier};
 use crate::error::RenderError;
 use crate::graph::{PassContext, ResourceTable};
@@ -13,7 +13,7 @@ mod layout;
 pub(super) use layout::ImageLayout;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ImagePurpose {
-    Publication,
+    Converged,
     Progressive,
 }
 #[derive(Clone, Copy)]
@@ -30,9 +30,9 @@ pub struct ImageConfig {
     pub height: u32,
 }
 impl ImageConfig {
-    /// Standard 3840×2160 publication output.
+    /// Standard 3840×2160 converged output.
     #[must_use]
-    pub const fn publication_4k() -> Self {
+    pub const fn uhd_4k() -> Self {
         Self {
             width: 3840,
             height: 2160,
@@ -69,7 +69,7 @@ impl Image {
     ///
     /// The engine performs scene-linear HDR lighting, exposure, display
     /// grading and sRGB conversion before the readback. This method therefore
-    /// serializes publication pixels without applying a second colour curve.
+    /// serializes converged pixels without applying a second colour curve.
     /// No filesystem or application state is touched.
     ///
     /// # Errors
@@ -139,7 +139,7 @@ impl<D: Device> Engine<D> {
         config: ImageConfig,
     ) -> Result<Image, RenderError> {
         let pending =
-            self.render_image_to_buffer(scene, camera, config, ImagePurpose::Publication)?;
+            self.render_image_to_buffer(scene, camera, config, ImagePurpose::Converged)?;
         let mapped = self
             .queue
             .read_buffer_async(&self.device, &pending.buffer, 0, pending.layout.buffer_size)
@@ -164,7 +164,7 @@ impl<D: Device> Engine<D> {
     }
 
     /// Renders one off-screen image of the requested kind: the converged
-    /// publication exposure, or the single-sample frame an interactive
+    /// converged exposure, or the single-sample frame an interactive
     /// session presents under the configured realtime policy.
     ///
     /// # Errors
@@ -222,11 +222,11 @@ impl<D: Device> Engine<D> {
         let mut encoder = self.device.create_command_encoder();
         for sample in 0..samples {
             self.prepare_exposure_sample(&mut exposure, sample)?;
-            let cinematic = self.tier() >= QualityTier::Standard;
+            let traced = self.tier() >= QualityTier::Standard;
             if sample == 0 {
-                self.record_scene_compute(&mut encoder, cinematic, None);
+                self.record_scene_compute(&mut encoder, traced, None);
             }
-            self.record_image(&mut encoder, &view, None, cinematic, false)?;
+            self.record_image(&mut encoder, &view, None, traced, false)?;
             if sample + 1 == samples {
                 encoder.copy_texture_to_buffer(
                     &texture,
@@ -241,14 +241,14 @@ impl<D: Device> Engine<D> {
         }
         let completion = self.submit_exposure(&exposure, encoder)?;
         let mut quality = self.effective_quality(
-            if purpose == ImagePurpose::Publication {
+            if purpose == ImagePurpose::Converged {
                 samples
             } else {
                 u32::from(self.tier().temporal_samples())
             },
             self.temporal.prepared_samples(),
         );
-        quality.progressive = purpose != ImagePurpose::Publication;
+        quality.progressive = purpose != ImagePurpose::Converged;
         Ok(PendingImage {
             config,
             layout,
@@ -272,7 +272,7 @@ impl<D: Device> Engine<D> {
         self.ensure_occupancy(scene)?;
         self.device.check_errors()?;
         self.adaptive
-            .set_publication(purpose == ImagePurpose::Publication);
+            .set_converged(purpose == ImagePurpose::Converged);
         self.adaptive.set_atom_count(scene.atom_count());
         self.sync_quality_tier();
         self.chunk_residency.begin_epoch();

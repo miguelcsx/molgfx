@@ -1,4 +1,4 @@
-//! Cinematic secondary motion over a ribbon spine.
+//! Secondary motion over a ribbon spine.
 //!
 //! This is art direction, not molecular dynamics. It exists so an explanatory
 //! animation can give a ribbon the trailing follow-through a real filament has,

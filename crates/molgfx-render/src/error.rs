@@ -98,7 +98,7 @@ pub enum RenderError {
         reason: &'static str,
     },
 
-    /// The mapped image could not be encoded for publication.
+    /// The mapped image could not be encoded for converged.
     #[error("image encoding failed: {summary}")]
     ImageEncoding {
         /// Encoder-provided diagnostic.

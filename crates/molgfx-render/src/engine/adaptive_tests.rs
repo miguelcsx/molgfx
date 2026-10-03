@@ -85,8 +85,8 @@ fn a_single_slow_frame_is_reset_away_and_never_moves_the_tier() {
 }
 
 #[test]
-fn a_publication_controller_holds_a_constant_tier_under_any_load() {
-    let mut quality = AdaptiveQuality::new(AdaptiveQualityConfig::publication(), true);
+fn a_converged_controller_holds_a_constant_tier_under_any_load() {
+    let mut quality = AdaptiveQuality::new(AdaptiveQualityConfig::converged(), true);
     assert!(!quality.enabled());
     quality.set_atom_count(1_500_000);
     for _ in 0..500 {
@@ -101,13 +101,13 @@ fn a_publication_controller_holds_a_constant_tier_under_any_load() {
 }
 
 #[test]
-fn entering_publication_during_an_adaptive_run_restores_maximum_detail() {
+fn entering_converged_during_an_adaptive_run_restores_maximum_detail() {
     let mut quality = controller();
     for _ in 0..200 {
         quality.observe(2 * BUDGET_NS);
     }
     assert_eq!(quality.tier(), QualityTier::Minimal);
-    quality.set_publication(true);
+    quality.set_converged(true);
     assert!(!quality.enabled());
     assert_eq!(quality.tier(), QualityTier::High);
     for _ in 0..200 {
@@ -132,12 +132,12 @@ fn disabled_high_quality_never_degrades_with_scene_size_or_frame_time() {
 }
 
 #[test]
-fn leaving_publication_restores_the_requested_fixed_tier() {
+fn leaving_converged_restores_the_requested_fixed_tier() {
     for tier in [QualityTier::Reduced, QualityTier::High] {
         let mut quality = AdaptiveQuality::new(AdaptiveQualityConfig::fixed(120, tier), false);
-        quality.set_publication(true);
+        quality.set_converged(true);
         assert_eq!(quality.tier(), QualityTier::High);
-        quality.set_publication(false);
+        quality.set_converged(false);
         quality.set_atom_count(1_500_000);
         for _ in 0..500 {
             assert_eq!(quality.observe(u64::MAX), tier);
@@ -247,7 +247,7 @@ fn cheaper_tiers_sample_ribbons_no_more_finely_and_never_below_two_steps() {
 }
 
 #[test]
-fn an_interactive_loop_never_converges_but_a_publication_one_does() {
+fn an_interactive_loop_never_converges_but_a_converged_one_does() {
     // Edge smoothing defaults on off a converged path only, however high the
     // interactive tier climbs: a small scene reaches the top tier and still
     // presents every frame independently, so its edges must be smoothed.
@@ -264,7 +264,10 @@ fn an_interactive_loop_never_converges_but_a_publication_one_does() {
         "an interactive loop does not converge"
     );
 
-    let publication = AdaptiveQuality::new(AdaptiveQualityConfig::publication(), true);
-    assert!(publication.converged(), "publication converges");
-    assert!(!publication.enabled(), "publication never adapts");
+    let converged = AdaptiveQuality::new(AdaptiveQualityConfig::converged(), true);
+    assert!(
+        converged.converged(),
+        "converged adaptive quality converges"
+    );
+    assert!(!converged.enabled(), "converged never adapts");
 }

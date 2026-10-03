@@ -7,7 +7,7 @@
 //! after a sustained run of frames past the band edge, and any move resets the
 //! measurement window so the new tier is judged on its own evidence.
 //!
-//! Publication rendering never adapts. Converged output must be reproducible,
+//! Converged rendering never adapts. Converged output must be reproducible,
 //! so the controller holds a constant tier whenever the caller requests it.
 //!
 //! Native rendering feeds the controller CPU frame duration — the elapsed time
@@ -65,7 +65,7 @@ impl QualityTier {
     /// adaptation.
     ///
     /// The bands bound expensive surface, temporal and upload work without
-    /// touching coordinates. Callers may still force publication quality; this
+    /// touching coordinates. Callers may still force converged quality; this
     /// policy only constrains adaptive realtime rendering.
     #[must_use]
     pub const fn for_atom_count(atom_count: u64) -> Self {
@@ -166,15 +166,15 @@ impl QualityTier {
 /// Rays per pixel for analytic occlusion and area-light visibility, per sample.
 ///
 /// A converged output accumulates 64 samples, so the per-sample budget sets the
-/// total (256 rays per pixel at the publication budget). Measured against a
+/// total (256 rays per pixel at the converged budget). Measured against a
 /// 16-rays-per-sample reference of the same 64-sample output on a spacefill
 /// scene, the RMS difference was 0.29, 0.47, 0.73 and 1.06 of 255 for 8, 4, 2 and
 /// 1 rays: four is the largest saving that stays under the half-level
 /// quantization noise of an 8-bit image. See `missing.md`.
-pub(crate) const fn occlusion_rays(quality: bool, publication: bool) -> u8 {
+pub(crate) const fn occlusion_rays(quality: bool, converged: bool) -> u8 {
     if !quality {
         0
-    } else if publication {
+    } else if converged {
         4
     } else {
         2
@@ -219,9 +219,9 @@ impl AdaptiveQualityConfig {
         Self::fixed(target_fps, QualityTier::High)
     }
 
-    /// Maximum fixed detail for deterministic publication output.
+    /// Maximum fixed detail for deterministic converged output.
     #[must_use]
-    pub const fn publication() -> Self {
+    pub const fn converged() -> Self {
         Self::highest_fixed(1)
     }
 
@@ -248,7 +248,7 @@ impl Default for AdaptiveQualityConfig {
 #[derive(Clone, Copy, Debug)]
 pub struct AdaptiveQuality {
     requested: bool,
-    publication: bool,
+    converged: bool,
     target_fps: u16,
     target_ns: u64,
     ema_ns: u64,
@@ -262,17 +262,17 @@ pub struct AdaptiveQuality {
 impl AdaptiveQuality {
     /// Builds a controller from the requested initial or fixed tier.
     ///
-    /// Publication always selects maximum detail and never adapts. Leaving
-    /// publication restores the caller-configured starting tier.
+    /// Converged always selects maximum detail and never adapts. Leaving
+    /// converged restores the caller-configured starting tier.
     #[must_use]
-    pub const fn new(config: AdaptiveQualityConfig, publication: bool) -> Self {
+    pub const fn new(config: AdaptiveQualityConfig, converged: bool) -> Self {
         Self {
             requested: config.enabled,
-            publication,
+            converged,
             target_fps: config.target_fps,
             target_ns: config.budget_ns(),
             ema_ns: 0,
-            tier: if publication {
+            tier: if converged {
                 QualityTier::High
             } else {
                 config.initial_tier
@@ -293,17 +293,17 @@ impl AdaptiveQuality {
     /// Whether the loop is allowed to move a tier.
     #[must_use]
     pub const fn enabled(&self) -> bool {
-        self.requested && !self.publication
+        self.requested && !self.converged
     }
 
     /// Whether this instant accumulates to a still image.
     ///
-    /// The cinematic path and off-screen publication converge, so their
+    /// The converged path and off-screen converged output converge, so their
     /// sub-pixel coverage is already averaged; the realtime path does not, so
     /// its edges need explicit smoothing whatever tier it happens to hold.
     #[must_use]
     pub const fn converged(&self) -> bool {
-        self.publication
+        self.converged
     }
 
     /// The tier every frame of this instant presents at.
@@ -338,13 +338,13 @@ impl AdaptiveQuality {
         }
     }
 
-    /// Marks the engine as running the deterministic publication path.
+    /// Marks the engine as running the deterministic converged path.
     ///
-    /// Entering publication holds the tier constant from that frame on.
-    pub fn set_publication(&mut self, publication: bool) {
-        if self.publication != publication {
-            self.publication = publication;
-            self.tier = if publication {
+    /// Entering converged holds the tier constant from that frame on.
+    pub fn set_converged(&mut self, converged: bool) {
+        if self.converged != converged {
+            self.converged = converged;
+            self.tier = if converged {
                 QualityTier::High
             } else {
                 self.initial_tier

@@ -21,11 +21,11 @@ pub(super) fn engine() -> Engine<MockDevice> {
 
 #[test]
 fn engine_creation_keeps_every_registered_layout_within_the_portable_storage_limit() {
-    for mode in [RenderMode::Realtime, RenderMode::Cinematic] {
+    for mode in [RenderMode::Realtime, RenderMode::Converged] {
         for profile in [
-            RenderProfile::inspection(),
-            RenderProfile::illustrative(),
-            RenderProfile::cinematic(),
+            RenderProfile::bare(),
+            RenderProfile::shape_cues(),
+            RenderProfile::optical(),
         ] {
             let config = EngineConfig {
                 mode,

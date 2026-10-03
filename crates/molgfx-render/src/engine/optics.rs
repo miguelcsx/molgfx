@@ -30,7 +30,7 @@ impl FocusTarget {
     }
 }
 
-/// Thin-lens depth-of-field settings for cinematic presentation.
+/// Thin-lens depth-of-field settings for optical presentation.
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub struct DepthOfField {
     /// Lens focal length, millimetres.
@@ -48,9 +48,9 @@ pub struct DepthOfField {
 }
 
 impl DepthOfField {
-    /// A restrained full-frame macro-lens recipe for molecular cinematics.
+    /// A restrained full-frame macro-lens recipe for molecular close-ups.
     #[must_use]
-    pub const fn cinematic() -> Self {
+    pub const fn macro_lens() -> Self {
         Self {
             focal_length_mm: 50.0,
             // Stopped well down on purpose. A molecule is a deep subject: at a
@@ -120,9 +120,9 @@ pub struct MotionBlur {
 }
 
 impl MotionBlur {
-    /// A restrained cinematic shutter that preserves molecular legibility.
+    /// A restrained shutter that preserves molecular legibility.
     #[must_use]
-    pub const fn cinematic() -> Self {
+    pub const fn restrained() -> Self {
         Self {
             shutter: 0.55,
             max_blur_pixels: 18.0,

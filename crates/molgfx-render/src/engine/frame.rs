@@ -189,7 +189,7 @@ impl<D: Device> Engine<D> {
             .settle_specializations(&self.device, scene, &self.passes);
 
         let scene_reset = self.update_temporal_scene_identity(scene);
-        let cinematic = self.tier() >= QualityTier::Standard;
+        let traced = self.tier() >= QualityTier::Standard;
 
         let optics = self.resolve_optics(scene, camera)?;
         let shadow =
@@ -201,9 +201,9 @@ impl<D: Device> Engine<D> {
             &TemporalOptions {
                 extent: [self.width, self.height],
                 reset: Self::temporal_reset_required(scene_reset, pool_rebuilt),
-                quality: cinematic,
-                publication: self.tier() == QualityTier::High && !self.adaptive.enabled(),
-                illustration: self.resolved_plan.illustration(),
+                quality: traced,
+                converged: self.tier() == QualityTier::High && !self.adaptive.enabled(),
+                shape_cues: self.resolved_plan.shape_cues(),
                 depth_cue: self.resolved_plan.packed_depth_cue(),
                 optics,
                 motion_blur: self
@@ -239,9 +239,9 @@ impl<D: Device> Engine<D> {
         // Preserve the existing signature without repeating specialization work.
         let _ = scene;
 
-        let cinematic = self.tier() >= QualityTier::Standard;
+        let traced = self.tier() >= QualityTier::Standard;
 
-        self.record_scene_compute(encoder, cinematic, None);
+        self.record_scene_compute(encoder, traced, None);
 
         let Some(pool) = &self.pool else {
             return Ok(false);
@@ -266,7 +266,7 @@ impl<D: Device> Engine<D> {
                 scene: &self.scene_gpu,
                 timestamps: None,
                 temporal_write: self.temporal.write_index(),
-                quality: cinematic,
+                quality: traced,
                 edge_smoothing: self.edge_smoothing(),
                 display_encoding: self.display_encoding(),
             };
@@ -366,7 +366,7 @@ impl<D: Device> Engine<D> {
     pub(super) fn record_scene_compute(
         &mut self,
         encoder: &mut D::CommandEncoder,
-        cinematic: bool,
+        traced: bool,
         timestamps: Option<molgfx_gpu::TimestampWrites<'_, D>>,
     ) -> bool {
         self.passes
@@ -412,7 +412,7 @@ impl<D: Device> Engine<D> {
             &self.passes.surface_components,
         );
 
-        self.scene_gpu.record_quality_hardware(encoder, cinematic);
+        self.scene_gpu.record_quality_hardware(encoder, traced);
         structure_coordinates_changed
     }
 

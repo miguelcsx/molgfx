@@ -229,8 +229,8 @@ impl Renderer {
 
     /// Renders a bounded sequence of deterministic frames, one per timestamp.
     ///
-    /// Each frame is a fully converged publication image, so a sequence of
-    /// `N` frames costs `N` publication renders. Frames are submitted without
+    /// Each frame is a fully converged image, so a sequence of
+    /// `N` frames costs `N` converged renders. Frames are submitted without
     /// waiting and resolved in order, so the caller can drive a camera path and
     /// read the completed frames back at their own pace.
     ///
@@ -269,7 +269,7 @@ impl Renderer {
     ///
     /// Frame `i` shows the path at `start + i / frames_per_second` seconds, so
     /// the sequence covers the path's own time range inclusively. Each frame is a
-    /// complete publication render; encoding the frames into a movie is the
+    /// complete converged render; encoding the frames into a movie is the
     /// caller's job.
     ///
     /// # Errors

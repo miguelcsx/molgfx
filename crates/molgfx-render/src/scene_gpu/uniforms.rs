@@ -79,10 +79,10 @@ pub(crate) struct FrameUniforms {
     pub previous_view_proj: Mat4,
     /// Width, height, 1/width, 1/height.
     pub viewport: [f32; 4],
-    /// History, quality and publication flags followed by sample index.
+    /// History, quality and converged flags followed by sample index.
     pub temporal: [f32; 4],
     /// Silhouette, cavity and legacy relative depth-cue strengths followed by focus distance.
-    pub illustration: [f32; 4],
+    pub shape_cues: [f32; 4],
     /// Explicit near distance, far distance, strength and reserved lane.
     pub depth_cue: [f32; 4],
     /// Non-photorealistic lane: cel-shading band count in x, spare in yzw.
@@ -116,8 +116,8 @@ pub(crate) struct TemporalFrame {
     pub(crate) shadow_view_proj: Mat4,
     pub(crate) sample_index: u32,
     pub(crate) quality: bool,
-    pub(crate) publication: bool,
-    pub(crate) illustration: [f32; 4],
+    pub(crate) converged: bool,
+    pub(crate) shape_cues: [f32; 4],
     pub(crate) depth_cue: [f32; 4],
     pub(crate) npr: [f32; 4],
     pub(crate) optics: [f32; 4],
@@ -168,15 +168,15 @@ impl FrameUniforms {
                 if history_valid { 1.0 } else { 0.0 },
                 f32::from(crate::engine::occlusion_rays(
                     temporal.quality,
-                    temporal.publication,
+                    temporal.converged,
                 )),
-                if temporal.publication { 1.0 } else { 0.0 },
+                if temporal.converged { 1.0 } else { 0.0 },
                 f32::from(crate::fallback(
                     u16::try_from(temporal.sample_index.min(u32::from(u16::MAX))),
                     u16::MAX,
                 )),
             ],
-            illustration: temporal.illustration,
+            shape_cues: temporal.shape_cues,
             depth_cue: temporal.depth_cue,
             npr: temporal.npr,
             optics: temporal.optics,

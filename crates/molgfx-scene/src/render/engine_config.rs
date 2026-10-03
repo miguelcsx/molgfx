@@ -8,9 +8,9 @@ pub(super) fn engine_config(
     surface_field_budget_bytes: Option<u64>,
 ) -> molgfx_render::EngineConfig {
     let mut presentation = match profile.quality {
-        Quality::Publication => molgfx_render::RenderProfile::illustrative(),
+        Quality::Converged => molgfx_render::RenderProfile::shape_cues(),
         Quality::Auto | Quality::Interactive | Quality::HighestFixed => {
-            molgfx_render::RenderProfile::inspection()
+            molgfx_render::RenderProfile::bare()
         }
     };
     if let Some(cue) = profile.depth_cue {
@@ -32,13 +32,13 @@ pub(super) fn engine_config(
         Quality::Interactive => {
             AdaptiveQualityConfig::fixed(profile.target_fps, QualityTier::Reduced)
         }
-        Quality::HighestFixed | Quality::Publication => {
+        Quality::HighestFixed | Quality::Converged => {
             AdaptiveQualityConfig::highest_fixed(profile.target_fps)
         }
     };
     molgfx_render::EngineConfig {
-        mode: if profile.quality == Quality::Publication {
-            molgfx_render::RenderMode::Cinematic
+        mode: if profile.quality == Quality::Converged {
+            molgfx_render::RenderMode::Converged
         } else {
             molgfx_render::RenderMode::Realtime
         },

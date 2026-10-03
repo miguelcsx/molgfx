@@ -16,7 +16,7 @@ pub(super) struct PrimitiveLayouts<'a, D: Device> {
     pub(super) shadow: &'a D::BindGroupLayout,
 }
 /// Above this count, realtime shadows use SSAO/contact shadows instead of a
-/// second full primitive raster. Cinematic mode retains the complete caster set.
+/// second full primitive raster. Converged mode retains the complete caster set.
 const REALTIME_SHADOW_PRIMITIVES: u32 = 4_096;
 const RETAINED_STAGING_BYTES: usize = 8 * 1024 * 1024;
 

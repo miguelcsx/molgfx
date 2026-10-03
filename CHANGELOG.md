@@ -7,6 +7,15 @@ that first.
 
 ## 0.4.0
 
+### Changed
+
+- **Engine names replace use-case names.** `Quality::Publication`,
+  `profile::publication()`, `ImagePurpose::Publication`, `RenderMode::Cinematic`
+  and the `molgfx-publication` recipe are now `Converged`/`converged()`; the
+  Illustration effect is `ShapeCues`; `RenderProfile::{illustrative,cinematic,
+  inspection}` are `shape_cues`/`optical`/`bare`; `LightingEnvironment::documentary`
+  is `soft_key`. No aliases remain.
+
 ### Added
 
 - **Compositions in one call.** `Scene.pocket` builds the pocket-and-pose view of

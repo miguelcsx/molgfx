@@ -81,8 +81,8 @@ pub(super) fn render(
     } else {
         MeasuredOutput::Converged
     };
-    let profile = if recipe == "molgfx-publication" {
-        profile::publication()
+    let profile = if recipe == "molgfx-converged" {
+        profile::converged()
     } else {
         profile::highest_fixed(120)
     };
@@ -128,7 +128,7 @@ pub(super) fn render(
         return Err(io::Error::other("incomplete native screenshot").into());
     }
     std::fs::write(output.join("image.png"), image.png_bytes()?)?;
-    if recipe == "molgfx-publication"
+    if recipe == "molgfx-converged"
         && let (Some(video), Some(directory)) = (
             fixture.script.as_ref().and_then(|s| s.video.as_ref()),
             output.parent(),

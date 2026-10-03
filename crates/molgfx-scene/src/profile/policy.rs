@@ -12,8 +12,8 @@ pub enum Quality {
     Interactive,
     /// Hold maximum detail regardless of scene size or frame time.
     HighestFixed,
-    /// Maximum detail for converged publication output.
-    Publication,
+    /// Maximum detail for converged output.
+    Converged,
 }
 
 /// Public renderer policy without target dimensions or backend details.
@@ -67,10 +67,10 @@ pub const fn interactive() -> RenderProfile {
     adaptive(60)
 }
 
-/// Converged publication profile with maximum fixed detail.
+/// Converged converged profile with maximum fixed detail.
 #[must_use]
-pub const fn publication() -> RenderProfile {
-    recipe(1, Quality::Publication)
+pub const fn converged() -> RenderProfile {
+    recipe(1, Quality::Converged)
 }
 
 /// Adaptive profile targeting a caller-selected refresh rate.

@@ -175,7 +175,7 @@ fn quality_mode_switch_restores_every_pose_without_rebuilding_the_scene() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("realtime compact ligand batch renders: {error}");
     }
-    engine.set_render_mode(RenderMode::Cinematic);
+    engine.set_render_mode(RenderMode::Converged);
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("quality compact ligand batch renders: {error}");
     }

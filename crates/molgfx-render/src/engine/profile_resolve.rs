@@ -1,15 +1,15 @@
 //! Ordered render-profile resolution kept separate from the public recipe types.
 
 use super::{
-    BackdropStyle, BloomStyle, DepthCue, DepthOfField, DisplayTransform, IllustrationStyle,
-    LightingEnvironment, MotionBlur, PresentationEffect, RenderProfile, ResolvedRenderPlan,
+    BackdropStyle, BloomStyle, DepthCue, DepthOfField, DisplayTransform, LightingEnvironment,
+    MotionBlur, PresentationEffect, RenderProfile, ResolvedRenderPlan, ShapeCueStyle,
 };
 
 impl RenderProfile {
     pub(crate) fn resolve(&self) -> ResolvedRenderPlan {
         let mut order = (0..self.layers.len()).collect::<Vec<_>>();
         order.sort_by_key(|index| self.layers[*index].priority);
-        let mut illustration = IllustrationStyle::default();
+        let mut shape_cues = ShapeCueStyle::default();
         let mut depth_cue = DepthCue::default();
         let mut depth_of_field = None;
         let mut motion_blur = None;
@@ -21,8 +21,8 @@ impl RenderProfile {
         for index in order {
             let layer = self.layers[index];
             match layer.effect {
-                PresentationEffect::Illustration(style) => {
-                    illustration = illustration.blend(style.sanitize(), layer.weight);
+                PresentationEffect::ShapeCues(style) => {
+                    shape_cues = shape_cues.blend(style.sanitize(), layer.weight);
                 }
                 PresentationEffect::DepthCue(cue) => {
                     depth_cue = depth_cue.blend(cue.sanitize(), layer.weight);
@@ -79,7 +79,7 @@ impl RenderProfile {
             }
         }
         ResolvedRenderPlan {
-            illustration,
+            shape_cues,
             depth_cue,
             depth_of_field,
             motion_blur,

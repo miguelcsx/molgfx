@@ -17,9 +17,9 @@ pub(crate) fn profile(
             ..molgfx::profile::adaptive(fps)
         }),
         Some("highest_fixed") => Ok(molgfx::profile::highest_fixed(fps)),
-        Some("publication") => Ok(molgfx::profile::publication()),
+        Some("converged") => Ok(molgfx::profile::converged()),
         Some(_) => Err(JsError::new(
-            "quality must be auto, interactive, highest_fixed, or publication",
+            "quality must be auto, interactive, highest_fixed, or converged",
         )),
     }
 }

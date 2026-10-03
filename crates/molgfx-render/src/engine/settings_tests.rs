@@ -19,11 +19,11 @@ fn topology_modules_rebuild_the_graph_without_reopening_the_device() {
             .all(|node| !node.name.starts_with("depth-of-field"))
     );
 
-    if let Err(error) = engine.set_render_profile(RenderProfile::cinematic()) {
-        panic!("cinematic profile resolves: {error}")
+    if let Err(error) = engine.set_render_profile(RenderProfile::optical()) {
+        panic!("optical profile resolves: {error}")
     }
 
-    // Cinematic contributes two depth-of-field stages, one motion gather and
+    // The optical profile contributes two depth-of-field stages, one motion gather and
     // three bloom stages.
     assert_eq!(engine.pass_nodes.len(), baseline_nodes + 6);
     assert!(
@@ -34,7 +34,7 @@ fn topology_modules_rebuild_the_graph_without_reopening_the_device() {
     );
     assert_eq!(
         engine.resolved_render_plan().depth_of_field(),
-        Some(crate::engine::DepthOfField::cinematic())
+        Some(crate::engine::DepthOfField::macro_lens())
     );
     assert!(
         engine
@@ -76,16 +76,16 @@ fn every_effect_combination_allocates_only_its_active_targets_and_bindings() {
     let mut engine = engine();
     let scene = molgfx_core::Scene::new();
     for mask in [0, 1, 2, 3, 4, 5, 6, 7, 0] {
-        let mut profile = RenderProfile::inspection();
+        let mut profile = RenderProfile::bare();
         if mask & 1 != 0 {
             profile =
-                profile.with_effect(PresentationEffect::DepthOfField(DepthOfField::cinematic()));
+                profile.with_effect(PresentationEffect::DepthOfField(DepthOfField::macro_lens()));
         }
         if mask & 2 != 0 {
-            profile = profile.with_effect(PresentationEffect::Bloom(BloomStyle::cinematic()));
+            profile = profile.with_effect(PresentationEffect::Bloom(BloomStyle::restrained()));
         }
         if mask & 4 != 0 {
-            profile = profile.with_effect(PresentationEffect::MotionBlur(MotionBlur::cinematic()));
+            profile = profile.with_effect(PresentationEffect::MotionBlur(MotionBlur::restrained()));
         }
         engine.set_render_profile(profile).expect("profile applies");
         engine
@@ -144,7 +144,7 @@ fn an_interactive_tier_climb_keeps_edge_smoothing_on() {
         "a raised interactive tier still smooths"
     );
 
-    engine.set_render_mode(crate::engine::RenderMode::Cinematic);
+    engine.set_render_mode(crate::engine::RenderMode::Converged);
     assert!(
         !engine.edge_smoothing(),
         "the converged path relies on accumulation instead"

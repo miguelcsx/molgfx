@@ -73,8 +73,8 @@ pub use optics::{DepthOfField, FocusTarget, MotionBlur};
 pub use pass_profiling::{PassTiming, PassTimingCoverage};
 pub use picking::{PICK_READBACK_BYTES, PendingPick, Pick, PickEntity};
 pub use profile::{
-    AntiAliasingStyle, BloomStyle, EffectLayer, IllustrationStyle, PresentationEffect,
-    RenderProfile, ResolvedRenderPlan,
+    AntiAliasingStyle, BloomStyle, EffectLayer, PresentationEffect, RenderProfile,
+    ResolvedRenderPlan, ShapeCueStyle,
 };
 pub use profiling::{FrameTiming, MeasuredOutput};
 #[cfg(not(target_arch = "wasm32"))]

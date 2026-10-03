@@ -122,7 +122,7 @@ pub mod preset {
 pub mod profile {
     pub use molgfx_scene::MeasuredOutput;
     pub use molgfx_scene::profile::{
-        DepthCue, Quality, RenderProfile, adaptive, highest_fixed, interactive, publication,
+        DepthCue, Quality, RenderProfile, adaptive, converged, highest_fixed, interactive,
     };
 }
 

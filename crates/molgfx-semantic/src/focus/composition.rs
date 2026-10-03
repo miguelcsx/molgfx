@@ -29,7 +29,7 @@ pub enum FocusContext {
     Cartoon,
     /// Thin topology trace for the least occluding context.
     Trace,
-    /// Smooth round backbone with restrained cinematic volume.
+    /// Smooth round backbone with restrained volume.
     #[default]
     Tube,
 }

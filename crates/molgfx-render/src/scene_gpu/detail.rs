@@ -79,7 +79,7 @@ impl TierDetail {
 }
 
 impl Default for TierDetail {
-    /// The richest detail: what publication and offscreen rendering use.
+    /// The richest detail: what converged and offscreen rendering use.
     fn default() -> Self {
         Self {
             surface_spacing: FINEST_SURFACE_SPACING,

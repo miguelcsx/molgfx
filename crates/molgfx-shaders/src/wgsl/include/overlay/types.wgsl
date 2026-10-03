@@ -118,7 +118,7 @@ fn projected_scale_length(length: f32) -> f32 {
 
     return projected /
         max(
-            2.0 * frame.illustration.w,
+            2.0 * frame.shape_cues.w,
             1.0e-4,
         );
 }
