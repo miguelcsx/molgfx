@@ -3,8 +3,7 @@
 
 # generated content
 .source
-# the browser runtime, copied from crates/molgfx-wasm/js/dist by its build
-/public/runtime/
+/test-results/
 
 # test & build
 /coverage

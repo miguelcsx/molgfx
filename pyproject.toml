@@ -1,10 +1,11 @@
 [build-system]
-requires = ["maturin>=1.9,<2"]
-build-backend = "maturin"
+requires = ["maturin>=1.15,<2"]
+build-backend = "build_backend"
+backend-path = ["."]
 
 [project]
 name = "molgfx"
-version = "0.4.0"
+version = "0.4.1"
 description = "Semantic, GPU-native molecular rendering engine"
 readme = "README.md"
 authors = [{ name = "Miguel Cárdenas", email = "miguelecsx@gmail.com" }]
@@ -28,7 +29,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 requires-python = ">=3.12"
-dependencies = ["molframe>=0.4.0"]
+dependencies = ["molframe>=0.4.0", "anywidget>=0.9.18", "traitlets>=5.14"]
 # PEP 639. maturin gained full support for the SPDX expression and
 # `license-files` in 1.9.0, which the build requirement below already covers.
 license = "MIT"
@@ -44,6 +45,11 @@ Documentation = "https://miguelcsx.github.io/molgfx/"
 manifest-path = "crates/molgfx-py/Cargo.toml"
 python-source = "python"
 module-name = "molgfx._engine"
+include = [
+    { path = "python/molgfx/static/**/*", format = ["wheel", "sdist"] },
+    { path = "build_backend.py", format = "sdist" },
+]
+auditwheel = "repair"
 # The stable ABI, matching molframe's own binding crate. `pyo3/extension-module`
 # disables linking libpython for every target, which is what breaks `cargo test`
 # in this workspace; maturin sets `PYO3_BUILD_EXTENSION_MODULE` for extension
@@ -52,3 +58,73 @@ module-name = "molgfx._engine"
 # later instead of one wheel per minor version; the floor is 3.12 because that
 # is what Google Colab runs.
 features = ["pyo3/abi3-py312"]
+
+# The shipped Python surface is small and typed end to end, so it is linted with
+# every rule ruff has and checked by mypy in strict mode. Both tools are exact:
+# a finding is fixed where it is reported, never silenced at the call site.
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["python"]
+extend-exclude = [".venv", "target", "site", "node_modules"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+# Every entry is a rule whose premise does not hold here.
+ignore = [
+    # The formatter owns trailing commas; asking a lint rule for them as well
+    # only produces a conflict between two tools that both want to be right.
+    "COM812",
+    # No per-file copyright headers. The licence is one file at the root.
+    "CPY001",
+    # Each contradicts its partner, which is the one kept here.
+    "D203",
+    "D213",
+    # The stub is the documentation surface a Python reader has: hovering a
+    # symbol in an editor shows the line written here, and it is the only place
+    # the binding's contract is spelled out for someone not reading Rust.
+    "PYI021",
+]
+# Formatting covers the whole repository; linting covers the surface a user of
+# the wheel touches. The bench parity harness and the release script are tool
+# drivers for third-party programs — PyMOL above all, whose API is a C
+# extension with no stubs — so they are formatted like everything else and held
+# out of the lint contract rather than excused from it one rule at a time.
+exclude = ["crates/molgfx-bench/parity/*.py", ".github/scripts/*.py", "web/scripts/*.py"]
+
+[tool.ruff.lint.per-file-ignores]
+# A stub restates names the Rust binding already fixed: a keyword spelled
+# `property` or `format` is what a caller must write, and an error class called
+# `RevisionConflict` is the name the type has everywhere else in the project.
+# Neither is a style the stub is free to choose.
+"python/molgfx/_engine/__init__.pyi" = ["A002", "N818"]
+# A workflow runs these two by path and reads what they write; stdout is the
+# report they exist to produce.
+"python/tests/headless_*.py" = ["T201"]
+# The suite is a directory of scripts run by path, asserts with `unittest` and
+# bare `assert`, and reaches internals the public surface does not expose. Every
+# other rule applies to it exactly as to the package: annotations, naming,
+# docstrings on modules and classes, complexity, imports and line length.
+"python/tests/*" = [
+    # A test method's name is the sentence stating what it checks.
+    "D102",
+    # Run by path under `unittest discover`, not imported as a package.
+    "INP001",
+    # The literal is the value under test.
+    "PLR2004",
+    # `unittest`, not pytest: the suite must run under `unittest discover`.
+    "PT009",
+    "PT027",
+    # An assertion is the oracle.
+    "S101",
+    # Some coverage reaches a private member, which is the point of the test.
+    "SLF001",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["molgfx"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["python"]

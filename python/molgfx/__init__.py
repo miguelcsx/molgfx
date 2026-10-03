@@ -1,13 +1,16 @@
 """Declarative, GPU-native molecular rendering."""
 
+from importlib import import_module
+from typing import TYPE_CHECKING
+
 from molframe import sel as sel
 
 from ._engine import (
     Anchor,
     AnnotationId,
-    BoolExpr,
-    AssemblyCopy,
     ArcballController,
+    AssemblyCopy,
+    BoolExpr,
     Camera,
     CameraPath,
     ColorExpr,
@@ -67,60 +70,76 @@ from ._engine import (
     vocabulary,
 )
 
+if TYPE_CHECKING:
+    from .viewer import Viewer
+
+
+def __getattr__(name: str) -> object:
+    """Load the notebook adapter only when it is explicitly requested."""
+    if name == "Viewer":
+        viewer: object = import_module(".viewer", __name__).Viewer
+        globals()[name] = viewer
+        return viewer
+    message = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(message)
+
+
 __all__ = [
     "Anchor",
+    "AnnotationId",
+    "ArcballController",
+    "AssemblyCopy",
     "BoolExpr",
     "Camera",
+    "CameraPath",
     "ColorExpr",
     "ColorParameter",
     "Command",
     "CommandError",
     "CommandResult",
     "DataSource",
-    "AnnotationId",
-    "MeasurementId",
-    "RepresentationId",
-    "InteractionId",
-    "StructureId",
-    "TrajectoryId",
+    "DifferenceStyle",
     "EllipsoidId",
-    "VolumeId",
+    "FlyController",
     "Image",
+    "Interaction",
+    "InteractionId",
     "Label",
     "Measurement",
+    "MeasurementId",
     "MolgfxError",
-    "PickResult",
-    "AssemblyCopy",
-    "ArcballController",
-    "CameraPath",
-    "FlyController",
     "OrbitController",
-    "DifferenceStyle",
+    "PickResult",
     "PocketStyle",
     "RenderProfile",
     "Renderer",
     "Representation",
+    "RepresentationId",
     "RevisionConflict",
+    "ScalarExpr",
+    "ScalarParameter",
+    "ScalarProperty",
     "Scene",
     "ScenePatch",
     "SceneSpec",
     "SceneTransaction",
-    "ScalarExpr",
-    "ScalarProperty",
-    "ScalarParameter",
-    "Interaction",
     "Session",
     "SpecError",
+    "StructureId",
     "Trajectory",
-    "VisualStyle",
+    "TrajectoryId",
     "VectorExpr",
     "VectorParameter",
+    "Viewer",
+    "VisualStyle",
     "Volume",
+    "VolumeId",
     "__version__",
     "annotation",
     "color",
     "data",
     "density",
+    "ellipsoid",
     "interaction",
     "measurement",
     "profile",
@@ -128,7 +147,6 @@ __all__ = [
     "sel",
     "system_info",
     "trajectory",
-    "ellipsoid",
     "visual",
     "vocabulary",
 ]

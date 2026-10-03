@@ -305,12 +305,13 @@ evidence for their specific boundary, not a green gate for the whole current tre
 - [x] **P0** Selected, hovered, focused, muted, and hidden state bits are
   consumed by the shared atom/bond/visual shaders. **Check:** shader tests and
   browser selected/hovered/cleared interaction smoke.
-- [-] **Out of scope** Browser click selection (replace, Shift-add, Alt-remove,
-  Escape-clear). It was a viewer-host behaviour; the specification keeps the
-  application shell out of the engine (`docs/00-vision-and-scope.md` §4.4,
-  ADR-0012). The engine keeps what a host builds it from: detached GPU picking,
-  `set_interaction` patches and the camera controllers. The host that did this is
-  set aside in `../backup/molgfx-shell`.
+- [~] Official `web/` host preserves complete pick provenance and modifiers,
+  supports Session-backed `select(query)` and Escape-clear, and shares native
+  camera controllers with the kernel adapter. It never reconstructs a residue
+  query from a click. Exact click replace/add/remove remains blocked by the
+  absence of a general provenance-aware selection-loci primitive in the engine;
+  such a primitive belongs in Rust/MolFrame, not in browser identity heuristics.
+  Workbench, consoles and application UI remain outside MolGFX.
 - [~] **P0** Marker edge outline. Every G-buffer form folds its strongest
   marker (selected > focused > hovered) into the material payload
   (`visual/marker.wgsl`) and the lighting pass draws a two-pixel edge from it
@@ -633,8 +634,9 @@ not maximum-quality equivalence or comparative speedup evidence.
 
 ## Completed baseline contracts
 
-- [x] One WebAssembly binding for browsers; a page or notebook widget is an
-  application built on it and on the camera primitives, not part of the engine.
+- [x] One Rust-only WebAssembly binding for browsers. The official canvas host
+  belongs to `web/`; npm and Python AnyWidget consume the same browser build,
+  while application panels remain outside the engine and SDK.
 - [x] Coordinates remain borrowed through the MolFrame seam; no scene copy was
   introduced for rendering.
 - [x] Shared GPU record sets, indirect draws, lazy residency, and capability-

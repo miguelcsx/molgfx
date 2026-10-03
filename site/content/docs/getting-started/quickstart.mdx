@@ -42,7 +42,7 @@ renderer = molgfx.Renderer(profile=molgfx.profile.converged())
 renderer.render_image(scene, size=(1600, 1000)).save("4hhb-pocket.png")
 ```
 
-`render_image` frames the scene for the requested size. To draw it on a canvas you own, bind the scene to the WebAssembly bindings or render frames from Python; MolGFX opens no window of its own.
+`render_image` frames the scene for the requested size. In a notebook, display `molgfx.Viewer(scene)` to preserve this authored scene. In a browser, use the official `Viewer` from `molgfx` and supply structure bytes; it owns the canvas lifecycle over the same Rust engine. MolGFX does not launch an application window.
 
 <Cards>
   <Card title="Your first scene" href="/docs/getting-started/first-scene" description="Learn the Scene → representation → renderer model." />

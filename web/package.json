@@ -1,0 +1,70 @@
+{
+  "name": "molgfx",
+  "version": "0.4.1",
+  "type": "module",
+  "description": "Semantic molecular rendering SDK and browser host shared with Python notebooks.",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/miguelcsx/molgfx.git",
+    "directory": "web"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./viewer": {
+      "types": "./dist/types/viewer.d.ts",
+      "import": "./dist/viewer.js"
+    },
+    "./anywidget": {
+      "types": "./dist/types/entry/anywidget.d.ts",
+      "import": "./dist/anywidget.js"
+    },
+    "./react": {
+      "types": "./dist/types/react/index.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./viewer.css": "./dist/viewer.css"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node scripts/test-core.mjs && node --test tests/*.test.mjs",
+    "build": "node scripts/build.mjs",
+    "test:browser": "node scripts/build-test-harness.mjs && playwright test",
+    "prepack": "node scripts/check-artifacts.mjs",
+    "test:bundler": "node scripts/test-bundler.mjs && node scripts/test-next.mjs"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.1",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "esbuild": "^0.25.0",
+    "next": "^16.3.5",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "typescript": "^5.8.3",
+    "vite": "^6.1.0"
+  }
+}
