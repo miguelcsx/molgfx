@@ -7,17 +7,17 @@ use crate::scene::StoredRepresentation;
 use crate::serialization::types::{self, TargetDescription};
 use crate::serialization::types::{
     MaterialDescription, RepresentationDescription, SegmentationStyleDescription,
-    SurfaceScalarDescription, VisualStyleDescription, VolumeStyleDescription,
+    VisualStyleDescription, VolumeStyleDescription,
 };
 use crate::{
-    AttributeKind, ClipCap, ClipPlane, ClipSet, Material, MaterialModel, PropertyAppearance,
-    Representation, RepresentationKind, RepresentationParams, RepresentationTarget, RowDomain,
-    ScalarContours, ScalarRamp, SegmentStyle, SegmentStyleTable, SurfaceKind, SurfaceScalarOverlay,
-    SurfaceStyle, TubeRadiusMapping, VisualAttributeRef, VisualCompatibility, VisualOutput,
-    VisualProgram, VisualStyle, VolumeRegion, VolumeRendering, VolumeSlice, VolumeStyle,
-    VolumeTransferFunction, VolumeTransferPoint,
+    AttributeKind, ClipCap, ClipPlane, ClipSet, Material, MaterialModel, Representation,
+    RepresentationKind, RepresentationParams, RepresentationTarget, RowDomain, ScalarRamp,
+    SegmentStyle, SegmentStyleTable, SurfaceKind, SurfaceStyle, TubeRadiusMapping,
+    VisualAttributeRef, VisualCompatibility, VisualOutput, VisualProgram, VisualStyle,
+    VolumeRegion, VolumeRendering, VolumeSlice, VolumeStyle, VolumeTransferFunction,
+    VolumeTransferPoint,
 };
-use molgfx_math::{Rgba8, Vec3};
+use molgfx_math::Vec3;
 
 pub(crate) fn rehydrate_representations(
     scene: &mut Scene,
@@ -412,9 +412,9 @@ fn parse_segmentation_style(
         .map(|style| SegmentStyle::new(style.label, rgba(style.color), style.opacity))
         .collect::<Vec<_>>();
     Ok(crate::SegmentationStyle {
+        presentation: value.presentation,
         styles: SegmentStyleTable::new(&styles)?,
         opacity_scale: finite_nonnegative(value.opacity_scale, "segmentation opacity scale")?,
-        step_scale: positive_finite(value.step_scale, "segmentation step scale")?,
         slice: value.slice.map(parse_slice).transpose()?,
         region: value.region.map(parse_region).transpose()?,
     })
@@ -454,4 +454,7 @@ fn positive_finite(value: f32, label: &'static str) -> Result<f32, crate::CoreEr
     }
 }
 
-include!("rehydrate_render_validation.rs");
+mod overlays;
+mod validation;
+use overlays::{parse_appearance, parse_surface_scalar};
+use validation::validate_regions;

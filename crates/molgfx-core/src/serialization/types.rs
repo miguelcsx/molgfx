@@ -446,15 +446,15 @@ pub struct VolumeStyleDescription {
     pub region: Option<RegionDescription>,
 }
 
-/// Serializable categorical-volume sampling state.
+/// Serializable categorical-volume optical state.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct SegmentationStyleDescription {
+    /// Boundary geometry or exact optical integration.
+    pub presentation: crate::SegmentationPresentation,
     /// Exact label styles.
     pub styles: Vec<SegmentStyleDescription>,
     /// Global opacity multiplier.
     pub opacity_scale: f32,
-    /// Ray-step scale.
-    pub step_scale: f32,
     /// Optional world-space sampling plane as normal xyz plus offset.
     pub slice: Option<[f32; 4]>,
     /// Optional half-open voxel crop.

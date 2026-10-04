@@ -56,6 +56,7 @@ pub(crate) use lighting::LightingPass;
 pub(crate) use motion_blur::MotionBlurPass;
 pub(crate) use occupancy::{OccupancyBoundsFormat, OccupancyPass};
 pub(crate) use oit::OitPass;
+pub(crate) use oit::segmentation::record as record_segmentations;
 pub(crate) use oit_composite::OitCompositePass;
 pub(crate) use opaque_depth::OpaqueDepthPass;
 pub(crate) use overlay::OverlayPass;
@@ -81,3 +82,8 @@ pub(crate) use surface_field::SurfaceFieldPass;
 pub(crate) use temporal::TemporalPass;
 pub(crate) use tonemap::TonemapPass;
 pub(crate) use trajectory::TrajectoryPass;
+
+pub(crate) use oit::segmentation::{
+    copy_depth as copy_segment_depth, record_identity as record_segment_identity,
+};
+pub(crate) use resources::SEGMENT_DEPTH_RESOURCE;

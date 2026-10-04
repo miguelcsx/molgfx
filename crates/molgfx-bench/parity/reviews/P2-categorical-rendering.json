@@ -1,0 +1,371 @@
+{
+  "unit": "Categorical field rendering primitive",
+  "owner": "Phase 2.3",
+  "status": "verified core/renderer primitive; public scene-domain unit closure remains open",
+  "architecture": [
+    "One shared extraction kernel; source-revision boundary buffers survive style edits",
+    "Separate nearest-identity depth pass seeded from opaque depth; WBOIT beauty retains all transparent layers",
+    "Exact u32 styles and labels; affine validation shared with scalar fields",
+    "Integer-derived DDA boundaries avoid cumulative rounding; no small-voxel opacity clamp",
+    "Optical colour accumulation uses scene-linear RGB through common shading",
+    "Restoration validation uses bound grids before insertion; former textual helper include replaced by domain modules"
+  ],
+  "tests": [
+    "crates/molgfx-geometry/src/field/tests.rs",
+    "crates/molgfx-core/src/structure/segmentation_tests.rs",
+    "crates/molgfx-core/src/scene/segmentation_tests.rs",
+    "crates/molgfx-render/src/engine/segmentation_tests.rs",
+    "crates/molgfx-render/src/engine/graph_setup_tests.rs",
+    "crates/molgfx-wgpu/tests/gpu_segmentation_tests.rs",
+    "crates/molgfx-wgpu/tests/gpu_segmentation_surface_tests.rs"
+  ],
+  "gpu_results": [
+    "Nearest labels from either camera direction",
+    "Nearest source among overlapping maps for Surface and Direct",
+    "Labels above 2^24 remain exact across style updates",
+    "One-cell opacity and position at normal and 1e-6 affine scales",
+    "Scene-linear gray contribution",
+    "Existing scalar HDR colour and repeated direct-volume endpoint regressions pass"
+  ],
+  "visual": {
+    "case": "P2-segmentation-two-maps",
+    "native": "target/gallery-segmentation-refined/P2-segmentation-two-maps",
+    "reference": "target/gallery-phase2-canonical/P2-segmentation-two-maps",
+    "golden_check": "target/gallery-segmentation-golden-check/P2-segmentation-two-maps",
+    "ssim": 1.0,
+    "mean_delta_e": 0.0,
+    "p99_delta_e": 0.0,
+    "note": "Consumer gallery factory, public bindings and golden ledger belong to the pending scene-domain integration; this primitive commit does not certify full Phase 2.3."
+  },
+  "measurements": {
+    "profile": "release",
+    "size": [
+      768,
+      768
+    ],
+    "recipe": "interactive",
+    "warmup_outputs": 120,
+    "measured_outputs": 1200,
+    "orbit_degrees": 0,
+    "trials": [
+      {
+        "path": "target/segmentation-measurements/surface-1.jsonl",
+        "summary": {
+          "cpu_median_ns": 203500,
+          "cpu_p95_ns": 248958,
+          "cpu_p99_ns": 295417,
+          "frame_median_ns": 1143666,
+          "frame_p95_ns": 1270250,
+          "frame_p99_ns": 1330875,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 270,
+          "max_heap_reallocations": 20,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "serial_completed_outputs_per_second": 887.1826775642234,
+        "cold_completed_ns": 8609047750,
+        "cold_quality": {
+          "adaptive": false,
+          "complete": false,
+          "extent": [
+            768,
+            768
+          ],
+          "full_residency": true,
+          "illumination_bounces": 0,
+          "lighting": {
+            "diffuse_strength": 0.6200000047683716,
+            "fill_color": {
+              "a": 255,
+              "b": 226,
+              "g": 214,
+              "r": 206
+            },
+            "fill_direction": [
+              0.7799999713897705,
+              -0.11999999731779099,
+              0.5
+            ],
+            "fill_strength": 0.30000001192092896,
+            "ground": {
+              "a": 255,
+              "b": 141,
+              "g": 146,
+              "r": 150
+            },
+            "horizon": {
+              "a": 255,
+              "b": 202,
+              "g": 194,
+              "r": 188
+            },
+            "key_angular_radius": 0.20000000298023224,
+            "key_color": {
+              "a": 255,
+              "b": 230,
+              "g": 244,
+              "r": 255
+            },
+            "key_direction": [
+              -0.41999998688697815,
+              0.5799999833106995,
+              0.699999988079071
+            ],
+            "key_strength": 1.350000023841858,
+            "rim_color": {
+              "a": 255,
+              "b": 152,
+              "g": 132,
+              "r": 120
+            },
+            "rim_strength": 0.1599999964237213,
+            "shadow_strength": 0.6600000262260437,
+            "specular_strength": 0.7200000286102295,
+            "zenith": {
+              "a": 255,
+              "b": 240,
+              "g": 232,
+              "r": 226
+            }
+          },
+          "lod_mode_max": 0,
+          "occlusion_rays_per_sample": 2,
+          "progressive": true,
+          "ribbon_steps_max": 8,
+          "samples_completed": 1,
+          "samples_required": 1,
+          "samples_submitted": 1,
+          "surface_limit": "none",
+          "surface_spacing_effective": null,
+          "surface_spacing_requested": 0.25,
+          "tier": "high"
+        },
+        "note": "Residency counters cover the managed arena, not total GPU memory; unresolved GPU timestamps are not reported as zero cost."
+      },
+      {
+        "path": "target/segmentation-measurements/surface-2.jsonl",
+        "summary": {
+          "cpu_median_ns": 611334,
+          "cpu_p95_ns": 806875,
+          "cpu_p99_ns": 1052709,
+          "frame_median_ns": 1790750,
+          "frame_p95_ns": 2319167,
+          "frame_p99_ns": 3056500,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 270,
+          "max_heap_reallocations": 20,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "serial_completed_outputs_per_second": 537.0694971527681,
+        "cold_completed_ns": 517311500,
+        "cold_quality": {
+          "adaptive": false,
+          "complete": false,
+          "extent": [
+            768,
+            768
+          ],
+          "full_residency": true,
+          "illumination_bounces": 0,
+          "lighting": {
+            "diffuse_strength": 0.6200000047683716,
+            "fill_color": {
+              "a": 255,
+              "b": 226,
+              "g": 214,
+              "r": 206
+            },
+            "fill_direction": [
+              0.7799999713897705,
+              -0.11999999731779099,
+              0.5
+            ],
+            "fill_strength": 0.30000001192092896,
+            "ground": {
+              "a": 255,
+              "b": 141,
+              "g": 146,
+              "r": 150
+            },
+            "horizon": {
+              "a": 255,
+              "b": 202,
+              "g": 194,
+              "r": 188
+            },
+            "key_angular_radius": 0.20000000298023224,
+            "key_color": {
+              "a": 255,
+              "b": 230,
+              "g": 244,
+              "r": 255
+            },
+            "key_direction": [
+              -0.41999998688697815,
+              0.5799999833106995,
+              0.699999988079071
+            ],
+            "key_strength": 1.350000023841858,
+            "rim_color": {
+              "a": 255,
+              "b": 152,
+              "g": 132,
+              "r": 120
+            },
+            "rim_strength": 0.1599999964237213,
+            "shadow_strength": 0.6600000262260437,
+            "specular_strength": 0.7200000286102295,
+            "zenith": {
+              "a": 255,
+              "b": 240,
+              "g": 232,
+              "r": 226
+            }
+          },
+          "lod_mode_max": 0,
+          "occlusion_rays_per_sample": 2,
+          "progressive": true,
+          "ribbon_steps_max": 8,
+          "samples_completed": 1,
+          "samples_required": 1,
+          "samples_submitted": 1,
+          "surface_limit": "none",
+          "surface_spacing_effective": null,
+          "surface_spacing_requested": 0.25,
+          "tier": "high"
+        },
+        "note": "Residency counters cover the managed arena, not total GPU memory; unresolved GPU timestamps are not reported as zero cost."
+      },
+      {
+        "path": "target/segmentation-measurements/surface-3.jsonl",
+        "summary": {
+          "cpu_median_ns": 241667,
+          "cpu_p95_ns": 448458,
+          "cpu_p99_ns": 616833,
+          "frame_median_ns": 1234666,
+          "frame_p95_ns": 1614000,
+          "frame_p99_ns": 1893583,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 270,
+          "max_heap_reallocations": 20,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "serial_completed_outputs_per_second": 778.8967237908399,
+        "cold_completed_ns": 401934500,
+        "cold_quality": {
+          "adaptive": false,
+          "complete": false,
+          "extent": [
+            768,
+            768
+          ],
+          "full_residency": true,
+          "illumination_bounces": 0,
+          "lighting": {
+            "diffuse_strength": 0.6200000047683716,
+            "fill_color": {
+              "a": 255,
+              "b": 226,
+              "g": 214,
+              "r": 206
+            },
+            "fill_direction": [
+              0.7799999713897705,
+              -0.11999999731779099,
+              0.5
+            ],
+            "fill_strength": 0.30000001192092896,
+            "ground": {
+              "a": 255,
+              "b": 141,
+              "g": 146,
+              "r": 150
+            },
+            "horizon": {
+              "a": 255,
+              "b": 202,
+              "g": 194,
+              "r": 188
+            },
+            "key_angular_radius": 0.20000000298023224,
+            "key_color": {
+              "a": 255,
+              "b": 230,
+              "g": 244,
+              "r": 255
+            },
+            "key_direction": [
+              -0.41999998688697815,
+              0.5799999833106995,
+              0.699999988079071
+            ],
+            "key_strength": 1.350000023841858,
+            "rim_color": {
+              "a": 255,
+              "b": 152,
+              "g": 132,
+              "r": 120
+            },
+            "rim_strength": 0.1599999964237213,
+            "shadow_strength": 0.6600000262260437,
+            "specular_strength": 0.7200000286102295,
+            "zenith": {
+              "a": 255,
+              "b": 240,
+              "g": 232,
+              "r": 226
+            }
+          },
+          "lod_mode_max": 0,
+          "occlusion_rays_per_sample": 2,
+          "progressive": true,
+          "ribbon_steps_max": 8,
+          "samples_completed": 1,
+          "samples_required": 1,
+          "samples_submitted": 1,
+          "surface_limit": "none",
+          "surface_spacing_effective": null,
+          "surface_spacing_requested": 0.25,
+          "tier": "high"
+        },
+        "note": "Residency counters cover the managed arena, not total GPU memory; unresolved GPU timestamps are not reported as zero cost."
+      }
+    ],
+    "comparison": "Current surface baseline; old optical presentation has different semantics and is not a before/after optimization comparison",
+    "remaining": "270 allocations and 20 reallocations per completed output; Phase 9 must address them."
+  },
+  "verification": {
+    "logs": "target/segmentation-verification",
+    "workspace_clippy": "pass",
+    "workspace_all_features_tests": "pass",
+    "wasm_check_and_clippy": "pass",
+    "python_development_install": "pass",
+    "python_tests": 69,
+    "python_format_lint_types_stubtest": "pass",
+    "repository_policy": "pass"
+  }
+}

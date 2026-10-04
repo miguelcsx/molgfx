@@ -15,6 +15,8 @@
 //!include "include/segmentation/ray.wgsl"
 //!include "include/segmentation/label.wgsl"
 //!include "include/segmentation/shade.wgsl"
+//!include "include/segmentation/integrate.wgsl"
+//!include "include/segmentation/surface.wgsl"
 
 @vertex
 fn vs_segmentation(
@@ -79,8 +81,7 @@ fn vs_segmentation(
     );
 }
 
-@fragment
-fn fs_segmentation(
+fn sample_segmentation(
     in: SegmentationVsOut,
 ) -> SegmentationOutput {
     let ray =
@@ -131,136 +132,12 @@ fn fs_segmentation(
         );
     }
 
-    let step_size =
-        max(
-            volume.sampling.z *
-                volume.sampling.y,
-            SEGMENT_MIN_STEP,
-        );
-
-    let extinction_scale =
-        volume.sampling.x *
-        step_size /
-        max(
-            volume.sampling.z,
-            SEGMENT_MIN_STEP,
-        );
-
-    let pixel =
-        vec2u(
-            vec2i(in.position.xy)
-        );
-
-    var hash =
-        pixel.x * 1664525u +
-        pixel.y * 1013904223u +
-        u32(frame.temporal.w) *
-            747796405u;
-
-    hash =
-        (hash ^ (hash >> 16u)) *
-        2246822519u;
-
-    hash ^=
-        hash >> 13u;
-
-    var t =
-        interval.x +
-        f32(hash & 0x00FFFFFFu) *
-        SEGMENT_HASH_SCALE *
-        step_size;
-
-    var accumulated =
-        vec4f(0.0);
-
-    var representative_t =
-        interval.x;
-
-    var representative_coordinate =
-        fma(
-            ray.voxel_direction,
-            vec3f(representative_t),
-            ray.voxel_origin,
-        );
-
-    var representative_label = 0u;
-
-    // Cache label -> style across consecutive samples.
-    var cached_label = 0u;
-    var cached_style =
-        absent_style();
-
-    var cache_valid = false;
-
-    for (
-        var step = 0u;
-        step < 768u;
-        step++
-    ) {
-        if t > interval.y ||
-            accumulated.a >=
-                SEGMENT_TERMINATION_ALPHA {
-            break;
-        }
-
-        let coordinate =
-            fma(
-                ray.voxel_direction,
-                vec3f(t),
-                ray.voxel_origin,
-            );
-
-        let label =
-            label_at(coordinate);
-
-        if !cache_valid ||
-            label != cached_label {
-            cached_label = label;
-            cached_style =
-                sample_style(label);
-            cache_valid = true;
-        }
-
-        if cached_style.found &&
-            cached_style.opacity >
-                SEGMENT_OPACITY_EPSILON {
-            let alpha =
-                1.0 -
-                exp(
-                    -cached_style.opacity *
-                    extinction_scale
-                );
-
-            let contribution =
-                (1.0 - accumulated.a) *
-                alpha;
-
-            if contribution > 0.0 {
-                let previous_alpha =
-                    accumulated.a;
-
-                accumulated +=
-                    vec4f(
-                        contribution *
-                            cached_style.color,
-                        contribution,
-                    );
-
-                if previous_alpha <
-                        SEGMENT_REPRESENTATIVE_ALPHA &&
-                    accumulated.a >=
-                        SEGMENT_REPRESENTATIVE_ALPHA {
-                    representative_t = t;
-                    representative_coordinate =
-                        coordinate;
-                    representative_label =
-                        label;
-                }
-            }
-        }
-
-        t += step_size;
-    }
+    let integration = integrate_segments(ray, interval);
+    let accumulated = integration.accumulated;
+    let representative_t = integration.representative_t;
+    let representative_label = integration.label;
+    let representative_coordinate = fma(ray.voxel_direction,
+        vec3f(representative_t), ray.voxel_origin);
 
     if accumulated.a <=
         SEGMENT_OPACITY_EPSILON {
@@ -281,7 +158,7 @@ fn fs_segmentation(
         );
 
     let lit =
-        shade_molecule(
+        shade_linear_molecule(
             accumulated.rgb /
                 accumulated.a,
             segment_normal(
@@ -306,4 +183,28 @@ fn fs_segmentation(
         ),
         representative_label,
     );
+}
+
+@fragment
+fn fs_segmentation(in: SegmentationVsOut) -> SegmentationOutput {
+    return sample_segmentation(in);
+}
+
+struct SegmentationPickOutput {
+    @location(0) source_id: u32,
+    @location(1) label: u32,
+    @builtin(frag_depth) depth: f32,
+}
+
+@fragment
+fn fs_segmentation_pick(in: SegmentationVsOut) -> SegmentationPickOutput {
+    let sample = sample_segmentation(in);
+    return SegmentationPickOutput(sample.source_id, sample.label, sample.depth);
+}
+
+@fragment
+fn fs_segmentation_surface_pick(in: BoundaryVsOut,
+    @builtin(front_facing) front: bool) -> SegmentationPickOutput {
+    let sample = sample_segmentation_surface(in, front);
+    return SegmentationPickOutput(sample.source_id, sample.label, sample.depth);
 }

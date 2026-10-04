@@ -11,11 +11,9 @@ override SEGMENTATION_CLIPPING_ENABLED: bool = true;
 
 const SEGMENT_RAY_EPSILON: f32 = 1.0e-7;
 const SEGMENT_INFINITY: f32 = 1.0e20;
-const SEGMENT_MIN_STEP: f32 = 1.0e-4;
 const SEGMENT_OPACITY_EPSILON: f32 = 1.0e-4;
 const SEGMENT_TERMINATION_ALPHA: f32 = 0.985;
 const SEGMENT_REPRESENTATIVE_ALPHA: f32 = 0.18;
-const SEGMENT_HASH_SCALE: f32 = 1.0 / 16777216.0;
 
 struct SegmentationUniforms {
     voxel_to_world: mat4x4f,

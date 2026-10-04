@@ -219,10 +219,29 @@ impl<D: Device> GpuScene<D> {
 
     pub(crate) fn segmentation_draws(
         &self,
-    ) -> impl Iterator<Item = (super::super::SegmentationPipelineKey, &D::BindGroup)> {
-        self.segmentation_slots
-            .iter()
-            .filter_map(super::super::segmentation_slot::GpuSegmentationSlot::draw)
+    ) -> impl Iterator<
+        Item = (
+            super::super::SegmentationPipelineKey,
+            &D::BindGroup,
+            super::super::segmentation_boundary::SegmentationGeometry<'_, D>,
+        ),
+    > {
+        self.segmentation_slots.iter().filter_map(|slot| {
+            let (key, styles) = slot.draw()?;
+            let geometry = if key.is_surface() {
+                let resource = self.segmentation_resources.get(slot.source_index()?)?;
+                if Some(resource.handle) != slot.source() {
+                    return None;
+                }
+                let (group, arguments) = resource.boundary.draw()?;
+                super::super::segmentation_boundary::SegmentationGeometry::Boundary(
+                    group, arguments,
+                )
+            } else {
+                super::super::segmentation_boundary::SegmentationGeometry::Proxy
+            };
+            Some((key, styles, geometry))
+        })
     }
 
     /// The primitive shadow-caster table and exact opaque class ranges.

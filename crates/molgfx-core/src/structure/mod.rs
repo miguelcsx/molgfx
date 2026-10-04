@@ -7,6 +7,7 @@ mod crystal_cell;
 pub(crate) mod density;
 mod ensemble;
 mod ensemble_policy;
+mod grid_affine;
 pub(crate) mod hierarchy;
 pub(crate) mod occupancy;
 pub(crate) mod particle;
@@ -45,7 +46,9 @@ pub use primitive::{
 };
 pub use provenance::{EntityProvenance, ProvenanceDetail};
 pub use secondary::SecondaryStructure;
-pub use segmentation::{SegmentStyle, SegmentStyleTable, SegmentationStyle, SegmentedVolume};
+pub use segmentation::{
+    SegmentStyle, SegmentStyleTable, SegmentationPresentation, SegmentationStyle, SegmentedVolume,
+};
 pub use source::{
     MolecularProvider, MolecularSource, SourceAtom, SourceBond, SourceTopology,
     is_metal_atomic_number,

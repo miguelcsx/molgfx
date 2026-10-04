@@ -53,6 +53,8 @@ pub(super) struct SegmentationPipelineSet<D: Device> {
     direct_slice: D::Pipeline,
     hash: D::Pipeline,
     hash_slice: D::Pipeline,
+    surface: D::Pipeline,
+    hash_surface: D::Pipeline,
 }
 
 impl<D: Device> SegmentationPipelineSet<D> {
@@ -62,6 +64,8 @@ impl<D: Device> SegmentationPipelineSet<D> {
             SegmentationPipelineKey::DirectSlice => &self.direct_slice,
             SegmentationPipelineKey::Hash => &self.hash,
             SegmentationPipelineKey::HashSlice => &self.hash_slice,
+            SegmentationPipelineKey::Surface => &self.surface,
+            SegmentationPipelineKey::HashSurface => &self.hash_surface,
         }
     }
 }
@@ -294,30 +298,63 @@ pub(super) fn volume_pipelines<D: Device>(
     })
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum SegmentationPass {
+    Beauty,
+    Identity,
+}
+
 pub(super) fn segmentation_pipelines<D: Device>(
     device: &D,
     group0: &D::BindGroupLayout,
     group1: &D::BindGroupLayout,
     group2: &D::BindGroupLayout,
+    group3: &D::BindGroupLayout,
+    purpose: SegmentationPass,
 ) -> Result<SegmentationPipelineSet<D>, RenderError> {
     let shader = device.create_shader_module(&ShaderModuleDesc {
         label: "categorical segmentation volumes",
         wgsl: molgfx_shaders::SEGMENTATION,
     })?;
-    let color_targets = segmentation_targets();
+    let targets = segmentation_targets();
+    let color_targets = if purpose == SegmentationPass::Identity {
+        &targets[2..]
+    } else {
+        &targets[..]
+    };
     let build = |label, key| {
         let constants = segmentation_pipeline_constants(key);
         device.create_render_pipeline(&RenderPipelineDesc {
             label,
-            layouts: &[Some(group0), Some(group1), Some(group2)],
+            layouts: &[
+                Some(group0),
+                Some(group1),
+                Some(group2),
+                key.is_surface().then_some(group3),
+            ],
             shader: &shader,
-            vs_entry: "vs_segmentation",
-            fs_entry: Some("fs_segmentation"),
-            color_targets: &color_targets,
+            vs_entry: if key.is_surface() {
+                "vs_segmentation_surface"
+            } else {
+                "vs_segmentation"
+            },
+            fs_entry: Some(match (purpose, key.is_surface()) {
+                (SegmentationPass::Beauty, true) => "fs_segmentation_surface",
+                (SegmentationPass::Beauty, false) => "fs_segmentation",
+                (SegmentationPass::Identity, true) => "fs_segmentation_surface_pick",
+                (SegmentationPass::Identity, false) => "fs_segmentation_pick",
+            }),
+            color_targets,
             depth: Some(DepthState {
                 format: TextureFormat::Depth32Float,
-                write: false,
-                compare: CompareFunction::GreaterEqual,
+                write: purpose == SegmentationPass::Identity,
+                // Stable source order owns equal-depth identities; beauty still
+                // accumulates coincident transparent boundaries.
+                compare: if purpose == SegmentationPass::Identity {
+                    CompareFunction::Greater
+                } else {
+                    CompareFunction::GreaterEqual
+                },
             }),
             constants: &constants,
             topology: PrimitiveTopology::TriangleList,
@@ -339,6 +376,14 @@ pub(super) fn segmentation_pipelines<D: Device>(
         hash_slice: build(
             "sparse categorical segmentation slices",
             SegmentationPipelineKey::HashSlice,
+        )?,
+        surface: build(
+            "categorical membership boundaries",
+            SegmentationPipelineKey::Surface,
+        )?,
+        hash_surface: build(
+            "sparse categorical membership boundaries",
+            SegmentationPipelineKey::HashSurface,
         )?,
     })
 }

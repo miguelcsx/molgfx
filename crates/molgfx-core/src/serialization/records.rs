@@ -180,6 +180,7 @@ pub(crate) fn segmentation_style_description(
     value: &crate::SegmentationStyle,
 ) -> SegmentationStyleDescription {
     SegmentationStyleDescription {
+        presentation: value.presentation,
         styles: value
             .styles
             .styles()
@@ -191,7 +192,6 @@ pub(crate) fn segmentation_style_description(
             })
             .collect(),
         opacity_scale: value.opacity_scale,
-        step_scale: value.step_scale,
         slice: value.slice.map(|slice| {
             [
                 slice.plane.normal.x,

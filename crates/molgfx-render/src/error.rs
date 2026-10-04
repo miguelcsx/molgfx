@@ -50,6 +50,14 @@ pub enum RenderError {
     #[error(transparent)]
     Packing(#[from] molgfx_geometry::PackingError),
 
+    /// Authored representation controls violate their source-grid invariants.
+    #[error(transparent)]
+    RepresentationInput(#[from] molgfx_core::CoreError),
+
+    /// A source field could not produce complete finite boundary geometry.
+    #[error(transparent)]
+    FieldGeometry(#[from] molgfx_geometry::FieldError),
+
     /// The render graph contains a dependency cycle.
     #[error("render graph cycle involving pass {pass:?}")]
     GraphCycle {
@@ -166,6 +174,8 @@ impl RenderError {
             Self::PickingPageMissing { .. } => "MOLGFX-E0085",
             Self::RelationSourceMissing { .. } => "MOLGFX-E0091",
             Self::Packing(_) => "MOLGFX-E0079",
+            Self::FieldGeometry(_) => "MOLGFX-E0093",
+            Self::RepresentationInput(_) => "MOLGFX-E0094",
             Self::GraphCycle { .. } => "MOLGFX-E0070",
             Self::UnknownResource { .. } => "MOLGFX-E0071",
             Self::InvalidImageSize => "MOLGFX-E0072",

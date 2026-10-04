@@ -73,3 +73,29 @@ fn segment_style_table_rejects_duplicate_and_invalid_opacity() {
         Err(CoreError::InvalidSegmentation { .. })
     ));
 }
+
+#[test]
+fn categorical_grids_share_scalar_affine_validation() {
+    let legal = Mat4::from_cols_array(&[
+        0.001, 0.0, 0.0, 0.0, 0.0, 0.001, 0.0, 0.0, 0.0, 0.0, 0.001, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ]);
+    assert!(SegmentedVolume::new([2; 3], legal, Arc::from([0; 8])).is_ok());
+    let mut projective = Mat4::IDENTITY.to_cols_array();
+    projective[3] = 0.1;
+    let overflow = [
+        1e-30, 0.0, 0.0, 0.0, 0.0, 1e20, 0.0, 0.0, 0.0, 0.0, 1e20, 0.0, 1e20, 0.0, 0.0, 1.0,
+    ];
+    for transform in [
+        Mat4::from_cols_array(&projective),
+        Mat4::from_cols_array(&overflow),
+    ] {
+        assert!(matches!(
+            SegmentedVolume::new([2; 3], transform, Arc::from([0; 8])),
+            Err(CoreError::InvalidSegmentation { .. })
+        ));
+        assert!(matches!(
+            crate::ScalarVolume::new([2; 3], transform, Arc::from([0.0; 8])),
+            Err(CoreError::InvalidVolume { .. })
+        ));
+    }
+}

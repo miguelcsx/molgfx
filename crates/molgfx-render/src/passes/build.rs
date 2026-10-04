@@ -82,7 +82,11 @@ pub(crate) fn oit<D: Device>(
             &env.scene.generic_point_render_layout,
             &env.scene.generic_instance_render_layout,
         ),
-        (&env.scene.volume_layout, &env.scene.segmentation_layout),
+        (
+            &env.scene.volume_layout,
+            &env.scene.segmentation_layout,
+            &env.scene.segmentation_boundary_layout,
+        ),
     )
 }
 

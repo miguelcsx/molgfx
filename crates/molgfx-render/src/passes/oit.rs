@@ -8,10 +8,7 @@ use crate::graph::PassContext;
 use crate::passes::ligand_pose_pipelines::LigandPosePipelineSet;
 use crate::passes::primitive_pipelines::PrimitivePipelineSet;
 use crate::passes::visual_pipelines::VisualPipelineSet;
-use crate::passes::{
-    DEPTH_RESOURCE, FrameBindings, OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE, SEGMENT_LABEL_RESOURCE,
-    SEGMENT_VOLUME_RESOURCE,
-};
+use crate::passes::{DEPTH_RESOURCE, FrameBindings, OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE};
 use crate::scene_gpu::DrawFamily;
 use crate::scene_gpu::{GENERIC_INSTANCE_CAPSULE, GENERIC_INSTANCE_SPHERE};
 use molgfx_gpu::{
@@ -37,6 +34,7 @@ pub(crate) struct OitPass<D: Device> {
     generic_instance_capsule: VisualPipelineSet<D>,
     volume: pipelines::VolumePipelineSet<D>,
     segmentation: pipelines::SegmentationPipelineSet<D>,
+    segmentation_pick: pipelines::SegmentationPipelineSet<D>,
 }
 
 impl<D: Device> OitPass<D> {
@@ -70,7 +68,11 @@ impl<D: Device> OitPass<D> {
         ),
         analytic: (&D::BindGroupLayout, &D::BindGroupLayout),
         generic: (&D::BindGroupLayout, &D::BindGroupLayout),
-        categorical: (&D::BindGroupLayout, &D::BindGroupLayout),
+        categorical: (
+            &D::BindGroupLayout,
+            &D::BindGroupLayout,
+            &D::BindGroupLayout,
+        ),
     ) -> Result<Self, RenderError> {
         let (sphere, sphere_clipped) = sphere_pipelines(device, group0, layout, group2)?;
         let (union_surface, grid_surface) = surface_pipelines(device, group0, layout, group2)?;
@@ -154,7 +156,22 @@ impl<D: Device> OitPass<D> {
             generic_instance_sphere,
             generic_instance_capsule,
             volume: volume_pipelines(device, group0, layout, categorical.0)?,
-            segmentation: segmentation_pipelines(device, group0, layout, categorical.1)?,
+            segmentation: segmentation_pipelines(
+                device,
+                group0,
+                layout,
+                categorical.1,
+                categorical.2,
+                pipelines::SegmentationPass::Beauty,
+            )?,
+            segmentation_pick: segmentation_pipelines(
+                device,
+                group0,
+                layout,
+                categorical.1,
+                categorical.2,
+                pipelines::SegmentationPass::Identity,
+            )?,
         })
     }
 
@@ -232,75 +249,6 @@ impl<D: Device> OitPass<D> {
     pub(crate) fn volumes(ctx: &mut PassContext<'_, D>) {
         if ctx.scene.volume_draws().next().is_some() {
             record(ctx, Primitive::Volumes);
-        }
-    }
-
-    pub(crate) fn segmentations(ctx: &mut PassContext<'_, D>) {
-        if ctx.scene.segmentation_draws().next().is_none() {
-            return;
-        }
-        let (
-            Some(accumulation),
-            Some(revealage),
-            Some(segment_volume),
-            Some(segment_label),
-            Some(depth),
-        ) = (
-            ctx.resources.view(OIT_ACCUM_RESOURCE),
-            ctx.resources.view(OIT_REVEAL_RESOURCE),
-            ctx.resources.view(SEGMENT_VOLUME_RESOURCE),
-            ctx.resources.view(SEGMENT_LABEL_RESOURCE),
-            ctx.resources.view(DEPTH_RESOURCE),
-        )
-        else {
-            return;
-        };
-        let Some(FrameBindings { oit, .. }) = ctx.bindings else {
-            return;
-        };
-        let passes = ctx.passes;
-        let Some(oit_pass) = ctx.build(&passes.oit, |env| {
-            super::build::oit(env, &passes.oit_layout)
-        }) else {
-            return;
-        };
-        let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
-            label: "categorical segmentation volumes",
-            colors: &[
-                ColorAttachment {
-                    view: accumulation,
-                    load: LoadOp::Load,
-                },
-                ColorAttachment {
-                    view: revealage,
-                    load: LoadOp::Load,
-                },
-                ColorAttachment {
-                    view: segment_volume,
-                    load: LoadOp::Load,
-                },
-                ColorAttachment {
-                    view: segment_label,
-                    load: LoadOp::Load,
-                },
-            ],
-            depth: Some(DepthAttachment {
-                view: depth,
-                load: DepthLoadOp::Load,
-                read_only: true,
-            }),
-            timestamps: ctx.timestamps,
-        });
-        pass.set_bind_group(0, &ctx.scene.group0, &[]);
-        pass.set_bind_group(1, oit, &[]);
-        let mut current = None;
-        for (key, group) in ctx.scene.segmentation_draws() {
-            if current != Some(key) {
-                pass.set_pipeline(oit_pass.segmentation.get(key));
-                current = Some(key);
-            }
-            pass.set_bind_group(2, group, &[]);
-            pass.draw(0..6, 0..1);
         }
     }
 }
@@ -478,3 +426,5 @@ fn record_generic_instances<D: Device, P: molgfx_gpu::RenderPassEncoder<D>>(
         pass.draw_indirect(draw.args, draw.args_offset);
     }
 }
+
+pub(crate) mod segmentation;

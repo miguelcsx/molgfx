@@ -123,7 +123,7 @@ pub use structure::{
     MolecularSource, OccupancyStream, Particle, ParticleBoundary, ParticleMotion, ParticleShape,
     PlacedStructure, PlanarRegion, PointBatch, PointGlyph, PointStyle, Primitive, ProvenanceDetail,
     RigidInstance, ScalarVolume, SecondaryStructure, SegmentStyle, SegmentStyleTable,
-    SegmentationStyle, SegmentedVolume, SourceAtom, SourceBond, SourceTopology, SymmetryInstance,
-    TopologyBond, TrajectoryFrame, TrajectorySegment, ValidationKind, ValidationMarker,
-    dominant_index, ensemble_opacities, is_metal_atomic_number,
+    SegmentationPresentation, SegmentationStyle, SegmentedVolume, SourceAtom, SourceBond,
+    SourceTopology, SymmetryInstance, TopologyBond, TrajectoryFrame, TrajectorySegment,
+    ValidationKind, ValidationMarker, dominant_index, ensemble_opacities, is_metal_atomic_number,
 };

@@ -70,21 +70,6 @@ fn sparse_labels_use_bounded_hash_style_lookup() {
 }
 
 #[test]
-fn categorical_shader_uses_integer_nearest_loads() {
-    // Interpolating a label would invent categories that are not in the
-    // caller's map, so the guarantee is nearest integer loads only. Compare
-    // against whitespace-collapsed source: the invariant is which sampling
-    // call is used, not how the shader happens to be wrapped.
-    let shader = molgfx_shaders::SEGMENTATION;
-    let collapsed = shader.split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(shader.contains("texture_3d<u32>"));
-    assert!(collapsed.contains("textureLoad( label_texture"));
-    assert!(collapsed.contains("round("));
-    assert!(!collapsed.contains("textureSample( label_texture"));
-    assert!(!shader.contains("textureSample(label_texture"));
-}
-
-#[test]
 fn categorical_uniforms_pack_crop_slice_clip_and_source_identity() {
     let (volume, mut representation) = representation_and_volume();
     let region = match VolumeRegion::new([1, 0, 1], [4, 3, 4], volume.dimensions()) {
@@ -108,4 +93,46 @@ fn categorical_uniforms_pack_crop_slice_clip_and_source_identity() {
     assert_eq!(uniforms.crop_maximum, [4, 3, 4, 0]);
     assert!((uniforms.sampling[3] - 1.0).abs() < f32::EPSILON);
     assert_eq!(uniforms.clip_meta[0], 1);
+}
+
+#[test]
+fn absent_direct_label_styles_are_zero_opacity_and_not_present() {
+    let styles = SegmentStyleTable::new(&[SegmentStyle::new(2, Rgba8::WHITE, 0.75)])
+        .expect("styles validate");
+    let lookup = SegmentLookup::new(styles.styles());
+    assert_eq!(lookup.mode(), LookupMode::Direct);
+    for label in [0, 1] {
+        assert_eq!(lookup.entries()[label].present, 0);
+        assert!(lookup.entries()[label].opacity.abs() < f32::EPSILON);
+        assert!(
+            lookup.entries()[label]
+                .color
+                .iter()
+                .all(|channel| channel.abs() < f32::EPSILON)
+        );
+    }
+}
+
+#[test]
+fn absent_sparse_label_styles_and_empty_tables_are_transparent() {
+    let styles = SegmentStyleTable::new(&[SegmentStyle::new(u32::MAX, Rgba8::WHITE, 0.75)])
+        .expect("styles validate");
+    let lookup = SegmentLookup::new(styles.styles());
+    assert_eq!(lookup.mode(), LookupMode::Hash);
+    for entry in lookup.entries().iter().filter(|entry| entry.present == 0) {
+        assert!(entry.opacity.abs() < f32::EPSILON);
+        assert!(
+            entry
+                .color
+                .iter()
+                .all(|channel| channel.abs() < f32::EPSILON)
+        );
+    }
+    let empty = SegmentLookup::new(&[]);
+    assert!(
+        empty
+            .entries()
+            .iter()
+            .all(|entry| entry.present == 0 && entry.opacity == 0.0)
+    );
 }

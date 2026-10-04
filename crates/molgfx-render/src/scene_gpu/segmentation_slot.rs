@@ -3,7 +3,9 @@
 use super::segmentation_lookup::{LookupMode, SegmentLookup};
 use super::segmentation_uniforms::SegmentationUniforms;
 use crate::error::RenderError;
-use molgfx_core::{Representation, RepresentationHandle, SegmentationHandle, SegmentedVolume};
+use molgfx_core::{
+    Representation, RepresentationHandle, SegmentStyleTable, SegmentationHandle, SegmentedVolume,
+};
 use molgfx_gpu::{
     BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue, TextureDesc,
     TextureDimension, TextureFormat, TextureUsage, TextureViewDesc, TextureWrite,
@@ -17,6 +19,9 @@ pub(super) struct GpuSegmentationSlot<D: Device> {
     sparse_pages: Option<D::Buffer>,
     sparse_config: Option<D::Buffer>,
     lookup_size: u64,
+    cached_styles: Option<SegmentStyleTable>,
+    cached_lookup: Option<SegmentLookup>,
+    cached_uniforms: Option<SegmentationUniforms>,
     group: Option<D::BindGroup>,
     pipeline: SegmentationPipelineKey,
     synced: Option<(u64, SegmentationHandle, u64, u32)>,
@@ -35,10 +40,24 @@ pub(crate) enum SegmentationPipelineKey {
     Hash,
     /// Sparse hashed style lookup sampled on one plane.
     HashSlice,
+    /// Indexed membership surfaces with a compact style lookup.
+    Surface,
+    /// Indexed membership surfaces with a sparse style lookup.
+    HashSurface,
 }
 
 impl SegmentationPipelineKey {
-    const fn new(slice: bool, lookup: LookupMode) -> Self {
+    const fn new(
+        slice: bool,
+        lookup: LookupMode,
+        presentation: molgfx_core::SegmentationPresentation,
+    ) -> Self {
+        if !slice && matches!(presentation, molgfx_core::SegmentationPresentation::Surface) {
+            return match lookup {
+                LookupMode::Direct => Self::Surface,
+                LookupMode::Hash => Self::HashSurface,
+            };
+        }
         match (slice, lookup) {
             (false, LookupMode::Direct) => Self::Direct,
             (true, LookupMode::Direct) => Self::DirectSlice,
@@ -52,7 +71,11 @@ impl SegmentationPipelineKey {
     }
 
     pub(crate) const fn is_hash(self) -> bool {
-        matches!(self, Self::Hash | Self::HashSlice)
+        matches!(self, Self::Hash | Self::HashSlice | Self::HashSurface)
+    }
+
+    pub(crate) const fn is_surface(self) -> bool {
+        matches!(self, Self::Surface | Self::HashSurface)
     }
 }
 
@@ -64,6 +87,8 @@ pub(super) struct GpuSegmentationResource<D: Device> {
     synced_revision: Option<u64>,
     binding_revision: u64,
     source_id: u32,
+    pub(super) boundary: super::segmentation_boundary::GpuBoundary<D>,
+    pub(super) needs_boundary: bool,
 }
 
 pub(super) struct SegmentationSync<'a, D: Device> {
@@ -80,7 +105,7 @@ pub(super) struct SegmentationSync<'a, D: Device> {
 }
 
 impl<D: Device> GpuSegmentationResource<D> {
-    pub(super) const fn new(handle: SegmentationHandle) -> Self {
+    pub(super) fn new(handle: SegmentationHandle) -> Self {
         Self {
             handle,
             texture: None,
@@ -88,6 +113,8 @@ impl<D: Device> GpuSegmentationResource<D> {
             synced_revision: None,
             binding_revision: 0,
             source_id: u32::MAX,
+            boundary: super::segmentation_boundary::GpuBoundary::default(),
+            needs_boundary: false,
         }
     }
 
@@ -171,6 +198,9 @@ impl<D: Device> GpuSegmentationSlot<D> {
             sparse_pages: None,
             sparse_config: None,
             lookup_size: 0,
+            cached_styles: None,
+            cached_lookup: None,
+            cached_uniforms: None,
             group: None,
             pipeline: SegmentationPipelineKey::Direct,
             synced: None,
@@ -188,6 +218,10 @@ impl<D: Device> GpuSegmentationSlot<D> {
         if self.synced == Some(current) {
             return Ok(false);
         }
+        input
+            .representation
+            .segmentation
+            .validate_grid(input.volume)?;
         if self.uniforms.is_none() {
             self.uniforms = Some(input.device.create_buffer(&BufferDesc {
                 label: "categorical segmentation uniforms",
@@ -209,17 +243,26 @@ impl<D: Device> GpuSegmentationSlot<D> {
                 usage: BufferUsage::UNIFORM,
             })?);
         }
-        let lookup = SegmentLookup::new(input.representation.segmentation.styles.styles());
+        let styles = &input.representation.segmentation.styles;
+        let styles_changed = self.cached_styles.as_ref() != Some(styles);
+        if styles_changed {
+            self.cached_lookup = Some(SegmentLookup::new(styles.styles()));
+        }
+        let Some(lookup) = &self.cached_lookup else {
+            return Ok(false);
+        };
         let pipeline = SegmentationPipelineKey::new(
             input.representation.segmentation.slice.is_some(),
             lookup.mode(),
+            input.representation.segmentation.presentation,
         );
         let bytes = bytemuck::cast_slice(lookup.entries());
         let size = match u64::try_from(bytes.len()) {
             Ok(size) => size.max(4),
             Err(_) => u64::MAX,
         };
-        if self.lookup.is_none() || self.lookup_size != size {
+        let lookup_replaced = self.lookup.is_none() || self.lookup_size != size;
+        if lookup_replaced {
             self.lookup = Some(input.device.create_buffer(&BufferDesc {
                 label: "categorical segment style lookup",
                 size,
@@ -227,24 +270,32 @@ impl<D: Device> GpuSegmentationSlot<D> {
             })?);
             self.lookup_size = size;
         }
-        if let Some(uniforms) = &self.uniforms {
-            input.queue.write_buffer(
-                uniforms,
-                0,
-                bytemuck::bytes_of(&SegmentationUniforms::new(
-                    input.volume,
-                    input.representation,
-                    input.source_id,
-                    &lookup,
-                )),
-            );
+        let parameters =
+            SegmentationUniforms::new(input.volume, input.representation, input.source_id, lookup);
+        let uniforms_changed = self
+            .cached_uniforms
+            .as_ref()
+            .is_none_or(|cached| bytemuck::bytes_of(cached) != bytemuck::bytes_of(&parameters));
+        if uniforms_changed && let Some(uniforms) = &self.uniforms {
+            input
+                .queue
+                .write_buffer(uniforms, 0, bytemuck::bytes_of(&parameters));
         }
-        if let Some(lookup_buffer) = &self.lookup {
+        if styles_changed && let Some(lookup_buffer) = &self.lookup {
             input.queue.write_buffer(lookup_buffer, 0, bytes);
         }
-        self.bind(input.device, input.layout, input.volume_view);
+        let texture_changed = self.synced.is_none_or(|previous| {
+            previous.1 != input.segmentation_handle || previous.2 != input.volume_binding_revision
+        });
+        if self.group.is_none() || lookup_replaced || texture_changed {
+            self.bind(input.device, input.layout, input.volume_view);
+        }
+        self.cached_uniforms = Some(parameters);
+        if styles_changed {
+            self.cached_styles = Some(styles.clone());
+        }
         self.pipeline = pipeline;
-        self.has_styles = !input.representation.segmentation.styles.styles().is_empty();
+        self.has_styles = input.representation.visible && !styles.styles().is_empty();
         self.synced = Some(current);
         Ok(true)
     }
@@ -293,5 +344,13 @@ impl<D: Device> GpuSegmentationSlot<D> {
 
     pub(super) const fn source_is_drawable(&self) -> bool {
         self.has_styles
+    }
+
+    pub(super) fn source(&self) -> Option<SegmentationHandle> {
+        self.synced.map(|key| key.1)
+    }
+
+    pub(super) fn source_index(&self) -> Option<usize> {
+        usize::try_from(self.synced?.3).ok()
     }
 }

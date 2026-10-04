@@ -296,7 +296,7 @@ fn categorical_labels_upload_once_share_residency_and_keep_styles_independent() 
         engine
             .scene_gpu
             .segmentation_draws()
-            .map(|(key, _)| key)
+            .map(|(key, _, _)| key)
             .collect::<Vec<_>>(),
         [
             crate::scene_gpu::SegmentationPipelineKey::Direct,

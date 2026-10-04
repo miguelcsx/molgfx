@@ -34,7 +34,7 @@ fn srgb_to_linear(color: vec3f) -> vec3f {
     );
 }
 
-fn shade_surface(
+fn shade_linear_surface(
     albedo: vec3f,
     normal: vec3f,
     roughness: f32,
@@ -45,7 +45,7 @@ fn shade_surface(
 ) -> vec3f {
     let material =
         lighting_material(
-            srgb_to_linear(albedo),
+            albedo,
             material_payload_value,
         );
 
@@ -278,6 +278,19 @@ fn shade_surface(
         rim *
             frame.lighting[3].rgb *
             frame.lighting[2].w;
+}
+
+// Authored colours enter once through the sRGB conversion boundary.
+fn shade_surface(albedo: vec3f, normal: vec3f, roughness: f32,
+    material: f32, tangent: vec3f, position: vec3f, occlusion: vec2f) -> vec3f {
+    return shade_linear_surface(srgb_to_linear(albedo), normal, roughness,
+        material, tangent, position, occlusion);
+}
+
+fn shade_linear_molecule(albedo: vec3f, normal: vec3f, roughness: f32,
+    material: f32, position: vec3f, occlusion: vec2f) -> vec3f {
+    return shade_linear_surface(albedo, normal, roughness, material,
+        vec3f(0.0), position, occlusion);
 }
 
 fn shade_molecule(

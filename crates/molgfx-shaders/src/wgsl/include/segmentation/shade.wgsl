@@ -4,78 +4,20 @@
 // regions need no sort. A slice samples the same grid on a plane rather than
 // integrating along it, keeping the two readings of one map distinct.
 
+fn segment_local_normal(coordinate: vec3f, label: u32) -> vec3f {
+    // Filter membership, never integer identities. The negative membership
+    // gradient points out of the labelled region, toward decreasing occupancy.
+    let px = segment_membership(coordinate + vec3f(1.0, 0.0, 0.0), label);
+    let nx = segment_membership(coordinate - vec3f(1.0, 0.0, 0.0), label);
+    let py = segment_membership(coordinate + vec3f(0.0, 1.0, 0.0), label);
+    let ny = segment_membership(coordinate - vec3f(0.0, 1.0, 0.0), label);
+    let pz = segment_membership(coordinate + vec3f(0.0, 0.0, 1.0), label);
+    let nz = segment_membership(coordinate - vec3f(0.0, 0.0, 1.0), label);
+    return vec3f(nx - px, ny - py, nz - pz);
 }
 
-fn segment_normal(
-    coordinate: vec3f,
-    label: u32,
-) -> vec3f {
-    let px =
-        select(
-            0.0,
-            1.0,
-            label_at_clamped(
-                coordinate +
-                vec3f(1.0, 0.0, 0.0)
-            ) != label,
-        );
-
-    let nx =
-        select(
-            0.0,
-            1.0,
-            label_at_clamped(
-                coordinate -
-                vec3f(1.0, 0.0, 0.0)
-            ) != label,
-        );
-
-    let py =
-        select(
-            0.0,
-            1.0,
-            label_at_clamped(
-                coordinate +
-                vec3f(0.0, 1.0, 0.0)
-            ) != label,
-        );
-
-    let ny =
-        select(
-            0.0,
-            1.0,
-            label_at_clamped(
-                coordinate -
-                vec3f(0.0, 1.0, 0.0)
-            ) != label,
-        );
-
-    let pz =
-        select(
-            0.0,
-            1.0,
-            label_at_clamped(
-                coordinate +
-                vec3f(0.0, 0.0, 1.0)
-            ) != label,
-        );
-
-    let nz =
-        select(
-            0.0,
-            1.0,
-            label_at_clamped(
-                coordinate -
-                vec3f(0.0, 0.0, 1.0)
-            ) != label,
-        );
-
-    let local_gradient =
-        -vec3f(
-            px - nx,
-            py - ny,
-            pz - nz,
-        );
+fn segment_normal(coordinate: vec3f, label: u32) -> vec3f {
+    let local_gradient = segment_local_normal(coordinate, label);
 
     let world_normal =
         (

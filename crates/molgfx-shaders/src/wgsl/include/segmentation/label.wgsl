@@ -15,22 +15,23 @@ fn label_at(
     );
 }
 
-/// Bounded variant used only for finite-difference normals.
-fn label_at_clamped(
-    coordinate: vec3f,
-) -> u32 {
-    return segment_label_texel(
-        vec3i(
-            clamp(
-                round(coordinate),
-                vec3f(0.0),
-                vec3f(
-                    volume.dimensions.xyz -
-                    vec3u(1u)
-                ),
-            )
-        )
-    );
+// Continuous membership supports lighting without inventing label identities.
+fn segment_membership(coordinate: vec3f, label: u32) -> f32 {
+    let point = clamp(coordinate, vec3f(0.0),
+        vec3f(volume.dimensions.xyz - vec3u(1u)));
+    let lower = vec3i(floor(point));
+    let upper = min(lower + vec3i(1), vec3i(volume.dimensions.xyz) - vec3i(1));
+    let fraction = fract(point);
+    var membership = 0.0;
+    for (var corner = 0u; corner < 8u; corner++) {
+        let high = vec3<bool>((corner & 1u) != 0u, (corner & 2u) != 0u,
+            (corner & 4u) != 0u);
+        let texel = select(lower, upper, high);
+        let weight = select(vec3f(1.0) - fraction, fraction, high);
+        membership += select(0.0, 1.0, segment_label_texel(texel) == label)
+            * weight.x * weight.y * weight.z;
+    }
+    return membership;
 }
 
 fn hash_label(label: u32) -> u32 {
@@ -120,3 +121,4 @@ fn sample_style(
     }
 
     return absent_style();
+}

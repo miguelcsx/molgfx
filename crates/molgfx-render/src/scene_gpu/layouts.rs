@@ -58,7 +58,7 @@ pub(super) fn segmentation_layout<D: Device>(device: &D) -> D::BindGroupLayout {
             },
             BindGroupLayoutEntry {
                 binding: 2,
-                visibility: ShaderStages::FRAGMENT,
+                visibility: ShaderStages::VERTEX.union(ShaderStages::FRAGMENT),
                 ty: BindingType::Storage { read_only: true },
             },
             storage_visible(3, ShaderStages::FRAGMENT),

@@ -396,7 +396,7 @@ pub(super) fn realtime_resources() -> Vec<ResourceDesc> {
     resources
 }
 
-fn presentation_resources(sampled_target: TextureUsage) -> [ResourceDesc; 9] {
+fn presentation_resources(sampled_target: TextureUsage) -> [ResourceDesc; 10] {
     [
         ResourceDesc {
             label: "bloom ping",
@@ -452,6 +452,11 @@ fn presentation_resources(sampled_target: TextureUsage) -> [ResourceDesc; 9] {
             "opaque depth snapshot",
             TextureFormat::Depth32Float,
             TextureUsage::TEXTURE_BINDING.union(TextureUsage::COPY_DST),
+        ),
+        resource(
+            "categorical identity depth",
+            TextureFormat::Depth32Float,
+            TextureUsage::RENDER_ATTACHMENT.union(TextureUsage::COPY_DST),
         ),
     ]
 }

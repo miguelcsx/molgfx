@@ -21,17 +21,16 @@ impl<D: Device> GpuScene<D> {
         self.representation_scratch.extend(
             scene
                 .representations()
-                .filter(|(_, representation)| {
-                    representation.visible && representation.segmentation_handle().is_some()
-                })
+                .filter(|(_, representation)| representation.segmentation_handle().is_some())
                 .map(|(handle, representation)| (representation.order, handle)),
         );
         self.representation_scratch.sort_unstable();
+        // Invisible styles retain label residency so revealing a segment does
+        // not turn a style-only edit into another texture upload.
         self.segmentation_handle_scratch.clear();
         self.segmentation_handle_scratch.extend(
             scene
                 .representations()
-                .filter(|(_, representation)| representation.visible)
                 .filter_map(|(_, representation)| representation.segmentation_handle()),
         );
         self.segmentation_handle_scratch.sort_unstable();
@@ -54,6 +53,28 @@ impl<D: Device> GpuScene<D> {
             }
         }
 
+        for resource in &mut self.segmentation_resources {
+            resource.needs_boundary = false;
+        }
+        for (_, representation) in scene.representations() {
+            if !representation.visible
+                || representation.segmentation.slice.is_some()
+                || representation.segmentation.presentation
+                    != molgfx_core::SegmentationPresentation::Surface
+                || representation.segmentation.styles.styles().is_empty()
+            {
+                continue;
+            }
+            let Some(handle) = representation.segmentation_handle() else {
+                continue;
+            };
+            if let Ok(index) = self
+                .segmentation_resources
+                .binary_search_by_key(&handle, |resource| resource.handle)
+            {
+                self.segmentation_resources[index].needs_boundary = true;
+            }
+        }
         let mut old = std::mem::take(&mut self.segmentation_slots);
         for (_, handle) in &self.representation_scratch {
             if let Some(index) = old.iter().position(|slot| slot.representation == *handle) {
@@ -81,6 +102,15 @@ impl<D: Device> GpuScene<D> {
                 continue;
             };
             changed |= resource.sync(device, queue, volume, revision)?;
+            if resource.needs_boundary {
+                changed |= resource.boundary.sync(
+                    device,
+                    queue,
+                    &self.segmentation_boundary_layout,
+                    volume,
+                    revision,
+                )?;
+            }
         }
         Ok(changed)
     }

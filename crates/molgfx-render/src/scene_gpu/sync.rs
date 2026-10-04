@@ -89,6 +89,7 @@ pub(crate) struct GpuScene<D: Device> {
     pub quality_layout: D::BindGroupLayout,
     pub volume_layout: D::BindGroupLayout,
     pub segmentation_layout: D::BindGroupLayout,
+    pub segmentation_boundary_layout: D::BindGroupLayout,
     pub surface_field_output_layout: D::BindGroupLayout,
     pub surface_field_input_layout: D::BindGroupLayout,
     pub surface_field_erosion_layout: D::BindGroupLayout,

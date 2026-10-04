@@ -45,14 +45,10 @@ impl SegmentedVolume {
         if usize::try_from(voxels).ok() != Some(labels.len()) {
             return Err(invalid("label count does not match dimensions"));
         }
-        if !voxel_to_world
-            .to_cols_array()
-            .iter()
-            .all(|component| component.is_finite())
-            || !voxel_to_world.determinant().is_finite()
-            || voxel_to_world.determinant().abs() <= 1e-8
-        {
-            return Err(invalid("voxel transform must be finite and invertible"));
+        if !super::grid_affine::is_valid(voxel_to_world) {
+            return Err(invalid(
+                "voxel transform must be finite, affine and invertible",
+            ));
         }
         Ok(Self {
             dimensions,
@@ -191,27 +187,82 @@ impl Default for SegmentStyleTable {
     }
 }
 
-/// Sampling and clipping controls for one categorical representation.
+/// The categorical presentation model.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SegmentationPresentation {
+    /// Exact optical integration through constant integer-labelled cells.
+    Direct,
+    /// Closed isosurfaces of continuous binary membership.
+    #[default]
+    Surface,
+}
+
+/// Presentation and clipping controls for one categorical representation.
 #[derive(Clone, PartialEq, Debug)]
 pub struct SegmentationStyle {
+    /// Boundary geometry or exact optical integration.
+    pub presentation: SegmentationPresentation,
     /// Independent label-to-color-and-opacity mapping.
     pub styles: SegmentStyleTable,
     /// Global multiplier applied after the per-label opacity.
     pub opacity_scale: f32,
-    /// Ray step relative to the smallest voxel axis.
-    pub step_scale: f32,
     /// Optional world-space plane sampled as one categorical slice.
     pub slice: Option<VolumeSlice>,
     /// Optional half-open voxel region rendered from the resident grid.
     pub region: Option<VolumeRegion>,
 }
 
+impl SegmentationStyle {
+    /// Validates authored controls against one already validated grid.
+    ///
+    /// # Errors
+    /// Rejects malformed opacity, slice planes and out-of-bounds regions.
+    pub fn validate_grid(&self, grid: &SegmentedVolume) -> Result<(), CoreError> {
+        if !self.opacity_scale.is_finite() || self.opacity_scale < 0.0 {
+            return Err(invalid(
+                "segmentation opacity scale must be finite and non-negative",
+            ));
+        }
+        if self.presentation == SegmentationPresentation::Direct && self.slice.is_none() {
+            let scale = grid.voxel_to_world().minimum_axis_length();
+            if !scale.is_finite()
+                || scale < f32::MIN_POSITIVE
+                || !(self.opacity_scale / scale).is_finite()
+            {
+                return Err(invalid(
+                    "segmentation extinction is outside the GPU floating-point range",
+                ));
+            }
+        }
+        if let Some(slice) = self.slice {
+            let normal = slice.plane.normal;
+            let length = normal.x.hypot(normal.y).hypot(normal.z);
+            if !normal.is_finite()
+                || !length.is_finite()
+                || length <= 1e-6
+                || !slice.plane.offset.is_finite()
+            {
+                return Err(invalid(
+                    "segmentation slice plane must be finite and non-zero",
+                ));
+            }
+        }
+        if let Some(region) = self.region
+            && VolumeRegion::new(region.minimum(), region.maximum(), grid.dimensions()).is_err()
+        {
+            return Err(invalid("segmentation region exceeds the bound grid"));
+        }
+        Ok(())
+    }
+}
+
 impl Default for SegmentationStyle {
     fn default() -> Self {
         Self {
+            presentation: SegmentationPresentation::Direct,
             styles: SegmentStyleTable::default(),
             opacity_scale: 1.0,
-            step_scale: 0.65,
             slice: None,
             region: None,
         }

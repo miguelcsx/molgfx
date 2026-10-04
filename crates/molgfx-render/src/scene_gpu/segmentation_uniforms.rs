@@ -3,7 +3,7 @@
 use super::segmentation_lookup::{LookupMode, SegmentLookup};
 use super::uniforms::{clip_meta, clip_planes, material_uniforms};
 use molgfx_core::{MAX_CLIP_PLANES, Representation, SegmentedVolume};
-use molgfx_math::{Mat4, Vec3};
+use molgfx_math::Mat4;
 
 #[cfg(test)]
 #[path = "segmentation_uniforms_tests.rs"]
@@ -33,11 +33,6 @@ impl SegmentationUniforms {
         lookup: &SegmentLookup,
     ) -> Self {
         let transform = volume.voxel_to_world();
-        let axes = [
-            transform.transform_vector3(Vec3::X).length(),
-            transform.transform_vector3(Vec3::Y).length(),
-            transform.transform_vector3(Vec3::Z).length(),
-        ];
         let style = &representation.segmentation;
         let dimensions = volume.dimensions();
         let minimum = style
@@ -46,8 +41,7 @@ impl SegmentationUniforms {
         let maximum = style
             .region
             .map_or(dimensions, molgfx_core::VolumeRegion::maximum);
-        let opacity = finite_or(style.opacity_scale, 1.0).max(0.0);
-        let step = finite_or(style.step_scale, 0.65).clamp(0.2, 2.0);
+        let opacity = style.opacity_scale;
         let mode = match lookup.mode() {
             LookupMode::Direct => 0,
             LookupMode::Hash => 1,
@@ -55,11 +49,16 @@ impl SegmentationUniforms {
         Self {
             voxel_to_world: transform,
             world_to_voxel: transform.inverse(),
-            dimensions: [dimensions[0], dimensions[1], dimensions[2], 0],
+            dimensions: [
+                dimensions[0],
+                dimensions[1],
+                dimensions[2],
+                u32::from(style.region.is_some()),
+            ],
             sampling: [
                 opacity,
-                step,
-                axes.into_iter().fold(f32::INFINITY, f32::min),
+                0.0,
+                transform.minimum_axis_length(),
                 if style.slice.is_some() { 1.0 } else { 0.0 },
             ],
             lookup: [
@@ -83,8 +82,4 @@ impl SegmentationUniforms {
             material: material_uniforms(representation.material),
         }
     }
-}
-
-fn finite_or(value: f32, fallback: f32) -> f32 {
-    if value.is_finite() { value } else { fallback }
 }

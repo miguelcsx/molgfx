@@ -47,6 +47,7 @@ mod record_pack;
 mod relation_anchor;
 mod ribbon_slot;
 mod scalar_overlay;
+mod segmentation_boundary;
 mod segmentation_lookup;
 mod segmentation_slot;
 mod segmentation_uniforms;
@@ -82,6 +83,7 @@ pub(crate) use primitive_draw::{
     POLYGON_PENTAGON, PrimitiveDrawGroup,
 };
 pub(crate) use record_cache::RecordKey;
+pub(crate) use segmentation_boundary::SegmentationGeometry;
 pub(crate) use segmentation_slot::SegmentationPipelineKey;
 pub(crate) use slot_types::SlotShading;
 pub(crate) use surface_field::SurfaceFieldKey;

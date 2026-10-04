@@ -217,4 +217,7 @@ mod trajectory_tests;
 mod volume_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
+mod segmentation_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod completion_tests;

@@ -54,19 +54,10 @@ impl ScalarVolume {
         if usize::try_from(voxels).ok() != Some(values.len()) {
             return Err(invalid("value count does not match dimensions"));
         }
-        if !voxel_to_world
-            .to_cols_array()
-            .iter()
-            .all(|component| component.is_finite())
-            || !voxel_to_world.determinant().is_finite()
-            || voxel_to_world.determinant().abs() <= 1e-8
-            || !voxel_to_world
-                .inverse()
-                .to_cols_array()
-                .iter()
-                .all(|component| component.is_finite())
-        {
-            return Err(invalid("voxel transform must be finite and invertible"));
+        if !super::grid_affine::is_valid(voxel_to_world) {
+            return Err(invalid(
+                "voxel transform must be finite, affine and invertible",
+            ));
         }
         let mut range = [f32::INFINITY, f32::NEG_INFINITY];
         for &value in values.iter() {

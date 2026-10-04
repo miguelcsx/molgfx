@@ -34,6 +34,26 @@ pub(super) fn transparency_nodes<D: Device>(depth_snapshot: bool) -> Vec<PassNod
     }
     nodes.extend(transparency_molecule_nodes(depth_snapshot));
     nodes.extend(transparency_volume_nodes(depth_snapshot));
+    nodes.extend([
+        PassNode {
+            name: "categorical identity depth snapshot",
+            reads: smallvec![DEPTH_RESOURCE],
+            writes: smallvec![crate::passes::SEGMENT_DEPTH_RESOURCE],
+            kind: PassKind::Graphics,
+            record: crate::passes::copy_segment_depth,
+        },
+        PassNode {
+            name: "nearest categorical identities",
+            reads: opaque_scene_reads(depth_snapshot),
+            writes: smallvec![
+                SEGMENT_VOLUME_RESOURCE,
+                SEGMENT_LABEL_RESOURCE,
+                crate::passes::SEGMENT_DEPTH_RESOURCE
+            ],
+            kind: PassKind::Graphics,
+            record: crate::passes::record_segment_identity,
+        },
+    ]);
     nodes.extend(transparency_annotation_nodes());
     nodes.push(transparency_composite_node());
     nodes
@@ -124,7 +144,7 @@ fn transparency_volume_nodes<D: Device>(depth_snapshot: bool) -> [PassNode<D>; 2
                 SEGMENT_LABEL_RESOURCE
             ],
             kind: PassKind::Graphics,
-            record: OitPass::segmentations,
+            record: crate::passes::record_segmentations,
         },
     ]
 }

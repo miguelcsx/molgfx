@@ -6,7 +6,6 @@ mod color;
 mod generic;
 #[path = "rehydrate_payload.rs"]
 mod payload;
-#[path = "rehydrate_render.rs"]
 mod render;
 #[path = "rehydrate_rows.rs"]
 mod rows;

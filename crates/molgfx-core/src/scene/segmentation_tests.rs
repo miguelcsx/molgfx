@@ -67,3 +67,37 @@ fn scene_replaces_and_removes_categorical_volume_handles() {
     };
     assert!(scene.replace_segmented_volume(handle, replacement).is_err());
 }
+
+#[test]
+fn malformed_categorical_controls_fail_before_inserting_a_representation() {
+    let mut scene = Scene::new();
+    let grid = SegmentedVolume::new([2; 3], Mat4::IDENTITY, Arc::from([1; 8])).unwrap();
+    let handle = scene.add_segmented_volume(grid);
+    for opacity in [f32::NAN, f32::INFINITY, -1.0] {
+        let before = scene.representations().count();
+        let result = scene.represent(
+            handle,
+            Representation::segmentation().segmentation_style(SegmentationStyle {
+                opacity_scale: opacity,
+                ..SegmentationStyle::default()
+            }),
+        );
+        assert!(matches!(
+            result,
+            Err(crate::CoreError::InvalidSegmentation { .. })
+        ));
+        assert_eq!(scene.representations().count(), before);
+    }
+    let oversized = crate::VolumeRegion::new([0; 3], [3; 3], [3; 3]).unwrap();
+    assert!(matches!(
+        scene.represent(
+            handle,
+            Representation::segmentation().segmentation_style(SegmentationStyle {
+                region: Some(oversized),
+                ..SegmentationStyle::default()
+            })
+        ),
+        Err(crate::CoreError::InvalidSegmentation { .. })
+    ));
+    assert_eq!(scene.representations().count(), 0);
+}

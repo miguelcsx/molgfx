@@ -107,3 +107,5 @@ pub(crate) const OPAQUE_DEPTH_RESOURCE: crate::graph::ResourceId = crate::graph:
 #[cfg(test)]
 #[path = "resources_tests.rs"]
 mod tests;
+
+pub(crate) const SEGMENT_DEPTH_RESOURCE: crate::graph::ResourceId = crate::graph::ResourceId(24);

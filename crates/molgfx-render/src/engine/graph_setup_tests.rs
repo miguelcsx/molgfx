@@ -128,3 +128,28 @@ fn a_device_that_cannot_sample_the_live_depth_gives_transparent_passes_a_copy() 
         }
     }
 }
+
+#[test]
+fn categorical_identity_depth_is_seeded_after_beauty_and_written_independently() {
+    use crate::passes::{DEPTH_RESOURCE, SEGMENT_DEPTH_RESOURCE};
+    let nodes = realtime_nodes::<MockDevice>(GraphTopology::default());
+    let position = |name| {
+        nodes
+            .iter()
+            .position(|node| node.name == name)
+            .expect("declared node")
+    };
+    let beauty = position("categorical segment volumes");
+    let snapshot = position("categorical identity depth snapshot");
+    let identity = position("nearest categorical identities");
+    assert!(beauty < snapshot && snapshot < identity);
+    assert_eq!(nodes[snapshot].reads.as_slice(), &[DEPTH_RESOURCE]);
+    assert_eq!(nodes[snapshot].writes.as_slice(), &[SEGMENT_DEPTH_RESOURCE]);
+    assert!(nodes[identity].writes.contains(&SEGMENT_DEPTH_RESOURCE));
+    assert!(!nodes[beauty].writes.contains(&DEPTH_RESOURCE));
+    assert!(
+        !nodes[identity]
+            .writes
+            .contains(&crate::passes::OIT_ACCUM_RESOURCE)
+    );
+}

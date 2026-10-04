@@ -45,6 +45,13 @@ impl Scene {
             }
         }
         let mut value = representation.bind(target);
+        if let RepresentationTarget::SegmentedVolume(handle) = target {
+            let grid = self
+                .segmented_volume(handle)
+                .ok_or(CoreError::StaleHandle)?;
+            value.segmentation.validate_grid(grid)?;
+        }
+
         if kind == RepresentationKind::Volume {
             value.volume.validate()?;
             if !value.params.isolevel.is_finite() {

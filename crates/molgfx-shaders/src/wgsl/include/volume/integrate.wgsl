@@ -142,12 +142,12 @@ fn volume_integrate(
                     accumulated.a;
 
                 var source =
-                    transfer.color;
+                    srgb_to_linear(transfer.color);
 
                 if medium {
                     source =
                         medium_radiance(
-                            srgb_to_linear(source),
+                            source,
                             coordinate,
                             lighting,
                             count,
@@ -211,7 +211,7 @@ fn volume_integrate(
     }
 
     let lit =
-        shade_molecule(
+        shade_linear_molecule(
             base_color,
             gradient_normal(
                 representative_voxel
