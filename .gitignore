@@ -41,3 +41,7 @@ target
 /node_modules/
 /web/generated/
 /web/dist/
+
+# Local completion ledgers
+/mapping.md
+/missing.md
