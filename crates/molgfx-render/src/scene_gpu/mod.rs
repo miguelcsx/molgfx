@@ -10,6 +10,7 @@ pub(crate) mod detail;
 mod dispatch;
 mod draw_family;
 pub(crate) mod exposure_arena;
+mod field_boundary;
 mod generic_visual;
 mod grow_buffer;
 mod indirect_arena;
@@ -47,7 +48,6 @@ mod record_pack;
 mod relation_anchor;
 mod ribbon_slot;
 mod scalar_overlay;
-mod segmentation_boundary;
 mod segmentation_lookup;
 mod segmentation_slot;
 mod segmentation_uniforms;
@@ -68,11 +68,13 @@ mod visual;
 mod visual_parameters;
 mod visual_programs;
 mod visual_properties;
+mod volume_boundary;
 mod volume_slot;
 mod volume_uniforms;
 
 pub(crate) use asset_arena::AssetArenaError;
 pub(crate) use draw_family::DrawFamily;
+pub(crate) use field_boundary::{FieldGeometry, GeometryKind};
 pub(crate) use indirect_arena::IndirectSlotKey;
 pub(crate) use instance_batch_table::{GENERIC_INSTANCE_CAPSULE, GENERIC_INSTANCE_SPHERE};
 pub(crate) use ligand_pose_types::{
@@ -83,7 +85,6 @@ pub(crate) use primitive_draw::{
     POLYGON_PENTAGON, PrimitiveDrawGroup,
 };
 pub(crate) use record_cache::RecordKey;
-pub(crate) use segmentation_boundary::SegmentationGeometry;
 pub(crate) use segmentation_slot::SegmentationPipelineKey;
 pub(crate) use slot_types::SlotShading;
 pub(crate) use surface_field::SurfaceFieldKey;

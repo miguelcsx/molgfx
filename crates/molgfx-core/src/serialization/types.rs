@@ -444,6 +444,8 @@ pub struct VolumeStyleDescription {
     pub slice_ramp: Option<Vec<VolumeTransferPointDescription>>,
     /// Optional half-open voxel crop.
     pub region: Option<RegionDescription>,
+    /// Mesh line half-width or dot radius in voxel units.
+    pub iso_width_voxels: f32,
 }
 
 /// Serializable categorical-volume optical state.

@@ -1,0 +1,147 @@
+{
+  "unit": "Phase 2.2 scalar boundary renderer primitive",
+  "status": "verified primitive; full public volume-domain unit remains open",
+  "owner": "Phase 2.2",
+  "base_commit": "cc0fd0f9",
+  "provider_revision": "2f48db5ad9e01ca0d310302d0ffdc167fd2dd293",
+  "architecture": [
+    "Shared scalar/categorical extraction buffers and one WGSL vertex layout.",
+    "Static scalar mesh/dot geometry shares source/isovalue buffers, independent of style. Only active levels remain cached.",
+    "GPU-generated occupancy retains implicit sampling of its resident field without readback. Both paths retain the specified voxel-space lattice masks.",
+    "Affine inverse-transpose normals and continuous scalar lighting gradients. Source coordinates and scalar columns remain borrowed.",
+    "Live malformed scalar sampling and nonfinite isovalues return errors; no isovalue default substitution."
+  ],
+  "tests": [
+    "crates/molgfx-render/src/engine/volume_boundary_tests.rs",
+    "crates/molgfx-render/src/engine/volume_tests.rs",
+    "crates/molgfx-core/src/representation/volume_validation_tests.rs",
+    "crates/molgfx-core/src/serialization/serialization_tests.rs",
+    "crates/molgfx-wgpu/tests/gpu_volume_boundary_tests.rs",
+    "crates/molgfx-wgpu/tests/gpu_volume_normals_tests.rs",
+    "crates/molgfx-wgpu/tests/gpu_segmentation_surface_tests.rs"
+  ],
+  "verification": {
+    "path": "target/indexed-volume-verification",
+    "format": "passed",
+    "clippy_workspace_all_features": "passed",
+    "tests_workspace_all_features": "passed",
+    "wasm_check": "passed",
+    "wasm_clippy": "passed",
+    "native_gpu_tests": "passed, including indexed masks/crop/empty fields, continuous normals and categorical regressions",
+    "python_development_install": "passed using actual pinned dependency",
+    "ruff_format": "passed",
+    "ruff": "passed",
+    "mypy": "passed",
+    "python_tests": "69 passed",
+    "stubtest": "passed",
+    "four_policy_checks": "passed"
+  },
+  "visual_preview": {
+    "path": "target/gallery-scalar-indexed-references",
+    "cases": [
+      "P2-iso-mesh-model_density",
+      "P2-iso-dots-model_density"
+    ],
+    "review": "Native full-size 768x768 interactive/converged previews compared with available Mol*/PyMOL cases. Scalar envelope and affine agree; voxel-lattice wires differ from reference triangulation. Mol* dots omitted with declared adapter limitation.",
+    "golden_check": "target/gallery-scalar-indexed-golden-check",
+    "mesh_ssim": 1.0,
+    "dots_ssim": 1.0,
+    "solid_ssim": 0.9999830887642442,
+    "solid_mean_delta_e": 0.007561912417587385,
+    "solid_p99_delta_e": 0.31854761782993135,
+    "context": "Gallery scene factories, manifest and reviewed case goldens are pending public volume-domain integration; this primitive commit does not certify that full unit."
+  },
+  "measurement": {
+    "build": "release",
+    "size": [
+      768,
+      768
+    ],
+    "warmup": 120,
+    "outputs": 1200,
+    "orbit_degrees": 0,
+    "recipe": "interactive, one sample per output, high fixed quality",
+    "trials": [
+      {
+        "form": "mesh",
+        "trial": 1,
+        "path": "target/indexed-volume-measurements/mesh-1.jsonl",
+        "p50_ns": 1640209,
+        "p95_ns": 1812208,
+        "p99_ns": 1990334,
+        "outputs_per_second": 600.9455752427874,
+        "allocations_per_output": 241,
+        "reallocations_per_output": 16,
+        "cpu_p50_ns": 166500,
+        "gpu_resolved_count": 0
+      },
+      {
+        "form": "mesh",
+        "trial": 2,
+        "path": "target/indexed-volume-measurements/mesh-2.jsonl",
+        "p50_ns": 1628083,
+        "p95_ns": 1813833,
+        "p99_ns": 2038083,
+        "outputs_per_second": 602.635374814116,
+        "allocations_per_output": 241,
+        "reallocations_per_output": 16,
+        "cpu_p50_ns": 164291,
+        "gpu_resolved_count": 0
+      },
+      {
+        "form": "mesh",
+        "trial": 3,
+        "path": "target/indexed-volume-measurements/mesh-3.jsonl",
+        "p50_ns": 1716250,
+        "p95_ns": 2048458,
+        "p99_ns": 2236833,
+        "outputs_per_second": 571.803545217718,
+        "allocations_per_output": 241,
+        "reallocations_per_output": 16,
+        "cpu_p50_ns": 218584,
+        "gpu_resolved_count": 0
+      },
+      {
+        "form": "dots",
+        "trial": 1,
+        "path": "target/indexed-volume-measurements/dots-1.jsonl",
+        "p50_ns": 1652167,
+        "p95_ns": 2250875,
+        "p99_ns": 3354917,
+        "outputs_per_second": 573.8755241951201,
+        "allocations_per_output": 241,
+        "reallocations_per_output": 16,
+        "cpu_p50_ns": 231916,
+        "gpu_resolved_count": 0
+      },
+      {
+        "form": "dots",
+        "trial": 2,
+        "path": "target/indexed-volume-measurements/dots-2.jsonl",
+        "p50_ns": 1619666,
+        "p95_ns": 1971333,
+        "p99_ns": 2396375,
+        "outputs_per_second": 597.1033522206694,
+        "allocations_per_output": 241,
+        "reallocations_per_output": 16,
+        "cpu_p50_ns": 202667,
+        "gpu_resolved_count": 0
+      },
+      {
+        "form": "dots",
+        "trial": 3,
+        "path": "target/indexed-volume-measurements/dots-3.jsonl",
+        "p50_ns": 1599583,
+        "p95_ns": 2030167,
+        "p99_ns": 2627958,
+        "outputs_per_second": 601.420844415805,
+        "allocations_per_output": 241,
+        "reallocations_per_output": 16,
+        "cpu_p50_ns": 193875,
+        "gpu_resolved_count": 0
+      }
+    ],
+    "claim": "Current correctness-path baseline, no optimization or cross-engine speedup claim. These are gallery cases, not the Phase-9 L1-L8 ladder.",
+    "remaining": "241 allocations and 16 reallocations per static-camera output; unresolved whole-output GPU timings. Managed arena residency excludes boundary buffers and total driver/process memory. Phase 9 remains open."
+  }
+}

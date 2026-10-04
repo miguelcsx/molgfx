@@ -3,11 +3,16 @@
 use crate::{CoreError, VolumeRendering, VolumeStyle, VolumeTransferFunction};
 
 impl VolumeStyle {
-    pub(crate) fn validate_grid(
+    /// Validates presentation controls against a caller's scalar-grid geometry.
+    ///
+    /// # Errors
+    /// Rejects malformed controls, out-of-bounds crops and unrepresentable ray steps.
+    pub fn validate_grid(
         &self,
         dimensions: [u32; 3],
         transform: molgfx_math::Mat4,
     ) -> Result<(), CoreError> {
+        self.validate()?;
         if let Some(region) = self.region {
             let _ = crate::VolumeRegion::new(region.minimum(), region.maximum(), dimensions)?;
         }
@@ -37,6 +42,15 @@ impl VolumeStyle {
         }
         if self.slice_ramp.is_some() && self.rendering != VolumeRendering::Slice {
             return Err(invalid("slice palettes require slice rendering"));
+        }
+        if matches!(
+            self.rendering,
+            VolumeRendering::IsoMesh | VolumeRendering::IsoDots
+        ) && (!self.iso_width_voxels.is_finite()
+            || self.iso_width_voxels <= 0.0
+            || self.iso_width_voxels > 0.5)
+        {
+            return Err(invalid("voxel lattice width must lie in (0, 0.5]"));
         }
         Ok(())
     }

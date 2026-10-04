@@ -9,5 +9,7 @@ pub(super) const fn volume_rendering(value: VolumeRendering) -> &'static str {
         VolumeRendering::Medium => "medium",
         VolumeRendering::Slice => "slice",
         VolumeRendering::LiquidSurface => "liquid_surface",
+        VolumeRendering::IsoMesh => "iso_mesh",
+        VolumeRendering::IsoDots => "iso_dots",
     }
 }

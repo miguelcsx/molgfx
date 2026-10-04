@@ -95,3 +95,27 @@ fn nonfinite_isolevels_fail_before_a_representation_is_added() {
         assert_eq!(scene.representation_count(), 0);
     }
 }
+
+#[test]
+fn invalid_lattice_widths_fail_before_mesh_or_dots_are_added() {
+    let volume = ScalarVolume::new([2; 3], Mat4::IDENTITY, Arc::from([0.5; 8])).unwrap();
+    for rendering in [
+        crate::VolumeRendering::IsoMesh,
+        crate::VolumeRendering::IsoDots,
+    ] {
+        for width in [0.0, -0.1, 0.6, f32::NAN, f32::INFINITY] {
+            let mut scene = Scene::new();
+            let handle = scene.add_volume(volume.clone());
+            let result = scene.represent(
+                handle,
+                Representation::volume().volume_style(VolumeStyle {
+                    rendering,
+                    iso_width_voxels: width,
+                    ..VolumeStyle::isosurface()
+                }),
+            );
+            assert!(matches!(result, Err(CoreError::InvalidVolume { .. })));
+            assert_eq!(scene.representation_count(), 0);
+        }
+    }
+}

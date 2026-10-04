@@ -8,6 +8,8 @@ const VOLUME_RENDER_MEDIUM: u32 = 2u;
 const VOLUME_RENDER_SLICE: u32 = 3u;
 const VOLUME_RENDER_LIQUID: u32 = 4u;
 const VOLUME_RENDER_DIRECT: u32 = 0u;
+const VOLUME_RENDER_ISOMESH: u32 = 5u;
+const VOLUME_RENDER_ISODOTS: u32 = 6u;
 
 override VOLUME_RENDER_MODE: u32 = VOLUME_RENDER_DIRECT;
 override VOLUME_CLIPPING_ENABLED: bool = true;
@@ -147,7 +149,7 @@ fn volume_ndc_bounds() -> mat2x2f {
     var low = vec2f(1.0);
     var high = vec2f(-1.0);
 
-    for (var corner = 0u; corner < 16u; corner++) {
+    for (var corner = 0u; corner < 8u; corner++) {
         let selector =
             vec3f(
                 f32(corner & 1u),

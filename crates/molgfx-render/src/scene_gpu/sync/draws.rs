@@ -3,12 +3,12 @@
 use super::GpuScene;
 use crate::passes::ParticleMotionPass;
 use crate::passes::{SurfaceComponentPass, SurfaceFieldPass};
+use crate::scene_gpu::field_boundary::FieldGeometry;
 use crate::scene_gpu::mesh_slot::GpuMeshSlot;
 use crate::scene_gpu::slot_types::{
     CullDispatch, DrawArgs, DrawFamily, QualityDraw, RibbonDraw, SlotShading,
 };
 use crate::scene_gpu::slots::GpuSlot;
-use crate::scene_gpu::volume_slot::GpuVolumeSlot;
 use molgfx_gpu::Device;
 
 impl<D: Device> GpuScene<D> {
@@ -213,8 +213,23 @@ impl<D: Device> GpuScene<D> {
 
     pub(crate) fn volume_draws(
         &self,
-    ) -> impl Iterator<Item = (molgfx_core::VolumeRendering, &D::BindGroup)> {
-        self.volume_slots.iter().filter_map(GpuVolumeSlot::draw)
+    ) -> impl Iterator<
+        Item = (
+            molgfx_core::VolumeRendering,
+            &D::BindGroup,
+            FieldGeometry<'_, D>,
+        ),
+    > {
+        self.volume_slots.iter().filter_map(|slot| {
+            let (rendering, group) = slot.draw()?;
+            let geometry = if let Some(index) = slot.boundary_index {
+                let (boundary, arguments) = self.volume_boundaries.get(index)?.buffers.draw()?;
+                FieldGeometry::Boundary(boundary, arguments)
+            } else {
+                FieldGeometry::Proxy
+            };
+            Some((rendering, group, geometry))
+        })
     }
 
     pub(crate) fn segmentation_draws(
@@ -223,7 +238,7 @@ impl<D: Device> GpuScene<D> {
         Item = (
             super::super::SegmentationPipelineKey,
             &D::BindGroup,
-            super::super::segmentation_boundary::SegmentationGeometry<'_, D>,
+            super::super::field_boundary::FieldGeometry<'_, D>,
         ),
     > {
         self.segmentation_slots.iter().filter_map(|slot| {
@@ -234,11 +249,9 @@ impl<D: Device> GpuScene<D> {
                     return None;
                 }
                 let (group, arguments) = resource.boundary.draw()?;
-                super::super::segmentation_boundary::SegmentationGeometry::Boundary(
-                    group, arguments,
-                )
+                super::super::field_boundary::FieldGeometry::Boundary(group, arguments)
             } else {
-                super::super::segmentation_boundary::SegmentationGeometry::Proxy
+                super::super::field_boundary::FieldGeometry::Proxy
             };
             Some((key, styles, geometry))
         })

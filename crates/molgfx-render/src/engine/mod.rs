@@ -221,3 +221,6 @@ mod segmentation_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod completion_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod volume_boundary_tests;

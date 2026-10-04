@@ -3,9 +3,6 @@
 // Rendering mode is specialized per pipeline. Rays are unprojected on the
 // four proxy vertices; fragments only normalize the interpolated ray.
 //
-// The trilinear field gradient reuses one eight-texel cell instead of six
-// independent trilinear samples (48 texture loads).
-//
 // This file holds the two pipeline stages; the field sampling, transfer,
 // traversal and integration they compose live beside it under include/volume/.
 // The caller's grid stays authoritative throughout: nothing here invents
@@ -21,8 +18,10 @@
 //!include "include/volume/transfer.wgsl"
 //!include "include/volume/skip.wgsl"
 //!include "include/volume/medium.wgsl"
+//!include "include/volume/iso_style.wgsl"
 //!include "include/volume/sample.wgsl"
 //!include "include/volume/integrate.wgsl"
+//!include "include/volume/boundary.wgsl"
 
 /// Unprojects one proxy vertex. Per-pixel inverse projection is unnecessary.
 @vertex
@@ -143,6 +142,8 @@ fn fs_volume(
         }
 
         case VOLUME_RENDER_ISOSURFACE,
+             VOLUME_RENDER_ISOMESH,
+             VOLUME_RENDER_ISODOTS,
              VOLUME_RENDER_LIQUID: {
             return isosurface_sample(
                 in,

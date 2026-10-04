@@ -87,7 +87,7 @@ pub(super) struct GpuSegmentationResource<D: Device> {
     synced_revision: Option<u64>,
     binding_revision: u64,
     source_id: u32,
-    pub(super) boundary: super::segmentation_boundary::GpuBoundary<D>,
+    pub(super) boundary: super::field_boundary::GpuFieldBoundary<D>,
     pub(super) needs_boundary: bool,
 }
 
@@ -113,7 +113,7 @@ impl<D: Device> GpuSegmentationResource<D> {
             synced_revision: None,
             binding_revision: 0,
             source_id: u32::MAX,
-            boundary: super::segmentation_boundary::GpuBoundary::default(),
+            boundary: super::field_boundary::GpuFieldBoundary::default(),
             needs_boundary: false,
         }
     }

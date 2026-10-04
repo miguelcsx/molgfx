@@ -373,6 +373,7 @@ fn parse_volume_style(value: &VolumeStyleDescription) -> Result<VolumeStyle, cra
             .map(parse_slice_ramp)
             .transpose()?,
         region: value.region.map(parse_region).transpose()?,
+        iso_width_voxels: finite_nonnegative(value.iso_width_voxels, "volume lattice width")?,
     };
     style.validate()?;
     Ok(style)
@@ -399,6 +400,8 @@ fn parse_volume_rendering(value: &str) -> Result<VolumeRendering, crate::CoreErr
         "medium" => Ok(VolumeRendering::Medium),
         "slice" => Ok(VolumeRendering::Slice),
         "liquid_surface" => Ok(VolumeRendering::LiquidSurface),
+        "iso_mesh" => Ok(VolumeRendering::IsoMesh),
+        "iso_dots" => Ok(VolumeRendering::IsoDots),
         _ => invalid("unknown volume rendering mode"),
     }
 }

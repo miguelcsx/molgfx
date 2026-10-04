@@ -109,7 +109,7 @@ impl VolumeUniforms {
                 density * opacity,
                 step,
                 transform.minimum_axis_length(),
-                0.0,
+                representation.volume.iso_width_voxels,
             ],
             transfer_values,
             transfer_colors,

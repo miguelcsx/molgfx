@@ -75,8 +75,8 @@ pub(crate) fn record<D: Device>(ctx: &mut PassContext<'_, D>) {
         }
         pass.set_bind_group(2, group, &[]);
         match geometry {
-            crate::scene_gpu::SegmentationGeometry::Proxy => pass.draw(0..6, 0..1),
-            crate::scene_gpu::SegmentationGeometry::Boundary(group, arguments) => {
+            crate::scene_gpu::FieldGeometry::Proxy => pass.draw(0..6, 0..1),
+            crate::scene_gpu::FieldGeometry::Boundary(group, arguments) => {
                 pass.set_bind_group(3, group, &[]);
                 pass.draw_indirect(arguments, 0);
             }
@@ -133,8 +133,8 @@ pub(crate) fn record_identity<D: Device>(ctx: &mut PassContext<'_, D>) {
         }
         pass.set_bind_group(2, group, &[]);
         match geometry {
-            crate::scene_gpu::SegmentationGeometry::Proxy => pass.draw(0..6, 0..1),
-            crate::scene_gpu::SegmentationGeometry::Boundary(group, arguments) => {
+            crate::scene_gpu::FieldGeometry::Proxy => pass.draw(0..6, 0..1),
+            crate::scene_gpu::FieldGeometry::Boundary(group, arguments) => {
                 pass.set_bind_group(3, group, &[]);
                 pass.draw_indirect(arguments, 0);
             }

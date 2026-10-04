@@ -12,7 +12,6 @@ use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
 use crate::scene_gpu::{
     GENERIC_INSTANCE_CAPSULE, GENERIC_INSTANCE_SPHERE, SegmentationPipelineKey,
 };
-use molgfx_core::VolumeRendering;
 use molgfx_gpu::{
     BlendMode, ColorTarget, CompareFunction, DepthState, Device, PrimitiveTopology,
     RenderPipelineDesc, ShaderModuleDesc, TextureFormat,
@@ -22,30 +21,11 @@ use molgfx_gpu::{
 #[path = "pipelines_tests.rs"]
 mod tests;
 
-const VOLUME_MODE_CONSTANT: &str = "VOLUME_RENDER_MODE";
+mod volume;
+pub(super) use volume::{VolumePipelineSet, volume_pipelines};
+
 const SEGMENTATION_SLICE_CONSTANT: &str = "SEGMENTATION_SLICE_MODE";
 const SEGMENTATION_HASH_CONSTANT: &str = "SEGMENTATION_HASH_LOOKUP";
-
-#[derive(Debug)]
-pub(super) struct VolumePipelineSet<D: Device> {
-    direct: D::Pipeline,
-    isosurface: D::Pipeline,
-    medium: D::Pipeline,
-    slice: D::Pipeline,
-    liquid: D::Pipeline,
-}
-
-impl<D: Device> VolumePipelineSet<D> {
-    pub(super) const fn get(&self, rendering: VolumeRendering) -> &D::Pipeline {
-        match rendering {
-            VolumeRendering::Direct => &self.direct,
-            VolumeRendering::Isosurface => &self.isosurface,
-            VolumeRendering::Medium => &self.medium,
-            VolumeRendering::Slice => &self.slice,
-            VolumeRendering::LiquidSurface => &self.liquid,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub(super) struct SegmentationPipelineSet<D: Device> {
@@ -265,39 +245,6 @@ pub(super) fn generic_instance_pipelines<D: Device>(
     ))
 }
 
-pub(super) fn volume_pipelines<D: Device>(
-    device: &D,
-    group0: &D::BindGroupLayout,
-    group1: &D::BindGroupLayout,
-    group2: &D::BindGroupLayout,
-) -> Result<VolumePipelineSet<D>, RenderError> {
-    let shader = device.create_shader_module(&ShaderModuleDesc {
-        label: "density volumes",
-        wgsl: molgfx_shaders::VOLUME,
-    })?;
-    let build = |label, rendering| {
-        let constants = volume_pipeline_constants(rendering);
-        device.create_render_pipeline(&RenderPipelineDesc {
-            label,
-            layouts: &[Some(group0), Some(group1), Some(group2)],
-            shader: &shader,
-            vs_entry: "vs_volume",
-            fs_entry: Some("fs_volume"),
-            color_targets: &oit_targets(),
-            depth: Some(oit_depth()),
-            constants: &constants,
-            topology: PrimitiveTopology::TriangleList,
-        })
-    };
-    Ok(VolumePipelineSet {
-        direct: build("direct density volumes", VolumeRendering::Direct)?,
-        isosurface: build("density isosurfaces", VolumeRendering::Isosurface)?,
-        medium: build("participating density media", VolumeRendering::Medium)?,
-        slice: build("density volume slices", VolumeRendering::Slice)?,
-        liquid: build("liquid density surfaces", VolumeRendering::LiquidSurface)?,
-    })
-}
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum SegmentationPass {
     Beauty,
@@ -386,17 +333,6 @@ pub(super) fn segmentation_pipelines<D: Device>(
             SegmentationPipelineKey::HashSurface,
         )?,
     })
-}
-
-const fn volume_pipeline_constants(rendering: VolumeRendering) -> [(&'static str, f64); 1] {
-    let value = match rendering {
-        VolumeRendering::Direct => 0.0,
-        VolumeRendering::Isosurface => 1.0,
-        VolumeRendering::Medium => 2.0,
-        VolumeRendering::Slice => 3.0,
-        VolumeRendering::LiquidSurface => 4.0,
-    };
-    [(VOLUME_MODE_CONSTANT, value)]
 }
 
 const fn segmentation_pipeline_constants(key: SegmentationPipelineKey) -> [(&'static str, f64); 2] {

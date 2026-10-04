@@ -194,8 +194,8 @@ fn isosurface_sample(
     var hit_t =
         previous_t;
 
-    var found =
-        previous_value >= 0.0;
+    var found = previous_value == 0.0 && iso_style_visible(
+        fma(ray.voxel_direction, vec3f(previous_t), ray.voxel_origin));
 
     var cell_exit =
         -VOLUME_DISTANCE_INFINITY;
@@ -266,24 +266,24 @@ fn isosurface_sample(
             ) - level;
 
         if value == 0.0 {
-            hit_t = t;
-            found = true;
-            break;
+            let crossing = fma(ray.voxel_direction, vec3f(t), ray.voxel_origin);
+            if iso_style_visible(crossing) {
+                hit_t = t;
+                found = true;
+                break;
+            }
         }
 
-        if (value >= 0.0) !=
-            (previous_value >= 0.0) {
-            hit_t =
-                refine_isosurface(
-                    ray,
-                    previous_t,
-                    t,
-                    previous_value >= 0.0,
-                    level,
-                );
-
-            found = true;
-            break;
+        if (value >= 0.0) != (previous_value >= 0.0) {
+            let crossing_t = refine_isosurface(
+                ray, previous_t, t, previous_value >= 0.0, level,
+            );
+            let crossing = fma(ray.voxel_direction, vec3f(crossing_t), ray.voxel_origin);
+            if iso_style_visible(crossing) {
+                hit_t = crossing_t;
+                found = true;
+                break;
+            }
         }
 
         if t >= interval.y {
@@ -324,8 +324,7 @@ fn isosurface_sample(
             world_position,
         );
 
-    let normal =
-        gradient_normal(coordinate);
+    let normal = gradient_normal(coordinate);
 
     let transfer =
         transfer_at(

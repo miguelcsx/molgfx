@@ -155,7 +155,7 @@ impl<D: Device> OitPass<D> {
             )?,
             generic_instance_sphere,
             generic_instance_capsule,
-            volume: volume_pipelines(device, group0, layout, categorical.0)?,
+            volume: volume_pipelines(device, group0, layout, categorical.0, categorical.2)?,
             segmentation: segmentation_pipelines(
                 device,
                 group0,
@@ -331,13 +331,19 @@ fn record<D: Device>(ctx: &mut PassContext<'_, D>, primitive: Primitive) {
         }
         Primitive::Volumes => {
             let mut current = None;
-            for (rendering, group) in ctx.scene.volume_draws() {
-                if current != Some(rendering) {
-                    pass.set_pipeline(oit_pass.volume.get(rendering));
-                    current = Some(rendering);
+            for (rendering, group, geometry) in ctx.scene.volume_draws() {
+                if current != Some((rendering, geometry.kind())) {
+                    pass.set_pipeline(oit_pass.volume.get(rendering, geometry.kind()));
+                    current = Some((rendering, geometry.kind()));
                 }
                 pass.set_bind_group(2, group, &[]);
-                pass.draw(0..6, 0..1);
+                match geometry {
+                    crate::scene_gpu::FieldGeometry::Proxy => pass.draw(0..6, 0..1),
+                    crate::scene_gpu::FieldGeometry::Boundary(boundary, arguments) => {
+                        pass.set_bind_group(3, boundary, &[]);
+                        pass.draw_indirect(arguments, 0);
+                    }
+                }
             }
         }
     }

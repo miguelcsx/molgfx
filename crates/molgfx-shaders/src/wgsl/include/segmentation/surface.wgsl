@@ -1,13 +1,5 @@
 // Indexed boundaries share exact styles and picking attachments with optical cells.
-struct BoundaryVertex {
-    position: vec3f,
-    label: u32,
-    normal: vec3f,
-    padding: u32,
-}
-
-@group(3) @binding(0) var<storage, read> boundary_vertices: array<BoundaryVertex>;
-@group(3) @binding(1) var<storage, read> boundary_indices: array<u32>;
+//!include "include/field_boundary.wgsl"
 
 struct BoundaryVsOut {
     @builtin(position) position: vec4f,

@@ -52,10 +52,19 @@ fn temporal_occupancy_stays_gpu_resident_and_runs_only_for_new_samples() {
         .represent(volume, Representation::volume())
         .unwrap_or_else(|error| panic!("occupancy represents: {error}"));
 
+    represent_occupancy_lattices(&mut scene, volume);
     let mut engine = engine();
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("initial occupancy renders: {error}"));
+    assert_eq!(engine.scene_gpu.volume_draws().count(), 3);
+    assert!(
+        engine
+            .scene_gpu
+            .volume_draws()
+            .all(|(_, _, geometry)| geometry.kind() == crate::scene_gpu::GeometryKind::Proxy),
+        "GPU-generated fields trace their authoritative resident values without readback"
+    );
     let after_initial = dispatch_count(&engine);
     assert!(after_initial >= 5, "trajectory and occupancy compute run");
     let texture_uploads = engine
@@ -168,7 +177,7 @@ fn density_volume_uploads_the_callers_values_once_and_draws_through_oit() {
         engine
             .scene_gpu
             .volume_draws()
-            .map(|(rendering, _)| rendering)
+            .map(|(rendering, _, _)| rendering)
             .collect::<Vec<_>>(),
         [
             VolumeRendering::Direct,
@@ -395,4 +404,58 @@ fn segmentation(styles: SegmentStyleTable) -> molgfx_core::RepresentationConfig 
         styles,
         ..SegmentationStyle::default()
     })
+}
+
+#[test]
+fn a_volume_only_scene_renders_without_a_structure() {
+    let volume = ScalarVolume::new(
+        [2; 3],
+        Mat4::IDENTITY,
+        Arc::from([0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0]),
+    )
+    .unwrap();
+    let mut scene = Scene::new();
+    let volume = scene.add_volume(volume);
+    for rendering in [
+        VolumeRendering::Isosurface,
+        VolumeRendering::IsoMesh,
+        VolumeRendering::IsoDots,
+    ] {
+        scene
+            .represent(
+                volume,
+                Representation::volume()
+                    .isolevel(0.5)
+                    .volume_style(VolumeStyle {
+                        rendering,
+                        ..VolumeStyle::isosurface()
+                    }),
+            )
+            .unwrap();
+    }
+    let mut engine = engine();
+    engine.render(&scene, &camera()).unwrap();
+    assert_eq!(scene.structures().count(), 0);
+    let writes = engine.device.log.texture_writes.lock().unwrap();
+    assert_eq!(
+        writes
+            .iter()
+            .filter(|(label, _, _)| *label == "caller density volume")
+            .count(),
+        1
+    );
+}
+
+fn represent_occupancy_lattices(scene: &mut Scene, volume: molgfx_core::VolumeHandle) {
+    for rendering in [VolumeRendering::IsoMesh, VolumeRendering::IsoDots] {
+        scene
+            .represent(
+                volume,
+                Representation::volume().volume_style(VolumeStyle {
+                    rendering,
+                    ..VolumeStyle::isosurface()
+                }),
+            )
+            .unwrap();
+    }
 }

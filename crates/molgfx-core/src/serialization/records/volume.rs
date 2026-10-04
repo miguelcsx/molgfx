@@ -38,5 +38,6 @@ pub(crate) fn volume_style_description(value: &crate::VolumeStyle) -> VolumeStyl
                 .collect()
         }),
         region: value.region.map(region_description),
+        iso_width_voxels: value.iso_width_voxels,
     }
 }

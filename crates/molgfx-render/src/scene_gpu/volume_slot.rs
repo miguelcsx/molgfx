@@ -23,6 +23,7 @@ pub(super) struct GpuVolumeSlot<D: Device> {
     sparse_config: Option<D::Buffer>,
     group: Option<D::BindGroup>,
     rendering: VolumeRendering,
+    pub(super) boundary_index: Option<usize>,
     synced: Option<(u64, VolumeHandle, u64)>,
 }
 
@@ -226,6 +227,7 @@ impl<D: Device> GpuVolumeSlot<D> {
             sparse_config: None,
             group: None,
             rendering: VolumeRendering::Direct,
+            boundary_index: None,
             synced: None,
         }
     }

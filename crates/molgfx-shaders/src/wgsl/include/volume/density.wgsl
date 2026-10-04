@@ -1,8 +1,8 @@
 // Trilinear sampling of the caller's scalar grid.
 //
-// The value and its gradient share one eight-texel cell load, replacing the
-// forty-eight texture loads six independent trilinear samples would cost. The
-// grid is caller data and is never resampled or smoothed on the way in.
+// The exact cell derivative is used for lattice orientation. Lighting uses
+// central differences because cell derivatives jump at voxel boundaries.
+// The caller's scalar field and its crossings remain unchanged.
 
 // -----------------------------------------------------------------------------
 // Trilinear density
@@ -90,7 +90,7 @@ fn density_at(
 /// Exact derivative of the manually trilinear interpolated field.
 ///
 /// One eight-texel load replaces six density_at() calls = 48 texel loads.
-fn gradient_normal(
+fn density_gradient(
     coordinate: vec3f,
 ) -> vec3f {
     let cell =
@@ -147,11 +147,33 @@ fn gradient_normal(
             f.y,
         );
 
+    return vec3f(dx, dy, dz);
+}
+
+fn density_shading_gradient(coordinate: vec3f) -> vec3f {
+    // One voxel on either side gives a continuous shading gradient. At the
+    // grid boundary use the actual one-sided span, preserving affine fields.
+    let upper = vec3f(volume.dimensions.xyz - vec3u(1u));
+    let point = clamp(coordinate, vec3f(0.0), upper);
+    let low = max(point - vec3f(1.0), vec3f(0.0));
+    let high = min(point + vec3f(1.0), upper);
+    return vec3f(
+        density_at(vec3f(high.x, point.y, point.z)) -
+            density_at(vec3f(low.x, point.y, point.z)),
+        density_at(vec3f(point.x, high.y, point.z)) -
+            density_at(vec3f(point.x, low.y, point.z)),
+        density_at(vec3f(point.x, point.y, high.z)) -
+            density_at(vec3f(point.x, point.y, low.z)),
+    ) / (high - low);
+}
+
+fn gradient_normal(coordinate: vec3f) -> vec3f {
+    let gradient = density_shading_gradient(coordinate);
     let world_normal =
         (
             transpose(volume.world_to_voxel) *
             vec4f(
-                -vec3f(dx, dy, dz),
+                -gradient,
                 0.0,
             )
         ).xyz;

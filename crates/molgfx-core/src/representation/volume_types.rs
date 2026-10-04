@@ -121,6 +121,8 @@ pub struct VolumeStyle {
     pub slice_ramp: Option<ScalarRamp>,
     /// Optional half-open voxel region rendered from the resident grid.
     pub region: Option<VolumeRegion>,
+    /// Mesh line half-width or dot radius in voxel coordinates.
+    pub iso_width_voxels: f32,
 }
 
 impl Default for VolumeStyle {
@@ -133,6 +135,7 @@ impl Default for VolumeStyle {
             slice: None,
             slice_ramp: None,
             region: None,
+            iso_width_voxels: 0.1,
         }
     }
 }
@@ -207,6 +210,10 @@ pub enum VolumeRendering {
     /// Screen-space liquid-like boundary over caller-provided scalar density.
     /// No advection or fluid simulation is performed by the renderer.
     LiquidSurface = 4,
+    /// Voxel-lattice lines on an implicit scalar boundary.
+    IsoMesh = 5,
+    /// Voxel-lattice spots on an implicit scalar boundary.
+    IsoDots = 6,
 }
 
 const fn invalid_transfer(reason: &'static str) -> CoreError {

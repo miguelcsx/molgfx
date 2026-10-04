@@ -80,6 +80,20 @@ impl<D: Device> GpuScene<D> {
             let Some(volume_handle) = representation.volume_handle() else {
                 continue;
             };
+            slot.boundary_index = if matches!(
+                representation.volume.rendering,
+                molgfx_core::VolumeRendering::IsoMesh | molgfx_core::VolumeRendering::IsoDots
+            ) && scene.volume(volume_handle).is_some()
+            {
+                self.volume_boundaries
+                    .binary_search_by_key(
+                        &(volume_handle, representation.params.isolevel.to_bits()),
+                        |entry| entry.key,
+                    )
+                    .ok()
+            } else {
+                None
+            };
             let Some((volume_view, volume_binding_revision)) = self
                 .volume_resources
                 .iter()
@@ -101,7 +115,16 @@ impl<D: Device> GpuScene<D> {
             else {
                 continue;
             };
+            if !representation.params.isolevel.is_finite() {
+                return Err(molgfx_core::CoreError::InvalidVolume {
+                    reason: "volume isolevel must be finite",
+                }
+                .into());
+            }
             let uniforms = if let Some(volume) = scene.volume(volume_handle) {
+                representation
+                    .volume
+                    .validate_grid(volume.dimensions(), volume.voxel_to_world())?;
                 VolumeUniforms::new(volume, representation)
             } else if let Some((stream, structure_handle, _)) =
                 scene.occupancy_stream(volume_handle)
@@ -109,6 +132,10 @@ impl<D: Device> GpuScene<D> {
                 let Some(placed) = scene.structure(structure_handle) else {
                     continue;
                 };
+                representation.volume.validate_grid(
+                    stream.dimensions(),
+                    placed.model_to_world * stream.voxel_to_model(),
+                )?;
                 VolumeUniforms::new_occupancy(stream, placed, representation)
             } else {
                 continue;

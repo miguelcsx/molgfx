@@ -85,7 +85,7 @@ pub(crate) fn oit<D: Device>(
         (
             &env.scene.volume_layout,
             &env.scene.segmentation_layout,
-            &env.scene.segmentation_boundary_layout,
+            &env.scene.field_boundary_layout,
         ),
     )
 }

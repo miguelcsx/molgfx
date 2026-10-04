@@ -106,8 +106,8 @@ impl<D: Device> GpuScene<D> {
                 changed |= resource.boundary.sync(
                     device,
                     queue,
-                    &self.segmentation_boundary_layout,
-                    volume,
+                    &self.field_boundary_layout,
+                    super::super::field_boundary::BoundarySource::Labels(volume),
                     revision,
                 )?;
             }

@@ -23,6 +23,7 @@ mod specialize;
 mod surface_resolve;
 mod trajectories;
 mod upload_scratch;
+mod volume_boundaries;
 mod volume_reconcile;
 mod volumes;
 use super::asset::GpuAsset;
@@ -89,7 +90,7 @@ pub(crate) struct GpuScene<D: Device> {
     pub quality_layout: D::BindGroupLayout,
     pub volume_layout: D::BindGroupLayout,
     pub segmentation_layout: D::BindGroupLayout,
-    pub segmentation_boundary_layout: D::BindGroupLayout,
+    pub field_boundary_layout: D::BindGroupLayout,
     pub surface_field_output_layout: D::BindGroupLayout,
     pub surface_field_input_layout: D::BindGroupLayout,
     pub surface_field_erosion_layout: D::BindGroupLayout,
@@ -131,6 +132,8 @@ pub(crate) struct GpuScene<D: Device> {
     structures: Vec<GpuStructure<D>>,
     slots: Vec<GpuSlot<D>>,
     volume_resources: Vec<GpuVolumeResource<D>>,
+    volume_boundaries: Vec<super::volume_boundary::VolumeBoundary<D>>,
+    volume_boundary_revision: Option<(u64, u64)>,
     pub(super) brick_atlases: Vec<super::brick_atlas::upload::GpuBrickAtlas<D>>,
     volume_slots: Vec<GpuVolumeSlot<D>>,
     mesh_slots: Vec<super::mesh_slot::GpuMeshSlot<D>>,
@@ -320,6 +323,7 @@ impl<D: Device> GpuScene<D> {
             derived_frame,
         })?;
         changed |= self.sync_volume_resources(device, queue, scene)?;
+        changed |= self.sync_volume_boundaries(device, queue, scene)?;
         self.sync_records(
             device,
             queue,

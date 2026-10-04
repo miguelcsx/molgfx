@@ -422,3 +422,47 @@ fn add_annotation_payloads(scene: &mut Scene, owner: crate::StructureHandle) {
         panic!("manifest measurement stores: {error}");
     }
 }
+
+#[test]
+fn scalar_lattice_modes_and_widths_survive_serialization_and_cold_restore() {
+    let source = crate::ScalarVolume::new(
+        [2; 3],
+        molgfx_math::Mat4::IDENTITY,
+        Arc::from([0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0]),
+    )
+    .unwrap();
+    let mut scene = Scene::new();
+    let volume = scene.add_volume(source.clone());
+    for (rendering, width) in [
+        (crate::VolumeRendering::IsoMesh, 0.1),
+        (crate::VolumeRendering::IsoDots, 0.16),
+    ] {
+        scene
+            .represent(
+                volume,
+                crate::Representation::volume()
+                    .isolevel(0.5)
+                    .volume_style(crate::VolumeStyle {
+                        rendering,
+                        iso_width_voxels: width,
+                        ..crate::VolumeStyle::isosurface()
+                    }),
+            )
+            .unwrap();
+    }
+    let description = scene.describe();
+    let json = serde_json::to_vec(&description).unwrap();
+    let decoded = serde_json::from_slice(&json).unwrap();
+    let rebuilt = Scene::from_description(
+        &decoded,
+        SceneDescriptionSources {
+            structures: &[],
+            volumes: std::slice::from_ref(&source),
+            segmentations: &[],
+            atom_properties: &[],
+            meshes: &[],
+        },
+    )
+    .unwrap();
+    assert_eq!(rebuilt.describe(), description);
+}

@@ -1,4 +1,5 @@
-use super::{segmentation_pipeline_constants, volume_pipeline_constants};
+use super::segmentation_pipeline_constants;
+use super::volume::volume_pipeline_constants;
 use crate::scene_gpu::SegmentationPipelineKey;
 use molgfx_core::VolumeRendering;
 
@@ -10,8 +11,10 @@ fn every_volume_algorithm_has_its_own_specialization_value() {
         VolumeRendering::Medium,
         VolumeRendering::Slice,
         VolumeRendering::LiquidSurface,
+        VolumeRendering::IsoMesh,
+        VolumeRendering::IsoDots,
     ];
-    for (mode, expected) in modes.into_iter().zip([0.0, 1.0, 2.0, 3.0, 4.0]) {
+    for (mode, expected) in modes.into_iter().zip([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]) {
         assert_eq!(
             volume_pipeline_constants(mode),
             [("VOLUME_RENDER_MODE", expected)]

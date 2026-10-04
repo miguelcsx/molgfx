@@ -177,8 +177,8 @@ fn surface_style_edits_reuse_label_and_boundary_uploads() {
         .presentation = molgfx_core::SegmentationPresentation::Surface;
     let mut engine = engine();
     render(&mut engine, &scene);
-    let vertices = buffer_writes(&engine.device.log, "categorical boundary vertices");
-    let indices = buffer_writes(&engine.device.log, "categorical boundary indices");
+    let vertices = buffer_writes(&engine.device.log, "field boundary vertices");
+    let indices = buffer_writes(&engine.device.log, "field boundary indices");
     assert_eq!(vertices, 1);
     assert_eq!(indices, 1);
     scene
@@ -189,11 +189,11 @@ fn surface_style_edits_reuse_label_and_boundary_uploads() {
     render(&mut engine, &scene);
     assert_eq!(label_uploads(&engine.device.log), 1);
     assert_eq!(
-        buffer_writes(&engine.device.log, "categorical boundary vertices"),
+        buffer_writes(&engine.device.log, "field boundary vertices"),
         vertices
     );
     assert_eq!(
-        buffer_writes(&engine.device.log, "categorical boundary indices"),
+        buffer_writes(&engine.device.log, "field boundary indices"),
         indices
     );
     assert_eq!(engine.scene_gpu.segmentation_draws().count(), 1);
