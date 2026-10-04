@@ -1,0 +1,76 @@
+{
+  "unit": "Shared field boundary extraction",
+  "owner": "Phase 2.2 / Phase 2.3",
+  "status": "verified geometry primitive; renderer and public segmentation integration remain open",
+  "implementation": "crates/molgfx-geometry/src/field",
+  "tests": "crates/molgfx-geometry/src/field/tests.rs",
+  "benchmark": "crates/molgfx-geometry/benches/fields.rs",
+  "algorithm": {
+    "scalar": "Six compatible tetrahedra per cell with endpoint-keyed vertex sharing",
+    "categorical": "Exact u32 membership; centre weight 8 and six axis-neighbour weights 1 preserve nodal classification; crossing cells refined on a shared half-grid",
+    "normals": "Central differences of the reconstructed field, transformed by the affine inverse transpose",
+    "ownership": "Source slices borrowed; extraction-scoped edge cache; CPU mesh returned atomically on success"
+  },
+  "measurement": {
+    "profile": "release",
+    "samples": 10,
+    "warmup_seconds": 1,
+    "measurement_seconds": 3,
+    "results": [
+      {
+        "kind": "scalar",
+        "side": 16,
+        "mean_ns": 223184.13958138175,
+        "median_ns": 223181.60589871195,
+        "evidence": "target/criterion/field-boundaries/scalar/16/new/estimates.json"
+      },
+      {
+        "kind": "scalar",
+        "side": 32,
+        "mean_ns": 1425019.0526170128,
+        "median_ns": 1421491.3653846155,
+        "evidence": "target/criterion/field-boundaries/scalar/32/new/estimates.json"
+      },
+      {
+        "kind": "scalar",
+        "side": 64,
+        "mean_ns": 9318521.848869048,
+        "median_ns": 9315430.166666668,
+        "evidence": "target/criterion/field-boundaries/scalar/64/new/estimates.json"
+      },
+      {
+        "kind": "categorical",
+        "side": 16,
+        "mean_ns": 12441401.485722221,
+        "median_ns": 12427931.899999999,
+        "evidence": "target/criterion/field-boundaries/categorical/16/new/estimates.json"
+      },
+      {
+        "kind": "categorical",
+        "side": 32,
+        "mean_ns": 48056228.39980159,
+        "median_ns": 48028014.5,
+        "evidence": "target/criterion/field-boundaries/categorical/32/new/estimates.json"
+      },
+      {
+        "kind": "categorical",
+        "side": 64,
+        "mean_ns": 200203658.35,
+        "median_ns": 199777166.75,
+        "evidence": "target/criterion/field-boundaries/categorical/64/new/estimates.json"
+      }
+    ],
+    "note": "Source-load kernel timings; no frame-performance or optimization claim"
+  },
+  "verification": {
+    "logs": "target/field-verification",
+    "workspace_clippy": "pass",
+    "workspace_all_features_tests": "pass",
+    "wasm_check_and_clippy": "pass",
+    "python_tests": 69,
+    "python_development_install": "pass",
+    "python_lint_types_stubtest": "pass",
+    "format_and_repository_policy": "pass"
+  },
+  "visual": "Consumer review remains open; no golden blessed by this primitive commit"
+}
