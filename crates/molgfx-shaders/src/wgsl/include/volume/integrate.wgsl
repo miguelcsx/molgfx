@@ -70,7 +70,8 @@ fn volume_integrate(
     }
 
     loop {
-        if t > interval.y ||
+        // Skips clamp to the exit; its zero-length endpoint must terminate.
+        if t >= interval.y ||
             accumulated.a >=
                 VOLUME_TERMINATION_ALPHA {
             break;
