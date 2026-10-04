@@ -19,7 +19,7 @@ pub use binding::{
     BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, RayQueryBindGroupDesc,
     RayQueryBindGroupLayoutDesc, ShaderStages,
 };
-pub use buffer::{BufferDesc, BufferUsage};
+pub use buffer::{BufferDesc, BufferUsage, IndexFormat};
 pub use pass::{
     ColorAttachment, ComputePassDesc, DepthAttachment, DepthLoadOp, LoadOp, RenderPassDesc,
     TimestampWrites,
@@ -29,10 +29,9 @@ pub use pipeline::{
     RenderPipelineDesc,
 };
 pub use ray_query::{
-    AabbGeometry, AabbGeometrySize, AccelerationGeometryFlags, AccelerationIndexFormat,
-    AccelerationStructureFlags, AccelerationStructureUpdateMode, BlasBuildDesc, BlasDesc,
-    BlasGeometries, BlasGeometrySizes, TlasDesc, TlasInstance, TriangleGeometry,
-    TriangleGeometrySize,
+    AabbGeometry, AabbGeometrySize, AccelerationGeometryFlags, AccelerationStructureFlags,
+    AccelerationStructureUpdateMode, BlasBuildDesc, BlasDesc, BlasGeometries, BlasGeometrySizes,
+    TlasDesc, TlasInstance, TriangleGeometry, TriangleGeometrySize,
 };
 pub use sampler::{FilterMode, SamplerDesc};
 pub use shader::ShaderModuleDesc;

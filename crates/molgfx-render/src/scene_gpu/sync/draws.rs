@@ -148,13 +148,9 @@ impl<D: Device> GpuScene<D> {
         family: DrawFamily,
     ) -> impl Iterator<Item = RibbonDraw<'_, D>> {
         self.slots.iter().filter_map(move |slot| {
-            let (group, args, shading) = slot.cartoon_draw(translucent)?;
-            Some((
-                group,
-                args,
-                shading,
-                self.specialized_pipeline(slot.specialization(family)),
-            ))
+            let mut draw = slot.cartoon_draw(translucent)?;
+            draw.specialized = self.specialized_pipeline(slot.specialization(family));
+            Some(draw)
         })
     }
 
@@ -166,7 +162,13 @@ impl<D: Device> GpuScene<D> {
             .filter_map(move |slot| slot.draw(translucent))
             // A caller mesh carries no style, so it never has a generated
             // pipeline and always draws through the interpreted unit.
-            .map(|(group, args)| (group, args, SlotShading::default(), None))
+            .map(|draw| RibbonDraw {
+                group: draw.group,
+                arguments: draw.arguments,
+                indices: draw.indices,
+                shading: SlotShading::default(),
+                specialized: None,
+            })
     }
 
     pub(crate) fn surface_draws(&self, translucent: bool) -> impl Iterator<Item = DrawArgs<'_, D>> {

@@ -5,7 +5,9 @@
 //! the point: it binds the same group and draws with the same indexed pipeline,
 //! so caller triangles cost no extra pass, shader or pipeline.
 
-use super::buffers::{count, upload_grow, write_draw_args};
+use super::buffers::{count, upload_grow};
+use super::grow_buffer::GrowBuffer;
+use super::indexed_draw::{IndexedDraw, write_arguments};
 use super::structure::GpuStructure;
 use super::uniforms::ClipUniforms;
 use super::visual::VisualCullEntries;
@@ -19,12 +21,11 @@ use molgfx_math::Mat4;
 #[derive(Debug)]
 pub(super) struct GpuMeshSlot<D: Device> {
     vertices: Option<D::Buffer>,
-    indices: Option<D::Buffer>,
+    indices: GrowBuffer<D>,
     args: Option<D::Buffer>,
     clipping: Option<D::Buffer>,
     group: Option<D::BindGroup>,
     vertex_capacity: u64,
-    index_capacity: u64,
     index_count: u32,
     translucent: bool,
     scratch: Vec<RibbonVertex>,
@@ -42,12 +43,11 @@ impl<D: Device> GpuMeshSlot<D> {
     pub(super) fn new() -> Self {
         Self {
             vertices: None,
-            indices: None,
+            indices: GrowBuffer::index(),
             args: None,
             clipping: None,
             group: None,
             vertex_capacity: 0,
-            index_capacity: 0,
             index_count: 0,
             translucent: false,
             scratch: Vec::new(),
@@ -122,20 +122,13 @@ impl<D: Device> GpuMeshSlot<D> {
             &mut self.vertices,
             &mut self.vertex_capacity,
         )?;
-        upload_grow(
-            device,
-            queue,
-            "caller mesh indices",
-            &self.index_scratch,
-            &mut self.indices,
-            &mut self.index_capacity,
-        )?;
-        write_draw_args(
+        self.indices
+            .upload(device, queue, "caller mesh indices", &self.index_scratch)?;
+        write_arguments(
             device,
             queue,
             "caller mesh draw arguments",
             self.index_count,
-            u32::from(self.index_count > 0),
             &mut self.args,
         )?;
         self.sync_clipping(device, queue, mesh)?;
@@ -173,12 +166,9 @@ impl<D: Device> GpuMeshSlot<D> {
         structure: &GpuStructure<D>,
         visual: &VisualCullEntries<'_, D>,
     ) {
-        let (Some(vertices), Some(indices), Some(model), Some(clipping)) = (
-            &self.vertices,
-            &self.indices,
-            &structure.model,
-            &self.clipping,
-        ) else {
+        let (Some(vertices), Some(model), Some(clipping)) =
+            (&self.vertices, &structure.model, &self.clipping)
+        else {
             return;
         };
         self.group = Some(device.create_bind_group(&BindGroupDesc {
@@ -190,16 +180,30 @@ impl<D: Device> GpuMeshSlot<D> {
                     buffer: vertices,
                 },
                 BindGroupEntry::Buffer {
-                    binding: 1,
-                    buffer: indices,
-                },
-                BindGroupEntry::Buffer {
                     binding: 2,
                     buffer: model,
                 },
                 BindGroupEntry::Buffer {
                     binding: 3,
                     buffer: clipping,
+                },
+                // Static meshes disable spline deformation before any storage
+                // read. Reuse the vertex buffer for the unused shared bindings.
+                BindGroupEntry::Buffer {
+                    binding: 4,
+                    buffer: vertices,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 5,
+                    buffer: vertices,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 6,
+                    buffer: vertices,
+                },
+                BindGroupEntry::Buffer {
+                    binding: 7,
+                    buffer: vertices,
                 },
                 BindGroupEntry::Buffer {
                     binding: 8,
@@ -234,11 +238,15 @@ impl<D: Device> GpuMeshSlot<D> {
 
     /// The bind group and indirect arguments for one pass, or nothing when the
     /// mesh is empty or belongs to the other transparency stream.
-    pub(super) fn draw(&self, translucent: bool) -> Option<(&D::BindGroup, &D::Buffer)> {
+    pub(super) fn draw(&self, translucent: bool) -> Option<IndexedDraw<'_, D>> {
         if self.translucent != translucent || self.index_count == 0 {
             return None;
         }
-        self.group.as_ref().zip(self.args.as_ref())
+        Some(IndexedDraw {
+            group: self.group.as_ref()?,
+            arguments: self.args.as_ref()?,
+            indices: self.indices.get()?,
+        })
     }
 
     pub(super) const fn is_translucent(&self) -> bool {

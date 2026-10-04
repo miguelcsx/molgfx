@@ -26,6 +26,7 @@ const OCTAVE_STEPS: u64 = 8;
 pub(super) struct GrowBuffer<D: Device> {
     buffer: Option<D::Buffer>,
     capacity: u64,
+    usage: BufferUsage,
 }
 
 impl<D: Device> Default for GrowBuffer<D> {
@@ -40,6 +41,16 @@ impl<D: Device> GrowBuffer<D> {
         Self {
             buffer: None,
             capacity: 0,
+            usage: BufferUsage::STORAGE.union(BufferUsage::COPY_DST),
+        }
+    }
+
+    /// An index allocation that does not occupy a shader storage binding.
+    pub(super) const fn index() -> Self {
+        Self {
+            buffer: None,
+            capacity: 0,
+            usage: BufferUsage::INDEX.union(BufferUsage::COPY_DST),
         }
     }
 
@@ -91,7 +102,7 @@ impl<D: Device> GrowBuffer<D> {
         if self.buffer.is_some() && needed <= self.capacity {
             return Ok(false);
         }
-        self.allocate(device, label, needed, Self::storage_usage())
+        self.allocate(device, label, needed, self.usage)
     }
 
     fn allocate(
@@ -112,10 +123,6 @@ impl<D: Device> GrowBuffer<D> {
             usage,
         })?);
         Ok(true)
-    }
-
-    fn storage_usage() -> BufferUsage {
-        BufferUsage::STORAGE.union(BufferUsage::COPY_DST)
     }
 }
 

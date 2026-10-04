@@ -3,7 +3,7 @@
 use super::{FAST_POINT_INDEX_LIMIT, GpuSlot};
 use crate::engine::pipeline_cache::SpecializationKey;
 use crate::scene_gpu::slot_types::{
-    CullDispatch, CullModes, DrawFamily, DrawSpecializations, SlotShading,
+    CullDispatch, CullModes, DrawFamily, DrawSpecializations, RibbonDraw, SlotShading,
 };
 use molgfx_core::RepresentationKind;
 use molgfx_gpu::Device;
@@ -192,7 +192,7 @@ impl<D: Device> GpuSlot<D> {
     pub(in crate::scene_gpu) fn cartoon_draw(
         &self,
         translucent: bool,
-    ) -> Option<(&D::BindGroup, &D::Buffer, SlotShading)> {
+    ) -> Option<RibbonDraw<'_, D>> {
         (self.visible
             && matches!(
                 self.kind,
@@ -205,7 +205,13 @@ impl<D: Device> GpuSlot<D> {
             )
             && self.translucent == translucent)
             .then(|| self.ribbon.draw())?
-            .map(|(group, args)| (group, args, self.shading))
+            .map(|draw| RibbonDraw {
+                group: draw.group,
+                arguments: draw.arguments,
+                indices: draw.indices,
+                shading: self.shading,
+                specialized: None,
+            })
     }
 
     pub(in crate::scene_gpu) fn surface_draw(

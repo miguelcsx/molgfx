@@ -39,3 +39,12 @@ pub struct BufferDesc {
     /// Permitted usages.
     pub usage: BufferUsage,
 }
+
+/// Index encoding for indexed draws and triangle acceleration geometry.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IndexFormat {
+    /// Unsigned 16-bit indices.
+    Uint16,
+    /// Unsigned 32-bit indices.
+    Uint32,
+}

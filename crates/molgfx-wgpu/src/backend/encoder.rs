@@ -228,7 +228,7 @@ impl molgfx_gpu::CommandEncoder<WgpuDevice> for WgpuCommandEncoder {
                         index_format: geometry
                             .size
                             .indices
-                            .map(|indices| super::ray_query::index_format(indices.0)),
+                            .map(|indices| super::convert::index_format(indices.0)),
                         index_count: geometry.size.indices.map(|indices| indices.1),
                         flags: super::ray_query::geometry_flags(geometry.size.flags),
                     })
@@ -340,6 +340,15 @@ impl molgfx_gpu::RenderPassEncoder<WgpuDevice> for WgpuRenderPass<'_> {
 
     fn draw(&mut self, vertices: Range<u32>, instances: Range<u32>) {
         self.pass.draw(vertices, instances);
+    }
+
+    fn set_index_buffer(&mut self, indices: &WgpuBuffer, format: molgfx_gpu::IndexFormat) {
+        self.pass
+            .set_index_buffer(indices.raw.slice(..), super::convert::index_format(format));
+    }
+
+    fn draw_indexed_indirect(&mut self, args: &WgpuBuffer, offset: u64) {
+        self.pass.draw_indexed_indirect(&args.raw, offset);
     }
 
     fn draw_indirect(&mut self, args: &WgpuBuffer, offset: u64) {

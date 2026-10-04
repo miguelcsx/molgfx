@@ -13,6 +13,7 @@ pub(crate) mod exposure_arena;
 mod field_boundary;
 mod generic_visual;
 mod grow_buffer;
+mod indexed_draw;
 mod indirect_arena;
 mod instance_batch_table;
 mod interaction_table;

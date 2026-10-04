@@ -21,16 +21,16 @@ mod timestamp_capture;
 
 pub use capabilities::{Capabilities, CapabilityFlags, RayQueryLimits, TextureFormatCapabilities};
 pub use descriptors::{
-    AabbGeometry, AabbGeometrySize, AccelerationGeometryFlags, AccelerationIndexFormat,
-    AccelerationStructureBinding, AccelerationStructureFlags, AccelerationStructureLayoutEntry,
-    AccelerationStructureUpdateMode, BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc,
-    BindGroupLayoutEntry, BindingType, BlasBuildDesc, BlasDesc, BlasGeometries, BlasGeometrySizes,
-    BlendMode, BufferDesc, BufferUsage, ColorAttachment, ColorTarget, CompareFunction,
-    ComputePassDesc, ComputePipelineDesc, DepthAttachment, DepthLoadOp, DepthState, FilterMode,
-    LoadOp, PrimitiveTopology, RayQueryBindGroupDesc, RayQueryBindGroupLayoutDesc, RenderPassDesc,
-    RenderPipelineDesc, SamplerDesc, ShaderModuleDesc, ShaderStages, TextureDesc, TextureDimension,
-    TextureFormat, TextureUsage, TextureViewDesc, TextureWrite, TimestampWrites, TlasDesc,
-    TlasInstance, TriangleGeometry, TriangleGeometrySize,
+    AabbGeometry, AabbGeometrySize, AccelerationGeometryFlags, AccelerationStructureBinding,
+    AccelerationStructureFlags, AccelerationStructureLayoutEntry, AccelerationStructureUpdateMode,
+    BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType,
+    BlasBuildDesc, BlasDesc, BlasGeometries, BlasGeometrySizes, BlendMode, BufferDesc, BufferUsage,
+    ColorAttachment, ColorTarget, CompareFunction, ComputePassDesc, ComputePipelineDesc,
+    DepthAttachment, DepthLoadOp, DepthState, FilterMode, IndexFormat, LoadOp, PrimitiveTopology,
+    RayQueryBindGroupDesc, RayQueryBindGroupLayoutDesc, RenderPassDesc, RenderPipelineDesc,
+    SamplerDesc, ShaderModuleDesc, ShaderStages, TextureDesc, TextureDimension, TextureFormat,
+    TextureUsage, TextureViewDesc, TextureWrite, TimestampWrites, TlasDesc, TlasInstance,
+    TriangleGeometry, TriangleGeometrySize,
 };
 pub use device::{
     Device, DeviceDesc, Opened, PowerPreference, RayQueryDevice, ResourceMemory, WindowSource,

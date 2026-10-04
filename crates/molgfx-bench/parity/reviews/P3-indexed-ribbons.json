@@ -1,0 +1,549 @@
+{
+  "status": "verified native indexed ribbon/mesh prerequisite; Phase 3.1 tubular helices remain in progress",
+  "owner": "Phase 3.1",
+  "source_before": "7c704104c9649954a8d3944d8da1290a490dff10",
+  "implementation": [
+    "Ribbons and caller meshes bind native Uint32 index buffers and five-word indexed indirect arguments in beauty, transparency and shadow passes. Analytic impostors keep their existing indirect draws.",
+    "One IndexFormat type replaces the acceleration-only index encoding and serves both raster and acceleration geometry. All call sites migrated without an obsolete alias.",
+    "Removing manual WGSL index lookup reduces the ribbon layout from eight to seven vertex storage buffers, leaving room for live fitted-axis poses within baseline WebGPU limits.",
+    "Persistent grow buffers own their binding usage; topology edits reuse native index allocations. No additional frame buffer or per-atom draw submission is introduced.",
+    "The native mesh regression exposed a preexisting incomplete shared bind group. Static meshes now bind every required layout entry and explicitly bypass spline deformation before any recipe read; unused storage entries reuse the resident vertex allocation."
+  ],
+  "complexity": "O(vertices + indices) scene-edit upload; O(1) draw recording per representation. Geometry sampling, physical profiles, immutable coordinates and image quality are unchanged.",
+  "verification": {
+    "directory": "target/indexed-ribbon-verification",
+    "workspace_fmt_clippy_all_targets_all_features_tests": "passed",
+    "wasm_real_target_check_and_clippy": "passed",
+    "python_development_install_ruff_mypy_stubtest": "passed",
+    "python_tests": 79,
+    "wasm_node_contract_tests": 3,
+    "renderer_tests": 433,
+    "native_indexed_mesh_test": "passed",
+    "native_boundary_gradient_categorical_tests": "passed",
+    "repository_policy_checks": "passed",
+    "public_python_real_source_profiles_and_opaque_picks": "passed",
+    "chromium_six_presented_profiles_zero_page_errors": "passed",
+    "web_release_content_key": "73307fba43c58b80"
+  },
+  "regressions": [
+    "scene_gpu::indexed_draw::tests::indexed_arguments_use_the_hardware_five_word_layout_and_reuse_the_allocation",
+    "scene_gpu::grow_buffer::tests::native_indices_use_index_usage_and_reuse_their_resident_allocation",
+    "engine::draw_tests::cartoon_ribbons_share_the_scene_fit_shadow_stream",
+    "engine::draw_tests::mesh_instances_share_one_indirect_draw_per_pass",
+    "engine::draw_tests::vertex_alpha_routes_a_mesh_only_through_transparency",
+    "backend::convert::tests::native_index_formats_preserve_the_element_width",
+    "crates/molgfx-wgpu/tests/gpu_indexed_mesh_tests.rs"
+  ],
+  "visual_review": {
+    "verdict": "All 24 before/after native PNGs are byte-identical; rounded protein view inspected at native capture size. Existing profile reference-engine reviews and their limited checklist scope remain applicable. No golden was replaced or newly blessed.",
+    "comparisons": [
+      {
+        "case": "P3-helix-profile-elliptical-4HHB",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-helix-profile-elliptical-4HHB/molgfx-converged/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-helix-profile-elliptical-4HHB/molgfx-converged/image.png",
+        "sha256": "9b1c0cea6898bf262941bc9e34800392cb3794708303027ae2f8b01b109ecdad"
+      },
+      {
+        "case": "P3-helix-profile-elliptical-4HHB",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-helix-profile-elliptical-4HHB/molgfx-interactive/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-helix-profile-elliptical-4HHB/molgfx-interactive/image.png",
+        "sha256": "018a6e2807252bc367a80c271efdb7aab3cbebb125999f6a3c4a2ca2874eee5b"
+      },
+      {
+        "case": "P3-helix-profile-rounded-4HHB",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-helix-profile-rounded-4HHB/molgfx-converged/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-helix-profile-rounded-4HHB/molgfx-converged/image.png",
+        "sha256": "8bc232769d9d8febf9e4b823de34858170dd921b257278401ac2c451546d6ef2"
+      },
+      {
+        "case": "P3-helix-profile-rounded-4HHB",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-helix-profile-rounded-4HHB/molgfx-interactive/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-helix-profile-rounded-4HHB/molgfx-interactive/image.png",
+        "sha256": "8868c2e3b03d2ed029e6c6179b3665f6d44f5fd5188a1ca9a86097f5b6d421f5"
+      },
+      {
+        "case": "P3-helix-profile-square-4HHB",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-helix-profile-square-4HHB/molgfx-converged/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-helix-profile-square-4HHB/molgfx-converged/image.png",
+        "sha256": "357cbf9d854de556886e32f6ca3486d1d3c3d641ac518fc40e23e27e4f7ccd16"
+      },
+      {
+        "case": "P3-helix-profile-square-4HHB",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-helix-profile-square-4HHB/molgfx-interactive/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-helix-profile-square-4HHB/molgfx-interactive/image.png",
+        "sha256": "5a1fa190ceefd8664c60ed8a3c24124f609e67c1bc32fd9728b83e7ecdec45ef"
+      },
+      {
+        "case": "P3-nucleic-profile-elliptical-1BNA",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-nucleic-profile-elliptical-1BNA/molgfx-converged/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-nucleic-profile-elliptical-1BNA/molgfx-converged/image.png",
+        "sha256": "0d8ac300bb99931fc23df7499180f3778c5c9044dca6e7e1007af7d7221802b7"
+      },
+      {
+        "case": "P3-nucleic-profile-elliptical-1BNA",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-nucleic-profile-elliptical-1BNA/molgfx-interactive/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-nucleic-profile-elliptical-1BNA/molgfx-interactive/image.png",
+        "sha256": "914fe06246909e41a7deffa1380283dbab89dee40e14d5ed0e0dcf8c7482f285"
+      },
+      {
+        "case": "P3-nucleic-profile-rounded-1BNA",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-nucleic-profile-rounded-1BNA/molgfx-converged/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-nucleic-profile-rounded-1BNA/molgfx-converged/image.png",
+        "sha256": "2bc46feb7f433cf92fad4fd90ffc183639fba3882c87fdba204e65fccdfc5bf0"
+      },
+      {
+        "case": "P3-nucleic-profile-rounded-1BNA",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-nucleic-profile-rounded-1BNA/molgfx-interactive/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-nucleic-profile-rounded-1BNA/molgfx-interactive/image.png",
+        "sha256": "89f9f4f27923d30c3b48117833b19acc543efc432a3aad933e8c7f1968ba310a"
+      },
+      {
+        "case": "P3-nucleic-profile-square-1BNA",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-nucleic-profile-square-1BNA/molgfx-converged/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-nucleic-profile-square-1BNA/molgfx-converged/image.png",
+        "sha256": "3ba75b0f3f1ff928553255d0ffb4acc4139feabc86dbffd306f32450bf8a5b07"
+      },
+      {
+        "case": "P3-nucleic-profile-square-1BNA",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-nucleic-profile-square-1BNA/molgfx-interactive/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-nucleic-profile-square-1BNA/molgfx-interactive/image.png",
+        "sha256": "a7e16925bbdce6878da342ea7f4214eff3fa2e109647ef9c02f22658ad4f466c"
+      },
+      {
+        "case": "P3-cartoon-arrows-1IGT",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-cartoon-arrows-1IGT/molgfx-converged/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-cartoon-arrows-1IGT/molgfx-converged/image.png",
+        "sha256": "f6d1dce3df96883ef749cd3427426eaab2fda43e8dac9b1857a278dfd50dbe2f"
+      },
+      {
+        "case": "P3-cartoon-arrows-1IGT",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-cartoon-arrows-1IGT/molgfx-interactive/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-cartoon-arrows-1IGT/molgfx-interactive/image.png",
+        "sha256": "76ed50e415f55d3eef009b9a3bbe95b2044fbc450a03040a7ef319d50cdd74bb"
+      },
+      {
+        "case": "P3-cartoon-aspect-4HHB",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-cartoon-aspect-4HHB/molgfx-converged/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-cartoon-aspect-4HHB/molgfx-converged/image.png",
+        "sha256": "c130ef98287b6869ab0e6e92ffcae24639a654f3d8ed6300259858eb72afeab9"
+      },
+      {
+        "case": "P3-cartoon-aspect-4HHB",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/P3-cartoon-aspect-4HHB/molgfx-interactive/image.png",
+        "after": "target/indexed-ribbon-gallery/after/P3-cartoon-aspect-4HHB/molgfx-interactive/image.png",
+        "sha256": "79fdeccde5d2e029ebefa36637009edcfa2ea8ba09af18b488bb99b896487576"
+      },
+      {
+        "case": "B-cartoon-4HHB",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/B-cartoon-4HHB/molgfx-converged/image.png",
+        "after": "target/indexed-ribbon-gallery/after/B-cartoon-4HHB/molgfx-converged/image.png",
+        "sha256": "9b1c0cea6898bf262941bc9e34800392cb3794708303027ae2f8b01b109ecdad"
+      },
+      {
+        "case": "B-cartoon-4HHB",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/B-cartoon-4HHB/molgfx-interactive/image.png",
+        "after": "target/indexed-ribbon-gallery/after/B-cartoon-4HHB/molgfx-interactive/image.png",
+        "sha256": "018a6e2807252bc367a80c271efdb7aab3cbebb125999f6a3c4a2ca2874eee5b"
+      },
+      {
+        "case": "B-putty-bfactor-4HHB",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/B-putty-bfactor-4HHB/molgfx-converged/image.png",
+        "after": "target/indexed-ribbon-gallery/after/B-putty-bfactor-4HHB/molgfx-converged/image.png",
+        "sha256": "0e1eaa6422d965e04f640ee8a181355fb2eb73222343127b1d6659c07b44a63d"
+      },
+      {
+        "case": "B-putty-bfactor-4HHB",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/B-putty-bfactor-4HHB/molgfx-interactive/image.png",
+        "after": "target/indexed-ribbon-gallery/after/B-putty-bfactor-4HHB/molgfx-interactive/image.png",
+        "sha256": "812137371a1a261e439fab5712d31d044297c7031201f2efd697f47d6b058b1c"
+      },
+      {
+        "case": "B-tube-1AON",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/B-tube-1AON/molgfx-converged/image.png",
+        "after": "target/indexed-ribbon-gallery/after/B-tube-1AON/molgfx-converged/image.png",
+        "sha256": "00aab4bf64527f7c38353d12fb82669409fb38e7210f0a07a2b24f97cb210b01"
+      },
+      {
+        "case": "B-tube-1AON",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/B-tube-1AON/molgfx-interactive/image.png",
+        "after": "target/indexed-ribbon-gallery/after/B-tube-1AON/molgfx-interactive/image.png",
+        "sha256": "84606f1b5fc4a65e4b9e2d875c4a720611a03e4392acd183f23c16430abe4257"
+      },
+      {
+        "case": "B-trace-1AON",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/B-trace-1AON/molgfx-converged/image.png",
+        "after": "target/indexed-ribbon-gallery/after/B-trace-1AON/molgfx-converged/image.png",
+        "sha256": "00aab4bf64527f7c38353d12fb82669409fb38e7210f0a07a2b24f97cb210b01"
+      },
+      {
+        "case": "B-trace-1AON",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/indexed-ribbon-gallery/before/B-trace-1AON/molgfx-interactive/image.png",
+        "after": "target/indexed-ribbon-gallery/after/B-trace-1AON/molgfx-interactive/image.png",
+        "sha256": "84606f1b5fc4a65e4b9e2d875c4a720611a03e4392acd183f23c16430abe4257"
+      }
+    ],
+    "prior_reviews": [
+      "crates/molgfx-bench/parity/reviews/P3-cartoon-profiles.json",
+      "crates/molgfx-bench/parity/reviews/P3-cartoon-shape.json"
+    ]
+  },
+  "measurements": {
+    "scope": "Paired release runs of the same elliptical 4HHB scene, 768x768, fixed High interactive quality, zero orbit, 120 warmup outputs and 1200 measured outputs per process. Three before/after pairs run sequentially after this task\u2019s compilers and GPU consumers finished. Workstation background activity and frequency variation remain possible; load snapshots retained with raw results.",
+    "quality": {
+      "adaptive": false,
+      "complete": false,
+      "extent": [
+        768,
+        768
+      ],
+      "full_residency": true,
+      "illumination_bounces": 0,
+      "lighting": {
+        "diffuse_strength": 0.6200000047683716,
+        "fill_color": {
+          "a": 255,
+          "b": 226,
+          "g": 214,
+          "r": 206
+        },
+        "fill_direction": [
+          0.7799999713897705,
+          -0.11999999731779099,
+          0.5
+        ],
+        "fill_strength": 0.30000001192092896,
+        "ground": {
+          "a": 255,
+          "b": 141,
+          "g": 146,
+          "r": 150
+        },
+        "horizon": {
+          "a": 255,
+          "b": 202,
+          "g": 194,
+          "r": 188
+        },
+        "key_angular_radius": 0.20000000298023224,
+        "key_color": {
+          "a": 255,
+          "b": 230,
+          "g": 244,
+          "r": 255
+        },
+        "key_direction": [
+          -0.41999998688697815,
+          0.5799999833106995,
+          0.699999988079071
+        ],
+        "key_strength": 1.350000023841858,
+        "rim_color": {
+          "a": 255,
+          "b": 152,
+          "g": 132,
+          "r": 120
+        },
+        "rim_strength": 0.1599999964237213,
+        "shadow_strength": 0.6600000262260437,
+        "specular_strength": 0.7200000286102295,
+        "zenith": {
+          "a": 255,
+          "b": 240,
+          "g": 232,
+          "r": 226
+        }
+      },
+      "lod_mode_max": 0,
+      "occlusion_rays_per_sample": 2,
+      "progressive": true,
+      "ribbon_steps_max": 8,
+      "samples_completed": 1,
+      "samples_required": 1,
+      "samples_submitted": 1,
+      "surface_limit": "none",
+      "surface_spacing_effective": null,
+      "surface_spacing_requested": 0.25,
+      "tier": "high"
+    },
+    "quality_identical_in_every_output_and_trial": true,
+    "trials": [
+      {
+        "variant": "before",
+        "trial": 1,
+        "raw": "target/indexed-ribbon-measurements/before-1.jsonl",
+        "p50_ns": 1130833,
+        "p95_ns": 1209917,
+        "p99_ns": 1298708,
+        "serial_completed_outputs_per_second": 877.7988214927584,
+        "summary": {
+          "cpu_median_ns": 139792,
+          "cpu_p95_ns": 175917,
+          "cpu_p99_ns": 239250,
+          "frame_median_ns": 1130833,
+          "frame_p95_ns": 1209917,
+          "frame_p99_ns": 1298708,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 20,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "top_resolved_pass_medians_ns": {
+          "cartoon ribbons": 386313.0,
+          "HDR tonemap": 282917.0,
+          "temporal HDR resolve": 229000.0,
+          "HDR deferred lighting": 202542.0,
+          "clear categorical segment ids": 195687.5
+        },
+        "global_gpu_resolved_count": 0
+      },
+      {
+        "variant": "after",
+        "trial": 1,
+        "raw": "target/indexed-ribbon-measurements/after-1.jsonl",
+        "p50_ns": 958166,
+        "p95_ns": 1031625,
+        "p99_ns": 1110333,
+        "serial_completed_outputs_per_second": 1034.2022161131572,
+        "summary": {
+          "cpu_median_ns": 137209,
+          "cpu_p95_ns": 161042,
+          "cpu_p99_ns": 216500,
+          "frame_median_ns": 958166,
+          "frame_p95_ns": 1031625,
+          "frame_p99_ns": 1110333,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "top_resolved_pass_medians_ns": {
+          "HDR tonemap": 374667.0,
+          "temporal HDR resolve": 294645.5,
+          "HDR deferred lighting": 247708.5,
+          "occlusion denoise": 213875.0,
+          "cartoon ribbons": 194375.0
+        },
+        "global_gpu_resolved_count": 0
+      },
+      {
+        "variant": "before",
+        "trial": 2,
+        "raw": "target/indexed-ribbon-measurements/before-2.jsonl",
+        "p50_ns": 1118166,
+        "p95_ns": 1191417,
+        "p99_ns": 1241833,
+        "serial_completed_outputs_per_second": 891.9818087208104,
+        "summary": {
+          "cpu_median_ns": 137875,
+          "cpu_p95_ns": 163292,
+          "cpu_p99_ns": 201333,
+          "frame_median_ns": 1118166,
+          "frame_p95_ns": 1191417,
+          "frame_p99_ns": 1241833,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 20,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "top_resolved_pass_medians_ns": {
+          "cartoon ribbons": 386709.0,
+          "HDR tonemap": 284375.0,
+          "temporal HDR resolve": 230729.5,
+          "HDR deferred lighting": 203208.0,
+          "clear categorical segment ids": 193500.5
+        },
+        "global_gpu_resolved_count": 0
+      },
+      {
+        "variant": "after",
+        "trial": 2,
+        "raw": "target/indexed-ribbon-measurements/after-2.jsonl",
+        "p50_ns": 1142083,
+        "p95_ns": 1321375,
+        "p99_ns": 2080542,
+        "serial_completed_outputs_per_second": 853.6528395804551,
+        "summary": {
+          "cpu_median_ns": 140042,
+          "cpu_p95_ns": 180041,
+          "cpu_p99_ns": 227959,
+          "frame_median_ns": 1142083,
+          "frame_p95_ns": 1321375,
+          "frame_p99_ns": 2080542,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "top_resolved_pass_medians_ns": {
+          "HDR tonemap": 508375.0,
+          "temporal HDR resolve": 399625.0,
+          "HDR deferred lighting": 346416.5,
+          "clear categorical segment ids": 339104.5,
+          "occlusion denoise": 300458.0
+        },
+        "global_gpu_resolved_count": 0
+      },
+      {
+        "variant": "before",
+        "trial": 3,
+        "raw": "target/indexed-ribbon-measurements/before-3.jsonl",
+        "p50_ns": 1130333,
+        "p95_ns": 2498875,
+        "p99_ns": 3384417,
+        "serial_completed_outputs_per_second": 802.9381288657845,
+        "summary": {
+          "cpu_median_ns": 137834,
+          "cpu_p95_ns": 158291,
+          "cpu_p99_ns": 225542,
+          "frame_median_ns": 1130333,
+          "frame_p95_ns": 2498875,
+          "frame_p99_ns": 3384417,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 20,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "top_resolved_pass_medians_ns": {
+          "cartoon ribbons": 387562.5,
+          "HDR tonemap": 284333.0,
+          "temporal HDR resolve": 230645.5,
+          "HDR deferred lighting": 203875.0,
+          "clear categorical segment ids": 193938.0
+        },
+        "global_gpu_resolved_count": 0
+      },
+      {
+        "variant": "after",
+        "trial": 3,
+        "raw": "target/indexed-ribbon-measurements/after-3.jsonl",
+        "p50_ns": 1135917,
+        "p95_ns": 1350291,
+        "p99_ns": 2083000,
+        "serial_completed_outputs_per_second": 873.1089534174888,
+        "summary": {
+          "cpu_median_ns": 138000,
+          "cpu_p95_ns": 162625,
+          "cpu_p99_ns": 198625,
+          "frame_median_ns": 1135917,
+          "frame_p95_ns": 1350291,
+          "frame_p99_ns": 2083000,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "top_resolved_pass_medians_ns": {
+          "HDR tonemap": 505625.0,
+          "temporal HDR resolve": 396854.5,
+          "HDR deferred lighting": 333229.5,
+          "occlusion denoise": 287104.0,
+          "cartoon ribbons": 262000.0
+        },
+        "global_gpu_resolved_count": 0
+      }
+    ],
+    "interpretation": "Resolved cartoon pass medians decrease in every pair (386313/386709/387562.5 ns to 194375/262062.5/262000 ns). Whole-output p50 does not improve consistently; shadow timing and tail latency vary. Retained as a baseline-WebGPU architectural prerequisite and actual mesh correctness fix, not a demonstrated end-to-end speedup or Phase 9 ladder result. Global GPU envelope remains unresolved/stale; individual pass timings may overlap and are not summed. Heap allocation remains 226 allocations and 20 reallocations per output."
+  },
+  "remaining": [
+    "Tubular helices require fitted MolFrame axes, live-coordinate pose updates, all public surfaces and their own reviewed gallery case.",
+    "Transparent mesh click picking remains absent in the preexisting OIT stream; the regression proves opaque mesh identity and translucent beauty/alpha only. Phase 8 must close exact transparent-family coverage.",
+    "Full representation fidelity and temporal edge quality remain open; this prerequisite does not certify full Phase 3.1 or Phase 7.",
+    "Phase 9 L1-L8 quality, browser, memory and zero steady-state allocation gates remain open."
+  ]
+}

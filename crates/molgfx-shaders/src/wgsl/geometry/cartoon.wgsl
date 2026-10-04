@@ -18,9 +18,8 @@ const MAX_CLIP_PLANES: u32 = 4u;
 // shifted right by three is its sample — the curve parameter along the ribbon.
 const PROFILE_SIDES_SHIFT: u32 = 3u;
 
-// The ribbon mesh is pulled from storage rather than fed as vertex-buffer
-// attributes: the engine draws by vertex index into these buffers, so the same
-// indirect, meshless draw path serves ribbons as serves impostors.
+// Native indices select the shared storage vertex records, including their
+// spline deformation recipes and picking identity.
 struct RibbonVertex {
     position: vec3f,
     entity_id: u32,
@@ -31,7 +30,6 @@ struct RibbonVertex {
 //!include "include/ribbon/deform.wgsl"
 
 @group(2) @binding(0) var<storage, read> ribbon_vertices: array<RibbonVertex>;
-@group(2) @binding(1) var<storage, read> ribbon_indices: array<u32>;
 
 struct ModelUniforms {
     model_to_world: mat4x4f,
@@ -220,14 +218,8 @@ fn cartoon_clip_distances(
 
 @vertex
 fn vs_cartoon(
-    @builtin(vertex_index) draw_index: u32,
+    @builtin(vertex_index) vertex_id: u32,
 ) -> CartoonVsOut {
-    // Manual indexed fetch: the draw index addresses the index buffer, which
-    // names the original vertex. That original index carries the ring layout,
-    // so its high bits are the spline sample used as the curve parameter.
-    let vertex_id =
-        ribbon_indices[draw_index];
-
     let vertex =
         ribbon_vertices[vertex_id];
 

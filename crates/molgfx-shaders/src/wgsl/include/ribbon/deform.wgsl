@@ -144,6 +144,9 @@ fn ribbon_deform(
     base_normal: vec3f,
     previous: bool,
 ) -> DeformedRibbonVertex {
+    if ribbon_uniforms.tube.w == 0.0 {
+        return DeformedRibbonVertex(vec3f(0.0), vec3f(0.0), 0u);
+    }
     let deformation = ribbon_deformations[vertex_id];
     if deformation.controls.x == 0xffffffffu {
         return DeformedRibbonVertex(vec3f(0.0), vec3f(0.0), 0u);

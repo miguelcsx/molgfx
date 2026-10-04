@@ -1,8 +1,9 @@
 //! Persistent GPU storage for one cartoon representation slot.
 
 use super::asset_arena::AssetArena;
-use super::buffers::{count, write_draw_args};
+use super::buffers::count;
 use super::grow_buffer::GrowBuffer;
+use super::indexed_draw::{IndexedDraw, write_arguments};
 use super::structure::GpuStructure;
 use super::uniforms::ClipUniforms;
 use super::visual::VisualCullEntries;
@@ -29,7 +30,7 @@ impl<D: Device> RibbonSlot<D> {
     pub(super) fn new() -> Self {
         Self {
             vertices: GrowBuffer::new(),
-            indices: GrowBuffer::new(),
+            indices: GrowBuffer::index(),
             deformations: GrowBuffer::new(),
             radius_sources: GrowBuffer::new(),
             args: None,
@@ -66,12 +67,11 @@ impl<D: Device> RibbonSlot<D> {
             "cartoon guide radius sources",
             input.mesh.radius_source_values(),
         )?;
-        write_draw_args(
+        write_arguments(
             input.device,
             input.queue,
             "cartoon draw arguments",
             self.index_count,
-            u32::from(self.index_count > 0),
             &mut self.args,
         )?;
         self.sync_clipping(input.device, input.queue, input.representation)?;
@@ -114,7 +114,6 @@ impl<D: Device> RibbonSlot<D> {
     ) {
         let (
             Some(vertices),
-            Some(indices),
             Some(model),
             Some(clipping),
             Some(deformations),
@@ -122,7 +121,6 @@ impl<D: Device> RibbonSlot<D> {
             Some(visual),
         ) = (
             self.vertices.get(),
-            self.indices.get(),
             &structure.model,
             &self.clipping,
             self.deformations.get(),
@@ -139,10 +137,6 @@ impl<D: Device> RibbonSlot<D> {
                 BindGroupEntry::Buffer {
                     binding: 0,
                     buffer: vertices,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 1,
-                    buffer: indices,
                 },
                 BindGroupEntry::Buffer {
                     binding: 2,
@@ -187,8 +181,12 @@ impl<D: Device> RibbonSlot<D> {
         }));
     }
 
-    pub(super) fn draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
-        (self.index_count > 0).then_some((self.group.as_ref()?, self.args.as_ref()?))
+    pub(super) fn draw(&self) -> Option<IndexedDraw<'_, D>> {
+        (self.index_count > 0).then_some(IndexedDraw {
+            group: self.group.as_ref()?,
+            arguments: self.args.as_ref()?,
+            indices: self.indices.get()?,
+        })
     }
 }
 

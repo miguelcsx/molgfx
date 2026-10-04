@@ -111,7 +111,7 @@ fn putty_uses_one_persistent_guide_buffer_and_indirect_render_path() {
         "mapping changes update uniforms without rebuilding the source stream"
     );
     assert_eq!(
-        engine.device.log.indirect_draws.lock().map_or_else(
+        engine.device.log.indexed_draws.lock().map_or_else(
             |error| panic!("draw log locks: {error}"),
             |draws| draws.len()
         ),

@@ -40,6 +40,10 @@ pub(crate) struct MockLog {
     pub draws: Mutex<Vec<(Range<u32>, Range<u32>)>>,
     /// Indirect draws: (args buffer id, offset).
     pub indirect_draws: Mutex<Vec<(u32, u64)>>,
+    /// Bound native index buffers and their element encoding.
+    pub index_buffers: Mutex<Vec<(u32, molgfx_gpu::IndexFormat)>>,
+    /// Native indexed indirect submissions.
+    pub indexed_draws: Mutex<Vec<(u32, u64)>>,
     /// Compute dispatches.
     pub dispatches: Mutex<Vec<(u32, u32, u32)>>,
     /// Compute passes in command-recording order.
@@ -90,6 +94,8 @@ impl Default for MockLog {
             texture_copies: Mutex::default(),
             draws: Mutex::default(),
             indirect_draws: Mutex::default(),
+            index_buffers: Mutex::default(),
+            indexed_draws: Mutex::default(),
             dispatches: Mutex::default(),
             compute_passes: Mutex::default(),
             textures: Mutex::default(),

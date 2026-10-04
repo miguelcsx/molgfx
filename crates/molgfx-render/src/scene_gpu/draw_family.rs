@@ -115,12 +115,13 @@ pub(crate) type DrawArgs<'a, D> = (
 
 /// One ribbon draw: its bind group, its argument buffer, the shading it needs
 /// and the generated pipeline its family resolved to.
-pub(crate) type RibbonDraw<'a, D> = (
-    &'a <D as Device>::BindGroup,
-    &'a <D as Device>::Buffer,
-    SlotShading,
-    Option<&'a <D as Device>::Pipeline>,
-);
+pub(crate) struct RibbonDraw<'a, D: Device> {
+    pub(crate) group: &'a D::BindGroup,
+    pub(crate) arguments: &'a D::Buffer,
+    pub(crate) indices: &'a D::Buffer,
+    pub(crate) shading: SlotShading,
+    pub(crate) specialized: Option<&'a D::Pipeline>,
+}
 
 pub(crate) type QualityDraw<'a, D> = (
     &'a <D as Device>::BindGroup,

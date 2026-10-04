@@ -59,3 +59,31 @@ fn rounding_up_never_exceeds_the_device_limit() {
     };
     assert!((1_500..=2_000).contains(&capacity), "capacity {capacity}");
 }
+
+#[test]
+fn native_indices_use_index_usage_and_reuse_their_resident_allocation() {
+    use crate::testing::MockDevice;
+    use molgfx_gpu::BufferUsage;
+    let device = MockDevice::default();
+    let queue = device.queue();
+    let mut buffer = super::GrowBuffer::index();
+    assert!(
+        buffer
+            .upload(&device, &queue, "indices", &[0_u32, 1, 2])
+            .expect("first upload")
+    );
+    let resident = buffer.get().expect("index buffer exists");
+    assert!(
+        resident
+            .usage
+            .contains(BufferUsage::INDEX | BufferUsage::COPY_DST)
+    );
+    assert!(!resident.usage.contains(BufferUsage::STORAGE));
+    let id = resident.id;
+    assert!(
+        !buffer
+            .upload(&device, &queue, "indices", &[2_u32, 1, 0])
+            .expect("replacement topology")
+    );
+    assert_eq!(buffer.get().expect("index buffer persists").id, id);
+}

@@ -124,6 +124,16 @@ impl molgfx_gpu::RenderPassEncoder<MockDevice> for MockPass<'_> {
             draws.push((vertices, instances));
         }
     }
+    fn set_index_buffer(&mut self, indices: &MockBuffer, format: molgfx_gpu::IndexFormat) {
+        if let Ok(mut bindings) = self.log.index_buffers.lock() {
+            bindings.push((indices.id, format));
+        }
+    }
+    fn draw_indexed_indirect(&mut self, args: &MockBuffer, offset: u64) {
+        if let Ok(mut draws) = self.log.indexed_draws.lock() {
+            draws.push((args.id, offset));
+        }
+    }
     fn draw_indirect(&mut self, args: &MockBuffer, offset: u64) {
         if let Ok(mut indirect) = self.log.indirect_draws.lock() {
             indirect.push((args.id, offset));

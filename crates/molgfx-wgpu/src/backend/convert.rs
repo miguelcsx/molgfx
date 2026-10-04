@@ -232,3 +232,10 @@ pub(crate) fn depth_load(load: DepthLoadOp) -> wgpu::LoadOp<f32> {
         DepthLoadOp::Load => wgpu::LoadOp::Load,
     }
 }
+
+pub(crate) fn index_format(format: molgfx_gpu::IndexFormat) -> wgpu::IndexFormat {
+    match format {
+        molgfx_gpu::IndexFormat::Uint16 => wgpu::IndexFormat::Uint16,
+        molgfx_gpu::IndexFormat::Uint32 => wgpu::IndexFormat::Uint32,
+    }
+}

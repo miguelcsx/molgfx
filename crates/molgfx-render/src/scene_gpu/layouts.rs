@@ -325,7 +325,6 @@ pub(super) fn cartoon_layout<D: Device>(device: &D) -> D::BindGroupLayout {
         label: "group2: cartoon representation",
         entries: &[
             storage(0),
-            storage(1),
             BindGroupLayoutEntry {
                 binding: 2,
                 // The model transform is used per vertex and the structure id

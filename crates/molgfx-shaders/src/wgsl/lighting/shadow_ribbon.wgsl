@@ -1,11 +1,6 @@
 // Depth-only cartoon-ribbon shadow caster.
 //
-// The atom and primitive shadow casters share one module built on the atom
-// bindings, which claim the storage slots a ribbon needs for its vertex and
-// index buffers. The ribbon therefore casts from its own module: it pulls the
-// mesh from storage by vertex index, matching the engine's meshless indirect
-// draw path instead of the fixed-function vertex-buffer path the hardware
-// abstraction does not expose.
+// Shared ribbon records and native indices preserve the beauty pass topology.
 
 //!include "include/camera.wgsl"
 
@@ -18,8 +13,7 @@ struct ShadowRibbonModel {
     pick_pages_c: vec4u,
 }
 
-// Eight cross-section vertices per spline sample; the same 32-byte record the
-// cartoon pass draws, shared through one bind group.
+// The same 32-byte vertex record and bind group used by the cartoon pass.
 struct ShadowRibbonVertex {
     position: vec3f,
     entity_id: u32,
@@ -30,7 +24,6 @@ struct ShadowRibbonVertex {
 //!include "include/ribbon/deform.wgsl"
 
 @group(2) @binding(0) var<storage, read> shadow_ribbon_vertices: array<ShadowRibbonVertex>;
-@group(2) @binding(1) var<storage, read> shadow_ribbon_indices: array<u32>;
 @group(2) @binding(2) var<uniform> shadow_ribbon_model: ShadowRibbonModel;
 
 //!include "include/visual/ribbon_shadow.wgsl"
@@ -46,9 +39,8 @@ struct ShadowRibbonOut {
 
 @vertex
 fn vs_shadow_ribbon(
-    @builtin(vertex_index) draw_index: u32,
+    @builtin(vertex_index) vertex_id: u32,
 ) -> ShadowRibbonOut {
-    let vertex_id = shadow_ribbon_indices[draw_index];
     let vertex = shadow_ribbon_vertices[vertex_id];
     let dynamic = ribbon_deform(vertex_id, vertex.position, vertex.normal, false);
     let position = select(vertex.position, dynamic.position, dynamic.enabled != 0u)

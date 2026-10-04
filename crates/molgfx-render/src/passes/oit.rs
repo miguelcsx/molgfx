@@ -311,17 +311,18 @@ fn record<D: Device>(ctx: &mut PassContext<'_, D>, primitive: Primitive) {
         }
         Primitive::Cartoons => {
             let mut bound = None;
-            for (group, args, shading, _) in ctx
+            for draw in ctx
                 .scene
                 .cartoon_draws(true, DrawFamily::Cartoon)
                 .chain(ctx.scene.mesh_draws(true))
             {
-                if bound != Some(shading) {
-                    pass.set_pipeline(oit_pass.cartoon.get(shading));
-                    bound = Some(shading);
+                if bound != Some(draw.shading) {
+                    pass.set_pipeline(oit_pass.cartoon.get(draw.shading));
+                    bound = Some(draw.shading);
                 }
-                pass.set_bind_group(2, group, &[]);
-                pass.draw_indirect(args, 0);
+                pass.set_bind_group(2, draw.group, &[]);
+                pass.set_index_buffer(draw.indices, molgfx_gpu::IndexFormat::Uint32);
+                pass.draw_indexed_indirect(draw.arguments, 0);
             }
         }
         Primitive::Surfaces => record_surfaces(oit_pass, ctx.scene, &mut pass),

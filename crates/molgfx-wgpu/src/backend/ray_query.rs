@@ -2,9 +2,9 @@
 
 use super::device::WgpuDevice;
 use molgfx_gpu::{
-    AccelerationIndexFormat, AccelerationStructureFlags, AccelerationStructureUpdateMode,
-    BindGroupEntry, BlasDesc, BlasGeometrySizes, GpuError, RayQueryBindGroupDesc,
-    RayQueryBindGroupLayoutDesc, RayQueryLimits, TlasDesc, TlasInstance,
+    AccelerationStructureFlags, AccelerationStructureUpdateMode, BindGroupEntry, BlasDesc,
+    BlasGeometrySizes, GpuError, RayQueryBindGroupDesc, RayQueryBindGroupLayoutDesc,
+    RayQueryLimits, TlasDesc, TlasInstance,
 };
 
 pub(super) fn require_capability(capabilities: &molgfx_gpu::Capabilities) -> Result<(), GpuError> {
@@ -62,13 +62,6 @@ pub(super) fn geometry_flags(
     }
 }
 
-pub(super) fn index_format(format: AccelerationIndexFormat) -> wgpu::IndexFormat {
-    match format {
-        AccelerationIndexFormat::Uint16 => wgpu::IndexFormat::Uint16,
-        AccelerationIndexFormat::Uint32 => wgpu::IndexFormat::Uint32,
-    }
-}
-
 impl WgpuDevice {
     pub(super) fn ray_query_limits_impl(&self) -> Result<RayQueryLimits, GpuError> {
         self.require_ray_query()?;
@@ -91,7 +84,9 @@ impl WgpuDevice {
                         .map(|geometry| wgpu::BlasTriangleGeometrySizeDescriptor {
                             vertex_format: wgpu::VertexFormat::Float32x3,
                             vertex_count: geometry.vertex_count,
-                            index_format: geometry.indices.map(|indices| index_format(indices.0)),
+                            index_format: geometry
+                                .indices
+                                .map(|indices| super::convert::index_format(indices.0)),
                             index_count: geometry.indices.map(|indices| indices.1),
                             flags: geometry_flags(geometry.flags),
                         })

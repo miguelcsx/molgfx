@@ -67,3 +67,15 @@ fn reversed_depth_comparison_maps_to_greater_equal() {
         wgpu::CompareFunction::GreaterEqual
     );
 }
+
+#[test]
+fn native_index_formats_preserve_the_element_width() {
+    assert_eq!(
+        super::index_format(molgfx_gpu::IndexFormat::Uint16),
+        wgpu::IndexFormat::Uint16
+    );
+    assert_eq!(
+        super::index_format(molgfx_gpu::IndexFormat::Uint32),
+        wgpu::IndexFormat::Uint32
+    );
+}

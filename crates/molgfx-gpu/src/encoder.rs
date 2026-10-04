@@ -129,6 +129,12 @@ pub trait RenderPassEncoder<D: Device> {
     /// 3 material), with dynamic offsets where the layout declared them.
     fn set_bind_group(&mut self, index: u32, group: &D::BindGroup, dynamic_offsets: &[u32]);
 
+    /// Binds the complete index buffer for subsequent indexed draws.
+    fn set_index_buffer(&mut self, indices: &D::Buffer, format: crate::IndexFormat);
+
+    /// Records an indexed draw from the five-field indirect argument record.
+    fn draw_indexed_indirect(&mut self, args: &D::Buffer, offset: u64);
+
     /// Direct draw; used only for fullscreen passes whose vertex count is a
     /// constant, never per scene primitive.
     fn draw(&mut self, vertices: Range<u32>, instances: Range<u32>);

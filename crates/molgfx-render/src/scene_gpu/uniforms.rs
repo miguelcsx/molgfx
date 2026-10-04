@@ -394,7 +394,8 @@ impl ClipUniforms {
                 representation.params.tube_radius.abs().max(1.0e-6),
                 0.0,
                 0.0,
-                0.0,
+                // Generated ribbons own deformation recipes; static meshes do not.
+                1.0,
             ],
         };
         if matches!(

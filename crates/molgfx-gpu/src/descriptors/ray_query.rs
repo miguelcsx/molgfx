@@ -1,6 +1,6 @@
 //! Backend-neutral acceleration-structure descriptors.
 
-use crate::Device;
+use crate::{Device, IndexFormat};
 
 bitflags::bitflags! {
     /// Construction preferences for a BLAS or TLAS.
@@ -36,22 +36,13 @@ pub enum AccelerationStructureUpdateMode {
     PreferUpdate,
 }
 
-/// Index encoding for triangle BLAS geometry.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum AccelerationIndexFormat {
-    /// Unsigned 16-bit indices.
-    Uint16,
-    /// Unsigned 32-bit indices.
-    Uint32,
-}
-
 /// Size ceiling for one triangle geometry in a BLAS.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TriangleGeometrySize {
     /// Maximum vertex count.
     pub vertex_count: u32,
     /// Optional index format and maximum index count.
-    pub indices: Option<(AccelerationIndexFormat, u32)>,
+    pub indices: Option<(IndexFormat, u32)>,
     /// Geometry behavior.
     pub flags: AccelerationGeometryFlags,
 }
@@ -112,7 +103,7 @@ pub struct TriangleGeometry<'a, D: Device> {
     /// Byte stride between vertices.
     pub vertex_stride: u64,
     /// Optional index buffer, first index and format.
-    pub indices: Option<(&'a D::Buffer, u32, AccelerationIndexFormat)>,
+    pub indices: Option<(&'a D::Buffer, u32, IndexFormat)>,
 }
 
 /// Procedural AABB geometry supplied to one BLAS build.

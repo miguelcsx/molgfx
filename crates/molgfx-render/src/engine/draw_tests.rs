@@ -191,7 +191,7 @@ fn mesh_instances_share_one_indirect_draw_per_pass() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("instanced mesh renders: {error}")
     }
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
+    let Ok(draws) = engine.device.log.indexed_draws.lock() else {
         panic!("log lock")
     };
     assert_eq!(draws.len(), 2, "shadow and beauty each consume one batch");
@@ -228,7 +228,7 @@ fn vertex_alpha_routes_a_mesh_only_through_transparency() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("alpha mesh renders: {error}")
     }
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
+    let Ok(draws) = engine.device.log.indexed_draws.lock() else {
         panic!("log lock")
     };
     assert_eq!(
@@ -253,13 +253,39 @@ fn cartoon_ribbons_share_the_scene_fit_shadow_stream() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("frame renders: {error}")
     }
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
+    let Ok(draws) = engine.device.log.indexed_draws.lock() else {
         panic!("log lock")
     };
     assert_eq!(
         draws.len(),
         2,
         "ribbon shadow and beauty passes are indirect"
+    );
+    let bindings = engine
+        .device
+        .log
+        .index_buffers
+        .lock()
+        .expect("index bindings recorded");
+    assert_eq!(bindings.len(), 2);
+    assert_eq!(
+        bindings[0], bindings[1],
+        "beauty and shadows share topology"
+    );
+    assert_eq!(bindings[0].1, molgfx_gpu::IndexFormat::Uint32);
+    let layouts = engine
+        .device
+        .log
+        .bind_group_layouts
+        .lock()
+        .expect("layouts recorded");
+    let (_, counts) = layouts
+        .iter()
+        .find(|(label, _)| *label == "group2: cartoon representation")
+        .expect("cartoon layout exists");
+    assert_eq!(
+        counts[0], 7,
+        "native indices leave room for a live pose buffer on baseline WebGPU"
     );
 }
 

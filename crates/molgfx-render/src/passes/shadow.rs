@@ -276,20 +276,21 @@ fn record_analytic_casters<D: Device, P: RenderPassEncoder<D>>(
         }
     }
     bound = None;
-    for (group, args, shading, specialized) in scene
+    for draw in scene
         .cartoon_draws(false, DrawFamily::ShadowRibbon)
         .chain(scene.mesh_draws(false))
     {
         let Some(set) = shadow.ribbon.build_in(env, &mut *failure, ribbon_set) else {
             break;
         };
-        let pipeline = set.select(shading, specialized);
+        let pipeline = set.select(draw.shading, draw.specialized);
         if bound != Some(std::ptr::from_ref(pipeline)) {
             pass.set_pipeline(pipeline);
             bound = Some(std::ptr::from_ref(pipeline));
         }
-        pass.set_bind_group(2, group, &[]);
-        pass.draw_indirect(args, 0);
+        pass.set_bind_group(2, draw.group, &[]);
+        pass.set_index_buffer(draw.indices, molgfx_gpu::IndexFormat::Uint32);
+        pass.draw_indexed_indirect(draw.arguments, 0);
     }
 }
 

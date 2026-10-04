@@ -143,18 +143,19 @@ impl<D: Device> CartoonPass<D> {
         });
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         let mut bound: Option<*const D::Pipeline> = None;
-        for (group2, args, shading, specialized) in ctx
+        for draw in ctx
             .scene
             .cartoon_draws(false, DrawFamily::Cartoon)
             .chain(ctx.scene.mesh_draws(false))
         {
-            let pipeline = cartoon.pipeline.select(shading, specialized);
+            let pipeline = cartoon.pipeline.select(draw.shading, draw.specialized);
             if bound != Some(std::ptr::from_ref(pipeline)) {
                 pass.set_pipeline(pipeline);
                 bound = Some(std::ptr::from_ref(pipeline));
             }
-            pass.set_bind_group(2, group2, &[]);
-            pass.draw_indirect(args, 0);
+            pass.set_bind_group(2, draw.group, &[]);
+            pass.set_index_buffer(draw.indices, molgfx_gpu::IndexFormat::Uint32);
+            pass.draw_indexed_indirect(draw.arguments, 0);
         }
     }
 }
