@@ -179,6 +179,12 @@ macro_rules! named_control {
     };
 }
 
+named_control!(molgfx::rep::CartoonProfile, "cartoon profile", [
+    "elliptical" => Elliptical,
+    "rounded" => Rounded,
+    "square" => Square,
+]);
+
 named_control!(molgfx::rep::CartoonStyle, "cartoon style", [
     "ribbon" => Ribbon,
     "rocket" => Rocket,
@@ -283,7 +289,7 @@ fn reject_unknown_options(
     Ok(())
 }
 
-representation!(cartoon, width: f32, style: String, aspect_ratio: f32, arrow_factor: f32);
+representation!(cartoon, width: f32, style: String, aspect_ratio: f32, arrow_factor: f32, helix_profile: String, nucleic_profile: String);
 representation!(ball_and_stick, radius: f32, bond_radius: f32);
 representation!(spacefill, radius: f32);
 representation!(licorice, radius: f32, bond_radius: f32);

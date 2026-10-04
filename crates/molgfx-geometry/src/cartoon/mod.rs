@@ -1,5 +1,6 @@
 //! Polymer cartoon and nucleotide geometry.
 
+mod cross_section;
 pub(crate) mod ends;
 mod glycan;
 pub(crate) mod nucleic;
@@ -7,6 +8,7 @@ pub(crate) mod paper_chain;
 pub(crate) mod profiles;
 pub(crate) mod ribbon;
 pub(crate) mod secondary_motion;
+mod sweep;
 pub(crate) mod traces;
 pub(crate) mod twist;
 

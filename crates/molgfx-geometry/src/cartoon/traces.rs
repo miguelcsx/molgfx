@@ -15,6 +15,7 @@ pub struct PolymerTraces {
     pub(super) points: Vec<Vec3>,
     pub(super) entities: Vec<u32>,
     pub(super) styles: Vec<SecondaryStructure>,
+    pub(super) guides: Vec<GuideKind>,
     pub(super) properties: Vec<f32>,
     /// Per-point orientation the ribbon's flat face is held in, where the
     /// source residue has one. A polymer guide atom carries no such plane, so
@@ -25,6 +26,16 @@ pub struct PolymerTraces {
 }
 
 impl PolymerTraces {
+    fn clear(&mut self) {
+        self.points.clear();
+        self.entities.clear();
+        self.styles.clear();
+        self.guides.clear();
+        self.properties.clear();
+        self.normals.clear();
+        self.ranges.clear();
+    }
+
     /// The extracted traces.
     #[must_use]
     pub fn ranges(&self) -> &[TraceRange] {
@@ -43,6 +54,8 @@ impl PolymerTraces {
         normals: Vec<Vec3>,
         ranges: Vec<TraceRange>,
     ) {
+        self.guides.clear();
+        self.guides.resize(points.len(), GuideKind::RingCenter);
         self.styles.clear();
         self.styles
             .resize(points.len(), SecondaryStructure::Unknown);
@@ -53,6 +66,14 @@ impl PolymerTraces {
         self.normals = normals;
         self.ranges = ranges;
     }
+}
+
+/// Source atom used to place a backbone cross-section.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum GuideKind {
+    AlphaCarbon,
+    SugarCarbon,
+    RingCenter,
 }
 
 /// One contiguous polymer guide trace in the shared output arrays.
@@ -92,12 +113,7 @@ pub fn extract_polymer_traces(
     max_gap: f32,
     output: &mut PolymerTraces,
 ) -> Result<(), crate::PackingError> {
-    output.points.clear();
-    output.entities.clear();
-    output.styles.clear();
-    output.properties.clear();
-    output.normals.clear();
-    output.ranges.clear();
+    output.clear();
     let max_gap_sq = max_gap.max(0.0).powi(2);
     for chain in structure.chains() {
         let chain_id = chain.index().get();
@@ -119,8 +135,15 @@ pub fn extract_polymer_traces(
                 );
                 trace_start = output.points.len();
             }
-            let guide = residue.atom("CA").or_else(|| residue.atom("C4'"));
-            let Some(atom) = guide else {
+            let guide = residue
+                .atom("CA")
+                .map(|atom| (atom, GuideKind::AlphaCarbon))
+                .or_else(|| {
+                    residue
+                        .atom("C4'")
+                        .map(|atom| (atom, GuideKind::SugarCarbon))
+                });
+            let Some((atom, guide_kind)) = guide else {
                 finish_trace(
                     chain_id,
                     trace_start,
@@ -151,10 +174,11 @@ pub fn extract_polymer_traces(
                 trace_start = output.points.len();
                 continue;
             };
-            if output
-                .points
-                .last()
-                .is_some_and(|previous| previous.distance_squared(position) > max_gap_sq)
+            if (output.points.len() > trace_start && output.guides.last() != Some(&guide_kind))
+                || output
+                    .points
+                    .last()
+                    .is_some_and(|previous| previous.distance_squared(position) > max_gap_sq)
             {
                 finish_trace(
                     chain_id,
@@ -169,6 +193,7 @@ pub fn extract_polymer_traces(
                 u64::from(atom.index().get()),
             )?;
             output.points.push(position);
+            output.guides.push(guide_kind);
             output.entities.push(entity.0);
             let residue_index = residue.index().as_usize();
             output.styles.push(match secondary.get(residue_index) {

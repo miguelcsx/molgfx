@@ -1,3 +1,4 @@
+use super::super::profiles::profile_color;
 use super::*;
 use crate::cartoon::profiles::{profile_scale, rocket_scale};
 use molgfx_core::TubeRadiusMapping;
@@ -354,13 +355,6 @@ fn profile_diameters(vertices: &[RibbonVertex]) -> (f32, f32) {
 
 #[test]
 fn the_twister_profile_gives_each_face_its_own_flat_normal() {
-    fn assert_axis(actual: [f32; 3], expected: [f32; 3], what: &str) {
-        assert!(
-            (Vec3::from(actual) - Vec3::from(expected)).length() < 1.0e-5,
-            "{what}: expected {expected:?}, got {actual:?}"
-        );
-    }
-
     let mut mesh = RibbonMesh::default();
     mesh.generate(
         &trace(),
@@ -383,19 +377,21 @@ fn the_twister_profile_gives_each_face_its_own_flat_normal() {
             <[RibbonVertex; PROFILE_SIDES]>::as_slice,
         );
     assert_eq!(ring.len(), PROFILE_SIDES);
-    // Doubled corners: same position, different normal, which is what makes
-    // the edge read as an edge instead of a gradient.
-    assert_axis(
-        ring[1].position,
-        ring[2].position,
-        "doubled corner position",
+    let neighbours = || ring.iter().zip(ring.iter().cycle().skip(1));
+    assert!(
+        neighbours().any(|(left, right)| {
+            Vec3::from(left.position).distance_squared(Vec3::from(right.position)) < 1.0e-10
+                && Vec3::from(left.normal).distance_squared(Vec3::from(right.normal)) > 0.25
+        }),
+        "corners retain separate outward face normals"
     );
     assert!(
-        (Vec3::from(ring[1].normal) - Vec3::from(ring[2].normal)).length() > 0.5,
-        "the two faces meeting at a corner carry different normals"
+        neighbours().any(|(left, right)| {
+            Vec3::from(left.position).distance_squared(Vec3::from(right.position)) > 1.0e-10
+                && Vec3::from(left.normal).distance_squared(Vec3::from(right.normal)) < 1.0e-10
+        }),
+        "a planar face has a constant normal"
     );
-    // A face is flat: both of its corners agree.
-    assert_axis(ring[0].normal, ring[1].normal, "face normal");
     assert!(
         ring.iter()
             .all(|vertex| Vec3::from(vertex.normal).is_normalized())

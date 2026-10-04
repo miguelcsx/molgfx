@@ -2,7 +2,7 @@
 
 use crate::color::ColorSpec;
 use crate::id::StructureId;
-use crate::representation::{CartoonStyle, Selection, SurfaceKind, SurfaceStyle};
+use crate::representation::{CartoonProfile, CartoonStyle, Selection, SurfaceKind, SurfaceStyle};
 use crate::visual::{ParameterValue, VisualStyle};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -30,6 +30,8 @@ pub(crate) enum RepresentationFormSpec {
         style: CartoonStyle,
         aspect_ratio: f32,
         arrow_factor: f32,
+        helix_profile: CartoonProfile,
+        nucleic_profile: CartoonProfile,
     },
     Backbone {
         width: f32,

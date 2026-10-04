@@ -368,6 +368,8 @@ fn spline_params(representation: &Representation, steps: u8) -> RibbonParams {
             profile: SplineProfile::Rocket,
             aspect_ratio: representation.params.cartoon_aspect_ratio,
             arrow_factor: representation.params.cartoon_arrow_factor,
+            helix_profile: representation.params.cartoon_helix_profile,
+            nucleic_profile: representation.params.cartoon_nucleic_profile,
             max_steps: steps,
             color,
             ..RibbonParams::default()
@@ -376,6 +378,8 @@ fn spline_params(representation: &Representation, steps: u8) -> RibbonParams {
             width: representation.params.ribbon_width,
             aspect_ratio: representation.params.cartoon_aspect_ratio,
             arrow_factor: representation.params.cartoon_arrow_factor,
+            helix_profile: representation.params.cartoon_helix_profile,
+            nucleic_profile: representation.params.cartoon_nucleic_profile,
             max_steps: steps,
             color,
             ..RibbonParams::default()

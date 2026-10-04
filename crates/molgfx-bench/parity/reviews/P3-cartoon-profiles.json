@@ -1,0 +1,700 @@
+{
+  "status": "verified cartoon cross-section subunit; full Phase 3.1 remains open",
+  "owner": "Phase 3.1",
+  "source": "3ede0e0f + cartoon profile working tree",
+  "implementation": [
+    "One authoritative CartoonProfile enum is exposed through Rust facade, portable scene specifications, core descriptions, commands, Python keywords/stubs and WASM contracts. Helix defaults to elliptical and nucleic backbone to square, following the specified Mol* defaults.",
+    "One fixed sixteen-lane cross-section implementation supplies swept shells and end caps; rounded is a stadium with true semicircular ends and square uses independent planar-face normals.",
+    "Source guide kind distinguishes C-alpha protein guides from C4-prime sugar guides. Mixed guide kinds split traces; nucleic physical width/aspect are retained for every profile.",
+    "Profile variants enter the persistent ribbon cache key. Editing a profile refreshes geometry/deformation uploads without rewriting the immutable coordinate asset.",
+    "A new geometric winding regression exposed inward body triangles; shell triangle winding now agrees with outward vertex normals, including flat twister shells."
+  ],
+  "complexity": "O(guides + samples) time and memory during geometry preparation; O(1) section evaluation per vertex; unchanged instanced rendering and 32-byte vertex/deformation layouts. Existing reusable vectors retain capacity.",
+  "gate": {
+    "directory": "target/cartoon-profile-verification",
+    "format": "passed",
+    "workspace_clippy_all_targets_all_features": "passed",
+    "workspace_tests_all_features": "passed",
+    "wasm_target_check_and_clippy": "passed",
+    "native_gpu_boundary_gradients_and_categorical": "passed",
+    "python_reinstalled": "passed",
+    "ruff_format_and_check": "passed",
+    "mypy": "passed",
+    "python_tests": 79,
+    "stubtest": "passed",
+    "repository_policies": "passed",
+    "wasm_node_tests": 3,
+    "focused_cartoon_tests": 54
+  },
+  "actual_consumers": {
+    "python": "target/cartoon-profile-verification/python-consumer.json",
+    "python_result": "Three distinct completed images and exact visible atom picks for both 4HHB and 1BNA.",
+    "chromium": "target/cartoon-profile-verification/browser-consumer.json",
+    "chromium_result": "Six presented profile views, distinct images per source, no page errors.",
+    "web_release_content_key": "6051eca82442eb49"
+  },
+  "gallery": [
+    {
+      "case": "P3-helix-profile-elliptical-4HHB",
+      "review": "crates/molgfx-bench/parity/reviews/P3-helix-profile-elliptical-4HHB.json",
+      "golden": "crates/molgfx-bench/parity/references/P3-helix-profile-elliptical-4HHB.png",
+      "verification": "target/cartoon-profiles-final-goldens/P3-helix-profile-elliptical-4HHB/golden.json"
+    },
+    {
+      "case": "P3-nucleic-profile-elliptical-1BNA",
+      "review": "crates/molgfx-bench/parity/reviews/P3-nucleic-profile-elliptical-1BNA.json",
+      "golden": "crates/molgfx-bench/parity/references/P3-nucleic-profile-elliptical-1BNA.png",
+      "verification": "target/cartoon-profiles-final-goldens/P3-nucleic-profile-elliptical-1BNA/golden.json"
+    },
+    {
+      "case": "P3-helix-profile-rounded-4HHB",
+      "review": "crates/molgfx-bench/parity/reviews/P3-helix-profile-rounded-4HHB.json",
+      "golden": "crates/molgfx-bench/parity/references/P3-helix-profile-rounded-4HHB.png",
+      "verification": "target/cartoon-profiles-final-goldens/P3-helix-profile-rounded-4HHB/golden.json"
+    },
+    {
+      "case": "P3-nucleic-profile-rounded-1BNA",
+      "review": "crates/molgfx-bench/parity/reviews/P3-nucleic-profile-rounded-1BNA.json",
+      "golden": "crates/molgfx-bench/parity/references/P3-nucleic-profile-rounded-1BNA.png",
+      "verification": "target/cartoon-profiles-final-goldens/P3-nucleic-profile-rounded-1BNA/golden.json"
+    },
+    {
+      "case": "P3-helix-profile-square-4HHB",
+      "review": "crates/molgfx-bench/parity/reviews/P3-helix-profile-square-4HHB.json",
+      "golden": "crates/molgfx-bench/parity/references/P3-helix-profile-square-4HHB.png",
+      "verification": "target/cartoon-profiles-final-goldens/P3-helix-profile-square-4HHB/golden.json"
+    },
+    {
+      "case": "P3-nucleic-profile-square-1BNA",
+      "review": "crates/molgfx-bench/parity/reviews/P3-nucleic-profile-square-1BNA.json",
+      "golden": "crates/molgfx-bench/parity/references/P3-nucleic-profile-square-1BNA.png",
+      "verification": "target/cartoon-profiles-final-goldens/P3-nucleic-profile-square-1BNA/golden.json"
+    }
+  ],
+  "previous_goldens": {
+    "B-cartoon-4HHB": {
+      "mean_delta_e": 0.10225373837040438,
+      "p99_delta_e": 1.4611389028442556,
+      "ssim": 0.9986556284313174,
+      "status": "passed"
+    },
+    "P3-cartoon-arrows-1IGT": {
+      "mean_delta_e": 0.0,
+      "p99_delta_e": 0.0,
+      "ssim": 1.0,
+      "status": "passed"
+    },
+    "P3-cartoon-aspect-4HHB": {
+      "mean_delta_e": 0.0,
+      "p99_delta_e": 0.0,
+      "ssim": 1.0,
+      "status": "passed"
+    }
+  },
+  "closed_gap_regression": "target/cartoon-profiles-gap/P3-close-canonical-gap",
+  "measurement_protocol": {
+    "recipe": "interactive",
+    "extent": [
+      768,
+      768
+    ],
+    "warmup_outputs": 120,
+    "measured_outputs": 1200,
+    "processes_per_profile": 3,
+    "orbit_degrees_per_output": 0,
+    "effective_quality": {
+      "adaptive": false,
+      "complete": false,
+      "extent": [
+        768,
+        768
+      ],
+      "full_residency": true,
+      "illumination_bounces": 0,
+      "lighting": {
+        "diffuse_strength": 0.6200000047683716,
+        "fill_color": {
+          "a": 255,
+          "b": 226,
+          "g": 214,
+          "r": 206
+        },
+        "fill_direction": [
+          0.7799999713897705,
+          -0.11999999731779099,
+          0.5
+        ],
+        "fill_strength": 0.30000001192092896,
+        "ground": {
+          "a": 255,
+          "b": 141,
+          "g": 146,
+          "r": 150
+        },
+        "horizon": {
+          "a": 255,
+          "b": 202,
+          "g": 194,
+          "r": 188
+        },
+        "key_angular_radius": 0.20000000298023224,
+        "key_color": {
+          "a": 255,
+          "b": 230,
+          "g": 244,
+          "r": 255
+        },
+        "key_direction": [
+          -0.41999998688697815,
+          0.5799999833106995,
+          0.699999988079071
+        ],
+        "key_strength": 1.350000023841858,
+        "rim_color": {
+          "a": 255,
+          "b": 152,
+          "g": 132,
+          "r": 120
+        },
+        "rim_strength": 0.1599999964237213,
+        "shadow_strength": 0.6600000262260437,
+        "specular_strength": 0.7200000286102295,
+        "zenith": {
+          "a": 255,
+          "b": 240,
+          "g": 232,
+          "r": 226
+        }
+      },
+      "lod_mode_max": 0,
+      "occlusion_rays_per_sample": 2,
+      "progressive": true,
+      "ribbon_steps_max": 8,
+      "samples_completed": 1,
+      "samples_required": 1,
+      "samples_submitted": 1,
+      "surface_limit": "none",
+      "surface_spacing_effective": null,
+      "surface_spacing_requested": 0.25,
+      "tier": "high"
+    },
+    "scope": "Feature cost measurements, not the Phase 9 acceptance ladder or a speedup claim. Final runs were sequential and outside this task's compilers, browser consumer and Python GPU consumer. OS and other workstation activity are retained in load snapshots. Earlier overlapping development trials were retained separately and excluded.",
+    "global_gpu_timing": "Unresolved due to stale visibility-culling timestamps; individual resolved pass medians are not disjoint and must not be summed.",
+    "rss": "Not measured; peak_resident_bytes is the managed GPU arena, not RSS.",
+    "allocation_status": "226 allocations and 20 reallocations per measured output remain; Phase 9 zero-allocation gate is open."
+  },
+  "measurements": [
+    {
+      "path": "target/cartoon-profile-measurements/elliptical-1.jsonl",
+      "profile": "elliptical",
+      "summary": {
+        "cpu_median_ns": 137708,
+        "cpu_p95_ns": 175333,
+        "cpu_p99_ns": 218834,
+        "frame_median_ns": 1133459,
+        "frame_p95_ns": 1219041,
+        "frame_p99_ns": 1384209,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "p50_ns": 1133459,
+      "p95_ns": 1219041,
+      "p99_ns": 1384209,
+      "completed_outputs_per_second": 872.9705934399534,
+      "top_resolved_pass_occurrences": [
+        {
+          "label": "cartoon ribbons",
+          "median_ns": 385375,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR tonemap",
+          "median_ns": 282645,
+          "resolved_count": 1200
+        },
+        {
+          "label": "temporal HDR resolve",
+          "median_ns": 228854,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR deferred lighting",
+          "median_ns": 202729,
+          "resolved_count": 1200
+        },
+        {
+          "label": "clear categorical segment ids",
+          "median_ns": 197187,
+          "resolved_count": 1200
+        }
+      ],
+      "load": "target/cartoon-profile-measurements/elliptical-1-load.txt"
+    },
+    {
+      "path": "target/cartoon-profile-measurements/elliptical-2.jsonl",
+      "profile": "elliptical",
+      "summary": {
+        "cpu_median_ns": 136458,
+        "cpu_p95_ns": 164959,
+        "cpu_p99_ns": 194125,
+        "frame_median_ns": 1129458,
+        "frame_p95_ns": 1196542,
+        "frame_p99_ns": 1238750,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "p50_ns": 1129458,
+      "p95_ns": 1196542,
+      "p99_ns": 1238750,
+      "completed_outputs_per_second": 881.1636404421957,
+      "top_resolved_pass_occurrences": [
+        {
+          "label": "cartoon ribbons",
+          "median_ns": 384729,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR tonemap",
+          "median_ns": 282354,
+          "resolved_count": 1200
+        },
+        {
+          "label": "temporal HDR resolve",
+          "median_ns": 228583,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR deferred lighting",
+          "median_ns": 202417,
+          "resolved_count": 1200
+        },
+        {
+          "label": "clear categorical segment ids",
+          "median_ns": 196375,
+          "resolved_count": 1200
+        }
+      ],
+      "load": "target/cartoon-profile-measurements/elliptical-2-load.txt"
+    },
+    {
+      "path": "target/cartoon-profile-measurements/elliptical-3.jsonl",
+      "profile": "elliptical",
+      "summary": {
+        "cpu_median_ns": 135000,
+        "cpu_p95_ns": 157625,
+        "cpu_p99_ns": 198166,
+        "frame_median_ns": 1130208,
+        "frame_p95_ns": 1193209,
+        "frame_p99_ns": 1251125,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "p50_ns": 1130208,
+      "p95_ns": 1193209,
+      "p99_ns": 1251125,
+      "completed_outputs_per_second": 880.0529938577802,
+      "top_resolved_pass_occurrences": [
+        {
+          "label": "cartoon ribbons",
+          "median_ns": 385167,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR tonemap",
+          "median_ns": 281875,
+          "resolved_count": 1200
+        },
+        {
+          "label": "temporal HDR resolve",
+          "median_ns": 228166,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR deferred lighting",
+          "median_ns": 202146,
+          "resolved_count": 1200
+        },
+        {
+          "label": "clear categorical segment ids",
+          "median_ns": 196229,
+          "resolved_count": 1200
+        }
+      ],
+      "load": "target/cartoon-profile-measurements/elliptical-3-load.txt"
+    },
+    {
+      "path": "target/cartoon-profile-measurements/rounded-1.jsonl",
+      "profile": "rounded",
+      "summary": {
+        "cpu_median_ns": 136625,
+        "cpu_p95_ns": 156458,
+        "cpu_p99_ns": 175875,
+        "frame_median_ns": 980667,
+        "frame_p95_ns": 1049666,
+        "frame_p99_ns": 1094041,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "p50_ns": 980667,
+      "p95_ns": 1049666,
+      "p99_ns": 1094041,
+      "completed_outputs_per_second": 1011.7152409420925,
+      "top_resolved_pass_occurrences": [
+        {
+          "label": "cartoon ribbons",
+          "median_ns": 270375,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR tonemap",
+          "median_ns": 261125,
+          "resolved_count": 1200
+        },
+        {
+          "label": "temporal HDR resolve",
+          "median_ns": 207792,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR deferred lighting",
+          "median_ns": 181625,
+          "resolved_count": 1200
+        },
+        {
+          "label": "clear categorical segment ids",
+          "median_ns": 176375,
+          "resolved_count": 1200
+        }
+      ],
+      "load": "target/cartoon-profile-measurements/rounded-1-load.txt"
+    },
+    {
+      "path": "target/cartoon-profile-measurements/rounded-2.jsonl",
+      "profile": "rounded",
+      "summary": {
+        "cpu_median_ns": 137208,
+        "cpu_p95_ns": 160417,
+        "cpu_p99_ns": 192125,
+        "frame_median_ns": 975167,
+        "frame_p95_ns": 1047500,
+        "frame_p99_ns": 1113625,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "p50_ns": 975167,
+      "p95_ns": 1047500,
+      "p99_ns": 1113625,
+      "completed_outputs_per_second": 1017.0008644507348,
+      "top_resolved_pass_occurrences": [
+        {
+          "label": "cartoon ribbons",
+          "median_ns": 270083,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR tonemap",
+          "median_ns": 261333,
+          "resolved_count": 1200
+        },
+        {
+          "label": "temporal HDR resolve",
+          "median_ns": 207562,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR deferred lighting",
+          "median_ns": 181145,
+          "resolved_count": 1200
+        },
+        {
+          "label": "clear categorical segment ids",
+          "median_ns": 175771,
+          "resolved_count": 1200
+        }
+      ],
+      "load": "target/cartoon-profile-measurements/rounded-2-load.txt"
+    },
+    {
+      "path": "target/cartoon-profile-measurements/rounded-3.jsonl",
+      "profile": "rounded",
+      "summary": {
+        "cpu_median_ns": 136292,
+        "cpu_p95_ns": 155042,
+        "cpu_p99_ns": 190541,
+        "frame_median_ns": 981417,
+        "frame_p95_ns": 1051250,
+        "frame_p99_ns": 1111083,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "p50_ns": 981417,
+      "p95_ns": 1051250,
+      "p99_ns": 1111083,
+      "completed_outputs_per_second": 1011.7272893307139,
+      "top_resolved_pass_occurrences": [
+        {
+          "label": "cartoon ribbons",
+          "median_ns": 270458,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR tonemap",
+          "median_ns": 260375,
+          "resolved_count": 1200
+        },
+        {
+          "label": "temporal HDR resolve",
+          "median_ns": 206812,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR deferred lighting",
+          "median_ns": 180750,
+          "resolved_count": 1200
+        },
+        {
+          "label": "clear categorical segment ids",
+          "median_ns": 175437,
+          "resolved_count": 1200
+        }
+      ],
+      "load": "target/cartoon-profile-measurements/rounded-3-load.txt"
+    },
+    {
+      "path": "target/cartoon-profile-measurements/square-1.jsonl",
+      "profile": "square",
+      "summary": {
+        "cpu_median_ns": 137083,
+        "cpu_p95_ns": 162000,
+        "cpu_p99_ns": 200250,
+        "frame_median_ns": 827916,
+        "frame_p95_ns": 887583,
+        "frame_p99_ns": 932625,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "p50_ns": 827916,
+      "p95_ns": 887583,
+      "p99_ns": 932625,
+      "completed_outputs_per_second": 1204.9001288104507,
+      "top_resolved_pass_occurrences": [
+        {
+          "label": "HDR tonemap",
+          "median_ns": 220250,
+          "resolved_count": 1200
+        },
+        {
+          "label": "temporal HDR resolve",
+          "median_ns": 166708,
+          "resolved_count": 1200
+        },
+        {
+          "label": "cartoon ribbons",
+          "median_ns": 154375,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR deferred lighting",
+          "median_ns": 141333,
+          "resolved_count": 1200
+        },
+        {
+          "label": "clear categorical segment ids",
+          "median_ns": 136750,
+          "resolved_count": 1200
+        }
+      ],
+      "load": "target/cartoon-profile-measurements/square-1-load.txt"
+    },
+    {
+      "path": "target/cartoon-profile-measurements/square-2.jsonl",
+      "profile": "square",
+      "summary": {
+        "cpu_median_ns": 136375,
+        "cpu_p95_ns": 158041,
+        "cpu_p99_ns": 195208,
+        "frame_median_ns": 821125,
+        "frame_p95_ns": 877708,
+        "frame_p99_ns": 941833,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "p50_ns": 821125,
+      "p95_ns": 877708,
+      "p99_ns": 941833,
+      "completed_outputs_per_second": 1211.8162175641598,
+      "top_resolved_pass_occurrences": [
+        {
+          "label": "HDR tonemap",
+          "median_ns": 221708,
+          "resolved_count": 1200
+        },
+        {
+          "label": "temporal HDR resolve",
+          "median_ns": 168187,
+          "resolved_count": 1200
+        },
+        {
+          "label": "cartoon ribbons",
+          "median_ns": 154625,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR deferred lighting",
+          "median_ns": 141000,
+          "resolved_count": 1200
+        },
+        {
+          "label": "clear categorical segment ids",
+          "median_ns": 134604,
+          "resolved_count": 1200
+        }
+      ],
+      "load": "target/cartoon-profile-measurements/square-2-load.txt"
+    },
+    {
+      "path": "target/cartoon-profile-measurements/square-3.jsonl",
+      "profile": "square",
+      "summary": {
+        "cpu_median_ns": 136625,
+        "cpu_p95_ns": 164792,
+        "cpu_p99_ns": 206292,
+        "frame_median_ns": 830959,
+        "frame_p95_ns": 895000,
+        "frame_p99_ns": 946958,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "p50_ns": 830959,
+      "p95_ns": 895000,
+      "p99_ns": 946958,
+      "completed_outputs_per_second": 1201.814689705238,
+      "top_resolved_pass_occurrences": [
+        {
+          "label": "HDR tonemap",
+          "median_ns": 221583,
+          "resolved_count": 1200
+        },
+        {
+          "label": "temporal HDR resolve",
+          "median_ns": 167917,
+          "resolved_count": 1200
+        },
+        {
+          "label": "cartoon ribbons",
+          "median_ns": 154375,
+          "resolved_count": 1200
+        },
+        {
+          "label": "HDR deferred lighting",
+          "median_ns": 142625,
+          "resolved_count": 1200
+        },
+        {
+          "label": "clear categorical segment ids",
+          "median_ns": 138021,
+          "resolved_count": 1200
+        }
+      ],
+      "load": "target/cartoon-profile-measurements/square-3-load.txt"
+    }
+  ],
+  "remaining": [
+    "Tubular helices fitted along their least-squares axes with live-coordinate behavior.",
+    "Missing-residue dashed gaps and direction wedges.",
+    "Nucleotide None/Block/Ring/AtomicRing modes, complete real ring atoms, omission counts, live-coordinate anchors.",
+    "Full 1BNA/1EHZ nucleotide review and re-review of affected prior DNA goldens after that migration; this profile suite isolates C4-prime backbone guides.",
+    "Radial sampling controls and representation defect sweep, including source secondary assignment boundaries.",
+    "Presentation anti-aliasing, comparative edge quality and all Phase 9 acceptance measurements."
+  ]
+}

@@ -11,6 +11,7 @@ class _QueryLike(Protocol):
 
 type _Target = str | _QueryLike
 type _Rgb = tuple[int, int, int]
+type _CartoonProfile = Literal["elliptical", "rounded", "square"]
 type _CartoonStyle = Literal["ribbon", "rocket", "nucleic_acid", "glycan"]
 type _SurfaceKind = Literal["van_der_waals", "solvent_accessible", "solvent_excluded", "gaussian"]
 type _SurfaceStyle = Literal["solid", "contour", "dots", "filled_contour", "mesh", "soft_union"]
@@ -829,6 +830,8 @@ class _Rep:
         style: _CartoonStyle | None = None,
         aspect_ratio: float | None = None,
         arrow_factor: float | None = None,
+        helix_profile: _CartoonProfile | None = None,
+        nucleic_profile: _CartoonProfile | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
     ) -> Representation: ...

@@ -20,4 +20,5 @@ pub(crate) use item::private;
 
 mod styles;
 
+pub use molgfx_core::CartoonProfile;
 pub use styles::{CartoonStyle, SurfaceKind, SurfaceStyle};

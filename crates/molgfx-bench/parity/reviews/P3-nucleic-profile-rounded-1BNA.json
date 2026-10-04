@@ -1,0 +1,48 @@
+{
+  "case": "P3-nucleic-profile-rounded-1BNA",
+  "source": "3ede0e0f + cartoon profile working tree",
+  "owner": "Phase 3.1",
+  "items": [
+    {
+      "id": "GEN-1",
+      "verdict": "pass",
+      "note": "Consistent lighting and depth over the reviewed full-resolution still. Presentation AA and comparative edge roughness remain Phase 7 work; this is not a superiority claim."
+    },
+    {
+      "id": "GEN-2",
+      "verdict": "pass",
+      "note": "Converged and interactive stills are finite and populated without visible shell holes. Independent profile winding regressions pass; moving-frame temporal stability is not certified by stills."
+    },
+    {
+      "id": "GEN-3",
+      "verdict": "pass",
+      "note": "All engines use the same fitted physical camera; four subunits or both DNA strands remain in frame. Palette and backbone guide-policy differences are recorded rather than compared pixelwise."
+    },
+    {
+      "id": "NA-1",
+      "verdict": "pass",
+      "note": "Both DNA backbone strands remain visible and follow the source C4-prime guides. Mol* and PyMOL backbone guide conventions are not claimed identical."
+    },
+    {
+      "id": "NA-6",
+      "verdict": "pass",
+      "note": "The selected nucleic profile changes the backbone cross-section and preserves authored physical width/aspect. The case intentionally selects only C4-prime guides to isolate backbone profiles from pending nucleotide-ring work."
+    }
+  ],
+  "native_evidence": "target/cartoon-profiles-gallery/P3-nucleic-profile-rounded-1BNA",
+  "reference_evidence": "target/cartoon-profiles-gallery/P3-nucleic-profile-rounded-1BNA",
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P3-nucleic-profile-rounded-1BNA.png",
+    "verification": "target/cartoon-profiles-final-goldens",
+    "extent": [
+      384,
+      384
+    ]
+  },
+  "reference_notes": [
+    "Mol* receives explicit helixProfile/nucleicProfile and polymer-trace-only visuals.",
+    "PyMOL uses cartoon mode 3 (oval) or 2 (rectangle); rounded has no exact stadium-profile adapter control, so its default cartoon serves only as a fold and visibility reference.",
+    "PyMOL DNA includes ladder connectors in its cartoon even with ring mode 0; those connectors are outside this backbone-profile checklist."
+  ],
+  "remaining": "Tubular helices, gaps/wedges, live nucleotide rings and profile sampling/visual defect sweep remain open."
+}

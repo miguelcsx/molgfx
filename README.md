@@ -33,7 +33,11 @@ molgfx.Renderer().render_image(scene, size=(1920, 1080)).save("structure.png")
 Cartoon representations accept `aspect_ratio` (width divided by depth, default
 `5.0`) and `arrow_factor` (terminal beta-arrow shoulder scale, default `1.5`).
 Set `arrow_factor=0.0` to disable arrows. The Rust builder and browser scene
-contract expose the same controls.
+contract expose the same controls. `helix_profile` and `nucleic_profile` select
+`"elliptical"`, `"rounded"` (planar faces with semicircular ends), or
+`"square"` cross-sections (helix default: elliptical; nucleic default: square).
+Rust uses `molgfx::rep::CartoonProfile`. Profiles change
+the cross-section while preserving source guide coordinates and picking anchors.
 
 Presentation effects are explicit values on a render profile:
 

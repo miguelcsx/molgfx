@@ -1,0 +1,58 @@
+{
+  "case": "P3-helix-profile-square-4HHB",
+  "source": "3ede0e0f + cartoon profile working tree",
+  "owner": "Phase 3.1",
+  "items": [
+    {
+      "id": "GEN-1",
+      "verdict": "pass",
+      "note": "Consistent lighting and depth over the reviewed full-resolution still. Presentation AA and comparative edge roughness remain Phase 7 work; this is not a superiority claim."
+    },
+    {
+      "id": "GEN-2",
+      "verdict": "pass",
+      "note": "Converged and interactive stills are finite and populated without visible shell holes. Independent profile winding regressions pass; moving-frame temporal stability is not certified by stills."
+    },
+    {
+      "id": "GEN-3",
+      "verdict": "pass",
+      "note": "All engines use the same fitted physical camera; four subunits or both DNA strands remain in frame. Palette and backbone guide-policy differences are recorded rather than compared pixelwise."
+    },
+    {
+      "id": "CT-1",
+      "verdict": "pass",
+      "note": "Protein guide curves follow the same fold in each profile without moving source anchors."
+    },
+    {
+      "id": "CT-2",
+      "verdict": "pass",
+      "note": "Elliptical, semicircular-ended rounded, and planar square cross-sections render coherent broad helix faces. Exact section geometry and cap winding are covered by geometry tests."
+    },
+    {
+      "id": "CT-5",
+      "verdict": "pass",
+      "note": "The four globin subunits and their helix arrangement are preserved."
+    },
+    {
+      "id": "SS-1",
+      "verdict": "pass",
+      "note": "Profile changes retain source-guide helix handedness and pitch."
+    }
+  ],
+  "native_evidence": "target/cartoon-profiles-gallery/P3-helix-profile-square-4HHB",
+  "reference_evidence": "target/cartoon-profiles-gallery/P3-helix-profile-square-4HHB",
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P3-helix-profile-square-4HHB.png",
+    "verification": "target/cartoon-profiles-final-goldens",
+    "extent": [
+      384,
+      384
+    ]
+  },
+  "reference_notes": [
+    "Mol* receives explicit helixProfile/nucleicProfile and polymer-trace-only visuals.",
+    "PyMOL uses cartoon mode 3 (oval) or 2 (rectangle); rounded has no exact stadium-profile adapter control, so its default cartoon serves only as a fold and visibility reference.",
+    "PyMOL DNA includes ladder connectors in its cartoon even with ring mode 0; those connectors are outside this backbone-profile checklist."
+  ],
+  "remaining": "Tubular helices, gaps/wedges, live nucleotide rings and profile sampling/visual defect sweep remain open."
+}

@@ -10,7 +10,7 @@
 
 use super::value::{Finite, NonNegative, Positive};
 use molgfx_scene::RepresentationSpec;
-use molgfx_scene::rep::{CartoonStyle, SurfaceKind, SurfaceStyle};
+use molgfx_scene::rep::{CartoonProfile, CartoonStyle, SurfaceKind, SurfaceStyle};
 use serde::{Deserialize, Serialize};
 
 /// How one control's value is written and checked.
@@ -137,6 +137,12 @@ macro_rules! choice {
         }
     };
 }
+
+choice!(CartoonProfile, [
+    "elliptical" => Elliptical,
+    "rounded" => Rounded,
+    "square" => Square,
+]);
 
 choice!(CartoonStyle, [
     "ribbon" => Ribbon,
@@ -352,6 +358,8 @@ forms! {
         style: CartoonStyle => "ribbon recipe",
         aspect_ratio: Positive => "helix and sheet width divided by thickness",
         arrow_factor: NonNegative => "strand arrow shoulder scale; zero disables arrows",
+        helix_profile: CartoonProfile => "protein helix cross-section",
+        nucleic_profile: CartoonProfile => "nucleic backbone cross-section",
     }
     /// Backbone trace through polymer guide atoms.
     Backbone = "backbone" via backbone {

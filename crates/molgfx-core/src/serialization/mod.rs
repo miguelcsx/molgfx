@@ -11,6 +11,7 @@ mod ligand_pose_description;
 mod manifest_io;
 mod records;
 mod rehydrate;
+mod representation_description;
 mod types;
 
 #[path = "serialization.rs"]

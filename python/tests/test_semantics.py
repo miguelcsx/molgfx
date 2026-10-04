@@ -81,10 +81,20 @@ class SceneSemanticsTests(unittest.TestCase):
     def test_cartoon_shape_controls_survive_scene_serialization(self) -> None:
         """The shared scene contract retains authored cross-section controls."""
         scene = molgfx.Scene(_structure())
-        scene.add(molgfx.rep.cartoon(target="all", aspect_ratio=3.0, arrow_factor=2.0))
+        scene.add(
+            molgfx.rep.cartoon(
+                target="all",
+                aspect_ratio=3.0,
+                arrow_factor=2.0,
+                helix_profile="rounded",
+                nucleic_profile="square",
+            )
+        )
         text = scene.to_json()
         self.assertIn('"aspect_ratio":3.0', text)
         self.assertIn('"arrow_factor":2.0', text)
+        self.assertIn('"helix_profile":"rounded"', text)
+        self.assertIn('"nucleic_profile":"square"', text)
         for aspect, arrow in ((0.0, 1.0), (5.0, -1.0), (float("nan"), 1.0)):
             with self.assertRaises(molgfx.SpecError):
                 scene.add(molgfx.rep.cartoon(target="all", aspect_ratio=aspect, arrow_factor=arrow))

@@ -186,9 +186,12 @@ fn apply_form(
             width,
             aspect_ratio,
             arrow_factor,
+            helix_profile,
+            nucleic_profile,
             ..
         } => native
             .ribbon_width(*width)
+            .cartoon_profiles(*helix_profile, *nucleic_profile)
             .cartoon_shape(*aspect_ratio, *arrow_factor)
             .map_err(crate::Error::from),
         RepresentationFormSpec::NucleicAcid { width }

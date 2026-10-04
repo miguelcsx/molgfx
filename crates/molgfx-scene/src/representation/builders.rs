@@ -7,7 +7,7 @@
 
 use super::form::{RepresentationFormSpec, RepresentationSpec};
 use super::item::{SceneItem, private};
-use super::{CartoonStyle, Selection, SurfaceKind, SurfaceStyle};
+use super::{CartoonProfile, CartoonStyle, Selection, SurfaceKind, SurfaceStyle};
 use crate::color::ColorSpec;
 
 /// Controls shared by every representation, independent of its form.
@@ -151,6 +151,10 @@ representation! {
         aspect_ratio => aspect_ratio: f32 = 5.0,
         /// Sets the strand arrow shoulder relative to body width; zero disables arrows.
         arrow_factor => arrow_factor: f32 = 1.5,
+        /// Selects the protein helix cross-section.
+        helix_profile => helix_profile: CartoonProfile = CartoonProfile::Elliptical,
+        /// Selects the nucleic-acid backbone cross-section.
+        nucleic_profile => nucleic_profile: CartoonProfile = CartoonProfile::Square,
     }
 }
 

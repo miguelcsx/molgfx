@@ -8,6 +8,10 @@ fn authored_cartoon_proportions_survive_cold_scene_restoration() {
     let mut scene = Scene::from_structure(&structure).expect("source binds");
     let selection = scene.add_selection(AtomSelection::All);
     let recipe = RepresentationConfig::new(RepresentationKind::Cartoon)
+        .cartoon_profiles(
+            crate::CartoonProfile::Rounded,
+            crate::CartoonProfile::Square,
+        )
         .cartoon_shape(3.0, 2.0)
         .expect("valid shape");
     scene

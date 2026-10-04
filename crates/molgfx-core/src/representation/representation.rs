@@ -200,6 +200,10 @@ pub struct RepresentationParams {
     pub cartoon_aspect_ratio: f32,
     /// Arrow shoulder width relative to the strand body; zero disables arrows.
     pub cartoon_arrow_factor: f32,
+    /// Cross-section of protein helices.
+    pub cartoon_helix_profile: crate::CartoonProfile,
+    /// Cross-section of nucleic-acid backbones.
+    pub cartoon_nucleic_profile: crate::CartoonProfile,
     /// Radius of trace and tube spline cross-sections, Ångström.
     pub tube_radius: f32,
     /// Optional reversible property mapping for variable-radius tubes.
@@ -226,6 +230,8 @@ impl Default for RepresentationParams {
             ribbon_width: 1.2,
             cartoon_aspect_ratio: 5.0,
             cartoon_arrow_factor: 1.5,
+            cartoon_helix_profile: crate::CartoonProfile::Elliptical,
+            cartoon_nucleic_profile: crate::CartoonProfile::Square,
             tube_radius: 0.3,
             tube_radius_mapping: TubeRadiusMapping::Constant,
             point_size_pixels: 3.0,

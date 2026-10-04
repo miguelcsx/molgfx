@@ -35,6 +35,8 @@ pub(crate) fn rehydrate_representations(
             description.cartoon_aspect_ratio,
             description.cartoon_arrow_factor,
         )?;
+        value.params.cartoon_helix_profile = description.cartoon_helix_profile;
+        value.params.cartoon_nucleic_profile = description.cartoon_nucleic_profile;
         value.params.tube_radius_mapping = parse_tube_mapping(description.tube_radius_mapping)?;
         value.params.surface_components =
             parse_surface_components(&description.surface_components)?;
@@ -254,6 +256,8 @@ fn representation_params(
     Ok(RepresentationParams {
         cartoon_aspect_ratio: aspect_ratio,
         cartoon_arrow_factor: arrow_factor,
+        cartoon_helix_profile: crate::CartoonProfile::Elliptical,
+        cartoon_nucleic_profile: crate::CartoonProfile::Elliptical,
         radius_scale: values[0],
         bond_radius: values[1],
         probe_radius: values[2],

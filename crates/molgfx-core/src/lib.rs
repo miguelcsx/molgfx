@@ -58,7 +58,7 @@ pub use gpu::{
 };
 pub use representation::{
     AnchorLayout, Annotation, AnnotationAnchor, AnnotationKind, AtomProperty, AtomPropertyMeaning,
-    AttributeColumn, AttributeDescriptor, AttributeKind, AttributeValues, BoolExpr,
+    AttributeColumn, AttributeDescriptor, AttributeKind, AttributeValues, BoolExpr, CartoonProfile,
     CategoryPalette, ColorColumns, ColorExpr, ColorOverlay, ColorParameter, ColorScheme,
     FaceVisibility, Guide, GuideCap, GuideStyle, InteractionAnchor, InteractionDirection,
     InteractionEdge, InteractionGeometry, InteractionKind, InteractionPattern, InteractionStyle,

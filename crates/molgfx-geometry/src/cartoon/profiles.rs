@@ -5,84 +5,10 @@
 //! distinguishes a cartoon from a tube from a rocket from a twister. Keeping
 //! them together makes them readable side by side.
 
-use super::ribbon::{PROFILE_SIDES, RibbonParams, SplineProfile};
-use molgfx_core::{SecondaryStructure, TubeRadiusMapping};
+use super::ribbon::{RibbonParams, SplineProfile};
+use super::traces::GuideKind;
+use molgfx_core::{CartoonProfile, SecondaryStructure, TubeRadiusMapping};
 use molgfx_math::Rgba8;
-
-pub(super) const PROFILE: [[f32; 2]; PROFILE_SIDES] = [
-    [1.0, 0.0],
-    [0.923_879_5, 0.382_683_43],
-    [0.707_106_77, 0.707_106_77],
-    [0.382_683_43, 0.923_879_5],
-    [0.0, 1.0],
-    [-0.382_683_43, 0.923_879_5],
-    [-0.707_106_77, 0.707_106_77],
-    [-0.923_879_5, 0.382_683_43],
-    [-1.0, 0.0],
-    [-0.923_879_5, -0.382_683_43],
-    [-0.707_106_77, -0.707_106_77],
-    [-0.382_683_43, -0.923_879_5],
-    [0.0, -1.0],
-    [0.382_683_43, -0.923_879_5],
-    [0.707_106_77, -0.707_106_77],
-    [0.923_879_5, -0.382_683_43],
-];
-
-/// Crisp rectangular cross-section: four flat faces with their own normals.
-///
-/// The elliptical `PROFILE` derives each normal from the vertex position, so a
-/// facet is shaded as if it were curved and the highlight never agrees with the
-/// silhouette. A ribbon whose whole job is to show which way a plane faces has
-/// to read as flat, so its corners are doubled and each copy carries the normal
-/// of the face it belongs to. Traversal order and vertex count match `PROFILE`,
-/// which keeps the index topology and the shader's sample shift unchanged; the
-/// four zero-area quads between a doubled corner cost nothing to draw.
-///
-/// Lanes are position x, position y, normal x, normal y.
-pub(super) const BOX_PROFILE: [[f32; 4]; PROFILE_SIDES] = [
-    [1.0, 1.0, 0.0, 1.0],
-    [-1.0, 1.0, 0.0, 1.0],
-    [-1.0, 1.0, -1.0, 0.0],
-    [-1.0, -1.0, -1.0, 0.0],
-    [-1.0, 1.0, -1.0, 0.0],
-    [-1.0, -1.0, -1.0, 0.0],
-    [-1.0, -1.0, 0.0, -1.0],
-    [1.0, -1.0, 0.0, -1.0],
-    [-1.0, -1.0, 0.0, -1.0],
-    [1.0, -1.0, 0.0, -1.0],
-    [1.0, -1.0, 1.0, 0.0],
-    [1.0, 1.0, 1.0, 0.0],
-    [1.0, -1.0, 1.0, 0.0],
-    [1.0, 1.0, 1.0, 0.0],
-    [1.0, 1.0, 0.0, 1.0],
-    [1.0, 1.0, 0.0, 1.0],
-];
-
-/// One cross-section vertex: offset coefficients and the normal that belongs
-/// with them.
-///
-/// The rounded profile's normal is the ellipse gradient, which is why width and
-/// thickness swap between position and normal. The flat profile reads its
-/// normal from the table instead, because a face's normal is a property of the
-/// face and not of where the corner sits on it.
-#[inline]
-pub(super) fn cross_section(
-    flat: bool,
-    side: usize,
-    width: f32,
-    thickness: f32,
-) -> (f32, f32, [f32; 2]) {
-    let side = side % PROFILE_SIDES;
-
-    if flat {
-        let [x, y, normal_x, normal_y] = BOX_PROFILE[side];
-        return (x, y, [normal_x, normal_y]);
-    }
-
-    let [x, y] = PROFILE[side];
-
-    (x, y, [x * thickness, y * width])
-}
 
 /// Twister's two-tone shell: each face names which way the ring plane looks.
 #[inline]
@@ -97,23 +23,6 @@ pub(super) fn profile_color(profile: SplineProfile, thickness_axis: f32, base: R
         Rgba8::new(28, 74, 168, base.a)
     }
 }
-
-/// Sides of the flat profile that bound a face.
-///
-/// The flat profile doubles each corner so the two faces meeting there can carry
-/// their own normals, which leaves four sides spanning nothing. A quad whose
-/// four corners collapse onto a line is not reliably discarded — the rasterizer
-/// can still find a hair of coverage in it — and the sliver it draws takes the
-/// colour of whichever face owns that corner, so it appears as a stray fleck of
-/// the far face lying on the near one. They are cheaper to leave out than to
-/// draw.
-pub(super) const BOX_FACE_SIDES: [bool; PROFILE_SIDES] = [
-    true, false, false, false, true, false, false, false, true, false, false, false, true, false,
-    false, false,
-];
-
-/// The four distinct corners of the flat cross-section, in ring order.
-pub(super) const BOX_CORNERS: [[f32; 2]; 4] = [[1.0, 1.0], [-1.0, 1.0], [-1.0, -1.0], [1.0, -1.0]];
 
 /// Reads one finite variable-radius guide value.
 ///
@@ -273,6 +182,39 @@ pub(super) fn profile_extents(
         params.thickness.abs() * 0.5 * thickness
     };
     (params.width.abs() * 0.5 * width, depth)
+}
+
+/// Resolves an authored profile against the source guide and spline family.
+pub(super) fn sample_profile(
+    params: RibbonParams,
+    style: SecondaryStructure,
+    guide: Option<GuideKind>,
+) -> CartoonProfile {
+    match params.profile {
+        SplineProfile::Twister => CartoonProfile::Square,
+        SplineProfile::Cartoon if guide == Some(GuideKind::SugarCarbon) => params.nucleic_profile,
+        SplineProfile::Cartoon if style.is_helix() => params.helix_profile,
+        SplineProfile::Cartoon | SplineProfile::Rocket | SplineProfile::Tube => {
+            CartoonProfile::Elliptical
+        }
+    }
+}
+
+/// Protein and nucleic backbones share authored aspect and width semantics.
+pub(super) fn profile_extents_for_guide(
+    params: RibbonParams,
+    style: SecondaryStructure,
+    parameter: f32,
+    styles: &[SecondaryStructure],
+    segment: usize,
+    guide: Option<GuideKind>,
+) -> (f32, f32) {
+    if params.profile == SplineProfile::Cartoon && guide == Some(GuideKind::SugarCarbon) {
+        let width = params.width.abs() * 0.5;
+        (width, width / params.aspect_ratio)
+    } else {
+        profile_extents(params, style, parameter, styles, segment)
+    }
 }
 
 /// Retains both the strand body and arrow shoulder at their shared guide.

@@ -5,10 +5,12 @@
 //! reads as the inside of the far wall lit from the wrong side, which looks less
 //! like missing surface than like a shading fault.
 
-use super::profiles::{BOX_CORNERS, cross_section, profile_color, profile_extents};
+use super::cross_section::{SQUARE_CORNERS, cross_section};
+use super::profiles::{profile_color, profile_extents_for_guide, sample_profile};
 use super::ribbon::{
     PROFILE_SIDES, RibbonBuild, RibbonDeformation, RibbonVertex, SplineProfile, control_rows,
 };
+use super::traces::GuideKind;
 use molgfx_core::SecondaryStructure;
 use molgfx_math::{CurveSample, TransportFrame};
 
@@ -32,6 +34,7 @@ struct RibbonEnd {
 pub(super) fn append_end_caps(
     entities: &[u32],
     styles: &[SecondaryStructure],
+    guides: &[GuideKind],
     width: f32,
     thickness: f32,
     build: &mut RibbonBuild<'_>,
@@ -71,7 +74,7 @@ pub(super) fn append_end_caps(
         if build.params.profile == SplineProfile::Twister {
             append_cap(end, entities, width, thickness, build);
         } else if let Some(recipe) = recipe {
-            append_round_cap(end, entities, styles, recipe, build);
+            append_round_cap(end, entities, styles, guides, recipe, build);
         }
     }
 }
@@ -95,7 +98,7 @@ fn append_cap(
     let Ok(base) = u32::try_from(build.vertices.len()) else {
         return;
     };
-    for [x, y] in BOX_CORNERS {
+    for [x, y] in SQUARE_CORNERS {
         let offset = end.frame.normal * (x * width) + end.frame.binormal * (y * thickness);
         build.vertices.push(RibbonVertex {
             position: (end.sample.position + offset).to_array(),
@@ -122,6 +125,7 @@ fn append_round_cap(
     end: RibbonEnd,
     entities: &[u32],
     styles: &[SecondaryStructure],
+    guides: &[GuideKind],
     recipe: RibbonDeformation,
     build: &mut RibbonBuild<'_>,
 ) {
@@ -135,8 +139,14 @@ fn append_round_cap(
         Some(&style) => style,
         None => SecondaryStructure::Unknown,
     };
-    let (width, thickness) =
-        profile_extents(build.params, style, end.sample.parameter, styles, segment);
+    let (width, thickness) = profile_extents_for_guide(
+        build.params,
+        style,
+        end.sample.parameter,
+        styles,
+        segment,
+        guides.get(segment).copied(),
+    );
     let Ok(base) = u32::try_from(build.vertices.len()) else {
         return;
     };
@@ -149,7 +159,12 @@ fn append_round_cap(
     });
     build.deformations.push(recipe);
     for side in 0..PROFILE_SIDES {
-        let (x, y, _) = cross_section(false, side, width, thickness);
+        let (x, y, _) = cross_section(
+            sample_profile(build.params, style, guides.get(segment).copied()),
+            side,
+            width,
+            thickness,
+        );
         let position = end.sample.position
             + end.frame.normal * (x * width)
             + end.frame.binormal * (y * thickness);

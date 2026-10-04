@@ -215,6 +215,8 @@ fn representation_description(
         ],
         cartoon_aspect_ratio: params.cartoon_aspect_ratio,
         cartoon_arrow_factor: params.cartoon_arrow_factor,
+        cartoon_helix_profile: params.cartoon_helix_profile,
+        cartoon_nucleic_profile: params.cartoon_nucleic_profile,
         surface_components: match params.surface_components.threshold() {
             crate::SurfaceComponentThreshold::Disabled => SurfaceComponentDescription::Disabled,
             crate::SurfaceComponentThreshold::Area(minimum) => {

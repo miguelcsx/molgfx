@@ -335,11 +335,38 @@ fn editing_cartoon_proportions_refreshes_geometry_without_uploading_coordinates(
         .expect("cartoon attaches");
     let mut engine = engine();
     engine.render(&scene, &camera()).expect("initial frame");
-    for (aspect_ratio, arrow_factor) in [(10.0, 1.5), (10.0, 2.0)] {
+    for (aspect_ratio, arrow_factor, helix_profile, nucleic_profile) in [
+        (
+            10.0,
+            1.5,
+            molgfx_core::CartoonProfile::Elliptical,
+            molgfx_core::CartoonProfile::Elliptical,
+        ),
+        (
+            10.0,
+            2.0,
+            molgfx_core::CartoonProfile::Elliptical,
+            molgfx_core::CartoonProfile::Elliptical,
+        ),
+        (
+            10.0,
+            2.0,
+            molgfx_core::CartoonProfile::Rounded,
+            molgfx_core::CartoonProfile::Elliptical,
+        ),
+        (
+            10.0,
+            2.0,
+            molgfx_core::CartoonProfile::Rounded,
+            molgfx_core::CartoonProfile::Square,
+        ),
+    ] {
         let before = engine.device.log.writes.lock().expect("write log").len();
         let value = scene.representation_mut(handle).expect("cartoon resolves");
         value.params.cartoon_aspect_ratio = aspect_ratio;
         value.params.cartoon_arrow_factor = arrow_factor;
+        value.params.cartoon_helix_profile = helix_profile;
+        value.params.cartoon_nucleic_profile = nucleic_profile;
         engine.render(&scene, &camera()).expect("edited frame");
         let writes = engine.device.log.writes.lock().expect("write log");
         let buffers = engine.device.log.buffers.lock().expect("buffer log");

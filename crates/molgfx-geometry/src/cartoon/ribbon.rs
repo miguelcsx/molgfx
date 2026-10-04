@@ -1,9 +1,8 @@
 //! Reusable cartoon ribbon extrusion over transport-framed splines.
 
-use super::ends::append_end_caps;
-use super::profiles::{BOX_FACE_SIDES, cross_section, profile_color, profile_extents};
+use super::sweep::{RibbonTrace, append_ribbon};
 use super::traces::{PolymerTraces, extract_polymer_traces};
-use molgfx_core::SecondaryStructure;
+use molgfx_core::{CartoonProfile, SecondaryStructure};
 use molgfx_math::{CurveSample, Rgba8, TransportFrame, Vec3};
 
 #[cfg(test)]
@@ -64,6 +63,10 @@ pub struct RibbonParams {
     pub aspect_ratio: f32,
     /// Strand arrow shoulder width relative to the body; zero disables arrows.
     pub arrow_factor: f32,
+    /// Cross-section of protein helices.
+    pub helix_profile: CartoonProfile,
+    /// Cross-section of nucleic-acid backbones.
+    pub nucleic_profile: CartoonProfile,
     /// Cross-section semantics applied along the shared spline.
     pub profile: SplineProfile,
     /// Resolved display colour.
@@ -79,6 +82,8 @@ impl Default for RibbonParams {
             thickness: 0.28,
             aspect_ratio: 5.0,
             arrow_factor: 1.5,
+            helix_profile: CartoonProfile::Elliptical,
+            nucleic_profile: CartoonProfile::Square,
             profile: SplineProfile::Cartoon,
             color: Rgba8::opaque(110, 165, 235),
         }
@@ -154,7 +159,18 @@ impl RibbonMesh {
             indices: &mut self.indices,
             deformations: &mut self.deformations,
         };
-        append_ribbon(trace, entities, styles, None, 0, &[], &mut build);
+        append_ribbon(
+            RibbonTrace {
+                points: trace,
+                entities,
+                styles,
+                property_base: None,
+                property_count: 0,
+                normals: &[],
+                guides: &[],
+            },
+            &mut build,
+        );
     }
 
     /// Generates every selected polymer trace in one structure into a single
@@ -186,12 +202,15 @@ impl RibbonMesh {
         };
         for range in &self.traces.ranges {
             append_ribbon(
-                &self.traces.points[range.points.clone()],
-                &self.traces.entities[range.points.clone()],
-                &self.traces.styles[range.points.clone()],
-                u32::try_from(range.points.start).ok(),
-                range.points.len(),
-                plane_slice(&self.traces.normals, range.points.clone()),
+                RibbonTrace {
+                    points: &self.traces.points[range.points.clone()],
+                    entities: &self.traces.entities[range.points.clone()],
+                    styles: &self.traces.styles[range.points.clone()],
+                    property_base: u32::try_from(range.points.start).ok(),
+                    property_count: range.points.len(),
+                    normals: plane_slice(&self.traces.normals, range.points.clone()),
+                    guides: &self.traces.guides[range.points.clone()],
+                },
                 &mut build,
             );
         }
@@ -224,12 +243,15 @@ impl RibbonMesh {
         };
         for range in &self.traces.ranges {
             append_ribbon(
-                &self.traces.points[range.points.clone()],
-                &self.traces.entities[range.points.clone()],
-                &self.traces.styles[range.points.clone()],
-                None,
-                0,
-                plane_slice(&self.traces.normals, range.points.clone()),
+                RibbonTrace {
+                    points: &self.traces.points[range.points.clone()],
+                    entities: &self.traces.entities[range.points.clone()],
+                    styles: &self.traces.styles[range.points.clone()],
+                    property_base: None,
+                    property_count: 0,
+                    normals: plane_slice(&self.traces.normals, range.points.clone()),
+                    guides: &self.traces.guides[range.points.clone()],
+                },
                 &mut build,
             );
         }
@@ -317,151 +339,4 @@ pub(super) fn control_rows(entities: &[u32], segment: usize) -> [u32; 4] {
         *output = atom;
     }
     controls
-}
-
-fn append_ribbon(
-    trace: &[Vec3],
-    entities: &[u32],
-    styles: &[SecondaryStructure],
-    property_base: Option<u32>,
-    property_count: usize,
-    normals: &[Vec3],
-    build: &mut RibbonBuild<'_>,
-) {
-    // The adaptive sampler sees the shape of the curve and nothing else, so a
-    // twisting ribbon has to tell it how far it turns; without that a glycan
-    // earns one sample per sugar and folds. The demand is per interval, so a
-    // run of coplanar rings still costs what a straight ribbon costs.
-    if build.params.profile == SplineProfile::Twister {
-        super::twist::twist_demand(trace, normals, build.demand);
-    } else {
-        build.demand.clear();
-    }
-    molgfx_math::sample_catmull_rom_demanding(
-        trace,
-        build.params.tolerance,
-        build.params.max_steps,
-        build.demand,
-        build.samples,
-    );
-    if matches!(
-        build.params.profile,
-        SplineProfile::Cartoon | SplineProfile::Rocket
-    ) && build.params.arrow_factor > 0.0
-    {
-        super::profiles::arrow_shoulders(styles, build.samples);
-    }
-    molgfx_math::parallel_transport(build.samples, build.frames);
-    if build.samples.len() < 2 || build.samples.len() != build.frames.len() {
-        return;
-    }
-    if build.params.profile == SplineProfile::Twister {
-        super::twist::orient_to_rings(build.samples, normals, build.frames);
-    }
-    let Ok(base_vertex) = u32::try_from(build.vertices.len()) else {
-        return;
-    };
-    let flat = build.params.profile == SplineProfile::Twister;
-    let half_width = build.params.width.abs() * 0.5;
-    let half_thickness = build.params.thickness.abs() * 0.5;
-    build.vertices.reserve(build.samples.len() * PROFILE_SIDES);
-    build
-        .deformations
-        .reserve(build.samples.len() * PROFILE_SIDES);
-    for (sample, frame) in build.samples.iter().zip(build.frames.iter()) {
-        let segment = usize::try_from(sample.segment)
-            .into_iter()
-            .fold(usize::MAX, |_, value| value);
-        let entity_id = match entities.get(segment) {
-            Some(&value) => value,
-            None => u32::MAX,
-        };
-        let style = match styles.get(segment) {
-            Some(&value) => value,
-            None => SecondaryStructure::Unknown,
-        };
-        let (width, thickness) =
-            profile_extents(build.params, style, sample.parameter, styles, segment);
-        let controls = control_rows(entities, segment);
-        let radius_controls = radius_control_rows(property_base, property_count, segment);
-        for side in 0..PROFILE_SIDES {
-            let (x, y, normal) = cross_section(flat, side, width, thickness);
-            let offset = frame.normal * (x * width) + frame.binormal * (y * thickness);
-            // A zero-width arrow tip has a vanishing ellipse gradient. The
-            // transported face normal keeps that shared tip finite.
-            let normal =
-                match (frame.normal * normal[0] + frame.binormal * normal[1]).try_normalize() {
-                    Some(normal) => normal,
-                    None => frame.normal,
-                };
-            build.vertices.push(RibbonVertex {
-                position: (sample.position + offset).to_array(),
-                entity_id,
-                normal: normal.to_array(),
-                color: profile_color(build.params.profile, y, build.params.color),
-            });
-            build.deformations.push(RibbonDeformation {
-                controls,
-                parameter: [
-                    sample.parameter,
-                    f32::from_bits(radius_controls[0]),
-                    f32::from_bits(radius_controls[1]),
-                    0.0,
-                ],
-            });
-        }
-    }
-    build
-        .indices
-        .reserve((build.samples.len() - 1) * PROFILE_SIDES * 6);
-    for ring in 0..build.samples.len() - 1 {
-        append_ring(ring, base_vertex, flat, build.indices);
-    }
-    append_end_caps(entities, styles, half_width, half_thickness, build);
-}
-
-fn radius_control_rows(base: Option<u32>, count: usize, segment: usize) -> [u32; 2] {
-    let Some(base) = base else {
-        return [u32::MAX; 2];
-    };
-    let Some(right) = segment.checked_add(1) else {
-        return [u32::MAX; 2];
-    };
-    if right >= count {
-        return [u32::MAX; 2];
-    }
-    let (Ok(left), Ok(right)) = (u32::try_from(segment), u32::try_from(right)) else {
-        return [u32::MAX; 2];
-    };
-    match (base.checked_add(left), base.checked_add(right)) {
-        (Some(left), Some(right)) => [left, right],
-        _ => [u32::MAX; 2],
-    }
-}
-
-fn append_ring(ring: usize, base_vertex: u32, flat: bool, indices: &mut Vec<u32>) {
-    let Some(base) = u32::try_from(ring * PROFILE_SIDES).ok() else {
-        return;
-    };
-    let base = base.saturating_add(base_vertex);
-    let stride = u32::try_from(PROFILE_SIDES)
-        .into_iter()
-        .fold(0, |_, value| value);
-    for side in 0..PROFILE_SIDES {
-        if flat && !BOX_FACE_SIDES[side % PROFILE_SIDES] {
-            continue;
-        }
-        let current = u32::try_from(side).into_iter().fold(0, |_, value| value);
-        let next = u32::try_from((side + 1) % PROFILE_SIDES)
-            .into_iter()
-            .fold(0, |_, value| value);
-        indices.extend_from_slice(&[
-            base + current,
-            base + stride + current,
-            base + stride + next,
-            base + current,
-            base + stride + next,
-            base + next,
-        ]);
-    }
 }

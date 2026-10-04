@@ -128,6 +128,18 @@ impl RepresentationConfig {
         Ok(self)
     }
 
+    /// Selects the protein helix and nucleic backbone cross-sections.
+    #[must_use]
+    pub const fn cartoon_profiles(
+        mut self,
+        helix: crate::CartoonProfile,
+        nucleic: crate::CartoonProfile,
+    ) -> Self {
+        self.params.cartoon_helix_profile = helix;
+        self.params.cartoon_nucleic_profile = nucleic;
+        self
+    }
+
     /// Sets point diameter in physical pixels.
     #[must_use]
     pub const fn point_size(mut self, pixels: f32) -> Self {
