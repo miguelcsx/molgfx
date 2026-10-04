@@ -80,11 +80,7 @@ fn volume_integrate(
             );
     }
 
-    for (
-        var step = 0u;
-        step < 768u;
-        step++
-    ) {
+    loop {
         if t > interval.y ||
             accumulated.a >=
                 VOLUME_TERMINATION_ALPHA {
@@ -114,6 +110,9 @@ fn volume_integrate(
                 false,
                 count,
             ) {
+                if cell.exit_distance >= interval.y {
+                    break;
+                }
                 t =
                     skip_to_cell_exit(
                         t,
@@ -182,7 +181,7 @@ fn volume_integrate(
             }
         }
 
-        t += step_size;
+        t = volume_next_distance(t, step_size);
     }
 
     if accumulated.a <=

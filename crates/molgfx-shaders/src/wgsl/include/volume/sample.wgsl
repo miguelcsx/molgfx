@@ -186,7 +186,7 @@ fn isosurface_sample(
 
     var t =
         min(
-            previous_t + step_size,
+            volume_next_distance(previous_t, step_size),
             interval.y,
         );
 
@@ -199,12 +199,7 @@ fn isosurface_sample(
     var cell_exit =
         -VOLUME_DISTANCE_INFINITY;
 
-    for (
-        var step = 0u;
-        step < 768u &&
-            !found;
-        step++
-    ) {
+    while !found {
         if previous_t >= cell_exit {
             let cell =
                 empty_space_cell(
@@ -249,8 +244,7 @@ fn isosurface_sample(
 
                 t =
                     min(
-                        previous_t +
-                            step_size,
+                        volume_next_distance(previous_t, step_size),
                         interval.y,
                     );
 
@@ -300,7 +294,7 @@ fn isosurface_sample(
 
         t =
             min(
-                t + step_size,
+                volume_next_distance(t, step_size),
                 interval.y,
             );
     }

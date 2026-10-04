@@ -82,9 +82,15 @@ fn skip_to_cell_exit(
 ) -> f32 {
     return min(
         max(
-            distance + step_size,
+            volume_next_distance(distance, step_size),
             exit_distance + 1.0e-3,
         ),
         limit,
     );
+}
+
+// Ray distances are nonnegative. Advancing by at least one representable
+// value prevents a small world-space step from stalling a distant ray.
+fn volume_next_distance(distance: f32, step_size: f32) -> f32 {
+    return max(distance + step_size, bitcast<f32>(bitcast<u32>(distance) + 1u));
 }

@@ -1,0 +1,56 @@
+{
+  "unit": "Phase 2 scalar traversal correctness",
+  "status": "verified regression; Phase 2.2 remains open",
+  "test": "crates/molgfx-wgpu/tests/gpu_volume_traversal_tests.rs",
+  "fixture": {
+    "dimensions": [
+      1001,
+      3,
+      3
+    ],
+    "voxel_spacing": [
+      1,
+      100,
+      100
+    ],
+    "crossing_x": 900,
+    "isovalue": 0.5,
+    "step_scale": 0.65,
+    "output": [
+      96,
+      96
+    ]
+  },
+  "before": {
+    "result": "failed",
+    "changed_pixels": 0,
+    "log": "target/traversal-verification/before.log"
+  },
+  "after": {
+    "result": "passed",
+    "assertions": [
+      "deep surface changes more than half the pixels",
+      "isovalue 2.0 renders byte-identically to the empty scene"
+    ],
+    "log": "target/traversal-verification/gpu.log"
+  },
+  "algorithm": "Traverse the finite clipped ray interval; skip provably empty cells; retain opacity termination. Advance by at least the next representable nonnegative distance to prevent floating-point stalls.",
+  "limitations": [
+    "This is a correctness change, not a claimed performance improvement.",
+    "Volume gallery closure and all remaining Phase 2.2 work remain required."
+  ],
+  "verification": {
+    "format": "passed",
+    "workspace_clippy_all_targets_all_features": "passed",
+    "workspace_tests_all_features": "passed",
+    "wasm_target_check": "passed",
+    "wasm_target_clippy": "passed",
+    "python_development_install": "passed",
+    "ruff_format": "passed",
+    "ruff_check": "passed",
+    "mypy": "passed",
+    "python_tests_69": "passed",
+    "stubtest": "passed",
+    "policy_checks": "passed"
+  }
+}
