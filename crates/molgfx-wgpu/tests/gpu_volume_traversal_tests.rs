@@ -198,3 +198,43 @@ fn a_strongly_sheared_affine_preserves_interior_density_crossings() {
         "sheared surface must cover the image: {changed}"
     );
 }
+
+#[test]
+#[ignore = "requires a native GPU adapter"]
+fn constant_fields_have_no_isosurface_crossing_at_any_level() {
+    let camera = Camera {
+        eye: Vec3::new(0.5, 0.5, 5.0),
+        target: Vec3::splat(0.5),
+        up: Vec3::Y,
+        projection: Projection::Orthographic {
+            height: 0.5,
+            aspect: 1.0,
+            near: 0.1,
+            far: 10.0,
+        },
+    };
+    let mut engine = Engine::<WgpuDevice>::new(&EngineConfig::default(), None).unwrap();
+    let config = ImageConfig {
+        width: 32,
+        height: 32,
+    };
+    let empty = engine.render_image(&Scene::new(), &camera, config).unwrap();
+    for level in [0.0, 1.0, 2.0] {
+        let mut scene = Scene::new();
+        let volume = ScalarVolume::new([2; 3], Mat4::IDENTITY, Arc::from([1.0; 8])).unwrap();
+        let handle = scene.add_volume(volume);
+        scene
+            .represent(
+                handle,
+                Representation::volume()
+                    .volume_style(VolumeStyle::isosurface())
+                    .isolevel(level),
+            )
+            .unwrap();
+        let image = engine.render_image(&scene, &camera, config).unwrap();
+        assert_eq!(
+            image.pixels, empty.pixels,
+            "constant field at level {level}"
+        );
+    }
+}

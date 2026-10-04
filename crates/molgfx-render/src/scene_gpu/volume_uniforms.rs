@@ -104,13 +104,7 @@ impl VolumeUniforms {
                 empty_space_dimensions[2],
                 0,
             ],
-            scalar: [
-                range[0],
-                range[1],
-                finite_or(representation.params.isolevel, range[0].midpoint(range[1]))
-                    .clamp(range[0], range[1]),
-                opacity,
-            ],
+            scalar: [range[0], range[1], representation.params.isolevel, opacity],
             sampling: [
                 density * opacity,
                 step,

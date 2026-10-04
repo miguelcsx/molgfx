@@ -1,0 +1,41 @@
+{
+  "unit": "Phase 2.2 empty scalar isosurfaces",
+  "owner": "Phase 2.2",
+  "status": "verified subunit; full volume presentation closure remains open",
+  "parent_commit": "de0754c6",
+  "changes": [
+    "Preserve authored finite isolevels without clamping to grid range",
+    "Reject nonfinite isolevels before insertion",
+    "Discard levels with no scalar crossing, including constant fields"
+  ],
+  "regression": {
+    "test": "crates/molgfx-wgpu/tests/gpu_volume_traversal_tests.rs::constant_fields_have_no_isosurface_crossing_at_any_level",
+    "before": "Constant field rendered a false box surface at level zero",
+    "after": "All pixels match the empty scene at levels zero, one and two on a uniform-one grid. Existing deep, tiny-affine and strongly-sheared crossings pass."
+  },
+  "tests": [
+    "crates/molgfx-core/src/representation/volume_validation_tests.rs::nonfinite_isolevels_fail_before_a_representation_is_added",
+    "crates/molgfx-render/src/scene_gpu/volume_uniforms_tests.rs::authored_isolevels_outside_the_data_range_are_not_clamped"
+  ],
+  "gallery": {
+    "case": "P2-iso-solid-skewMRC",
+    "golden": {
+      "mean_delta_e": 0.007561912417587385,
+      "p99_delta_e": 0.31854761782993135,
+      "ssim": 0.9999830887642442,
+      "status": "passed"
+    },
+    "review": "Rounded silhouette and continuous highlights retained; no reblessing",
+    "image": "target/gallery-isovalue-verified/P2-iso-solid-skewMRC/molgfx-converged/image.png"
+  },
+  "verification": {
+    "workspace_format_clippy_all_features_tests": "pass",
+    "actual_wasm32_check_clippy": "pass",
+    "python_development_install": "pass",
+    "python_tests": "69 passed",
+    "ruff_format_check_mypy_stubtest": "pass",
+    "policy_checks": "pass",
+    "logs": "target/isovalue-verification"
+  },
+  "performance": "Correctness change. No quality reduction or performance improvement claimed; invalid-crossing levels exit before traversal."
+}

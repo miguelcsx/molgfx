@@ -162,3 +162,22 @@ fn requested_volume_sampling_is_not_clamped_to_an_unrelated_quality_range() {
         assert_eq!(uniforms.sampling[1].to_bits(), step.to_bits());
     }
 }
+
+#[test]
+fn authored_isolevels_outside_the_data_range_are_not_clamped() {
+    let volume = ScalarVolume::new([2; 3], Mat4::IDENTITY, Arc::from([0.5; 8])).unwrap();
+    for level in [-1.0_f32, 0.5, 2.0] {
+        let mut scene = Scene::new();
+        let handle = scene.add_volume(volume.clone());
+        let representation = scene
+            .represent(
+                handle,
+                Representation::volume()
+                    .volume_style(VolumeStyle::isosurface())
+                    .isolevel(level),
+            )
+            .unwrap();
+        let uniforms = VolumeUniforms::new(&volume, scene.representation(representation).unwrap());
+        assert_eq!(uniforms.scalar[2].to_bits(), level.to_bits());
+    }
+}

@@ -163,6 +163,11 @@ fn isosurface_sample(
     let level =
         volume.scalar.z;
 
+    // A level outside the scalar crossing range has no boundary.
+    if level <= volume.scalar.x || level > volume.scalar.y {
+        discard;
+    }
+
     let count =
         transfer_count();
 

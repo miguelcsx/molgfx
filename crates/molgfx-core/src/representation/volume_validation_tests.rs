@@ -83,3 +83,15 @@ fn a_transform_with_an_unrepresentable_inverse_is_rejected_before_upload() {
         Err(CoreError::InvalidVolume { .. })
     ));
 }
+
+#[test]
+fn nonfinite_isolevels_fail_before_a_representation_is_added() {
+    let volume = ScalarVolume::new([2; 3], Mat4::IDENTITY, Arc::from([0.5; 8])).unwrap();
+    for level in [f32::NAN, f32::NEG_INFINITY, f32::INFINITY] {
+        let mut scene = Scene::new();
+        let handle = scene.add_volume(volume.clone());
+        let result = scene.represent(handle, Representation::volume().isolevel(level));
+        assert!(matches!(result, Err(CoreError::InvalidVolume { .. })));
+        assert_eq!(scene.representation_count(), 0);
+    }
+}

@@ -47,6 +47,11 @@ impl Scene {
         let mut value = representation.bind(target);
         if kind == RepresentationKind::Volume {
             value.volume.validate()?;
+            if !value.params.isolevel.is_finite() {
+                return Err(CoreError::InvalidVolume {
+                    reason: "volume isolevel must be finite",
+                });
+            }
         }
         if let RepresentationTarget::Volume(handle) = target {
             let (dimensions, transform) = self
