@@ -58,6 +58,32 @@ Python `.save()` accepts only `.exr` filenames and raises `ValueError` before
 writing any other format. Rust uses `HdrImage::save_exr` and also supports an
 explicit camera through `Renderer::render_hdr_image_with_camera`.
 
+A structure is optional for a scalar-volume scene. Bind voxel values separately
+from the portable scene specification; the same grid can drive several
+presentations without another upload:
+
+```python
+import hashlib
+import struct
+import molgfx
+
+values = [max(0.0, 1.0 - ((x - 3.5) ** 2 + (y - 3.5) ** 2 + (z - 3.5) ** 2) ** 0.5 / 4.0)
+          for z in range(8) for y in range(8) for x in range(8)]
+source = molgfx.data.source(hashlib.sha256(struct.pack("<512f", *values)).hexdigest())
+scene = molgfx.Scene()
+volume = molgfx.density.volume(source=source, dimensions=(8, 8, 8))
+volume = volume.isosurface(0.5, color=(220, 40, 70)).direct([
+    (0.0, (50, 150, 255), 0.0), (1.0, (50, 150, 255), 0.4),
+])
+identity = scene.add(volume)
+scene.bind_volume(identity, values)
+molgfx.Renderer().render_image(scene, size=(640, 480)).save("density.png")
+```
+
+`values` are indexed with x fastest, then y, then z. For a map read by
+MolFrame, supply its column-major `voxel_to_world` affine instead of assuming
+unit voxels at the origin. Region bounds use half-open voxel indices.
+
 Targets are MolFrame queries, and a small command language works around them
 through `molgfx.Session`:
 
@@ -67,6 +93,26 @@ select pocket, byres (within 5 of resname HEM) and protein
 show licorice, $pocket
 color orange, $pocket
 ```
+
+Named snapshots capture the complete authored scene (camera, styles, interaction
+state, assemblies and overlays), not coordinates, pixels or renderer buffers:
+
+```python
+session.snapshot_save("overview")
+session.execute("color orange, protein")
+session.snapshot_restore("overview")
+session.undo()  # Return to the state immediately before restoration.
+session.snapshot_remove("overview")
+```
+
+The same operations are commands: `snapshot save|restore|remove NAME`. Named
+captures round-trip in `Session.to_json()` and `Session.from_json(scene, json)`.
+Restoration requires local bindings with matching content identities; missing or
+mismatched assets leave the live scene unchanged. Revisions advance on restore
+and undo rather than returning to the captured revision. Rust uses the canonical
+`interop::SceneSnapshot`, `Scene::snapshot`, `Scene::restore_snapshot` and
+`PatchOperation::RestoreSnapshot`. Frame export remains `render_sequence` or
+`render_camera_path`; no retained movie request is an export implementation.
 
 The Rust engine opens no window and owns no application panels. This repository
 also supplies the official browser host: a canvas, navigation and semantic picks,
@@ -144,6 +190,26 @@ release 0.4.1 supersedes the existing PyPI 0.4.0 package. npm trusted publishing
 requires the package owner to authorize this repository and release workflow.
 Until the first registry publication, the docs use the public package through a
 local npm dependency, exercising the same exports and bundler asset resolution.
+
+## Cross-engine gallery
+
+The optional Mol* adapter runs the requested local Mol* source checkout in real
+Chromium/WebGL2. Install its locked Node transport dependencies, then provide a
+real Chromium executable and PyMOL binary:
+
+```bash
+nix develop -c npm ci --prefix crates/molgfx-bench/parity
+MOLSTAR_CHROMIUM=/path/to/chrome nix develop -c cargo run -p molgfx-bench --bin parity -- \
+  --manifest crates/molgfx-bench/parity/gallery.json --cache ~/.cache/molgfx-corpus \
+  --output target/gallery --case P2-iso-solid-skewMRC \
+  --recipe molgfx-converged --recipe pymol-ray --recipe molstar-imagepass \
+  --molstar-root ../molstar --pymol /path/to/pymol
+```
+
+The manifest records explicit omissions for recipes that cannot faithfully
+represent a case; failures are never counted as omissions. Review visual
+semantics before blessing golden images.
+Motion-blur orbit cases also require `--ffmpeg /path/to/ffmpeg`.
 
 [Writing queries and commands](https://miguelcsx.github.io/molgfx/docs/commands/queries)
 walks through both, and the

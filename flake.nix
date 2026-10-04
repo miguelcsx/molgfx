@@ -54,6 +54,8 @@
                 python
                 pkgs.uv
                 pkgs.maturin
+                pkgs.mypy
+                pkgs.ruff
 
                 # Browser runtime
                 pkgs.wasm-pack

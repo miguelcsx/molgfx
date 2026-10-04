@@ -38,7 +38,7 @@ target
 # Shared frontend build and distribution assets
 /python/molgfx/static/
 /dist/
-/node_modules/
+**/node_modules/
 /web/generated/
 /web/dist/
 
