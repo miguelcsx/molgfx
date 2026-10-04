@@ -440,6 +440,8 @@ pub struct VolumeStyleDescription {
     pub step_scale: f32,
     /// Optional world-space sampling plane as normal xyz plus offset.
     pub slice: Option<[f32; 4]>,
+    /// Optional exact slice palette; stop opacity is one.
+    pub slice_ramp: Option<Vec<VolumeTransferPointDescription>>,
     /// Optional half-open voxel crop.
     pub region: Option<RegionDescription>,
 }

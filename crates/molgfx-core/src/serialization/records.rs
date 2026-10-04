@@ -5,7 +5,7 @@ use super::types::{
     MeasurementDescription, MeshDescription, MeshInstanceDescription, ObjectIdentity,
     OverlayDescription, PrimitiveDescription, PropertyAppearanceDescription, RegionDescription,
     ScalarSemanticsDescription, SegmentStyleDescription, SegmentationStyleDescription,
-    SurfaceScalarDescription, VolumeStyleDescription, VolumeTransferPointDescription,
+    SurfaceScalarDescription,
 };
 use crate::handle::StructureHandle;
 use crate::{
@@ -23,6 +23,8 @@ mod record_values;
 pub(crate) use hash::{label_hash, mesh_hash, value_hash};
 use primitive_records::primitive_description;
 use record_values::volume_rendering;
+mod volume;
+pub(crate) use volume::volume_style_description;
 pub(crate) fn primitives(scene: &Scene) -> Vec<PrimitiveDescription> {
     scene
         .primitives()
@@ -171,33 +173,6 @@ pub(crate) fn appearance_description(
         opacity,
         softness_pixels,
         missing,
-    }
-}
-
-pub(crate) fn volume_style_description(value: crate::VolumeStyle) -> VolumeStyleDescription {
-    VolumeStyleDescription {
-        rendering: volume_rendering(value.rendering).to_owned(),
-        transfer: value
-            .transfer
-            .points()
-            .iter()
-            .map(|point| VolumeTransferPointDescription {
-                value: point.value,
-                color: rgba(point.color),
-                opacity: point.opacity,
-            })
-            .collect(),
-        opacity_scale: value.opacity_scale,
-        step_scale: value.step_scale,
-        slice: value.slice.map(|slice| {
-            [
-                slice.plane.normal.x,
-                slice.plane.normal.y,
-                slice.plane.normal.z,
-                slice.plane.offset,
-            ]
-        }),
-        region: value.region.map(region_description),
     }
 }
 

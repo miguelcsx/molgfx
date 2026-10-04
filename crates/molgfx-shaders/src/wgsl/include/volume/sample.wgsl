@@ -137,8 +137,9 @@ fn slice_sample(
             world_position,
         );
 
+    // Unlit slice colours cross the same sRGB boundary as shaded materials.
     return weighted_transparency(
-        transfer.color,
+        srgb_to_linear(transfer.color),
         opacity,
         volume_view_depth(
             view_position

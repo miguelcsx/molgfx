@@ -1,0 +1,38 @@
+{
+  "unit": "Phase 2.2 scalar presentation colour subunit",
+  "status": "verified core behaviour; complete volume gallery closure remains open",
+  "changes": [
+    "Slice palette retains up to 16 authored stops without optical-transfer resampling",
+    "Slice and participating-medium colours enter HDR in scene-linear space",
+    "Rehydration applies shared presentation and source-grid validation"
+  ],
+  "regression": {
+    "test": "crates/molgfx-wgpu/tests/gpu_volume_color_tests.rs",
+    "before": "gray 128 emitted half word 0x3803 (display encoded)",
+    "after": "scene-linear gray within 16 binary16 ULP of 0x32e8; optical transfer and tenth exact palette stop both pass"
+  },
+  "tests": [
+    "crates/molgfx-core/src/serialization/asset_serialization_tests.rs::exact_slice_palettes_survive_rehydration_and_invalid_opacity_is_rejected",
+    "Invalid non-slice rendering with a slice palette rejected"
+  ],
+  "visual_review": {
+    "case": "P2-slice-model_density",
+    "image": "target/gallery-volume-slice-corrected/P2-slice-model_density/sheet.png",
+    "scope": "Integration checkout reviewed: smooth scalar interpolation and purple/teal/yellow palette. Reference comparison and golden closure remain open."
+  },
+  "performance": "Correctness repair; no optimization or performance improvement claimed. Uniform transfer arrays increase from eight to sixteen stops.",
+  "new_open_regression": {
+    "owner": "Phase 2.5",
+    "description": "HDR capture exports temporal depth as its fourth channel instead of coverage alpha. Discovered by actual GPU test; repair required before HDR closure."
+  },
+  "verification": {
+    "workspace_format_clippy_all_features_tests": "pass",
+    "wasm32_check_and_clippy": "pass",
+    "python_development_install": "pass",
+    "ruff_format_and_check": "pass",
+    "mypy_and_stubtest": "pass",
+    "python_tests": "69 passed",
+    "policy_checks": "pass",
+    "logs": "target/colour-verification"
+  }
+}

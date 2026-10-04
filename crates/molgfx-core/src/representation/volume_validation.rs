@@ -35,6 +35,9 @@ impl VolumeStyle {
         if self.rendering == VolumeRendering::Slice && self.slice.is_none() {
             return Err(invalid("slice rendering requires a world-space plane"));
         }
+        if self.slice_ramp.is_some() && self.rendering != VolumeRendering::Slice {
+            return Err(invalid("slice palettes require slice rendering"));
+        }
         Ok(())
     }
 }

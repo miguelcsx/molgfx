@@ -235,7 +235,7 @@ fn representation_description(
         appearance: representation
             .appearance
             .map(records::appearance_description),
-        volume: records::volume_style_description(representation.volume),
+        volume: records::volume_style_description(&representation.volume),
         segmentation: records::segmentation_style_description(&representation.segmentation),
         surface_scalar: representation
             .surface_scalar

@@ -12,7 +12,7 @@ fn transfer_count() -> u32 {
     return clamp(
         volume.transfer_meta.x,
         2u,
-        8u,
+        16u,
     );
 }
 

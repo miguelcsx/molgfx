@@ -146,7 +146,7 @@ fn volume_integrate(
                 if medium {
                     source =
                         medium_radiance(
-                            source,
+                            srgb_to_linear(source),
                             coordinate,
                             lighting,
                             count,

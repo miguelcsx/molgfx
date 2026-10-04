@@ -49,6 +49,14 @@ fn validate_regions(
     target: RepresentationTarget,
     value: &Representation,
 ) -> Result<(), crate::CoreError> {
+    if let RepresentationTarget::Volume(handle) = target {
+        let (dimensions, transform) = scene
+            .volumes
+            .get(handle.0)
+            .and_then(|volume| volume.grid(scene))
+            .ok_or(CoreError::StaleHandle)?;
+        value.volume.validate_grid(dimensions, transform)?;
+    }
     if let Some(region) = value.volume.region {
         let RepresentationTarget::Volume(handle) = target else {
             return invalid("volume region is attached to a non-volume target");

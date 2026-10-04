@@ -29,8 +29,8 @@ struct VolumeUniforms {
     empty_space_dimensions: vec4u,
     scalar: vec4f,
     sampling: vec4f,
-    transfer_values: array<vec4f, 8>,
-    transfer_colors: array<vec4f, 8>,
+    transfer_values: array<vec4f, 16>,
+    transfer_colors: array<vec4f, 16>,
     transfer_meta: vec4u,
     clip_planes: array<vec4f, 4>,
     clip_meta: vec4u,
@@ -147,7 +147,7 @@ fn volume_ndc_bounds() -> mat2x2f {
     var low = vec2f(1.0);
     var high = vec2f(-1.0);
 
-    for (var corner = 0u; corner < 8u; corner++) {
+    for (var corner = 0u; corner < 16u; corner++) {
         let selector =
             vec3f(
                 f32(corner & 1u),

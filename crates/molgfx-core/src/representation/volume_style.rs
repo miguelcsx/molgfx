@@ -1,6 +1,8 @@
 //! Declarative volume-presentation recipes.
 
-use super::{VolumeRegion, VolumeRendering, VolumeSlice, VolumeStyle, VolumeTransferFunction};
+use super::{
+    ScalarRamp, VolumeRegion, VolumeRendering, VolumeSlice, VolumeStyle, VolumeTransferFunction,
+};
 
 impl VolumeStyle {
     /// Applies an explicit scalar-to-color-and-opacity transfer function.
@@ -45,6 +47,13 @@ impl VolumeStyle {
             slice: Some(slice),
             ..Self::default()
         }
+    }
+
+    /// Retains all scalar palette anchors on a slice.
+    #[must_use]
+    pub const fn slice_ramp(mut self, ramp: ScalarRamp) -> Self {
+        self.slice_ramp = Some(ramp);
+        self
     }
 
     /// Restricts sampling to one half-open voxel region.

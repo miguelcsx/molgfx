@@ -1,6 +1,6 @@
 //! Fixed-capacity volume presentation data.
 
-use crate::{ClipPlane, CoreError};
+use crate::{ClipPlane, CoreError, ScalarRamp};
 use molgfx_math::Rgba8;
 
 /// Maximum transfer points kept in one compact volume uniform.
@@ -117,6 +117,8 @@ pub struct VolumeStyle {
     pub step_scale: f32,
     /// World-space plane sampled by [`VolumeRendering::Slice`].
     pub slice: Option<VolumeSlice>,
+    /// Exact scalar palette for a slice, independent of optical transfer stops.
+    pub slice_ramp: Option<ScalarRamp>,
     /// Optional half-open voxel region rendered from the resident grid.
     pub region: Option<VolumeRegion>,
 }
@@ -129,6 +131,7 @@ impl Default for VolumeStyle {
             opacity_scale: 2.0,
             step_scale: 0.65,
             slice: None,
+            slice_ramp: None,
             region: None,
         }
     }

@@ -2,8 +2,7 @@
 
 use super::uniforms::{clip_meta, clip_planes, material_uniforms};
 use molgfx_core::{
-    MAX_CLIP_PLANES, MAX_VOLUME_TRANSFER_POINTS, OccupancyStream, PlacedStructure, Representation,
-    ScalarVolume,
+    MAX_CLIP_PLANES, MAX_RAMP_STOPS, OccupancyStream, PlacedStructure, Representation, ScalarVolume,
 };
 use molgfx_math::Mat4;
 
@@ -20,8 +19,8 @@ pub(super) struct VolumeUniforms {
     pub(super) empty_space_dimensions: [u32; 4],
     pub(super) scalar: [f32; 4],
     pub(super) sampling: [f32; 4],
-    pub(super) transfer_values: [[f32; 4]; MAX_VOLUME_TRANSFER_POINTS],
-    pub(super) transfer_colors: [[f32; 4]; MAX_VOLUME_TRANSFER_POINTS],
+    pub(super) transfer_values: [[f32; 4]; MAX_RAMP_STOPS],
+    pub(super) transfer_colors: [[f32; 4]; MAX_RAMP_STOPS],
     pub(super) transfer_meta: [u32; 4],
     pub(super) clip_planes: [[f32; 4]; MAX_CLIP_PLANES],
     pub(super) clip_meta: [u32; 4],
@@ -69,12 +68,21 @@ impl VolumeUniforms {
         representation: &Representation,
     ) -> Self {
         let points = representation.volume.transfer.points();
-        let mut transfer_values = [[0.0; 4]; MAX_VOLUME_TRANSFER_POINTS];
-        let mut transfer_colors = [[0.0; 4]; MAX_VOLUME_TRANSFER_POINTS];
+        let mut transfer_values = [[0.0; 4]; MAX_RAMP_STOPS];
+        let mut transfer_colors = [[0.0; 4]; MAX_RAMP_STOPS];
         for (index, point) in points.iter().enumerate() {
             transfer_values[index] = [point.value, point.opacity, 0.0, 0.0];
             transfer_colors[index] = point.color.to_f32();
         }
+        let transfer_count = if let Some(ramp) = representation.volume.slice_ramp {
+            for (index, (value, color)) in ramp.values().iter().zip(ramp.colors()).enumerate() {
+                transfer_values[index] = [*value, 1.0, 0.0, 0.0];
+                transfer_colors[index] = color.to_f32();
+            }
+            ramp.values().len()
+        } else {
+            points.len()
+        };
         let opacity = finite_or(representation.material.opacity, 1.0).clamp(0.0, 1.0);
         let density = finite_or(representation.volume.opacity_scale, 2.0).max(0.0);
         let step = representation.volume.step_scale;
@@ -112,7 +120,7 @@ impl VolumeUniforms {
             transfer_values,
             transfer_colors,
             transfer_meta: [
-                crate::fallback(u32::try_from(points.len()), 2),
+                crate::fallback(u32::try_from(transfer_count), 2),
                 representation.volume.rendering as u32,
                 0,
                 0,

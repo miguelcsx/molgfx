@@ -361,14 +361,35 @@ fn parse_volume_style(value: &VolumeStyleDescription) -> Result<VolumeStyle, cra
         .map(|point| VolumeTransferPoint::new(point.value, rgba(point.color), point.opacity))
         .collect::<Vec<_>>();
     let transfer = VolumeTransferFunction::new(&points)?;
-    Ok(VolumeStyle {
+    let style = VolumeStyle {
         rendering: parse_volume_rendering(&value.rendering)?,
         transfer,
         opacity_scale: finite_nonnegative(value.opacity_scale, "volume opacity scale")?,
         step_scale: positive_finite(value.step_scale, "volume step scale")?,
         slice: value.slice.map(parse_slice).transpose()?,
+        slice_ramp: value
+            .slice_ramp
+            .as_deref()
+            .map(parse_slice_ramp)
+            .transpose()?,
         region: value.region.map(parse_region).transpose()?,
-    })
+    };
+    style.validate()?;
+    Ok(style)
+}
+
+fn parse_slice_ramp(
+    points: &[types::VolumeTransferPointDescription],
+) -> Result<ScalarRamp, crate::CoreError> {
+    if points
+        .iter()
+        .any(|point| point.opacity.to_bits() != 1.0_f32.to_bits())
+    {
+        return invalid("slice palette stops must have opacity one");
+    }
+    let values: Vec<_> = points.iter().map(|point| point.value).collect();
+    let colors: Vec<_> = points.iter().map(|point| rgba(point.color)).collect();
+    ScalarRamp::new(&values, &colors)
 }
 
 fn parse_volume_rendering(value: &str) -> Result<VolumeRendering, crate::CoreError> {
