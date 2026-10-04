@@ -78,7 +78,9 @@ pub const CARTOON_GAP_CUTOFF: f32 = 8.0;
 
 /// Extracts C-alpha or C4-prime guide atoms in topology order. Missing guide
 /// atoms and caller-defined spatial gaps split traces instead of drawing a
-/// physically false bridge. All output vectors are reused.
+/// physically false bridge. Canonical sequence gaps split even when the
+/// surviving guides are spatially close; author numbering is not a sequence
+/// position and therefore does not establish a gap. All output vectors are reused.
 ///
 /// # Errors
 ///
@@ -100,7 +102,23 @@ pub fn extract_polymer_traces(
     for chain in structure.chains() {
         let chain_id = chain.index().get();
         let mut trace_start = output.points.len();
+        let mut previous_sequence = None;
         for residue in chain.residues() {
+            let sequence = residue.label_seq_id();
+            let missing_interval = match (previous_sequence, sequence) {
+                (Some(previous), Some(current)) => i64::from(current) > i64::from(previous) + 1,
+                _ => false,
+            };
+            previous_sequence = sequence;
+            if missing_interval && output.points.len() > trace_start {
+                finish_trace(
+                    chain_id,
+                    trace_start,
+                    output.points.len(),
+                    &mut output.ranges,
+                );
+                trace_start = output.points.len();
+            }
             let guide = residue.atom("CA").or_else(|| residue.atom("C4'"));
             let Some(atom) = guide else {
                 finish_trace(
@@ -179,3 +197,7 @@ fn finish_trace(chain: u32, start: usize, end: usize, ranges: &mut Vec<TraceRang
         });
     }
 }
+
+#[cfg(test)]
+#[path = "traces_tests.rs"]
+mod tests;

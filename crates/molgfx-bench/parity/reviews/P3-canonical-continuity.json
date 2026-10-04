@@ -1,0 +1,179 @@
+{
+  "status": "verified canonical continuity regression; full Phase 3.1 remains open",
+  "owner": "Phase 3.1",
+  "behavior": "Missing canonical sequence positions split spatially close polymer guides. Author-numbering gaps do not imply missing residues.",
+  "complexity": "O(residues), constant additional storage, no new allocations",
+  "tests": [
+    "cartoon::traces::tests::missing_canonical_residues_split_spatially_close_guides",
+    "cartoon::traces::tests::author_numbering_gaps_do_not_split_canonical_neighbors"
+  ],
+  "verification": "target/cartoon-continuity-verification",
+  "python_tests": 78,
+  "native_before": "target/cartoon-continuity-before/P3-close-canonical-gap/sheet.png",
+  "native_after": "target/cartoon-continuity-after/P3-close-canonical-gap/sheet.png",
+  "visual_verdict": "False connecting segment removed between canonical positions 2 and 6; existing authored connected intervals retained.",
+  "reference_images": "target/cartoon-continuity-references/P3-close-canonical-gap/sheet.png",
+  "reference_source": "../molstar/src/mol-model/structure/model/properties/utils/atomic-ranges.ts",
+  "reference_note": "Synthetic CA-only regression, not a deposited biological acceptance fixture. Reference adapters display connecting gap geometry differently; their output is recorded, not claimed identical.",
+  "golden": {
+    "case": "B-cartoon-4HHB",
+    "path": "target/cartoon-continuity-4HHB-golden",
+    "ssim": 0.9996330781544126,
+    "mean_delta_e": 0.014284389480361141,
+    "p99_delta_e": 0,
+    "status": "passed without reblessing"
+  },
+  "measurements": [
+    {
+      "path": "target/cartoon-continuity-measurements/idle-after-1.jsonl",
+      "summary": {
+        "cpu_median_ns": 171625,
+        "cpu_p95_ns": 232583,
+        "cpu_p99_ns": 280166,
+        "frame_median_ns": 1756750,
+        "frame_p95_ns": 1849500,
+        "frame_p99_ns": 2005875,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 577.7741131919672
+    },
+    {
+      "path": "target/cartoon-continuity-measurements/idle-after-2.jsonl",
+      "summary": {
+        "cpu_median_ns": 175666,
+        "cpu_p95_ns": 244916,
+        "cpu_p99_ns": 292042,
+        "frame_median_ns": 1212167,
+        "frame_p95_ns": 1822875,
+        "frame_p99_ns": 1898416,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 729.9942973210491
+    },
+    {
+      "path": "target/cartoon-continuity-measurements/idle-after-3.jsonl",
+      "summary": {
+        "cpu_median_ns": 174250,
+        "cpu_p95_ns": 237042,
+        "cpu_p99_ns": 307292,
+        "frame_median_ns": 1184958,
+        "frame_p95_ns": 2523584,
+        "frame_p99_ns": 3519166,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 731.9384654720866
+    },
+    {
+      "path": "target/cartoon-continuity-measurements/idle-before-1.jsonl",
+      "summary": {
+        "cpu_median_ns": 172708,
+        "cpu_p95_ns": 231458,
+        "cpu_p99_ns": 281167,
+        "frame_median_ns": 1169042,
+        "frame_p95_ns": 1290667,
+        "frame_p99_ns": 1776292,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 840.4906611338623
+    },
+    {
+      "path": "target/cartoon-continuity-measurements/idle-before-2.jsonl",
+      "summary": {
+        "cpu_median_ns": 201375,
+        "cpu_p95_ns": 269458,
+        "cpu_p99_ns": 308916,
+        "frame_median_ns": 1812875,
+        "frame_p95_ns": 1923292,
+        "frame_p99_ns": 2031000,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 550.051297142245
+    },
+    {
+      "path": "target/cartoon-continuity-measurements/idle-before-3.jsonl",
+      "summary": {
+        "cpu_median_ns": 209792,
+        "cpu_p95_ns": 279541,
+        "cpu_p99_ns": 350041,
+        "frame_median_ns": 1822333,
+        "frame_p95_ns": 1945125,
+        "frame_p99_ns": 2100542,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 545.538752584645
+    }
+  ],
+  "measurement_note": "Three interleaved separate release processes per state, 768 physical pixels, 120 warmup and 1200 measured outputs, fixed interactive high quality. First measurements taken during compilation are excluded. No optimization or Phase 9 acceptance claim. Whole-GPU timestamps remain unresolved; managed residency is not total memory.",
+  "remaining": [
+    "Closed ends and gap presentation options",
+    "Public cartoon profiles, aspect ratio and arrow factor",
+    "Tubular helices, direction wedges and nucleotide live-coordinate fidelity",
+    "Required biological gallery fixtures and full Phase 3.1 gate"
+  ]
+}
