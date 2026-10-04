@@ -21,7 +21,10 @@ pub(super) struct RibbonTrace<'a> {
     pub(super) guides: &'a [GuideKind],
 }
 
-pub(super) fn append_ribbon(input: RibbonTrace<'_>, build: &mut RibbonBuild<'_>) {
+pub(super) fn append_ribbon(
+    input: RibbonTrace<'_>,
+    build: &mut RibbonBuild<'_>,
+) -> Result<(), crate::PackingError> {
     let RibbonTrace {
         points: trace,
         entities,
@@ -55,14 +58,30 @@ pub(super) fn append_ribbon(input: RibbonTrace<'_>, build: &mut RibbonBuild<'_>)
     }
     molgfx_math::parallel_transport(build.samples, build.frames);
     if build.samples.len() < 2 || build.samples.len() != build.frames.len() {
-        return;
+        return Ok(());
     }
     if build.params.profile == SplineProfile::Twister {
         super::twist::orient_to_rings(build.samples, normals, build.frames);
     }
-    let Ok(base_vertex) = u32::try_from(build.vertices.len()) else {
-        return;
-    };
+    let shell_indices: u64 = build
+        .samples
+        .windows(2)
+        .map(|samples| {
+            if flat_interval(samples, styles, guides, build.params) {
+                24
+            } else {
+                96
+            }
+        })
+        .sum();
+    super::draw_limits::check_sweep(
+        build.vertices.len(),
+        build.indices.len(),
+        build.samples.len(),
+        shell_indices,
+        build.params.profile == SplineProfile::Twister,
+    )?;
+    let base_vertex = super::draw_limits::vertex_index(build.vertices.len())?;
     let half_width = build.params.width.abs() * 0.5;
     let half_thickness = build.params.thickness.abs() * 0.5;
     build.vertices.reserve(build.samples.len() * PROFILE_SIDES);
@@ -70,22 +89,38 @@ pub(super) fn append_ribbon(input: RibbonTrace<'_>, build: &mut RibbonBuild<'_>)
         .deformations
         .reserve(build.samples.len() * PROFILE_SIDES);
     append_vertices(input, build);
-    build
-        .indices
-        .reserve((build.samples.len() - 1) * PROFILE_SIDES * 6);
+    let shell_capacity =
+        usize::try_from(shell_indices).map_err(|_| crate::PackingError::IndexOverflow {
+            resource: "ribbon draw indices",
+            index: shell_indices,
+        })?;
+    build.indices.reserve(shell_capacity);
     for ring in 0..build.samples.len() - 1 {
-        let flat = build.samples[ring..=ring + 1].iter().all(|sample| {
-            let segment = sample.segment as usize;
-            let style = match styles.get(segment) {
-                Some(&style) => style,
-                None => SecondaryStructure::Unknown,
-            };
-            sample_profile(build.params, style, guides.get(segment).copied())
-                == CartoonProfile::Square
-        });
-        append_ring(ring, base_vertex, flat, build.indices);
+        let flat = flat_interval(
+            &build.samples[ring..=ring + 1],
+            styles,
+            guides,
+            build.params,
+        );
+        append_ring(ring, base_vertex, flat, build.indices)?;
     }
-    append_end_caps(entities, styles, guides, half_width, half_thickness, build);
+    append_end_caps(entities, styles, guides, half_width, half_thickness, build)
+}
+
+fn flat_interval(
+    samples: &[molgfx_math::CurveSample],
+    styles: &[SecondaryStructure],
+    guides: &[GuideKind],
+    params: super::ribbon::RibbonParams,
+) -> bool {
+    samples.iter().all(|sample| {
+        let segment = sample.segment as usize;
+        let style = match styles.get(segment) {
+            Some(&style) => style,
+            None => SecondaryStructure::Unknown,
+        };
+        sample_profile(params, style, guides.get(segment).copied()) == CartoonProfile::Square
+    })
 }
 
 fn append_vertices(input: RibbonTrace<'_>, build: &mut RibbonBuild<'_>) {
@@ -172,22 +207,21 @@ fn radius_control_rows(base: Option<u32>, count: usize, segment: usize) -> [u32;
     }
 }
 
-fn append_ring(ring: usize, base_vertex: u32, flat: bool, indices: &mut Vec<u32>) {
-    let Some(base) = u32::try_from(ring * PROFILE_SIDES).ok() else {
-        return;
-    };
-    let base = base.saturating_add(base_vertex);
-    let stride = u32::try_from(PROFILE_SIDES)
-        .into_iter()
-        .fold(0, |_, value| value);
+fn append_ring(
+    ring: usize,
+    base_vertex: u32,
+    flat: bool,
+    indices: &mut Vec<u32>,
+) -> Result<(), crate::PackingError> {
+    let base = super::draw_limits::vertex_index(ring * PROFILE_SIDES)? + base_vertex;
+    let stride = super::draw_limits::vertex_index(PROFILE_SIDES)?;
     for side in 0..PROFILE_SIDES {
         if flat && side % 4 != 0 {
             continue;
         }
-        let current = u32::try_from(side).into_iter().fold(0, |_, value| value);
-        let next = u32::try_from((side + if flat { 3 } else { 1 }) % PROFILE_SIDES)
-            .into_iter()
-            .fold(0, |_, value| value);
+        let current = super::draw_limits::vertex_index(side)?;
+        let next =
+            super::draw_limits::vertex_index((side + if flat { 3 } else { 1 }) % PROFILE_SIDES)?;
         indices.extend_from_slice(&[
             base + current,
             base + stride + next,
@@ -197,4 +231,5 @@ fn append_ring(ring: usize, base_vertex: u32, flat: bool, indices: &mut Vec<u32>
             base + stride + next,
         ]);
     }
+    Ok(())
 }

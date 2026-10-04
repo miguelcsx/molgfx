@@ -24,7 +24,8 @@ fn a_straight_strand_places_its_authored_arrow_shoulder_at_the_last_strand_guide
             arrow_factor: 2.0,
             ..RibbonParams::default()
         },
-    );
+    )
+    .expect("ribbon indices fit");
     let shoulder = mesh
         .vertices
         .iter()
@@ -42,15 +43,17 @@ fn a_cartoon_aspect_ratio_changes_depth_without_changing_helix_width() {
     let mut shallow = RibbonMesh::default();
     let mut deep = RibbonMesh::default();
     let guides = [Vec3::ZERO, Vec3::X];
-    shallow.generate_styled(
-        &guides,
-        &[1, 2],
-        &[SecondaryStructure::AlphaHelix; 2],
-        RibbonParams {
-            aspect_ratio: 10.0,
-            ..RibbonParams::default()
-        },
-    );
+    shallow
+        .generate_styled(
+            &guides,
+            &[1, 2],
+            &[SecondaryStructure::AlphaHelix; 2],
+            RibbonParams {
+                aspect_ratio: 10.0,
+                ..RibbonParams::default()
+            },
+        )
+        .expect("ribbon indices fit");
     deep.generate_styled(
         &guides,
         &[1, 2],
@@ -59,7 +62,8 @@ fn a_cartoon_aspect_ratio_changes_depth_without_changing_helix_width() {
             aspect_ratio: 5.0,
             ..RibbonParams::default()
         },
-    );
+    )
+    .expect("ribbon indices fit");
     let a = profile_diameters(&shallow.vertices);
     let b = profile_diameters(&deep.vertices);
     assert!((a.0 - b.0).abs() < 1.0e-5);
@@ -79,7 +83,8 @@ fn changing_cartoon_width_preserves_the_authored_cross_section_aspect_ratio() {
                 aspect_ratio: 7.0,
                 ..RibbonParams::default()
             },
-        );
+        )
+        .expect("ribbon indices fit");
         let (wide, thin) = profile_diameters(&mesh.vertices);
         assert!((wide / thin - 7.0).abs() < 1.0e-5);
     }

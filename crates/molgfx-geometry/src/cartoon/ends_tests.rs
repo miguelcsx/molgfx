@@ -13,7 +13,8 @@ fn tube_ends_are_closed_with_outward_normals_and_the_authored_radius() {
             profile: SplineProfile::Tube,
             ..RibbonParams::default()
         },
-    );
+    )
+    .expect("ribbon indices fit");
     for (x, sign) in [(0.0, -1.0), (2.0, 1.0)] {
         let triangles: Vec<_> = mesh
             .indices

@@ -16,9 +16,13 @@ fn trace() -> [Vec3; 5] {
 #[test]
 fn ribbon_generation_is_deterministic_and_indexed() {
     let mut first = RibbonMesh::default();
-    first.generate(&trace(), &[10, 11, 12, 13, 14], RibbonParams::default());
+    first
+        .generate(&trace(), &[10, 11, 12, 13, 14], RibbonParams::default())
+        .expect("ribbon indices fit");
     let mut second = RibbonMesh::default();
-    second.generate(&trace(), &[10, 11, 12, 13, 14], RibbonParams::default());
+    second
+        .generate(&trace(), &[10, 11, 12, 13, 14], RibbonParams::default())
+        .expect("ribbon indices fit");
     assert_eq!(first.vertices, second.vertices);
     assert_eq!(first.indices, second.indices);
     assert!(first.indices.as_chunks::<3>().0.iter().all(|triangle| {
@@ -37,7 +41,8 @@ fn ribbon_vertices_remain_two_sixteen_byte_lanes() {
 #[test]
 fn ribbon_vertices_are_finite_and_keep_residue_anchors() {
     let mut mesh = RibbonMesh::default();
-    mesh.generate(&trace(), &[20, 21, 22, 23, 24], RibbonParams::default());
+    mesh.generate(&trace(), &[20, 21, 22, 23, 24], RibbonParams::default())
+        .expect("ribbon indices fit");
     assert!(mesh.vertices.iter().all(|vertex| {
         Vec3::from(vertex.position).is_finite()
             && Vec3::from(vertex.normal).is_normalized()
@@ -53,7 +58,8 @@ fn ribbon_vertices_are_finite_and_keep_residue_anchors() {
 #[test]
 fn fewer_than_two_trace_points_produce_no_geometry() {
     let mut mesh = RibbonMesh::default();
-    mesh.generate(&[Vec3::ZERO], &[3], RibbonParams::default());
+    mesh.generate(&[Vec3::ZERO], &[3], RibbonParams::default())
+        .expect("ribbon indices fit");
     assert!(mesh.vertices.is_empty());
     assert!(mesh.indices.is_empty());
 }
@@ -70,7 +76,8 @@ fn tube_profile_has_a_constant_round_cross_section() {
             profile: SplineProfile::Tube,
             ..RibbonParams::default()
         },
-    );
+    )
+    .expect("ribbon indices fit");
     let diameters = profile_diameters(&mesh.vertices);
     assert!((diameters.0 - 0.8).abs() < 1.0e-5);
     assert!((diameters.1 - 0.8).abs() < 1.0e-5);
@@ -144,19 +151,23 @@ fn secondary_structure_changes_cross_section_without_changing_topology() {
     let trace = trace();
     let entities = [10, 11, 12, 13, 14];
     let mut helix = RibbonMesh::default();
-    helix.generate_styled(
-        &trace,
-        &entities,
-        &[SecondaryStructure::AlphaHelix; 5],
-        RibbonParams::default(),
-    );
+    helix
+        .generate_styled(
+            &trace,
+            &entities,
+            &[SecondaryStructure::AlphaHelix; 5],
+            RibbonParams::default(),
+        )
+        .expect("ribbon indices fit");
     let mut strand = RibbonMesh::default();
-    strand.generate_styled(
-        &trace,
-        &entities,
-        &[SecondaryStructure::Strand; 5],
-        RibbonParams::default(),
-    );
+    strand
+        .generate_styled(
+            &trace,
+            &entities,
+            &[SecondaryStructure::Strand; 5],
+            RibbonParams::default(),
+        )
+        .expect("ribbon indices fit");
 
     assert_eq!(helix.indices, strand.indices);
     assert_eq!(helix.vertices.len(), strand.vertices.len());
@@ -365,7 +376,8 @@ fn the_twister_profile_gives_each_face_its_own_flat_normal() {
             profile: SplineProfile::Twister,
             ..RibbonParams::default()
         },
-    );
+    )
+    .expect("ribbon indices fit");
     let ring: &[RibbonVertex] = mesh
         .vertices
         .as_chunks::<PROFILE_SIDES>()

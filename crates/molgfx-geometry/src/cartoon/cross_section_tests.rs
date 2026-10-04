@@ -70,7 +70,8 @@ fn swept_shell_triangles_face_the_same_way_as_their_outward_vertex_normals() {
                 profile,
                 ..RibbonParams::default()
             },
-        );
+        )
+        .expect("ribbon indices fit");
         for triangle in mesh.indices[..shell_indices].as_chunks::<3>().0 {
             let a = mesh.vertices[triangle[0] as usize];
             let b = mesh.vertices[triangle[1] as usize];
@@ -106,7 +107,8 @@ fn changing_the_helix_profile_changes_shape_without_moving_source_anchors() {
                 helix_profile,
                 ..RibbonParams::default()
             },
-        );
+        )
+        .expect("ribbon indices fit");
         assert!(
             mesh.vertices
                 .iter()

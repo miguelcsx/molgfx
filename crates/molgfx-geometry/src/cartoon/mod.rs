@@ -1,6 +1,7 @@
 //! Polymer cartoon and nucleotide geometry.
 
 mod cross_section;
+mod draw_limits;
 pub(crate) mod ends;
 mod glycan;
 pub(crate) mod nucleic;

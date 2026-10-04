@@ -204,7 +204,7 @@ fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), Rend
     } else if input.representation.kind == RepresentationKind::Twister {
         input
             .mesh
-            .generate_glycan(structure, input.selection, params);
+            .generate_glycan(structure, input.selection, params)?;
     } else {
         input.mesh.generate_structure(
             structure,

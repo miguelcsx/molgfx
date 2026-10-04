@@ -25,6 +25,12 @@ pub struct RibbonVertex {
     pub color: Rgba8,
 }
 
+#[derive(Clone, Copy)]
+enum GuideProperties {
+    RadiusSources,
+    Unmapped,
+}
+
 /// Parametric GPU deformation recipe for one ribbon vertex.
 ///
 /// Four source atom rows define the Catmull–Rom interval. The reference frame
@@ -133,19 +139,32 @@ pub struct RibbonMesh {
 impl RibbonMesh {
     /// Regenerates a ribbon in `O(samples)` without allocating once capacity
     /// is sufficient. `entities[i]` anchors control point `i` to provenance.
-    pub fn generate(&mut self, trace: &[Vec3], entities: &[u32], params: RibbonParams) {
-        self.generate_styled(trace, entities, &[], params);
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::PackingError`] if the geometry exceeds GPU index limits.
+    pub fn generate(
+        &mut self,
+        trace: &[Vec3],
+        entities: &[u32],
+        params: RibbonParams,
+    ) -> Result<(), crate::PackingError> {
+        self.generate_styled(trace, entities, &[], params)
     }
 
     /// Regenerates a ribbon with one reversible secondary-structure style per
     /// control point. Missing styles resolve to coil without changing topology.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::PackingError`] if the geometry exceeds GPU index limits.
     pub fn generate_styled(
         &mut self,
         trace: &[Vec3],
         entities: &[u32],
         styles: &[SecondaryStructure],
         params: RibbonParams,
-    ) {
+    ) -> Result<(), crate::PackingError> {
         self.vertices.clear();
         self.indices.clear();
         self.deformations.clear();
@@ -170,7 +189,7 @@ impl RibbonMesh {
                 guides: &[],
             },
             &mut build,
-        );
+        )
     }
 
     /// Generates every selected polymer trace in one structure into a single
@@ -178,7 +197,8 @@ impl RibbonMesh {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::PackingError`] when a guide atom row cannot be encoded.
+    /// Returns [`crate::PackingError`] when a guide atom row cannot be encoded
+    /// or the generated geometry exceeds GPU index limits.
     pub fn generate_structure(
         &mut self,
         structure: &molframe::Structure,
@@ -187,34 +207,9 @@ impl RibbonMesh {
         max_gap: f32,
         params: RibbonParams,
     ) -> Result<(), crate::PackingError> {
+        self.clear();
         extract_polymer_traces(structure, selection, secondary, max_gap, &mut self.traces)?;
-        self.vertices.clear();
-        self.indices.clear();
-        self.deformations.clear();
-        let mut build = RibbonBuild {
-            params,
-            samples: &mut self.samples,
-            demand: &mut self.demand,
-            frames: &mut self.frames,
-            vertices: &mut self.vertices,
-            indices: &mut self.indices,
-            deformations: &mut self.deformations,
-        };
-        for range in &self.traces.ranges {
-            append_ribbon(
-                RibbonTrace {
-                    points: &self.traces.points[range.points.clone()],
-                    entities: &self.traces.entities[range.points.clone()],
-                    styles: &self.traces.styles[range.points.clone()],
-                    property_base: u32::try_from(range.points.start).ok(),
-                    property_count: range.points.len(),
-                    normals: plane_slice(&self.traces.normals, range.points.clone()),
-                    guides: &self.traces.guides[range.points.clone()],
-                },
-                &mut build,
-            );
-        }
-        Ok(())
+        self.generate_traces(params, GuideProperties::RadiusSources)
     }
 
     /// Generates a ribbon along a glycan's glycosidic tree.
@@ -222,16 +217,26 @@ impl RibbonMesh {
     /// The traces come from connectivity rather than residue order, so each
     /// unbranched run draws as its own ribbon and a branch point starts a new
     /// one instead of stitching two arms into a false continuous chain.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::PackingError`] if the geometry exceeds GPU index limits.
     pub fn generate_glycan(
         &mut self,
         structure: &molframe::Structure,
         selection: &molgfx_core::AtomSelection,
         params: RibbonParams,
-    ) {
+    ) -> Result<(), crate::PackingError> {
+        self.clear();
         super::glycan::extract_glycosidic_traces(structure, selection, &mut self.traces);
-        self.vertices.clear();
-        self.indices.clear();
-        self.deformations.clear();
+        self.generate_traces(params, GuideProperties::Unmapped)
+    }
+
+    fn generate_traces(
+        &mut self,
+        params: RibbonParams,
+        properties: GuideProperties,
+    ) -> Result<(), crate::PackingError> {
         let mut build = RibbonBuild {
             params,
             samples: &mut self.samples,
@@ -242,19 +247,34 @@ impl RibbonMesh {
             deformations: &mut self.deformations,
         };
         for range in &self.traces.ranges {
-            append_ribbon(
-                RibbonTrace {
-                    points: &self.traces.points[range.points.clone()],
-                    entities: &self.traces.entities[range.points.clone()],
-                    styles: &self.traces.styles[range.points.clone()],
-                    property_base: None,
-                    property_count: 0,
-                    normals: plane_slice(&self.traces.normals, range.points.clone()),
-                    guides: &self.traces.guides[range.points.clone()],
-                },
-                &mut build,
-            );
+            let property_base = match properties {
+                GuideProperties::RadiusSources => {
+                    super::draw_limits::vertex_index(range.points.start).map(Some)
+                }
+                GuideProperties::Unmapped => Ok(None),
+            };
+            let result = property_base.and_then(|property_base| {
+                append_ribbon(
+                    RibbonTrace {
+                        points: &self.traces.points[range.points.clone()],
+                        entities: &self.traces.entities[range.points.clone()],
+                        styles: &self.traces.styles[range.points.clone()],
+                        property_base,
+                        property_count: range.points.len(),
+                        normals: plane_slice(&self.traces.normals, range.points.clone()),
+                        guides: &self.traces.guides[range.points.clone()],
+                    },
+                    &mut build,
+                )
+            });
+            if let Err(error) = result {
+                build.vertices.clear();
+                build.indices.clear();
+                build.deformations.clear();
+                return Err(error);
+            }
         }
+        Ok(())
     }
 
     /// Empties every generated column, including the deformation recipes.

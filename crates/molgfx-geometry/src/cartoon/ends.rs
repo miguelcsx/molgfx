@@ -38,7 +38,7 @@ pub(super) fn append_end_caps(
     width: f32,
     thickness: f32,
     build: &mut RibbonBuild<'_>,
-) {
+) -> Result<(), crate::PackingError> {
     let ends = match (
         build.samples.first().copied(),
         build.frames.first().copied(),
@@ -57,14 +57,14 @@ pub(super) fn append_end_caps(
                 outward: 1.0,
             },
         ],
-        _ => return,
+        _ => return Ok(()),
     };
     let Some(first_ring) = build
         .deformations
         .len()
         .checked_sub(build.samples.len() * PROFILE_SIDES)
     else {
-        return;
+        return Ok(());
     };
     let recipes = [
         build.deformations.get(first_ring).copied(),
@@ -72,11 +72,12 @@ pub(super) fn append_end_caps(
     ];
     for (end, recipe) in ends.into_iter().zip(recipes) {
         if build.params.profile == SplineProfile::Twister {
-            append_cap(end, entities, width, thickness, build);
+            append_cap(end, entities, width, thickness, build)?;
         } else if let Some(recipe) = recipe {
-            append_round_cap(end, entities, styles, guides, recipe, build);
+            append_round_cap(end, entities, styles, guides, recipe, build)?;
         }
     }
+    Ok(())
 }
 
 fn append_cap(
@@ -85,7 +86,7 @@ fn append_cap(
     width: f32,
     thickness: f32,
     build: &mut RibbonBuild<'_>,
-) {
+) -> Result<(), crate::PackingError> {
     let segment = usize::try_from(end.sample.segment)
         .into_iter()
         .fold(usize::MAX, |_, value| value);
@@ -95,9 +96,7 @@ fn append_cap(
     };
     let controls = control_rows(entities, segment);
     let normal = end.frame.tangent * end.outward;
-    let Ok(base) = u32::try_from(build.vertices.len()) else {
-        return;
-    };
+    let base = super::draw_limits::vertex_index(build.vertices.len())?;
     for [x, y] in SQUARE_CORNERS {
         let offset = end.frame.normal * (x * width) + end.frame.binormal * (y * thickness);
         build.vertices.push(RibbonVertex {
@@ -119,6 +118,7 @@ fn append_cap(
         [base, base + 2, base + 1, base, base + 3, base + 2]
     };
     build.indices.extend_from_slice(&quad);
+    Ok(())
 }
 
 fn append_round_cap(
@@ -128,12 +128,12 @@ fn append_round_cap(
     guides: &[GuideKind],
     recipe: RibbonDeformation,
     build: &mut RibbonBuild<'_>,
-) {
+) -> Result<(), crate::PackingError> {
     let Ok(segment) = usize::try_from(end.sample.segment) else {
-        return;
+        return Ok(());
     };
     let Some(&entity_id) = entities.get(segment) else {
-        return;
+        return Ok(());
     };
     let style = match styles.get(segment) {
         Some(&style) => style,
@@ -147,9 +147,7 @@ fn append_round_cap(
         segment,
         guides.get(segment).copied(),
     );
-    let Ok(base) = u32::try_from(build.vertices.len()) else {
-        return;
-    };
+    let base = super::draw_limits::vertex_index(build.vertices.len())?;
     let normal = (end.frame.tangent * end.outward).to_array();
     build.vertices.push(RibbonVertex {
         position: end.sample.position.to_array(),
@@ -177,12 +175,8 @@ fn append_round_cap(
         build.deformations.push(recipe);
     }
     for side in 0..PROFILE_SIDES {
-        let Ok(current) = u32::try_from(side + 1) else {
-            return;
-        };
-        let Ok(next) = u32::try_from((side + 1) % PROFILE_SIDES + 1) else {
-            return;
-        };
+        let current = super::draw_limits::vertex_index(side + 1)?;
+        let next = super::draw_limits::vertex_index((side + 1) % PROFILE_SIDES + 1)?;
         let triangle = if end.outward > 0.0 {
             [base, base + current, base + next]
         } else {
@@ -190,6 +184,7 @@ fn append_round_cap(
         };
         build.indices.extend_from_slice(&triangle);
     }
+    Ok(())
 }
 
 #[cfg(test)]
