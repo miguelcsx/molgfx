@@ -10,6 +10,11 @@
 //! A category is reduced modulo the palette length, so a palette shorter than
 //! the number of categories cycles instead of failing.
 
+// Secondary-state hues use Paul Tol's nine-colour muted categorical scheme.
+// https://sronpersonalpages.nl/~pault/#fig:scheme_muted
+// Alpha remains pink and strands yellow, familiar molecular-viewer cues.
+// The remaining assigned states have distinct hues instead of sharing colours.
+
 use molgfx_math::Rgba8;
 use num_traits::ToPrimitive as _;
 
@@ -44,7 +49,7 @@ pub enum CategoryPalette {
     Paired,
     /// Fixed roles by molecule type; see [`MoleculeType`].
     MoleculeType,
-    /// Fixed roles by secondary structure; see [`SecondaryStructureClass`].
+    /// Fixed roles by [`crate::SecondaryStructure::code`].
     SecondaryStructure,
     /// The twenty standard amino acids and five nucleotides, coloured by
     /// chemistry (acidic, basic, polar, hydrophobic, aromatic), in the order
@@ -73,23 +78,6 @@ pub enum MoleculeType {
     Pna = 6,
     /// A carbohydrate.
     Saccharide = 7,
-}
-
-/// The secondary-structure class a category index means under
-/// [`CategoryPalette::SecondaryStructure`], in `SecondaryStructure` order.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-#[repr(u8)]
-pub enum SecondaryStructureClass {
-    /// Not assigned.
-    Unknown = 0,
-    /// Loop or coil.
-    Coil = 1,
-    /// Helix.
-    Helix = 2,
-    /// Strand.
-    Strand = 3,
-    /// Turn.
-    Turn = 4,
 }
 
 const CVD_SAFE: [Rgba8; 8] = [
@@ -231,13 +219,19 @@ const RESIDUE_NAME: [Rgba8; 25] = [
     hex(0xa0_ff_a0),
 ];
 
-/// In [`SecondaryStructureClass`] order.
-const SECONDARY_STRUCTURE: [Rgba8; 5] = [
-    hex(0x80_80_80),
-    hex(0x3c_78_aa),
-    hex(0xaa_44_99),
-    hex(0xbe_6e_00),
-    hex(0x00_80_5e),
+/// Stable secondary-state code order; coil and unknown remain neutral.
+const SECONDARY_STRUCTURE: [Rgba8; 11] = [
+    hex(0x80_80_80), // unknown
+    hex(0xdd_dd_dd), // coil
+    hex(0xcc_66_77), // alpha helix
+    hex(0xdd_cc_77), // strand
+    hex(0x11_77_33), // turn
+    hex(0x33_22_88), // 3-10 helix
+    hex(0x88_cc_ee), // pi helix
+    hex(0x88_22_55), // other helix
+    hex(0x99_99_33), // beta bridge
+    hex(0x44_aa_99), // bend
+    hex(0xaa_44_99), // polyproline
 ];
 
 impl CategoryPalette {

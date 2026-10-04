@@ -180,3 +180,32 @@ fn hierarchy_property_and_geometric_predicates_execute_against_source_columns() 
     let hydrogen = scene.select(Select::hydrogen()).expect("hydrogen query");
     assert_eq!(rows(&scene, hydrogen), vec![4]);
 }
+
+#[test]
+fn helix_and_exact_state_queries_preserve_the_full_secondary_alphabet() {
+    let mut scene = scene();
+    let owner = scene.structures().next().unwrap().0;
+    for state in crate::SecondaryStructure::ALL {
+        scene
+            .apply_secondary_structure(owner, &[(molframe::ResidueIndex::new(0), state)])
+            .unwrap();
+        let helix = scene.select(crate::Select::helix()).unwrap();
+        assert_eq!(
+            rows(&scene, helix),
+            if state.is_helix() { vec![0] } else { vec![] }
+        );
+        let sheet = scene.select(crate::Select::sheet()).unwrap();
+        assert_eq!(
+            rows(&scene, sheet),
+            if state.is_sheet_like() {
+                vec![0]
+            } else {
+                vec![]
+            }
+        );
+        for wanted in crate::SecondaryStructure::ALL {
+            let exact = scene.select(crate::Select::secondary(wanted)).unwrap();
+            assert_eq!(rows(&scene, exact).contains(&0), state == wanted);
+        }
+    }
+}

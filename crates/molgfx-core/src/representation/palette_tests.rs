@@ -33,3 +33,20 @@ fn the_default_palette_keeps_the_established_eight_hues() {
     assert_eq!(CategoryPalette::default(), CategoryPalette::CvdSafe);
     assert_eq!(CategoryPalette::CvdSafe.len(), 8);
 }
+
+#[test]
+fn secondary_states_remain_visually_distinct_in_the_categorical_palette() {
+    let palette = CategoryPalette::SecondaryStructure;
+    for (index, first) in crate::SecondaryStructure::ALL.into_iter().enumerate() {
+        let first_colour = palette
+            .color(f32::from(first.code()))
+            .expect("state colour");
+        for second in &crate::SecondaryStructure::ALL[index + 1..] {
+            assert_ne!(
+                Some(first_colour),
+                palette.color(f32::from(second.code())),
+                "{first:?} and {second:?} must not collapse to one colour"
+            );
+        }
+    }
+}

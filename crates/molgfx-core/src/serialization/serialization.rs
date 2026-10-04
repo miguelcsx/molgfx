@@ -471,11 +471,5 @@ fn surface_style_value(style: crate::SurfaceStyle) -> f32 {
 }
 
 fn secondary_name(value: crate::SecondaryStructure) -> &'static str {
-    match value {
-        crate::SecondaryStructure::Unknown => "unknown",
-        crate::SecondaryStructure::Coil => "coil",
-        crate::SecondaryStructure::Helix => "helix",
-        crate::SecondaryStructure::Strand => "strand",
-        crate::SecondaryStructure::Turn => "turn",
-    }
+    value.name()
 }

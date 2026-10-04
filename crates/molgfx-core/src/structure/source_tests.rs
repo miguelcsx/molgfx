@@ -78,7 +78,7 @@ fn has_bond(source: &MolecularSource, a: u32, b: u32) -> bool {
 fn file_secondary_structure_reaches_every_residue_row() {
     assert_eq!(
         source().topology().secondary_structure.as_ref(),
-        [molframe::SecondaryStructure::Helix; 3]
+        [molframe::SecondaryStructure::AlphaHelix; 3]
     );
 }
 

@@ -114,13 +114,9 @@ fn parse_secondary(
     }
     values
         .iter()
-        .map(|value| match value.as_str() {
-            "unknown" => Ok(crate::SecondaryStructure::Unknown),
-            "coil" => Ok(crate::SecondaryStructure::Coil),
-            "helix" => Ok(crate::SecondaryStructure::Helix),
-            "strand" => Ok(crate::SecondaryStructure::Strand),
-            "turn" => Ok(crate::SecondaryStructure::Turn),
-            _ => invalid("unknown secondary-structure label"),
+        .map(|value| match crate::SecondaryStructure::from_name(value) {
+            Some(state) => Ok(state),
+            None => invalid("unknown secondary-structure label"),
         })
         .collect()
 }

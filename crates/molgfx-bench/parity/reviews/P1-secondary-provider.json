@@ -1,0 +1,106 @@
+{
+  "unit": "Exact secondary-state provider integration",
+  "owner": "Phase 1 integration prerequisite for Phase 2",
+  "status": "verified integration; existing Phase 1 visual evidence retained",
+  "molframe_revision": "2f48db5ad9e01ca0d310302d0ffdc167fd2dd293",
+  "molframe_python_domains": [
+    "base",
+    "analysis",
+    "crystal"
+  ],
+  "scope": [
+    "Preserve eleven exact secondary states through adapters, serialization, selectors, palettes, picking and hashing.",
+    "Preserve already-written helix-family and strand/bridge profile distinctions.",
+    "Reject invalid Python secondary codes.",
+    "Pin the verified external provider with extension-specific Darwin linking and feature-gated optional imports."
+  ],
+  "tests": [
+    "crates/molgfx-core/src/structure/secondary_tests.rs",
+    "crates/molgfx-py/src/native_adapter_tests.rs",
+    "crates/molgfx-core/src/representation/palette_tests.rs",
+    "crates/molgfx-scene/src/scene/runtime_tests.rs"
+  ],
+  "existing_gallery": [
+    "target/gallery-distinct-secondary/P1-ss-palette-1AON/sheet.png",
+    "target/gallery-distinct-secondary/P1-ss-palette-7QPD/sheet.png"
+  ],
+  "verification": [
+    {
+      "command": "cargo fmt --all --check",
+      "result": "pass",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+      "result": "pass",
+      "log_sha256": "6920373affb41739d2d15ff741563b34a05ee807e892ef1d563703ac155a48ca"
+    },
+    {
+      "command": "cargo test --workspace --all-features",
+      "result": "pass",
+      "log_sha256": "94c320d1ba61a4918787ca4103127a737e0a57f90334424357f7c38f35a60824"
+    },
+    {
+      "command": "cargo check -p molgfx-wasm --target wasm32-unknown-unknown",
+      "result": "pass",
+      "log_sha256": "fa07918c19a2d3ea990278db7b1489d27d6d5872c89a33d44fed641e3908cc27"
+    },
+    {
+      "command": "cargo clippy -p molgfx-wasm --target wasm32-unknown-unknown --all-targets -- -D warnings",
+      "result": "pass",
+      "log_sha256": "8cdee4ac81e5bac1a9fbd1800e4ee8299e75cd613944f425203ebcf814e6edea"
+    },
+    {
+      "command": "maturin develop -m crates/molgfx-py/Cargo.toml",
+      "result": "pass",
+      "log_sha256": "ed3fa871669d677a7354e4edf0136c3184a67ffc0a916756a23aaa25732e5991"
+    },
+    {
+      "command": "python -m unittest discover -s python/tests",
+      "result": "pass",
+      "log_sha256": "d3192ca3229a6d6715e4b0e9826d29be88d1eb8c2612a2b9a1cba7ec5911af14"
+    },
+    {
+      "command": "python -m mypy.stubtest molgfx._engine",
+      "result": "pass",
+      "log_sha256": "252b5797fcf29d75fced9ec928c5a9e499729e3a1c41427f4da9fe7dae43c243"
+    },
+    {
+      "command": "python -m mypy",
+      "result": "pass",
+      "log_sha256": "4d9d2394f593bc59bbd4151d150415008e4eeeac0920c69b1f0bed9e53937446"
+    },
+    {
+      "command": "ruff check",
+      "result": "pass",
+      "log_sha256": "b4a7817321c0d5069e94c7dd1c22da538d38d5a6a5b627754770634f4a0ff2ed"
+    },
+    {
+      "command": "ruff format --check .",
+      "result": "pass",
+      "log_sha256": "d346aefd0db42f3088622e902409afc9c1e637bc5fac7cc777f153d220684744"
+    },
+    {
+      "command": "node web/scripts/build.mjs --dev",
+      "result": "pass",
+      "log_sha256": "969bab2668c074346d5fd73887e0279a92ae1b8ba10e6d26794286474ca692aa"
+    },
+    {
+      "command": "npm run typecheck --prefix web",
+      "result": "pass",
+      "log_sha256": "92c0654d2cd3c167b609b91081cd9d9dbc187aa125d7926b141b3731da47228f"
+    }
+  ],
+  "policy_checks": [
+    "Rust/WGSL <=500 lines",
+    "No source lint suppression",
+    "No production unwrap",
+    "No unaudited unsafe"
+  ],
+  "notes": [
+    "Verification uses an isolated checkout containing only the proposed commit; 69 Python tests pass. The broader Phase 2 working tree separately passes 77 tests.",
+    "No temporary source path patch or linker override. Python checks use their own virtual environment and the verified provider package.",
+    "The canonical viewer was built in development mode for isolated notebook tests; this is not final release/browser performance evidence.",
+    "This checkpoint preserves the supplied completed Phase 1 work; it does not certify Phase 2 or a new cross-engine superiority claim."
+  ]
+}

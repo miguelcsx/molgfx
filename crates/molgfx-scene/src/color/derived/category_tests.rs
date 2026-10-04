@@ -69,3 +69,24 @@ fn every_category_names_a_palette_and_round_trips_its_name() {
         assert!(category.default_palette().len() >= 2);
     }
 }
+
+#[test]
+fn secondary_palette_categories_preserve_every_native_code() {
+    use molframe::SecondaryStructure as S;
+    let states = [
+        S::Unknown,
+        S::Coil,
+        S::AlphaHelix,
+        S::Strand,
+        S::Turn,
+        S::ThreeTenHelix,
+        S::PiHelix,
+        S::OtherHelix,
+        S::BetaBridge,
+        S::Bend,
+        S::PolyProline,
+    ];
+    for state in states {
+        assert_eq!(super::class_of(state), u32::from(state.code()));
+    }
+}

@@ -145,7 +145,7 @@ fn secondary_structure_changes_cross_section_without_changing_topology() {
     helix.generate_styled(
         &trace,
         &entities,
-        &[SecondaryStructure::Helix; 5],
+        &[SecondaryStructure::AlphaHelix; 5],
         RibbonParams::default(),
     );
     let mut strand = RibbonMesh::default();
@@ -232,7 +232,7 @@ fn a_loop_is_a_round_cord_and_a_helix_a_wide_flat_oval() {
     ));
     assert!((loop_width - loop_depth).abs() < 1.0e-5);
     let (helix_width, helix_depth) = half(crate::cartoon::profiles::profile_scale(
-        SecondaryStructure::Helix,
+        SecondaryStructure::AlphaHelix,
         0.5,
         &styles,
         1,
@@ -363,4 +363,27 @@ fn the_twister_profile_gives_each_face_its_own_flat_normal() {
         ring.iter()
             .all(|vertex| Vec3::from(vertex.normal).is_normalized())
     );
+}
+
+#[test]
+fn every_helix_has_helix_profiles_and_every_non_strand_loop_stays_round() {
+    use crate::cartoon::profiles::{profile_scale, rocket_scale};
+    for state in SecondaryStructure::ALL {
+        let styles = [state; 3];
+        let expected = if state.is_helix() {
+            SecondaryStructure::AlphaHelix
+        } else if state.is_strand() {
+            SecondaryStructure::Strand
+        } else {
+            SecondaryStructure::Coil
+        };
+        assert_eq!(
+            profile_scale(state, 0.5, &styles, 1),
+            profile_scale(expected, 0.5, &styles, 1)
+        );
+        assert_eq!(
+            rocket_scale(state, 0.5, &styles, 1),
+            rocket_scale(expected, 0.5, &styles, 1)
+        );
+    }
 }

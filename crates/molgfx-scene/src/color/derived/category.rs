@@ -134,13 +134,7 @@ impl AtomCategory {
 
 /// The secondary-structure class of a state, matching the palette order.
 const fn class_of(state: molframe::SecondaryStructure) -> u32 {
-    match state {
-        molframe::SecondaryStructure::Unknown => 0,
-        molframe::SecondaryStructure::Coil => 1,
-        molframe::SecondaryStructure::Helix => 2,
-        molframe::SecondaryStructure::Strand => 3,
-        molframe::SecondaryStructure::Turn => 4,
-    }
+    state.code() as u32
 }
 
 /// A category as the scalar a column stores; exact below [`EXACT_LIMIT`].

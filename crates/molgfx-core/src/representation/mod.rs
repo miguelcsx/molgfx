@@ -49,7 +49,7 @@ pub use material::{Material, MaterialModel};
 pub use mesh::{FaceVisibility, MAX_MESH_VERTICES, Mesh, MeshTopology, MeshVertex};
 pub use mesh_instance::MeshInstance;
 pub use overlay::{OverlayAnchor, OverlayContent, ScreenOverlay};
-pub use palette::{CategoryPalette, MAX_PALETTE_COLORS, MoleculeType, SecondaryStructureClass};
+pub use palette::{CategoryPalette, MAX_PALETTE_COLORS, MoleculeType};
 pub use quadric::Quadric;
 pub use radii::{cpk_color, vdw_radius};
 pub use relation::{

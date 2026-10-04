@@ -61,6 +61,7 @@ pub mod source {
 
 /// Low-level wire-schema values.
 pub mod schema {
+    pub use molgfx_scene::source::SecondaryStructure;
     pub use molgfx_scene::{DataSource, PatchOperation, StructureSource};
 }
 

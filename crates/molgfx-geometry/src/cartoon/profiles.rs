@@ -207,11 +207,9 @@ pub(super) fn rocket_scale(
     segment: usize,
 ) -> (f32, f32) {
     match style {
-        SecondaryStructure::Helix => (1.35, 1.35),
+        state if state.is_helix() => (1.35, 1.35),
         SecondaryStructure::Strand => (strand_width(parameter, styles, segment), 0.34),
-        SecondaryStructure::Turn | SecondaryStructure::Coil | SecondaryStructure::Unknown => {
-            (0.3, 0.3)
-        }
+        _ => (0.3, 0.3),
     }
 }
 
@@ -223,7 +221,7 @@ pub(super) fn profile_scale(
     segment: usize,
 ) -> (f32, f32) {
     match style {
-        SecondaryStructure::Helix => (
+        state if state.is_helix() => (
             HELIX_HALF_EXTENT[0] / REFERENCE_HALF_WIDTH,
             HELIX_HALF_EXTENT[1] / REFERENCE_HALF_THICKNESS,
         ),
@@ -231,7 +229,7 @@ pub(super) fn profile_scale(
             strand_width(parameter, styles, segment),
             STRAND_HALF_EXTENT[1] / REFERENCE_HALF_THICKNESS,
         ),
-        SecondaryStructure::Turn | SecondaryStructure::Coil | SecondaryStructure::Unknown => (
+        _ => (
             LOOP_RADIUS / REFERENCE_HALF_WIDTH,
             LOOP_RADIUS / REFERENCE_HALF_THICKNESS,
         ),

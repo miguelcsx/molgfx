@@ -136,11 +136,5 @@ pub(super) fn atom_pick_details(
 }
 
 fn secondary_structure_name(value: molframe::SecondaryStructure) -> &'static str {
-    match value {
-        molframe::SecondaryStructure::Unknown => "unknown",
-        molframe::SecondaryStructure::Coil => "coil",
-        molframe::SecondaryStructure::Helix => "helix",
-        molframe::SecondaryStructure::Strand => "strand",
-        molframe::SecondaryStructure::Turn => "turn",
-    }
+    molgfx_core::SecondaryStructure::from(value).name()
 }

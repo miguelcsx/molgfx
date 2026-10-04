@@ -199,6 +199,16 @@ fn predicate_matches(
             .values()
             .get(residue.index().get() as usize)
             .is_some_and(|value| value == wanted),
+        AtomPredicate::Helix => placed
+            .secondary_structure
+            .values()
+            .get(residue.index().get() as usize)
+            .is_some_and(|value| value.is_helix()),
+        AtomPredicate::Sheet => placed
+            .secondary_structure
+            .values()
+            .get(residue.index().get() as usize)
+            .is_some_and(|value| value.is_sheet_like()),
         AtomPredicate::Scalar {
             property,
             comparison,

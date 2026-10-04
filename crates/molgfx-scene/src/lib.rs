@@ -93,10 +93,11 @@ pub use overlay::{annotation, density, ellipsoid, interaction, measurement, traj
 /// `MolFrame`'s immutable molecular selection expressions.
 pub mod sel {
     pub use molframe::query::col::{
-        all, aromatic, backbone, by_residue, chain, glycans, heavy, hetero, hydrogen, ions,
-        is_protein as protein, ligands, lipids, name, none, nucleic, nucleic_backbone,
-        nucleic_base, nucleic_sugar, occupancy, polymer, residues_within, resname, sidechain,
-        water, within,
+        all, alpha_helix, aromatic, backbone, bend, bridge, by_residue, chain, coil, glycans,
+        heavy, helix, helix_310, hetero, hydrogen, ions, is_protein as protein, ligands, lipids,
+        name, none, nucleic, nucleic_backbone, nucleic_base, nucleic_sugar, occupancy, pi_helix,
+        polymer, polyproline, residues_within, resname, sheet, sidechain, strand, turn, water,
+        within,
     };
     pub use molframe::query::{Builder, ColumnBuilder, col};
 }

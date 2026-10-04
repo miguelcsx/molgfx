@@ -56,7 +56,10 @@ fn mutable_secondary_structure_remains_placement_local() {
     let second = scene.add_asset(&asset);
     if let Err(error) = scene.apply_secondary_structure(
         first,
-        &[(molframe::ResidueIndex::new(0), SecondaryStructure::Helix)],
+        &[(
+            molframe::ResidueIndex::new(0),
+            SecondaryStructure::AlphaHelix,
+        )],
     ) {
         panic!("secondary structure applies: {error}");
     }
@@ -68,7 +71,7 @@ fn mutable_secondary_structure_remains_placement_local() {
     };
     assert_eq!(
         first.secondary_structure.values()[0],
-        SecondaryStructure::Helix
+        SecondaryStructure::AlphaHelix
     );
     assert_eq!(
         second.secondary_structure.values()[0],

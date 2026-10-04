@@ -18,8 +18,8 @@ fn geometric_and_secondary_selection_builders_validate_input() {
     assert!(Select::in_sphere(molgfx_math::Vec3::ZERO, f32::NAN).is_err());
     assert!(Select::in_box(molgfx_math::Vec3::ONE, -molgfx_math::Vec3::ONE).is_err());
     assert_eq!(
-        Select::helix(),
-        Select::secondary(SecondaryStructure::Helix)
+        Select::helix().0,
+        SelectExpr::Predicate(AtomPredicate::Helix)
     );
 }
 

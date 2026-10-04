@@ -11,8 +11,8 @@
 //! structure use [`crate::Scene::from_structure`] instead.
 
 pub use molgfx_core::{
-    AtomSelection, CoreError, MolecularProvider, MolecularSource, SourceAtom, SourceBond,
-    SourceTopology, is_metal_atomic_number,
+    AtomSelection, CoreError, MolecularProvider, MolecularSource, SecondaryStructure, SourceAtom,
+    SourceBond, SourceTopology, is_metal_atomic_number,
 };
 
 /// A content-derived identity for a provider's molecular topology.
@@ -43,7 +43,7 @@ pub fn topology_identity(topology: &SourceTopology) -> u64 {
     }
     topology.secondary_structure.len().hash(&mut hasher);
     for state in topology.secondary_structure.iter() {
-        secondary_structure_tag(*state).hash(&mut hasher);
+        state.code().hash(&mut hasher);
     }
     hasher.finish()
 }
@@ -57,16 +57,6 @@ fn bond_order_tag(order: molframe::BondOrder) -> u8 {
         molframe::BondOrder::Quadruple => 4,
         molframe::BondOrder::Aromatic => 5,
         molframe::BondOrder::Polymeric => 6,
-    }
-}
-
-fn secondary_structure_tag(state: molframe::SecondaryStructure) -> u8 {
-    match state {
-        molframe::SecondaryStructure::Unknown => 0,
-        molframe::SecondaryStructure::Coil => 1,
-        molframe::SecondaryStructure::Helix => 2,
-        molframe::SecondaryStructure::Strand => 3,
-        molframe::SecondaryStructure::Turn => 4,
     }
 }
 

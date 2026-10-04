@@ -43,7 +43,7 @@ impl NativeProvider {
             .extract::<Vec<u8>>()?
             .into_iter()
             .map(decode_secondary_structure)
-            .collect::<Vec<_>>();
+            .collect::<PyResult<Vec<_>>>()?;
         let mut atoms = Vec::with_capacity(native.atoms.len());
         for atom in native.atoms {
             let element = u8::try_from(atom.element)
@@ -105,15 +105,29 @@ fn decode_bond_order(code: u8, aromatic: bool) -> molgfx::molframe::BondOrder {
     }
 }
 
-fn decode_secondary_structure(code: u8) -> molgfx::molframe::SecondaryStructure {
+fn decode_secondary_structure(code: u8) -> PyResult<molgfx::molframe::SecondaryStructure> {
+    use molgfx::molframe::SecondaryStructure;
     match code {
-        1 => molgfx::molframe::SecondaryStructure::Coil,
-        2 => molgfx::molframe::SecondaryStructure::Helix,
-        3 => molgfx::molframe::SecondaryStructure::Strand,
-        4 => molgfx::molframe::SecondaryStructure::Turn,
-        _ => molgfx::molframe::SecondaryStructure::Unknown,
+        0 => Ok(SecondaryStructure::Unknown),
+        1 => Ok(SecondaryStructure::Coil),
+        2 => Ok(SecondaryStructure::AlphaHelix),
+        3 => Ok(SecondaryStructure::Strand),
+        4 => Ok(SecondaryStructure::Turn),
+        5 => Ok(SecondaryStructure::ThreeTenHelix),
+        6 => Ok(SecondaryStructure::PiHelix),
+        7 => Ok(SecondaryStructure::OtherHelix),
+        8 => Ok(SecondaryStructure::BetaBridge),
+        9 => Ok(SecondaryStructure::Bend),
+        10 => Ok(SecondaryStructure::PolyProline),
+        _ => Err(PyValueError::new_err(format!(
+            "unknown secondary-structure code {code}"
+        ))),
     }
 }
+
+#[cfg(test)]
+#[path = "native_adapter_tests.rs"]
+mod tests;
 
 impl MolecularProvider for NativeProvider {
     fn identity(&self) -> u64 {

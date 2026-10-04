@@ -26,13 +26,13 @@ fn structure_identity_includes_topology_not_only_coordinates() {
     );
 }
 
-/// The digest of one fixed structure, pinned as a contract.
+/// The digest of a fixed structure with exact secondary-state tags.
 ///
 /// `content_hash` is published in the specification, exported through
 /// `MolViewSpec` and *verified* when a specification is reimported, so the value
 /// is a contract rather than an implementation detail. A retuned hashing loop
 /// that changed it would invalidate every saved scene, which is what this test
-/// refuses to let happen silently.
+/// refuses to let happen silently. The value includes the expanded provider tags.
 #[test]
 fn the_structure_digest_is_a_pinned_value() {
     let structure = parse(
@@ -45,7 +45,7 @@ fn the_structure_digest_is_a_pinned_value() {
     let hash = structure_hash(&molgfx_core::MolecularSource::from_molframe(&structure));
     assert_eq!(
         hash.as_ref(),
-        "fc774826f49010c2753ec610a1d2b315c982d3f34e740542b967a2288ddfed51",
+        "b1ba3a4f1116128d5dd56f649a21bb9d0adc8c17a689ae84fa0c4157f4bc2cdb",
         "the structure digest is a published contract"
     );
 }

@@ -130,13 +130,7 @@ fn bond_order_tag(order: molframe::BondOrder) -> u8 {
 fn hash_secondary_structure(hash: &mut Sha256, values: &[molframe::SecondaryStructure]) {
     hash.update(hashed_length(values.len()));
     for value in values {
-        hash.update([match value {
-            molframe::SecondaryStructure::Unknown => 0,
-            molframe::SecondaryStructure::Coil => 1,
-            molframe::SecondaryStructure::Helix => 2,
-            molframe::SecondaryStructure::Strand => 3,
-            molframe::SecondaryStructure::Turn => 4,
-        }]);
+        hash.update([value.code()]);
     }
 }
 

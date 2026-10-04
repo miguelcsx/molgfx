@@ -30,13 +30,7 @@ pub(super) fn structure(fixture: &Fixture, cache: &Path) -> Result<(molframe::St
     }
     let mut secondary = BTreeMap::<String, usize>::new();
     for state in structure.secondary_structure() {
-        let code = match state {
-            molframe::SecondaryStructure::Unknown => "U",
-            molframe::SecondaryStructure::Coil => "C",
-            molframe::SecondaryStructure::Helix => "H",
-            molframe::SecondaryStructure::Strand => "E",
-            molframe::SecondaryStructure::Turn => "T",
-        };
+        let code = molgfx::schema::SecondaryStructure::from(*state).name();
         *secondary.entry(code.into()).or_default() += 1;
     }
     let metadata = json!({"atoms":structure.atom_count(),"residues":structure.residue_count(),

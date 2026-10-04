@@ -39,3 +39,32 @@ fn manifests_preserve_the_callers_dataset_identity() {
     assert!(std::sync::Arc::ptr_eq(&first.hierarchy, &second.hierarchy));
     assert_eq!(rebuilt.describe(), description);
 }
+
+#[test]
+fn exact_secondary_labels_survive_manifest_rehydration_and_invalid_labels_fail() {
+    let structure = crate::fixture::structure();
+    let mut scene = Scene::from_structure(&structure).unwrap();
+    let owner = scene.structures().next().unwrap().0;
+    for state in crate::SecondaryStructure::ALL {
+        scene
+            .apply_secondary_structure(owner, &[(molframe::ResidueIndex::new(0), state)])
+            .unwrap();
+        let description = scene.describe();
+        assert_eq!(
+            description.structures[0].secondary_structure[0],
+            state.name()
+        );
+        let sources = || SceneDescriptionSources {
+            structures: std::slice::from_ref(&structure),
+            volumes: &[],
+            segmentations: &[],
+            atom_properties: &[],
+            meshes: &[],
+        };
+        let rebuilt = Scene::from_description(&description, sources()).unwrap();
+        assert_eq!(rebuilt.describe(), description);
+        let mut invalid = description;
+        invalid.structures[0].secondary_structure[0] = "helix".into();
+        assert!(Scene::from_description(&invalid, sources()).is_err());
+    }
+}

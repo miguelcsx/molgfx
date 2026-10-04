@@ -268,13 +268,7 @@ fn secondary_column(
         .secondary_structure
         .iter()
         .take(residue_count)
-        .map(|state| match state {
-            molframe::SecondaryStructure::Unknown => SecondaryStructure::Unknown,
-            molframe::SecondaryStructure::Coil => SecondaryStructure::Coil,
-            molframe::SecondaryStructure::Helix => SecondaryStructure::Helix,
-            molframe::SecondaryStructure::Strand => SecondaryStructure::Strand,
-            molframe::SecondaryStructure::Turn => SecondaryStructure::Turn,
-        })
+        .map(|state| SecondaryStructure::from(*state))
         .collect::<Vec<_>>();
     values.resize(residue_count, SecondaryStructure::Unknown);
     Column::new(values)

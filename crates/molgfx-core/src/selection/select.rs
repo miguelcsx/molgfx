@@ -53,6 +53,8 @@ pub(crate) enum AtomPredicate {
     ResidueNumber(i32),
     Element(u8),
     Secondary(SecondaryStructure),
+    Helix,
+    Sheet,
     Scalar {
         property: ScalarProperty,
         comparison: PropertyComparison,
@@ -206,13 +208,13 @@ impl Select {
     /// Helical residues.
     #[must_use]
     pub const fn helix() -> Self {
-        Self::secondary(SecondaryStructure::Helix)
+        Self(SelectExpr::Predicate(AtomPredicate::Helix))
     }
 
-    /// Beta-strand residues.
+    /// Beta ladders and isolated beta bridges.
     #[must_use]
     pub const fn sheet() -> Self {
-        Self::secondary(SecondaryStructure::Strand)
+        Self(SelectExpr::Predicate(AtomPredicate::Sheet))
     }
 
     /// Coil residues.

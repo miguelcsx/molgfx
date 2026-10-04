@@ -41,8 +41,32 @@ fn topology_identity_includes_bond_chemistry() {
 #[test]
 fn topology_identity_includes_secondary_structure() {
     let mut helix = topology(molframe::BondOrder::Single, false);
-    helix.secondary_structure = vec![molframe::SecondaryStructure::Helix].into();
+    helix.secondary_structure = vec![molframe::SecondaryStructure::AlphaHelix].into();
     let coil = topology(molframe::BondOrder::Single, false);
 
     assert_ne!(topology_identity(&helix), topology_identity(&coil));
+}
+
+#[test]
+fn every_exact_secondary_state_has_a_distinct_topology_identity() {
+    use molframe::SecondaryStructure as S;
+    let states = [
+        S::Unknown,
+        S::Coil,
+        S::AlphaHelix,
+        S::Strand,
+        S::Turn,
+        S::ThreeTenHelix,
+        S::PiHelix,
+        S::OtherHelix,
+        S::BetaBridge,
+        S::Bend,
+        S::PolyProline,
+    ];
+    let mut identities = std::collections::HashSet::new();
+    for state in states {
+        let mut value = topology(molframe::BondOrder::Single, false);
+        value.secondary_structure = vec![state].into();
+        assert!(identities.insert(topology_identity(&value)));
+    }
 }
