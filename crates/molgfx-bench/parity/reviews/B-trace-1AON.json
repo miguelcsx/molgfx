@@ -1,0 +1,38 @@
+{
+  "case": "B-trace-1AON",
+  "source": "70ca9c49 + fixed-quality sampling working tree",
+  "owner": "Phase 3.1 / shared ribbon sampling",
+  "items": [
+    {
+      "id": "GEN-1",
+      "verdict": "pass",
+      "note": "Consistent lighting and darkened crevices over all chains. Still-image quality is reviewed; Phase 7 anti-aliasing and presentation refinements remain separate work."
+    },
+    {
+      "id": "GEN-2",
+      "verdict": "pass",
+      "note": "The converged and interactive native images are populated and finite, with no visible cracks, missing faces or conflicting surfaces in the reviewed stills. A still does not certify orbit/trajectory flicker."
+    },
+    {
+      "id": "GEN-3",
+      "verdict": "pass",
+      "note": "Measured colored foreground widths at 768 pixels are native 366, MolStar 362, PyMOL 371. All differences are below 1.4%; measurements are recorded in target/ribbon-quality-verification/framing.json."
+    },
+    {
+      "id": "CT-1",
+      "verdict": "pass",
+      "note": "The native circular guide trace retains the complete 1AON fold, passes through source guides and shows no visible frame flips. Requested eight-step sampling is proven by the large-source regression. References establish the fold and continuity, not literal cross-engine pixel or profile equality."
+    }
+  ],
+  "native_image_parity_certified": true,
+  "scope": "The four attached still-image checklist facts pass. Full Phase 3.1 gaps/helix/nucleotide capabilities and temporal presentation quality are not certified by this case.",
+  "images": {
+    "molgfx-converged": "target/ribbon-quality-references/B-trace-1AON/molgfx-converged/image.png",
+    "molgfx-interactive": "target/ribbon-quality-references/B-trace-1AON/molgfx-interactive/image.png",
+    "molstar-imagepass": "target/ribbon-quality-references/B-trace-1AON/molstar-imagepass/image.png",
+    "pymol-ray": "target/ribbon-quality-references/B-trace-1AON/pymol-ray/image.png"
+  },
+  "reference_semantics": "MolStar uses a thin guide trace; PyMOL uses its ribbon guide presentation. Their stroke/profile choices differ from the native circular tube, so the reviewed comparison concerns topology, guide continuity, lighting and framing. Native Trace and Tube currently share circular guide geometry; no distinction in stroke semantics is invented by this review.",
+  "regression": "engine::ribbon_quality_tests::a_large_fixed_quality_ribbon_keeps_every_requested_sample",
+  "golden": "crates/molgfx-bench/parity/references/B-trace-1AON.png"
+}

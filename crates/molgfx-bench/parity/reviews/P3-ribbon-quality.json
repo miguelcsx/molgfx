@@ -1,0 +1,877 @@
+{
+  "status": "verified fixed-quality ribbon sampling regression; full Phase 3.1 remains open",
+  "owner": "Phase 3.1",
+  "source_before": "70ca9c49f454728da618dd00298369aba052b8e1",
+  "implementation": [
+    "Shared ribbon preparation uses the resolved quality tier once and never reduces its sampling limit to fit an arbitrary 400000-vertex threshold.",
+    "Removed the size-dependent retry loop, reduction helper and four tests that codified quality loss. One observable large-source regression replaces them.",
+    "A source of 9000 C-alpha guides requires 26111040 bytes of ribbon vertices at the requested eight-step limit. The old path uploaded only 10753088 bytes. The new path uploads the exact full-quality geometry.",
+    "A renderer with a 16 MiB storage limit returns the typed LimitExceeded error for cartoon vertices instead of silently lowering fidelity. Existing bounded GPU allocation checks own the failure.",
+    "The MolStar B-tube-1AON reference now uses the actual polymer-tube visual through putty with uniform radius 0.3, eight linear segments and sixteen radial segments. The former cartoon adapter enabled tubular helices, a different presentation. Reference source was inspected; no implementation code was copied."
+  ],
+  "public_surfaces": "Rust, command, Python and WASM specifications are unchanged. Their existing quality requests now govern large ribbons without a hidden secondary reduction. Actual Python/Chromium consumers render 1AON and 1BNA using three profile variants; Python resolves exact visible opaque picks.",
+  "complexity": "One O(guides + samples) geometry preparation replaces repeated rebuilding with smaller sample limits. Full-fidelity device geometry can consume more memory and render time. Camera-only cache reuse and the source coordinate seam remain unchanged.",
+  "regression": {
+    "test": "engine::ribbon_quality_tests::a_large_fixed_quality_ribbon_keeps_every_requested_sample",
+    "before": "target/ribbon-quality-verification/regression-before.log",
+    "after": "target/ribbon-quality-verification/regression-after.log",
+    "fixture_guides": 9000,
+    "requested_max_steps": 8,
+    "expected_and_actual_bytes_after": 26111040,
+    "uploaded_bytes_before": 10753088,
+    "insufficient_storage_limit_bytes": 16777216,
+    "insufficient_storage_result": "GpuError::LimitExceeded { resource: cartoon vertices, limit: 16777216 }"
+  },
+  "verification": {
+    "directory": "target/ribbon-quality-verification",
+    "workspace_fmt_clippy_all_targets_all_features_tests": "passed",
+    "renderer_tests": 430,
+    "wasm_real_target_check_clippy": "passed",
+    "wasm_node_contract_tests": 3,
+    "native_gpu_indexed_boundary_gradient_categorical": "passed",
+    "python_development_install_ruff_mypy_stubtest": "passed",
+    "python_tests": 79,
+    "repository_policy_checks": "passed",
+    "web_release_content_key": "43b609c09c6bcf3e",
+    "python_real_large_source_consumer": "target/ribbon-quality-verification/python-consumer.json",
+    "chromium_large_source_consumer": "target/ribbon-quality-verification/browser-consumer.json",
+    "gallery_manifest_tests": "target/ribbon-quality-verification/gallery-manifest-tests.log"
+  },
+  "visual_review": {
+    "native_comparisons": [
+      {
+        "case": "P3-helix-profile-elliptical-4HHB",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-helix-profile-elliptical-4HHB/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-helix-profile-elliptical-4HHB/molgfx-converged/image.png",
+        "sha256": "9b1c0cea6898bf262941bc9e34800392cb3794708303027ae2f8b01b109ecdad"
+      },
+      {
+        "case": "P3-helix-profile-elliptical-4HHB",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-helix-profile-elliptical-4HHB/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-helix-profile-elliptical-4HHB/molgfx-interactive/image.png",
+        "sha256": "018a6e2807252bc367a80c271efdb7aab3cbebb125999f6a3c4a2ca2874eee5b"
+      },
+      {
+        "case": "P3-helix-profile-rounded-4HHB",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-helix-profile-rounded-4HHB/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-helix-profile-rounded-4HHB/molgfx-converged/image.png",
+        "sha256": "8bc232769d9d8febf9e4b823de34858170dd921b257278401ac2c451546d6ef2"
+      },
+      {
+        "case": "P3-helix-profile-rounded-4HHB",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-helix-profile-rounded-4HHB/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-helix-profile-rounded-4HHB/molgfx-interactive/image.png",
+        "sha256": "8868c2e3b03d2ed029e6c6179b3665f6d44f5fd5188a1ca9a86097f5b6d421f5"
+      },
+      {
+        "case": "P3-helix-profile-square-4HHB",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-helix-profile-square-4HHB/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-helix-profile-square-4HHB/molgfx-converged/image.png",
+        "sha256": "357cbf9d854de556886e32f6ca3486d1d3c3d641ac518fc40e23e27e4f7ccd16"
+      },
+      {
+        "case": "P3-helix-profile-square-4HHB",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-helix-profile-square-4HHB/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-helix-profile-square-4HHB/molgfx-interactive/image.png",
+        "sha256": "5a1fa190ceefd8664c60ed8a3c24124f609e67c1bc32fd9728b83e7ecdec45ef"
+      },
+      {
+        "case": "P3-nucleic-profile-elliptical-1BNA",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-nucleic-profile-elliptical-1BNA/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-nucleic-profile-elliptical-1BNA/molgfx-converged/image.png",
+        "sha256": "0d8ac300bb99931fc23df7499180f3778c5c9044dca6e7e1007af7d7221802b7"
+      },
+      {
+        "case": "P3-nucleic-profile-elliptical-1BNA",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-nucleic-profile-elliptical-1BNA/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-nucleic-profile-elliptical-1BNA/molgfx-interactive/image.png",
+        "sha256": "914fe06246909e41a7deffa1380283dbab89dee40e14d5ed0e0dcf8c7482f285"
+      },
+      {
+        "case": "P3-nucleic-profile-rounded-1BNA",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-nucleic-profile-rounded-1BNA/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-nucleic-profile-rounded-1BNA/molgfx-converged/image.png",
+        "sha256": "2bc46feb7f433cf92fad4fd90ffc183639fba3882c87fdba204e65fccdfc5bf0"
+      },
+      {
+        "case": "P3-nucleic-profile-rounded-1BNA",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-nucleic-profile-rounded-1BNA/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-nucleic-profile-rounded-1BNA/molgfx-interactive/image.png",
+        "sha256": "89f9f4f27923d30c3b48117833b19acc543efc432a3aad933e8c7f1968ba310a"
+      },
+      {
+        "case": "P3-nucleic-profile-square-1BNA",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-nucleic-profile-square-1BNA/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-nucleic-profile-square-1BNA/molgfx-converged/image.png",
+        "sha256": "3ba75b0f3f1ff928553255d0ffb4acc4139feabc86dbffd306f32450bf8a5b07"
+      },
+      {
+        "case": "P3-nucleic-profile-square-1BNA",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-nucleic-profile-square-1BNA/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-nucleic-profile-square-1BNA/molgfx-interactive/image.png",
+        "sha256": "a7e16925bbdce6878da342ea7f4214eff3fa2e109647ef9c02f22658ad4f466c"
+      },
+      {
+        "case": "P3-cartoon-arrows-1IGT",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-cartoon-arrows-1IGT/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-cartoon-arrows-1IGT/molgfx-converged/image.png",
+        "sha256": "f6d1dce3df96883ef749cd3427426eaab2fda43e8dac9b1857a278dfd50dbe2f"
+      },
+      {
+        "case": "P3-cartoon-arrows-1IGT",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-cartoon-arrows-1IGT/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-cartoon-arrows-1IGT/molgfx-interactive/image.png",
+        "sha256": "76ed50e415f55d3eef009b9a3bbe95b2044fbc450a03040a7ef319d50cdd74bb"
+      },
+      {
+        "case": "P3-cartoon-aspect-4HHB",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-cartoon-aspect-4HHB/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-cartoon-aspect-4HHB/molgfx-converged/image.png",
+        "sha256": "c130ef98287b6869ab0e6e92ffcae24639a654f3d8ed6300259858eb72afeab9"
+      },
+      {
+        "case": "P3-cartoon-aspect-4HHB",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/P3-cartoon-aspect-4HHB/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/P3-cartoon-aspect-4HHB/molgfx-interactive/image.png",
+        "sha256": "79fdeccde5d2e029ebefa36637009edcfa2ea8ba09af18b488bb99b896487576"
+      },
+      {
+        "case": "B-cartoon-4HHB",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/B-cartoon-4HHB/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/B-cartoon-4HHB/molgfx-converged/image.png",
+        "sha256": "9b1c0cea6898bf262941bc9e34800392cb3794708303027ae2f8b01b109ecdad"
+      },
+      {
+        "case": "B-cartoon-4HHB",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/B-cartoon-4HHB/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/B-cartoon-4HHB/molgfx-interactive/image.png",
+        "sha256": "018a6e2807252bc367a80c271efdb7aab3cbebb125999f6a3c4a2ca2874eee5b"
+      },
+      {
+        "case": "B-putty-bfactor-4HHB",
+        "recipe": "molgfx-converged",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/B-putty-bfactor-4HHB/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/B-putty-bfactor-4HHB/molgfx-converged/image.png",
+        "sha256": "0e1eaa6422d965e04f640ee8a181355fb2eb73222343127b1d6659c07b44a63d"
+      },
+      {
+        "case": "B-putty-bfactor-4HHB",
+        "recipe": "molgfx-interactive",
+        "identical_png": true,
+        "before": "target/ribbon-quality-gallery/before/B-putty-bfactor-4HHB/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/B-putty-bfactor-4HHB/molgfx-interactive/image.png",
+        "sha256": "812137371a1a261e439fab5712d31d044297c7031201f2efd697f47d6b058b1c"
+      },
+      {
+        "case": "B-tube-1AON",
+        "recipe": "molgfx-converged",
+        "identical_png": false,
+        "before": "target/ribbon-quality-gallery/before/B-tube-1AON/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/B-tube-1AON/molgfx-converged/image.png",
+        "sha256": "c222c8044c85664c6943027a5163d5663fadd5c2316692911949e516540e6f0a"
+      },
+      {
+        "case": "B-tube-1AON",
+        "recipe": "molgfx-interactive",
+        "identical_png": false,
+        "before": "target/ribbon-quality-gallery/before/B-tube-1AON/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/B-tube-1AON/molgfx-interactive/image.png",
+        "sha256": "80edc2509f69805a35e2c6e5e02fa215198874b21d216a9de72800c03c4aad8b"
+      },
+      {
+        "case": "B-trace-1AON",
+        "recipe": "molgfx-converged",
+        "identical_png": false,
+        "before": "target/ribbon-quality-gallery/before/B-trace-1AON/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/B-trace-1AON/molgfx-converged/image.png",
+        "sha256": "c222c8044c85664c6943027a5163d5663fadd5c2316692911949e516540e6f0a"
+      },
+      {
+        "case": "B-trace-1AON",
+        "recipe": "molgfx-interactive",
+        "identical_png": false,
+        "before": "target/ribbon-quality-gallery/before/B-trace-1AON/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/B-trace-1AON/molgfx-interactive/image.png",
+        "sha256": "80edc2509f69805a35e2c6e5e02fa215198874b21d216a9de72800c03c4aad8b"
+      }
+    ],
+    "changed_cases": [
+      {
+        "case": "B-tube-1AON",
+        "recipe": "molgfx-converged",
+        "identical_png": false,
+        "before": "target/ribbon-quality-gallery/before/B-tube-1AON/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/B-tube-1AON/molgfx-converged/image.png",
+        "sha256": "c222c8044c85664c6943027a5163d5663fadd5c2316692911949e516540e6f0a"
+      },
+      {
+        "case": "B-tube-1AON",
+        "recipe": "molgfx-interactive",
+        "identical_png": false,
+        "before": "target/ribbon-quality-gallery/before/B-tube-1AON/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/B-tube-1AON/molgfx-interactive/image.png",
+        "sha256": "80edc2509f69805a35e2c6e5e02fa215198874b21d216a9de72800c03c4aad8b"
+      },
+      {
+        "case": "B-trace-1AON",
+        "recipe": "molgfx-converged",
+        "identical_png": false,
+        "before": "target/ribbon-quality-gallery/before/B-trace-1AON/molgfx-converged/image.png",
+        "after": "target/ribbon-quality-gallery/after/B-trace-1AON/molgfx-converged/image.png",
+        "sha256": "c222c8044c85664c6943027a5163d5663fadd5c2316692911949e516540e6f0a"
+      },
+      {
+        "case": "B-trace-1AON",
+        "recipe": "molgfx-interactive",
+        "identical_png": false,
+        "before": "target/ribbon-quality-gallery/before/B-trace-1AON/molgfx-interactive/image.png",
+        "after": "target/ribbon-quality-gallery/after/B-trace-1AON/molgfx-interactive/image.png",
+        "sha256": "80edc2509f69805a35e2c6e5e02fa215198874b21d216a9de72800c03c4aad8b"
+      }
+    ],
+    "framing": [
+      {
+        "case": "B-tube-1AON",
+        "recipe": "molgfx-converged",
+        "image": "target/ribbon-quality-references/B-tube-1AON/molgfx-converged/image.png",
+        "colored_bounds": [
+          206,
+          192,
+          571,
+          561
+        ],
+        "width": 366,
+        "height": 370
+      },
+      {
+        "case": "B-tube-1AON",
+        "recipe": "molgfx-interactive",
+        "image": "target/ribbon-quality-references/B-tube-1AON/molgfx-interactive/image.png",
+        "colored_bounds": [
+          207,
+          192,
+          572,
+          561
+        ],
+        "width": 366,
+        "height": 370
+      },
+      {
+        "case": "B-tube-1AON",
+        "recipe": "molstar-imagepass",
+        "image": "target/ribbon-quality-tube-reference/B-tube-1AON/molstar-imagepass/image.png",
+        "colored_bounds": [
+          209,
+          192,
+          572,
+          562
+        ],
+        "width": 364,
+        "height": 371
+      },
+      {
+        "case": "B-tube-1AON",
+        "recipe": "pymol-ray",
+        "image": "target/ribbon-quality-references/B-tube-1AON/pymol-ray/image.png",
+        "colored_bounds": [
+          205,
+          191,
+          573,
+          562
+        ],
+        "width": 369,
+        "height": 372
+      },
+      {
+        "case": "B-trace-1AON",
+        "recipe": "molgfx-converged",
+        "image": "target/ribbon-quality-references/B-trace-1AON/molgfx-converged/image.png",
+        "colored_bounds": [
+          206,
+          192,
+          571,
+          561
+        ],
+        "width": 366,
+        "height": 370
+      },
+      {
+        "case": "B-trace-1AON",
+        "recipe": "molgfx-interactive",
+        "image": "target/ribbon-quality-references/B-trace-1AON/molgfx-interactive/image.png",
+        "colored_bounds": [
+          207,
+          192,
+          572,
+          561
+        ],
+        "width": 366,
+        "height": 370
+      },
+      {
+        "case": "B-trace-1AON",
+        "recipe": "molstar-imagepass",
+        "image": "target/ribbon-quality-references/B-trace-1AON/molstar-imagepass/image.png",
+        "colored_bounds": [
+          210,
+          192,
+          571,
+          561
+        ],
+        "width": 362,
+        "height": 370
+      },
+      {
+        "case": "B-trace-1AON",
+        "recipe": "pymol-ray",
+        "image": "target/ribbon-quality-references/B-trace-1AON/pymol-ray/image.png",
+        "colored_bounds": [
+          204,
+          190,
+          574,
+          564
+        ],
+        "width": 371,
+        "height": 375
+      }
+    ],
+    "reviews": [
+      "crates/molgfx-bench/parity/reviews/B-tube-1AON.json",
+      "crates/molgfx-bench/parity/reviews/B-trace-1AON.json"
+    ],
+    "source_sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+    "reference_source_facts": {
+      "pymol_atoms": 58870,
+      "pymol_residues": 8029
+    },
+    "verdict": "Both native still checklist reviews pass. Twenty native images remain byte-identical; the four changed Tube/Trace images belong to the size-dependent reduction defect. Full 768-pixel native/MolStar/PyMOL images and sheets were inspected; all colored silhouette widths agree within 1.4%. Motion stability and future presentation quality are not certified by these stills.",
+    "old_golden_result": {
+      "directory": "target/ribbon-quality-old-goldens",
+      "ssim": 0.9918655147432726,
+      "mean_delta_e": 0.43016403145166215,
+      "p99_delta_e": 8.633208410912856,
+      "status": "failed because the former captures contained coarsened geometry; not hidden"
+    },
+    "blessing": "Both attached still checklists were reviewed before replacing only B-tube-1AON and B-trace-1AON goldens. A fresh twelve-case run then passed without blessing.",
+    "final_goldens": [
+      {
+        "fixture": "B-cartoon-4HHB",
+        "golden": {
+          "mean_delta_e": 0.10225373837040438,
+          "p99_delta_e": 1.4611389028442556,
+          "ssim": 0.9986556284313174,
+          "status": "passed"
+        }
+      },
+      {
+        "fixture": "B-putty-bfactor-4HHB",
+        "golden": {
+          "mean_delta_e": 0.0004996152759227146,
+          "p99_delta_e": 0.0,
+          "ssim": 0.9999987819263404,
+          "status": "passed"
+        }
+      },
+      {
+        "fixture": "B-tube-1AON",
+        "golden": {
+          "mean_delta_e": 0.0,
+          "p99_delta_e": 0.0,
+          "ssim": 1.0,
+          "status": "passed"
+        }
+      },
+      {
+        "fixture": "B-trace-1AON",
+        "golden": {
+          "mean_delta_e": 0.0,
+          "p99_delta_e": 0.0,
+          "ssim": 1.0,
+          "status": "passed"
+        }
+      },
+      {
+        "fixture": "P3-cartoon-arrows-1IGT",
+        "golden": {
+          "mean_delta_e": 0.0,
+          "p99_delta_e": 0.0,
+          "ssim": 1.0,
+          "status": "passed"
+        }
+      },
+      {
+        "fixture": "P3-cartoon-aspect-4HHB",
+        "golden": {
+          "mean_delta_e": 0.0,
+          "p99_delta_e": 0.0,
+          "ssim": 1.0,
+          "status": "passed"
+        }
+      },
+      {
+        "fixture": "P3-helix-profile-elliptical-4HHB",
+        "golden": {
+          "mean_delta_e": 0.0,
+          "p99_delta_e": 0.0,
+          "ssim": 1.0,
+          "status": "passed"
+        }
+      },
+      {
+        "fixture": "P3-nucleic-profile-elliptical-1BNA",
+        "golden": {
+          "mean_delta_e": 0.0,
+          "p99_delta_e": 0.0,
+          "ssim": 1.0,
+          "status": "passed"
+        }
+      },
+      {
+        "fixture": "P3-helix-profile-rounded-4HHB",
+        "golden": {
+          "mean_delta_e": 0.0,
+          "p99_delta_e": 0.0,
+          "ssim": 1.0,
+          "status": "passed"
+        }
+      },
+      {
+        "fixture": "P3-nucleic-profile-rounded-1BNA",
+        "golden": {
+          "mean_delta_e": 0.0,
+          "p99_delta_e": 0.0,
+          "ssim": 1.0,
+          "status": "passed"
+        }
+      },
+      {
+        "fixture": "P3-helix-profile-square-4HHB",
+        "golden": {
+          "mean_delta_e": 0.0,
+          "p99_delta_e": 0.0,
+          "ssim": 1.0,
+          "status": "passed"
+        }
+      },
+      {
+        "fixture": "P3-nucleic-profile-square-1BNA",
+        "golden": {
+          "mean_delta_e": 0.0,
+          "p99_delta_e": 0.0,
+          "ssim": 1.0,
+          "status": "passed"
+        }
+      }
+    ]
+  },
+  "measurements": {
+    "scope": "Paired release B-tube-1AON runs at 768x768 with fixed High interactive requests, zero orbit, 120 warmup outputs and 1200 completed measured outputs. Three before/after pairs ran sequentially after this task\u2019s compilers and GPU consumers finished. Workstation load snapshots are retained.",
+    "reported_quality": {
+      "adaptive": false,
+      "complete": false,
+      "extent": [
+        768,
+        768
+      ],
+      "full_residency": true,
+      "illumination_bounces": 0,
+      "lighting": {
+        "diffuse_strength": 0.6200000047683716,
+        "fill_color": {
+          "a": 255,
+          "b": 226,
+          "g": 214,
+          "r": 206
+        },
+        "fill_direction": [
+          0.7799999713897705,
+          -0.11999999731779099,
+          0.5
+        ],
+        "fill_strength": 0.30000001192092896,
+        "ground": {
+          "a": 255,
+          "b": 141,
+          "g": 146,
+          "r": 150
+        },
+        "horizon": {
+          "a": 255,
+          "b": 202,
+          "g": 194,
+          "r": 188
+        },
+        "key_angular_radius": 0.20000000298023224,
+        "key_color": {
+          "a": 255,
+          "b": 230,
+          "g": 244,
+          "r": 255
+        },
+        "key_direction": [
+          -0.41999998688697815,
+          0.5799999833106995,
+          0.699999988079071
+        ],
+        "key_strength": 1.350000023841858,
+        "rim_color": {
+          "a": 255,
+          "b": 152,
+          "g": 132,
+          "r": 120
+        },
+        "rim_strength": 0.1599999964237213,
+        "shadow_strength": 0.6600000262260437,
+        "specular_strength": 0.7200000286102295,
+        "zenith": {
+          "a": 255,
+          "b": 240,
+          "g": 232,
+          "r": 226
+        }
+      },
+      "lod_mode_max": 0,
+      "occlusion_rays_per_sample": 2,
+      "progressive": true,
+      "ribbon_steps_max": 8,
+      "samples_completed": 1,
+      "samples_required": 1,
+      "samples_submitted": 1,
+      "surface_limit": "none",
+      "surface_spacing_effective": null,
+      "surface_spacing_requested": 0.25,
+      "tier": "high"
+    },
+    "reported_quality_matches_across_runs": true,
+    "actual_geometry_quality_equivalence": false,
+    "actual_geometry_note": "The old implementation advertised the same eight-step tier while secretly reducing its sampling limit. This is a fidelity correction, not a same-quality optimization comparison.",
+    "trials": [
+      {
+        "variant": "before",
+        "trial": 1,
+        "raw": "target/ribbon-quality-measurements/before-1.jsonl",
+        "p50_ns": 1301666,
+        "p95_ns": 1408167,
+        "p99_ns": 1547541,
+        "serial_completed_outputs_per_second": 760.976391000445,
+        "cold_completed_ns": 50175334,
+        "cold_heap": {
+          "allocated_bytes": 95999575,
+          "allocations": 72306,
+          "deallocated_bytes": 88314270,
+          "reallocations": 12391,
+          "retained_bytes": 7685305
+        },
+        "summary": {
+          "cpu_median_ns": 152000,
+          "cpu_p95_ns": 200667,
+          "cpu_p99_ns": 250500,
+          "frame_median_ns": 1301666,
+          "frame_p95_ns": 1408167,
+          "frame_p99_ns": 1547541,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "top_resolved_pass_medians_ns": {
+          "cartoon ribbons": 386500.0,
+          "HDR tonemap": 370417.0,
+          "scene-fit analytic shadows": 338229.5,
+          "temporal HDR resolve": 316541.5,
+          "HDR deferred lighting": 284209.0
+        },
+        "global_gpu_resolved_count": 0,
+        "rss": null,
+        "rss_scope": "measure with /usr/bin/time -l around the process"
+      },
+      {
+        "variant": "after",
+        "trial": 1,
+        "raw": "target/ribbon-quality-measurements/after-1.jsonl",
+        "p50_ns": 1647791,
+        "p95_ns": 1718375,
+        "p99_ns": 1829083,
+        "serial_completed_outputs_per_second": 604.7906221166135,
+        "cold_completed_ns": 55358250,
+        "cold_heap": {
+          "allocated_bytes": 95999575,
+          "allocations": 72306,
+          "deallocated_bytes": 88314270,
+          "reallocations": 12391,
+          "retained_bytes": 7685305
+        },
+        "summary": {
+          "cpu_median_ns": 151000,
+          "cpu_p95_ns": 174958,
+          "cpu_p99_ns": 205959,
+          "frame_median_ns": 1647791,
+          "frame_p95_ns": 1718375,
+          "frame_p99_ns": 1829083,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "top_resolved_pass_medians_ns": {
+          "cartoon ribbons": 593354.5,
+          "scene-fit analytic shadows": 559917.0,
+          "HDR tonemap": 406854.0,
+          "temporal HDR resolve": 353145.5,
+          "HDR deferred lighting": 320875.0
+        },
+        "global_gpu_resolved_count": 0,
+        "rss": null,
+        "rss_scope": "measure with /usr/bin/time -l around the process"
+      },
+      {
+        "variant": "before",
+        "trial": 2,
+        "raw": "target/ribbon-quality-measurements/before-2.jsonl",
+        "p50_ns": 1323250,
+        "p95_ns": 1575625,
+        "p99_ns": 1838000,
+        "serial_completed_outputs_per_second": 733.4184776364574,
+        "cold_completed_ns": 48684250,
+        "cold_heap": {
+          "allocated_bytes": 95999639,
+          "allocations": 72307,
+          "deallocated_bytes": 88314334,
+          "reallocations": 12391,
+          "retained_bytes": 7685305
+        },
+        "summary": {
+          "cpu_median_ns": 167667,
+          "cpu_p95_ns": 248667,
+          "cpu_p99_ns": 424167,
+          "frame_median_ns": 1323250,
+          "frame_p95_ns": 1575625,
+          "frame_p99_ns": 1838000,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "top_resolved_pass_medians_ns": {
+          "cartoon ribbons": 389500.0,
+          "HDR tonemap": 374791.5,
+          "scene-fit analytic shadows": 338520.5,
+          "temporal HDR resolve": 320479.5,
+          "HDR deferred lighting": 294916.5
+        },
+        "global_gpu_resolved_count": 0,
+        "rss": null,
+        "rss_scope": "measure with /usr/bin/time -l around the process"
+      },
+      {
+        "variant": "after",
+        "trial": 2,
+        "raw": "target/ribbon-quality-measurements/after-2.jsonl",
+        "p50_ns": 1698041,
+        "p95_ns": 2422750,
+        "p99_ns": 2805458,
+        "serial_completed_outputs_per_second": 560.8253449375095,
+        "cold_completed_ns": 55457500,
+        "cold_heap": {
+          "allocated_bytes": 95999575,
+          "allocations": 72306,
+          "deallocated_bytes": 88314270,
+          "reallocations": 12391,
+          "retained_bytes": 7685305
+        },
+        "summary": {
+          "cpu_median_ns": 159125,
+          "cpu_p95_ns": 295417,
+          "cpu_p99_ns": 536708,
+          "frame_median_ns": 1698041,
+          "frame_p95_ns": 2422750,
+          "frame_p99_ns": 2805458,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "top_resolved_pass_medians_ns": {
+          "cartoon ribbons": 599979.0,
+          "scene-fit analytic shadows": 561979.5,
+          "HDR tonemap": 417563.0,
+          "temporal HDR resolve": 362416.5,
+          "HDR deferred lighting": 329583.0
+        },
+        "global_gpu_resolved_count": 0,
+        "rss": null,
+        "rss_scope": "measure with /usr/bin/time -l around the process"
+      },
+      {
+        "variant": "before",
+        "trial": 3,
+        "raw": "target/ribbon-quality-measurements/before-3.jsonl",
+        "p50_ns": 1299834,
+        "p95_ns": 1379416,
+        "p99_ns": 1502542,
+        "serial_completed_outputs_per_second": 764.5511204160267,
+        "cold_completed_ns": 50869834,
+        "cold_heap": {
+          "allocated_bytes": 95999575,
+          "allocations": 72306,
+          "deallocated_bytes": 88314270,
+          "reallocations": 12391,
+          "retained_bytes": 7685305
+        },
+        "summary": {
+          "cpu_median_ns": 151792,
+          "cpu_p95_ns": 187750,
+          "cpu_p99_ns": 243625,
+          "frame_median_ns": 1299834,
+          "frame_p95_ns": 1379416,
+          "frame_p99_ns": 1502542,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "top_resolved_pass_medians_ns": {
+          "cartoon ribbons": 386125.0,
+          "HDR tonemap": 369958.0,
+          "scene-fit analytic shadows": 338333.5,
+          "temporal HDR resolve": 316250.0,
+          "HDR deferred lighting": 283833.5
+        },
+        "global_gpu_resolved_count": 0,
+        "rss": null,
+        "rss_scope": "measure with /usr/bin/time -l around the process"
+      },
+      {
+        "variant": "after",
+        "trial": 3,
+        "raw": "target/ribbon-quality-measurements/after-3.jsonl",
+        "p50_ns": 1648291,
+        "p95_ns": 1754959,
+        "p99_ns": 2103917,
+        "serial_completed_outputs_per_second": 600.6105957469011,
+        "cold_completed_ns": 53918500,
+        "cold_heap": {
+          "allocated_bytes": 95999575,
+          "allocations": 72306,
+          "deallocated_bytes": 88314270,
+          "reallocations": 12391,
+          "retained_bytes": 7685305
+        },
+        "summary": {
+          "cpu_median_ns": 149917,
+          "cpu_p95_ns": 196625,
+          "cpu_p99_ns": 228833,
+          "frame_median_ns": 1648291,
+          "frame_p95_ns": 1754959,
+          "frame_p99_ns": 2103917,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "top_resolved_pass_medians_ns": {
+          "cartoon ribbons": 594167.0,
+          "scene-fit analytic shadows": 561042.0,
+          "HDR tonemap": 407042.0,
+          "temporal HDR resolve": 353250.0,
+          "HDR deferred lighting": 320896.0
+        },
+        "global_gpu_resolved_count": 0,
+        "rss": null,
+        "rss_scope": "measure with /usr/bin/time -l around the process"
+      }
+    ],
+    "excluded": "target/ribbon-quality-measurements-concurrent-reference overlapped a reference browser capture and is not used for the recorded results.",
+    "interpretation": "Full-fidelity p50 is 1647791/1698041/1648291 ns versus 1301666/1323250/1299834 ns before. Cold completion is also slightly slower despite removing repeated geometry builds. The cost is retained to honor requested quality, not hidden or offset by another quality reduction. No Phase 9 ladder claim. Global GPU timing remains unresolved/stale; per-pass intervals may overlap and are not summed. Resident byte statistics cover the managed arena only, not all mesh buffers or RSS. Steady heap allocation remains 226 allocations plus 20 reallocations per output."
+  },
+  "remaining": [
+    "Tubular helices, direction wedges, authored gaps, nucleotide variants and live source-backed rings remain Phase 3.1 work.",
+    "Transparent mesh click-pick coverage remains Phase 8 work, as identified by the prior native indexed regression.",
+    "Phase 7 presentation/anti-aliasing work and Phase 9 complete L1-L8 browser, memory and zero-allocation gates remain open."
+  ]
+}

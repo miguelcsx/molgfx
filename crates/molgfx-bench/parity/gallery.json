@@ -1630,14 +1630,15 @@
           {
             "kind": "representation",
             "params": {
-              "type": "cartoon",
+              "type": "putty",
               "color": "chain-id",
               "size": "uniform",
               "typeParams": {
-                "aspectRatio": 1,
-                "tubularHelices": true,
+                "sizeFactor": 0.3,
+                "linearSegments": 8,
+                "radialSegments": 16,
                 "visuals": [
-                  "polymer-trace"
+                  "polymer-tube"
                 ]
               }
             }

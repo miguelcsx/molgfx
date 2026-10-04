@@ -206,25 +206,13 @@ fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), Rend
             .mesh
             .generate_glycan(structure, input.selection, params);
     } else {
-        // A structure of thousands of residues has far more spline samples
-        // than pixels to show them, so its sampling is coarsened until the
-        // ribbon fits the vertex budget rather than letting it grow with the
-        // chain.
-        let mut params = params;
-        loop {
-            input.mesh.generate_structure(
-                structure,
-                input.selection,
-                input.placed.secondary_structure.values(),
-                molgfx_geometry::CARTOON_GAP_CUTOFF,
-                params,
-            )?;
-            let vertices = input.mesh.vertices.len();
-            if vertices <= MAX_RIBBON_VERTICES || params.max_steps <= MIN_RIBBON_STEPS {
-                break;
-            }
-            params.max_steps = reduced_steps(params.max_steps, vertices);
-        }
+        input.mesh.generate_structure(
+            structure,
+            input.selection,
+            input.placed.secondary_structure.values(),
+            molgfx_geometry::CARTOON_GAP_CUTOFF,
+            params,
+        )?;
     }
     append_nucleotide_geometry(input)?;
     if !matches!(
@@ -310,26 +298,9 @@ const TWISTER_THICKNESS_SCALE: f32 = 0.2;
 /// Sampling ceiling for the twisting profile.
 const TWISTER_MAX_STEPS: u8 = 32;
 
-/// The most vertices one ribbon keeps, which is about 36 MB of device memory
-/// for the vertices, their deformation recipes and the indices together.
-const MAX_RIBBON_VERTICES: usize = 400_000;
-/// The coarsest sampling a ribbon is reduced to: one interior sample per
-/// trace interval still follows the chain between residues.
-const MIN_RIBBON_STEPS: u8 = 2;
 /// Host scratch above this many vertices is released after upload; a larger
 /// ribbon is rebuilt on the rare edit that changes it.
 const RETAINED_SCRATCH_VERTICES: usize = 32_768;
-
-/// The step limit that brings `vertices` toward the budget, always lower than
-/// `steps` so the fit terminates.
-fn reduced_steps(steps: u8, vertices: usize) -> u8 {
-    let scaled = u64::from(steps) * MAX_RIBBON_VERTICES as u64 / (vertices as u64).max(1);
-    let scaled = match u8::try_from(scaled) {
-        Ok(value) => value,
-        Err(_) => steps,
-    };
-    scaled.min(steps.saturating_sub(1)).max(MIN_RIBBON_STEPS)
-}
 
 fn spline_params(representation: &Representation, steps: u8) -> RibbonParams {
     let color = match representation.color {
@@ -397,7 +368,3 @@ pub(super) struct RibbonSync<'a, D: Device> {
     /// The columns the colour scheme, its overlay and its appearance read.
     pub(super) color: molgfx_geometry::ColorContext<'a>,
 }
-
-#[cfg(test)]
-#[path = "ribbon_slot_tests.rs"]
-mod tests;
