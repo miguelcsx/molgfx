@@ -52,5 +52,153 @@
     "python_tests_69": "passed",
     "stubtest": "passed",
     "policy_checks": "passed"
+  },
+  "measurements": {
+    "procedure": {
+      "recipe": "interactive",
+      "physical_extent": [
+        768,
+        768
+      ],
+      "warmup_outputs": 120,
+      "measured_outputs_per_trial": 1200,
+      "paired_trials": 3,
+      "orbit_degrees_per_output": 0.5
+    },
+    "comparison": "Same volume integration checkout and release harness, with versus without the fixed loop ceiling. Both binaries retain the finite-precision progress helper. No quality settings changed.",
+    "binaries": {
+      "before": {
+        "binary_sha256": "b8082d8d720f1fbb9ed7f1ce310f7039bf41fc1259d6fb6e0f74bf61bb6c9412"
+      },
+      "after": {
+        "binary_sha256": "f84216d93612dbf6ce8367bbe2c6b0aeadc953739d5a926633b1e4d4ee0c138a"
+      }
+    },
+    "results": {
+      "P2-iso-solid-skewMRC": {
+        "before": {
+          "trials": [
+            {
+              "p50_ns": 1800333,
+              "p95_ns": 2036459,
+              "p99_ns": 2090958,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 544.7478072299427
+            },
+            {
+              "p50_ns": 1800708,
+              "p95_ns": 2048834,
+              "p99_ns": 2093833,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 544.2439221001016
+            },
+            {
+              "p50_ns": 1806833,
+              "p95_ns": 2048917,
+              "p99_ns": 2107583,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 544.3381265140467
+            }
+          ],
+          "median_p50_ns": 1800708
+        },
+        "after": {
+          "trials": [
+            {
+              "p50_ns": 1799750,
+              "p95_ns": 2045083,
+              "p99_ns": 2098834,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 545.2740473522798
+            },
+            {
+              "p50_ns": 1795250,
+              "p95_ns": 2037000,
+              "p99_ns": 2084417,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 545.7988224510482
+            },
+            {
+              "p50_ns": 1798583,
+              "p95_ns": 2033250,
+              "p99_ns": 2090792,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 545.6607389905124
+            }
+          ],
+          "median_p50_ns": 1798583
+        }
+      },
+      "P2-direct-model_density": {
+        "before": {
+          "trials": [
+            {
+              "p50_ns": 1787417,
+              "p95_ns": 2389833,
+              "p99_ns": 2523083,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 544.140107008553
+            },
+            {
+              "p50_ns": 1785792,
+              "p95_ns": 2365000,
+              "p99_ns": 2579792,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 544.8813364804015
+            },
+            {
+              "p50_ns": 1782791,
+              "p95_ns": 2413708,
+              "p99_ns": 2592041,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 543.057112945932
+            }
+          ],
+          "median_p50_ns": 1785792
+        },
+        "after": {
+          "trials": [
+            {
+              "p50_ns": 1781792,
+              "p95_ns": 2378375,
+              "p99_ns": 2560625,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 478.50884680614035
+            },
+            {
+              "p50_ns": 1780292,
+              "p95_ns": 2385000,
+              "p99_ns": 2608125,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 478.73788741331447
+            },
+            {
+              "p50_ns": 1781334,
+              "p95_ns": 2396709,
+              "p99_ns": 2550125,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 477.69064451403483
+            }
+          ],
+          "median_p50_ns": 1781334
+        }
+      }
+    },
+    "caveats": [
+      "Whole-frame GPU timestamps remain unavailable because the cached visibility pass has stale timestamps; resolved pass durations may overlap and must not be summed.",
+      "These are correctness-regression measurements, not Phase 9 baselines or an optimization claim."
+    ]
   }
 }
