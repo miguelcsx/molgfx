@@ -22,6 +22,7 @@ pub(crate) struct TonemapPass<D: Device> {
     shader: D::ShaderModule,
     target_format: TextureFormat,
     variants: Vec<Lazy<D::Pipeline>>,
+    capture: Lazy<D::Pipeline>,
     pub(crate) layout: D::BindGroupLayout,
 }
 
@@ -72,6 +73,7 @@ impl<D: Device> TonemapPass<D> {
             shader,
             target_format,
             variants,
+            capture: Lazy::default(),
             layout,
         })
     }
@@ -103,6 +105,45 @@ impl<D: Device> TonemapPass<D> {
             ],
             topology: PrimitiveTopology::TriangleList,
         })?)
+    }
+
+    pub(crate) fn record_capture(
+        &self,
+        env: &PassEnv<'_, D>,
+        encoder: &mut D::CommandEncoder,
+        bindings: &D::BindGroup,
+        target: &D::TextureView,
+    ) -> Result<(), RenderError> {
+        let pipeline = self.capture.get_or_build(|| {
+            Ok(env.device.create_render_pipeline(&RenderPipelineDesc {
+                label: "linear HDR coverage capture",
+                layouts: &[Some(&env.scene.group0_layout), Some(&self.layout)],
+                shader: &self.shader,
+                vs_entry: "vs_fullscreen",
+                fs_entry: Some("fs_hdr_capture"),
+                color_targets: &[ColorTarget {
+                    format: TextureFormat::Rgba16Float,
+                    blend: molgfx_gpu::BlendMode::Replace,
+                }],
+                depth: None,
+                constants: &[],
+                topology: PrimitiveTopology::TriangleList,
+            })?)
+        })?;
+        let mut pass = encoder.begin_render_pass(&RenderPassDesc {
+            label: "linear HDR coverage capture",
+            colors: &[ColorAttachment {
+                view: target,
+                load: LoadOp::Clear([0.0; 4]),
+            }],
+            depth: None,
+            timestamps: None,
+        });
+        pass.set_pipeline(pipeline);
+        pass.set_bind_group(0, &env.scene.group0, &[]);
+        pass.set_bind_group(1, bindings, &[]);
+        pass.draw(0..3, 0..1);
+        Ok(())
     }
 
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {

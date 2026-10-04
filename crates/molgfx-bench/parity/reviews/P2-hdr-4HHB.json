@@ -185,5 +185,6 @@
     "The public API wraps the existing converged HDR capture; no rendering algorithm or steady-state hot path changes.",
     "The isolated commit passes 69 Python tests and stubtest. The GPU smoke checks unclipped finite channels, zero-size rejection, non-EXR rejection without file creation, and byte-for-byte equality between streamed and in-memory export.",
     "This native HDR unit has no required cross-engine gallery or golden in the phase work record. It does not close the other Phase 2 units."
-  ]
+  ],
+  "alpha_followup": "crates/molgfx-bench/parity/reviews/P2-hdr-alpha.json"
 }

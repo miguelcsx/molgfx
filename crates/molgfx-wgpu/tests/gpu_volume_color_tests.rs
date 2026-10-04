@@ -37,7 +37,7 @@ fn check_slice_colour(exact_palette: bool) {
     }
     let mut scene = Scene::new();
     let volume = scene.add_volume(volume);
-    scene
+    let representation = scene
         .represent(volume, Representation::volume().volume_style(style))
         .unwrap();
     let camera = Camera {
@@ -79,4 +79,63 @@ fn check_slice_colour(exact_palette: bool) {
             "HDR channel is not linear: {value:#06x}"
         );
     }
+    assert_eq!(u16::from_le_bytes([center[6], center[7]]), 0x3c00);
+    check_hdr_coverage(&mut engine, &mut scene, representation, &camera);
+}
+
+fn check_hdr_coverage(
+    engine: &mut Engine<WgpuDevice>,
+    scene: &mut Scene,
+    representation: molgfx_core::RepresentationHandle,
+    camera: &Camera,
+) {
+    engine
+        .set_render_profile(
+            molgfx_render::RenderProfile::bare().with_effect(
+                molgfx_render::PresentationEffect::Backdrop(
+                    molgfx_render::BackdropStyle::transparent(),
+                ),
+            ),
+        )
+        .unwrap();
+    let empty = engine
+        .render_hdr_image(
+            &Scene::new(),
+            camera,
+            ImageConfig {
+                width: 32,
+                height: 32,
+            },
+        )
+        .unwrap();
+    assert!(
+        empty
+            .rgba16f()
+            .as_chunks::<8>()
+            .0
+            .iter()
+            .all(|pixel| pixel[6..8] == [0, 0])
+    );
+    scene
+        .representation_mut(representation)
+        .unwrap()
+        .material
+        .opacity = 0.5;
+    let translucent = engine
+        .render_hdr_image(
+            scene,
+            camera,
+            ImageConfig {
+                width: 32,
+                height: 32,
+            },
+        )
+        .unwrap();
+    // Material opacity uses an 8-bit upload: 0.5 becomes 127/255.
+    let alpha = &translucent.rgba16f()[(16 * 32 + 16) * 8 + 6..][..2];
+    assert!(
+        u16::from_le_bytes([alpha[0], alpha[1]]).abs_diff(0x37f8) <= 2,
+        "alpha: {:#06x}",
+        u16::from_le_bytes([alpha[0], alpha[1]])
+    );
 }

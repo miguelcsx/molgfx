@@ -26,8 +26,9 @@ fn hdr_capture_returns_tightly_packed_native_half_pixels() {
     };
     assert!(
         !textures.contains(&"off-screen image"),
-        "HDR capture reuses the graph texture"
+        "HDR capture does not allocate a display-encoded target"
     );
+    assert!(textures.contains(&"linear HDR coverage capture"));
 }
 
 #[test]

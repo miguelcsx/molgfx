@@ -1,0 +1,110 @@
+{
+  "unit": "Phase 2.5 HDR alpha repair",
+  "owner": "Phase 2.5",
+  "status": "GPU and public Python capture verified; final repository release closure remains open",
+  "parent_commit": "3059fdaf55d811c1203b5c9308e877aea0e6bd86",
+  "problem": "Temporal history stores depth in its fourth component. Native texture readback previously exposed depth as RGBA alpha.",
+  "implementation": "Cached capture-only RGBA16F pipeline copies resolved linear RGB and computes the same coverage as presentation. Temporal history is not modified. An eight-byte-per-pixel export target lives through asynchronous readback; steady-state interactive rendering gains no pass or allocation.",
+  "regression": {
+    "test": "crates/molgfx-wgpu/tests/gpu_volume_color_tests.rs",
+    "before": "Opaque slice alpha word 0x0000 instead of 0x3c00",
+    "after": [
+      "Opaque alpha 1",
+      "Transparent empty scene alpha 0 at every pixel",
+      "Translucent slice alpha agrees with the uploaded 127/255 opacity within two binary16 ULP",
+      "RGB linear colour checks still pass"
+    ]
+  },
+  "public_test": "python/tests/headless_hdr.py",
+  "capture": {
+    "file": "target/hdr-alpha-verified/P2-hdr-4HHB.exr",
+    "max_rgb": 1.1533203125,
+    "quality": {
+      "extent": [
+        512,
+        384
+      ],
+      "tier": "high",
+      "samples_required": 64,
+      "samples_submitted": 64,
+      "samples_completed": 64,
+      "surface_spacing_requested": 0.25,
+      "surface_spacing_effective": null,
+      "surface_limit": "none",
+      "ribbon_steps_max": 8,
+      "occlusion_rays_per_sample": 4,
+      "lighting": {
+        "zenith": {
+          "r": 226,
+          "g": 232,
+          "b": 240,
+          "a": 255
+        },
+        "horizon": {
+          "r": 188,
+          "g": 194,
+          "b": 202,
+          "a": 255
+        },
+        "ground": {
+          "r": 150,
+          "g": 146,
+          "b": 141,
+          "a": 255
+        },
+        "rim_color": {
+          "r": 120,
+          "g": 132,
+          "b": 152,
+          "a": 255
+        },
+        "key_color": {
+          "r": 255,
+          "g": 244,
+          "b": 230,
+          "a": 255
+        },
+        "fill_color": {
+          "r": 206,
+          "g": 214,
+          "b": 226,
+          "a": 255
+        },
+        "key_direction": [
+          -0.42,
+          0.58,
+          0.7
+        ],
+        "fill_direction": [
+          0.78,
+          -0.12,
+          0.5
+        ],
+        "diffuse_strength": 0.62,
+        "specular_strength": 0.72,
+        "rim_strength": 0.16,
+        "key_strength": 1.35,
+        "fill_strength": 0.3,
+        "key_angular_radius": 0.2,
+        "shadow_strength": 0.66
+      },
+      "illumination_bounces": 0,
+      "lod_mode_max": 0,
+      "progressive": false,
+      "adaptive": false,
+      "full_residency": true,
+      "complete": true
+    }
+  },
+  "verification": {
+    "workspace_format_clippy_all_features_tests": "pass",
+    "actual_wasm32_check_and_clippy": "pass",
+    "python_development_install": "pass",
+    "python_tests": "69 passed",
+    "ruff_format_and_check_mypy_stubtest": "pass",
+    "policy_checks": "pass",
+    "logs": "target/hdr-alpha-verification"
+  },
+  "performance": "Correctness repair on export only; no performance improvement claimed.",
+  "external_validation": "OpenEXR exrheader decodes four half-float channels and 512x384 dimensions; target/hdr-alpha-verification/molgfx-hdr-alpha-exrheader.log"
+}

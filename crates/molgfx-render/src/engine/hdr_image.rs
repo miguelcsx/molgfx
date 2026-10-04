@@ -1,13 +1,16 @@
-//! Scene-linear HDR readback without a second full-resolution render target.
+//! Scene-linear HDR readback with coverage separated from temporal depth.
 
 use super::image::ImageLayout;
 use super::image::ImagePurpose;
 use super::{Engine, ImageConfig, QualityTier};
 use crate::error::RenderError;
-use crate::graph::ResourceId;
+use crate::graph::{PassEnv, ResourceId};
 use crate::passes::{DOF_RESOURCE, HISTORY_A_RESOURCE, HISTORY_B_RESOURCE, MOTION_BLUR_RESOURCE};
 use molgfx_core::Scene;
-use molgfx_gpu::{BufferDesc, BufferUsage, CommandEncoder as _, Device, Queue as _};
+use molgfx_gpu::{
+    BufferDesc, BufferUsage, CommandEncoder as _, Device, Queue as _, TextureDesc,
+    TextureDimension, TextureFormat, TextureUsage, TextureViewDesc,
+};
 use molgfx_math::Camera;
 
 /// Tightly packed scene-linear RGBA16F pixels owned by the caller.
@@ -145,6 +148,18 @@ impl<D: Device> Engine<D> {
             size: layout.buffer_size,
             usage: BufferUsage::COPY_DST.union(BufferUsage::MAP_READ),
         })?;
+        let capture = self.device.create_texture(&TextureDesc {
+            label: "linear HDR coverage capture",
+            width: config.width,
+            height: config.height,
+            depth: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba16Float,
+            usage: TextureUsage::RENDER_ATTACHMENT.union(TextureUsage::COPY_SRC),
+        })?;
+        let capture_view = self
+            .device
+            .create_texture_view(&capture, &TextureViewDesc::default());
         let samples = exposure.samples;
         let mut encoder = self.device.create_command_encoder();
         for sample in 0..samples {
@@ -162,11 +177,23 @@ impl<D: Device> Engine<D> {
             };
             self.record_image_until(&mut encoder, target, None, quality, false, Some(source))?;
             if sample + 1 == samples {
-                let Some(texture) = pool.texture(source) else {
-                    return Err(molgfx_gpu::GpuError::DeviceLost.into());
-                };
+                let bindings = self
+                    .bindings
+                    .as_ref()
+                    .and_then(|bindings| bindings.tonemap.get(self.temporal.write_index()))
+                    .ok_or(molgfx_gpu::GpuError::DeviceLost)?;
+                self.passes.tonemap.record_capture(
+                    &PassEnv {
+                        device: &self.device,
+                        target_format: TextureFormat::Rgba16Float,
+                        scene: &self.scene_gpu,
+                    },
+                    &mut encoder,
+                    bindings,
+                    &capture_view,
+                )?;
                 encoder.copy_texture_to_buffer(
-                    texture,
+                    &capture,
                     (0, 0),
                     (config.width, config.height),
                     layout.padded_row,
@@ -181,6 +208,7 @@ impl<D: Device> Engine<D> {
             config,
             layout,
             buffer: readback,
+            _capture: capture,
             quality: self.effective_quality(samples, self.temporal.prepared_samples()),
         })
     }
@@ -202,6 +230,7 @@ struct PendingHdrImage<D: Device> {
     config: ImageConfig,
     layout: ImageLayout,
     buffer: D::Buffer,
+    _capture: D::Texture,
     quality: super::EffectiveQuality,
 }
 

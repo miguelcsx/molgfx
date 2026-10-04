@@ -187,3 +187,14 @@ fn fs_tonemap(
         ),
     );
 }
+
+// Export linear radiance and coverage without copying temporal depth as alpha.
+@fragment
+fn fs_hdr_capture(in: FullscreenOut) -> @location(0) vec4f {
+    let pixel = vec2i(in.position.xy);
+    let dimensions = vec2f(textureDimensions(hdr_texture));
+    return vec4f(
+        textureLoad(hdr_texture, pixel, 0).rgb,
+        presentation_coverage(pixel, in.position.y / dimensions.y),
+    );
+}

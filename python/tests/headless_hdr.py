@@ -38,6 +38,7 @@ assert (image.width, image.height) == size
 maximum = 0.0
 for red, green, blue, alpha in struct.iter_unpack("<eeee", image.rgba16f()):
     assert all(math.isfinite(value) for value in (red, green, blue, alpha))
+    assert alpha == 1.0, f"opaque HDR capture has non-coverage alpha: {alpha}"
     maximum = max(maximum, red, green, blue)
 assert maximum > 1.0, f"HDR highlights were clipped: max RGB = {maximum}"
 
