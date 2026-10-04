@@ -5,8 +5,11 @@
 //! reads as the inside of the far wall lit from the wrong side, which looks less
 //! like missing surface than like a shading fault.
 
-use super::profiles::{BOX_CORNERS, profile_color};
-use super::ribbon::{RibbonBuild, RibbonDeformation, RibbonVertex, SplineProfile, control_rows};
+use super::profiles::{BOX_CORNERS, cross_section, profile_color, profile_extents};
+use super::ribbon::{
+    PROFILE_SIDES, RibbonBuild, RibbonDeformation, RibbonVertex, SplineProfile, control_rows,
+};
+use molgfx_core::SecondaryStructure;
 use molgfx_math::{CurveSample, TransportFrame};
 
 /// One end of a ribbon: the sample it stops on and which way it faces.
@@ -18,7 +21,7 @@ struct RibbonEnd {
     outward: f32,
 }
 
-/// Closes the two open ends of a flat ribbon.
+/// Closes both ends with faces matching the authored cross-section.
 ///
 /// Nothing culls back faces here, so an open end does not read as a hole: it
 /// reads as the inside of the far wall lit from the wrong side, which looks less
@@ -28,6 +31,7 @@ struct RibbonEnd {
 /// it were the ribbon's edge at exactly the place the eye picks the ribbon up.
 pub(super) fn append_end_caps(
     entities: &[u32],
+    styles: &[SecondaryStructure],
     width: f32,
     thickness: f32,
     build: &mut RibbonBuild<'_>,
@@ -52,8 +56,23 @@ pub(super) fn append_end_caps(
         ],
         _ => return,
     };
-    for end in ends {
-        append_cap(end, entities, width, thickness, build);
+    let Some(first_ring) = build
+        .deformations
+        .len()
+        .checked_sub(build.samples.len() * PROFILE_SIDES)
+    else {
+        return;
+    };
+    let recipes = [
+        build.deformations.get(first_ring).copied(),
+        build.deformations.last().copied(),
+    ];
+    for (end, recipe) in ends.into_iter().zip(recipes) {
+        if build.params.profile == SplineProfile::Twister {
+            append_cap(end, entities, width, thickness, build);
+        } else if let Some(recipe) = recipe {
+            append_round_cap(end, entities, styles, recipe, build);
+        }
     }
 }
 
@@ -98,3 +117,66 @@ fn append_cap(
     };
     build.indices.extend_from_slice(&quad);
 }
+
+fn append_round_cap(
+    end: RibbonEnd,
+    entities: &[u32],
+    styles: &[SecondaryStructure],
+    recipe: RibbonDeformation,
+    build: &mut RibbonBuild<'_>,
+) {
+    let Ok(segment) = usize::try_from(end.sample.segment) else {
+        return;
+    };
+    let Some(&entity_id) = entities.get(segment) else {
+        return;
+    };
+    let style = match styles.get(segment) {
+        Some(&style) => style,
+        None => SecondaryStructure::Unknown,
+    };
+    let (width, thickness) =
+        profile_extents(build.params, style, end.sample.parameter, styles, segment);
+    let Ok(base) = u32::try_from(build.vertices.len()) else {
+        return;
+    };
+    let normal = (end.frame.tangent * end.outward).to_array();
+    build.vertices.push(RibbonVertex {
+        position: end.sample.position.to_array(),
+        entity_id,
+        normal,
+        color: build.params.color,
+    });
+    build.deformations.push(recipe);
+    for side in 0..PROFILE_SIDES {
+        let (x, y, _) = cross_section(false, side, width, thickness);
+        let position = end.sample.position
+            + end.frame.normal * (x * width)
+            + end.frame.binormal * (y * thickness);
+        build.vertices.push(RibbonVertex {
+            position: position.to_array(),
+            entity_id,
+            normal,
+            color: build.params.color,
+        });
+        build.deformations.push(recipe);
+    }
+    for side in 0..PROFILE_SIDES {
+        let Ok(current) = u32::try_from(side + 1) else {
+            return;
+        };
+        let Ok(next) = u32::try_from((side + 1) % PROFILE_SIDES + 1) else {
+            return;
+        };
+        let triangle = if end.outward > 0.0 {
+            [base, base + current, base + next]
+        } else {
+            [base, base + next, base + current]
+        };
+        build.indices.extend_from_slice(&triangle);
+    }
+}
+
+#[cfg(test)]
+#[path = "ends_tests.rs"]
+mod tests;

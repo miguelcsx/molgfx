@@ -1,4 +1,5 @@
 use super::*;
+use crate::cartoon::profiles::{profile_scale, rocket_scale};
 use molgfx_core::TubeRadiusMapping;
 
 fn trace() -> [Vec3; 5] {
@@ -19,11 +20,11 @@ fn ribbon_generation_is_deterministic_and_indexed() {
     second.generate(&trace(), &[10, 11, 12, 13, 14], RibbonParams::default());
     assert_eq!(first.vertices, second.vertices);
     assert_eq!(first.indices, second.indices);
-    assert_eq!(first.vertices.len() % PROFILE_SIDES, 0);
-    assert_eq!(
-        first.indices.len(),
-        (first.vertices.len() / PROFILE_SIDES - 1) * PROFILE_SIDES * 6
-    );
+    assert!(first.indices.as_chunks::<3>().0.iter().all(|triangle| {
+        triangle
+            .iter()
+            .all(|&index| (index as usize) < first.vertices.len())
+    }));
 }
 
 #[test]
@@ -97,7 +98,7 @@ fn putty_lowering_keeps_base_geometry_constant_and_emits_compact_guide_values() 
     .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(mesh.radius_source_values(), &[10.0, 30.0, 50.0]);
     assert!(
-        mesh.vertices
+        mesh.vertices[..mesh.samples.len() * PROFILE_SIDES]
             .as_chunks::<PROFILE_SIDES>()
             .0
             .iter()
@@ -367,7 +368,6 @@ fn the_twister_profile_gives_each_face_its_own_flat_normal() {
 
 #[test]
 fn every_helix_has_helix_profiles_and_every_non_strand_loop_stays_round() {
-    use crate::cartoon::profiles::{profile_scale, rocket_scale};
     for state in SecondaryStructure::ALL {
         let styles = [state; 3];
         let expected = if state.is_helix() {

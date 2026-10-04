@@ -1,0 +1,173 @@
+{
+  "status": "verified closed ribbon-end regression; full Phase 3.1 remains open",
+  "owner": "Phase 3.1",
+  "implementation": "One shared physical cross-section resolver supplies swept shell and caps. Circular/elliptical ends carry outward face normals and retain the end-ring GPU deformation/property recipe. Flat twister ends keep their previous geometry.",
+  "complexity": "O(samples + traces), 34 vertices and 32 triangles per rounded trace end-pair; same batched draw and persistent buffers",
+  "test": "cartoon::ends::tests::tube_ends_are_closed_with_outward_normals_and_the_authored_radius",
+  "verification": "target/cartoon-cap-verification",
+  "python_tests": 78,
+  "native_before": "target/cartoon-continuity-after/P3-close-canonical-gap/sheet.png",
+  "native_after": "target/cartoon-cap-after/P3-close-canonical-gap/sheet.png",
+  "visual_verdict": "No exposed far interior wall at the gap. End faces match the shell radius and retain the correct separation.",
+  "golden": {
+    "case": "B-cartoon-4HHB",
+    "path": "target/cartoon-cap-4HHB-golden",
+    "ssim": 0.9996330510221367,
+    "mean_delta_e": 0.014469596638723325,
+    "p99_delta_e": 0,
+    "status": "passed without reblessing"
+  },
+  "measurements": [
+    {
+      "path": "target/cartoon-cap-measurements/after-1.jsonl",
+      "summary": {
+        "cpu_median_ns": 161292,
+        "cpu_p95_ns": 296625,
+        "cpu_p99_ns": 334833,
+        "frame_median_ns": 1168125,
+        "frame_p95_ns": 1412041,
+        "frame_p99_ns": 1529917,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 833.5822016151316
+    },
+    {
+      "path": "target/cartoon-cap-measurements/after-2.jsonl",
+      "summary": {
+        "cpu_median_ns": 143292,
+        "cpu_p95_ns": 160333,
+        "cpu_p99_ns": 200791,
+        "frame_median_ns": 1148292,
+        "frame_p95_ns": 1204750,
+        "frame_p99_ns": 1261834,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 867.4317595500848
+    },
+    {
+      "path": "target/cartoon-cap-measurements/after-3.jsonl",
+      "summary": {
+        "cpu_median_ns": 147417,
+        "cpu_p95_ns": 169125,
+        "cpu_p99_ns": 210542,
+        "frame_median_ns": 1157500,
+        "frame_p95_ns": 1208542,
+        "frame_p99_ns": 1305917,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 861.0794256605396
+    },
+    {
+      "path": "target/cartoon-cap-measurements/before-1.jsonl",
+      "summary": {
+        "cpu_median_ns": 152834,
+        "cpu_p95_ns": 174167,
+        "cpu_p99_ns": 246209,
+        "frame_median_ns": 1122708,
+        "frame_p95_ns": 1197792,
+        "frame_p99_ns": 1260083,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 885.7038813297036
+    },
+    {
+      "path": "target/cartoon-cap-measurements/before-2.jsonl",
+      "summary": {
+        "cpu_median_ns": 153125,
+        "cpu_p95_ns": 197542,
+        "cpu_p99_ns": 252459,
+        "frame_median_ns": 1149166,
+        "frame_p95_ns": 1799500,
+        "frame_p99_ns": 1870333,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 799.1976056039736
+    },
+    {
+      "path": "target/cartoon-cap-measurements/before-3.jsonl",
+      "summary": {
+        "cpu_median_ns": 144958,
+        "cpu_p95_ns": 171584,
+        "cpu_p99_ns": 229041,
+        "frame_median_ns": 1128625,
+        "frame_p95_ns": 1201166,
+        "frame_p99_ns": 1260625,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 884.2601961418069
+    }
+  ],
+  "measurement_note": "Three interleaved independent release processes per state, 768x768, 120 warmup and 1200 measured fixed interactive outputs. Before executable rebuilt at 52e1281b; 4HHB has no canonical gap addressed by db1894dd. No optimization or Phase 9 claim. GPU totals unresolved; resident arena bytes do not cover all memory.",
+  "remaining": [
+    "Cartoon public controls and profiles",
+    "Tubular helices and wedges",
+    "Gap policies and required biological gallery cases",
+    "Nucleotide topology and live-coordinate fidelity"
+  ]
+}

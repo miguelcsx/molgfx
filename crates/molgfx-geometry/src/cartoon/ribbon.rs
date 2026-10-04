@@ -1,7 +1,7 @@
 //! Reusable cartoon ribbon extrusion over transport-framed splines.
 
 use super::ends::append_end_caps;
-use super::profiles::{BOX_FACE_SIDES, cross_section, profile_color, profile_scale, rocket_scale};
+use super::profiles::{BOX_FACE_SIDES, cross_section, profile_color, profile_extents};
 use super::traces::{PolymerTraces, extract_polymer_traces};
 use molgfx_core::SecondaryStructure;
 use molgfx_math::{CurveSample, Rgba8, TransportFrame, Vec3};
@@ -367,18 +367,10 @@ fn append_ribbon(
             Some(&value) => value,
             None => SecondaryStructure::Unknown,
         };
-        let (width_scale, thickness_scale) = match build.params.profile {
-            SplineProfile::Cartoon => profile_scale(style, sample.parameter, styles, segment),
-            SplineProfile::Rocket => rocket_scale(style, sample.parameter, styles, segment),
-            // The cross-section is constant: a sugar ring does not taper, and
-            // varying the ribbon here would encode something the structure
-            // does not say. Tubes likewise preserve their declared radius.
-            SplineProfile::Tube | SplineProfile::Twister => (1.0, 1.0),
-        };
+        let (width, thickness) =
+            profile_extents(build.params, style, sample.parameter, styles, segment);
         let controls = control_rows(entities, segment);
         let radius_controls = radius_control_rows(property_base, property_count, segment);
-        let width = half_width * width_scale;
-        let thickness = half_thickness * thickness_scale;
         for side in 0..PROFILE_SIDES {
             let (x, y, normal) = cross_section(flat, side, width, thickness);
             let offset = frame.normal * (x * width) + frame.binormal * (y * thickness);
@@ -407,9 +399,7 @@ fn append_ribbon(
     for ring in 0..build.samples.len() - 1 {
         append_ring(ring, base_vertex, flat, build.indices);
     }
-    if flat {
-        append_end_caps(entities, half_width, half_thickness, build);
-    }
+    append_end_caps(entities, styles, half_width, half_thickness, build);
 }
 
 fn radius_control_rows(base: Option<u32>, count: usize, segment: usize) -> [u32; 2] {

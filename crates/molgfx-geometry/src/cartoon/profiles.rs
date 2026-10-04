@@ -5,7 +5,7 @@
 //! distinguishes a cartoon from a tube from a rocket from a twister. Keeping
 //! them together makes them readable side by side.
 
-use super::ribbon::{PROFILE_SIDES, SplineProfile};
+use super::ribbon::{PROFILE_SIDES, RibbonParams, SplineProfile};
 use molgfx_core::{SecondaryStructure, TubeRadiusMapping};
 use molgfx_math::Rgba8;
 
@@ -234,4 +234,23 @@ pub(super) fn profile_scale(
             LOOP_RADIUS / REFERENCE_HALF_THICKNESS,
         ),
     }
+}
+
+/// Physical half extents shared by the swept shell and its end faces.
+pub(super) fn profile_extents(
+    params: RibbonParams,
+    style: SecondaryStructure,
+    parameter: f32,
+    styles: &[SecondaryStructure],
+    segment: usize,
+) -> (f32, f32) {
+    let (width, thickness) = match params.profile {
+        SplineProfile::Cartoon => profile_scale(style, parameter, styles, segment),
+        SplineProfile::Rocket => rocket_scale(style, parameter, styles, segment),
+        SplineProfile::Tube | SplineProfile::Twister => (1.0, 1.0),
+    };
+    (
+        params.width.abs() * 0.5 * width,
+        params.thickness.abs() * 0.5 * thickness,
+    )
 }
