@@ -107,6 +107,7 @@ impl Renderer {
             )
             .map(HdrImage)
             .map_err(Error::from)?;
+        self.pick_source_id = Some(scene.resolved().cache_identity());
         Ok(image)
     }
 }

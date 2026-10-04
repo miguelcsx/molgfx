@@ -33,7 +33,13 @@ fn world() -> Anchor {
 fn every_overlay_item_receives_its_own_monotonic_identity() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let volume = scene
-        .add(density::volume(DataSource::new("density-hash"), [8, 8, 8]))
+        .add(
+            density::volume(DataSource::new("density-hash"), [8, 8, 8]).isosurface(
+                1.0,
+                crate::Color::rgb(49, 104, 142),
+                1.0,
+            ),
+        )
         .unwrap_or_else(|error| panic!("{error}"));
     let label = scene
         .add(annotation::label(anchor(), "active site"))
@@ -73,7 +79,11 @@ fn every_exposed_overlay_capability_reaches_the_renderer() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let source = DataSource::new("density-hash");
     let _ = scene
-        .add(density::volume(source.clone(), [2, 2, 2]))
+        .add(density::volume(source.clone(), [2, 2, 2]).isosurface(
+            1.0,
+            crate::Color::rgb(49, 104, 142),
+            1.0,
+        ))
         .unwrap_or_else(|error| panic!("{error}"));
     let values: Arc<[f32]> = (0_u16..8).map(f32::from).collect();
     scene
@@ -104,7 +114,13 @@ fn every_exposed_overlay_capability_reaches_the_renderer() {
 fn a_volume_without_a_runtime_binding_stays_unresolved() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let _ = scene
-        .add(density::volume(DataSource::new("unbound-hash"), [2, 2, 2]))
+        .add(
+            density::volume(DataSource::new("unbound-hash"), [2, 2, 2]).isosurface(
+                1.0,
+                crate::Color::rgb(49, 104, 142),
+                1.0,
+            ),
+        )
         .unwrap_or_else(|error| panic!("{error}"));
 
     assert_eq!(scene.overlay_handles().volumes, 0);
@@ -132,10 +148,13 @@ fn detected_interactions_are_not_exposed() {
 fn overlay_specs_round_trip_without_bulk_payloads() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let _ = scene
-        .add(density::volume(
-            DataSource::new("grid-hash").uri("https://example.invalid/grid.bcif"),
-            [2, 3, 4],
-        ))
+        .add(
+            density::volume(
+                DataSource::new("grid-hash").uri("https://example.invalid/grid.bcif"),
+                [2, 3, 4],
+            )
+            .isosurface(1.0, crate::Color::rgb(49, 104, 142), 1.0),
+        )
         .unwrap_or_else(|error| panic!("{error}"));
     let json = scene
         .spec()
@@ -159,7 +178,11 @@ fn invalid_overlay_items_leave_the_scene_unchanged() {
 fn overlay_additions_have_exact_inverse_patches() {
     let scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let base = scene.to_spec();
-    let volume = density::volume(DataSource::new("density-hash"), [2, 2, 2]);
+    let volume = density::volume(DataSource::new("density-hash"), [2, 2, 2]).isosurface(
+        1.0,
+        crate::Color::rgb(49, 104, 142),
+        1.0,
+    );
     let mut applied_scene = Scene::from_spec(base.clone(), {
         let mut structures = std::collections::BTreeMap::new();
         let _ = structures.insert(StructureId::new(1), structure());

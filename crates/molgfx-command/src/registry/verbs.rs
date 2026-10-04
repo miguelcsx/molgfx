@@ -16,6 +16,11 @@ pub struct VerbInfo {
 /// Every verb, in the order a help listing shows them.
 pub const VERBS: &[VerbInfo] = &[
     VerbInfo {
+        name: "segment",
+        synopsis: "segment JSON | segment style INDEX:GENERATION STYLES_JSON",
+        summary: "declare a categorical grid or replace its label styles",
+    },
+    VerbInfo {
         name: "select",
         synopsis: "select NAME, QUERY",
         summary: "define or redefine a named selection; everything using it follows",
@@ -112,8 +117,13 @@ pub const VERBS: &[VerbInfo] = &[
     },
     VerbInfo {
         name: "volume",
-        synopsis: "volume {\"source\":{...},\"dimensions\":[...],...}",
+        synopsis: "volume source HASH dims [X,Y,Z] affine [16 values] iso|direct|slice JSON",
         summary: "declare a density volume whose grid arrives through a binding",
+    },
+    VerbInfo {
+        name: "snapshot",
+        synopsis: "snapshot save|restore|remove NAME",
+        summary: "capture, atomically restore, or remove a named portable scene",
     },
     VerbInfo {
         name: "unfocus",

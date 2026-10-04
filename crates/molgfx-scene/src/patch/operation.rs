@@ -6,13 +6,13 @@ use crate::id::{
     AnnotationId, AppearanceRuleId, EllipsoidId, InteractionId, MeasurementId, PlaneId,
     RepresentationId, StructureId, TrajectoryId, VolumeId,
 };
+use crate::interop::SceneSnapshot;
 use crate::overlay::{
     AnnotationSpec, AssemblySpec, EllipsoidSpec, FitResult, InteractionSpec, MeasurementSpec,
-    MovieExportRequest, PlaneSpec, TrajectorySpec, ValidationFinding, VolumeSpec,
+    PlaneSpec, TrajectorySpec, ValidationFinding, VolumeSpec,
 };
 use crate::representation::Selection;
 use crate::representation::form::RepresentationSpec;
-use crate::scene::domains::SceneSnapshot;
 use crate::spec::{InteractionChannel, StructureSource};
 use crate::{ParameterValue, VisualStyle};
 use serde::{Deserialize, Serialize};
@@ -21,6 +21,25 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum PatchOperation {
+    /// Inserts a categorical grid whose labels are bound separately.
+    AddSegmentation {
+        /// Complete lifetime identity.
+        id: crate::SegmentationId,
+        /// Immutable descriptor and independent display styles.
+        segmentation: crate::SegmentationSpec,
+    },
+    /// Removes one categorical grid lifetime.
+    RemoveSegmentation {
+        /// Exact identity to remove.
+        id: crate::SegmentationId,
+    },
+    /// Replaces only the categorical display table, leaving labels resident.
+    SetSegmentStyles {
+        /// Exact identity to restyle.
+        id: crate::SegmentationId,
+        /// Complete replacement display table.
+        styles: Vec<crate::SegmentStyle>,
+    },
     /// Inserts a molecular source under a new ID.
     ///
     /// The patch announces the structure; coordinates stay in the runtime
@@ -243,14 +262,6 @@ pub enum PatchOperation {
         /// Findings in deterministic source order.
         findings: Vec<ValidationFinding>,
     },
-    /// Replaces the deterministic movie export request.
-    SetMovieExport {
-        /// Request, or None to clear it.
-        request: Option<MovieExportRequest>,
-    },
-    /// Retains a portable scene snapshot for host restoration.
-    SetSnapshot {
-        /// Snapshot, or None to clear it.
-        snapshot: Box<Option<SceneSnapshot>>,
-    },
+    /// Replaces live scene state after validating the snapshot and its bindings.
+    RestoreSnapshot(Box<SceneSnapshot>),
 }

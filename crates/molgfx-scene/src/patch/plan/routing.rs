@@ -13,6 +13,8 @@ pub(super) fn is_structural(operation: &PatchOperation) -> bool {
             | PatchOperation::RemoveRepresentation { .. }
             | PatchOperation::ReplaceRepresentation { .. }
             | PatchOperation::AddVolume { .. }
+            | PatchOperation::AddSegmentation { .. }
+            | PatchOperation::RemoveSegmentation { .. }
             | PatchOperation::RemoveVolume { .. }
             | PatchOperation::AddAnnotation { .. }
             | PatchOperation::RemoveAnnotation { .. }
@@ -32,7 +34,6 @@ pub(super) fn is_structural(operation: &PatchOperation) -> bool {
             | PatchOperation::SetAssembly { .. }
             | PatchOperation::SetFitting { .. }
             | PatchOperation::SetValidation { .. }
-            | PatchOperation::SetMovieExport { .. }
-            | PatchOperation::SetSnapshot { .. }
+            | PatchOperation::RestoreSnapshot(_)
     )
 }

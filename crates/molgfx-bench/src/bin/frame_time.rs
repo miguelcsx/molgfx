@@ -5,6 +5,7 @@
 //! ```text
 //! frame_time STRUCTURE [FORM] [options]       ad-hoc file
 //! frame_time --case L<n> --cache DIR [options] ladder scene (see ladder.rs)
+//! frame_time --manifest gallery.json --case ID --cache DIR [options] gallery commands
 //! options: --recipe interactive|converged  --orbit DEG  --warmup-frames N
 //!          --frames N  --size WxH
 //! ```
@@ -16,6 +17,7 @@
 use molgfx::command::Session;
 use molgfx::profile::MeasuredOutput;
 use molgfx::{EffectiveQuality, FrameTiming, Renderer, Scene, profile, rep, sel};
+use molgfx_bench::gallery;
 use molgfx_bench::ladder::{self, LadderCase, LadderQuality};
 use molgfx_bench::{CumulativeTelemetry, FrameSample, fallback, measure_heap, summarize};
 use num_traits::ToPrimitive;
@@ -27,7 +29,7 @@ use std::time::Instant;
 #[global_allocator]
 static ALLOCATOR: &stats_alloc::StatsAlloc<std::alloc::System> = &stats_alloc::INSTRUMENTED_SYSTEM;
 
-const USAGE: &str = "usage: frame_time (STRUCTURE [FORM] | --case L<n> --cache DIR) \
+const USAGE: &str = "usage: frame_time (STRUCTURE [FORM] | --case ID --cache DIR [--manifest FILE]) \
 [--recipe interactive|converged] [--orbit DEG] [--warmup-frames N] [--frames N] [--size WxH]";
 const SECOND_NS: f64 = 1.0e9;
 
@@ -49,6 +51,11 @@ enum Source {
         case: &'static LadderCase,
         cache: PathBuf,
     },
+    Gallery {
+        fixture: Box<gallery::Fixture>,
+        style: gallery::Style,
+        cache: PathBuf,
+    },
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -63,6 +70,7 @@ fn parse() -> Result<Options, Box<dyn Error>> {
         positional.push(value);
     }
     let (mut case, mut cache) = (None, None);
+    let mut manifest = None;
     let mut output = MeasuredOutput::Converged;
     let mut orbit = None;
     let (mut warmup, mut frames, mut size) = (120_usize, 1200_usize, None);
@@ -73,6 +81,7 @@ fn parse() -> Result<Options, Box<dyn Error>> {
         match flag.as_str() {
             "--case" => case = Some(value),
             "--cache" => cache = Some(PathBuf::from(value)),
+            "--manifest" => manifest = Some(PathBuf::from(value)),
             "--recipe" => {
                 output = match value.as_str() {
                     "interactive" => MeasuredOutput::Interactive,
@@ -93,10 +102,25 @@ fn parse() -> Result<Options, Box<dyn Error>> {
         }
     }
     let source = if let Some(id) = case {
-        let case = ladder::find(&id)
-            .ok_or_else(|| io::Error::other(format!("unknown ladder case {id}")))?;
         let cache = cache.ok_or_else(|| io::Error::other("--case requires --cache DIR"))?;
-        Source::Ladder { case, cache }
+        if let Some(manifest) = manifest {
+            let catalog: gallery::Catalog = serde_json::from_slice(&std::fs::read(&manifest)?)?;
+            let fixture = catalog
+                .fixtures
+                .into_iter()
+                .find(|fixture| fixture.id == id)
+                .ok_or_else(|| io::Error::other(format!("unknown gallery case {id}")))?;
+            fixture.verify(&cache)?;
+            Source::Gallery {
+                fixture: Box::new(fixture),
+                style: catalog.style,
+                cache,
+            }
+        } else {
+            let case = ladder::find(&id)
+                .ok_or_else(|| io::Error::other(format!("unknown ladder case {id}")))?;
+            Source::Ladder { case, cache }
+        }
     } else {
         let mut positional = positional.into_iter();
         let path = positional.next().ok_or_else(usage)?;
@@ -124,37 +148,51 @@ fn parse() -> Result<Options, Box<dyn Error>> {
     })
 }
 
-fn build_scene(source: &Source) -> Result<(Scene, molframe::Structure, String), Box<dyn Error>> {
-    let (path, form) = match source {
-        Source::File { path, form } => (PathBuf::from(path), form.as_str()),
+fn molecular_scene(path: &std::path::Path) -> Result<(Scene, u32), Box<dyn Error>> {
+    let (structure, _) = molgfx_bench::reader::read_structure(path)?;
+    Ok((Scene::from_structure(&structure)?, structure.atom_count()))
+}
+
+fn build_scene(source: &Source) -> Result<(Scene, u32, String), Box<dyn Error>> {
+    match source {
+        Source::Gallery {
+            fixture,
+            style,
+            cache,
+        } => {
+            let (scene, metadata) = gallery::scene(fixture, cache, style)?;
+            let atoms = u32::try_from(
+                metadata
+                    .get("atoms")
+                    .and_then(serde_json::Value::as_u64)
+                    .ok_or_else(|| io::Error::other("gallery metadata requires an atom count"))?,
+            )?;
+            Ok((scene, atoms, fixture.form.clone()))
+        }
         Source::Ladder { case, cache } => {
             let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("parity/corpus.json");
-            (
-                ladder::fixture_path(&manifest, cache, case.fixture)?,
-                "ladder",
-            )
+            let path = ladder::fixture_path(&manifest, cache, case.fixture)?;
+            let (mut scene, atoms) = molecular_scene(&path)?;
+            let mut session = Session::new(&scene);
+            for line in case.commands {
+                session
+                    .execute_text(&mut scene, line)
+                    .map_err(|errors| io::Error::other(errors.render(line)))?;
+            }
+            Ok((scene, atoms, "ladder".to_owned()))
         }
-    };
-    let structure = molframe::read(&path)
-        .map_err(|diagnostics| io::Error::other(format!("{diagnostics:?}")))?;
-    let mut scene = Scene::from_structure(&structure)?;
-    if let Source::Ladder { case, .. } = source {
-        let mut session = Session::new(&scene);
-        for line in case.commands {
-            session
-                .execute_text(&mut scene, line)
-                .map_err(|errors| io::Error::other(errors.render(line)))?;
+        Source::File { path, form } => {
+            let (mut scene, atoms) = molecular_scene(std::path::Path::new(path))?;
+            match form.as_str() {
+                "spacefill" => scene.add(rep::spacefill(sel::all()))?,
+                "sticks" | "licorice" => scene.add(rep::licorice(sel::all()))?,
+                "surface" => scene.add(rep::surface(sel::protein()))?,
+                "cartoon" => scene.add(rep::cartoon(sel::all()))?,
+                _ => return Err(io::Error::other(format!("unknown form: {form}")).into()),
+            };
+            Ok((scene, atoms, form.clone()))
         }
-    } else {
-        match form {
-            "spacefill" => scene.add(rep::spacefill(sel::all()))?,
-            "sticks" | "licorice" => scene.add(rep::licorice(sel::all()))?,
-            "surface" => scene.add(rep::surface(sel::protein()))?,
-            "cartoon" => scene.add(rep::cartoon(sel::all()))?,
-            _ => return Err(io::Error::other(format!("unknown form: {form}")).into()),
-        };
     }
-    Ok((scene, structure, form.to_owned()))
 }
 
 /// The framing camera yawed about its up axis through its target by `degrees`.
@@ -177,16 +215,38 @@ fn aspect(size: (u32, u32)) -> Result<f32, io::Error> {
 
 impl Options {
     /// Quality policy, frame-rate budget and the renderer profile implementing it.
-    fn policy(&self) -> (LadderQuality, u32, profile::RenderProfile) {
+    fn policy(&self) -> Result<(LadderQuality, u32, profile::RenderProfile), Box<dyn Error>> {
         let (quality, budget_fps) = match &self.source {
             Source::Ladder { case, .. } => (case.quality, case.budget_fps),
-            Source::File { .. } => (LadderQuality::HighestFixed, 120),
+            Source::File { .. } | Source::Gallery { .. } => (LadderQuality::HighestFixed, 120),
         };
-        let profile = match quality {
-            LadderQuality::HighestFixed => profile::highest_fixed(120),
-            LadderQuality::Auto => profile::adaptive(30),
+        let profile = if let Source::Gallery { fixture, .. } = &self.source {
+            gallery::profile(fixture, self.output)?
+        } else {
+            match quality {
+                LadderQuality::HighestFixed => profile::highest_fixed(120),
+                LadderQuality::Auto => profile::adaptive(30),
+            }
         };
-        (quality, budget_fps, profile)
+        Ok((quality, budget_fps, profile))
+    }
+
+    fn camera(&self, scene: &Scene) -> Result<molgfx::Camera, Box<dyn Error>> {
+        let camera = if let Source::Gallery { fixture, .. } = &self.source {
+            let fitted = fixture
+                .script
+                .as_ref()
+                .and_then(|script| script.fit.as_ref())
+                .map(|fit| gallery::fit_camera(scene, fit))
+                .transpose()?;
+            gallery::camera(
+                [self.size.0, self.size.1],
+                fitted.as_ref().map_or(&fixture.camera, |camera| camera),
+            )?
+        } else {
+            scene.framing_camera(aspect(self.size)?)
+        };
+        Ok(camera)
     }
 }
 
@@ -214,11 +274,11 @@ fn run(options: &Options) -> Result<(), Box<dyn Error>> {
         ..
     } = *options;
     let started = Instant::now();
-    let (scene, structure, form) = build_scene(&options.source)?;
+    let (scene, atoms, form) = build_scene(&options.source)?;
     let scene_ns = started.elapsed().as_nanos();
-    let (quality, budget_fps, profile) = options.policy();
+    let (quality, budget_fps, profile) = options.policy()?;
     let mut renderer = Renderer::with_profile(profile)?;
-    let base = scene.framing_camera(aspect(size)?);
+    let base = options.camera(&scene)?;
     // Exact in f32 for the first 16M outputs, far beyond any run here.
     let mut outputs_rendered = 0.0_f32;
     let mut next_camera = || {
@@ -279,13 +339,14 @@ fn run(options: &Options) -> Result<(), Box<dyn Error>> {
     let budget_ns = SECOND_NS / f64::from(budget_fps);
     let (case, path) = match &options.source {
         Source::Ladder { case, .. } => (Some(case.id), None),
+        Source::Gallery { fixture, .. } => (Some(fixture.id.as_str()), None),
         Source::File { path, .. } => (None, Some(path.as_str())),
     };
     println!(
         "{}",
         serde_json::json!({
             "kind": "summary", "recipe": recipe, "case": case, "path": path,
-            "atoms": structure.atom_count(), "form": form, "size": [size.0, size.1],
+            "atoms": atoms, "form": form, "size": [size.0, size.1],
             "orbit_degrees_per_output": orbit_degrees,
             "scene_ns": scene_ns, "cold_completed_ns": cold.frame_ns,
             "cold_heap": cold_heap, "cold_quality": cold.quality,

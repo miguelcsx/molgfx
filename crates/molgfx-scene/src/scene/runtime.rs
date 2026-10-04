@@ -90,9 +90,8 @@ pub(crate) fn resolve(
 ///
 /// # Errors
 ///
-/// Returns an invalid-specification error when no structure is bound or a
-/// representation targets an unbound structure, and propagates every lowering
-/// failure.
+/// Returns an invalid-specification error for a representation targeting an
+/// unbound structure, and propagates every lowering failure.
 pub(crate) fn resolve_reusing(
     spec: &SceneSpec,
     structures: &BTreeMap<StructureId, molgfx_core::MolecularSource>,
@@ -101,12 +100,7 @@ pub(crate) fn resolve_reusing(
     rows: &crate::scene::selection_rows::SelectionRows,
     reusable: Option<&StructureAssets>,
 ) -> Result<Resolution, Error> {
-    let Some((_, first)) = structures.first_key_value() else {
-        return Err(Error::InvalidSpec(
-            "a renderable scene requires a bound structure".to_owned(),
-        ));
-    };
-    let mut scene = base_scene(first, structures, reusable)?;
+    let mut scene = base_scene(structures, reusable)?;
     let structure_handles = structures
         .keys()
         .copied()
@@ -219,7 +213,6 @@ fn place_structures(
 /// A core scene holding every bound structure, built from earlier assets
 /// when they were made from the same structure set.
 fn base_scene(
-    first: &molgfx_core::MolecularSource,
     structures: &BTreeMap<StructureId, molgfx_core::MolecularSource>,
     reusable: Option<&StructureAssets>,
 ) -> Result<molgfx_core::Scene, Error> {
@@ -235,8 +228,8 @@ fn base_scene(
             scene
         }
         None => {
-            let mut scene = molgfx_core::Scene::from_source(first.clone())?;
-            for (_, structure) in structures.iter().skip(1) {
+            let mut scene = molgfx_core::Scene::new();
+            for structure in structures.values() {
                 let _ = scene.add_source(structure.clone())?;
             }
             scene

@@ -1,0 +1,9 @@
+{
+  "name": "@molgfx/parity-adapters",
+  "private": true,
+  "description": "Runtime dependencies for the Mol* Chromium parity adapter",
+  "dependencies": {
+    "esbuild": "0.28.1",
+    "puppeteer-core": "24.26.1"
+  }
+}

@@ -9,6 +9,28 @@ use crate::spec::{SceneSpec, StructureSource};
 use std::collections::BTreeMap;
 
 impl Scene {
+    /// Creates a resolved scene without any molecular structure.
+    #[must_use]
+    pub fn empty() -> Self {
+        Self {
+            spec: SceneSpec::empty(),
+            resolved: molgfx_core::Scene::new(),
+            structures: BTreeMap::new(),
+            representations: BTreeMap::new(),
+            selections: BTreeMap::new(),
+            visuals: BTreeMap::new(),
+            property_bindings: BTreeMap::new(),
+            properties: BTreeMap::new(),
+            overlay_bindings: crate::overlay::OverlayBindings::default(),
+            structure_assets: crate::scene::runtime::StructureAssets::default(),
+            overlay: crate::overlay::lower::LoweredOverlay::default(),
+            rows: crate::scene::selection_rows::SelectionRows::default(),
+            appearance: BTreeMap::new(),
+            next_structure: 1,
+            next_representation: 1,
+            snapshot_bindings: super::snapshot::SnapshotBindings::default(),
+        }
+    }
     /// Builds a scene over a shared immutable `MolFrame` snapshot.
     ///
     /// # Errors
@@ -54,6 +76,7 @@ impl Scene {
             appearance: BTreeMap::new(),
             next_structure: 2,
             next_representation: 1,
+            snapshot_bindings: super::snapshot::SnapshotBindings::default(),
         })
     }
 
@@ -148,6 +171,7 @@ impl Scene {
             appearance: resolution.appearance,
             next_structure,
             next_representation,
+            snapshot_bindings: super::snapshot::SnapshotBindings::default(),
         })
     }
 }

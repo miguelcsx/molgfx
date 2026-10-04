@@ -16,6 +16,7 @@ pub(crate) struct PatchInputs<'a> {
     pub(crate) structures: &'a BTreeMap<StructureId, molgfx_core::MolecularSource>,
     pub(crate) property_bindings: &'a BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
     pub(crate) overlay_bindings: &'a crate::overlay::OverlayBindings,
+    pub(crate) overlay: &'a crate::overlay::lower::LoweredOverlay,
     pub(crate) structure_assets: &'a crate::scene::runtime::StructureAssets,
     pub(crate) rows: &'a SelectionRows,
 }

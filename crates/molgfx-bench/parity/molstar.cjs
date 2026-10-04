@@ -17,6 +17,10 @@ async function main() {
     const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
     const bytes = fs.readFileSync(request.path);
     if (sha256(bytes) !== request.fixture.sha256) throw new Error('Fixture SHA-256 differs from the catalog; execution refused');
+    const structure = request.fixture.structure_file && request.catalog.fixtures.find(f => f.file === request.fixture.structure_file);
+    if (request.fixture.structure_file && !structure) throw new Error('Overlay structure is missing from the hashed catalog');
+    const structureBytes = structure && fs.readFileSync(path.join(path.dirname(request.path), structure.file));
+    if (structureBytes && sha256(structureBytes) !== structure.sha256) throw new Error('Overlay structure SHA-256 differs from the catalog');
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'molstar-parity-browser-'));
     let browser, server;
     const connected = Boolean(process.env.MOLSTAR_CDP_ENDPOINT);
@@ -41,7 +45,8 @@ async function main() {
         try { revision = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim(); } catch { /* Source hashes remain authoritative for a copied local checkout. */ }
         server = http.createServer((req, res) => {
             const routes = { '/request.json': ['application/json', JSON.stringify(request)],
-                '/fixture': ['application/octet-stream', bytes], '/adapter.js': ['text/javascript', fs.readFileSync(bundle)],
+                '/fixture': ['application/octet-stream', bytes], '/structure': structureBytes && ['application/octet-stream', structureBytes],
+                '/adapter.js': ['text/javascript', fs.readFileSync(bundle)],
                 '/': ['text/html', '<!doctype html><html><head><link rel="icon" href="data:,"><title>Mol* parity completed output</title></head><body style="margin:0;background:black"><div id="viewport" style="position:relative"><canvas id="molstar"></canvas></div><script src="/adapter.js"></script></body></html>'] };
             const item = routes[req.url];
             if (!item) { res.writeHead(404).end(); return; }
@@ -75,7 +80,8 @@ async function main() {
             response.provenance = { source_root: root, git_revision: revision, source_inputs: inputs.length,
                 source_inputs_sha256: sourceDigest, bundle_sha256: sha256(fs.readFileSync(bundle)),
                 chromium: await browser.version(), transport: 'real-browser-WebGL2', node: process.version,
-                source_sha256: sha256(bytes), adapter_sha256: sha256(fs.readFileSync(__filename)),
+                source_sha256: sha256(bytes), structure_source_sha256: structure?.sha256 || null,
+                adapter_sha256: sha256(fs.readFileSync(__filename)),
                 browser_adapter_sha256: sha256(fs.readFileSync(path.join(__dirname, 'molstar-browser.cjs'))) };
             response.browser_console = messages;
             if (png) {

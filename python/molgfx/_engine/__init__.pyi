@@ -37,6 +37,13 @@ class VolumeId:
     def __index__(self) -> int: ...
 
 @final
+class SegmentationId:
+    @property
+    def index(self) -> int: ...
+    @property
+    def generation(self) -> int: ...
+
+@final
 class AnnotationId:
     @property
     def value(self) -> int: ...
@@ -78,7 +85,45 @@ class DataSource: ...
 class Anchor: ...
 
 @final
-class Volume: ...
+class Volume:
+    def isosurface(
+        self,
+        isovalue: float,
+        *,
+        color: _Rgb = ...,
+        opacity: float = 1.0,
+        style: Literal["solid", "mesh", "dots"] = "solid",
+        width: float = 0.1,
+    ) -> Self: ...
+    def direct(
+        self,
+        transfer: Sequence[tuple[float, _Rgb, float]],
+        *,
+        opacity_scale: float = 2.0,
+        step_scale: float = 0.65,
+        medium: bool = False,
+    ) -> Self: ...
+    def slice(
+        self,
+        *,
+        point: tuple[float, float, float],
+        normal: tuple[float, float, float],
+        ramp: str = "viridis",
+        domain: tuple[float, float] = ...,
+    ) -> Self: ...
+    def liquid_surface(
+        self, isovalue: float, *, color: _Rgb = ..., opacity: float = 1.0
+    ) -> Self: ...
+    def region(self, minimum: tuple[int, int, int], maximum: tuple[int, int, int]) -> Self: ...
+
+@final
+class Segmentation:
+    @staticmethod
+    def from_json(source: str) -> Segmentation: ...
+    def to_json(self) -> str: ...
+
+@final
+class SegmentStyle: ...
 
 @final
 class Label: ...
@@ -111,6 +156,8 @@ type _Metric = Literal[
     "sequence_position",
     "sasa",
     "plddt",
+    # `rainbow` is the sequence sweep and `confidence` the pLDDT bands; neither
+    # is a second metric, so a column still binds under one name.
     "rainbow",
     "confidence",
 ]
@@ -256,11 +303,13 @@ class SceneTransaction:
 
 @final
 class Scene:
-    def __new__(cls, structure: object) -> Self: ...
+    def __new__(cls, structure: object | None = None) -> Self: ...
     @overload
     def add(self, item: Representation) -> RepresentationId: ...
     @overload
     def add(self, item: Volume) -> VolumeId: ...
+    @overload
+    def add(self, item: Segmentation) -> SegmentationId: ...
     @overload
     def add(self, item: Label) -> AnnotationId: ...
     @overload
@@ -321,6 +370,14 @@ class Scene:
         sample_time: float | None = None,
     ) -> None: ...
     def set_trajectory_time(self, *, structure: StructureId, seconds: float) -> None: ...
+    def bind_volume(self, identity: VolumeId, values: list[float]) -> None: ...
+    def bind_segmentation(self, identity: SegmentationId, labels: Sequence[int]) -> None: ...
+    def set_segment_styles(
+        self, identity: SegmentationId, styles: Sequence[SegmentStyle]
+    ) -> None: ...
+    def remove_segmentation(self, identity: SegmentationId) -> None: ...
+    def resolve_pick(self, pick: PickResult) -> str: ...
+    def unresolved_overlays(self) -> str: ...
     def set_visible(self, representation: RepresentationId, visible: bool) -> None: ...
     def set_opacity(self, representation: RepresentationId, opacity: float) -> None: ...
     def set_visual(self, representation: RepresentationId, visual: VisualStyle | None) -> None: ...
@@ -468,6 +525,9 @@ class Session:
     def explain(text: str) -> str: ...
     def undo(self) -> CommandResult: ...
     def redo(self) -> CommandResult: ...
+    def snapshot_save(self, name: str) -> CommandResult: ...
+    def snapshot_restore(self, name: str) -> CommandResult: ...
+    def snapshot_remove(self, name: str) -> CommandResult: ...
     @property
     def can_undo(self) -> bool: ...
     @property
@@ -547,6 +607,10 @@ class PickResult:
     def row(self) -> int | None: ...
     @property
     def volume_label(self) -> int | None: ...
+    @property
+    def source_id(self) -> int | None: ...
+    @property
+    def segmentation(self) -> str | None: ...
 
 @final
 class Effect:
@@ -982,16 +1046,50 @@ class _Annotation:
     def selection(self, *, structure: StructureId, target: _Target) -> Anchor: ...
     def label(self, *, anchor: Anchor, text: str, color: _Rgb = (255, 255, 255)) -> Label: ...
 
+class _Segmentation:
+    def style(
+        self,
+        label: int,
+        *,
+        color: _Rgb = (49, 104, 142),
+        opacity: float = 1.0,
+        visible: bool = True,
+    ) -> SegmentStyle: ...
+    def volume(
+        self,
+        *,
+        source: DataSource,
+        dimensions: tuple[int, int, int],
+        styles: Sequence[SegmentStyle],
+        voxel_to_world: Sequence[float] | None = None,
+        presentation: Literal["surface", "direct"] = "surface",
+    ) -> Segmentation: ...
+
 class _Density:
     def volume(
         self,
         *,
         source: DataSource,
         dimensions: tuple[int, int, int],
-        spacing: tuple[float, float, float] = (1.0, 1.0, 1.0),
-        origin: tuple[float, float, float] = (0.0, 0.0, 0.0),
-        isovalue: float = 1.0,
-        color: _Rgb = (49, 104, 142),
+        voxel_to_world: tuple[
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+        ]
+        | None = None,
     ) -> Volume: ...
 
 class _Measurement:
@@ -1057,6 +1155,7 @@ visual: _Visual
 data: _Data
 annotation: _Annotation
 density: _Density
+segmentation: _Segmentation
 measurement: _Measurement
 interaction: _Interaction
 trajectory: _Trajectory
@@ -1105,6 +1204,9 @@ __all__ = [
     "ScenePatch",
     "SceneSpec",
     "SceneTransaction",
+    "SegmentStyle",
+    "Segmentation",
+    "SegmentationId",
     "Session",
     "SpecError",
     "StructureId",
@@ -1127,6 +1229,7 @@ __all__ = [
     "measurement",
     "profile",
     "rep",
+    "segmentation",
     "system_info",
     "trajectory",
     "visual",

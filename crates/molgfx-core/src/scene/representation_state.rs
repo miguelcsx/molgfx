@@ -44,6 +44,14 @@ impl Scene {
                 return Err(CoreError::StaleHandle);
             }
         }
+        if let RepresentationTarget::Volume(handle) = target {
+            let (dimensions, transform) = self
+                .volumes
+                .get(handle.0)
+                .and_then(|volume| volume.grid(self))
+                .ok_or(CoreError::StaleHandle)?;
+            representation.validate_volume_grid(dimensions, transform)?;
+        }
         let mut value = representation.bind(target);
         if let RepresentationTarget::SegmentedVolume(handle) = target {
             let grid = self
@@ -52,21 +60,7 @@ impl Scene {
             value.segmentation.validate_grid(grid)?;
         }
 
-        if kind == RepresentationKind::Volume {
-            value.volume.validate()?;
-            if !value.params.isolevel.is_finite() {
-                return Err(CoreError::InvalidVolume {
-                    reason: "volume isolevel must be finite",
-                });
-            }
-        }
         if let RepresentationTarget::Volume(handle) = target {
-            let (dimensions, transform) = self
-                .volumes
-                .get(handle.0)
-                .and_then(|volume| volume.grid(self))
-                .ok_or(CoreError::StaleHandle)?;
-            value.volume.validate_grid(dimensions, transform)?;
             let range = self
                 .volumes
                 .get(handle.0)

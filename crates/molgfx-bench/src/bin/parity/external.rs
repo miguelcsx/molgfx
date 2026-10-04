@@ -1,7 +1,7 @@
 //! Process-isolated adapters using real engine libraries, not guessed CLI flags.
 use molgfx_bench::gallery::{Catalog, Fixture, Result};
 use serde_json::{Value, json};
-use std::{io, path::Path, process::Command};
+use std::{env, io, path::Path, process::Command};
 
 pub(super) struct Programs {
     pub node: String,
@@ -25,14 +25,25 @@ pub(super) fn invoke(
         Err(error) if error.kind() == io::ErrorKind::NotFound => {}
         Err(error) => return Err(error.into()),
     }
+    let affine = if fixture.format == "mrc" {
+        Some(molgfx_bench::reader::read_density_map(&cache.join(&fixture.file))?.1)
+    } else {
+        None
+    };
     let json = json!({"catalog":catalog,"fixture":fixture,"path":cache.join(&fixture.file),
-        "output":output,"response":response,"recipe":recipe,"inspect":inspect});
+        "output":output,"response":response,"recipe":recipe,"inspect":inspect,
+        "voxel_to_world":affine});
     std::fs::write(&request, serde_json::to_vec_pretty(&json)?)?;
     let scripts = Path::new(env!("CARGO_MANIFEST_DIR")).join("parity");
     let mut command = if recipe.starts_with("molstar-") {
         let mut command = Command::new(&programs.node);
         command.arg(scripts.join("molstar.cjs"));
         command.env("MOLSTAR_ROOT", &programs.molstar_root);
+        let mut module_paths = vec![Path::new(&programs.molstar_root).join("node_modules")];
+        if let Some(existing) = env::var_os("NODE_PATH") {
+            module_paths.extend(env::split_paths(&existing));
+        }
+        command.env("NODE_PATH", env::join_paths(module_paths)?);
         command
     } else {
         let mut command = Command::new(&programs.pymol);

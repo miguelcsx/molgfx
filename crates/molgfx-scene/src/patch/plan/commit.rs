@@ -70,12 +70,12 @@ impl LocalPatchPlan {
                 handles,
             );
         }
-        scene.replace_representations(
-            physical
-                .into_iter()
-                .map(|(_, handle, representation)| (handle, representation))
-                .collect(),
-        )?;
+        let mut replacements: Vec<_> = physical
+            .into_iter()
+            .map(|(_, handle, representation)| (handle, representation))
+            .collect();
+        replacements.extend(self.segmentation_physical);
+        scene.replace_representations(replacements)?;
         for previous in released {
             // A selection another representation still draws stays.
             if scene.remove_selection(previous).is_ok() {

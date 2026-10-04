@@ -21,6 +21,13 @@ impl Scene {
             }
             .into());
         }
+        if patch
+            .operations
+            .iter()
+            .any(|operation| matches!(operation, crate::PatchOperation::RestoreSnapshot(_)))
+        {
+            return self.apply_restoring(patch);
+        }
         self.ensure_derived(patch)?;
         let plan = PatchPlan::prepare(
             PatchInputs {
@@ -32,6 +39,7 @@ impl Scene {
                 structures: &self.structures,
                 property_bindings: &self.property_bindings,
                 overlay_bindings: &self.overlay_bindings,
+                overlay: &self.overlay,
                 structure_assets: &self.structure_assets,
                 rows: &self.rows,
             },

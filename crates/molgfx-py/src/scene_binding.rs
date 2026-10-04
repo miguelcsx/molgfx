@@ -26,7 +26,7 @@ pub(super) struct BrowserSource {
 impl PyScene {
     /// A scene over one Python `molframe` structure.
     pub(super) fn for_structure(structure: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Self::new(structure)
+        Self::new(Some(structure))
     }
 
     pub(super) fn stage_or_apply(
@@ -112,7 +112,17 @@ pub(super) fn deliver(
 #[pymethods]
 impl PyScene {
     #[new]
-    fn new(structure: &Bound<'_, PyAny>) -> PyResult<Self> {
+    #[pyo3(signature = (structure=None))]
+    fn new(structure: Option<&Bound<'_, PyAny>>) -> PyResult<Self> {
+        let Some(structure) = structure else {
+            return Ok(Self {
+                inner: molgfx::Scene::empty(),
+                pending: None,
+                structure_id: 0,
+                browser_sources: Vec::new(),
+                subscribers: Vec::new(),
+            });
+        };
         let provider = Arc::new(crate::native_adapter::NativeProvider::import(structure)?);
         let source = crate::native_adapter::source(&provider);
         let inner = molgfx::Scene::from_source(source).map_err(error)?;
@@ -128,6 +138,28 @@ impl PyScene {
             }],
             subscribers: Vec::new(),
         })
+    }
+
+    /// Binds the scalar values for an authored volume identity.
+    fn bind_volume(&mut self, identity: &Bound<'_, PyAny>, values: Vec<f32>) -> PyResult<()> {
+        let identity = identity.extract::<PyRef<'_, crate::id_binding::PyVolumeId>>()?;
+        let spec = self
+            .inner
+            .spec()
+            .volumes
+            .get(&molgfx::VolumeId::new(identity.0))
+            .ok_or_else(|| PyValueError::new_err("unknown volume identity"))?;
+        self.inner
+            .bind_volume(
+                molgfx::VolumeBinding::new(spec.source.clone(), spec.dimensions, Arc::from(values))
+                    .affine(spec.voxel_to_world),
+            )
+            .map_err(error)
+    }
+
+    fn unresolved_overlays(&self) -> PyResult<String> {
+        serde_json::to_string(&self.inner.unresolved_overlays())
+            .map_err(|err| PyValueError::new_err(err.to_string()))
     }
 
     fn add(&mut self, py: Python<'_>, item: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {

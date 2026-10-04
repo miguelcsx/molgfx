@@ -9,6 +9,12 @@ pub enum Error {
     /// An identifier is absent from the current scene revision.
     #[error("scene identifier does not exist")]
     MissingId,
+    /// A snapshot needs a molecular source that is not bound locally.
+    #[error("snapshot source {id:?} is not bound")]
+    MissingSource {
+        /// Semantic identity of the missing molecular source.
+        id: crate::StructureId,
+    },
     /// A physical pick's dataset identity maps to several bound structures.
     #[error("pick dataset {dataset} maps to multiple structures; the owner is ambiguous")]
     AmbiguousPick {

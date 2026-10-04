@@ -10,10 +10,9 @@ use super::form::Form;
 use super::name::Name;
 use super::target::{QueryText, Target};
 use super::value::{Opacity, Positive};
-use molgfx_scene::DomainSceneSnapshot as SceneSnapshot;
 use molgfx_scene::{
-    AssemblySpec, FitResult, InteractionSpec, MovieExportRequest, PlaneSpec, ValidationFinding,
-    VolumeSpec,
+    AssemblySpec, FitResult, InteractionSpec, PlaneSpec, SegmentStyle, SegmentationId,
+    SegmentationSpec, ValidationFinding, VolumeSpec,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -253,6 +252,18 @@ pub enum Command {
         /// Immutable volume metadata.
         volume: VolumeSpec,
     },
+    /// Declares a categorical grid whose labels arrive through a runtime binding.
+    Segment {
+        /// Categorical grid metadata and label styles.
+        segmentation: SegmentationSpec,
+    },
+    /// Replaces the style table without changing the categorical grid.
+    SegmentStyle {
+        /// Exact generational identity of the segmentation.
+        id: SegmentationId,
+        /// Complete replacement style table.
+        styles: Vec<SegmentStyle>,
+    },
     /// Retains a validated native fitting result.
     Fitting {
         /// Validated fitting result.
@@ -263,15 +274,20 @@ pub enum Command {
         /// Caller-computed validation findings.
         findings: Vec<ValidationFinding>,
     },
-    /// Retains a deterministic native movie export request.
-    MovieExport {
-        /// Deterministic movie export request.
-        request: Option<MovieExportRequest>,
+    /// Captures the current scene under a session name.
+    SnapshotSave {
+        /// Name to create or replace.
+        name: Name,
     },
-    /// Retains a validated portable snapshot for host restoration.
-    Snapshot {
-        /// Portable snapshot to restore.
-        snapshot: Option<Box<SceneSnapshot>>,
+    /// Restores a named snapshot as an undoable live scene edit.
+    SnapshotRestore {
+        /// Snapshot to restore.
+        name: Name,
+    },
+    /// Removes a named snapshot without changing the live scene.
+    SnapshotRemove {
+        /// Snapshot to remove.
+        name: Name,
     },
     /// Clears the focus.
     Unfocus,
@@ -304,10 +320,12 @@ impl Command {
             Self::Assembly { .. } => "assembly",
             Self::Plane { .. } => "plane",
             Self::Volume { .. } => "volume",
+            Self::Segment { .. } | Self::SegmentStyle { .. } => "segment",
             Self::Fitting { .. } => "fitting",
             Self::Validation { .. } => "validation",
-            Self::MovieExport { .. } => "movie_export",
-            Self::Snapshot { .. } => "snapshot",
+            Self::SnapshotSave { .. }
+            | Self::SnapshotRestore { .. }
+            | Self::SnapshotRemove { .. } => "snapshot",
             Self::Unfocus => "unfocus",
             Self::Undo => "undo",
             Self::Redo => "redo",
@@ -336,28 +354,7 @@ impl fmt::Display for Command {
                 Some(query) => write!(formatter, "selection {query}"),
                 None => formatter.write_str("selection"),
             },
-            Self::Show(show) => {
-                write!(formatter, "show {}", show.form.kind().name())?;
-                super::form_text::write_options(formatter, &show.form)?;
-                if let Some(color) = &show.color {
-                    write!(formatter, " color={}", super::form_text::color_word(color))?;
-                }
-                if let Some(opacity) = show.opacity {
-                    write!(formatter, " opacity={opacity}")?;
-                }
-                if show.duplicate {
-                    formatter.write_str(" duplicate")?;
-                }
-                if let Some(layer) = &show.layer {
-                    write!(formatter, " as {layer}")?;
-                }
-                write!(
-                    formatter,
-                    "{}, {}",
-                    in_structure(&show.structure),
-                    show.target
-                )
-            }
+            Self::Show(show) => write_show(formatter, show, &in_structure(&show.structure)),
             Self::Reveal { layer } => write!(formatter, "show @{layer}"),
             Self::Hide { layer } => write!(formatter, "hide @{layer}"),
             Self::Remove { layer } => write!(formatter, "remove @{layer}"),
@@ -413,10 +410,18 @@ impl fmt::Display for Command {
             Self::Assembly { assembly } => write_json(formatter, "assembly", assembly),
             Self::Plane { plane } => write_json(formatter, "plane", plane),
             Self::Volume { volume } => write_json(formatter, "volume", volume),
+            Self::Segment { segmentation } => write_json(formatter, "segment", segmentation),
+            Self::SegmentStyle { id, styles } => {
+                write!(formatter, "segment style {}:{} ", id.index, id.generation)?;
+                serde_json::to_string(styles)
+                    .map_err(|_| fmt::Error)
+                    .and_then(|json| formatter.write_str(&json))
+            }
             Self::Fitting { fitting } => write_json(formatter, "fitting", fitting),
             Self::Validation { findings } => write_json(formatter, "validation", findings),
-            Self::MovieExport { request } => write_json(formatter, "movie_export", request),
-            Self::Snapshot { snapshot } => write_json(formatter, "snapshot", snapshot),
+            Self::SnapshotSave { name } => write!(formatter, "snapshot save {name}"),
+            Self::SnapshotRestore { name } => write!(formatter, "snapshot restore {name}"),
+            Self::SnapshotRemove { name } => write!(formatter, "snapshot remove {name}"),
             Self::Unfocus => formatter.write_str("unfocus"),
             Self::Undo => formatter.write_str("undo"),
             Self::Redo => formatter.write_str("redo"),
@@ -424,7 +429,24 @@ impl fmt::Display for Command {
     }
 }
 
-/// Writes `verb` followed by the JSON form of a caller-supplied value.
+fn write_show(formatter: &mut fmt::Formatter<'_>, show: &Show, structure: &str) -> fmt::Result {
+    write!(formatter, "show {}", show.form.kind().name())?;
+    super::form_text::write_options(formatter, &show.form)?;
+    if let Some(color) = &show.color {
+        write!(formatter, " color={}", super::form_text::color_word(color))?;
+    }
+    if let Some(opacity) = show.opacity {
+        write!(formatter, " opacity={opacity}")?;
+    }
+    if show.duplicate {
+        formatter.write_str(" duplicate")?;
+    }
+    if let Some(layer) = &show.layer {
+        write!(formatter, " as {layer}")?;
+    }
+    write!(formatter, "{structure}, {}", show.target)
+}
+
 /// `pocket [near=N] [mid=M] [in S], TARGET`, with absent radii left out.
 fn write_pocket(
     formatter: &mut fmt::Formatter<'_>,

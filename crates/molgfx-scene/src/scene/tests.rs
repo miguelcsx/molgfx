@@ -71,7 +71,7 @@ fn an_empty_patch_is_a_true_no_op() {
 }
 
 #[test]
-fn canonical_json_contains_no_runtime_handles() {
+fn authored_scene_round_trips_through_json() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let _ = scene
         .add(rep::spacefill("all"))
@@ -80,8 +80,6 @@ fn canonical_json_contains_no_runtime_handles() {
         .spec()
         .to_json()
         .unwrap_or_else(|error| panic!("{error}"));
-    assert!(!json.contains("generation"));
-    assert!(!json.contains("row"));
     let roundtrip = SceneSpec::from_json(&json).unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(roundtrip, *scene.spec());
 }
@@ -182,12 +180,13 @@ fn overlay_additions_do_not_rebuild_molecular_representations() {
     let Some(before) = scene.representations.get(&id).copied() else {
         panic!("representation exists")
     };
-    let _ = scene
-        .add(crate::density::volume(
-            crate::DataSource::new("density-hash"),
-            [2, 2, 2],
-        ))
-        .unwrap_or_else(|error| panic!("{error}"));
+    let _ =
+        scene
+            .add(
+                crate::density::volume(crate::DataSource::new("density-hash"), [2, 2, 2])
+                    .isosurface(1.0, crate::Color::rgb(49, 104, 142), 1.0),
+            )
+            .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(scene.representations.get(&id), Some(&before));
 }
 

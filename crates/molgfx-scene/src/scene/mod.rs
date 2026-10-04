@@ -11,8 +11,6 @@ pub(crate) mod apply;
 mod assembly;
 mod atom_pick;
 pub(crate) mod domains;
-#[cfg(test)]
-mod domains_tests;
 mod framing;
 pub(crate) mod hashing;
 mod insertion;
@@ -44,8 +42,14 @@ mod construction;
 mod derived_bindings;
 mod editing;
 mod items;
+mod snapshot;
+#[cfg(test)]
+mod snapshot_tests;
 mod state;
 
 use derived_bindings::with_derived_bindings;
 pub(crate) use state::Resolution;
 pub use state::Scene;
+mod segmentation;
+#[cfg(test)]
+mod segmentation_tests;

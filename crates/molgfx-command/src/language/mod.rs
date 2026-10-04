@@ -8,6 +8,9 @@
 //! author's text.
 
 mod arguments;
+mod interaction;
+mod segment;
+mod snapshot;
 mod split;
 mod statement;
 mod targets;

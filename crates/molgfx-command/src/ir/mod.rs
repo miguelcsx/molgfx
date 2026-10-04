@@ -8,6 +8,7 @@ mod name;
 mod program;
 mod target;
 mod value;
+pub(crate) mod volume;
 
 pub(crate) use color::CARBON_BY_CHAIN;
 pub use color::ColorValue;

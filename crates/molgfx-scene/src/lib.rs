@@ -36,16 +36,18 @@ pub use color::{Color, ColorSpec, Legend, LegendStop};
 pub use error::{Error, PatchError};
 pub use id::{
     AnnotationId, AppearanceRuleId, EllipsoidId, InteractionId, MeasurementId, PlaneId,
-    RepresentationId, StructureId, TrajectoryId, VolumeId,
+    RepresentationId, SegmentationId, StructureId, TrajectoryId, VolumeId,
 };
 pub use interop::{Diagnostic, MvsDocument, MvsImport, from_mvsj, from_mvsx, to_mvsj, to_mvsx};
+pub use molgfx_core::SegmentationPresentation;
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_wgpu::{AdapterReport, SystemInfo, system_info};
 pub use overlay::{
     Anchor, AnnotationSpec, AssemblySpec, DataSource, EllipsoidSpec, FitResult, InteractionKind,
-    InteractionSpec, MeasurementSpec, MovieExportRequest, OverlayHandles, PlaneSpec,
-    TrajectoryBinding, TrajectoryFrame, TrajectorySpec, UnitCellSpec, ValidationFinding,
-    VolumeBinding, VolumeSpec,
+    InteractionSpec, IsoStyle, MeasurementSpec, OverlayHandles, OverlayId, PlaneSpec, SegmentStyle,
+    SegmentationBinding, SegmentationSpec, TrajectoryBinding, TrajectoryFrame, TrajectorySpec,
+    UnitCellSpec, ValidationFinding, VolumeBinding, VolumePresentation, VolumeRegion, VolumeSpec,
+    VolumeTransferPoint,
 };
 pub use patch::{PatchOperation, ScenePatch};
 pub use profile::{AntiAliasing, DepthCue, Effect, EffectKind, EffectSet, Quality, RenderProfile};
@@ -61,10 +63,7 @@ pub use render::{HdrImage, Image};
 pub use render::{PickKind, PickResult};
 pub use representation::RepresentationSpec;
 pub use representation::{SceneItem, Selection};
-pub use scene::domains::{
-    AssemblyChoice, MovieExportRequest as DomainMovieExportRequest,
-    SceneSnapshot as DomainSceneSnapshot,
-};
+pub use scene::domains::AssemblyChoice;
 pub use scene::hashing::structure_hash;
 pub use scene::transaction::SceneTransaction;
 pub use scene::{

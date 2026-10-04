@@ -1,0 +1,327 @@
+{
+  "case": "P2-iso-solid-skewMRC",
+  "commit": "8bb59fa0936e7b02df542eb3978f002232269ff7 + working tree",
+  "items": [
+    {
+      "id": "VOL-2",
+      "verdict": "pass",
+      "note": "World-space Gaussian is centered at the origin and spherical in all three engines. PyMOL uses raw values; Mol* receives the canonical MolFrame affine through its matrix-grid API. Native highlights are continuous across cells; field crossings are unchanged.",
+      "owner": "Phase 2.2"
+    }
+  ],
+  "reference_notes": [
+    "PyMOL default CCP4 normalization changed 0.35 into a sigma isovalue; disabled before loading.",
+    "Mol* raw CCP4 origin decoding shifts skewed maps; its parsed transform is preserved in the report, and canonical MolFrame placement is authored explicitly."
+  ],
+  "native_evidence": "target/gallery-volume-normal-after/P2-iso-solid-skewMRC",
+  "reference_evidence": "target/gallery-volume-canonical/P2-iso-solid-skewMRC",
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P2-iso-solid-skewMRC.png",
+    "verification": {
+      "ssim": 1.0,
+      "mean_delta_e": 0.0,
+      "p99_delta_e": 0.0
+    },
+    "extent": [
+      384,
+      384
+    ]
+  },
+  "test": "crates/molgfx-wgpu/tests/gpu_volume_normals_tests.rs::lighting_gradients_are_continuous_and_preserve_affine_fields_at_grid_edges",
+  "shader_sha256": "896e4f6fbb3fd4cb609d8e42fa0d9acda43f74e10d949ab64dc6a9e88d0bd132",
+  "measurements": {
+    "P2-iso-solid-skewMRC": {
+      "before": [
+        {
+          "evidence": "target/volume-normal-before-measurement/P2-iso-solid-skewMRC/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 731083,
+            "cpu_p95_ns": 943833,
+            "cpu_p99_ns": 1340916,
+            "frame_median_ns": 3183208,
+            "frame_p95_ns": 6845375,
+            "frame_p99_ns": 8008875,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 231,
+            "max_heap_reallocations": 16,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        },
+        {
+          "evidence": "target/volume-normal-before-measurement-2/P2-iso-solid-skewMRC/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 720333,
+            "cpu_p95_ns": 942125,
+            "cpu_p99_ns": 1831667,
+            "frame_median_ns": 3124208,
+            "frame_p95_ns": 6371375,
+            "frame_p99_ns": 11772708,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 231,
+            "max_heap_reallocations": 16,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        },
+        {
+          "evidence": "target/volume-normal-before-measurement-3/P2-iso-solid-skewMRC/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 768167,
+            "cpu_p95_ns": 2153792,
+            "cpu_p99_ns": 8003875,
+            "frame_median_ns": 5136459,
+            "frame_p95_ns": 21358875,
+            "frame_p99_ns": 41871000,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 231,
+            "max_heap_reallocations": 16,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        }
+      ],
+      "after": [
+        {
+          "evidence": "target/volume-normal-after-measurement/P2-iso-solid-skewMRC/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 925416,
+            "cpu_p95_ns": 5202584,
+            "cpu_p99_ns": 13314333,
+            "frame_median_ns": 7232667,
+            "frame_p95_ns": 22475583,
+            "frame_p99_ns": 48253458,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 231,
+            "max_heap_reallocations": 16,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        },
+        {
+          "evidence": "target/volume-normal-after-measurement-2/P2-iso-solid-skewMRC/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 999375,
+            "cpu_p95_ns": 3622834,
+            "cpu_p99_ns": 7616834,
+            "frame_median_ns": 6763542,
+            "frame_p95_ns": 12487333,
+            "frame_p99_ns": 23586292,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 231,
+            "max_heap_reallocations": 16,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        },
+        {
+          "evidence": "target/volume-normal-after-measurement-3/P2-iso-solid-skewMRC/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 710792,
+            "cpu_p95_ns": 1123459,
+            "cpu_p99_ns": 2112708,
+            "frame_median_ns": 4576792,
+            "frame_p95_ns": 14562417,
+            "frame_p99_ns": 29900042,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 231,
+            "max_heap_reallocations": 16,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        }
+      ]
+    },
+    "P2-direct-model_density": {
+      "before": [
+        {
+          "evidence": "target/volume-normal-before-measurement/P2-direct-model_density/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 885791,
+            "cpu_p95_ns": 1257375,
+            "cpu_p99_ns": 2556500,
+            "frame_median_ns": 24753250,
+            "frame_p95_ns": 32203000,
+            "frame_p99_ns": 35825458,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 231,
+            "max_heap_reallocations": 16,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        },
+        {
+          "evidence": "target/volume-normal-before-measurement-2/P2-direct-model_density/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 932333,
+            "cpu_p95_ns": 2417250,
+            "cpu_p99_ns": 6465833,
+            "frame_median_ns": 25425500,
+            "frame_p95_ns": 53917833,
+            "frame_p99_ns": 71954708,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 231,
+            "max_heap_reallocations": 16,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        },
+        {
+          "evidence": "target/volume-normal-before-measurement-3/P2-direct-model_density/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 870167,
+            "cpu_p95_ns": 1929250,
+            "cpu_p99_ns": 7014500,
+            "frame_median_ns": 23969917,
+            "frame_p95_ns": 43269834,
+            "frame_p99_ns": 62139125,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 231,
+            "max_heap_reallocations": 16,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        }
+      ],
+      "after": [
+        {
+          "evidence": "target/volume-normal-after-measurement/P2-direct-model_density/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 936958,
+            "cpu_p95_ns": 1394125,
+            "cpu_p99_ns": 3499791,
+            "frame_median_ns": 24486833,
+            "frame_p95_ns": 47362959,
+            "frame_p99_ns": 79051375,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 231,
+            "max_heap_reallocations": 16,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        },
+        {
+          "evidence": "target/volume-normal-after-measurement-2/P2-direct-model_density/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 880041,
+            "cpu_p95_ns": 1998625,
+            "cpu_p99_ns": 6130500,
+            "frame_median_ns": 24041416,
+            "frame_p95_ns": 31722875,
+            "frame_p99_ns": 46238834,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 231,
+            "max_heap_reallocations": 16,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        },
+        {
+          "evidence": "target/volume-normal-after-measurement-3/P2-direct-model_density/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 1140208,
+            "cpu_p95_ns": 2798000,
+            "cpu_p99_ns": 8478625,
+            "frame_median_ns": 22230292,
+            "frame_p95_ns": 38635917,
+            "frame_p99_ns": 50896250,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 231,
+            "max_heap_reallocations": 16,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        }
+      ]
+    }
+  },
+  "measurement_notes": [
+    "Release builds; 768x768; 120 warmup outputs and 1200 measured outputs per trial; three trials per condition; quality unchanged.",
+    "GPU timestamps did not resolve on this adapter. CPU-heavy reference rendering and compilation overlapped some trials. These wall-time measurements show cost and variability; they do not establish an isolated GPU speedup.",
+    "The shading gradient uses six trilinear samples instead of one cell derivative. This is a fidelity correction with an isosurface cost to investigate during the performance phase."
+  ]
+}

@@ -1,4 +1,5 @@
 //! Inverse operations: what undoes each semantic change against its base.
+//! Segmentation lifetimes, volume presentations and overlay items invert separately.
 
 use crate::PatchOperation;
 use crate::id::StructureId;
@@ -30,6 +31,9 @@ pub(super) fn inverse_operations(operation: &PatchOperation, base: &SceneSpec) -
         source.map(|source| vec![PatchOperation::AddStructure { id, source }])
     };
     Ok(match operation {
+        PatchOperation::RestoreSnapshot(_) => one(PatchOperation::RestoreSnapshot(Box::new(
+            crate::interop::SceneSnapshot::capture(base),
+        ))),
         PatchOperation::AddStructure { id, .. } => structure(*id, base)?,
         PatchOperation::SetFocus { .. } => one(PatchOperation::SetFocus {
             selection: base.focus.clone(),
@@ -158,6 +162,49 @@ fn inverse_overlay(
     operation: &PatchOperation,
     base: &SceneSpec,
 ) -> Result<Option<Vec<PatchOperation>>, crate::Error> {
+    if let Some(operations) = inverse_segmentation(operation, base)? {
+        return Ok(Some(operations));
+    }
+    if let Some(operations) = inverse_volume(operation, base)? {
+        return Ok(Some(operations));
+    }
+    inverse_overlay_item(operation, base)
+}
+
+fn inverse_segmentation(
+    operation: &PatchOperation,
+    base: &SceneSpec,
+) -> Result<Option<Vec<PatchOperation>>, crate::Error> {
+    let one = |operation| Some(vec![operation]);
+    Ok(match operation {
+        PatchOperation::AddSegmentation { id, .. } => {
+            one(PatchOperation::RemoveSegmentation { id: *id })
+        }
+        PatchOperation::RemoveSegmentation { id } => one(PatchOperation::AddSegmentation {
+            id: *id,
+            segmentation: base
+                .segmentations
+                .get(id)
+                .cloned()
+                .ok_or(crate::PatchError::MissingId)?,
+        }),
+        PatchOperation::SetSegmentStyles { id, .. } => one(PatchOperation::SetSegmentStyles {
+            id: *id,
+            styles: base
+                .segmentations
+                .get(id)
+                .ok_or(crate::PatchError::MissingId)?
+                .styles
+                .clone(),
+        }),
+        _ => None,
+    })
+}
+
+fn inverse_volume(
+    operation: &PatchOperation,
+    base: &SceneSpec,
+) -> Result<Option<Vec<PatchOperation>>, crate::Error> {
     let one = |operation| Some(vec![operation]);
     Ok(match operation {
         PatchOperation::AddVolume { id, .. } => one(PatchOperation::RemoveVolume { id: *id }),
@@ -175,8 +222,21 @@ fn inverse_overlay(
                 .volumes
                 .get(id)
                 .ok_or(crate::PatchError::MissingId)?
-                .isovalue,
+                .isovalue()
+                .ok_or_else(|| {
+                    crate::Error::InvalidSpec("volume has no isosurface presentation".to_owned())
+                })?,
         }),
+        _ => None,
+    })
+}
+
+fn inverse_overlay_item(
+    operation: &PatchOperation,
+    base: &SceneSpec,
+) -> Result<Option<Vec<PatchOperation>>, crate::Error> {
+    let one = |operation| Some(vec![operation]);
+    Ok(match operation {
         PatchOperation::AddAnnotation { id, .. } => {
             one(PatchOperation::RemoveAnnotation { id: *id })
         }
@@ -261,20 +321,6 @@ fn inverse_domain(
             findings: restore("molgfx.validation")
                 .map_or_else(|| Ok(Vec::new()), serde_json::from_value)
                 .map_err(crate::Error::from)?,
-        }),
-        PatchOperation::SetMovieExport { .. } => one(PatchOperation::SetMovieExport {
-            request: restore("molgfx.movie_export")
-                .map(serde_json::from_value)
-                .transpose()
-                .map_err(crate::Error::from)?,
-        }),
-        PatchOperation::SetSnapshot { .. } => one(PatchOperation::SetSnapshot {
-            snapshot: Box::new(
-                restore("molgfx.snapshot")
-                    .map(serde_json::from_value)
-                    .transpose()
-                    .map_err(crate::Error::from)?,
-            ),
         }),
         _ => None,
     })

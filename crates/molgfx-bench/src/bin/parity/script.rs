@@ -1,56 +1,20 @@
 //! Script cases: scenes built from command text, fitted cameras and orbit frames.
-use super::native;
 use molgfx::{
-    Renderer, Scene, StructureId, TrajectoryBinding, TrajectoryFrame, camera, command::Session,
+    Renderer, Scene, StructureId, TrajectoryBinding, TrajectoryFrame, camera,
     profile::MeasuredOutput, schema::DataSource, trajectory,
 };
 use molgfx_bench::fallback;
 use molgfx_bench::gallery::{Camera, Catalog, FitCamera, Fixture, Result, Video, VideoKind};
 use num_traits::ToPrimitive;
-use serde_json::Value;
 use std::{io, path::Path};
 
 /// Orbit keyframes per revolution; linear easing between them is a close polygon of the circle.
 const ORBIT_KEYFRAMES: u32 = 12;
 
-/// Builds the scene of a script case by executing its command lines in order.
-pub(super) fn scene(fixture: &Fixture, cache: &Path) -> Result<(Scene, Value)> {
-    let script = fixture
-        .script
-        .as_ref()
-        .ok_or_else(|| io::Error::other("script scene requested for a non-script case"))?;
-    if fixture.format == "mrc" {
-        return Err(io::Error::other("prerequisite: volume-only scene").into());
-    }
-    let (structure, metadata) = native::structure(fixture, cache)?;
-    let mut scene = Scene::from_structure(&structure)?;
-    let mut session = Session::new(&scene);
-    for line in &script.molgfx {
-        session
-            .execute_text(&mut scene, line)
-            .map_err(|errors| io::Error::other(format!("{line:?}: {}", errors.render(line))))?;
-    }
-    Ok((scene, metadata))
-}
-
 /// Resolves the camera fitted to `fit.selection`: the bounding sphere, looking down -Z with +Y up.
 pub(super) fn fit(fixture: &Fixture, cache: &Path, fit: &FitCamera) -> Result<Camera> {
-    let (scene, _) = scene(fixture, cache)?;
-    let bounds = scene
-        .selection_bounds(fit.selection.as_str())?
-        .ok_or_else(|| io::Error::other("fit selection matches no atoms"))?;
-    let sphere = bounds.bounding_sphere();
-    let radius = sphere.radius * fit.margin;
-    let distance = radius / (fit.fov_y_degrees.to_radians() * 0.5).sin();
-    let target = sphere.center.to_array();
-    Ok(Camera {
-        position: [target[0], target[1], target[2] + distance],
-        target,
-        up: [0.0, 1.0, 0.0],
-        fov_y_degrees: fit.fov_y_degrees,
-        near: (distance - radius).max(0.1),
-        far: distance + radius,
-    })
+    let (scene, _) = molgfx_bench::gallery::script_scene(fixture, cache)?;
+    molgfx_bench::gallery::fit_camera(&scene, fit)
 }
 
 /// Renders the case's video frames into `directory/frames/%04d.png`.
@@ -130,7 +94,7 @@ fn trajectory(
         .into());
     };
     let size = (catalog.extent[0], catalog.extent[1]);
-    let camera = native::camera(catalog, fixture)?;
+    let camera = molgfx_bench::gallery::camera(catalog.extent, &fixture.camera)?;
     let frames = directory.join("frames");
     std::fs::create_dir_all(&frames)?;
     let span = fallback(last.to_f64(), 1.0);
@@ -144,7 +108,7 @@ fn trajectory(
             .ok_or_else(|| io::Error::other("trajectory time is not representable"))?;
         let stale = resident.as_ref().is_none_or(|(held, ..)| *held != interval);
         if stale {
-            let (mut scene, _) = scene(fixture, cache)?;
+            let (mut scene, _) = molgfx_bench::gallery::script_scene(fixture, cache)?;
             let structure = StructureId::new(1);
             let source = DataSource::new(format!("{}:{interval}", fixture.id));
             scene.add(trajectory::trajectory(

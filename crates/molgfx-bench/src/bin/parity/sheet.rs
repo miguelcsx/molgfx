@@ -80,6 +80,9 @@ pub(super) fn compose(tiles: &[Option<Tile>], extent: [u32; 2]) -> (usize, usize
 
 /// Writes `directory/sheet.png` from each recipe's `image.png`; returns the recipes without one.
 pub(super) fn write(directory: &Path, recipes: &[String], extent: [u32; 2]) -> Result<Vec<String>> {
+    if recipes.is_empty() {
+        return Ok(Vec::new());
+    }
     let mut missing = Vec::new();
     let tiles = recipes
         .iter()

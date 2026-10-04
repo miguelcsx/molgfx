@@ -180,8 +180,8 @@ pub struct ResolvedMeasurementPick {
 /// A categorical volume segment resolved against the scene that owns it.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ResolvedVolumeSegmentPick {
-    /// Volume identity within the scene.
-    pub volume: crate::VolumeId,
+    /// Categorical grid lifetime within the scene.
+    pub segmentation: crate::SegmentationId,
     /// Caller-supplied categorical label.
     pub volume_label: u32,
     /// Stable human-readable anchor for UI clients.
@@ -204,10 +204,9 @@ impl Scene {
     /// proves ownership, and [`Error::InvalidSpec`] for malformed picks.
     pub fn resolve_pick(&self, pick: &crate::PickResult) -> Result<ResolvedPick, Error> {
         if pick.kind == crate::PickKind::VolumeSegment {
-            return Ok(self.volume_segment_pick(pick).map_or_else(
-                || ResolvedPick::NonAtom(pick.clone()),
-                |segment| ResolvedPick::VolumeSegment(Box::new(segment)),
-            ));
+            return self
+                .volume_segment_pick(pick)
+                .map(|segment| ResolvedPick::VolumeSegment(Box::new(segment)));
         }
         let Some(dataset) = pick.dataset else {
             return Ok(self.overlay_pick(pick));

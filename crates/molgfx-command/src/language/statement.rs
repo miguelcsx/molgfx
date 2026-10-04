@@ -1,42 +1,18 @@
 //! One statement: a verb, its arguments and its target.
 
 use super::arguments::{Arguments, color_value, layer_word, name_word, target};
+use super::interaction::interaction;
 use super::targets::optional_target;
 use super::words::{Word, comma_pieces, first_comma, trim, words};
 use crate::error::{CommandError, ErrorKind, Span};
 use crate::ir::{Command, Form, FormKind, MeasureKind, Opacity, OptionError, QueryText, Show};
 use crate::registry;
 
-/// Parses an explicit `interaction` statement, when the verb is that one.
-///
-/// Explicit interactions are caller-supplied API values: their JSON form is
-/// accepted unchanged, with no molecular chemistry parsed or computed here.
-fn interaction(source: &str, span: Span) -> Result<Option<Command>, CommandError> {
-    let initial = words(source, span);
-    let Some(verb) = initial.first() else {
-        return Ok(None);
-    };
-    if verb.text != "interaction" {
-        return Ok(None);
-    }
-    let payload = source[verb.span.end..span.end].trim();
-    if payload.is_empty() {
-        return Err(syntax(
-            "interaction needs an explicit JSON specification",
-            verb.span,
-        ));
-    }
-    let interaction = serde_json::from_str(payload).map_err(|error| {
-        syntax(
-            format!("invalid interaction specification: {error}"),
-            verb.span,
-        )
-    })?;
-    Ok(Some(Command::Interaction { interaction }))
-}
-
 /// Parses the statement at `span`.
 pub(super) fn parse(source: &str, span: Span) -> Result<Command, CommandError> {
+    if let Some(command) = super::segment::parse(source, span)? {
+        return Ok(command);
+    }
     if let Some(command) = interaction(source, span)? {
         return Ok(command);
     }
@@ -119,6 +95,7 @@ pub(super) fn parse(source: &str, span: Span) -> Result<Command, CommandError> {
         "assembly" => assembly(source, verb.span, span),
         "plane" => plane(source, verb.span, span),
         "volume" => volume(source, verb.span, span),
+        "snapshot" => super::snapshot::parse(&arguments, tail),
         unknown => Err(CommandError::new(
             ErrorKind::Syntax,
             format!("'{unknown}' is not a command"),
@@ -162,7 +139,7 @@ fn volume(source: &str, verb: Span, statement: Span) -> Result<Command, CommandE
             verb,
         ));
     }
-    let volume = serde_json::from_str(payload)
+    let volume = crate::ir::volume::parse(payload)
         .map_err(|error| syntax(format!("invalid volume specification: {error}"), verb))?;
     Ok(Command::Volume { volume })
 }
@@ -488,7 +465,7 @@ pub(super) fn following<'a>(
     })
 }
 
-fn no_target(tail: Option<Span>, verb: &str) -> Result<(), CommandError> {
+pub(super) fn no_target(tail: Option<Span>, verb: &str) -> Result<(), CommandError> {
     match tail {
         Some(tail) => Err(syntax(format!("{verb} takes no target"), tail)),
         None => Ok(()),

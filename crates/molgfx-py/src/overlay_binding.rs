@@ -4,6 +4,8 @@ use crate::binding::{error, selection};
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyModule};
+mod segmentation_binding;
+use segmentation_binding::PySegmentation;
 
 #[derive(Clone, Debug)]
 #[pyclass(name = "DataSource", frozen, skip_from_py_object)]
@@ -128,23 +130,133 @@ fn selection_anchor(structure: &Bound<'_, PyAny>, target: &Bound<'_, PyAny>) -> 
 }
 
 #[pyfunction]
-#[pyo3(signature = (*, source, dimensions, spacing=(1.0, 1.0, 1.0), origin=(0.0, 0.0, 0.0), isovalue=1.0, color=(49, 104, 142)))]
+#[pyo3(signature = (*, source, dimensions, voxel_to_world=None))]
 fn volume(
     source: &PyDataSource,
     dimensions: (u32, u32, u32),
-    spacing: (f32, f32, f32),
-    origin: (f32, f32, f32),
-    isovalue: f32,
-    color: (u8, u8, u8),
+    voxel_to_world: Option<[f32; 16]>,
 ) -> PyVolume {
+    let mut affine = [
+        1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ];
+    if let Some(matrix) = voxel_to_world {
+        affine = matrix;
+    }
     PyVolume(molgfx::VolumeSpec {
         source: source.0.clone(),
         dimensions: [dimensions.0, dimensions.1, dimensions.2],
-        spacing: [spacing.0, spacing.1, spacing.2],
-        origin: [origin.0, origin.1, origin.2],
-        isovalue,
-        color: rgb(color),
+        voxel_to_world: affine,
+        presentations: Vec::new(),
+        region: None,
     })
+}
+
+#[pymethods]
+impl PyVolume {
+    #[pyo3(signature = (isovalue, *, color=(49,104,142), opacity=1.0, style="solid", width=0.1))]
+    fn isosurface(
+        &self,
+        isovalue: f32,
+        color: (u8, u8, u8),
+        opacity: f32,
+        style: &str,
+        width: f32,
+    ) -> PyResult<Self> {
+        let style = match style {
+            "solid" => molgfx::IsoStyle::Solid,
+            "mesh" => molgfx::IsoStyle::Mesh {
+                line_width_voxels: width,
+            },
+            "dots" => molgfx::IsoStyle::Dots {
+                dot_radius_voxels: width,
+            },
+            _ => {
+                return Err(PyTypeError::new_err(
+                    "isosurface style must be solid, mesh, or dots",
+                ));
+            }
+        };
+        let mut value = self.clone();
+        value
+            .0
+            .presentations
+            .push(molgfx::VolumePresentation::Isosurface {
+                isovalue,
+                color: rgb(color),
+                opacity,
+                style,
+            });
+        Ok(value)
+    }
+
+    #[pyo3(signature = (transfer, *, opacity_scale=2.0, step_scale=0.65, medium=false))]
+    fn direct(
+        &self,
+        transfer: Vec<(f32, (u8, u8, u8), f32)>,
+        opacity_scale: f32,
+        step_scale: f32,
+        medium: bool,
+    ) -> Self {
+        let transfer = transfer
+            .into_iter()
+            .map(|(value, color, opacity)| molgfx::VolumeTransferPoint {
+                value,
+                color: rgb(color),
+                opacity,
+            })
+            .collect();
+        let presentation = if medium {
+            molgfx::VolumePresentation::Medium {
+                transfer,
+                opacity_scale,
+                step_scale,
+            }
+        } else {
+            molgfx::VolumePresentation::Direct {
+                transfer,
+                opacity_scale,
+                step_scale,
+            }
+        };
+        let mut value = self.clone();
+        value.0.presentations.push(presentation);
+        value
+    }
+
+    #[pyo3(signature = (*, point, normal, ramp="viridis", domain=(0.0,1.0)))]
+    fn slice(&self, point: [f32; 3], normal: [f32; 3], ramp: &str, domain: (f32, f32)) -> Self {
+        let mut value = self.clone();
+        value
+            .0
+            .presentations
+            .push(molgfx::VolumePresentation::Slice {
+                point,
+                normal,
+                ramp: ramp.into(),
+                domain: [domain.0, domain.1],
+            });
+        value
+    }
+
+    #[pyo3(signature = (isovalue, *, color=(49,104,142), opacity=1.0))]
+    fn liquid_surface(&self, isovalue: f32, color: (u8, u8, u8), opacity: f32) -> Self {
+        let mut value = self.clone();
+        value
+            .0
+            .presentations
+            .push(molgfx::VolumePresentation::LiquidSurface {
+                isovalue,
+                color: rgb(color),
+                opacity,
+            });
+        value
+    }
+
+    fn region(&self, minimum: [u32; 3], maximum: [u32; 3]) -> Self {
+        let mut value = self.clone();
+        value.0.region = Some(molgfx::VolumeRegion { minimum, maximum });
+        value
+    }
 }
 
 #[pyfunction]
@@ -244,12 +356,25 @@ pub(super) fn add_item(
     item: &Bound<'_, PyAny>,
     scene: &mut molgfx::Scene,
 ) -> PyResult<(crate::id_binding::PySceneId, molgfx::schema::PatchOperation)> {
+    if let Ok(item) = item.extract::<PyRef<'_, PySegmentation>>() {
+        let id = scene.add_segmentation(item.0.clone()).map_err(error)?;
+        return Ok((
+            crate::id_binding::PySceneId::Segmentation(id),
+            molgfx::schema::PatchOperation::AddSegmentation {
+                id,
+                segmentation: item.0.clone(),
+            },
+        ));
+    }
     if let Ok(item) = item.extract::<PyRef<'_, PyVolume>>() {
-        let value = molgfx::density::volume(item.0.source.clone(), item.0.dimensions)
-            .spacing(item.0.spacing)
-            .origin(item.0.origin)
-            .isovalue(item.0.isovalue)
-            .color(item.0.color);
+        let mut value = molgfx::density::volume(item.0.source.clone(), item.0.dimensions)
+            .affine(item.0.voxel_to_world);
+        for presentation in &item.0.presentations {
+            value = value.presentation(presentation.clone());
+        }
+        if let Some(region) = item.0.region {
+            value = value.region(region.minimum, region.maximum);
+        }
         let id = scene.add(value).map_err(error)?;
         return Ok((
             crate::id_binding::PySceneId::Volume(id.get()),
@@ -321,6 +446,7 @@ fn namespace<'py>(module: &Bound<'py, PyModule>, name: &str) -> PyResult<Bound<'
 }
 
 pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    segmentation_binding::register(module)?;
     module.add_class::<PyDataSource>()?;
     module.add_class::<PyAnchor>()?;
     module.add_class::<PyVolume>()?;

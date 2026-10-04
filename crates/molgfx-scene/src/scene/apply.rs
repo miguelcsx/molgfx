@@ -13,7 +13,10 @@ pub(crate) fn candidate_spec(current: &SceneSpec, patch: &ScenePatch) -> Result<
     }
     validate_touched_domains(&candidate, &patch.operations)?;
     if !patch.operations.is_empty() {
-        candidate.revision = candidate.revision.wrapping_add(1);
+        candidate.revision = current
+            .revision
+            .checked_add(1)
+            .ok_or_else(|| Error::InvalidSpec("scene revision space is exhausted".to_owned()))?;
     }
     Ok(candidate)
 }
@@ -35,6 +38,20 @@ pub(crate) fn apply_operation(
         return Ok(());
     }
     match operation {
+        PatchOperation::RestoreSnapshot(snapshot) => {
+            snapshot.verify()?;
+            let revision = candidate.revision;
+            let generations = std::mem::take(&mut candidate.segmentation_generations);
+            candidate.clone_from(&snapshot.scene);
+            for (index, generation) in generations {
+                candidate
+                    .segmentation_generations
+                    .entry(index)
+                    .and_modify(|current| *current = (*current).max(generation))
+                    .or_insert(generation);
+            }
+            candidate.revision = revision;
+        }
         PatchOperation::SetFocus { selection } => candidate.focus.clone_from(selection),
         PatchOperation::SetInteraction { channel, selection } => match channel {
             InteractionChannel::Selected => candidate.selected.clone_from(selection),
@@ -78,6 +95,9 @@ pub(crate) fn apply_operation(
         | PatchOperation::SetVisual { .. }
         | PatchOperation::SetParameter { .. }
         | PatchOperation::AddVolume { .. }
+        | PatchOperation::AddSegmentation { .. }
+        | PatchOperation::RemoveSegmentation { .. }
+        | PatchOperation::SetSegmentStyles { .. }
         | PatchOperation::RemoveVolume { .. }
         | PatchOperation::SetVolumeIsovalue { .. }
         | PatchOperation::AddAnnotation { .. }
@@ -94,8 +114,6 @@ pub(crate) fn apply_operation(
         | PatchOperation::SetAssembly { .. }
         | PatchOperation::SetFitting { .. }
         | PatchOperation::SetValidation { .. }
-        | PatchOperation::SetMovieExport { .. }
-        | PatchOperation::SetSnapshot { .. }
         | PatchOperation::RemoveTrajectory { .. } => {
             return Err(Error::InvalidSpec(
                 "overlay patch operation was not dispatched".to_owned(),
@@ -142,34 +160,6 @@ fn apply_domain_operation(
                         .map_err(|error| Error::InvalidSpec(error.to_string()))?,
                 ),
             )
-        }
-        PatchOperation::SetMovieExport { request } => {
-            if let Some(value) = request {
-                value.validate()?;
-                (
-                    "molgfx.movie_export",
-                    Some(
-                        serde_json::to_value(value)
-                            .map_err(|error| Error::InvalidSpec(error.to_string()))?,
-                    ),
-                )
-            } else {
-                ("molgfx.movie_export", None)
-            }
-        }
-        PatchOperation::SetSnapshot { snapshot } => {
-            if let Some(value) = &**snapshot {
-                value.clone().restore().map_err(Error::InvalidSpec)?;
-                (
-                    "molgfx.snapshot",
-                    Some(
-                        serde_json::to_value(value)
-                            .map_err(|error| Error::InvalidSpec(error.to_string()))?,
-                    ),
-                )
-            } else {
-                ("molgfx.snapshot", None)
-            }
         }
         _ => return Ok(false),
     };
@@ -282,6 +272,14 @@ pub(crate) fn validate_touched_domains(
 ) -> Result<(), Error> {
     for operation in operations {
         match operation {
+            PatchOperation::AddSegmentation { .. }
+            | PatchOperation::RemoveSegmentation { .. }
+            | PatchOperation::SetSegmentStyles { .. } => candidate.validate_overlay()?,
+            PatchOperation::RestoreSnapshot(_) => {
+                candidate.validate_selections()?;
+                candidate.validate_overlay()?;
+                candidate.validate_camera()?;
+            }
             PatchOperation::AddRepresentation { representation, .. }
             | PatchOperation::ReplaceRepresentation { representation, .. } => {
                 let Some(structure) = representation.common.structure else {
@@ -331,9 +329,7 @@ pub(crate) fn validate_touched_domains(
             | PatchOperation::RemoveAppearanceRule { .. }
             | PatchOperation::SetAssembly { .. }
             | PatchOperation::SetFitting { .. }
-            | PatchOperation::SetValidation { .. }
-            | PatchOperation::SetMovieExport { .. }
-            | PatchOperation::SetSnapshot { .. } => {}
+            | PatchOperation::SetValidation { .. } => {}
         }
     }
     Ok(())

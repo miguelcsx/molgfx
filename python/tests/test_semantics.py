@@ -142,7 +142,9 @@ class SceneSemanticsTests(unittest.TestCase):
             format="ccp4",
         )
 
-        volume = scene.add(molgfx.density.volume(source=source, dimensions=(8, 8, 8)))
+        volume = scene.add(
+            molgfx.density.volume(source=source, dimensions=(8, 8, 8)).isosurface(1.0)
+        )
         label = scene.add(molgfx.annotation.label(anchor=origin, text="active site"))
         distance = scene.add(molgfx.measurement.distance(origin, x_axis))
         angle = scene.add(molgfx.measurement.angle(origin, x_axis, y_axis))

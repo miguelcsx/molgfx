@@ -1,9 +1,69 @@
 //! Ordered patch application for overlay items.
+//! Segmentation lifetimes and volume presentations validate in their own handlers.
 
 use crate::scene::apply::{insert_unique, remove_existing};
 use crate::{Error, PatchOperation, SceneSpec};
 
 pub(crate) fn apply(candidate: &mut SceneSpec, operation: &PatchOperation) -> Result<bool, Error> {
+    if apply_segmentation(candidate, operation)? || apply_volume(candidate, operation)? {
+        return Ok(true);
+    }
+    apply_overlay_item(candidate, operation)
+}
+
+fn apply_segmentation(
+    candidate: &mut SceneSpec,
+    operation: &PatchOperation,
+) -> Result<bool, Error> {
+    match operation {
+        PatchOperation::AddSegmentation { id, segmentation } => {
+            segmentation.validate()?;
+            if id.index == 0
+                || id.generation == 0
+                || candidate
+                    .segmentations
+                    .keys()
+                    .any(|live| live.index == id.index)
+            {
+                return Err(Error::InvalidSpec(
+                    "segmentation slot is invalid or already occupied".into(),
+                ));
+            }
+            insert_unique(
+                &mut candidate.segmentations,
+                *id,
+                segmentation.clone(),
+                "segmentation",
+            )?;
+            candidate
+                .segmentation_generations
+                .entry(id.index)
+                .and_modify(|generation| *generation = (*generation).max(id.generation))
+                .or_insert(id.generation);
+        }
+        PatchOperation::RemoveSegmentation { id } => {
+            remove_existing(&mut candidate.segmentations, id)?;
+            candidate
+                .segmentation_generations
+                .entry(id.index)
+                .and_modify(|generation| *generation = (*generation).max(id.generation))
+                .or_insert(id.generation);
+        }
+        PatchOperation::SetSegmentStyles { id, styles } => {
+            let _ = crate::overlay::segmentation_spec::native_styles(styles)?;
+            candidate
+                .segmentations
+                .get_mut(id)
+                .ok_or(crate::PatchError::MissingId)?
+                .styles
+                .clone_from(styles);
+        }
+        _ => return Ok(false),
+    }
+    Ok(true)
+}
+
+fn apply_volume(candidate: &mut SceneSpec, operation: &PatchOperation) -> Result<bool, Error> {
     match operation {
         PatchOperation::AddVolume { id, volume } => {
             volume.validate()?;
@@ -20,8 +80,18 @@ pub(crate) fn apply(candidate: &mut SceneSpec, operation: &PatchOperation) -> Re
                 .volumes
                 .get_mut(id)
                 .ok_or(crate::PatchError::MissingId)?
-                .isovalue = *isovalue;
+                .set_isovalue(*isovalue)?;
         }
+        _ => return Ok(false),
+    }
+    Ok(true)
+}
+
+fn apply_overlay_item(
+    candidate: &mut SceneSpec,
+    operation: &PatchOperation,
+) -> Result<bool, Error> {
+    match operation {
         PatchOperation::AddAnnotation { id, annotation } => {
             annotation.validate(candidate)?;
             insert_unique(
@@ -86,37 +156,7 @@ pub(crate) fn apply(candidate: &mut SceneSpec, operation: &PatchOperation) -> Re
     }
     Ok(true)
 }
-#[cfg(test)]
-mod tests {
-    use super::apply;
-    use crate::{Color, DataSource, PatchOperation, SceneSpec, VolumeSpec};
 
-    #[test]
-    fn set_isovalue_rejects_nonfinite_before_mutating() {
-        let id = crate::VolumeId::new(1);
-        let mut spec = SceneSpec::empty();
-        spec.volumes.insert(
-            id,
-            VolumeSpec {
-                source: DataSource::new("density"),
-                dimensions: [2, 2, 2],
-                spacing: [1.0; 3],
-                origin: [0.0; 3],
-                isovalue: 1.0,
-                color: Color::rgb(1, 2, 3),
-            },
-        );
-        let before = spec.clone();
-        assert!(
-            apply(
-                &mut spec,
-                &PatchOperation::SetVolumeIsovalue {
-                    id,
-                    isovalue: f32::NAN
-                }
-            )
-            .is_err()
-        );
-        assert_eq!(spec, before);
-    }
-}
+#[cfg(test)]
+#[path = "overlay_ops_tests.rs"]
+mod tests;

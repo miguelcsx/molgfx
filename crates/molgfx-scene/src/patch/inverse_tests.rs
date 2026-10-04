@@ -12,10 +12,14 @@ fn set_isovalue_inverse_restores_the_base_value() {
         VolumeSpec {
             source: DataSource::new("density"),
             dimensions: [2, 2, 2],
-            spacing: [1.0; 3],
-            origin: [0.0; 3],
-            isovalue: 1.25,
-            color: Color::rgb(1, 2, 3),
+            voxel_to_world: molgfx_math::Mat4::IDENTITY.to_cols_array(),
+            presentations: vec![crate::VolumePresentation::Isosurface {
+                isovalue: 1.25,
+                color: Color::rgb(1, 2, 3),
+                opacity: 1.0,
+                style: crate::IsoStyle::Solid,
+            }],
+            region: None,
         },
     );
     let inverse = inverse_operations(

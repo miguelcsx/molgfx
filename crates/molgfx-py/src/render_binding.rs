@@ -7,7 +7,7 @@ use pyo3::types::{PyAny, PyBytes, PyDict, PyList, PyModule};
 
 #[derive(Clone, Debug)]
 #[pyclass(name = "PickResult", frozen, skip_from_py_object)]
-struct PyPickResult(molgfx::PickResult);
+pub(super) struct PyPickResult(pub(super) molgfx::PickResult);
 
 #[pymethods]
 impl PyPickResult {
@@ -50,6 +50,23 @@ impl PyPickResult {
     #[getter]
     const fn volume_label(&self) -> Option<u32> {
         self.0.volume_label
+    }
+
+    /// Captured source scene used to reject stale picks.
+    #[getter]
+    const fn source_id(&self) -> Option<u64> {
+        self.0.source_id
+    }
+
+    /// Captured physical segmentation identity, encoded without losing precision.
+    #[getter]
+    fn segmentation(&self) -> PyResult<Option<String>> {
+        self.0
+            .segmentation
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|cause| pyo3::exceptions::PyValueError::new_err(cause.to_string()))
     }
 }
 

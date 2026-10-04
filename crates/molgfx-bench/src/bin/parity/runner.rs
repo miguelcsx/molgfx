@@ -41,16 +41,10 @@ pub(crate) fn run() -> Result<()> {
         for recipe in &order {
             let path = directory.join(recipe);
             std::fs::create_dir_all(&path)?;
-            let mut entry = match execute(&config, fixture, recipe, &path, &comparison) {
-                Ok(mut value) => {
-                    value["status"] = json!("executed");
-                    value
-                }
-                Err(error) => {
-                    failures += 1;
-                    json!({"status":"failed","error":error.to_string()})
-                }
-            };
+            let mut entry = recipe_result(&config, fixture, recipe, &path, &comparison)?;
+            if entry["status"] == "failed" {
+                failures += 1;
+            }
             entry["fixture"] = serde_json::to_value(fixture)?;
             entry["recipe"] = json!(recipe);
             entry["metadata_comparison"] = comparison.clone();
@@ -63,7 +57,13 @@ pub(crate) fn run() -> Result<()> {
             report.push(entry);
         }
         if !config.inspect {
-            let missing = sheet::write(&directory, &config.recipes, config.catalog.extent)?;
+            let recipes = config
+                .recipes
+                .iter()
+                .filter(|recipe| !fixture.omissions.contains_key(*recipe))
+                .cloned()
+                .collect::<Vec<_>>();
+            let missing = sheet::write(&directory, &recipes, config.catalog.extent)?;
             if !missing.is_empty() {
                 failures += missing.len();
                 println!("{}", json!({"fixture":fixture.id,"sheet_missing":missing}));
@@ -96,6 +96,29 @@ pub(crate) fn run() -> Result<()> {
         .into());
     }
     Ok(())
+}
+
+fn recipe_result(
+    config: &Config,
+    fixture: &Fixture,
+    recipe: &str,
+    path: &Path,
+    comparison: &Value,
+) -> Result<Value> {
+    if let Some(reason) = fixture.omissions.get(recipe) {
+        let image = path.join("image.png");
+        if !config.inspect && image.exists() {
+            std::fs::remove_file(image)?;
+        }
+        return Ok(json!({"status":"omitted","reason":reason}));
+    }
+    Ok(match execute(config, fixture, recipe, path, comparison) {
+        Ok(mut value) => {
+            value["status"] = json!("executed");
+            value
+        }
+        Err(error) => json!({"status":"failed","error":error.to_string()}),
+    })
 }
 
 fn execute(

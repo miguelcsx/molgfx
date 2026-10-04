@@ -1,8 +1,8 @@
 """Authoritative table of gallery cases; writes gallery.json beside this file.
 
-Each case runs one molgfx command script, the equivalent PyMOL commands and
-the equivalent Mol* representation entries on the same fixture and fitted
-camera. Review items name the checklist ids the reviewer scores.
+Cases use a molgfx command script or a native scene-domain builder, with
+reference-engine commands or segment surfaces on the same fixture and camera.
+Review items name the checklist ids the reviewer scores.
 """
 
 import json
@@ -94,6 +94,22 @@ CASES = [
         PY_SS,
         [rep("cartoon", "secondary-structure")],
         [*STILL, "CT-6", "SS-2", "SS-3"],
+    ),
+    case(
+        "P1-ss-palette-1AON",
+        "1AON",
+        ["show cartoon as main, protein", "color secondary_structure, @main"],
+        PY_SS,
+        [rep("cartoon", "secondary-structure")],
+        [*STILL, "SS-1", "SS-2", "SS-3", "SS-4"],
+    ),
+    case(
+        "P1-ss-palette-7QPD",
+        "7QPD",
+        ["show cartoon as main, protein", "color secondary_structure, @main"],
+        PY_SS,
+        [rep("cartoon", "secondary-structure")],
+        [*STILL, "SS-1", "SS-2", "SS-3", "SS-4"],
     ),
     case(
         "B-dna-1BNA",
@@ -385,6 +401,178 @@ CASES = [
 ]
 
 
+def segmentation_case(base):
+    """Procedural native categorical domain, with reference-engine segment surfaces."""
+    entry = {k: v for k, v in base.items() if k not in ("id", "form", "script")}
+    entry.update(
+        id="P2-segmentation-two-maps",
+        form="script",
+        camera={
+            "position": [0, 0, 80],
+            "target": [0, 0, 0],
+            "up": [0, 1, 0],
+            "fov_y_degrees": 45,
+            "near": 1,
+            "far": 2000,
+        },
+        script={
+            "molgfx": [],
+            "pymol": [],
+            "molstar": [],
+            "checklist": ["SEG-1", "SEG-2"],
+            "fit": None,
+            "video": None,
+        },
+    )
+    entry.update(
+        segmentation_thresholds=[0.05, 0.2, 0.5],
+        segmentations=[
+            {
+                "name": "left",
+                "translation": [-10, 0, 0],
+                "styles": [
+                    {"label": 1, "color_rgb": [220, 50, 40], "opacity": 0.8, "visible": True},
+                    {"label": 2, "color_rgb": [240, 170, 40], "opacity": 0.3, "visible": True},
+                ],
+            },
+            {
+                "name": "right",
+                "translation": [10, 0, 0],
+                "styles": [
+                    {"label": 1, "color_rgb": [40, 100, 230], "opacity": 0.8, "visible": True},
+                    {"label": 2, "color_rgb": [40, 200, 170], "opacity": 0.3, "visible": False},
+                ],
+            },
+        ],
+    )
+    return entry
+
+
+VOLUME_CASES = [
+    ("P2-iso-solid-skewMRC", "skewMRC", "isosurface", 0.35, None, ["VOL-2"]),
+    ("P2-iso-mesh-model_density", "model_density", "iso_mesh", 0.5, None, ["VOL-3"]),
+    ("P2-iso-dots-model_density", "model_density", "iso_dots", 0.5, None, ["VOL-3"]),
+    ("P2-direct-model_density", "model_density", "direct", 0.5, None, ["VOL-4"]),
+    ("P2-slice-model_density", "model_density", "slice", 0.5, None, ["VOL-5"]),
+    ("P2-region-model_density", "model_density", "region", 0.5, None, ["VOL-6"]),
+    (
+        "P2-iso-over-cartoon-4HHB",
+        "model_density",
+        "isosurface",
+        0.5,
+        "4HHB.cif",
+        ["VOL-1", "VOL-2"],
+    ),
+]
+
+
+def volume_cases(base):
+    for identity, fixture, form, level, structure, checklist in VOLUME_CASES:
+        entry = {k: v for k, v in base[fixture].items() if k not in ("id", "form", "script")}
+        entry.update(
+            id=identity,
+            form=form,
+            checklist=checklist,
+            isovalue=level,
+            camera={
+                "position": [0, 0, 24 if fixture == "skewMRC" else 160],
+                "target": [0, 0, 0],
+                "up": [0, 1, 0],
+                "fov_y_degrees": 45,
+                "near": 1,
+                "far": 2000,
+            },
+        )
+        if form == "iso_mesh":
+            entry["line_width_voxels"] = 0.1
+        elif form == "iso_dots":
+            entry["dot_radius_voxels"] = 0.16
+        if structure is not None:
+            entry["structure_file"] = structure
+            entry["opacity"] = 0.45
+        if form == "direct":
+            entry["omissions"] = {
+                "pymol-ray": "PyMOL 3.1 experimental ray_volume does not produce an image for this map; use pymol-raster for volume comparison."
+            }
+        elif form == "region":
+            entry["omissions"] = {
+                "pymol-ray": "PyMOL has no exact voxel-region crop for this case.",
+                "pymol-raster": "PyMOL has no exact voxel-region crop for this case.",
+                "molstar-imagepass": "Mol* adapter has no exact voxel-region crop for this case.",
+            }
+        elif form == "slice":
+            entry.update(
+                slice_point=[10.770298331975937, 13.442623138427734, 40.59999930858612],
+                slice_normal=[0, 0, 1],
+                slice_domain=[0, 1],
+                slice_colors=[
+                    0x440154,
+                    0x482878,
+                    0x3E4989,
+                    0x31688E,
+                    0x26828E,
+                    0x1F9E89,
+                    0x35B779,
+                    0x6ECE58,
+                    0xB5DE2B,
+                    0xFDE725,
+                ],
+            )
+        elif form == "iso_dots":
+            entry["omissions"] = {
+                "molstar-imagepass": f"Mol* adapter has no exact {form} presentation for this case."
+            }
+        yield entry
+
+
+def effect_cases(base):
+    reference = next(c for c in CASES if c["id"] == "B-cartoon-4HHB")
+    for effect, checks in (
+        ("bloom", ["FX-3"]),
+        ("bloom_control", ["FX-3"]),
+        ("dof", ["FX-2"]),
+        ("motion_blur", ["FX-4"]),
+        ("motion_blur_control", ["FX-4"]),
+        ("depth_cue", ["FX-1"]),
+        ("shape_cues", ["GEN-1"]),
+        ("dof_control", ["FX-2"]),
+        ("depth_cue_control", ["FX-1"]),
+        ("shape_cues_control", ["GEN-1"]),
+    ):
+        entry = {k: v for k, v in base["1AON"].items() if k not in ("id", "form", "script")}
+        entry.update(
+            id=f"P2-effects-1AON-{effect}",
+            effect=effect,
+            form="script",
+            script={
+                "molgfx": reference["molgfx"],
+                "pymol": reference["pymol"],
+                "molstar": reference["molstar"],
+                "checklist": checks,
+                "fit": {"selection": "all", "fov_y_degrees": 45, "margin": 1.15},
+            },
+        )
+        if effect in ("motion_blur", "motion_blur_control"):
+            entry["script"]["video"] = {"kind": "orbit_y", "frames": 24, "fps": 24}
+        if effect in (
+            "motion_blur_control",
+            "dof_control",
+            "depth_cue_control",
+            "shape_cues_control",
+        ):
+            del entry["effect"]
+        if effect not in ("dof_control", "depth_cue_control", "shape_cues_control"):
+            entry["omissions"] = {}
+        if effect in ("bloom", "dof", "motion_blur", "shape_cues"):
+            reason = f"PyMOL 3.1 has no equivalent {effect} presentation effect; effect parity is omitted."
+            entry["omissions"].update({"pymol-ray": reason, "pymol-raster": reason})
+        if effect in ("motion_blur", "shape_cues"):
+            entry["omissions"]["molstar-imagepass"] = (
+                f"Mol* ImagePass has no equivalent {effect} presentation effect; effect parity is omitted."
+            )
+        yield entry
+
+
 def build():
     corpus = json.loads((HERE / "corpus.json").read_text())
     base = {f["id"]: f for f in corpus["fixtures"]}
@@ -394,7 +582,13 @@ def build():
     }
     out["extent"] = [768, 768]
     out["warmup_outputs"], out["measured_outputs"] = 0, 1
-    out["recipes"] = ["molgfx-converged", "molgfx-interactive", "pymol-ray", "molstar-imagepass"]
+    out["recipes"] = [
+        "molgfx-converged",
+        "molgfx-interactive",
+        "pymol-ray",
+        "pymol-raster",
+        "molstar-imagepass",
+    ]
     out["recipe_settings"] = {
         k: v for k, v in corpus["recipe_settings"].items() if k in out["recipes"]
     }
@@ -413,6 +607,9 @@ def build():
         entry = {k: b[k] for k in b if k not in ("id", "form", "script")}
         entry.update({"id": c["id"], "form": "script", "script": script})
         fixtures.append(entry)
+    fixtures.extend(volume_cases(base))
+    fixtures.extend(effect_cases(base))
+    fixtures.append(segmentation_case(base["skewMRC"]))
     out["fixtures"] = fixtures
     return out
 

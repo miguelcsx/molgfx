@@ -6,6 +6,48 @@ use crate::id::StructureId;
 use crate::overlay::{OverlayHandles, TrajectoryBinding, VolumeBinding};
 
 impl Scene {
+    /// Declared overlays whose runtime bulk source is not yet bound.
+    #[must_use]
+    pub fn unresolved_overlays(&self) -> Vec<crate::OverlayId> {
+        self.spec
+            .volumes
+            .keys()
+            .filter(|id| {
+                !self
+                    .overlay
+                    .volumes
+                    .iter()
+                    .any(|(resolved, _)| resolved == *id)
+            })
+            .map(|id| crate::OverlayId::Volume(*id))
+            .chain(
+                self.spec
+                    .segmentations
+                    .keys()
+                    .filter(|id| {
+                        !self
+                            .overlay
+                            .segmentations
+                            .iter()
+                            .any(|(resolved, _)| resolved == *id)
+                    })
+                    .map(|id| crate::OverlayId::Segmentation(*id)),
+            )
+            .chain(
+                self.spec
+                    .trajectories
+                    .keys()
+                    .filter(|id| {
+                        !self
+                            .overlay
+                            .trajectories
+                            .iter()
+                            .any(|(resolved, _)| resolved == *id)
+                    })
+                    .map(|id| crate::OverlayId::Trajectory(*id)),
+            )
+            .collect()
+    }
     /// Binds one immutable density grid for every volume descriptor naming it.
     ///
     /// The descriptor stays portable: a volume whose source has no matching

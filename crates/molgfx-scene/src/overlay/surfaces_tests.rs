@@ -1,6 +1,4 @@
-use super::{
-    AssemblyInstance, AssemblySpec, FitResult, MovieExportRequest, UnitCellSpec, ValidationFinding,
-};
+use super::{AssemblyInstance, AssemblySpec, FitResult, UnitCellSpec, ValidationFinding};
 use crate::StructureId;
 
 #[test]
@@ -150,16 +148,4 @@ fn fitting_and_validation_values_require_provenance() {
         provenance: "molframe:validation-1".into(),
     };
     assert!(finding.validate().is_ok());
-}
-
-#[test]
-fn export_requests_are_bounded_and_deterministic() {
-    let request = MovieExportRequest {
-        first_frame: 2,
-        last_frame: 5,
-        dimensions: [1280, 720],
-        frames_per_second: 24,
-        camera_seed: 9,
-    };
-    assert!(request.validate().is_ok());
 }

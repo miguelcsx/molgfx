@@ -231,6 +231,31 @@ impl RepresentationConfig {
         self
     }
 
+    /// Validates this volume recipe against an already validated source grid.
+    ///
+    /// # Errors
+    /// Rejects non-volume recipes, malformed controls, crops outside the source,
+    /// and sampling steps that the GPU cannot represent.
+    pub fn validate_volume_grid(
+        &self,
+        dimensions: [u32; 3],
+        transform: molgfx_math::Mat4,
+    ) -> Result<(), CoreError> {
+        if self.kind != RepresentationKind::Volume || !self.params.isolevel.is_finite() {
+            return Err(CoreError::InvalidVolume {
+                reason: "volume grid requires a volume recipe with a finite isolevel",
+            });
+        }
+        self.volume.validate_grid(dimensions, transform)
+    }
+
+    /// Applies a half-open crop to the current scalar-volume style.
+    #[must_use]
+    pub const fn volume_region(mut self, region: crate::VolumeRegion) -> Self {
+        self.volume.region = Some(region);
+        self
+    }
+
     /// Applies categorical-volume label and sampling controls.
     #[must_use]
     pub fn segmentation_style(mut self, style: SegmentationStyle) -> Self {

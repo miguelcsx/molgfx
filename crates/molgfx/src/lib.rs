@@ -14,12 +14,14 @@ pub use molgfx_scene::{AdapterReport, SystemInfo, system_info};
 pub use molgfx_scene::{
     Anchor, AnnotationId, AnnotationSpec, AppearanceRuleId, AppearanceRuleSpec, AssemblyCopy,
     AssemblySpec, Camera, Color, ColorSpec, DepthCue, EllipsoidId, EllipsoidSpec, Error,
-    InteractionChannel, InteractionId, InteractionKind, InteractionSpec, Legend, LegendStop,
-    MAX_APPEARANCE_CLASSES, MeasurementId, MeasurementSpec, Parameter, ParameterType,
-    ParameterValue, PatchError, PickKind, PickResult, PlaneId, PlaneSpec, Quality, RenderProfile,
-    RepresentationId, RepresentationSpec, ScalarProperty, ScalarPropertyBinding, Scene, SceneItem,
-    ScenePatch, SceneSpec, SceneTransaction, Selection, StructureId, TrajectoryId, TrajectorySpec,
-    UnitCellSpec, VisualStyle, VolumeId, VolumeSpec, chain_selection, molframe,
+    InteractionChannel, InteractionId, InteractionKind, InteractionSpec, IsoStyle, Legend,
+    LegendStop, MAX_APPEARANCE_CLASSES, MeasurementId, MeasurementSpec, OverlayId, Parameter,
+    ParameterType, ParameterValue, PatchError, PickKind, PickResult, PlaneId, PlaneSpec, Quality,
+    RenderProfile, RepresentationId, RepresentationSpec, ScalarProperty, ScalarPropertyBinding,
+    Scene, SceneItem, ScenePatch, SceneSpec, SceneTransaction, SegmentStyle, SegmentationBinding,
+    SegmentationId, SegmentationPresentation, SegmentationSpec, Selection, StructureId,
+    TrajectoryId, TrajectorySpec, UnitCellSpec, VisualStyle, VolumeId, VolumePresentation,
+    VolumeRegion, VolumeSpec, VolumeTransferPoint, chain_selection, molframe,
 };
 pub use molgfx_scene::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, PassTiming, PassTimingCoverage,
@@ -95,10 +97,11 @@ pub mod rep {
 /// `MolFrame`'s exact molecular selection-expression surface.
 pub mod sel {
     pub use molgfx_scene::sel::{
-        Builder, ColumnBuilder, all, aromatic, backbone, by_residue, chain, col, glycans, heavy,
-        hetero, hydrogen, ions, ligands, lipids, name, none, nucleic, nucleic_backbone,
-        nucleic_base, nucleic_sugar, occupancy, polymer, protein, residues_within, resname,
-        sidechain, water, within,
+        Builder, ColumnBuilder, all, alpha_helix, aromatic, backbone, bend, bridge, by_residue,
+        chain, coil, col, glycans, heavy, helix, helix_310, hetero, hydrogen, ions, ligands,
+        lipids, name, none, nucleic, nucleic_backbone, nucleic_base, nucleic_sugar, occupancy,
+        pi_helix, polymer, polyproline, protein, residues_within, resname, sheet, sidechain,
+        strand, turn, water, within,
     };
 }
 

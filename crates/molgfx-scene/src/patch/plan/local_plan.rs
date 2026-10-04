@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(crate) struct LocalPatchPlan {
     pub(super) representations: BTreeMap<RepresentationId, RepresentationSpec>,
     pub(super) physical: Vec<(RepresentationId, RepresentationHandle, Representation)>,
+    pub(super) segmentation_physical: Vec<(RepresentationHandle, Representation)>,
     pub(super) visual_updates: BTreeMap<RepresentationId, Option<crate::visual::ResolvedVisual>>,
     pub(super) visual_replacements: BTreeSet<RepresentationId>,
     pub(super) parameter_updates: BTreeMap<RepresentationId, BTreeSet<Box<str>>>,
@@ -34,6 +35,7 @@ impl LocalPatchPlan {
         let mut plan = Self {
             representations: BTreeMap::new(),
             physical: Vec::new(),
+            segmentation_physical: Vec::new(),
             visual_updates: BTreeMap::new(),
             visual_replacements: BTreeSet::new(),
             parameter_updates: BTreeMap::new(),
@@ -121,6 +123,9 @@ impl LocalPatchPlan {
                 ));
             }
             PatchOperation::AddVolume { .. }
+            | PatchOperation::AddSegmentation { .. }
+            | PatchOperation::RemoveSegmentation { .. }
+            | PatchOperation::SetSegmentStyles { .. }
             | PatchOperation::SetVolumeIsovalue { .. }
             | PatchOperation::AddAnnotation { .. }
             | PatchOperation::RemoveVolume { .. }
@@ -140,8 +145,7 @@ impl LocalPatchPlan {
             | PatchOperation::SetAssembly { .. }
             | PatchOperation::SetFitting { .. }
             | PatchOperation::SetValidation { .. }
-            | PatchOperation::SetMovieExport { .. }
-            | PatchOperation::SetSnapshot { .. }
+            | PatchOperation::RestoreSnapshot(_)
             | PatchOperation::RemoveAppearanceRule { .. } => {
                 return Err(Error::InvalidSpec(
                     "domain operation was not prepared".to_owned(),

@@ -13,6 +13,37 @@ impl LocalPatchPlan {
     /// Queries a retarget or an appearance rule needs are evaluated here,
     /// through the scene's evaluated-rows cache, so commit never evaluates.
     pub(super) fn validate_and_lower(&mut self, inputs: PatchInputs<'_>) -> Result<(), Error> {
+        if let Some(segmentations) = &self.overlay.segmentations {
+            for (id, descriptor) in segmentations {
+                if inputs
+                    .spec
+                    .segmentations
+                    .get(id)
+                    .is_some_and(|previous| previous.styles == descriptor.styles)
+                {
+                    continue;
+                }
+                let Some((_, grid)) = inputs
+                    .overlay
+                    .segmentations
+                    .iter()
+                    .find(|(resolved, _)| resolved == id)
+                else {
+                    continue;
+                };
+                let styles = crate::overlay::segmentation_spec::native_styles(&descriptor.styles)?;
+                for (handle, representation) in inputs.scene.representations() {
+                    if representation.segmentation_handle() == Some(*grid) {
+                        let mut next = representation.clone();
+                        next.visible = descriptor.styles.iter().any(|style| {
+                            style.visible && style.opacity > 0.0 && style.color.0[3] > 0
+                        });
+                        next.segmentation.styles = styles.clone();
+                        self.segmentation_physical.push((handle, next));
+                    }
+                }
+            }
+        }
         for selection in self.interactions.selections() {
             let _ = selection.fingerprint()?;
         }

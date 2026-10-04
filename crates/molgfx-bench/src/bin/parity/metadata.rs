@@ -1,5 +1,5 @@
 //! Metadata inspection precedes all image production for each fixture.
-use super::{config::Config, external, native};
+use super::{config::Config, external};
 use molgfx_bench::gallery::{Fixture, Result};
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, io, path::Path};
@@ -19,7 +19,15 @@ pub(super) fn inspect(config: &Config, fixture: &Fixture, directory: &Path) -> R
             continue;
         }
         let result = if engine == "molgfx" {
-            native::structure(fixture, &config.cache).map(|(_, m)| m)
+            if fixture.details.contains_key("segmentations") {
+                molgfx_bench::gallery::segmentation_scene(fixture, &config.cache)
+                    .map(|(_, metadata)| metadata)
+            } else if fixture.format == "mrc" {
+                molgfx_bench::gallery::density(fixture, &config.cache).map(|(_, metadata)| metadata)
+            } else {
+                molgfx_bench::gallery::structure(fixture, &config.cache)
+                    .map(|(_, metadata)| metadata)
+            }
         } else {
             let path = directory.join(format!("{engine}-inspect"));
             std::fs::create_dir_all(&path)?;

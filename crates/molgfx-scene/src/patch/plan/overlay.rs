@@ -13,6 +13,15 @@ impl OverlayDomains {
         operation: &PatchOperation,
     ) -> Result<bool, Error> {
         match operation {
+            PatchOperation::SetSegmentStyles { id, styles } => {
+                let _ = crate::overlay::segmentation_spec::native_styles(styles)?;
+                self.segmentations
+                    .get_or_insert_with(|| spec.segmentations.clone())
+                    .get_mut(id)
+                    .ok_or(PatchError::MissingId)?
+                    .styles
+                    .clone_from(styles);
+            }
             PatchOperation::AddVolume { id, volume } => {
                 volume.validate()?;
                 insert_item(&mut self.volumes, &spec.volumes, *id, volume.clone())?;
@@ -30,7 +39,7 @@ impl OverlayDomains {
                     .get_or_insert_with(|| spec.volumes.clone())
                     .get_mut(id)
                     .ok_or(PatchError::MissingId)?
-                    .isovalue = *isovalue;
+                    .set_isovalue(*isovalue)?;
             }
             PatchOperation::AddAnnotation { id, annotation } => {
                 annotation.validate(spec)?;
@@ -101,6 +110,7 @@ impl OverlayDomains {
 
     pub(super) fn commit(self, spec: &mut SceneSpec) {
         replace(&mut spec.volumes, self.volumes);
+        replace(&mut spec.segmentations, self.segmentations);
         replace(&mut spec.annotations, self.annotations);
         replace(&mut spec.measurements, self.measurements);
         replace(&mut spec.interactions, self.interactions);

@@ -16,7 +16,10 @@ use crate::{Error, PickKind, PickResult, ResolvedPick, Scene};
 /// other work — while the readback is awaited. Resolve it, then hand the
 /// bytes to [`Renderer::finish_pick`].
 #[derive(Debug)]
-pub struct PickReadback(molgfx_render::PendingPick<molgfx_wgpu::WgpuDevice>);
+pub struct PickReadback(
+    molgfx_render::PendingPick<molgfx_wgpu::WgpuDevice>,
+    Option<u64>,
+);
 
 impl PickReadback {
     /// Awaits the mapped identity bytes.
@@ -39,7 +42,10 @@ impl Renderer {
         self.inner
             .pick_async(x, y)
             .await
-            .map(|pick| pick.as_ref().map(semantic_pick))
+            .map(|pick| {
+                pick.as_ref()
+                    .map(|pick| semantic_pick(pick, self.pick_source_id))
+            })
             .map_err(Error::from)
     }
 
@@ -55,7 +61,7 @@ impl Renderer {
     /// every readback buffer is already awaited.
     pub fn begin_pick(&mut self, x: u32, y: u32) -> Result<Option<PickReadback>, Error> {
         let readback = self.inner.begin_pick(x, y).map_err(Error::from)?;
-        Ok(readback.map(PickReadback))
+        Ok(readback.map(|pending| PickReadback(pending, self.pick_source_id)))
     }
 
     /// Resolves a [`Self::begin_pick`] readback against the current scene.
@@ -80,7 +86,9 @@ impl Renderer {
         else {
             return Ok(None);
         };
-        scene.resolve_pick(&semantic_pick(&raw)).map(Some)
+        scene
+            .resolve_pick(&semantic_pick(&raw, readback.1))
+            .map(Some)
     }
 
     /// Resolves the entity under one target pixel on native platforms.
@@ -92,12 +100,15 @@ impl Renderer {
     pub fn pick(&mut self, x: u32, y: u32) -> Result<Option<PickResult>, Error> {
         self.inner
             .pick(x, y)
-            .map(|pick| pick.as_ref().map(semantic_pick))
+            .map(|pick| {
+                pick.as_ref()
+                    .map(|pick| semantic_pick(pick, self.pick_source_id))
+            })
             .map_err(Error::from)
     }
 }
 
-pub(super) fn semantic_pick(pick: &molgfx_render::Pick) -> PickResult {
+pub(super) fn semantic_pick(pick: &molgfx_render::Pick, source_id: Option<u64>) -> PickResult {
     match pick.entity {
         molgfx_render::PickEntity::Structure(identity) => PickResult {
             kind: pick_kind(identity.kind()),
@@ -105,6 +116,8 @@ pub(super) fn semantic_pick(pick: &molgfx_render::Pick) -> PickResult {
             chunk: Some(identity.chunk().get()),
             row: Some(identity.row().get()),
             volume_label: None,
+            segmentation: None,
+            source_id: None,
         },
         molgfx_render::PickEntity::VolumeSegment(segment) => PickResult {
             kind: PickKind::VolumeSegment,
@@ -112,6 +125,8 @@ pub(super) fn semantic_pick(pick: &molgfx_render::Pick) -> PickResult {
             chunk: None,
             row: None,
             volume_label: Some(segment.label),
+            segmentation: Some(segment.volume),
+            source_id,
         },
     }
 }

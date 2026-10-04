@@ -232,8 +232,8 @@ fn constant_fields_have_no_isosurface_crossing_at_any_level() {
             )
             .unwrap();
         let image = engine.render_image(&scene, &camera, config).unwrap();
-        assert_eq!(
-            image.pixels, empty.pixels,
+        assert!(
+            image.pixels == empty.pixels,
             "constant field at level {level}"
         );
     }

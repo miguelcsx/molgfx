@@ -2,7 +2,7 @@
 
 use super::{
     Anchor, AnnotationSpec, DataSource, EllipsoidSpec, InteractionSpec, MeasurementSpec,
-    TrajectorySpec, VolumeSpec,
+    TrajectorySpec,
 };
 use crate::Error;
 
@@ -49,26 +49,6 @@ impl Anchor {
                 Ok(())
             }
         }
-    }
-}
-
-impl VolumeSpec {
-    pub(crate) fn validate(&self) -> Result<(), Error> {
-        self.source.validate()?;
-        let spacing_is_valid = self
-            .spacing
-            .iter()
-            .all(|value| value.is_finite() && *value > 0.0);
-        if self.dimensions.iter().any(|dimension| *dimension < 2)
-            || !spacing_is_valid
-            || !self.origin.iter().all(|value| value.is_finite())
-            || !self.isovalue.is_finite()
-        {
-            return Err(Error::InvalidSpec(
-                "invalid density volume metadata".to_owned(),
-            ));
-        }
-        Ok(())
     }
 }
 

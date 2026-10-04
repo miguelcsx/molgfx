@@ -1,20 +1,47 @@
 // Bundled against the requested local Mol* source checkout; runs in a real DOM.
-const effects = require("./molstar-effects.cjs");
 const { PluginContext } = require('@molstar/mol-plugin/context');
 const { DefaultPluginSpec } = require('@molstar/mol-plugin/spec');
 const { ParamDefinition: PD } = require('@molstar/mol-util/param-definition');
 const { Canvas3DParams } = require('@molstar/mol-canvas3d/canvas3d');
 const { RuntimeContext } = require('@molstar/mol-task');
 const { SecondaryStructureProvider } = require('@molstar/mol-model-props/computed/secondary-structure');
+const { computeUnitDSSP, DefaultDSSPComputationProps } = require("@molstar/mol-model-props/computed/secondary-structure/dssp");
 const { SecondaryStructureType, BondType } = require('@molstar/mol-model/structure/model/types');
 const { Ccp4Provider } = require('@molstar/mol-plugin-state/formats/volume');
 const { createVolumeRepresentationParams } = require('@molstar/mol-plugin-state/helpers/volume-representation-params');
 const { StateTransforms } = require('@molstar/mol-plugin-state/transforms');
+const { Grid } = require('@molstar/mol-model/volume/grid');
+const { Mat4 } = require('@molstar/mol-math/linear-algebra');
 const { PixelData } = require('@molstar/mol-util/image');
 const { Script } = require('@molstar/mol-script/script');
 const { MolScriptBuilder } = require('@molstar/mol-script/language/builder');
 const { StructureSelection, StructureElement } = require('@molstar/mol-model/structure');
-// `entry.atoms` selects one atom each by auth ids; the loci come from the state structure.
+const { getElementMoleculeType } = require('@molstar/mol-model/structure/util');
+const { MoleculeType } = require('@molstar/mol-model/structure/model/types');
+const segmentation = require("./molstar-segmentation.cjs");
+const effects = require("./molstar-effects.cjs");
+
+function secondaryState(flag, available, unit, element) {
+    const f = SecondaryStructureType.Flag;
+    if (!available) return 'unknown';
+    if (flag & f.Helix) {
+        if (flag & f.Helix3Ten) return 'three_ten_helix';
+        if (flag & f.HelixPi) return 'pi_helix';
+        if (flag & f.HelixPolyproline) return 'polyproline';
+        if (flag & f.HelixAlpha) return 'alpha_helix';
+        return 'other_helix';
+    }
+    if (flag & f.Beta) {
+        if (flag & f.BetaSheet) return 'strand';
+        if (flag & f.BetaStrand) return 'beta_bridge';
+        return 'other_beta';
+    }
+    if (flag & f.Bend) return 'bend';
+    if (flag & f.Turn) return 'turn';
+    return getElementMoleculeType(unit, element) === MoleculeType.Protein ? 'coil' : 'unknown';
+}
+
+// Each atom entry selects auth ids against the state structure.
 function atomLoci(structure, atom) {
     const MS = MolScriptBuilder, P = MS.struct.atomProperty.macromolecular;
     const expr = MS.struct.generator.atomGroups({
@@ -24,6 +51,14 @@ function atomLoci(structure, atom) {
     const loci = StructureSelection.toLociWithSourceUnits(Script.getStructureSelection(expr, structure));
     if (StructureElement.Loci.isEmpty(loci)) throw new Error(`Mol* script atom not found: ${JSON.stringify(atom)}`);
     return loci;
+}
+
+async function parseStructure(plugin, data) {
+    const trajectory = await plugin.builders.structure.parseTrajectory(data, 'mmcif');
+    const model = await plugin.builders.structure.createModel(trajectory, { modelIndex: 0 });
+    const structure = await plugin.builders.structure.createStructure(model, { name: 'model', params: {} });
+    await SecondaryStructureProvider.attach({ runtime: RuntimeContext.Synchronous, assetManager: plugin.managers.asset }, structure.data);
+    return structure;
 }
 
 // Each entry is literal Mol* input; an unknown kind is an error, never skipped.
@@ -61,6 +96,11 @@ async function applyScript(plugin, object, entries) {
 
 async function execute(request, bytes) {
     const { catalog, fixture, recipe } = request;
+    if (fixture.format === 'mrc' &&
+        (!Array.isArray(request.voxel_to_world) || request.voxel_to_world.length !== 16 ||
+        !request.voxel_to_world.every(Number.isFinite))) {
+        throw new Error('MRC comparison requires the canonical voxel-to-world affine');
+    }
     const [width, height] = catalog.extent;
     const settings = catalog.recipe_settings[recipe];
     const canvas = PD.getDefaultValues(Canvas3DParams);
@@ -87,32 +127,61 @@ async function execute(request, bytes) {
         const gl = webgl.gl;
         if (!webgl.isWebGL2) throw new Error('WebGL2 required; WebGL1 fallback refused');
         const data = await plugin.builders.data.rawData({ data: fixture.format === 'mrc' ? bytes : new TextDecoder().decode(bytes) });
-        let object, metadata, representation;
-        if (fixture.format === 'mrc') {
+        let object, metadata, representation, categoricalMaps;
+        if (fixture.segmentations) {
+            categoricalMaps = await segmentation.prepare(plugin, data, fixture, request.voxel_to_world);
+            metadata = {
+                dimensions: categoricalMaps[0].object.data.grid.cells.space.dimensions,
+                segmentation_thresholds: fixture.segmentation_thresholds,
+                segmentations: categoricalMaps.map(({ spec, counts, matrix }) => ({ name: spec.name, label_counts: counts, voxel_to_world: matrix })),
+                representation_policy: "Mol* native segment surfaces; not optical ray-volume equivalence",
+            };
+        } else if (fixture.format === 'mrc') {
             object = (await Ccp4Provider.parse(plugin, data)).volume;
             const grid = object.data.grid;
+            const parsedTransform = grid.transform;
+            const correction = Mat4.mul(Mat4(), request.voxel_to_world,
+                Mat4.invert(Mat4(), Grid.getGridToCartesianTransform(grid)));
+            object = await plugin.build().to(object).apply(StateTransforms.Volume.VolumeTransform,
+                { transform: { name: 'matrix', params: { data: correction, transpose: false } } }).commit();
+            const canonicalGrid = object.data.grid;
+            // These fixtures are finite scalar grids, not periodic crystal maps.
+            canonicalGrid.periodicity = 'none';
             metadata = { dimensions: grid.cells.space.dimensions, voxels: grid.cells.data.length,
-                value_range: [grid.stats.min, grid.stats.max], affine: grid.transform,
-                affine_provenance: 'Mol* CCP4 parser from hashed file' };
+                value_range: [grid.stats.min, grid.stats.max], affine: canonicalGrid.transform,
+                parsed_affine: parsedTransform, periodicity: canonicalGrid.periodicity,
+                affine_provenance: 'MolFrame canonical affine supplied to Mol* matrix grid; unmodified CCP4 scalar values' };
         } else {
-            const trajectory = await plugin.builders.structure.parseTrajectory(data, 'mmcif');
-            const model = await plugin.builders.structure.createModel(trajectory, { modelIndex: 0 });
-            object = await plugin.builders.structure.createStructure(model, { name: 'model', params: {} });
+            object = await parseStructure(plugin, data);
             const structure = object.data;
-            await SecondaryStructureProvider.attach({ runtime: RuntimeContext.Synchronous, assetManager: plugin.managers.asset }, structure);
             const assignments = SecondaryStructureProvider.get(structure).value;
             const ss = {}, orders = {}, provenance = {};
+            const secondaryResidues = [], computedDssp = {}, revisedDssp = {};
+            const computedResidues = [], revisedResidues = [];
             let aromatic = 0;
             for (const unit of structure.units) {
                 if (unit.kind !== 0) throw new Error('Coarse unit in atom-only corpus');
-                const residues = new Set();
-                for (const element of unit.elements) residues.add(unit.residueIndex[element]);
+                const residues = new Map();
+                for (const element of unit.elements) residues.set(unit.residueIndex[element], element);
                 const secondary = assignments?.get(unit.invariantId);
-                for (const residue of residues) {
+                const computed = await computeUnitDSSP(unit, DefaultDSSPComputationProps);
+                const revised = await computeUnitDSSP(unit, { oldDefinition: false, oldOrdering: false });
+                for (const [residue, element] of residues) {
                     const flag = secondary ? secondary.type[secondary.getIndex(residue)] : 0;
-                    const f = SecondaryStructureType.Flag;
-                    const code = flag & f.Helix ? 'H' : flag & f.Beta ? 'E' : flag & f.Turn ? 'T' : flag ? 'C' : 'U';
+                    const code = secondaryState(flag, !!secondary, unit, element);
                     ss[code] = (ss[code] || 0) + 1;
+                    const h = unit.model.atomicHierarchy;
+                    const chain = h.chains.label_asym_id.value(unit.chainIndex[element]);
+                    const sequence = h.residues.label_seq_id.value(residue);
+                    const computedCode = secondaryState(computed.type[computed.getIndex(residue)], true, unit, element);
+                    const revisedCode = secondaryState(revised.type[revised.getIndex(residue)], true, unit, element);
+                    computedDssp[computedCode] = (computedDssp[computedCode] || 0) + 1;
+                    revisedDssp[revisedCode] = (revisedDssp[revisedCode] || 0) + 1;
+                    if (sequence > 0) {
+                        secondaryResidues.push([chain, sequence, code]);
+                        computedResidues.push([chain, sequence, computedCode]);
+                        revisedResidues.push([chain, sequence, revisedCode]);
+                    }
                 }
                 const bonds = unit.bonds;
                 for (let i = 0; i < bonds.a.length; i++) {
@@ -127,25 +196,89 @@ async function execute(request, bytes) {
             metadata = { atoms: structure.elementCount, residues: structure.atomicResidueCount, bonds: structure.bondCount,
                 bond_orders: orders, aromatic_bonds: aromatic, bond_provenance: provenance,
                 bond_provenance_encoding: 'Mol* BondType flags for intra-unit bonds; inter-unit total included in bond count',
-                secondary_structure: ss, secondary_structure_policy: 'Mol* auto: model/file or DSSP/Zhang-Skolnick' };
+                secondary_structure: ss, secondary_structure_policy: 'Mol* auto: model/file or DSSP/Zhang-Skolnick',
+                secondary_residues: secondaryResidues,
+                computed_dssp: { policy: "Mol* computeUnitDSSP defaults; oldDefinition=true, oldOrdering=true; per-unit H-bonds", counts: computedDssp, residues: computedResidues },
+                revised_dssp: { policy: "Mol* computeUnitDSSP; oldDefinition=false, oldOrdering=false; per-unit H-bonds", counts: revisedDssp, residues: revisedResidues },
+                secondary_structure_encoding: 'exact Mol* subtype flags; other_beta retained rather than relabelled as strand' };
         }
         metadata.source_sha256 = fixture.sha256;
         const response = { engine: 'molstar', metadata };
         if (request.inspect) return response;
         const style = catalog.style;
         const color = (style.color_rgb[0] << 16) | (style.color_rgb[1] << 8) | style.color_rgb[2];
-        if (fixture.script) {
+        if (categoricalMaps) {
+            representation = await segmentation.representations(plugin, categoricalMaps);
+        } else if (fixture.script) {
             representation = await applyScript(plugin, object, fixture.script.molstar);
         } else if (fixture.format === 'mrc') {
+            if (fixture.form === 'iso_dots' || fixture.form === 'region') {
+                throw new Error('Mol* adapter does not implement exact voxel dots or crop');
+            }
+            const type = fixture.form === 'direct' ? 'direct-volume' : fixture.form === 'slice' ? 'slice' : 'isosurface';
+            const typeParams = type === 'isosurface' ? { isoValue: { kind: 'absolute', absoluteValue: fixture.isovalue }, alpha: fixture.opacity ?? style.opacity, quality: 'highest', visuals: fixture.form === 'iso_mesh' ? ['wireframe'] : ['solid'] } : { alpha: style.opacity, quality: 'highest' };
+            if (fixture.form === 'direct') {
+                const { min, max } = object.data.grid.stats;
+                const scalarEnd = fixture.isovalue * 2;
+                const normalizedEnd = (scalarEnd - min) / (max - min);
+                if (!(normalizedEnd > 0 && normalizedEnd < 1)) throw new Error('Direct-volume reference requires transfer endpoint inside scalar range');
+                typeParams.controlPoints = [[0, 0], [normalizedEnd, 0.8], [1, 0.8]];
+                metadata.optical_transfer = {
+                    scalar_points: [[0, 0], [scalarEnd, 0.8]], color_rgb: style.color_rgb,
+                    reference_control_points: typeParams.controlPoints,
+                    difference: 'Mol* uses Catmull-Rom alpha texture and per-step alpha scaling; native uses piecewise-linear extinction with opacity_scale=2 and step_scale=0.65. These transport laws are not identical.',
+                };
+            }
+            if (fixture.form === 'iso_mesh') {
+                const matrix = request.voxel_to_world;
+                const voxelSize = Math.min(...[0, 1, 2].map(axis => Math.hypot(...matrix.slice(axis * 4, axis * 4 + 3))));
+                const worldWidth = 2 * fixture.line_width_voxels * voxelSize;
+                // Mol* attenuated lines multiply size by five and half the viewport.
+                typeParams.sizeFactor = worldWidth / (5 * Math.tan(fixture.camera.fov_y_degrees * Math.PI / 360));
+                typeParams.lineSizeAttenuation = true;
+                metadata.wireframe_width = { world_angstrom: worldWidth, size_factor: typeParams.sizeFactor, minimum_physical_pixels: 1 };
+            }
+            let colorTheme = 'uniform';
+            let colorParams = { value: color };
+            if (type === 'slice') {
+                Object.assign(typeParams, {
+                    mode: 'plane', plane: { point: fixture.slice_point, normal: fixture.slice_normal },
+                    isoValue: { kind: 'absolute', absoluteValue: 0 },
+                });
+                colorTheme = 'volume-value';
+                colorParams = {
+                    colorList: { kind: 'interpolate', colors: fixture.slice_colors },
+                    domain: { name: 'custom', params: fixture.slice_domain }, isRelative: false,
+                };
+                metadata.slice = { point: fixture.slice_point, normal: fixture.slice_normal, domain: fixture.slice_domain, colors: fixture.slice_colors };
+            }
             representation = await plugin.build().to(object).apply(StateTransforms.Representation.VolumeRepresentation3D,
-                createVolumeRepresentationParams(plugin, object.data, { type: 'isosurface', typeParams: { isoValue: { kind: 'absolute', absoluteValue: fixture.isovalue }, alpha: style.opacity, quality: 'highest' }, color: 'uniform', colorParams: { value: color } })).commit();
+                createVolumeRepresentationParams(plugin, object.data, { type, typeParams, color: colorTheme, colorParams })).commit();
+            if (fixture.structure_file) {
+                const response = await fetch('/structure');
+                if (!response.ok) throw new Error('Hashed overlay structure could not be fetched');
+                const structureData = await plugin.builders.data.rawData({ data: await response.text() });
+                const structure = await parseStructure(plugin, structureData);
+                await plugin.builders.structure.representation.addRepresentation(structure, {
+                    type: 'cartoon', typeParams: { quality: 'highest' },
+                    color: 'uniform', colorParams: { value: 0x59616e } });
+                metadata.overlay_atoms = structure.data.elementCount;
+            }
+
         } else {
             const type = fixture.form === 'ball_and_stick' ? 'ball-and-stick' : fixture.form;
             representation = await plugin.builders.structure.representation.addRepresentation(object, {
                 type, typeParams: { sizeFactor: style.atom_radius_scale, alpha: style.opacity, quality: 'highest', ignoreHydrogens: false },
                 color: 'uniform', colorParams: { value: color }, size: 'physical' });
         }
-        if (!representation?.data) throw new Error('Mol* representation failed');
+        if (!representation?.data) throw new Error('Mol* representation failed: ' + JSON.stringify(plugin.log.entries.toArray().map(entry => entry.message)));
+        if (fixture.form === 'slice') {
+            metadata.slice_geometry = representation.data.repr.renderObjects.map(object => ({
+                position: Array.from(object.values.aPosition?.ref.value ?? []),
+                transform: Array.from(object.values.aTransform?.ref.value ?? []),
+                model: Array.from(object.values.uModel?.ref.value ?? []),
+            }));
+        }
         plugin.canvas3d.commit(true);
         const c = fixture.camera;
         const distance = Math.hypot(...c.position.map((v, i) => v - c.target[i]));

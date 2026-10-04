@@ -1,0 +1,35 @@
+{
+  "status": "verified public domain integration",
+  "units": [
+    "affine volume scene domain with shared source presentations and regions",
+    "independent generational segmentation with exact picks and style-only updates",
+    "one atomic restorable snapshot representation"
+  ],
+  "verification": {
+    "directory": "target/public-domain-verification",
+    "workspace_all_features": "pass",
+    "wasm32_check_and_clippy": "pass",
+    "python_tests": 78,
+    "stubtest": "pass",
+    "browser_tests": 3,
+    "wasm_node_contract_tests": 2,
+    "snapshot_gpu": "snapshot-gpu.json",
+    "native_gpu_regressions": "gpu-regressions.log",
+    "policy_checks": "pass"
+  },
+  "visual_review": [
+    "P2-iso-solid-skewMRC.json",
+    "P2-iso-mesh-model_density.json",
+    "P2-iso-dots-model_density.json",
+    "P2-direct-model_density.json",
+    "P2-slice-model_density.json",
+    "P2-region-model_density.json",
+    "P2-iso-over-cartoon-4HHB.json",
+    "P2-segmentation-two-maps.json"
+  ],
+  "limitations": [
+    "Phase 3\u201311 remain open",
+    "Phase 9 zero steady-state allocations and performance ladder remain open",
+    "No new package version has been published"
+  ]
+}

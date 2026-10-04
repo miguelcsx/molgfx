@@ -124,6 +124,32 @@ impl PySession {
     fn redo(&mut self, py: Python<'_>) -> PyResult<PyCommandResult> {
         self.run(py, &Program::from(command::Command::Redo))
     }
+    /// Captures complete authored scene state under a portable session name.
+    fn snapshot_save(&mut self, py: Python<'_>, name: &str) -> PyResult<PyCommandResult> {
+        let name =
+            command::Name::new(name).map_err(|error| PyValueError::new_err(error.to_string()))?;
+        self.run(py, &Program::from(command::Command::SnapshotSave { name }))
+    }
+
+    /// Restores a named snapshot atomically, with ordinary undo and redo.
+    fn snapshot_restore(&mut self, py: Python<'_>, name: &str) -> PyResult<PyCommandResult> {
+        let name =
+            command::Name::new(name).map_err(|error| PyValueError::new_err(error.to_string()))?;
+        self.run(
+            py,
+            &Program::from(command::Command::SnapshotRestore { name }),
+        )
+    }
+
+    /// Removes a named snapshot without changing the live scene.
+    fn snapshot_remove(&mut self, py: Python<'_>, name: &str) -> PyResult<PyCommandResult> {
+        let name =
+            command::Name::new(name).map_err(|error| PyValueError::new_err(error.to_string()))?;
+        self.run(
+            py,
+            &Program::from(command::Command::SnapshotRemove { name }),
+        )
+    }
 
     #[getter]
     fn can_undo(&self) -> bool {

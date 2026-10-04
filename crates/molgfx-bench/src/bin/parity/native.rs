@@ -1,60 +1,14 @@
 //! Production facade adapter; measurement excludes screenshot readback.
 use super::script;
 use molgfx::profile::MeasuredOutput;
-use molgfx::{Color, ColorSpec, FrameTiming, PassTiming, Renderer, Scene, rep, sel};
-use molgfx_bench::gallery::{Catalog, Fixture, Result, Style};
+use molgfx::{FrameTiming, PassTiming, Renderer};
+use molgfx_bench::gallery::{self, Catalog, Fixture, Result};
 use molgfx_bench::{
     CumulativeTelemetry, FrameSample, HeapMeasurement, measure_heap, profile_metadata_json,
     summarize,
 };
 use serde_json::{Value, json};
-use std::{collections::BTreeMap, io, path::Path};
-
-pub(super) fn structure(fixture: &Fixture, cache: &Path) -> Result<(molframe::Structure, Value)> {
-    if fixture.format == "mrc" {
-        return Err(io::Error::other("standalone affine density requires a volume-only scene and affine VolumeBinding; current facade requires a molecular structure and only exposes origin/spacing").into());
-    }
-    let (structure, diagnostics) =
-        molgfx_bench::reader::read_structure(&cache.join(&fixture.file))?;
-    let mut orders = BTreeMap::<String, usize>::new();
-    let mut provenance = BTreeMap::<String, usize>::new();
-    let mut aromatic = 0;
-    for bond in structure.bonds().iter() {
-        *orders.entry(format!("{:?}", bond.order)).or_default() += 1;
-        *provenance
-            .entry(format!("{:?}", bond.provenance))
-            .or_default() += 1;
-        aromatic += usize::from(bond.order == molframe::BondOrder::Aromatic);
-    }
-    let mut secondary = BTreeMap::<String, usize>::new();
-    for state in structure.secondary_structure() {
-        let code = molgfx::schema::SecondaryStructure::from(*state).name();
-        *secondary.entry(code.into()).or_default() += 1;
-    }
-    let metadata = json!({"atoms":structure.atom_count(),"residues":structure.residue_count(),
-        "bonds":structure.bonds().iter().count(),"bond_orders":orders,"aromatic_bonds":aromatic,
-        "bond_provenance":provenance,"secondary_structure":secondary,
-        "secondary_structure_policy":"MolFrame file assignments or explicit provider fallback","diagnostics":diagnostics});
-    Ok((structure, metadata))
-}
-
-/// The explicit camera of a case at the catalog's aspect ratio.
-pub(super) fn camera(catalog: &Catalog, fixture: &Fixture) -> Result<molgfx::Camera> {
-    let c = &fixture.camera;
-    let aspect = num_traits::ToPrimitive::to_f32(&catalog.extent[0])
-        .ok_or_else(|| io::Error::other("invalid width"))?
-        / num_traits::ToPrimitive::to_f32(&catalog.extent[1])
-            .ok_or_else(|| io::Error::other("invalid height"))?;
-    Ok(molgfx::camera::perspective(
-        c.position,
-        c.target,
-        c.up,
-        c.fov_y_degrees.to_radians(),
-        aspect,
-        c.near,
-        c.far,
-    )?)
-}
+use std::{io, path::Path};
 
 pub(super) fn render(
     catalog: &Catalog,
@@ -64,21 +18,14 @@ pub(super) fn render(
     recipe: &str,
     ffmpeg: Option<&str>,
 ) -> Result<Value> {
-    let (scene, metadata) = if fixture.script.is_some() {
-        script::scene(fixture, cache)?
-    } else {
-        let (structure, metadata) = structure(fixture, cache)?;
-        let mut scene = Scene::from_structure(&structure)?;
-        add_form(&mut scene, &fixture.form, &catalog.style)?;
-        (scene, metadata)
+    let (scene, metadata) = gallery::scene(fixture, cache, &catalog.style)?;
+    let camera = gallery::camera(catalog.extent, &fixture.camera)?;
+    let kind = match recipe {
+        "molgfx-interactive" => MeasuredOutput::Interactive,
+        "molgfx-converged" => MeasuredOutput::Converged,
+        _ => return Err(io::Error::other(format!("unknown native recipe: {recipe}")).into()),
     };
-    let camera = camera(catalog, fixture)?;
-    let kind = if recipe == "molgfx-interactive" {
-        MeasuredOutput::Interactive
-    } else {
-        MeasuredOutput::Converged
-    };
-    let profile = molgfx_bench::gallery::profile(fixture, kind)?;
+    let profile = gallery::profile(fixture, kind)?;
     let mut renderer = Renderer::with_profile(profile)?;
     let size = (catalog.extent[0], catalog.extent[1]);
     let (heap, cold) =
@@ -120,6 +67,7 @@ pub(super) fn render(
     if kind == MeasuredOutput::Converged && !image.quality().complete() {
         return Err(io::Error::other("incomplete native screenshot").into());
     }
+    validate_pixels(image.pixels())?;
     std::fs::write(output.join("image.png"), image.png_bytes()?)?;
     if recipe == "molgfx-converged"
         && let (Some(video), Some(directory)) = (
@@ -149,36 +97,6 @@ pub(super) fn render(
         "physical_settings_equivalent":false,
         "settings_difference":"Facade fixes lighting/environment/radii/effect recipes; external rigs and transport are not identical; no speedup is computed"}),
     )
-}
-
-fn add_form(scene: &mut Scene, form: &str, style: &Style) -> Result<()> {
-    let [r, g, b] = style.color_rgb;
-    let color = ColorSpec::Uniform {
-        color: Color::rgb(r, g, b),
-    };
-    match form {
-        "spacefill" => scene.add(
-            rep::spacefill(sel::all())
-                .radius(style.atom_radius_scale)
-                .color(color)
-                .opacity(style.opacity),
-        )?,
-        "ball_and_stick" => scene.add(
-            rep::ball_and_stick(sel::all())
-                .radius(style.atom_radius_scale)
-                .bond_radius(style.bond_radius_angstrom)
-                .color(color)
-                .opacity(style.opacity),
-        )?,
-        "cartoon" => scene.add(
-            rep::cartoon(sel::all())
-                .width(style.cartoon_width_angstrom)
-                .color(color)
-                .opacity(style.opacity),
-        )?,
-        _ => return Err(io::Error::other("unsupported molecular parity form").into()),
-    };
-    Ok(())
 }
 
 fn validate(timing: &FrameTiming, extent: [u32; 2], kind: MeasuredOutput) -> Result<()> {
@@ -223,3 +141,14 @@ fn telemetry(timing: &FrameTiming) -> CumulativeTelemetry {
         stall_events: c.stall_events,
     }
 }
+
+fn validate_pixels(pixels: &[u8]) -> Result<()> {
+    if pixels.is_empty() || pixels.iter().all(|byte| *byte == 0) {
+        return Err(io::Error::other("native gallery capture contains no visible pixels").into());
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "native_tests.rs"]
+mod tests;

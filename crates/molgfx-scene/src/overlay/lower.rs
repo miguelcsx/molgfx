@@ -11,7 +11,7 @@ use crate::id::{
     AnnotationId, EllipsoidId, InteractionId, MeasurementId, PlaneId, StructureId, TrajectoryId,
     VolumeId,
 };
-use crate::overlay::{Anchor, InteractionSpec, MeasurementSpec, OverlayBindings, VolumeSpec};
+use crate::overlay::{Anchor, InteractionSpec, MeasurementSpec, OverlayBindings};
 use crate::representation::Selection;
 use molgfx_core::{
     AnisotropicEllipsoid, Annotation, AnnotationAnchor, AnnotationHandle, GuideHandle,
@@ -26,6 +26,7 @@ use std::collections::BTreeMap;
 #[derive(Clone, Debug, Default)]
 pub(crate) struct LoweredOverlay {
     pub(crate) volumes: Vec<(VolumeId, VolumeHandle)>,
+    pub(crate) segmentations: Vec<(crate::SegmentationId, molgfx_core::SegmentationHandle)>,
     pub(crate) labels: Vec<(AnnotationId, AnnotationHandle)>,
     pub(crate) measurements: Vec<(MeasurementId, MeasurementHandle)>,
     pub(crate) interactions: Vec<(InteractionId, InteractionHandle)>,
@@ -41,6 +42,7 @@ impl LoweredOverlay {
     pub(crate) fn counts(&self) -> crate::overlay::OverlayHandles {
         crate::overlay::OverlayHandles {
             volumes: self.volumes.len(),
+            segmentations: self.segmentations.len(),
             labels: self.labels.len(),
             measurements: self.measurements.len(),
             interactions: self.interactions.len(),
@@ -79,8 +81,17 @@ pub(crate) fn lower(
     };
 
     for (id, volume) in &spec.volumes {
-        if let Some(handle) = lower_volume(lowering.scene, volume, lowering.bindings)? {
+        if let Some(handle) =
+            super::lower_volume::lower_volume(lowering.scene, volume, lowering.bindings)?
+        {
             lowered.volumes.push((*id, handle));
+        }
+    }
+    for (id, segmentation) in &spec.segmentations {
+        if let Some(handle) =
+            super::lower_segmentation::lower(lowering.scene, segmentation, lowering.bindings)?
+        {
+            lowered.segmentations.push((*id, handle));
         }
     }
 
@@ -272,34 +283,6 @@ fn lower_trajectory(
         .scene
         .set_trajectory_segment(handle, binding.native(atom_count)?)?;
     Ok(Some(handle))
-}
-
-/// Stores nothing for a grid with no runtime binding; the descriptor stays
-/// portable and the item is simply unresolved.
-fn lower_volume(
-    scene: &mut Scene,
-    spec: &VolumeSpec,
-    bindings: &OverlayBindings,
-) -> Result<Option<VolumeHandle>, Error> {
-    let Some(binding) = bindings.volume(&spec.source.content_hash) else {
-        return Ok(None);
-    };
-    binding.matches(spec)?;
-    let volume = scene.add_volume(binding.native()?);
-    let color = spec.color.native();
-    scene.represent(
-        volume,
-        molgfx_core::Representation::volume()
-            .isolevel(spec.isovalue)
-            .volume_style(molgfx_core::VolumeStyle::isosurface().transfer(
-                molgfx_core::VolumeTransferFunction::linear(
-                    [spec.isovalue, spec.isovalue],
-                    color,
-                    color,
-                ),
-            )),
-    )?;
-    Ok(Some(volume))
 }
 
 fn lower_measurement(

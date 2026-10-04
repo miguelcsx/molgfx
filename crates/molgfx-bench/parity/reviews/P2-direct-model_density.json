@@ -1,0 +1,102 @@
+{
+  "case": "P2-direct-model_density",
+  "status": "volume visual checklist and golden verified; phase-wide gates remain open",
+  "items": [
+    {
+      "id": "VOL-4",
+      "verdict": "pass",
+      "owner": "Phase 2.2",
+      "note": "Converged and interactive captures show continuous scalar density with the authored blue transfer, zero extinction at scalar zero and increasing extinction up to scalar one. Mol* reference now authors those endpoints; its spline alpha texture/per-step transport differs explicitly from native extinction integration."
+    }
+  ],
+  "evidence": "target/gallery-direct-transfer-aligned/P2-direct-model_density",
+  "native_384": "target/gallery-volumes-final-384/P2-direct-model_density",
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P2-direct-model_density.png",
+    "extent": [
+      384,
+      384
+    ],
+    "verification": "target/gallery-volumes-final-check/P2-direct-model_density",
+    "ssim": 1,
+    "mean_delta_e": 0,
+    "p99_delta_e": 0
+  },
+  "performance": "Visual correctness review; no cross-engine speedup claim.",
+  "observed_capture_quality": {
+    "adaptive": false,
+    "complete": true,
+    "extent": [
+      384,
+      384
+    ],
+    "full_residency": true,
+    "illumination_bounces": 0,
+    "lighting": {
+      "diffuse_strength": 0.6200000047683716,
+      "fill_color": {
+        "a": 255,
+        "b": 226,
+        "g": 214,
+        "r": 206
+      },
+      "fill_direction": [
+        0.7799999713897705,
+        -0.11999999731779099,
+        0.5
+      ],
+      "fill_strength": 0.30000001192092896,
+      "ground": {
+        "a": 255,
+        "b": 141,
+        "g": 146,
+        "r": 150
+      },
+      "horizon": {
+        "a": 255,
+        "b": 202,
+        "g": 194,
+        "r": 188
+      },
+      "key_angular_radius": 0.20000000298023224,
+      "key_color": {
+        "a": 255,
+        "b": 230,
+        "g": 244,
+        "r": 255
+      },
+      "key_direction": [
+        -0.41999998688697815,
+        0.5799999833106995,
+        0.699999988079071
+      ],
+      "key_strength": 1.350000023841858,
+      "rim_color": {
+        "a": 255,
+        "b": 152,
+        "g": 132,
+        "r": 120
+      },
+      "rim_strength": 0.1599999964237213,
+      "shadow_strength": 0.6600000262260437,
+      "specular_strength": 0.7200000286102295,
+      "zenith": {
+        "a": 255,
+        "b": 240,
+        "g": 232,
+        "r": 226
+      }
+    },
+    "lod_mode_max": 0,
+    "occlusion_rays_per_sample": 4,
+    "progressive": false,
+    "ribbon_steps_max": 8,
+    "samples_completed": 64,
+    "samples_required": 64,
+    "samples_submitted": 64,
+    "surface_limit": "none",
+    "surface_spacing_effective": null,
+    "surface_spacing_requested": 0.25,
+    "tier": "high"
+  }
+}

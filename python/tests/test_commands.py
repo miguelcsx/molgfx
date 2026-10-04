@@ -195,5 +195,56 @@ class SessionTests(unittest.TestCase):
         self.assertIn("show", [verb[0] for verb in verbs])
 
 
+class SnapshotTests(unittest.TestCase):
+    """Named scene captures restore actual authored state and participate in history."""
+
+    def test_snapshot_restore_and_undo_recover_styles_overlays_and_camera(self) -> None:
+        session = Session(_structure())
+        session.execute('show spacefill as atoms; color red, chain A; label "saved", chain A')
+        session.scene.set_camera(session.scene.frame(molgfx.sel.all()))
+        session.snapshot_save("initial")
+        initial = self.authored(session)
+        session.execute('hide @atoms; color blue, chain A; label "changed", chain B')
+        session.scene.set_camera(None)
+        changed = self.authored(session)
+        revision = session.scene.revision
+        result = session.snapshot_restore("initial")
+        self.assertEqual(_operations(result), ["restore_snapshot"])
+        self.assertEqual(session.scene.revision, revision + 1)
+        self.assertEqual(self.authored(session), initial)
+        session.undo()
+        self.assertEqual(self.authored(session), changed)
+        session.redo()
+        self.assertEqual(self.authored(session), initial)
+
+    def test_snapshot_names_survive_session_json_and_remove_is_undoable(self) -> None:
+        session = Session(_structure())
+        session.snapshot_save("initial")
+        saved = session.to_json()
+        session.snapshot_remove("initial")
+        with self.assertRaises(CommandError):
+            session.snapshot_restore("initial")
+        session.undo()
+        self.assertEqual(session.to_json(), saved)
+        restored = Session.from_json(session.scene, saved)
+        restored.snapshot_restore("initial")
+
+    def test_unknown_snapshot_and_invalid_program_leave_both_states_unchanged(self) -> None:
+        session = Session(_structure())
+        scene_before = session.scene.to_json()
+        names_before = session.to_json()
+        with self.assertRaises(CommandError):
+            session.execute("snapshot save first; snapshot restore absent")
+        self.assertEqual(session.scene.to_json(), scene_before)
+        self.assertEqual(session.to_json(), names_before)
+
+    @staticmethod
+    def authored(session: Session) -> dict[str, object]:
+        """Ignore the deliberately monotonic revision when comparing authored state."""
+        state = cast("dict[str, object]", json.loads(session.scene.to_json()))
+        state.pop("revision")
+        return state
+
+
 if __name__ == "__main__":
     unittest.main()

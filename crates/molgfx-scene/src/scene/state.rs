@@ -27,6 +27,8 @@ pub struct Scene {
     pub(super) appearance: crate::scene::appearance::AppearanceColumns,
     pub(super) next_structure: u64,
     pub(super) next_representation: u64,
+    /// Immutable bindings removed by a restore, retained for inverse and redo.
+    pub(super) snapshot_bindings: super::snapshot::SnapshotBindings,
 }
 
 pub(crate) struct Resolution {

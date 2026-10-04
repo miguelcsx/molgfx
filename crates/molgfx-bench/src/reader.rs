@@ -1,13 +1,35 @@
-//! Structure reading for the benchmark harness.
+//! Canonical molecular and scalar-grid inputs for the benchmark harness.
 //!
 //! One parse decision for the crate: recover past a malformed row rather than
 //! refusing the file, and read only the first model so a multi-model entry
 //! measures the state it deposits.
 
+use num_traits::ToPrimitive as _;
 use std::error::Error;
 use std::io;
 use std::path::Path;
 use std::sync::Arc;
+
+/// Reads a scalar grid and its canonical column-major voxel-to-world affine.
+///
+/// # Errors
+/// Returns an error for an unreadable map or an affine outside f32 range.
+pub fn read_density_map(
+    path: &Path,
+) -> Result<(molframe::crystal::DensityMap, [f32; 16]), Box<dyn Error>> {
+    let map = molframe::crystal::DensityMap::from_mrc_bytes(&std::fs::read(path)?)?;
+    let source_affine = map.voxel_to_world()?;
+    let mut affine = [0.0; 16];
+    for column in 0..4 {
+        for row in 0..4 {
+            affine[column * 4 + row] = source_affine[row][column]
+                .to_f32()
+                .filter(|value| value.is_finite())
+                .ok_or_else(|| io::Error::other("MRC affine exceeds f32"))?;
+        }
+    }
+    Ok((map, affine))
+}
 
 /// Reads one structure, recovering past diagnostics.
 ///

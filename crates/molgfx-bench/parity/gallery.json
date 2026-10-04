@@ -118,6 +118,34 @@
         "denoise": true
       }
     },
+    "pymol-raster": {
+      "orthoscopic": 0,
+      "antialias": 4,
+      "ray_trace_mode": 0,
+      "ray_shadows": 1,
+      "ambient": 0.4,
+      "direct": 0.6,
+      "specular": 0.5,
+      "shininess": 40,
+      "light": [
+        -0.4,
+        0.5,
+        1
+      ],
+      "light_count": 1,
+      "depth_cue": 0,
+      "fog": 0,
+      "opaque_background": 1,
+      "bg_rgb": [
+        0,
+        0,
+        0
+      ],
+      "cif_use_auth": 0,
+      "sphere_quality": 4,
+      "stick_quality": 32,
+      "cartoon_sampling": 32
+    },
     "pymol-ray": {
       "orthoscopic": 0,
       "antialias": 4,
@@ -160,6 +188,7 @@
     "molgfx-converged",
     "molgfx-interactive",
     "pymol-ray",
+    "pymol-raster",
     "molstar-imagepass"
   ],
   "fixtures": [
@@ -290,6 +319,144 @@
           "CT-6",
           "SS-2",
           "SS-3"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P1-ss-palette-1AON",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color secondary_structure, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "color red, ss h",
+          "color yellow, ss s",
+          "color green, ss l+''"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "secondary-structure",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "SS-1",
+          "SS-2",
+          "SS-3",
+          "SS-4"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "7QPD.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/7QPD.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb7QPD/pdb",
+      "sha256": "6cd4e30194caf887b75198e04e7e9afcce1445ec28aa331f6b38c8d323627104",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P1-ss-palette-7QPD",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color secondary_structure, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "color red, ss h",
+          "color yellow, ss s",
+          "color green, ss l+''"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "secondary-structure",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "SS-1",
+          "SS-2",
+          "SS-3",
+          "SS-4"
         ],
         "fit": {
           "selection": "all",
@@ -3021,6 +3188,328 @@
       }
     },
     {
+      "category": "analytic_field",
+      "file": "skew.mrc",
+      "format": "mrc",
+      "generator": "world_gaussian",
+      "skew": true,
+      "dimensions": [
+        32,
+        32,
+        32
+      ],
+      "cell_lengths": [
+        32,
+        32,
+        32
+      ],
+      "cell_angles": [
+        90,
+        90,
+        70
+      ],
+      "origin": [
+        -16,
+        -16,
+        -16
+      ],
+      "isovalue": 0.35,
+      "analytic_formula": "exp(-(x*x+y*y+z*z)/32), world coordinates in angstrom",
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "sha256": "c2db0cfc0cba899f276d0c2146094c3af4f2e1643b17e9fd272756a29c202853",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          24
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-iso-solid-skewMRC",
+      "form": "isosurface",
+      "checklist": [
+        "VOL-2"
+      ]
+    },
+    {
+      "category": "model_density",
+      "file": "model_density.mrc",
+      "format": "mrc",
+      "generator": "model_density",
+      "structure": "4HHB.cif",
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "isovalue": 0.5,
+      "sha256": "a9e7f880f4e4421992b5ce075000c5470a499625f9e996dfaf3ece8840860731",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          160
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-iso-mesh-model_density",
+      "form": "iso_mesh",
+      "checklist": [
+        "VOL-3"
+      ],
+      "line_width_voxels": 0.1
+    },
+    {
+      "category": "model_density",
+      "file": "model_density.mrc",
+      "format": "mrc",
+      "generator": "model_density",
+      "structure": "4HHB.cif",
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "isovalue": 0.5,
+      "sha256": "a9e7f880f4e4421992b5ce075000c5470a499625f9e996dfaf3ece8840860731",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          160
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-iso-dots-model_density",
+      "form": "iso_dots",
+      "checklist": [
+        "VOL-3"
+      ],
+      "dot_radius_voxels": 0.16,
+      "omissions": {
+        "molstar-imagepass": "Mol* adapter has no exact iso_dots presentation for this case."
+      }
+    },
+    {
+      "category": "model_density",
+      "file": "model_density.mrc",
+      "format": "mrc",
+      "generator": "model_density",
+      "structure": "4HHB.cif",
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "isovalue": 0.5,
+      "sha256": "a9e7f880f4e4421992b5ce075000c5470a499625f9e996dfaf3ece8840860731",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          160
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-direct-model_density",
+      "form": "direct",
+      "checklist": [
+        "VOL-4"
+      ],
+      "omissions": {
+        "pymol-ray": "PyMOL 3.1 experimental ray_volume does not produce an image for this map; use pymol-raster for volume comparison."
+      }
+    },
+    {
+      "category": "model_density",
+      "file": "model_density.mrc",
+      "format": "mrc",
+      "generator": "model_density",
+      "structure": "4HHB.cif",
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "isovalue": 0.5,
+      "sha256": "a9e7f880f4e4421992b5ce075000c5470a499625f9e996dfaf3ece8840860731",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          160
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-slice-model_density",
+      "form": "slice",
+      "checklist": [
+        "VOL-5"
+      ],
+      "slice_point": [
+        10.770298331975937,
+        13.442623138427734,
+        40.59999930858612
+      ],
+      "slice_normal": [
+        0,
+        0,
+        1
+      ],
+      "slice_domain": [
+        0,
+        1
+      ],
+      "slice_colors": [
+        4456788,
+        4728952,
+        4082057,
+        3238030,
+        2523790,
+        2072201,
+        3520377,
+        7261784,
+        11918891,
+        16639781
+      ]
+    },
+    {
+      "category": "model_density",
+      "file": "model_density.mrc",
+      "format": "mrc",
+      "generator": "model_density",
+      "structure": "4HHB.cif",
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "isovalue": 0.5,
+      "sha256": "a9e7f880f4e4421992b5ce075000c5470a499625f9e996dfaf3ece8840860731",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          160
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-region-model_density",
+      "form": "region",
+      "checklist": [
+        "VOL-6"
+      ],
+      "omissions": {
+        "pymol-ray": "PyMOL has no exact voxel-region crop for this case.",
+        "pymol-raster": "PyMOL has no exact voxel-region crop for this case.",
+        "molstar-imagepass": "Mol* adapter has no exact voxel-region crop for this case."
+      }
+    },
+    {
+      "category": "model_density",
+      "file": "model_density.mrc",
+      "format": "mrc",
+      "generator": "model_density",
+      "structure": "4HHB.cif",
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "isovalue": 0.5,
+      "sha256": "a9e7f880f4e4421992b5ce075000c5470a499625f9e996dfaf3ece8840860731",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          160
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-iso-over-cartoon-4HHB",
+      "form": "isosurface",
+      "checklist": [
+        "VOL-1",
+        "VOL-2"
+      ],
+      "structure_file": "4HHB.cif",
+      "opacity": 0.45
+    },
+    {
       "category": "large_protein",
       "file": "1AON.cif",
       "format": "mmcif",
@@ -3082,7 +3571,8 @@
         }
       },
       "omissions": {
-        "pymol-ray": "PyMOL 3.1 has no equivalent bloom presentation effect; effect parity is omitted."
+        "pymol-ray": "PyMOL 3.1 has no equivalent bloom presentation effect; effect parity is omitted.",
+        "pymol-raster": "PyMOL 3.1 has no equivalent bloom presentation effect; effect parity is omitted."
       }
     },
     {
@@ -3210,7 +3700,8 @@
         }
       },
       "omissions": {
-        "pymol-ray": "PyMOL 3.1 has no equivalent dof presentation effect; effect parity is omitted."
+        "pymol-ray": "PyMOL 3.1 has no equivalent dof presentation effect; effect parity is omitted.",
+        "pymol-raster": "PyMOL 3.1 has no equivalent dof presentation effect; effect parity is omitted."
       }
     },
     {
@@ -3281,6 +3772,7 @@
       },
       "omissions": {
         "pymol-ray": "PyMOL 3.1 has no equivalent motion_blur presentation effect; effect parity is omitted.",
+        "pymol-raster": "PyMOL 3.1 has no equivalent motion_blur presentation effect; effect parity is omitted.",
         "molstar-imagepass": "Mol* ImagePass has no equivalent motion_blur presentation effect; effect parity is omitted."
       }
     },
@@ -3477,6 +3969,7 @@
       },
       "omissions": {
         "pymol-ray": "PyMOL 3.1 has no equivalent shape_cues presentation effect; effect parity is omitted.",
+        "pymol-raster": "PyMOL 3.1 has no equivalent shape_cues presentation effect; effect parity is omitted.",
         "molstar-imagepass": "Mol* ImagePass has no equivalent shape_cues presentation effect; effect parity is omitted."
       }
     },
@@ -3662,6 +4155,139 @@
           "margin": 1.15
         }
       }
+    },
+    {
+      "category": "analytic_field",
+      "file": "skew.mrc",
+      "format": "mrc",
+      "generator": "world_gaussian",
+      "skew": true,
+      "dimensions": [
+        32,
+        32,
+        32
+      ],
+      "cell_lengths": [
+        32,
+        32,
+        32
+      ],
+      "cell_angles": [
+        90,
+        90,
+        70
+      ],
+      "origin": [
+        -16,
+        -16,
+        -16
+      ],
+      "isovalue": 0.35,
+      "analytic_formula": "exp(-(x*x+y*y+z*z)/32), world coordinates in angstrom",
+      "license": "MIT",
+      "license_url": "../../../LICENSE",
+      "sha256": "c2db0cfc0cba899f276d0c2146094c3af4f2e1643b17e9fd272756a29c202853",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          80
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-segmentation-two-maps",
+      "form": "script",
+      "script": {
+        "molgfx": [],
+        "pymol": [],
+        "molstar": [],
+        "checklist": [
+          "SEG-1",
+          "SEG-2"
+        ],
+        "fit": null,
+        "video": null
+      },
+      "segmentation_thresholds": [
+        0.05,
+        0.2,
+        0.5
+      ],
+      "segmentations": [
+        {
+          "name": "left",
+          "translation": [
+            -10,
+            0,
+            0
+          ],
+          "styles": [
+            {
+              "label": 1,
+              "color_rgb": [
+                220,
+                50,
+                40
+              ],
+              "opacity": 0.8,
+              "visible": true
+            },
+            {
+              "label": 2,
+              "color_rgb": [
+                240,
+                170,
+                40
+              ],
+              "opacity": 0.3,
+              "visible": true
+            }
+          ]
+        },
+        {
+          "name": "right",
+          "translation": [
+            10,
+            0,
+            0
+          ],
+          "styles": [
+            {
+              "label": 1,
+              "color_rgb": [
+                40,
+                100,
+                230
+              ],
+              "opacity": 0.8,
+              "visible": true
+            },
+            {
+              "label": 2,
+              "color_rgb": [
+                40,
+                200,
+                170
+              ],
+              "opacity": 0.3,
+              "visible": false
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 #[derive(Default)]
 pub(super) struct OverlayDomains {
     pub(super) volumes: Option<BTreeMap<VolumeId, VolumeSpec>>,
+    pub(super) segmentations: Option<BTreeMap<crate::SegmentationId, crate::SegmentationSpec>>,
     pub(super) annotations: Option<BTreeMap<AnnotationId, AnnotationSpec>>,
     pub(super) measurements: Option<BTreeMap<MeasurementId, MeasurementSpec>>,
     pub(super) interactions: Option<BTreeMap<InteractionId, InteractionSpec>>,

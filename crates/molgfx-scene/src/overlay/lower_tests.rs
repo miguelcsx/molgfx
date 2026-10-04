@@ -10,7 +10,11 @@ fn bound_volume_lowers_to_a_real_renderer_handle() {
     let mut scene = Scene::from_structure(&two_chains()).unwrap_or_else(|error| panic!("{error}"));
     let source = DataSource::new("density");
     let _ = scene
-        .add(density::volume(source.clone(), [2, 2, 2]).isovalue(2.5))
+        .add(density::volume(source.clone(), [2, 2, 2]).isosurface(
+            2.5,
+            crate::Color::rgb(49, 104, 142),
+            1.0,
+        ))
         .unwrap_or_else(|error| panic!("{error}"));
     let values: Arc<[f32]> = (0_u8..8).map(f32::from).collect();
     scene

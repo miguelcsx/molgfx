@@ -84,6 +84,11 @@ impl Session {
                         .map_or_else(String::new, |verb| verb.synopsis.to_owned())
                 }),
                 Some("focus") => self.query(&mut out, word),
+                Some("segment") if head.split_whitespace().count() == 1 => {
+                    vocabulary(&mut out, word, ["style"].into_iter(), "keyword", |_| {
+                        "replace a segmentation style table".to_owned()
+                    });
+                }
                 Some(_) if after_comma => self.query(&mut out, word),
                 Some("show") => show(&mut out, head, word),
                 Some("color") if head.split_whitespace().count() == 1 => {
@@ -93,6 +98,16 @@ impl Session {
                 }
                 Some("hide" | "remove" | "opacity") => self.names(&mut out, word, "@", "layer"),
                 Some("unselect") => self.names(&mut out, word, "", "selection"),
+                Some("snapshot") if head.split_whitespace().count() == 1 => {
+                    vocabulary(
+                        &mut out,
+                        word,
+                        ["save", "restore", "remove"].into_iter(),
+                        "keyword",
+                        |_| String::new(),
+                    );
+                }
+                Some("snapshot") => self.names(&mut out, word, "", "snapshot"),
                 Some(_) if head.split_whitespace().last() == Some("in") => {
                     self.names(&mut out, word, "", "structure");
                 }
@@ -120,6 +135,11 @@ impl Session {
                         format!("{} of {}", layer.form.kind().name(), layer.target),
                     )
                 })
+                .collect(),
+            "snapshot" => spec
+                .snapshots
+                .iter()
+                .map(|(name, snapshot)| (name, snapshot.content_hash.to_string()))
                 .collect(),
             _ => spec
                 .structures

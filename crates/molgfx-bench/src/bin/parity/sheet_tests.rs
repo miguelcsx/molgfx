@@ -27,3 +27,16 @@ fn a_missing_recipe_image_becomes_a_mid_grey_tile_of_the_case_extent() {
     assert_eq!((sheet.0, sheet.1), (2 + GAP + 3, 2));
     assert_eq!(pixel(&sheet, 2 + GAP, 1), MISSING_GREY);
 }
+
+#[test]
+fn an_all_omitted_selection_has_no_sheet_to_encode() {
+    assert!(
+        write(
+            Path::new("/nonexistent/molgfx-parity-sheet"),
+            &[],
+            [768, 768]
+        )
+        .expect("no recipes do not touch the filesystem")
+        .is_empty()
+    );
+}

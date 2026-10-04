@@ -1,7 +1,7 @@
 //! Runtime bulk data for overlay descriptors, and renderer-handle inspection.
 
 use crate::{DataSource, Error, VolumeSpec};
-use molgfx_math::Vec3;
+use molgfx_math::Mat4;
 use num_traits::ToPrimitive as _;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -14,8 +14,7 @@ use std::sync::Arc;
 pub struct VolumeBinding {
     source: DataSource,
     dimensions: [u32; 3],
-    spacing: [f32; 3],
-    origin: [f32; 3],
+    voxel_to_world: [f32; 16],
     values: Arc<[f32]>,
 }
 
@@ -26,24 +25,33 @@ impl VolumeBinding {
         Self {
             source,
             dimensions,
-            spacing: [1.0; 3],
-            origin: [0.0; 3],
+            voxel_to_world: Mat4::IDENTITY.to_cols_array(),
             values,
         }
     }
 
-    /// Sets positive voxel spacing in ångström.
+    /// Sets the column-major voxel-to-world mapping without losing skew.
     #[must_use]
-    pub fn spacing(mut self, spacing: [f32; 3]) -> Self {
-        self.spacing = spacing;
+    pub fn affine(mut self, affine: [f32; 16]) -> Self {
+        self.voxel_to_world = affine;
         self
     }
 
-    /// Sets the world-space grid origin in ångström.
-    #[must_use]
-    pub fn origin(mut self, origin: [f32; 3]) -> Self {
-        self.origin = origin;
-        self
+    /// Builds a voxel basis from an origin, axis lengths and cell angles.
+    ///
+    /// # Errors
+    /// Returns an error for non-finite or degenerate cell geometry.
+    pub fn from_cell(
+        self,
+        origin: [f32; 3],
+        spacing: [f32; 3],
+        cell_angles_deg: [f32; 3],
+    ) -> Result<Self, Error> {
+        Ok(self.affine(super::volume_spec::cell_affine(
+            origin,
+            spacing,
+            cell_angles_deg,
+        )?))
     }
 
     pub(crate) fn content_hash(&self) -> &str {
@@ -55,8 +63,7 @@ impl VolumeBinding {
         // Bit-exact agreement, not approximate: the descriptor promises these
         // numbers and the grid is the data that must satisfy them.
         if self.dimensions != spec.dimensions
-            || !same_bits(self.spacing, spec.spacing)
-            || !same_bits(self.origin, spec.origin)
+            || !same_bits(self.voxel_to_world, spec.voxel_to_world)
         {
             return Err(Error::InvalidSpec(format!(
                 "density source '{}' does not match its descriptor",
@@ -74,19 +81,14 @@ impl VolumeBinding {
                 product.checked_mul(u64::from(dimension))
             })
             .and_then(|voxels| usize::try_from(voxels).ok());
-        let spacing_is_valid = self
-            .spacing
-            .iter()
-            .all(|value| value.is_finite() && *value > 0.0);
+        super::volume_spec::validate_affine(self.voxel_to_world)?;
         if self.content_hash().trim().is_empty()
             || self.dimensions.iter().any(|dimension| *dimension < 2)
-            || !spacing_is_valid
-            || !self.origin.iter().all(|value| value.is_finite())
             || voxels != Some(self.values.len())
             || self.values.iter().any(|value| !value.is_finite())
         {
             return Err(Error::InvalidSpec(
-                "volume binding requires a content hash, a grid of at least two voxels per axis, positive finite spacing, a finite origin, and one finite value per voxel"
+                "volume binding requires a content hash, a grid of at least two voxels per axis, a finite affine matrix, and one finite value per voxel"
                     .to_owned(),
             ));
         }
@@ -94,10 +96,9 @@ impl VolumeBinding {
     }
 
     pub(crate) fn native(&self) -> Result<molgfx_core::ScalarVolume, Error> {
-        Ok(molgfx_core::ScalarVolume::from_spacing(
+        Ok(molgfx_core::ScalarVolume::new(
             self.dimensions,
-            Vec3::from_array(self.origin),
-            Vec3::from_array(self.spacing),
+            Mat4::from_cols_array(&self.voxel_to_world),
             Arc::clone(&self.values),
         )?)
     }
@@ -106,7 +107,6 @@ impl VolumeBinding {
 /// Statistics recorded for a density map, used to convert sigma controls into values.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct VolumeStatistics {
-    /// Mean value of the density map.
     /// Mean value of the density map.
     pub mean: f32,
     /// Population standard deviation of the density map.
@@ -331,10 +331,28 @@ impl TrajectoryBinding {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct OverlayBindings {
     volumes: BTreeMap<Box<str>, VolumeBinding>,
+    segmentations: BTreeMap<Box<str>, super::SegmentationBinding>,
     trajectories: BTreeMap<Box<str>, TrajectoryBinding>,
 }
 
 impl OverlayBindings {
+    pub(crate) fn insert_segmentation(
+        &mut self,
+        binding: super::SegmentationBinding,
+    ) -> Result<(), Error> {
+        let key: Box<str> = binding.content_hash().into();
+        if self.segmentations.contains_key(&key) {
+            return Err(Error::InvalidSpec(format!(
+                "segmentation source '{key}' is already bound"
+            )));
+        }
+        let _ = self.segmentations.insert(key, binding);
+        Ok(())
+    }
+    pub(crate) fn segmentation(&self, content_hash: &str) -> Option<&super::SegmentationBinding> {
+        self.segmentations.get(content_hash)
+    }
+
     /// Registers one density grid under its portable content hash.
     ///
     /// # Errors
@@ -390,6 +408,8 @@ impl OverlayBindings {
 pub struct OverlayHandles {
     /// Density grids resolved against a runtime binding.
     pub volumes: usize,
+    /// Categorical grids resolved against a runtime binding.
+    pub segmentations: usize,
     /// Labels stored as annotations.
     pub labels: usize,
     /// Geometry-backed measurements.
@@ -411,6 +431,6 @@ pub struct OverlayHandles {
 ///
 /// Descriptor agreement is exact by contract; `-0.0` and `0.0` are treated as
 /// different so a signed origin cannot pass unnoticed.
-fn same_bits(left: [f32; 3], right: [f32; 3]) -> bool {
+fn same_bits(left: [f32; 16], right: [f32; 16]) -> bool {
     left.map(f32::to_bits) == right.map(f32::to_bits)
 }

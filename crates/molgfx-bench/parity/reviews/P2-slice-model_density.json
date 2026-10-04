@@ -1,0 +1,54 @@
+{
+  "case": "P2-slice-model_density",
+  "status": "visual semantics and golden verified; Phase 2.2 integration gates remain open",
+  "items": [
+    {
+      "id": "VOL-5",
+      "verdict": "pass",
+      "owner": "Phase 2.2",
+      "note": "All engines sample the same finite affine grid on the world-Z plane through its nodal centre. Peaks and purple/teal/yellow ordering agree. Native scalar interpolation has smooth boundaries; reference filtering and PyMOL legend differ."
+    }
+  ],
+  "plane": {
+    "point": [
+      10.770298331975937,
+      13.442623138427734,
+      40.59999930858612
+    ],
+    "normal": [
+      0,
+      0,
+      1
+    ]
+  },
+  "palette": {
+    "name": "Viridis",
+    "stops": 10,
+    "domain": [
+      0,
+      1
+    ]
+  },
+  "evidence": "target/gallery-slice-canonical-finite/P2-slice-model_density",
+  "reference_notes": [
+    "Mol* VolumeTransform authors the canonical MolFrame affine; finite-grid periodicity is explicitly none, preventing Slice from reconstructing a translated map as a periodic origin-zero cell.",
+    "PyMOL Slice retains its map-local geometry. Applying the map object transform to the slice restores the canonical world placement.",
+    "Reference colours use all ten evenly spaced palette anchors; native HDR slice colours are scene-linear."
+  ],
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P2-slice-model_density.png",
+    "extent": [
+      384,
+      384
+    ],
+    "verification_evidence": "target/gallery-slice-golden-check/P2-slice-model_density",
+    "ssim": 1,
+    "mean_delta_e": 0,
+    "p99_delta_e": 0
+  },
+  "tests": [
+    "crates/molgfx-wgpu/tests/gpu_volume_color_tests.rs",
+    "crates/molgfx-core/src/serialization/asset_serialization_tests.rs::exact_slice_palettes_survive_rehydration_and_invalid_opacity_is_rejected"
+  ],
+  "performance": "Correctness and visual review; no optimization claim."
+}

@@ -4,6 +4,7 @@ import collections
 import ctypes
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import time
@@ -90,6 +91,40 @@ def image_evidence(path, extent, background):
     }
 
 
+def segment_labels(field, thresholds):
+    import numpy as np
+
+    low, middle, high = np.asarray(thresholds, dtype=np.float32)
+    return np.select([field >= high, field >= middle, field >= low], [1, 2, 3], default=0)
+
+
+def segmentation_surfaces(request, labels):
+    """Project each visible categorical label to a binary-mask surface."""
+    bounds = []
+    for index, spec in enumerate(request["fixture"]["segmentations"]):
+        x, y, z = spec["translation"]
+        matrix = [1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z, 0, 0, 0, 1]
+        for style in spec["styles"]:
+            if not style["visible"] or style["opacity"] == 0:
+                continue
+            name = f"segment_{index}_{style['label']}"
+            map_name = name + "_map"
+            cmd.load(request["path"], map_name)
+            # Assign immediately while the map owns this borrowed memory. No
+            # PyMOL command may invalidate the array before it is released.
+            field = cmd.get_volume_field(map_name, state=1, copy=0)
+            field[...] = labels == style["label"]
+            del field
+            cmd.transform_object(map_name, matrix, homogenous=1)
+            cmd.isosurface(name, map_name, 0.5)
+            bounds.append({"surface": name, "bounds": cmd.get_extent(name)})
+            cmd.set_color(name + "_color", [value / 255 for value in style["color_rgb"]])
+            cmd.color(name + "_color", name)
+            cmd.set("transparency", 1 - style["opacity"], name)
+            cmd.hide("everything", map_name)
+    return bounds
+
+
 def main():
     request = json.loads(Path(os.environ["MOLGFX_PARITY_REQUEST"]).read_text())
     catalog, fixture = request["catalog"], request["fixture"]
@@ -113,6 +148,10 @@ def main():
         )
     elif effect not in {None, "bloom_control"}:
         raise ValueError(f"unknown reference effect: {effect}")
+    if fixture["format"] == "mrc":
+        # Isovalues and segmentation thresholds name the caller's raw field.
+        # PyMOL otherwise rescales CCP4 data to standard deviations on load.
+        cmd.set("normalize_ccp4_maps", 0)
     # No engine-specific selection grammar: all source rows, first model only.
     cmd.load(request["path"], "fixture")
     cmd.frame(1)
@@ -124,14 +163,23 @@ def main():
                 "dimensions": list(field.shape),
                 "voxels": int(field.size),
                 "value_range": [float(field.min()), float(field.max())],
+                "normalization": "raw caller values; normalize_ccp4_maps disabled before load",
                 "affine_provenance": "PyMOL CCP4 loader from hashed file",
             }
         )
+        if fixture.get("segmentations"):
+            labels = segment_labels(field, fixture["segmentation_thresholds"])
+            metadata.update(
+                segmentation_thresholds=fixture["segmentation_thresholds"],
+                segmentations=fixture["segmentations"],
+                label_counts=[int((labels == label).sum()) for label in range(4)],
+                representation_policy="PyMOL binary-mask segment surfaces; not optical ray-volume equivalence",
+            )
     else:
         model = cmd.get_model("fixture", state=1)
         residues = {(a.chain, a.resi, a.resn): a.ss for a in model.atom}
         ss = collections.Counter(
-            "H" if v == "H" else "E" if v == "S" else "U" for v in residues.values()
+            "helix" if v == "H" else "strand" if v == "S" else "unknown" for v in residues.values()
         )
         orders = collections.Counter(str(b.order) for b in model.bond)
         radii = {}
@@ -148,6 +196,7 @@ def main():
                 "bond_provenance_reason": "PyMOL model does not expose file/CCD/inference provenance",
                 "secondary_structure": dict(ss),
                 "secondary_structure_policy": "PyMOL H/S; blank is unknown, not reassigned",
+                "secondary_structure_encoding": "coarse PyMOL helix/strand only; helix subtype unavailable",
                 "vdw_radii_angstrom": {k: sorted(v) for k, v in radii.items()},
             }
         )
@@ -157,12 +206,79 @@ def main():
         cmd.hide("everything", "all")
         cmd.set_color("parity_color", [v / 255 for v in style["color_rgb"]])
         script = fixture.get("script")
-        if script:
+        if fixture.get("segmentations"):
+            metadata["segmentation_surface_bounds"] = segmentation_surfaces(request, labels)
+        elif script:
             for line in script["pymol"]:
                 cmd.do(line)
         elif fixture["format"] == "mrc":
-            cmd.isosurface("iso", "fixture", fixture["isovalue"])
-            cmd.color("parity_color", "iso")
+            form = fixture["form"]
+            affine = request["voxel_to_world"]
+            voxel_size = min(
+                math.sqrt(sum(affine[axis * 4 + row] ** 2 for row in range(3))) for axis in range(3)
+            )
+            if form == "iso_mesh":
+                cmd.set("mesh_radius", fixture["line_width_voxels"] * voxel_size)
+                metadata["mesh_radius_angstrom"] = fixture["line_width_voxels"] * voxel_size
+                cmd.isomesh("iso", "fixture", fixture["isovalue"])
+            elif form == "iso_dots":
+                cmd.set("dot_radius", fixture["dot_radius_voxels"] * voxel_size)
+                metadata["dot_radius_angstrom"] = fixture["dot_radius_voxels"] * voxel_size
+                cmd.isodot("iso", "fixture", fixture["isovalue"])
+            elif form == "direct":
+                cmd.volume("iso", "fixture")
+                blue = [49 / 255, 104 / 255, 142 / 255]
+                # PyMOL integrates this ramp per voxel, not with MolGFX optical depth;
+                # lower alpha preserves the density interior instead of saturating it.
+                cmd.volume_color("iso", [0.0, *blue, 0.0, fixture["isovalue"] * 2, *blue, 0.08])
+                cmd.bg_color("white")
+            elif form == "slice":
+                minimum, maximum = cmd.get_extent("fixture")
+                slice_point = [(low + high) * 0.5 for low, high in zip(minimum, maximum)]
+                if any(
+                    abs(actual - expected) > 1.0e-4
+                    for actual, expected in zip(slice_point, fixture["slice_point"])
+                ):
+                    raise ValueError(
+                        f"PyMOL slice center {slice_point} does not match authored {fixture['slice_point']}"
+                    )
+                if list(cmd.get_view()[:9]) != [1, 0, 0, 0, 1, 0, 0, 0, 1] or fixture[
+                    "slice_normal"
+                ] != [0, 0, 1]:
+                    raise ValueError("PyMOL slice adapter requires the initial Z-normal plane")
+                cmd.slice_new("iso", "fixture")
+                metadata["map_object_matrix"] = cmd.get_object_matrix("fixture")
+                cmd.set_object_ttt("iso", metadata["map_object_matrix"])
+                metadata["slice_object_matrix"] = cmd.get_object_matrix("iso")
+                colors = fixture["slice_colors"]
+                low, high = fixture["slice_domain"]
+                cmd.ramp_new(
+                    "iso_ramp",
+                    "fixture",
+                    [low + (high - low) * i / (len(colors) - 1) for i in range(len(colors))],
+                    [[((color >> shift) & 255) / 255 for shift in (16, 8, 0)] for color in colors],
+                )
+                metadata["slice"] = {
+                    "point": slice_point,
+                    "normal": fixture["slice_normal"],
+                    "domain": fixture["slice_domain"],
+                    "colors": colors,
+                }
+                cmd.bg_color("white")
+            elif form == "region":
+                raise ValueError("PyMOL adapter has no exact voxel crop for this fixture")
+            else:
+                cmd.isosurface("iso", "fixture", fixture["isovalue"])
+            if fixture.get("structure_file"):
+                cmd.load(str(Path(request["path"]).parent / fixture["structure_file"]), "molecule")
+                cmd.show("cartoon", "molecule")
+
+            if form == "slice":
+                cmd.color("iso_ramp", "iso")
+            else:
+                cmd.color("parity_color", "iso")
+            if fixture.get("structure_file"):
+                cmd.set("transparency", 1.0 - fixture["opacity"], "iso")
         else:
             cmd.color("parity_color", "fixture")
             cmd.set("sphere_scale", style["atom_radius_scale"])
@@ -187,6 +303,8 @@ def main():
         )
         width, height = catalog["extent"]
         ray = recipe == "pymol-ray"
+        if ray and fixture["format"] == "mrc" and fixture["form"] == "direct":
+            cmd.set("ray_volume", 1)
         gl = None if ray else raster_context([width, height], settings["antialias"])
 
         def completed_output():

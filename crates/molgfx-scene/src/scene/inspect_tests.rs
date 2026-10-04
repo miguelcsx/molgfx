@@ -14,6 +14,8 @@ fn atom_picks_resolve_to_stable_source_metadata() {
         chunk: Some(0),
         row: Some(0),
         volume_label: None,
+        segmentation: None,
+        source_id: None,
     };
     let resolved = scene
         .resolve_pick(&pick)
@@ -49,6 +51,8 @@ fn bond_picks_resolve_to_topology_endpoints_and_order() {
         chunk: Some(0),
         row: Some(0),
         volume_label: None,
+        segmentation: None,
+        source_id: None,
     };
 
     let resolved = scene
@@ -78,6 +82,8 @@ fn resolved_picks_serialize_with_a_pick_discriminator_and_round_trip() {
             chunk: Some(0),
             row: Some(0),
             volume_label: None,
+            segmentation: None,
+            source_id: None,
         })
         .unwrap_or_else(|error| panic!("{error}"));
     let json = serde_json::to_value(&atom).unwrap_or_else(|error| panic!("{error}"));
@@ -93,6 +99,8 @@ fn resolved_picks_serialize_with_a_pick_discriminator_and_round_trip() {
             chunk: None,
             row: Some(3),
             volume_label: None,
+            segmentation: None,
+            source_id: None,
         })
         .unwrap_or_else(|error| panic!("{error}"));
     let json = serde_json::to_value(&label).unwrap_or_else(|error| panic!("{error}"));
@@ -136,6 +144,8 @@ fn a_label_pick_resolves_to_the_annotation_the_scene_owns() {
             chunk: None,
             row: Some(u64::from(row)),
             volume_label: None,
+            segmentation: None,
+            source_id: None,
         })
         .unwrap_or_else(|error| panic!("{error}"));
     let ResolvedPick::Label(label) = &resolved else {
@@ -189,6 +199,8 @@ fn a_measurement_pick_resolves_to_its_kind_and_arity() {
             chunk: None,
             row: Some(u64::from(row)),
             volume_label: None,
+            segmentation: None,
+            source_id: None,
         })
         .unwrap_or_else(|error| panic!("{error}"));
     let ResolvedPick::Measurement(picked) = &resolved else {
@@ -200,57 +212,28 @@ fn a_measurement_pick_resolves_to_its_kind_and_arity() {
 }
 
 #[test]
-fn a_volume_segment_pick_resolves_to_its_volume_and_label() {
-    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
-    let volume = scene
-        .add(crate::density::volume(
-            crate::overlay::DataSource::new("density-sha256"),
-            [2, 2, 2],
-        ))
-        .unwrap_or_else(|error| panic!("volume adds: {error}"));
-
-    let resolved = scene
-        .resolve_pick(&PickResult {
-            kind: PickKind::VolumeSegment,
-            dataset: None,
-            chunk: None,
-            row: None,
-            volume_label: Some(42),
-        })
-        .unwrap_or_else(|error| panic!("{error}"));
-    let ResolvedPick::VolumeSegment(segment) = &resolved else {
-        panic!("a volume-segment pick resolves to its volume, got {resolved:?}")
-    };
-    assert_eq!(segment.volume, volume);
-    assert_eq!(segment.volume_label, 42);
-    let json = serde_json::to_value(&resolved).unwrap_or_else(|error| panic!("{error}"));
-    assert_eq!(json["pick"], "volume_segment");
-    assert_eq!(json["volume_label"], 42);
-}
-
-#[test]
-fn a_volume_segment_pick_is_not_attributed_when_several_volumes_could_own_it() {
-    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
-    for source in ["density-a", "density-b"] {
-        scene
-            .add(crate::density::volume(
-                crate::overlay::DataSource::new(source),
-                [2, 2, 2],
-            ))
-            .unwrap_or_else(|error| panic!("volume adds: {error}"));
-    }
-
-    let resolved = scene
-        .resolve_pick(&PickResult {
-            kind: PickKind::VolumeSegment,
-            dataset: None,
-            chunk: None,
-            row: None,
-            volume_label: Some(7),
-        })
-        .unwrap_or_else(|error| panic!("{error}"));
+fn a_scalar_volume_never_owns_a_categorical_pick() {
+    let mut scene = Scene::empty();
+    scene
+        .add(
+            crate::density::volume(crate::DataSource::new("density"), [2; 3]).isosurface(
+                1.0,
+                crate::Color::rgb(49, 104, 142),
+                1.0,
+            ),
+        )
+        .unwrap();
     assert!(
-        !matches!(resolved, ResolvedPick::VolumeSegment(_)),
-        "an ambiguous owner must not be named, got {resolved:?}"
+        scene
+            .resolve_pick(&PickResult {
+                kind: PickKind::VolumeSegment,
+                dataset: None,
+                chunk: None,
+                row: None,
+                volume_label: Some(42),
+                segmentation: None,
+                source_id: Some(scene.resolved.cache_identity())
+            })
+            .is_err()
     );
 }

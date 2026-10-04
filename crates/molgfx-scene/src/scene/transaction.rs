@@ -77,6 +77,34 @@ impl SceneTransaction {
         Ok(())
     }
 
+    /// Stages one categorical descriptor under a fresh lifetime identity.
+    ///
+    /// # Errors
+    /// Returns invalid descriptor or exhausted identity errors.
+    pub fn add_segmentation(
+        &mut self,
+        segmentation: crate::SegmentationSpec,
+    ) -> Result<crate::SegmentationId, Error> {
+        let mut index = 1u64;
+        for live in self.candidate.segmentations.keys() {
+            if live.index == index {
+                index = index
+                    .checked_add(1)
+                    .ok_or_else(|| Error::InvalidSpec("segmentation slots exhausted".into()))?;
+            }
+        }
+        let previous = match self.candidate.segmentation_generations.get(&index) {
+            Some(generation) => *generation,
+            None => 0,
+        };
+        let generation = previous
+            .checked_add(1)
+            .ok_or_else(|| Error::InvalidSpec("segmentation generations exhausted".into()))?;
+        let id = crate::SegmentationId::new(index, generation);
+        self.stage(PatchOperation::AddSegmentation { id, segmentation })?;
+        Ok(id)
+    }
+
     /// Stages a new representation and returns the identity it will have.
     ///
     /// A representation that names no structure targets the scene's only

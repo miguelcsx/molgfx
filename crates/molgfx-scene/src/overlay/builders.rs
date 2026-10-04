@@ -3,7 +3,6 @@
 /// Density-volume authoring.
 pub mod density {
     use super::super::{DataSource, Volume, VolumeSpec};
-    use crate::Color;
 
     /// Declares a density grid whose values will be supplied at runtime.
     #[must_use]
@@ -11,10 +10,9 @@ pub mod density {
         Volume(VolumeSpec {
             source,
             dimensions,
-            spacing: [1.0; 3],
-            origin: [0.0; 3],
-            isovalue: 1.0,
-            color: Color::rgb(49, 104, 142),
+            voxel_to_world: molgfx_math::Mat4::IDENTITY.to_cols_array(),
+            presentations: Vec::new(),
+            region: None,
         })
     }
 }

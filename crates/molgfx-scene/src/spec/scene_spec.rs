@@ -25,6 +25,12 @@ pub struct SceneSpec {
     /// Density-volume specifications in stable ID order.
     #[serde(default)]
     pub volumes: BTreeMap<crate::VolumeId, VolumeSpec>,
+    /// Categorical descriptors with independent immutable label bindings.
+    #[serde(default)]
+    pub segmentations: BTreeMap<crate::SegmentationId, crate::SegmentationSpec>,
+    /// Highest allocated lifetime for every categorical slot, including removed slots.
+    #[serde(default)]
+    pub segmentation_generations: BTreeMap<u64, u64>,
     /// Annotation specifications in stable ID order.
     #[serde(default)]
     pub annotations: BTreeMap<crate::AnnotationId, AnnotationSpec>,
@@ -78,6 +84,8 @@ impl SceneSpec {
             properties: BTreeMap::new(),
             representations: BTreeMap::new(),
             volumes: BTreeMap::new(),
+            segmentations: BTreeMap::new(),
+            segmentation_generations: BTreeMap::new(),
             annotations: BTreeMap::new(),
             measurements: BTreeMap::new(),
             interactions: BTreeMap::new(),
@@ -184,6 +192,19 @@ impl SceneSpec {
             assembly.validate()?;
         }
         self.volumes.values().try_for_each(VolumeSpec::validate)?;
+        self.segmentations
+            .values()
+            .try_for_each(crate::SegmentationSpec::validate)?;
+        let mut slots = std::collections::BTreeSet::new();
+        if self
+            .segmentations
+            .keys()
+            .any(|id| id.index == 0 || id.generation == 0 || !slots.insert(id.index))
+        {
+            return Err(crate::Error::InvalidSpec(
+                "segmentation identities require unique nonzero slots and generations".into(),
+            ));
+        }
         self.annotations
             .values()
             .try_for_each(|spec| spec.validate(self))?;

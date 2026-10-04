@@ -40,9 +40,31 @@ semantic_id!(PyInteractionId, "InteractionId");
 semantic_id!(PyTrajectoryId, "TrajectoryId");
 semantic_id!(PyEllipsoidId, "EllipsoidId");
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[pyclass(name = "SegmentationId", frozen, skip_from_py_object)]
+pub(super) struct PySegmentationId(pub(super) molgfx::SegmentationId);
+
+#[pymethods]
+impl PySegmentationId {
+    #[getter]
+    const fn index(&self) -> u64 {
+        self.0.index
+    }
+
+    #[getter]
+    const fn generation(&self) -> u64 {
+        self.0.generation
+    }
+
+    fn __repr__(&self) -> String {
+        format!("SegmentationId({}:{})", self.0.index, self.0.generation)
+    }
+}
+
 pub(super) enum PySceneId {
     Representation(u64),
     Volume(u64),
+    Segmentation(molgfx::SegmentationId),
     Annotation(u64),
     Measurement(u64),
     Interaction(u64),
@@ -65,6 +87,7 @@ impl PySceneId {
         match self {
             Self::Representation(value) => Ok(Py::new(py, PyRepresentationId(value))?.into_any()),
             Self::Volume(value) => Ok(Py::new(py, PyVolumeId(value))?.into_any()),
+            Self::Segmentation(value) => Ok(Py::new(py, PySegmentationId(value))?.into_any()),
             Self::Annotation(value) => Ok(Py::new(py, PyAnnotationId(value))?.into_any()),
             Self::Measurement(value) => Ok(Py::new(py, PyMeasurementId(value))?.into_any()),
             Self::Interaction(value) => Ok(Py::new(py, PyInteractionId(value))?.into_any()),
@@ -78,6 +101,7 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyRepresentationId>()?;
     module.add_class::<PyStructureId>()?;
     module.add_class::<PyVolumeId>()?;
+    module.add_class::<PySegmentationId>()?;
     module.add_class::<PyAnnotationId>()?;
     module.add_class::<PyMeasurementId>()?;
     module.add_class::<PyInteractionId>()?;

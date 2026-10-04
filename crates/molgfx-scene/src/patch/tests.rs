@@ -19,7 +19,11 @@ fn scene_with_bound_volume() -> (Scene, crate::VolumeId) {
         panic!("scene builds")
     };
     let source = DataSource::new("density-hash");
-    let Ok(id) = scene.add(density::volume(source.clone(), [2, 2, 2])) else {
+    let Ok(id) = scene.add(density::volume(source.clone(), [2, 2, 2]).isosurface(
+        1.0,
+        Color::rgb(49, 104, 142),
+        1.0,
+    )) else {
         panic!("volume adds")
     };
     let values: Arc<[f32]> = (0_u8..8).map(f32::from).collect();
@@ -241,15 +245,22 @@ fn set_volume_isovalue_validates_applies_and_inverts() {
 
     assert!(scene.apply(&edit).is_ok());
     assert_eq!(
-        scene.spec().volumes.get(&id).map(|volume| volume.isovalue),
+        scene
+            .spec()
+            .volumes
+            .get(&id)
+            .and_then(crate::VolumeSpec::isovalue),
         Some(2.5)
     );
     assert_eq!(scene.overlay_handles().volumes, 1);
     assert!(scene.apply(&inverse).is_ok());
     let restored = scene.spec();
     assert_eq!(
-        restored.volumes.get(&id).map(|volume| volume.isovalue),
-        base.volumes.get(&id).map(|volume| volume.isovalue)
+        restored
+            .volumes
+            .get(&id)
+            .and_then(crate::VolumeSpec::isovalue),
+        base.volumes.get(&id).and_then(crate::VolumeSpec::isovalue)
     );
     assert_eq!(restored.structures, base.structures);
     assert_eq!(restored.representations, base.representations);

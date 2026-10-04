@@ -55,7 +55,7 @@ fn auto_rejects_a_second_structure_name() {
 fn volume_declares_a_density_grid_and_undo_removes_it() {
     let mut scene = scene();
     let mut session = Session::new(&scene);
-    let command = r#"volume {"source":{"content_hash":"density-sha256","uri":null,"format":null},"dimensions":[4,4,4],"spacing":[1.0,1.0,1.0],"origin":[0.0,0.0,0.0],"isovalue":1.5,"color":[49,104,142,255]}"#;
+    let command = r#"volume {"source":{"content_hash":"density-sha256","uri":null,"format":null},"dimensions":[4,4,4],"voxel_to_world":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],"presentations":[{"kind":"isosurface","isovalue":1.5,"color":[49,104,142,255],"opacity":1.0,"style":{"kind":"solid"}}],"region":null}"#;
     let outcome = run(&mut session, &mut scene, command);
     assert_eq!(scene.spec().volumes.len(), 1);
     let volume = scene
@@ -65,7 +65,7 @@ fn volume_declares_a_density_grid_and_undo_removes_it() {
         .next()
         .unwrap_or_else(|| panic!("one volume"));
     assert_eq!(volume.dimensions, [4, 4, 4]);
-    assert!((volume.isovalue - 1.5).abs() < f32::EPSILON);
+    assert_eq!(volume.isovalue(), Some(1.5));
     assert_eq!(
         outcome.patch.as_ref().map(|patch| patch.operations.len()),
         Some(1)

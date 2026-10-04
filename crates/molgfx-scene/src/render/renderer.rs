@@ -17,6 +17,7 @@ use num_traits::ToPrimitive as _;
 pub struct Renderer {
     pub(super) inner: molgfx_render::Engine<molgfx_wgpu::WgpuDevice>,
     pub(super) profile: RenderProfile,
+    pub(super) pick_source_id: Option<u64>,
 }
 
 impl Renderer {
@@ -57,7 +58,11 @@ impl Renderer {
     ) -> Result<Self, Error> {
         let config = engine_config(profile, surface_field_budget_bytes);
         let inner = molgfx_render::Engine::new(&config, None)?;
-        Ok(Self { inner, profile })
+        Ok(Self {
+            inner,
+            profile,
+            pick_source_id: None,
+        })
     }
 
     /// Opens WebGPU asynchronously against a browser-owned canvas.
@@ -72,7 +77,11 @@ impl Renderer {
     ) -> Result<Self, Error> {
         let config = engine_config(profile, None);
         let inner = molgfx_render::Engine::new_async(&config, Some(canvas)).await?;
-        Ok(Self { inner, profile })
+        Ok(Self {
+            inner,
+            profile,
+            pick_source_id: None,
+        })
     }
 
     /// Resizes the current presentation target.
@@ -90,9 +99,12 @@ impl Renderer {
         scene: &Scene,
         camera: &molgfx_math::Camera,
     ) -> Result<FrameReport, Error> {
-        self.inner
+        let report = self
+            .inner
             .render(scene.resolved(), camera)
-            .map_err(Error::from)
+            .map_err(Error::from)?;
+        self.pick_source_id = Some(scene.resolved().cache_identity());
+        Ok(report)
     }
 
     /// Renders one deterministic off-screen image, inferring a framing camera.
@@ -132,7 +144,8 @@ impl Renderer {
         camera: &molgfx_math::Camera,
         size: (u32, u32),
     ) -> Result<Image, Error> {
-        self.inner
+        let image = self
+            .inner
             .render_image(
                 scene.resolved(),
                 camera,
@@ -142,7 +155,9 @@ impl Renderer {
                 },
             )
             .map(Image)
-            .map_err(Error::from)
+            .map_err(Error::from)?;
+        self.pick_source_id = Some(scene.resolved().cache_identity());
+        Ok(image)
     }
 
     /// Renders one image of the requested kind with the caller's camera:
@@ -160,7 +175,8 @@ impl Renderer {
         size: (u32, u32),
         output: MeasuredOutput,
     ) -> Result<Image, Error> {
-        self.inner
+        let image = self
+            .inner
             .render_output(
                 scene.resolved(),
                 camera,
@@ -171,7 +187,9 @@ impl Renderer {
                 output,
             )
             .map(Image)
-            .map_err(Error::from)
+            .map_err(Error::from)?;
+        self.pick_source_id = Some(scene.resolved().cache_identity());
+        Ok(image)
     }
 
     /// Measures one output with a framing camera.
@@ -214,7 +232,8 @@ impl Renderer {
         size: (u32, u32),
         output: MeasuredOutput,
     ) -> Result<FrameTiming, Error> {
-        self.inner
+        let timing = self
+            .inner
             .profile_frame(
                 scene.resolved(),
                 camera,
@@ -224,7 +243,9 @@ impl Renderer {
                 },
                 output,
             )
-            .map_err(Error::from)
+            .map_err(Error::from)?;
+        self.pick_source_id = Some(scene.resolved().cache_identity());
+        Ok(timing)
     }
 
     /// Renders a bounded sequence of deterministic frames, one per timestamp.
@@ -352,6 +373,7 @@ impl Renderer {
                     timestamp,
                 )
                 .map_err(Error::from)?;
+            self.pick_source_id = Some(scene.resolved().cache_identity());
         }
         let resolved = self.inner.finish_sequence(sequence).map_err(Error::from)?;
         images.extend(resolved.into_iter().map(|frame| Image(frame.image)));

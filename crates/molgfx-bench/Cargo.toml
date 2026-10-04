@@ -15,7 +15,7 @@ publish = false
 [dependencies]
 thiserror.workspace = true
 molgfx = { path = "../molgfx" }
-molframe = { workspace = true, features = ["mmcif", "bcif", "pdb", "chemistry", "spatial"] }
+molframe = { workspace = true, features = ["mmcif", "bcif", "pdb", "chemistry", "spatial", "crystal"] }
 png.workspace = true
 num-traits.workspace = true
 serde.workspace = true

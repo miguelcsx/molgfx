@@ -13,7 +13,9 @@ use molgfx_scene::{AppearanceRuleSpec, PatchOperation, SceneTransaction, Structu
 use std::collections::BTreeMap;
 mod auto;
 mod overlay;
+mod segment;
 mod selection;
+mod snapshot;
 
 pub(crate) struct Planner<'a> {
     pub(crate) state: State,
@@ -79,18 +81,20 @@ impl Planner<'_> {
             }),
             Command::Plane { plane } => self.plane(*plane),
             Command::Volume { volume } => self.volume(volume.clone()),
+            Command::Segment { segmentation } => self.segment(segmentation.clone()),
+            Command::SegmentStyle { id, styles } => self.domain(PatchOperation::SetSegmentStyles {
+                id: *id,
+                styles: styles.clone(),
+            }),
             Command::Fitting { fitting } => self.domain(PatchOperation::SetFitting {
                 fitting: fitting.clone(),
             }),
             Command::Validation { findings } => self.domain(PatchOperation::SetValidation {
                 findings: findings.clone(),
             }),
-            Command::MovieExport { request } => self.domain(PatchOperation::SetMovieExport {
-                request: request.clone(),
-            }),
-            Command::Snapshot { snapshot } => self.domain(PatchOperation::SetSnapshot {
-                snapshot: Box::new(snapshot.as_deref().cloned()),
-            }),
+            Command::SnapshotSave { name } => self.snapshot_save(name),
+            Command::SnapshotRestore { name } => self.snapshot_restore(name),
+            Command::SnapshotRemove { name } => self.snapshot_remove(name),
             Command::Unfocus => {
                 self.transaction
                     .stage(PatchOperation::SetFocus { selection: None })

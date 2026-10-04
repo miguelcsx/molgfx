@@ -22,7 +22,12 @@ mod pocket_tests;
 mod property;
 mod resolve;
 #[cfg(test)]
+mod segment_tests;
+#[cfg(test)]
 mod selection_tests;
+mod snapshot;
+#[cfg(test)]
+mod snapshot_tests;
 mod state;
 #[cfg(test)]
 mod tests;

@@ -46,6 +46,9 @@ pub struct SessionSpec {
     pub rules: BTreeMap<AppearanceRuleId, RuleSpec>,
     /// The focus target, as declared.
     pub focus: Option<QueryText>,
+    /// Complete portable scenes captured under authoring names.
+    #[serde(default)]
+    pub snapshots: BTreeMap<Name, molgfx_scene::interop::SceneSnapshot>,
 }
 
 impl SessionSpec {
@@ -62,9 +65,15 @@ impl SessionSpec {
     ///
     /// # Errors
     ///
-    /// Returns the parser's error, including any invalid name or query.
+    /// Returns the parser's error, including invalid names, queries or snapshots.
     pub fn from_json(source: &str) -> Result<Self, serde_json::Error> {
-        serde_json::from_str(source)
+        let spec: Self = serde_json::from_str(source)?;
+        for snapshot in spec.snapshots.values() {
+            snapshot
+                .verify()
+                .map_err(<serde_json::Error as serde::de::Error>::custom)?;
+        }
+        Ok(spec)
     }
 }
 

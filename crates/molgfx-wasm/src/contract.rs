@@ -3,6 +3,10 @@
 use num_traits::ToPrimitive as _;
 use std::collections::BTreeMap;
 use wasm_bindgen::prelude::*;
+mod segmentation;
+#[cfg(test)]
+#[path = "contract/volume_tests.rs"]
+mod volume_tests;
 
 pub(crate) fn javascript_error(error: impl std::fmt::Display) -> JsError {
     JsError::new(&error.to_string())
@@ -108,11 +112,71 @@ impl WebScenePatch {
 pub struct WebScene {
     pub(crate) spec: molgfx::SceneSpec,
     structures: BTreeMap<molgfx::StructureId, molframe::Structure>,
+    volume_bindings: BTreeMap<Box<str>, molgfx::VolumeBinding>,
+    segmentation_bindings: BTreeMap<Box<str>, molgfx::SegmentationBinding>,
     pub(crate) resolved: Option<molgfx::Scene>,
 }
 
 #[wasm_bindgen(js_class = Scene)]
 impl WebScene {
+    /// Creates a resolved scene with no molecular sources.
+    #[must_use]
+    pub fn empty() -> WebScene {
+        let resolved = molgfx::Scene::empty();
+        Self {
+            spec: resolved.to_spec(),
+            structures: BTreeMap::new(),
+            volume_bindings: BTreeMap::new(),
+            segmentation_bindings: BTreeMap::new(),
+            resolved: Some(resolved),
+        }
+    }
+
+    /// Binds scalar values to an authored affine volume.
+    ///
+    /// # Errors
+    /// Returns an error for an unresolved scene, unknown identity or invalid grid.
+    #[wasm_bindgen(js_name = bindVolume)]
+    pub fn bind_volume(&mut self, identity: u64, values: Vec<f32>) -> Result<(), JsError> {
+        let scene = self
+            .resolved
+            .as_mut()
+            .ok_or_else(|| JsError::new("resolve the scene before binding a volume"))?;
+        let spec = scene
+            .spec()
+            .volumes
+            .get(&molgfx::VolumeId::new(identity))
+            .ok_or_else(|| JsError::new("unknown volume identity"))?;
+        let content_hash = spec.source.content_hash.clone();
+        let binding = molgfx::VolumeBinding::new(
+            spec.source.clone(),
+            spec.dimensions,
+            std::sync::Arc::from(values),
+        )
+        .affine(spec.voxel_to_world);
+        scene
+            .bind_volume(binding.clone())
+            .map_err(javascript_error)?;
+        let _ = self.volume_bindings.insert(content_hash, binding);
+        self.spec = scene.to_spec();
+        Ok(())
+    }
+
+    /// Reports overlay descriptors with no matching runtime data.
+    ///
+    /// # Errors
+    /// Returns an error when the scene is unresolved or JSON encoding fails.
+    #[wasm_bindgen(js_name = unresolvedOverlays)]
+    pub fn unresolved_overlays(&self) -> Result<String, JsError> {
+        serde_json::to_string(
+            &self
+                .resolved
+                .as_ref()
+                .ok_or_else(|| JsError::new("scene is unresolved"))?
+                .unresolved_overlays(),
+        )
+        .map_err(javascript_error)
+    }
     /// Creates an unresolved scene from the portable semantic contract.
     ///
     /// Bind every declared molecular source, then call `resolve` before rendering.
@@ -126,6 +190,8 @@ impl WebScene {
         Ok(Self {
             spec,
             structures: BTreeMap::new(),
+            volume_bindings: BTreeMap::new(),
+            segmentation_bindings: BTreeMap::new(),
             resolved: None,
         })
     }
@@ -154,6 +220,8 @@ impl WebScene {
         Ok(Self {
             spec,
             structures,
+            volume_bindings: BTreeMap::new(),
+            segmentation_bindings: BTreeMap::new(),
             resolved: Some(resolved),
         })
     }
@@ -210,8 +278,19 @@ impl WebScene {
     ///
     /// Returns a JavaScript error for missing or content-mismatched sources.
     pub fn resolve(&mut self) -> Result<(), JsError> {
-        let resolved = molgfx::Scene::from_spec(self.spec.clone(), self.structures.clone())
+        let mut resolved = molgfx::Scene::from_spec(self.spec.clone(), self.structures.clone())
             .map_err(javascript_error)?;
+        for binding in self.volume_bindings.values() {
+            resolved
+                .bind_volume(binding.clone())
+                .map_err(javascript_error)?;
+        }
+        for binding in self.segmentation_bindings.values() {
+            resolved
+                .bind_segmentation(binding.clone())
+                .map_err(javascript_error)?;
+        }
+        self.spec = resolved.to_spec();
         self.resolved = Some(resolved);
         Ok(())
     }
@@ -226,6 +305,18 @@ impl WebScene {
         if let Some(resolved) = &mut self.resolved {
             resolved.apply(&patch.inner).map_err(javascript_error)?;
         }
+        self.volume_bindings.retain(|hash, _| {
+            candidate_spec
+                .volumes
+                .values()
+                .any(|volume| volume.source.content_hash == *hash)
+        });
+        self.segmentation_bindings.retain(|hash, _| {
+            candidate_spec
+                .segmentations
+                .values()
+                .any(|segmentation| segmentation.source.content_hash == *hash)
+        });
         self.spec = candidate_spec;
         Ok(())
     }

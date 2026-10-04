@@ -104,25 +104,38 @@ impl Scene {
         }
     }
 
-    /// Resolves a categorical volume segment to its volume and caller label.
-    ///
-    /// The renderer's segment pick names the volume through its own handle; a
-    /// scene that owns exactly one volume resolves it, and one that owns none
-    /// leaves the pick as the renderer's record.
+    /// Resolves the captured categorical handle only in its original scene lifetime.
     pub(super) fn volume_segment_pick(
         &self,
         pick: &crate::PickResult,
-    ) -> Option<ResolvedVolumeSegmentPick> {
-        let label = pick.volume_label?;
-        // Attribution needs exactly one candidate: with several volumes the
-        // renderer's segment record cannot say which one the label belongs to,
-        // and naming the first would be a guess presented as provenance.
-        let mut volumes = self.spec.volumes.keys();
-        let volume = volumes.next().filter(|_| volumes.next().is_none())?;
-        Some(ResolvedVolumeSegmentPick {
-            volume: *volume,
+    ) -> Result<ResolvedVolumeSegmentPick, crate::Error> {
+        let source_id = pick.source_id.ok_or_else(|| {
+            crate::Error::InvalidSpec("categorical pick requires a captured source identity".into())
+        })?;
+        if source_id != self.resolved.cache_identity() {
+            return Err(crate::Error::StalePick { dataset: source_id });
+        }
+        let handle = pick.segmentation.ok_or_else(|| {
+            crate::Error::InvalidSpec("categorical pick requires a captured grid handle".into())
+        })?;
+        let label = pick
+            .volume_label
+            .ok_or_else(|| crate::Error::InvalidSpec("categorical pick requires a label".into()))?;
+        let (segmentation, _) = self
+            .overlay
+            .segmentations
+            .iter()
+            .find(|(_, resolved)| *resolved == handle)
+            .ok_or(crate::Error::StalePick { dataset: source_id })?;
+        if self.resolved.segmented_volume(handle).is_none()
+            || !self.spec.segmentations.contains_key(segmentation)
+        {
+            return Err(crate::Error::StalePick { dataset: source_id });
+        }
+        Ok(ResolvedVolumeSegmentPick {
+            segmentation: *segmentation,
             volume_label: label,
-            label: format!("volume segment {label}"),
+            label: format!("segment {label}"),
         })
     }
 }

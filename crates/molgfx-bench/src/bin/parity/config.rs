@@ -119,6 +119,15 @@ impl Config {
         }
         // Missing or altered bytes fail before any engine is initialized.
         for fixture in self.selected() {
+            for recipe in fixture.omissions.keys() {
+                if !self.catalog.recipes.contains(recipe) {
+                    return Err(io::Error::other(format!(
+                        "fixture {} omits unknown recipe {recipe}",
+                        fixture.id
+                    ))
+                    .into());
+                }
+            }
             fixture.verify(&self.cache)?;
         }
         Ok(())

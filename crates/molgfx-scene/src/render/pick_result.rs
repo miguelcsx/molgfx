@@ -51,6 +51,12 @@ pub struct PickResult {
     pub row: Option<u64>,
     /// Exact categorical label for a volume segment.
     pub volume_label: Option<u32>,
+    /// Exact generational categorical grid handle captured by the renderer.
+    #[serde(default)]
+    pub segmentation: Option<molgfx_core::SegmentationHandle>,
+    /// Source scene lifetime captured with a categorical grid handle.
+    #[serde(default)]
+    pub source_id: Option<u64>,
 }
 
 impl PickResult {
