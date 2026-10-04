@@ -39,6 +39,15 @@ contract expose the same controls. `helix_profile` and `nucleic_profile` select
 Rust uses `molgfx::rep::CartoonProfile`. Profiles change
 the cross-section while preserving source guide coordinates and picking anchors.
 
+Set `direction_wedges=True` on `molgfx.rep.cartoon(...)` to draw a flat
+N-to-C direction triangle at each selected polymer guide (default: `False`).
+The triangle's width and length are half the cartoon width. It follows live
+source coordinates and picks the guide atom. A selection containing one guide
+uses the direction of its source polymer; an isolated residue requires N/CA/C
+(or C5'/C4'/C3' for nucleic acids). Missing direction atoms produce a render
+error. Glycan cartoon mode rejects this control. Rust uses
+`.direction_wedges(true)`; commands use `direction_wedges=true`.
+
 Presentation effects are explicit values on a render profile:
 
 ```python

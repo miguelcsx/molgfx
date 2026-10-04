@@ -16,7 +16,15 @@ struct SelectionBoundsState {
     target: RepresentationTarget,
     surface: Option<SurfaceBoundsState>,
     maximum_displacement: u32,
+    direction: Option<DirectionBoundsState>,
     coordinates: [u64; 2],
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct DirectionBoundsState {
+    kind: RepresentationKind,
+    width: u32,
+    aspect_ratio: u32,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -42,6 +50,13 @@ impl SelectionBoundsState {
         };
         Self {
             target: representation.target,
+            direction: representation.params.cartoon_direction_wedges.then_some(
+                DirectionBoundsState {
+                    kind: representation.kind,
+                    width: representation.params.ribbon_width.to_bits(),
+                    aspect_ratio: representation.params.cartoon_aspect_ratio.to_bits(),
+                },
+            ),
             surface,
             maximum_displacement: representation
                 .visual
@@ -81,7 +96,16 @@ impl SelectionBoundsCache {
             }
             None => placed.render_bvh()?.bounds(),
         };
-        let displacement = f32::from_bits(state.maximum_displacement);
+        let glyph_radius = if state.direction.is_some() {
+            super::super::ribbon_slot::spline_params(
+                representation,
+                molgfx_geometry::RibbonParams::default().max_steps,
+            )
+            .direction_glyph_radius()
+        } else {
+            0.0
+        };
+        let displacement = f32::from_bits(state.maximum_displacement) + glyph_radius;
         if !bounds.is_empty() && displacement > 0.0 {
             let padding = Vec3::splat(displacement);
             bounds.min -= padding;

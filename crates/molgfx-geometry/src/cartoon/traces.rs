@@ -113,6 +113,33 @@ pub fn extract_polymer_traces(
     max_gap: f32,
     output: &mut PolymerTraces,
 ) -> Result<(), crate::PackingError> {
+    extract_traces(structure, selection, secondary, max_gap, 2, output)
+}
+
+pub(super) fn extract_direction_traces(
+    structure: &molframe::Structure,
+    secondary: &[SecondaryStructure],
+    max_gap: f32,
+    output: &mut PolymerTraces,
+) -> Result<(), crate::PackingError> {
+    extract_traces(
+        structure,
+        &molgfx_core::AtomSelection::All,
+        secondary,
+        max_gap,
+        1,
+        output,
+    )
+}
+
+fn extract_traces(
+    structure: &molframe::Structure,
+    selection: &molgfx_core::AtomSelection,
+    secondary: &[SecondaryStructure],
+    max_gap: f32,
+    minimum_points: usize,
+    output: &mut PolymerTraces,
+) -> Result<(), crate::PackingError> {
     output.clear();
     let max_gap_sq = max_gap.max(0.0).powi(2);
     for chain in structure.chains() {
@@ -132,23 +159,18 @@ pub fn extract_polymer_traces(
                     trace_start,
                     output.points.len(),
                     &mut output.ranges,
+                    minimum_points,
                 );
                 trace_start = output.points.len();
             }
-            let guide = residue
-                .atom("CA")
-                .map(|atom| (atom, GuideKind::AlphaCarbon))
-                .or_else(|| {
-                    residue
-                        .atom("C4'")
-                        .map(|atom| (atom, GuideKind::SugarCarbon))
-                });
+            let guide = polymer_guide(residue);
             let Some((atom, guide_kind)) = guide else {
                 finish_trace(
                     chain_id,
                     trace_start,
                     output.points.len(),
                     &mut output.ranges,
+                    minimum_points,
                 );
                 trace_start = output.points.len();
                 continue;
@@ -159,6 +181,7 @@ pub fn extract_polymer_traces(
                     trace_start,
                     output.points.len(),
                     &mut output.ranges,
+                    minimum_points,
                 );
                 trace_start = output.points.len();
                 continue;
@@ -170,6 +193,7 @@ pub fn extract_polymer_traces(
                     trace_start,
                     output.points.len(),
                     &mut output.ranges,
+                    minimum_points,
                 );
                 trace_start = output.points.len();
                 continue;
@@ -185,6 +209,7 @@ pub fn extract_polymer_traces(
                     trace_start,
                     output.points.len(),
                     &mut output.ranges,
+                    minimum_points,
                 );
                 trace_start = output.points.len();
             }
@@ -209,13 +234,31 @@ pub fn extract_polymer_traces(
             trace_start,
             output.points.len(),
             &mut output.ranges,
+            minimum_points,
         );
     }
     Ok(())
 }
 
-fn finish_trace(chain: u32, start: usize, end: usize, ranges: &mut Vec<TraceRange>) {
-    if end.saturating_sub(start) >= 2 {
+fn polymer_guide(residue: molframe::ResidueRef<'_>) -> Option<(molframe::AtomRef<'_>, GuideKind)> {
+    residue
+        .atom("CA")
+        .map(|atom| (atom, GuideKind::AlphaCarbon))
+        .or_else(|| {
+            residue
+                .atom("C4'")
+                .map(|atom| (atom, GuideKind::SugarCarbon))
+        })
+}
+
+fn finish_trace(
+    chain: u32,
+    start: usize,
+    end: usize,
+    ranges: &mut Vec<TraceRange>,
+    minimum_points: usize,
+) {
+    if end.saturating_sub(start) >= minimum_points {
         ranges.push(TraceRange {
             chain,
             points: start..end,

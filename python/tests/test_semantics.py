@@ -86,6 +86,7 @@ class SceneSemanticsTests(unittest.TestCase):
                 target="all",
                 aspect_ratio=3.0,
                 arrow_factor=2.0,
+                direction_wedges=True,
                 helix_profile="rounded",
                 nucleic_profile="square",
             )
@@ -93,11 +94,31 @@ class SceneSemanticsTests(unittest.TestCase):
         text = scene.to_json()
         self.assertIn('"aspect_ratio":3.0', text)
         self.assertIn('"arrow_factor":2.0', text)
+        self.assertIn('"direction_wedges":true', text)
         self.assertIn('"helix_profile":"rounded"', text)
         self.assertIn('"nucleic_profile":"square"', text)
         for aspect, arrow in ((0.0, 1.0), (5.0, -1.0), (float("nan"), 1.0)):
             with self.assertRaises(molgfx.SpecError):
                 scene.add(molgfx.rep.cartoon(target="all", aspect_ratio=aspect, arrow_factor=arrow))
+
+    def test_an_unoriented_guide_reports_a_render_error_and_the_renderer_recovers(self) -> None:
+        """Incomplete backbone data cannot turn an authored wedge into silent background."""
+        invalid = molgfx.Scene(_structure())
+        invalid.add(molgfx.rep.cartoon(target="all", direction_wedges=True))
+        renderer = molgfx.Renderer(profile=molgfx.profile.interactive())
+        with self.assertRaisesRegex(molgfx.MolgfxError, "polymer guide .* has no source direction"):
+            renderer.render_image(invalid, size=(64, 64))
+        valid = molgfx.Scene(_structure())
+        valid.add(molgfx.rep.spacefill(target="all"))
+        self.assertEqual(renderer.render_image(valid, size=(64, 64)).width, 64)
+
+    def test_glycan_direction_wedges_are_rejected_atomically(self) -> None:
+        """A polymer direction control cannot silently disappear in glycan mode."""
+        scene = molgfx.Scene(_structure())
+        before = scene.to_json()
+        with self.assertRaises(molgfx.SpecError):
+            scene.add(molgfx.rep.cartoon(target="all", style="glycan", direction_wedges=True))
+        self.assertEqual(scene.to_json(), before)
 
     def test_transaction_commits_one_revision(self) -> None:
         scene = molgfx.Scene(_structure())

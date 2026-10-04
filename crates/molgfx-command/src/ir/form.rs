@@ -48,6 +48,24 @@ pub(crate) trait ControlValue: Sized + Copy {
     fn word(self) -> String;
 }
 
+impl ControlValue for bool {
+    const KIND: OptionKind = OptionKind::Choice(&["false", "true"]);
+    type Native = bool;
+
+    fn parse(text: &str) -> Result<Self, String> {
+        text.parse()
+            .map_err(|_| format!("'{text}' is not false or true"))
+    }
+
+    fn native(self) -> bool {
+        self
+    }
+
+    fn word(self) -> String {
+        self.to_string()
+    }
+}
+
 impl ControlValue for Positive {
     const KIND: OptionKind = OptionKind::Positive;
     type Native = f32;
@@ -358,6 +376,7 @@ forms! {
         style: CartoonStyle => "ribbon recipe",
         aspect_ratio: Positive => "helix and sheet width divided by thickness",
         arrow_factor: NonNegative => "strand arrow shoulder scale; zero disables arrows",
+        direction_wedges: bool => "source-anchored polymer direction wedges",
         helix_profile: CartoonProfile => "protein helix cross-section",
         nucleic_profile: CartoonProfile => "nucleic backbone cross-section",
     }

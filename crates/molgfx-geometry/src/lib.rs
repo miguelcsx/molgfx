@@ -13,9 +13,10 @@ mod packing;
 mod polyhedra;
 
 pub use cartoon::{
-    CARTOON_GAP_CUTOFF, PolymerTraces, RibbonMesh, RibbonParams, RibbonVertex, SecondaryMotion,
-    SplineProfile, TraceRange, append_base_polygons, append_base_slabs, append_paper_chain,
-    extract_glycosidic_traces, extract_polymer_traces, solve_offsets, variable_tube_radius,
+    CARTOON_GAP_CUTOFF, CartoonError, PolymerTraces, RibbonMesh, RibbonParams, RibbonVertex,
+    SecondaryMotion, SplineProfile, TraceRange, append_base_polygons, append_base_slabs,
+    append_paper_chain, extract_glycosidic_traces, extract_polymer_traces, solve_offsets,
+    variable_tube_radius,
 };
 pub use field::{
     BoundaryMesh, BoundaryVertex, FieldError, extract_isosurface, extract_label_surfaces,

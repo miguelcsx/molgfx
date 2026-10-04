@@ -53,6 +53,18 @@ class RepresentationControlTests(unittest.TestCase):
                 representation = constructor(target="all", **controls)
                 self.assertIsInstance(representation, molgfx.Representation)
 
+    def test_direction_wedges_require_a_boolean(self) -> None:
+        """The binding refuses truthy strings and integers before scene mutation."""
+        invalid_values: tuple[object, ...] = ("true", 1, 0, [])
+        for invalid in invalid_values:
+            with self.subTest(value=invalid), self.assertRaises(TypeError):
+                _with(molgfx.rep.cartoon, direction_wedges=invalid)
+        for enabled in (True, False):
+            self.assertIsInstance(
+                molgfx.rep.cartoon(target="all", direction_wedges=enabled),
+                molgfx.Representation,
+            )
+
     def test_a_form_rejects_a_control_belonging_to_another_form(self) -> None:
         with self.assertRaises(TypeError):
             _with(molgfx.rep.spacefill, bond_radius=0.2)

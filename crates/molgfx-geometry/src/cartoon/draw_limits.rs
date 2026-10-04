@@ -39,6 +39,12 @@ fn checked_u32(resource: &'static str, index: u64) -> Result<u32, PackingError> 
     u32::try_from(index).map_err(|_| PackingError::IndexOverflow { resource, index })
 }
 
+pub(super) fn check_glyph(vertices: usize, indices: usize) -> Result<(), PackingError> {
+    checked_u32("ribbon vertices", (vertices as u64).saturating_add(3))?;
+    checked_u32("ribbon draw indices", (indices as u64).saturating_add(3))?;
+    Ok(())
+}
+
 #[cfg(test)]
 #[path = "draw_limits_tests.rs"]
 mod tests;

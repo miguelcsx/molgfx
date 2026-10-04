@@ -302,7 +302,7 @@ const TWISTER_MAX_STEPS: u8 = 32;
 /// ribbon is rebuilt on the rare edit that changes it.
 const RETAINED_SCRATCH_VERTICES: usize = 32_768;
 
-fn spline_params(representation: &Representation, steps: u8) -> RibbonParams {
+pub(super) fn spline_params(representation: &Representation, steps: u8) -> RibbonParams {
     let color = match representation.color {
         ColorScheme::Uniform(color) => molgfx_math::Rgba8::new(color.r, color.g, color.b, u8::MAX),
         _ => molgfx_math::Rgba8::new(110, 165, 235, u8::MAX),
@@ -337,6 +337,7 @@ fn spline_params(representation: &Representation, steps: u8) -> RibbonParams {
             profile: SplineProfile::Rocket,
             aspect_ratio: representation.params.cartoon_aspect_ratio,
             arrow_factor: representation.params.cartoon_arrow_factor,
+            direction_wedges: representation.params.cartoon_direction_wedges,
             helix_profile: representation.params.cartoon_helix_profile,
             nucleic_profile: representation.params.cartoon_nucleic_profile,
             max_steps: steps,
@@ -347,6 +348,7 @@ fn spline_params(representation: &Representation, steps: u8) -> RibbonParams {
             width: representation.params.ribbon_width,
             aspect_ratio: representation.params.cartoon_aspect_ratio,
             arrow_factor: representation.params.cartoon_arrow_factor,
+            direction_wedges: representation.params.cartoon_direction_wedges,
             helix_profile: representation.params.cartoon_helix_profile,
             nucleic_profile: representation.params.cartoon_nucleic_profile,
             max_steps: steps,

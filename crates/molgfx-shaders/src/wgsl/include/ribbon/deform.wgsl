@@ -138,6 +138,8 @@ fn ribbon_rotate(rotation: vec4f, value: vec3f) -> vec3f {
     return value + rotation.w * twice + cross(rotation.xyz, twice);
 }
 
+const RIBBON_ATOM_ANCHOR: u32 = 1u;
+
 fn ribbon_deform(
     vertex_id: u32,
     base_position: vec3f,
@@ -160,10 +162,16 @@ fn ribbon_deform(
     let r2 = ribbon_base_coordinate(deformation.controls.z);
     let r3 = ribbon_base_coordinate(deformation.controls.w);
     let parameter = deformation.parameter.x;
-    let center = ribbon_catmull_position(p0, p1, p2, p3, parameter);
-    let derivative = ribbon_catmull_tangent(p0, p1, p2, p3, parameter);
-    let reference_center = ribbon_catmull_position(r0, r1, r2, r3, parameter);
-    let reference_derivative = ribbon_catmull_tangent(r0, r1, r2, r3, parameter);
+    var center = ribbon_catmull_position(p0, p1, p2, p3, parameter);
+    var derivative = ribbon_catmull_tangent(p0, p1, p2, p3, parameter);
+    var reference_center = ribbon_catmull_position(r0, r1, r2, r3, parameter);
+    var reference_derivative = ribbon_catmull_tangent(r0, r1, r2, r3, parameter);
+    if bitcast<u32>(deformation.parameter.w) == RIBBON_ATOM_ANCHOR {
+        center = p1;
+        derivative = p2 - p0;
+        reference_center = r1;
+        reference_derivative = r2 - r0;
+    }
     let length_sq = dot(derivative, derivative);
     let reference_length_sq = dot(reference_derivative, reference_derivative);
     let reference_tangent = select(

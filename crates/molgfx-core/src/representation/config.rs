@@ -128,6 +128,13 @@ impl RepresentationConfig {
         Ok(self)
     }
 
+    /// Enables source-anchored polymer direction wedges.
+    #[must_use]
+    pub const fn direction_wedges(mut self, enabled: bool) -> Self {
+        self.params.cartoon_direction_wedges = enabled;
+        self
+    }
+
     /// Selects the protein helix and nucleic backbone cross-sections.
     #[must_use]
     pub const fn cartoon_profiles(

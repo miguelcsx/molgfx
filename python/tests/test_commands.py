@@ -68,6 +68,25 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(session.scene.revision, result.revision)
         self.assertEqual(session.structures, {"s1": 1})
 
+    def test_direction_wedges_survive_command_snapshot_and_undo(self) -> None:
+        """Commands and snapshots retain the shared boolean representation control."""
+        session = Session(_structure())
+        session.execute("show cartoon direction_wedges=true, protein")
+        enabled = session.scene.to_json()
+        self.assertIn('"direction_wedges":true', enabled)
+        session.snapshot_save("directed")
+        session.execute("remove @cartoon")
+        session.snapshot_restore("directed")
+        self.assertIn('"direction_wedges":true', session.scene.to_json())
+        session.undo()
+        self.assertNotIn('"direction_wedges":true', session.scene.to_json())
+        session.redo()
+        self.assertIn('"direction_wedges":true', session.scene.to_json())
+        before = session.scene.to_json()
+        with self.assertRaises(CommandError):
+            session.execute("show cartoon direction_wedges=yes, protein")
+        self.assertEqual(session.scene.to_json(), before)
+
     def test_a_session_over_a_scene_shares_that_scene(self) -> None:
         scene = molgfx.Scene(_structure())
         session = Session(scene)

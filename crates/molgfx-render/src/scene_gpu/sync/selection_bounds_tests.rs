@@ -181,3 +181,31 @@ fn visual_displacement_expands_cached_culling_bounds() {
     assert_eq!(expanded.min, base.min - Vec3::splat(2.0));
     assert_eq!(expanded.max, base.max + Vec3::splat(2.0));
 }
+
+#[test]
+fn direction_glyph_width_invalidates_and_expands_the_culling_bounds() {
+    let (mut scene, handle) = trajectory_scene();
+    let selection = AtomSelection::All;
+    let mut representation = Representation::new(
+        RepresentationTarget::Selection(scene.add_selection(selection.clone())),
+        RepresentationKind::Cartoon,
+    );
+    let placed = scene.structure(handle).unwrap();
+    let mut cache = SelectionBoundsCache::new();
+    let base = resolved(cache.resolve(placed, &representation, &selection));
+    representation.params.cartoon_direction_wedges = true;
+    representation.params.ribbon_width = 20.0;
+    let radius = super::super::super::ribbon_slot::spline_params(&representation, 8)
+        .direction_glyph_radius();
+    let expanded = resolved(cache.resolve(placed, &representation, &selection));
+    assert_eq!(expanded.min, base.min - Vec3::splat(radius));
+    assert_eq!(expanded.max, base.max + Vec3::splat(radius));
+    representation.params.ribbon_width = 40.0;
+    let wider = resolved(cache.resolve(placed, &representation, &selection));
+    assert!(wider.max.x > expanded.max.x);
+    representation.params.cartoon_direction_wedges = false;
+    assert_eq!(
+        resolved(cache.resolve(placed, &representation, &selection)),
+        base
+    );
+}

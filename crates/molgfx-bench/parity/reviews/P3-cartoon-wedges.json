@@ -1,0 +1,794 @@
+{
+  "status": "verified direction wedges; full Phase 3.1 remains open",
+  "owner": "Phase 3.1 / cartoon directions",
+  "source_before": "834fafafcbf49bf4b1b29577f8e3c35d9c11b78b",
+  "architecture": [
+    "Strict boolean direction_wedges is shared by Rust configuration and scene builders, serialized descriptions, command parser/printer, Python keyword/stub and WASM contract. No binding duplicates geometry semantics.",
+    "Each selected CA/C4-prime guide owns one flat triangle including terminal guides. Its width and length are half the authored ribbon width. Full-parent ordered traces orient isolated selections without rendering their neighbors.",
+    "Isolated source residues use N/CA/C or C5-prime/C4-prime/C3-prime backbone anchors. Missing or degenerate directions return CartoonError; failed generation clears emitted output rather than uploading a partial mesh.",
+    "The existing 32-byte deformation recipe gains an atom-anchor mode in its reserved lane. Shared beauty, OIT, shadow and picking shaders read the same resident source coordinates; no coordinate column is copied and no new GPU layout, pass or per-frame upload is introduced.",
+    "Conservative glyph bounds use the shared profile resolver and narrow cached width/aspect/kind keys; camera-only updates reuse cached bounds.",
+    "The gallery generator now reproduces all 71 committed fixture definitions, including eight earlier cartoon cases and the corrected uniform Mol* Tube reference."
+  ],
+  "complexity": "Cold direction generation is O(source guides + adaptive samples), with pooled O(guides + samples) working storage and three vertices/indices per selected guide. Static camera rendering does not regenerate glyphs.",
+  "verification": {
+    "directory": "target/cartoon-wedges-verification-final",
+    "full_unit_gate": "passed",
+    "geometry_tests": 96,
+    "renderer_tests": 431,
+    "python_tests": 84,
+    "wasm_node_contract_tests": 3,
+    "native_gpu_direction_tests": 2,
+    "native_gpu_indexed_boundary_gradient_categorical": "passed",
+    "web_release_content_key": "b16eb855bd57662a",
+    "actual_python_consumer": "target/cartoon-wedges-verification/python-consumer.json",
+    "python_closeup": "target/cartoon-wedges-verification/python-detail-True.png",
+    "actual_chromium_consumer": "target/cartoon-wedges-verification/browser-consumer.json",
+    "gallery_generator": "target/cartoon-wedges-verification/gallery-generator.json"
+  },
+  "visual_review": {
+    "review": "crates/molgfx-bench/parity/reviews/P3-cartoon-wedges-4HHB.json",
+    "new_golden": "crates/molgfx-bench/parity/references/P3-cartoon-wedges-4HHB.png",
+    "full_final_gallery": "target/cartoon-wedges-gallery/final-regression",
+    "unchanged_prior_captures": 24,
+    "converged_goldens_passed": 13,
+    "comparison_proof": "target/cartoon-wedges-gallery/final-regression/equivalence.json",
+    "reference": "target/cartoon-wedges-gallery/reference/P3-cartoon-wedges-4HHB/molstar-imagepass",
+    "unfitted_reference_diagnostic": "target/cartoon-wedges-gallery/reference-unfitted-diagnostic",
+    "framing": "target/cartoon-wedges-gallery/framing.json",
+    "limits": "Still review and source-anchor regressions, not complete orbit certification or superior-rendering claim. PyMOL native direction wedges are explicitly omitted."
+  },
+  "feature_measurements": {
+    "scope": "Feature cost, not a Phase 9 baseline or optimization claim. Same release binary, 4HHB source, camera, fixed quality and 768x768 extent; only direction_wedges differs.",
+    "binary_sha256": "6a3fb9ebcb4867c4eb2c29b882938f3ad882b52e8feee9f1608447f8a947b256",
+    "warmup_outputs": 120,
+    "measured_outputs_per_trial": 1200,
+    "trials_per_variant": 3,
+    "orbit_degrees_per_output": 0,
+    "effective_quality": {
+      "adaptive": false,
+      "complete": false,
+      "extent": [
+        768,
+        768
+      ],
+      "full_residency": true,
+      "illumination_bounces": 0,
+      "lighting": {
+        "diffuse_strength": 0.6200000047683716,
+        "fill_color": {
+          "a": 255,
+          "b": 226,
+          "g": 214,
+          "r": 206
+        },
+        "fill_direction": [
+          0.7799999713897705,
+          -0.11999999731779099,
+          0.5
+        ],
+        "fill_strength": 0.30000001192092896,
+        "ground": {
+          "a": 255,
+          "b": 141,
+          "g": 146,
+          "r": 150
+        },
+        "horizon": {
+          "a": 255,
+          "b": 202,
+          "g": 194,
+          "r": 188
+        },
+        "key_angular_radius": 0.20000000298023224,
+        "key_color": {
+          "a": 255,
+          "b": 230,
+          "g": 244,
+          "r": 255
+        },
+        "key_direction": [
+          -0.41999998688697815,
+          0.5799999833106995,
+          0.699999988079071
+        ],
+        "key_strength": 1.350000023841858,
+        "rim_color": {
+          "a": 255,
+          "b": 152,
+          "g": 132,
+          "r": 120
+        },
+        "rim_strength": 0.1599999964237213,
+        "shadow_strength": 0.6600000262260437,
+        "specular_strength": 0.7200000286102295,
+        "zenith": {
+          "a": 255,
+          "b": 240,
+          "g": 232,
+          "r": 226
+        }
+      },
+      "lod_mode_max": 0,
+      "occlusion_rays_per_sample": 2,
+      "progressive": true,
+      "ribbon_steps_max": 8,
+      "samples_completed": 1,
+      "samples_required": 1,
+      "samples_submitted": 1,
+      "surface_limit": "none",
+      "surface_spacing_effective": null,
+      "surface_spacing_requested": 0.25,
+      "tier": "high"
+    },
+    "trials": [
+      {
+        "variant": "disabled",
+        "trial": 1,
+        "evidence": "target/cartoon-wedges-measurements/disabled-1.jsonl",
+        "case": "B-cartoon-4HHB",
+        "p50_ns": 778917,
+        "p95_ns": 806500,
+        "p99_ns": 848917,
+        "outputs_per_second": 1278.936323325027,
+        "cold_completed_ns": 23928084,
+        "cold_cpu_stages": {
+          "completion_wait_ns": 8339625,
+          "preparation_ns": 3431708,
+          "recording_ns": 9554375,
+          "submission_ns": 2313958,
+          "timestamp_readback_ns": 288208
+        },
+        "cold_heap": {
+          "allocated_bytes": 26337648,
+          "allocations": 72260,
+          "deallocated_bytes": 24078599,
+          "reallocations": 12359,
+          "retained_bytes": 2259049
+        },
+        "summary": {
+          "cpu_median_ns": 146542,
+          "cpu_p95_ns": 160375,
+          "cpu_p99_ns": 167500,
+          "frame_median_ns": 778917,
+          "frame_p95_ns": 806500,
+          "frame_p99_ns": 848917,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "rss": null,
+        "gpu_envelope_reason": "unresolved",
+        "unresolved_pass_occurrences": 1200,
+        "top_resolved_pass_occurrences": [
+          {
+            "kind": "render",
+            "label": "HDR tonemap",
+            "occurrence": 9,
+            "median_gpu_ns": 252895.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "temporal HDR resolve",
+            "occurrence": 8,
+            "median_gpu_ns": 199167.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "HDR deferred lighting",
+            "occurrence": 6,
+            "median_gpu_ns": 173292.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "clear categorical segment ids",
+            "occurrence": 7,
+            "median_gpu_ns": 168834.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "occlusion denoise",
+            "occurrence": 5,
+            "median_gpu_ns": 150270.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "cartoon ribbons",
+            "occurrence": 3,
+            "median_gpu_ns": 131375.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "scene-fit analytic shadows",
+            "occurrence": 2,
+            "median_gpu_ns": 64584.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "molecular ambient occlusion",
+            "occurrence": 4,
+            "median_gpu_ns": 37250.0,
+            "resolved_occurrences": 1200
+          }
+        ],
+        "load_capture": "target/cartoon-wedges-measurements/disabled-1-load.txt"
+      },
+      {
+        "variant": "disabled",
+        "trial": 2,
+        "evidence": "target/cartoon-wedges-measurements/disabled-2.jsonl",
+        "case": "B-cartoon-4HHB",
+        "p50_ns": 780166,
+        "p95_ns": 1102458,
+        "p99_ns": 1168458,
+        "outputs_per_second": 1237.990098150785,
+        "cold_completed_ns": 22613583,
+        "cold_cpu_stages": {
+          "completion_wait_ns": 7913208,
+          "preparation_ns": 3096208,
+          "recording_ns": 9191709,
+          "submission_ns": 2176083,
+          "timestamp_readback_ns": 236209
+        },
+        "cold_heap": {
+          "allocated_bytes": 26337648,
+          "allocations": 72260,
+          "deallocated_bytes": 24078599,
+          "reallocations": 12359,
+          "retained_bytes": 2259049
+        },
+        "summary": {
+          "cpu_median_ns": 147667,
+          "cpu_p95_ns": 174292,
+          "cpu_p99_ns": 225250,
+          "frame_median_ns": 780166,
+          "frame_p95_ns": 1102458,
+          "frame_p99_ns": 1168458,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "rss": null,
+        "gpu_envelope_reason": "unresolved",
+        "unresolved_pass_occurrences": 1200,
+        "top_resolved_pass_occurrences": [
+          {
+            "kind": "render",
+            "label": "HDR tonemap",
+            "occurrence": 9,
+            "median_gpu_ns": 252291.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "temporal HDR resolve",
+            "occurrence": 8,
+            "median_gpu_ns": 198583.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "HDR deferred lighting",
+            "occurrence": 6,
+            "median_gpu_ns": 167729.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "occlusion denoise",
+            "occurrence": 5,
+            "median_gpu_ns": 144500.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "cartoon ribbons",
+            "occurrence": 3,
+            "median_gpu_ns": 131854.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "molecular ambient occlusion",
+            "occurrence": 4,
+            "median_gpu_ns": 79292.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "scene-fit analytic shadows",
+            "occurrence": 2,
+            "median_gpu_ns": 64542.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "clear categorical segment ids",
+            "occurrence": 7,
+            "median_gpu_ns": 6542.0,
+            "resolved_occurrences": 1200
+          }
+        ],
+        "load_capture": "target/cartoon-wedges-measurements/disabled-2-load.txt"
+      },
+      {
+        "variant": "disabled",
+        "trial": 3,
+        "evidence": "target/cartoon-wedges-measurements/disabled-3.jsonl",
+        "case": "B-cartoon-4HHB",
+        "p50_ns": 779000,
+        "p95_ns": 809000,
+        "p99_ns": 882916,
+        "outputs_per_second": 1273.2781102006288,
+        "cold_completed_ns": 23056875,
+        "cold_cpu_stages": {
+          "completion_wait_ns": 7978792,
+          "preparation_ns": 3149458,
+          "recording_ns": 9527209,
+          "submission_ns": 2139042,
+          "timestamp_readback_ns": 261917
+        },
+        "cold_heap": {
+          "allocated_bytes": 26337648,
+          "allocations": 72260,
+          "deallocated_bytes": 24078599,
+          "reallocations": 12359,
+          "retained_bytes": 2259049
+        },
+        "summary": {
+          "cpu_median_ns": 145833,
+          "cpu_p95_ns": 159500,
+          "cpu_p99_ns": 189250,
+          "frame_median_ns": 779000,
+          "frame_p95_ns": 809000,
+          "frame_p99_ns": 882916,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "rss": null,
+        "gpu_envelope_reason": "unresolved",
+        "unresolved_pass_occurrences": 1200,
+        "top_resolved_pass_occurrences": [
+          {
+            "kind": "render",
+            "label": "HDR tonemap",
+            "occurrence": 9,
+            "median_gpu_ns": 252708.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "temporal HDR resolve",
+            "occurrence": 8,
+            "median_gpu_ns": 199167.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "HDR deferred lighting",
+            "occurrence": 6,
+            "median_gpu_ns": 170125.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "clear categorical segment ids",
+            "occurrence": 7,
+            "median_gpu_ns": 159354.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "occlusion denoise",
+            "occurrence": 5,
+            "median_gpu_ns": 147063.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "cartoon ribbons",
+            "occurrence": 3,
+            "median_gpu_ns": 131354.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "scene-fit analytic shadows",
+            "occurrence": 2,
+            "median_gpu_ns": 64833.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "molecular ambient occlusion",
+            "occurrence": 4,
+            "median_gpu_ns": 37459.0,
+            "resolved_occurrences": 1200
+          }
+        ],
+        "load_capture": "target/cartoon-wedges-measurements/disabled-3-load.txt"
+      },
+      {
+        "variant": "enabled",
+        "trial": 1,
+        "evidence": "target/cartoon-wedges-measurements/enabled-1.jsonl",
+        "case": "P3-cartoon-wedges-4HHB",
+        "p50_ns": 790291,
+        "p95_ns": 1182209,
+        "p99_ns": 1618375,
+        "outputs_per_second": 1101.618407155679,
+        "cold_completed_ns": 23190625,
+        "cold_cpu_stages": {
+          "completion_wait_ns": 8232000,
+          "preparation_ns": 3243459,
+          "recording_ns": 9217000,
+          "submission_ns": 2251958,
+          "timestamp_readback_ns": 245834
+        },
+        "cold_heap": {
+          "allocated_bytes": 26499536,
+          "allocations": 72268,
+          "deallocated_bytes": 24240487,
+          "reallocations": 12415,
+          "retained_bytes": 2259049
+        },
+        "summary": {
+          "cpu_median_ns": 152791,
+          "cpu_p95_ns": 187917,
+          "cpu_p99_ns": 355625,
+          "frame_median_ns": 790291,
+          "frame_p95_ns": 1182209,
+          "frame_p99_ns": 1618375,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "rss": null,
+        "gpu_envelope_reason": "unresolved",
+        "unresolved_pass_occurrences": 1200,
+        "top_resolved_pass_occurrences": [
+          {
+            "kind": "render",
+            "label": "HDR tonemap",
+            "occurrence": 9,
+            "median_gpu_ns": 255687.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "temporal HDR resolve",
+            "occurrence": 8,
+            "median_gpu_ns": 202125.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "HDR deferred lighting",
+            "occurrence": 6,
+            "median_gpu_ns": 176375.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "clear categorical segment ids",
+            "occurrence": 7,
+            "median_gpu_ns": 171729.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "occlusion denoise",
+            "occurrence": 5,
+            "median_gpu_ns": 153208.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "cartoon ribbons",
+            "occurrence": 3,
+            "median_gpu_ns": 135270.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "scene-fit analytic shadows",
+            "occurrence": 2,
+            "median_gpu_ns": 65666.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "molecular ambient occlusion",
+            "occurrence": 4,
+            "median_gpu_ns": 37500.0,
+            "resolved_occurrences": 1200
+          }
+        ],
+        "load_capture": "target/cartoon-wedges-measurements/enabled-1-load.txt"
+      },
+      {
+        "variant": "enabled",
+        "trial": 2,
+        "evidence": "target/cartoon-wedges-measurements/enabled-2.jsonl",
+        "case": "P3-cartoon-wedges-4HHB",
+        "p50_ns": 779083,
+        "p95_ns": 806000,
+        "p99_ns": 853042,
+        "outputs_per_second": 1279.0185664200337,
+        "cold_completed_ns": 23377625,
+        "cold_cpu_stages": {
+          "completion_wait_ns": 8311625,
+          "preparation_ns": 3224083,
+          "recording_ns": 9455833,
+          "submission_ns": 2146375,
+          "timestamp_readback_ns": 239375
+        },
+        "cold_heap": {
+          "allocated_bytes": 26499536,
+          "allocations": 72268,
+          "deallocated_bytes": 24240487,
+          "reallocations": 12415,
+          "retained_bytes": 2259049
+        },
+        "summary": {
+          "cpu_median_ns": 145708,
+          "cpu_p95_ns": 158667,
+          "cpu_p99_ns": 170458,
+          "frame_median_ns": 779083,
+          "frame_p95_ns": 806000,
+          "frame_p99_ns": 853042,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "rss": null,
+        "gpu_envelope_reason": "unresolved",
+        "unresolved_pass_occurrences": 1200,
+        "top_resolved_pass_occurrences": [
+          {
+            "kind": "render",
+            "label": "HDR tonemap",
+            "occurrence": 9,
+            "median_gpu_ns": 253458.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "temporal HDR resolve",
+            "occurrence": 8,
+            "median_gpu_ns": 199792.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "HDR deferred lighting",
+            "occurrence": 6,
+            "median_gpu_ns": 174250.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "clear categorical segment ids",
+            "occurrence": 7,
+            "median_gpu_ns": 169833.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "occlusion denoise",
+            "occurrence": 5,
+            "median_gpu_ns": 150709.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "cartoon ribbons",
+            "occurrence": 3,
+            "median_gpu_ns": 133709.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "scene-fit analytic shadows",
+            "occurrence": 2,
+            "median_gpu_ns": 65458.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "molecular ambient occlusion",
+            "occurrence": 4,
+            "median_gpu_ns": 37416.0,
+            "resolved_occurrences": 1200
+          }
+        ],
+        "load_capture": "target/cartoon-wedges-measurements/enabled-2-load.txt"
+      },
+      {
+        "variant": "enabled",
+        "trial": 3,
+        "evidence": "target/cartoon-wedges-measurements/enabled-3.jsonl",
+        "case": "P3-cartoon-wedges-4HHB",
+        "p50_ns": 778833,
+        "p95_ns": 804750,
+        "p99_ns": 853500,
+        "outputs_per_second": 1279.9982933356089,
+        "cold_completed_ns": 23139125,
+        "cold_cpu_stages": {
+          "completion_wait_ns": 8323168,
+          "preparation_ns": 3245375,
+          "recording_ns": 9167625,
+          "submission_ns": 2127542,
+          "timestamp_readback_ns": 275250
+        },
+        "cold_heap": {
+          "allocated_bytes": 26499536,
+          "allocations": 72268,
+          "deallocated_bytes": 24240487,
+          "reallocations": 12415,
+          "retained_bytes": 2259049
+        },
+        "summary": {
+          "cpu_median_ns": 144459,
+          "cpu_p95_ns": 155417,
+          "cpu_p99_ns": 159667,
+          "frame_median_ns": 778833,
+          "frame_p95_ns": 804750,
+          "frame_p99_ns": 853500,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "rss": null,
+        "gpu_envelope_reason": "unresolved",
+        "unresolved_pass_occurrences": 1200,
+        "top_resolved_pass_occurrences": [
+          {
+            "kind": "render",
+            "label": "HDR tonemap",
+            "occurrence": 9,
+            "median_gpu_ns": 253000.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "temporal HDR resolve",
+            "occurrence": 8,
+            "median_gpu_ns": 199354.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "HDR deferred lighting",
+            "occurrence": 6,
+            "median_gpu_ns": 167645.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "occlusion denoise",
+            "occurrence": 5,
+            "median_gpu_ns": 144541.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "cartoon ribbons",
+            "occurrence": 3,
+            "median_gpu_ns": 134292.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "molecular ambient occlusion",
+            "occurrence": 4,
+            "median_gpu_ns": 81041.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "scene-fit analytic shadows",
+            "occurrence": 2,
+            "median_gpu_ns": 64958.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "clear categorical segment ids",
+            "occurrence": 7,
+            "median_gpu_ns": 8292.0,
+            "resolved_occurrences": 1200
+          }
+        ],
+        "load_capture": "target/cartoon-wedges-measurements/enabled-3-load.txt"
+      }
+    ],
+    "median_of_three": {
+      "disabled": {
+        "p50_ns": 779000,
+        "p95_ns": 809000,
+        "p99_ns": 882916,
+        "cold_completed_ns": 23056875
+      },
+      "enabled": {
+        "p50_ns": 779083,
+        "p95_ns": 806000,
+        "p99_ns": 853500,
+        "cold_completed_ns": 23190625
+      }
+    },
+    "limitations": [
+      "Timing tails include retained scheduling outliers; no speedup or isolated GPU improvement is claimed.",
+      "Whole-frame GPU envelopes remain unresolved; resolved individual pass occurrences are reported separately and never summed.",
+      "The 65536-byte resident arena counter is not total GPU buffer memory or RSS. RSS is unavailable.",
+      "Steady-state allocations remain 226 plus 22 reallocations per output; the Phase 9 zero-allocation gate remains open."
+    ]
+  },
+  "remaining": [
+    "Tubular helices, dashed gaps, nucleotide choices/live rings and the full representation sweep remain open.",
+    "Translucent exact picking and the performance zero-allocation gate retain their later-phase owners.",
+    "No new package versions are published by this unit."
+  ]
+}

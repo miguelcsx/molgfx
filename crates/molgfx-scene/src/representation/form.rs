@@ -30,6 +30,7 @@ pub(crate) enum RepresentationFormSpec {
         style: CartoonStyle,
         aspect_ratio: f32,
         arrow_factor: f32,
+        direction_wedges: bool,
         helix_profile: CartoonProfile,
         nucleic_profile: CartoonProfile,
     },
@@ -243,16 +244,16 @@ impl RepresentationSpec {
                 width,
                 aspect_ratio,
                 arrow_factor,
+                direction_wedges,
+                style,
                 ..
-            } => {
-                positive("width", *width)?;
-                positive("aspect ratio", *aspect_ratio)?;
-                if !arrow_factor.is_finite() || *arrow_factor < 0.0 {
-                    return Err(crate::Error::InvalidSpec(
-                        "arrow factor must be finite and non-negative".to_owned(),
-                    ));
-                }
-            }
+            } => validate_cartoon(
+                *width,
+                *aspect_ratio,
+                *arrow_factor,
+                *direction_wedges,
+                *style,
+            )?,
             RepresentationFormSpec::Backbone { width }
             | RepresentationFormSpec::Lines { width }
             | RepresentationFormSpec::NucleicAcid { width }
@@ -335,4 +336,26 @@ fn positive(name: &str, value: f32) -> Result<(), crate::Error> {
     Err(crate::Error::InvalidSpec(format!(
         "{name} must be finite and positive"
     )))
+}
+
+fn validate_cartoon(
+    width: f32,
+    aspect_ratio: f32,
+    arrow_factor: f32,
+    direction_wedges: bool,
+    style: CartoonStyle,
+) -> Result<(), crate::Error> {
+    if direction_wedges && style == CartoonStyle::Glycan {
+        return Err(crate::Error::InvalidSpec(
+            "direction wedges require a polymer backbone".to_owned(),
+        ));
+    }
+    positive("width", width)?;
+    positive("aspect ratio", aspect_ratio)?;
+    if !arrow_factor.is_finite() || arrow_factor < 0.0 {
+        return Err(crate::Error::InvalidSpec(
+            "arrow factor must be finite and non-negative".to_owned(),
+        ));
+    }
+    Ok(())
 }

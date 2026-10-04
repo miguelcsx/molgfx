@@ -151,6 +151,8 @@ representation! {
         aspect_ratio => aspect_ratio: f32 = 5.0,
         /// Sets the strand arrow shoulder relative to body width; zero disables arrows.
         arrow_factor => arrow_factor: f32 = 1.5,
+        /// Adds a source-anchored N-to-C wedge at each polymer guide.
+        direction_wedges => direction_wedges: bool = false,
         /// Selects the protein helix cross-section.
         helix_profile => helix_profile: CartoonProfile = CartoonProfile::Elliptical,
         /// Selects the nucleic-acid backbone cross-section.

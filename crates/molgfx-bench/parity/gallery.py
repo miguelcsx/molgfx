@@ -80,6 +80,18 @@ def color_case(scheme, pymol_color, mol_color):
 
 CASES = [
     case(
+        "P3-cartoon-wedges-4HHB",
+        "4HHB",
+        ["show cartoon direction_wedges=true as main, protein", "color chain, @main"],
+        [],
+        [rep("cartoon", visuals=["polymer-trace", "polymer-direction"])],
+        [*STILL, "CT-8"],
+        omissions={
+            "pymol-raster": "PyMOL 3.1 has no native per-guide polymer direction wedge representation.",
+            "pymol-ray": "PyMOL 3.1 has no native per-guide polymer direction wedge representation.",
+        },
+    ),
+    case(
         "B-cartoon-4HHB",
         "4HHB",
         ["show cartoon as main, protein", "color chain, @main"],
@@ -250,7 +262,15 @@ CASES = [
         "1AON",
         ["show tube as main, protein", "color chain, @main"],
         ["show cartoon, fixture", "cartoon tube", "util.cbc fixture"],
-        [rep("cartoon", aspectRatio=1, tubularHelices=True, visuals=["polymer-trace"])],
+        [
+            rep(
+                "putty",
+                sizeFactor=0.3,
+                linearSegments=8,
+                radialSegments=16,
+                visuals=["polymer-tube"],
+            )
+        ],
         [*STILL, "CT-1"],
     ),
     case(
@@ -399,6 +419,64 @@ CASES = [
         video={"kind": "trajectory", "frames": 10, "fps": 5},
     ),
 ]
+
+
+CASES.extend(
+    [
+        case(
+            "P3-cartoon-arrows-1IGT",
+            "1IGT",
+            ["show cartoon as main, protein", "color chain, @main"],
+            PY_CARTOON,
+            [rep("cartoon")],
+            [*STILL, "CT-1", "CT-2", "CT-4", "SS-2"],
+            category="protein",
+        ),
+        case(
+            "P3-cartoon-aspect-4HHB",
+            "4HHB",
+            ["show cartoon aspect_ratio=10 arrow_factor=0 as main, protein", "color chain, @main"],
+            ["set cartoon_oval_width, 0.135", "set cartoon_rect_width, 0.14", *PY_CARTOON],
+            [rep("cartoon", aspectRatio=10, arrowFactor=0)],
+            [*STILL, "CT-1", "CT-2", "CT-5", "SS-1"],
+        ),
+    ]
+)
+for profile in ("elliptical", "rounded", "square"):
+    for family, fixture, control, mol_control, target, checks in (
+        (
+            "helix",
+            "4HHB",
+            "helix_profile",
+            "helixProfile",
+            "protein",
+            ["CT-1", "CT-2", "CT-5", "SS-1"],
+        ),
+        (
+            "nucleic",
+            "1BNA",
+            "nucleic_profile",
+            "nucleicProfile",
+            'nucleic and name "C4\'"',
+            ["NA-1", "NA-6"],
+        ),
+    ):
+        pymol = []
+        if profile in ("elliptical", "square"):
+            shape = 3 if profile == "elliptical" else 2
+            selection = "fixture and ss H" if family == "helix" else "fixture"
+            pymol.append(f"cartoon {shape}, {selection}")
+        pymol.extend(["show cartoon, fixture", "set cartoon_ring_mode, 0", "util.cbc fixture"])
+        CASES.append(
+            case(
+                f"P3-{family}-profile-{profile}-{fixture}",
+                fixture,
+                [f"show cartoon {control}={profile} as main, {target}", "color chain, @main"],
+                pymol,
+                [rep("cartoon", **{mol_control: profile, "visuals": ["polymer-trace"]})],
+                [*STILL, *checks],
+            )
+        )
 
 
 def segmentation_case(base):
@@ -606,6 +684,10 @@ def build():
             script["video"] = c["video"]
         entry = {k: b[k] for k in b if k not in ("id", "form", "script")}
         entry.update({"id": c["id"], "form": "script", "script": script})
+        if "category" in c:
+            entry["category"] = c["category"]
+        if "omissions" in c:
+            entry["omissions"] = c["omissions"]
         fixtures.append(entry)
     fixtures.extend(volume_cases(base))
     fixtures.extend(effect_cases(base))

@@ -54,6 +54,10 @@ pub enum RenderError {
     #[error(transparent)]
     RepresentationInput(#[from] molgfx_core::CoreError),
 
+    /// Source-backed cartoon geometry could not preserve its guide direction.
+    #[error(transparent)]
+    Cartoon(#[from] molgfx_geometry::CartoonError),
+
     /// A source field could not produce complete finite boundary geometry.
     #[error(transparent)]
     FieldGeometry(#[from] molgfx_geometry::FieldError),
@@ -173,7 +177,10 @@ impl RenderError {
             Self::PickingOwnerMissing => "MOLGFX-E0084",
             Self::PickingPageMissing { .. } => "MOLGFX-E0085",
             Self::RelationSourceMissing { .. } => "MOLGFX-E0091",
-            Self::Packing(_) => "MOLGFX-E0079",
+            Self::Packing(_) | Self::Cartoon(molgfx_geometry::CartoonError::Packing(_)) => {
+                "MOLGFX-E0079"
+            }
+            Self::Cartoon(_) => "MOLGFX-E0095",
             Self::FieldGeometry(_) => "MOLGFX-E0093",
             Self::RepresentationInput(_) => "MOLGFX-E0094",
             Self::GraphCycle { .. } => "MOLGFX-E0070",

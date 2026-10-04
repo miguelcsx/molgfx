@@ -13,6 +13,7 @@ fn cartoon_shape_controls_round_trip_through_the_browser_contract() {
             molgfx::rep::cartoon("all")
                 .aspect_ratio(3.0)
                 .arrow_factor(2.0)
+                .direction_wedges(true)
                 .helix_profile(molgfx::rep::CartoonProfile::Rounded)
                 .nucleic_profile(molgfx::rep::CartoonProfile::Square),
         )

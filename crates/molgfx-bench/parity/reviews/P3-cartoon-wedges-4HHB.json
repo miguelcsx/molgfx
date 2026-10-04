@@ -1,0 +1,45 @@
+{
+  "case": "P3-cartoon-wedges-4HHB",
+  "source": "834fafaf + direction wedges working tree",
+  "owner": "Phase 3.1",
+  "items": [
+    {
+      "id": "GEN-1",
+      "verdict": "pass",
+      "note": "Native converged lighting and shadows remain coherent on ribbons and flat glyphs. The public Python three-guide close-up shows source-anchored triangles and their shadows. No claim of superior presentation quality."
+    },
+    {
+      "id": "GEN-2",
+      "verdict": "pass",
+      "note": "Reviewed 768 and 384 converged and interactive outputs are populated, finite and have no visible missing faces. Native live-backbone GPU regression passed; full orbit/video certification remains outside this still review."
+    },
+    {
+      "id": "GEN-3",
+      "verdict": "pass",
+      "note": "Shared fitted camera; chromatic silhouette width is 357 native versus 354 Mol* pixels (0.85%), recorded in target/cartoon-wedges-gallery/framing.json. Source counts agree: 4779 atoms and 801 residues."
+    },
+    {
+      "id": "CT-8",
+      "verdict": "pass",
+      "note": "One flat forward triangle per selected source guide, including terminal guides, is demonstrated by geometry tests and the public Python three-guide detail. The view from positive Y mirrors source +X to screen-left: all three tips correctly point left. Glyph dimensions are half the authored cartoon width; source guide identity is retained. Mol* direction visualization establishes the same source traversal, while its thicker prism and theme-relative dimensions are not copied."
+    }
+  ],
+  "native_evidence": "target/cartoon-wedges-gallery/native/P3-cartoon-wedges-4HHB",
+  "reference_evidence": "target/cartoon-wedges-gallery/reference/P3-cartoon-wedges-4HHB",
+  "detail_evidence": "target/cartoon-wedges-verification/python-detail-True.png",
+  "framing_evidence": "target/cartoon-wedges-gallery/framing.json",
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P3-cartoon-wedges-4HHB.png",
+    "extent": [
+      384,
+      384
+    ],
+    "verification": "target/cartoon-wedges-gallery/final-golden"
+  },
+  "reference_notes": [
+    "Mol* local primary source polymer-direction-wedge.ts was inspected. MolGFX follows the required flat triangle, not the upstream thick prism.",
+    "PyMOL 3.1 lacks native per-guide direction wedges; both adapters record an explicit omission.",
+    "The first direct reference request retained the unfitted catalog camera and is preserved under reference-unfitted-diagnostic. Only the subsequent harness-fitted request is used for review."
+  ],
+  "remaining": "Full Phase 3.1 remains open: tubular helices, gaps, nucleotide choices and live rings. Presentation antialiasing remains Phase 7 work."
+}

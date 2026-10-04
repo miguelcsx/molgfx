@@ -4871,6 +4871,77 @@
           "margin": 1.15
         }
       }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P3-cartoon-wedges-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon direction_wedges=true as main, protein",
+          "color chain, @main"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform",
+              "typeParams": {
+                "visuals": [
+                  "polymer-trace",
+                  "polymer-direction"
+                ]
+              }
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "CT-8"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        },
+        "pymol": []
+      },
+      "omissions": {
+        "pymol-raster": "PyMOL 3.1 has no native per-guide polymer direction wedge representation.",
+        "pymol-ray": "PyMOL 3.1 has no native per-guide polymer direction wedge representation."
+      }
     }
   ]
 }

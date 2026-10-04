@@ -830,6 +830,7 @@ class _Rep:
         style: _CartoonStyle | None = None,
         aspect_ratio: float | None = None,
         arrow_factor: float | None = None,
+        direction_wedges: bool | None = None,
         helix_profile: _CartoonProfile | None = None,
         nucleic_profile: _CartoonProfile | None = None,
         opacity: float = 1.0,

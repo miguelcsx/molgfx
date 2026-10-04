@@ -61,6 +61,20 @@ class ViewerTests(unittest.TestCase):
         self.assertEqual(json.loads(viewer.scene_patch)["operations"][0]["op"], "set_interaction")
         self.assertIs(molgfx.Viewer, Viewer)
 
+    def test_direction_wedges_reach_the_shared_browser_scene_patch(self) -> None:
+        viewer = self.make_viewer(Session(_structure()))
+        viewer.execute("show cartoon direction_wedges=true, protein")
+        self.assertEqual(viewer.patch_sequence, 1)
+        self.assertIn('"direction_wedges":true', viewer.scene_patch)
+        self.assertIn('"direction_wedges":true', viewer.scene.to_json())
+        viewer.session.undo()
+        self.assertEqual(viewer.patch_sequence, 2)
+        self.assertNotIn('"direction_wedges":true', viewer.scene.to_json())
+        before = viewer.patch_sequence
+        with self.assertRaises(CommandError):
+            viewer.execute("show cartoon direction_wedges=yes, protein")
+        self.assertEqual(viewer.patch_sequence, before)
+
     def test_failed_command_does_not_publish_or_mutate(self) -> None:
         viewer = self.make_viewer(Session(_structure()))
         before = viewer.scene.to_json(), viewer.patch_sequence, viewer.session.to_json()

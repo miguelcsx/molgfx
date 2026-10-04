@@ -1,5 +1,7 @@
 //! Reusable cartoon ribbon extrusion over transport-framed splines.
 
+use super::directions::{DirectionBuild, DirectionStorage};
+use super::error::CartoonError;
 use super::sweep::{RibbonTrace, append_ribbon};
 use super::traces::{PolymerTraces, extract_polymer_traces};
 use molgfx_core::{CartoonProfile, SecondaryStructure};
@@ -42,8 +44,9 @@ pub(crate) struct RibbonDeformation {
     /// Catmull–Rom source atom rows, or `u32::MAX` for static geometry.
     pub controls: [u32; 4],
     /// Local curve parameter, bit-cast left/right guide scalar indices, and a
-    /// reserved lane. Keeping these in existing lanes preserves the 32-byte
-    /// deformation row.
+    /// anchor-mode lane. Keeping these in existing lanes preserves the 32-byte
+    /// deformation row. Zero uses the spline; one anchors at the second control
+    /// and uses the first-to-third vector as its direction.
     pub parameter: [f32; 4],
 }
 
@@ -69,6 +72,8 @@ pub struct RibbonParams {
     pub aspect_ratio: f32,
     /// Strand arrow shoulder width relative to the body; zero disables arrows.
     pub arrow_factor: f32,
+    /// Draws source-anchored polymer direction wedges.
+    pub direction_wedges: bool,
     /// Cross-section of protein helices.
     pub helix_profile: CartoonProfile,
     /// Cross-section of nucleic-acid backbones.
@@ -88,6 +93,7 @@ impl Default for RibbonParams {
             thickness: 0.28,
             aspect_ratio: 5.0,
             arrow_factor: 1.5,
+            direction_wedges: false,
             helix_profile: CartoonProfile::Elliptical,
             nucleic_profile: CartoonProfile::Square,
             profile: SplineProfile::Cartoon,
@@ -134,6 +140,7 @@ pub struct RibbonMesh {
     demand: Vec<f32>,
     frames: Vec<TransportFrame>,
     traces: PolymerTraces,
+    directions: DirectionStorage,
 }
 
 impl RibbonMesh {
@@ -142,13 +149,13 @@ impl RibbonMesh {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::PackingError`] if the geometry exceeds GPU index limits.
+    /// Returns [`crate::CartoonError`] for GPU index limits or a guide without a direction.
     pub fn generate(
         &mut self,
         trace: &[Vec3],
         entities: &[u32],
         params: RibbonParams,
-    ) -> Result<(), crate::PackingError> {
+    ) -> Result<(), CartoonError> {
         self.generate_styled(trace, entities, &[], params)
     }
 
@@ -157,14 +164,14 @@ impl RibbonMesh {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::PackingError`] if the geometry exceeds GPU index limits.
+    /// Returns [`crate::CartoonError`] for GPU index limits or a guide without a direction.
     pub fn generate_styled(
         &mut self,
         trace: &[Vec3],
         entities: &[u32],
         styles: &[SecondaryStructure],
         params: RibbonParams,
-    ) -> Result<(), crate::PackingError> {
+    ) -> Result<(), CartoonError> {
         self.vertices.clear();
         self.indices.clear();
         self.deformations.clear();
@@ -178,18 +185,35 @@ impl RibbonMesh {
             indices: &mut self.indices,
             deformations: &mut self.deformations,
         };
-        append_ribbon(
-            RibbonTrace {
-                points: trace,
-                entities,
-                styles,
-                property_base: None,
-                property_count: 0,
-                normals: &[],
-                guides: &[],
-            },
-            &mut build,
-        )
+        let input = RibbonTrace {
+            points: trace,
+            entities,
+            styles,
+            property_base: None,
+            property_count: 0,
+            normals: &[],
+            guides: &[],
+        };
+        append_ribbon(input, &mut build)?;
+        if params.direction_wedges {
+            let result = super::directions::append_trace(
+                input,
+                &self.samples,
+                &self.frames,
+                None,
+                &mut DirectionBuild {
+                    params,
+                    vertices: &mut self.vertices,
+                    indices: &mut self.indices,
+                    deformations: &mut self.deformations,
+                },
+            );
+            if let Err(error) = result {
+                self.clear();
+                return Err(error);
+            }
+        }
+        Ok(())
     }
 
     /// Generates every selected polymer trace in one structure into a single
@@ -197,7 +221,7 @@ impl RibbonMesh {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::PackingError`] when a guide atom row cannot be encoded
+    /// Returns [`crate::CartoonError`] when a guide atom row cannot be encoded
     /// or the generated geometry exceeds GPU index limits.
     pub fn generate_structure(
         &mut self,
@@ -206,10 +230,29 @@ impl RibbonMesh {
         secondary: &[SecondaryStructure],
         max_gap: f32,
         params: RibbonParams,
-    ) -> Result<(), crate::PackingError> {
+    ) -> Result<(), CartoonError> {
         self.clear();
         extract_polymer_traces(structure, selection, secondary, max_gap, &mut self.traces)?;
-        self.generate_traces(params, GuideProperties::RadiusSources)
+        self.generate_traces(params, GuideProperties::RadiusSources)?;
+        if params.direction_wedges {
+            let result = self.directions.generate(
+                structure,
+                selection,
+                secondary,
+                max_gap,
+                &mut DirectionBuild {
+                    params,
+                    vertices: &mut self.vertices,
+                    indices: &mut self.indices,
+                    deformations: &mut self.deformations,
+                },
+            );
+            if let Err(error) = result {
+                self.clear();
+                return Err(error);
+            }
+        }
+        Ok(())
     }
 
     /// Generates a ribbon along a glycan's glycosidic tree.
@@ -220,16 +263,20 @@ impl RibbonMesh {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::PackingError`] if the geometry exceeds GPU index limits.
+    /// Returns [`crate::CartoonError`] for GPU index limits or a guide without a direction.
     pub fn generate_glycan(
         &mut self,
         structure: &molframe::Structure,
         selection: &molgfx_core::AtomSelection,
         params: RibbonParams,
-    ) -> Result<(), crate::PackingError> {
+    ) -> Result<(), CartoonError> {
         self.clear();
+        if params.direction_wedges {
+            return Err(CartoonError::DirectionProfile);
+        }
         super::glycan::extract_glycosidic_traces(structure, selection, &mut self.traces);
         self.generate_traces(params, GuideProperties::Unmapped)
+            .map_err(CartoonError::from)
     }
 
     fn generate_traces(

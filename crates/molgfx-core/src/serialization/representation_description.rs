@@ -33,6 +33,8 @@ pub struct RepresentationDescription {
     pub cartoon_aspect_ratio: f32,
     /// Strand arrow shoulder scale.
     pub cartoon_arrow_factor: f32,
+    /// Source-anchored polymer direction wedges.
+    pub cartoon_direction_wedges: bool,
     /// Protein helix cross-section.
     pub cartoon_helix_profile: crate::CartoonProfile,
     /// Nucleic backbone cross-section.

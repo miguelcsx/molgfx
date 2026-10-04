@@ -1,8 +1,10 @@
 //! Polymer cartoon and nucleotide geometry.
 
 mod cross_section;
+mod directions;
 mod draw_limits;
 pub(crate) mod ends;
+mod error;
 mod glycan;
 pub(crate) mod nucleic;
 pub(crate) mod paper_chain;
@@ -13,6 +15,7 @@ mod sweep;
 pub(crate) mod traces;
 pub(crate) mod twist;
 
+pub use error::CartoonError;
 pub use glycan::extract_glycosidic_traces;
 pub use nucleic::{append_base_polygons, append_base_slabs};
 pub use paper_chain::append_paper_chain;

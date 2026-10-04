@@ -155,6 +155,12 @@ trait Control<T> {
     fn control(self) -> PyResult<T>;
 }
 
+impl Control<bool> for bool {
+    fn control(self) -> PyResult<bool> {
+        Ok(self)
+    }
+}
+
 impl Control<f32> for f32 {
     fn control(self) -> PyResult<f32> {
         Ok(self)
@@ -289,7 +295,7 @@ fn reject_unknown_options(
     Ok(())
 }
 
-representation!(cartoon, width: f32, style: String, aspect_ratio: f32, arrow_factor: f32, helix_profile: String, nucleic_profile: String);
+representation!(cartoon, width: f32, style: String, aspect_ratio: f32, arrow_factor: f32, direction_wedges: bool, helix_profile: String, nucleic_profile: String);
 representation!(ball_and_stick, radius: f32, bond_radius: f32);
 representation!(spacefill, radius: f32);
 representation!(licorice, radius: f32, bond_radius: f32);
