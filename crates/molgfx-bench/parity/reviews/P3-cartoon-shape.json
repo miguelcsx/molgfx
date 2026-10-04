@@ -1,0 +1,295 @@
+{
+  "status": "verified public cartoon cross-section and arrow controls; full Phase 3.1 remains open",
+  "owner": "Phase 3.1",
+  "implementation": "Shared core parameters preserve authored aspect ratio at different widths and place a terminal strand shoulder at its last CA. Reused sample storage expands in one reverse linear pass. Both geometry and persistent slot-cache invalidation consume the controls.",
+  "public_surfaces": [
+    "Rust cartoon builder",
+    "authoring parser/printer",
+    "Python keyword arguments and stubs",
+    "canonical scene JSON and browser contract",
+    "cold core scene restoration"
+  ],
+  "migration": "Core scene descriptions carry named cartoon controls. The parameter array contains fourteen geometry fields; duplicate material opacity and order fields were removed. Older incompatible shapes fail validation rather than receiving invented controls.",
+  "complexity": "O(samples) extrusion and shoulder insertion, with reused vectors; camera-only frames do not rebuild or upload ribbon geometry because shape is part of the persistent cache key.",
+  "verification": {
+    "directory": "target/cartoon-shape-verification",
+    "workspace_clippy": "clippy-final.log",
+    "workspace_tests": "tests-final.log",
+    "wasm32_check": "wasm-check.log",
+    "wasm32_clippy": "wasm-clippy.log",
+    "wasm_node_tests": 3,
+    "wasm_node_evidence": "wasm-node-final.log",
+    "geometry_cartoon_tests": 47,
+    "python_tests": 79,
+    "stubtest": "pass",
+    "ruff": "pass",
+    "mypy": "pass",
+    "policy_checks": "pass",
+    "actual_gpu_tests": [
+      "gpu-boundary.log",
+      "gpu-gradients.log",
+      "gpu-categorical.log"
+    ]
+  },
+  "consumers": {
+    "python": "target/cartoon-shape-verification/python-consumer.json",
+    "browser": "target/cartoon-shape-verification/browser-consumer.json",
+    "browser_runtime_content_key": "15ef8471e05cd550",
+    "result": "4HHB aspect ratios 3 and 10 produce distinct completed images through both public bindings"
+  },
+  "reviews": [
+    "P3-cartoon-arrows-1IGT.json",
+    "P3-cartoon-aspect-4HHB.json"
+  ],
+  "goldens": {
+    "directory": "target/cartoon-shape-final-goldens",
+    "P3-cartoon-arrows-1IGT": {
+      "ssim": 1.0,
+      "mean_delta_e": 0.0,
+      "p99_delta_e": 0.0
+    },
+    "P3-cartoon-aspect-4HHB": {
+      "ssim": 1.0,
+      "mean_delta_e": 0.0,
+      "p99_delta_e": 0.0
+    },
+    "B-cartoon-4HHB": {
+      "ssim": 0.9986556284313174,
+      "mean_delta_e": 0.10225373837040438,
+      "p99_delta_e": 1.4611389028442556,
+      "status": "passes unchanged prior golden"
+    }
+  },
+  "measurement_note": "Three interleaved independent release processes per state: 768x768, fixed high interactive quality, static camera, 120 warmup and 1200 measured outputs. Before executable is copied from 2a00c2c5. Own compilation and consumer tests had completed, but other Chromium and compilation processes were active. These loaded results do not establish an attributable change, clean Phase 9 baseline or FPS certification. GPU envelopes remain unresolved; arena bytes do not represent full RSS. No optimization claim.",
+  "measurements": [
+    {
+      "path": "target/cartoon-shape-measurements/idle-after-1.jsonl",
+      "summary": {
+        "cpu_median_ns": 1049833,
+        "cpu_p95_ns": 3773917,
+        "cpu_p99_ns": 9042917,
+        "frame_median_ns": 7066958,
+        "frame_p95_ns": 24350667,
+        "frame_p99_ns": 41928792,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 100.98382190852266
+    },
+    {
+      "path": "target/cartoon-shape-measurements/idle-after-2.jsonl",
+      "summary": {
+        "cpu_median_ns": 1038542,
+        "cpu_p95_ns": 3758125,
+        "cpu_p99_ns": 8132750,
+        "frame_median_ns": 6454875,
+        "frame_p95_ns": 24638000,
+        "frame_p99_ns": 43489750,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 104.491419640534
+    },
+    {
+      "path": "target/cartoon-shape-measurements/idle-after-3.jsonl",
+      "summary": {
+        "cpu_median_ns": 1012958,
+        "cpu_p95_ns": 3573791,
+        "cpu_p99_ns": 9668375,
+        "frame_median_ns": 6004375,
+        "frame_p95_ns": 22932792,
+        "frame_p99_ns": 41186834,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 113.1513162175802
+    },
+    {
+      "path": "target/cartoon-shape-measurements/idle-before-1.jsonl",
+      "summary": {
+        "cpu_median_ns": 1065542,
+        "cpu_p95_ns": 3925084,
+        "cpu_p99_ns": 10039250,
+        "frame_median_ns": 7106916,
+        "frame_p95_ns": 26586750,
+        "frame_p99_ns": 42983500,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 96.33207367405195
+    },
+    {
+      "path": "target/cartoon-shape-measurements/idle-before-2.jsonl",
+      "summary": {
+        "cpu_median_ns": 1061125,
+        "cpu_p95_ns": 3939042,
+        "cpu_p99_ns": 9222875,
+        "frame_median_ns": 7037000,
+        "frame_p95_ns": 26859041,
+        "frame_p99_ns": 37939750,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 96.95594946222424
+    },
+    {
+      "path": "target/cartoon-shape-measurements/idle-before-3.jsonl",
+      "summary": {
+        "cpu_median_ns": 1093541,
+        "cpu_p95_ns": 4426459,
+        "cpu_p99_ns": 11694000,
+        "frame_median_ns": 7116500,
+        "frame_p95_ns": 27717458,
+        "frame_p99_ns": 39426625,
+        "gpu_median_ns": null,
+        "gpu_p95_ns": null,
+        "gpu_p99_ns": null,
+        "gpu_resolved_count": 0,
+        "heap_measured_count": 1200,
+        "max_heap_allocations": 226,
+        "max_heap_reallocations": 20,
+        "max_residency_allocation_events": 0,
+        "max_stall_events": 0,
+        "max_upload_bytes": 2336,
+        "output_count": 1200,
+        "peak_resident_bytes": 65536
+      },
+      "completed_outputs_per_second": 94.98912541576114
+    }
+  ],
+  "remaining": [
+    "Tubular helices and cross-section profile variants",
+    "Nucleotide modes and live-coordinate ring topology",
+    "Gap presentation policies and direction wedges",
+    "Phase 3.7 boundary-policy audit: 1IGT has 615 native strands versus 535 in each reference under different secondary-assignment policies",
+    "Presentation edge roughness comparison remains in Phase 7",
+    "Phase 9 clean ladder baselines, zero steady-state allocations, full memory and GPU timing evidence",
+    "No new package release has been published"
+  ],
+  "quality_state": {
+    "adaptive": false,
+    "complete": false,
+    "extent": [
+      768,
+      768
+    ],
+    "full_residency": true,
+    "illumination_bounces": 0,
+    "lighting": {
+      "diffuse_strength": 0.6200000047683716,
+      "fill_color": {
+        "a": 255,
+        "b": 226,
+        "g": 214,
+        "r": 206
+      },
+      "fill_direction": [
+        0.7799999713897705,
+        -0.11999999731779099,
+        0.5
+      ],
+      "fill_strength": 0.30000001192092896,
+      "ground": {
+        "a": 255,
+        "b": 141,
+        "g": 146,
+        "r": 150
+      },
+      "horizon": {
+        "a": 255,
+        "b": 202,
+        "g": 194,
+        "r": 188
+      },
+      "key_angular_radius": 0.20000000298023224,
+      "key_color": {
+        "a": 255,
+        "b": 230,
+        "g": 244,
+        "r": 255
+      },
+      "key_direction": [
+        -0.41999998688697815,
+        0.5799999833106995,
+        0.699999988079071
+      ],
+      "key_strength": 1.350000023841858,
+      "rim_color": {
+        "a": 255,
+        "b": 152,
+        "g": 132,
+        "r": 120
+      },
+      "rim_strength": 0.1599999964237213,
+      "shadow_strength": 0.6600000262260437,
+      "specular_strength": 0.7200000286102295,
+      "zenith": {
+        "a": 255,
+        "b": 240,
+        "g": 232,
+        "r": 226
+      }
+    },
+    "lod_mode_max": 0,
+    "occlusion_rays_per_sample": 2,
+    "progressive": true,
+    "ribbon_steps_max": 8,
+    "samples_completed": 1,
+    "samples_required": 1,
+    "samples_submitted": 1,
+    "surface_limit": "none",
+    "surface_spacing_effective": null,
+    "surface_spacing_requested": 0.25,
+    "tier": "high"
+  }
+}

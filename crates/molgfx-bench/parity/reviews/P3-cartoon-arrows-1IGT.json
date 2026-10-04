@@ -1,0 +1,56 @@
+{
+  "case": "P3-cartoon-arrows-1IGT",
+  "source": "2a00c2c5 + cartoon shape working tree",
+  "owner": "Phase 3.1",
+  "items": [
+    {
+      "id": "GEN-1",
+      "verdict": "pass",
+      "note": "Light is consistent over the protein; crevices darken with occlusion. Presentation edge roughness remains a Phase 7 comparison item, not a claim of superior appearance."
+    },
+    {
+      "id": "GEN-2",
+      "verdict": "pass",
+      "note": "Both converged and single-frame captures are finite, populated and free of visible holes or conflicting faces in the reviewed stills. Orbit/video stability is not certified by a still."
+    },
+    {
+      "id": "GEN-3",
+      "verdict": "pass",
+      "note": "Same camera for all engines; coloured silhouette widths agree within 1%, measured in target/cartoon-shape-verification/framing.json."
+    },
+    {
+      "id": "CT-1",
+      "verdict": "pass",
+      "note": "Backbone ribbons follow the polymer fold and remain continuous across observed guides without abrupt frame flips."
+    },
+    {
+      "id": "CT-2",
+      "verdict": "pass",
+      "note": "Broad helix/sheet faces remain legible; aspect control changes depth while retaining the physical width. Profile variants remain separate unfinished work."
+    },
+    {
+      "id": "CT-4",
+      "verdict": "pass",
+      "note": "The two Fab regions and Fc region retain the antiparallel beta-sandwich organisation visible in both references."
+    },
+    {
+      "id": "SS-2",
+      "verdict": "pass",
+      "note": "Terminal strand geometry has its authored shoulder at the last strand CA and tapers toward the next guide; N-to-C orientation follows source row order. Exact shoulder placement is covered by a straight-guide regression."
+    }
+  ],
+  "native_evidence": "target/cartoon-shape-arrows/P3-cartoon-arrows-1IGT",
+  "reference_evidence": "target/cartoon-shape-arrows/P3-cartoon-arrows-1IGT",
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P3-cartoon-arrows-1IGT.png",
+    "verification": "target/cartoon-shape-final-goldens",
+    "extent": [
+      384,
+      384
+    ]
+  },
+  "remaining": "Full cartoon unit remains open: profiles, tubular helices, gaps, wedges, nucleotide choices and live ring coordinates.",
+  "reference_notes": [
+    "MolFrame preserves deposited assignments per residue and fills unassigned residues; Mol* and PyMOL auto policies differ. 1IGT has 615 native strand assignments and 535 in each reference. SS-3 boundary-policy audit remains owned by Phase 3.7; this comparison does not certify identical secondary structure."
+  ]
+}

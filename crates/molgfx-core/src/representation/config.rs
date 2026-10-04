@@ -104,6 +104,30 @@ impl RepresentationConfig {
         self
     }
 
+    /// Sets secondary-structure cross-section proportions and arrow shoulders.
+    ///
+    /// # Errors
+    /// The aspect ratio must be finite and positive; the arrow factor must be
+    /// finite and non-negative. Zero retains the unmodified strand body.
+    pub fn cartoon_shape(
+        mut self,
+        aspect_ratio: f32,
+        arrow_factor: f32,
+    ) -> Result<Self, CoreError> {
+        if !aspect_ratio.is_finite()
+            || aspect_ratio <= 0.0
+            || !arrow_factor.is_finite()
+            || arrow_factor < 0.0
+        {
+            return Err(CoreError::InvalidProperty {
+                reason: "cartoon aspect ratio must be positive and arrow factor non-negative, both finite",
+            });
+        }
+        self.params.cartoon_aspect_ratio = aspect_ratio;
+        self.params.cartoon_arrow_factor = arrow_factor;
+        Ok(self)
+    }
+
     /// Sets point diameter in physical pixels.
     #[must_use]
     pub const fn point_size(mut self, pixels: f32) -> Self {

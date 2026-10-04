@@ -212,9 +212,9 @@ fn representation_description(
             params.point_size_pixels,
             params.line_width_pixels,
             params.blob_spread,
-            f32::from(representation.material.opacity_unorm8()),
-            f32::from(representation.order),
         ],
+        cartoon_aspect_ratio: params.cartoon_aspect_ratio,
+        cartoon_arrow_factor: params.cartoon_arrow_factor,
         surface_components: match params.surface_components.threshold() {
             crate::SurfaceComponentThreshold::Disabled => SurfaceComponentDescription::Disabled,
             crate::SurfaceComponentThreshold::Area(minimum) => {
@@ -473,3 +473,7 @@ fn surface_style_value(style: crate::SurfaceStyle) -> f32 {
 fn secondary_name(value: crate::SecondaryStructure) -> &'static str {
     value.name()
 }
+
+#[cfg(test)]
+#[path = "cartoon_tests.rs"]
+mod cartoon_tests;

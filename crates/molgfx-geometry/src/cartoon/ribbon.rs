@@ -60,6 +60,10 @@ pub struct RibbonParams {
     pub width: f32,
     /// Full thickness in Ångström.
     pub thickness: f32,
+    /// Secondary-structure cross-section width divided by thickness.
+    pub aspect_ratio: f32,
+    /// Strand arrow shoulder width relative to the body; zero disables arrows.
+    pub arrow_factor: f32,
     /// Cross-section semantics applied along the shared spline.
     pub profile: SplineProfile,
     /// Resolved display colour.
@@ -73,6 +77,8 @@ impl Default for RibbonParams {
             max_steps: 8,
             width: 1.2,
             thickness: 0.28,
+            aspect_ratio: 5.0,
+            arrow_factor: 1.5,
             profile: SplineProfile::Cartoon,
             color: Rgba8::opaque(110, 165, 235),
         }
@@ -338,6 +344,13 @@ fn append_ribbon(
         build.demand,
         build.samples,
     );
+    if matches!(
+        build.params.profile,
+        SplineProfile::Cartoon | SplineProfile::Rocket
+    ) && build.params.arrow_factor > 0.0
+    {
+        super::profiles::arrow_shoulders(styles, build.samples);
+    }
     molgfx_math::parallel_transport(build.samples, build.frames);
     if build.samples.len() < 2 || build.samples.len() != build.frames.len() {
         return;
@@ -374,8 +387,13 @@ fn append_ribbon(
         for side in 0..PROFILE_SIDES {
             let (x, y, normal) = cross_section(flat, side, width, thickness);
             let offset = frame.normal * (x * width) + frame.binormal * (y * thickness);
+            // A zero-width arrow tip has a vanishing ellipse gradient. The
+            // transported face normal keeps that shared tip finite.
             let normal =
-                (frame.normal * normal[0] + frame.binormal * normal[1]).normalize_or_zero();
+                match (frame.normal * normal[0] + frame.binormal * normal[1]).try_normalize() {
+                    Some(normal) => normal,
+                    None => frame.normal,
+                };
             build.vertices.push(RibbonVertex {
                 position: (sample.position + offset).to_array(),
                 entity_id,

@@ -827,6 +827,8 @@ class _Rep:
         target: _Target,
         width: float | None = None,
         style: _CartoonStyle | None = None,
+        aspect_ratio: float | None = None,
+        arrow_factor: float | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
     ) -> Representation: ...

@@ -196,6 +196,10 @@ pub struct RepresentationParams {
     pub surface_pattern_width_pixels: f32,
     /// Cartoon strand and helix width, Ångström.
     pub ribbon_width: f32,
+    /// Helix and sheet width divided by thickness.
+    pub cartoon_aspect_ratio: f32,
+    /// Arrow shoulder width relative to the strand body; zero disables arrows.
+    pub cartoon_arrow_factor: f32,
     /// Radius of trace and tube spline cross-sections, Ångström.
     pub tube_radius: f32,
     /// Optional reversible property mapping for variable-radius tubes.
@@ -220,6 +224,8 @@ impl Default for RepresentationParams {
             blob_spread: 2.0,
             surface_pattern_width_pixels: 1.25,
             ribbon_width: 1.2,
+            cartoon_aspect_ratio: 5.0,
+            cartoon_arrow_factor: 1.5,
             tube_radius: 0.3,
             tube_radius_mapping: TubeRadiusMapping::Constant,
             point_size_pixels: 3.0,

@@ -147,6 +147,10 @@ representation! {
         width => width: f32 = 1.2,
         /// Selects a cartoon recipe without changing its semantic target.
         style => style: CartoonStyle = CartoonStyle::Ribbon,
+        /// Sets width divided by thickness for helix and sheet cross-sections.
+        aspect_ratio => aspect_ratio: f32 = 5.0,
+        /// Sets the strand arrow shoulder relative to body width; zero disables arrows.
+        arrow_factor => arrow_factor: f32 = 1.5,
     }
 }
 

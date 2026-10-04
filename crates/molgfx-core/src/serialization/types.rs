@@ -206,12 +206,13 @@ pub struct RepresentationDescription {
     pub color: ColorDescription,
     /// Surface response state.
     pub material: MaterialDescription,
-    /// Numeric geometry knobs in the fixed order of `representation_params`.
-    ///
-    /// The first thirteen lanes are geometry, followed by the material opacity
-    /// and draw order. The width is part of the wire contract: an older scene
-    /// with a shorter array is rejected rather than reinterpreted.
-    pub params: [f32; 16],
+    /// Numeric geometry controls in the fixed order of `representation_params`.
+    /// Material opacity and draw order are stored only in their named records.
+    pub params: [f32; 14],
+    /// Secondary-structure cross-section aspect ratio.
+    pub cartoon_aspect_ratio: f32,
+    /// Strand arrow shoulder scale.
+    pub cartoon_arrow_factor: f32,
     /// Sampled-field connected-component threshold.
     pub surface_components: SurfaceComponentDescription,
     /// Clipping state.

@@ -30,6 +30,11 @@ scene.add(molgfx.rep.ball_and_stick(target=molgfx.sel.ligands()))
 molgfx.Renderer().render_image(scene, size=(1920, 1080)).save("structure.png")
 ```
 
+Cartoon representations accept `aspect_ratio` (width divided by depth, default
+`5.0`) and `arrow_factor` (terminal beta-arrow shoulder scale, default `1.5`).
+Set `arrow_factor=0.0` to disable arrows. The Rust builder and browser scene
+contract expose the same controls.
+
 Presentation effects are explicit values on a render profile:
 
 ```python

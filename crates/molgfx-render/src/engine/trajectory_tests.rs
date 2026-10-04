@@ -324,3 +324,36 @@ fn topology_only_ticks_never_reupload_stable_atom_records() {
         "dynamic connectivity must not upload stable atom records"
     );
 }
+
+#[test]
+fn editing_cartoon_proportions_refreshes_geometry_without_uploading_coordinates() {
+    let source = cartoon_structure();
+    let mut scene = Scene::from_structure(&source).expect("source binds");
+    let selection = scene.add_selection(AtomSelection::All);
+    let handle = scene
+        .represent(selection, RepresentationKind::Cartoon)
+        .expect("cartoon attaches");
+    let mut engine = engine();
+    engine.render(&scene, &camera()).expect("initial frame");
+    for (aspect_ratio, arrow_factor) in [(10.0, 1.5), (10.0, 2.0)] {
+        let before = engine.device.log.writes.lock().expect("write log").len();
+        let value = scene.representation_mut(handle).expect("cartoon resolves");
+        value.params.cartoon_aspect_ratio = aspect_ratio;
+        value.params.cartoon_arrow_factor = arrow_factor;
+        engine.render(&scene, &camera()).expect("edited frame");
+        let writes = engine.device.log.writes.lock().expect("write log");
+        let buffers = engine.device.log.buffers.lock().expect("buffer log");
+        let labels: Vec<_> = writes[before..]
+            .iter()
+            .filter_map(|(buffer, _, _, _)| {
+                buffers
+                    .iter()
+                    .find(|(id, _, _)| id == buffer)
+                    .map(|(_, label, _)| *label)
+            })
+            .collect();
+        assert!(labels.contains(&"cartoon vertices"));
+        assert!(labels.contains(&"cartoon GPU deformation recipes"));
+        assert!(!labels.contains(&"immutable asset arena"));
+    }
+}

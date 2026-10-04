@@ -78,6 +78,17 @@ _pdbx_struct_assembly_gen.asym_id_list
 class SceneSemanticsTests(unittest.TestCase):
     """What the scene hands back, and what it refuses."""
 
+    def test_cartoon_shape_controls_survive_scene_serialization(self) -> None:
+        """The shared scene contract retains authored cross-section controls."""
+        scene = molgfx.Scene(_structure())
+        scene.add(molgfx.rep.cartoon(target="all", aspect_ratio=3.0, arrow_factor=2.0))
+        text = scene.to_json()
+        self.assertIn('"aspect_ratio":3.0', text)
+        self.assertIn('"arrow_factor":2.0', text)
+        for aspect, arrow in ((0.0, 1.0), (5.0, -1.0), (float("nan"), 1.0)):
+            with self.assertRaises(molgfx.SpecError):
+                scene.add(molgfx.rep.cartoon(target="all", aspect_ratio=aspect, arrow_factor=arrow))
+
     def test_transaction_commits_one_revision(self) -> None:
         scene = molgfx.Scene(_structure())
         opacity = molgfx.visual.parameter(0.5, name="opacity_scale")

@@ -350,6 +350,8 @@ forms! {
     Cartoon = "cartoon" via cartoon {
         width: Positive => "ribbon width in ångström",
         style: CartoonStyle => "ribbon recipe",
+        aspect_ratio: Positive => "helix and sheet width divided by thickness",
+        arrow_factor: NonNegative => "strand arrow shoulder scale; zero disables arrows",
     }
     /// Backbone trace through polymer guide atoms.
     Backbone = "backbone" via backbone {

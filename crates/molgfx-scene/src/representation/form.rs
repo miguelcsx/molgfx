@@ -28,6 +28,8 @@ pub(crate) enum RepresentationFormSpec {
     Cartoon {
         width: f32,
         style: CartoonStyle,
+        aspect_ratio: f32,
+        arrow_factor: f32,
     },
     Backbone {
         width: f32,
@@ -235,8 +237,21 @@ impl RepresentationSpec {
             ));
         }
         match &self.form {
-            RepresentationFormSpec::Cartoon { width, .. }
-            | RepresentationFormSpec::Backbone { width }
+            RepresentationFormSpec::Cartoon {
+                width,
+                aspect_ratio,
+                arrow_factor,
+                ..
+            } => {
+                positive("width", *width)?;
+                positive("aspect ratio", *aspect_ratio)?;
+                if !arrow_factor.is_finite() || *arrow_factor < 0.0 {
+                    return Err(crate::Error::InvalidSpec(
+                        "arrow factor must be finite and non-negative".to_owned(),
+                    ));
+                }
+            }
+            RepresentationFormSpec::Backbone { width }
             | RepresentationFormSpec::Lines { width }
             | RepresentationFormSpec::NucleicAcid { width }
             | RepresentationFormSpec::Glycan { width } => positive("width", *width)?,

@@ -30,7 +30,11 @@ pub(crate) fn rehydrate_representations(
         let mut value = Representation::new(target, kind);
         value.visible = description.visible;
         value.order = description.order;
-        value.params = representation_params(description.params)?;
+        value.params = representation_params(
+            description.params,
+            description.cartoon_aspect_ratio,
+            description.cartoon_arrow_factor,
+        )?;
         value.params.tube_radius_mapping = parse_tube_mapping(description.tube_radius_mapping)?;
         value.params.surface_components =
             parse_surface_components(&description.surface_components)?;
@@ -230,11 +234,26 @@ fn parse_target(
     }
 }
 
-fn representation_params(values: [f32; 16]) -> Result<RepresentationParams, crate::CoreError> {
+fn representation_params(
+    values: [f32; 14],
+    aspect_ratio: f32,
+    arrow_factor: f32,
+) -> Result<RepresentationParams, crate::CoreError> {
     if values.iter().any(|value| !value.is_finite()) {
         return invalid("representation parameters contain a non-finite value");
     }
+    if !aspect_ratio.is_finite()
+        || aspect_ratio <= 0.0
+        || !arrow_factor.is_finite()
+        || arrow_factor < 0.0
+    {
+        return invalid(
+            "cartoon aspect ratio must be positive and arrow factor non-negative, both finite",
+        );
+    }
     Ok(RepresentationParams {
+        cartoon_aspect_ratio: aspect_ratio,
+        cartoon_arrow_factor: arrow_factor,
         radius_scale: values[0],
         bond_radius: values[1],
         probe_radius: values[2],

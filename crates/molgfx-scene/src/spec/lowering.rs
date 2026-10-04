@@ -182,8 +182,16 @@ fn apply_form(
         } => native
             .putty_b_factor([*domain_min, *domain_max], [*radius_min, *radius_max])
             .map_err(crate::Error::from),
-        RepresentationFormSpec::Cartoon { width, .. }
-        | RepresentationFormSpec::NucleicAcid { width }
+        RepresentationFormSpec::Cartoon {
+            width,
+            aspect_ratio,
+            arrow_factor,
+            ..
+        } => native
+            .ribbon_width(*width)
+            .cartoon_shape(*aspect_ratio, *arrow_factor)
+            .map_err(crate::Error::from),
+        RepresentationFormSpec::NucleicAcid { width }
         | RepresentationFormSpec::Glycan { width } => Ok(native.ribbon_width(*width)),
         RepresentationFormSpec::BallAndStick {
             radius,

@@ -165,32 +165,34 @@ const REFERENCE_HALF_THICKNESS: f32 = 0.14;
 /// wide flat oval, a strand a wide slab, and a loop a round cord. Tying every
 /// scale to a physical size keeps the three element kinds legible against each
 /// other whatever width the caller asks for.
-const HELIX_HALF_EXTENT: [f32; 2] = [1.35, 0.25];
-const STRAND_HALF_EXTENT: [f32; 2] = [1.4, 0.4];
+const HELIX_HALF_WIDTH: f32 = 1.35;
+const STRAND_HALF_WIDTH: f32 = 1.4;
 const LOOP_RADIUS: f32 = 0.2;
 
 /// Body width of a strand relative to the reference half width.
-const STRAND_WIDTH_SCALE: f32 = STRAND_HALF_EXTENT[0] / REFERENCE_HALF_WIDTH;
+const STRAND_WIDTH_SCALE: f32 = STRAND_HALF_WIDTH / REFERENCE_HALF_WIDTH;
 
 /// Width of a beta-strand at one spline sample.
 ///
 /// Non-terminal strands retain their body width. A terminal strand widens into
 /// the arrow shoulder and then narrows towards its tip.
 #[inline]
-fn strand_width(parameter: f32, styles: &[SecondaryStructure], segment: usize) -> f32 {
+fn strand_width(
+    parameter: f32,
+    styles: &[SecondaryStructure],
+    segment: usize,
+    arrow_factor: f32,
+) -> f32 {
     let next_style = segment.checked_add(1).and_then(|next| styles.get(next));
 
-    if matches!(next_style, Some(SecondaryStructure::Strand)) {
+    if matches!(next_style, Some(SecondaryStructure::Strand))
+        || next_style.is_none()
+        || arrow_factor == 0.0
+    {
         return STRAND_WIDTH_SCALE;
     }
 
-    let arrow = if parameter < 0.65 {
-        1.0 + parameter * (0.6 / 0.65)
-    } else {
-        (1.6 * (1.0 - parameter) / 0.35).max(0.08)
-    };
-
-    arrow * STRAND_WIDTH_SCALE
+    arrow_factor * (1.0 - parameter) * STRAND_WIDTH_SCALE
 }
 
 /// Cross-section for the rocket profile.
@@ -205,10 +207,13 @@ pub(super) fn rocket_scale(
     parameter: f32,
     styles: &[SecondaryStructure],
     segment: usize,
+    arrow_factor: f32,
 ) -> (f32, f32) {
     match style {
         state if state.is_helix() => (1.35, 1.35),
-        SecondaryStructure::Strand => (strand_width(parameter, styles, segment), 0.34),
+        SecondaryStructure::Strand => {
+            (strand_width(parameter, styles, segment, arrow_factor), 0.34)
+        }
         _ => (0.3, 0.3),
     }
 }
@@ -219,15 +224,17 @@ pub(super) fn profile_scale(
     parameter: f32,
     styles: &[SecondaryStructure],
     segment: usize,
+    aspect_ratio: f32,
+    arrow_factor: f32,
 ) -> (f32, f32) {
     match style {
         state if state.is_helix() => (
-            HELIX_HALF_EXTENT[0] / REFERENCE_HALF_WIDTH,
-            HELIX_HALF_EXTENT[1] / REFERENCE_HALF_THICKNESS,
+            HELIX_HALF_WIDTH / REFERENCE_HALF_WIDTH,
+            HELIX_HALF_WIDTH / aspect_ratio / REFERENCE_HALF_THICKNESS,
         ),
         SecondaryStructure::Strand => (
-            strand_width(parameter, styles, segment),
-            STRAND_HALF_EXTENT[1] / REFERENCE_HALF_THICKNESS,
+            strand_width(parameter, styles, segment, arrow_factor),
+            STRAND_HALF_WIDTH / aspect_ratio / REFERENCE_HALF_THICKNESS,
         ),
         _ => (
             LOOP_RADIUS / REFERENCE_HALF_WIDTH,
@@ -245,12 +252,71 @@ pub(super) fn profile_extents(
     segment: usize,
 ) -> (f32, f32) {
     let (width, thickness) = match params.profile {
-        SplineProfile::Cartoon => profile_scale(style, parameter, styles, segment),
-        SplineProfile::Rocket => rocket_scale(style, parameter, styles, segment),
+        SplineProfile::Cartoon => profile_scale(
+            style,
+            parameter,
+            styles,
+            segment,
+            params.aspect_ratio,
+            params.arrow_factor,
+        ),
+        SplineProfile::Rocket => {
+            rocket_scale(style, parameter, styles, segment, params.arrow_factor)
+        }
         SplineProfile::Tube | SplineProfile::Twister => (1.0, 1.0),
     };
-    (
-        params.width.abs() * 0.5 * width,
-        params.thickness.abs() * 0.5 * thickness,
-    )
+    let depth = if params.profile == SplineProfile::Cartoon
+        && (style.is_helix() || style == SecondaryStructure::Strand)
+    {
+        params.width.abs() * 0.5 * REFERENCE_HALF_THICKNESS / REFERENCE_HALF_WIDTH * thickness
+    } else {
+        params.thickness.abs() * 0.5 * thickness
+    };
+    (params.width.abs() * 0.5 * width, depth)
 }
+
+/// Retains both the strand body and arrow shoulder at their shared guide.
+/// Expands reusable sample storage in one reverse pass rather than repeatedly
+/// inserting into the middle of a trace.
+pub(super) fn arrow_shoulders(
+    styles: &[SecondaryStructure],
+    samples: &mut Vec<molgfx_math::CurveSample>,
+) {
+    let shoulder = |sample: &molgfx_math::CurveSample| {
+        let Ok(segment) = usize::try_from(sample.segment) else {
+            return false;
+        };
+        sample.parameter.to_bits() == 1.0_f32.to_bits()
+            && styles.get(segment + 1) == Some(&SecondaryStructure::Strand)
+            && styles
+                .get(segment + 2)
+                .is_some_and(|style| *style != SecondaryStructure::Strand)
+    };
+    let count = samples.iter().filter(|sample| shoulder(sample)).count();
+    if count == 0 {
+        return;
+    }
+    let length = samples.len();
+    let Some(&last) = samples.last() else {
+        return;
+    };
+    samples.resize(length + count, last);
+    let mut output = samples.len();
+    for input in (0..length).rev() {
+        let sample = samples[input];
+        if shoulder(&sample) {
+            output -= 1;
+            samples[output] = molgfx_math::CurveSample {
+                segment: sample.segment + 1,
+                parameter: 0.0,
+                ..sample
+            };
+        }
+        output -= 1;
+        samples[output] = sample;
+    }
+}
+
+#[cfg(test)]
+#[path = "profiles_tests.rs"]
+mod tests;

@@ -283,7 +283,7 @@ fn reject_unknown_options(
     Ok(())
 }
 
-representation!(cartoon, width: f32, style: String);
+representation!(cartoon, width: f32, style: String, aspect_ratio: f32, arrow_factor: f32);
 representation!(ball_and_stick, radius: f32, bond_radius: f32);
 representation!(spacefill, radius: f32);
 representation!(licorice, radius: f32, bond_radius: f32);

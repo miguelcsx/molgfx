@@ -119,3 +119,27 @@ fn a_form_control_only_reaches_its_own_form() {
     assert!(!json.contains("isolevel"), "{json}");
     assert!(!json.contains("probe_radius"), "{json}");
 }
+
+#[test]
+fn cartoon_shape_is_validated_and_retained_by_portable_specifications() {
+    let specification: RepresentationSpec = rep::cartoon("all")
+        .aspect_ratio(3.0)
+        .arrow_factor(2.0)
+        .into();
+    let json = serde_json::to_string(&specification).expect("portable shape");
+    let restored: RepresentationSpec = serde_json::from_str(&json).expect("shape restored");
+    assert_eq!(restored, specification);
+    assert!(restored.validate_values().is_ok());
+    for (aspect, arrow) in [
+        (0.0, 1.0),
+        (5.0, -1.0),
+        (f32::NAN, 1.0),
+        (5.0, f32::INFINITY),
+    ] {
+        let invalid: RepresentationSpec = rep::cartoon("all")
+            .aspect_ratio(aspect)
+            .arrow_factor(arrow)
+            .into();
+        assert!(invalid.validate_values().is_err());
+    }
+}

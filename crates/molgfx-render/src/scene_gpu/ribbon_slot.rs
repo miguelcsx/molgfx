@@ -366,12 +366,16 @@ fn spline_params(representation: &Representation, steps: u8) -> RibbonParams {
         RepresentationKind::Rocket => RibbonParams {
             width: representation.params.ribbon_width,
             profile: SplineProfile::Rocket,
+            aspect_ratio: representation.params.cartoon_aspect_ratio,
+            arrow_factor: representation.params.cartoon_arrow_factor,
             max_steps: steps,
             color,
             ..RibbonParams::default()
         },
         _ => RibbonParams {
             width: representation.params.ribbon_width,
+            aspect_ratio: representation.params.cartoon_aspect_ratio,
+            arrow_factor: representation.params.cartoon_arrow_factor,
             max_steps: steps,
             color,
             ..RibbonParams::default()

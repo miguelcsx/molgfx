@@ -1,0 +1,56 @@
+{
+  "case": "P3-cartoon-aspect-4HHB",
+  "source": "2a00c2c5 + cartoon shape working tree",
+  "owner": "Phase 3.1",
+  "items": [
+    {
+      "id": "GEN-1",
+      "verdict": "pass",
+      "note": "Light is consistent over the protein; crevices darken with occlusion. Presentation edge roughness remains a Phase 7 comparison item, not a claim of superior appearance."
+    },
+    {
+      "id": "GEN-2",
+      "verdict": "pass",
+      "note": "Both converged and single-frame captures are finite, populated and free of visible holes or conflicting faces in the reviewed stills. Orbit/video stability is not certified by a still."
+    },
+    {
+      "id": "GEN-3",
+      "verdict": "pass",
+      "note": "Same camera for all engines; coloured silhouette widths agree within 1%, measured in target/cartoon-shape-verification/framing.json."
+    },
+    {
+      "id": "CT-1",
+      "verdict": "pass",
+      "note": "Backbone ribbons follow the polymer fold and remain continuous across observed guides without abrupt frame flips."
+    },
+    {
+      "id": "CT-2",
+      "verdict": "pass",
+      "note": "Broad helix/sheet faces remain legible; aspect control changes depth while retaining the physical width. Profile variants remain separate unfinished work."
+    },
+    {
+      "id": "CT-5",
+      "verdict": "pass",
+      "note": "4HHB retains its four subunits and the globin helix arrangement after changing depth."
+    },
+    {
+      "id": "SS-1",
+      "verdict": "pass",
+      "note": "Globin helices retain the handedness and pitch of source guide coordinates; aspect changes affect cross-sections only."
+    }
+  ],
+  "native_evidence": "target/cartoon-shape-aspect/P3-cartoon-aspect-4HHB",
+  "reference_evidence": "target/cartoon-shape-aspect/P3-cartoon-aspect-4HHB",
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P3-cartoon-aspect-4HHB.png",
+    "verification": "target/cartoon-shape-final-goldens",
+    "extent": [
+      384,
+      384
+    ]
+  },
+  "remaining": "Full cartoon unit remains open: profiles, tubular helices, gaps, wedges, nucleotide choices and live ring coordinates.",
+  "reference_notes": [
+    "Mol* aspectRatio=10 and arrowFactor=0; PyMOL oval width=0.135 and rectangular width=0.14. No beta strands in this helix cross-section case."
+  ]
+}

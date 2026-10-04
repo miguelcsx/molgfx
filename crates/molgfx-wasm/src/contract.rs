@@ -3,6 +3,9 @@
 use num_traits::ToPrimitive as _;
 use std::collections::BTreeMap;
 use wasm_bindgen::prelude::*;
+#[cfg(test)]
+#[path = "contract/cartoon_tests.rs"]
+mod cartoon_tests;
 mod segmentation;
 #[cfg(test)]
 #[path = "contract/volume_tests.rs"]

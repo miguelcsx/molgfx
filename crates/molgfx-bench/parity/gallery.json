@@ -4288,6 +4288,146 @@
           ]
         }
       ]
+    },
+    {
+      "id": "P3-cartoon-arrows-1IGT",
+      "category": "protein",
+      "file": "1IGT.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1IGT.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1IGT/pdb",
+      "sha256": "d7b1a560ed993c7be669a15530b64f37e2af8e978c321a5779d20ab75746b63f",
+      "selection": "all",
+      "form": "script",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "CT-1",
+          "CT-2",
+          "CT-4",
+          "SS-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "protein",
+      "file": "4HHB.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/4HHB.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb4HHB/pdb",
+      "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          240
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P3-cartoon-aspect-4HHB",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon aspect_ratio=10 arrow_factor=0 as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "set cartoon_oval_width, 0.135",
+          "set cartoon_rect_width, 0.14",
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform",
+              "typeParams": {
+                "aspectRatio": 10,
+                "arrowFactor": 0
+              }
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1",
+          "GEN-2",
+          "GEN-3",
+          "CT-1",
+          "CT-2",
+          "CT-5",
+          "SS-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
     }
   ]
 }

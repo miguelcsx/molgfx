@@ -167,16 +167,34 @@ fn secondary_structure_changes_cross_section_without_changing_topology() {
 }
 
 #[test]
-fn a_strand_arrow_widens_to_its_shoulder_then_tapers_to_a_pointed_tip() {
+fn a_strand_arrow_starts_at_its_shoulder_and_tapers_from_the_last_guide() {
     // A terminal strand: the sample after it is not a strand, so the arrow
     // shape applies along this interval.
     let terminal = [SecondaryStructure::Strand, SecondaryStructure::Coil];
-    let body =
-        crate::cartoon::profiles::profile_scale(SecondaryStructure::Strand, 0.0, &terminal, 0);
-    let shoulder =
-        crate::cartoon::profiles::profile_scale(SecondaryStructure::Strand, 0.65, &terminal, 0);
-    let tip =
-        crate::cartoon::profiles::profile_scale(SecondaryStructure::Strand, 1.0, &terminal, 0);
+    let body = crate::cartoon::profiles::profile_scale(
+        SecondaryStructure::Strand,
+        0.0,
+        &[SecondaryStructure::Strand; 2],
+        0,
+        RibbonParams::default().aspect_ratio,
+        RibbonParams::default().arrow_factor,
+    );
+    let shoulder = crate::cartoon::profiles::profile_scale(
+        SecondaryStructure::Strand,
+        0.0,
+        &terminal,
+        0,
+        RibbonParams::default().aspect_ratio,
+        RibbonParams::default().arrow_factor,
+    );
+    let tip = crate::cartoon::profiles::profile_scale(
+        SecondaryStructure::Strand,
+        1.0,
+        &terminal,
+        0,
+        RibbonParams::default().aspect_ratio,
+        RibbonParams::default().arrow_factor,
+    );
     assert!(
         shoulder.0 > body.0,
         "the arrow widens into its shoulder: {} vs {}",
@@ -188,12 +206,14 @@ fn a_strand_arrow_widens_to_its_shoulder_then_tapers_to_a_pointed_tip() {
     let mut previous = shoulder.0;
     for step in 1..=8_u8 {
         let scaled = f32::from(step);
-        let parameter = 0.65 + 0.35 * scaled / 8.0;
+        let parameter = scaled / 8.0;
         let width = crate::cartoon::profiles::profile_scale(
             SecondaryStructure::Strand,
             parameter,
             &terminal,
             0,
+            RibbonParams::default().aspect_ratio,
+            RibbonParams::default().arrow_factor,
         )
         .0;
         assert!(
@@ -208,10 +228,22 @@ fn a_strand_arrow_widens_to_its_shoulder_then_tapers_to_a_pointed_tip() {
 fn an_interior_strand_keeps_its_body_width_without_an_arrow() {
     // Both neighbours are strands, so this interval is body, not a head.
     let interior = [SecondaryStructure::Strand, SecondaryStructure::Strand];
-    let start =
-        crate::cartoon::profiles::profile_scale(SecondaryStructure::Strand, 0.0, &interior, 0);
-    let end =
-        crate::cartoon::profiles::profile_scale(SecondaryStructure::Strand, 1.0, &interior, 0);
+    let start = crate::cartoon::profiles::profile_scale(
+        SecondaryStructure::Strand,
+        0.0,
+        &interior,
+        0,
+        RibbonParams::default().aspect_ratio,
+        RibbonParams::default().arrow_factor,
+    );
+    let end = crate::cartoon::profiles::profile_scale(
+        SecondaryStructure::Strand,
+        1.0,
+        &interior,
+        0,
+        RibbonParams::default().aspect_ratio,
+        RibbonParams::default().arrow_factor,
+    );
     assert_eq!(start.0.to_bits(), end.0.to_bits());
 }
 
@@ -230,6 +262,8 @@ fn a_loop_is_a_round_cord_and_a_helix_a_wide_flat_oval() {
         0.5,
         &styles,
         1,
+        RibbonParams::default().aspect_ratio,
+        RibbonParams::default().arrow_factor,
     ));
     assert!((loop_width - loop_depth).abs() < 1.0e-5);
     let (helix_width, helix_depth) = half(crate::cartoon::profiles::profile_scale(
@@ -237,6 +271,8 @@ fn a_loop_is_a_round_cord_and_a_helix_a_wide_flat_oval() {
         0.5,
         &styles,
         1,
+        RibbonParams::default().aspect_ratio,
+        RibbonParams::default().arrow_factor,
     ));
     assert!(helix_width > 4.0 * helix_depth);
     assert!(helix_width > loop_width);
@@ -378,12 +414,32 @@ fn every_helix_has_helix_profiles_and_every_non_strand_loop_stays_round() {
             SecondaryStructure::Coil
         };
         assert_eq!(
-            profile_scale(state, 0.5, &styles, 1),
-            profile_scale(expected, 0.5, &styles, 1)
+            profile_scale(
+                state,
+                0.5,
+                &styles,
+                1,
+                RibbonParams::default().aspect_ratio,
+                RibbonParams::default().arrow_factor
+            ),
+            profile_scale(
+                expected,
+                0.5,
+                &styles,
+                1,
+                RibbonParams::default().aspect_ratio,
+                RibbonParams::default().arrow_factor
+            )
         );
         assert_eq!(
-            rocket_scale(state, 0.5, &styles, 1),
-            rocket_scale(expected, 0.5, &styles, 1)
+            rocket_scale(state, 0.5, &styles, 1, RibbonParams::default().arrow_factor),
+            rocket_scale(
+                expected,
+                0.5,
+                &styles,
+                1,
+                RibbonParams::default().arrow_factor
+            )
         );
     }
 }
