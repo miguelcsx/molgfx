@@ -45,7 +45,16 @@ impl Scene {
             }
         }
         let mut value = representation.bind(target);
+        if kind == RepresentationKind::Volume {
+            value.volume.validate()?;
+        }
         if let RepresentationTarget::Volume(handle) = target {
+            let (dimensions, transform) = self
+                .volumes
+                .get(handle.0)
+                .and_then(|volume| volume.grid(self))
+                .ok_or(CoreError::StaleHandle)?;
+            value.volume.validate_grid(dimensions, transform)?;
             let range = self
                 .volumes
                 .get(handle.0)

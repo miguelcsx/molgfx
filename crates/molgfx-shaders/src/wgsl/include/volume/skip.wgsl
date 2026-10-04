@@ -83,7 +83,7 @@ fn skip_to_cell_exit(
     return min(
         max(
             volume_next_distance(distance, step_size),
-            exit_distance + 1.0e-3,
+            volume_next_distance(exit_distance, 0.0),
         ),
         limit,
     );

@@ -151,6 +151,18 @@ pub(crate) struct BoundOccupancy {
 }
 
 impl StoredVolume {
+    pub(crate) fn grid(&self, scene: &Scene) -> Option<([u32; 3], molgfx_math::Mat4)> {
+        if let Some(value) = &self.value {
+            return Some((value.dimensions(), value.voxel_to_world()));
+        }
+        let occupancy = self.occupancy.as_ref()?;
+        let placed = scene.structure(occupancy.structure)?;
+        Some((
+            occupancy.stream.dimensions(),
+            placed.model_to_world * occupancy.stream.voxel_to_model(),
+        ))
+    }
+
     pub(crate) fn range(&self) -> [f32; 2] {
         self.value.as_ref().map_or_else(
             || {

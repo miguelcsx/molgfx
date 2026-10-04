@@ -175,3 +175,11 @@ fn opaque_distance(
         ray.view_origin_z
     ) / ray.view_direction_z;
 }
+
+// Shear can put voxel planes much closer together than the basis lengths.
+// Bound the world step by the fastest voxel-coordinate change along this ray.
+fn volume_ray_step(ray: VolumeRay) -> f32 {
+    let rate = abs(ray.voxel_direction);
+    let voxel_rate = max(max(rate.x, rate.y), rate.z);
+    return min(volume.sampling.z, 1.0 / voxel_rate) * volume.sampling.y;
+}

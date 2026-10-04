@@ -16,20 +16,9 @@ fn volume_integrate(
     let count =
         transfer_count();
 
-    let step_size =
-        max(
-            volume.sampling.z *
-                volume.sampling.y,
-            VOLUME_MIN_STEP,
-        );
+    let step_size = volume_ray_step(ray);
 
-    let extinction_scale =
-        volume.sampling.x *
-        step_size /
-        max(
-            volume.sampling.z,
-            VOLUME_MIN_STEP,
-        );
+    let extinction_scale = volume.sampling.x * (step_size / volume.sampling.z);
 
     let pixel =
         vec2i(

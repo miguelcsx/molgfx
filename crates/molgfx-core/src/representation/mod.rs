@@ -23,6 +23,7 @@ pub(crate) mod tube_radius;
 pub(crate) mod visual;
 mod visual_descriptor;
 mod volume_style;
+mod volume_validation;
 
 pub use annotation::{
     Annotation, AnnotationAnchor, AnnotationKind, MarkerShape, MarkerStyle, Measurement,

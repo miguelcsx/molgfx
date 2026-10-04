@@ -5,7 +5,7 @@ use molgfx_core::{
     MAX_CLIP_PLANES, MAX_VOLUME_TRANSFER_POINTS, OccupancyStream, PlacedStructure, Representation,
     ScalarVolume,
 };
-use molgfx_math::{Mat4, Vec3};
+use molgfx_math::Mat4;
 
 #[cfg(test)]
 #[path = "volume_uniforms_tests.rs"]
@@ -68,11 +68,6 @@ impl VolumeUniforms {
         range: [f32; 2],
         representation: &Representation,
     ) -> Self {
-        let axes = [
-            transform.transform_vector3(Vec3::X).length(),
-            transform.transform_vector3(Vec3::Y).length(),
-            transform.transform_vector3(Vec3::Z).length(),
-        ];
         let points = representation.volume.transfer.points();
         let mut transfer_values = [[0.0; 4]; MAX_VOLUME_TRANSFER_POINTS];
         let mut transfer_colors = [[0.0; 4]; MAX_VOLUME_TRANSFER_POINTS];
@@ -82,7 +77,7 @@ impl VolumeUniforms {
         }
         let opacity = finite_or(representation.material.opacity, 1.0).clamp(0.0, 1.0);
         let density = finite_or(representation.volume.opacity_scale, 2.0).max(0.0);
-        let step = finite_or(representation.volume.step_scale, 0.65).clamp(0.2, 2.0);
+        let step = representation.volume.step_scale;
         let crop = representation.volume.region;
         let minimum = crop.map_or([0; 3], molgfx_core::VolumeRegion::minimum);
         let maximum = crop.map_or(dimensions, molgfx_core::VolumeRegion::maximum);
@@ -111,7 +106,7 @@ impl VolumeUniforms {
             sampling: [
                 density * opacity,
                 step,
-                axes.into_iter().fold(f32::INFINITY, f32::min),
+                transform.minimum_axis_length(),
                 0.0,
             ],
             transfer_values,

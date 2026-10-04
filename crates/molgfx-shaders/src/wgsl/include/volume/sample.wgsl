@@ -165,12 +165,7 @@ fn isosurface_sample(
     let count =
         transfer_count();
 
-    let step_size =
-        max(
-            volume.sampling.z *
-                volume.sampling.y,
-            VOLUME_MIN_STEP,
-        );
+    let step_size = volume_ray_step(ray);
 
     var previous_t =
         interval.x;

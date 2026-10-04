@@ -145,3 +145,20 @@ fn cropped_volume_bounds_are_packed_as_a_half_open_region() {
     assert_eq!(uniforms.crop_minimum, [1, 2, 3, 0]);
     assert_eq!(uniforms.crop_maximum, [7, 8, 9, 0]);
 }
+
+#[test]
+fn requested_volume_sampling_is_not_clamped_to_an_unrelated_quality_range() {
+    let volume = ScalarVolume::new([2; 3], Mat4::IDENTITY, Arc::from([0.5; 8])).unwrap();
+    for step in [0.05_f32, 0.2, 0.65, 2.0, 4.0] {
+        let mut scene = Scene::new();
+        let handle = scene.add_volume(volume.clone());
+        let representation = scene
+            .represent(
+                handle,
+                Representation::volume().volume_style(VolumeStyle::default().sampling(1.0, step)),
+            )
+            .unwrap();
+        let uniforms = VolumeUniforms::new(&volume, scene.representation(representation).unwrap());
+        assert_eq!(uniforms.sampling[1].to_bits(), step.to_bits());
+    }
+}

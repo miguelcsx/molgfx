@@ -1,0 +1,202 @@
+{
+  "unit": "Phase 2 affine scalar sampling invariants",
+  "owner": "Phase 2.2",
+  "status": "verified regression; full Phase 2.2 presentation closure remains open",
+  "changes": [
+    "Preserve requested positive sampling scales instead of clamping them to 0.2\u20132.0.",
+    "Validate sampling, source-relative crop bounds, representable world steps and finite transform inverses before insertion.",
+    "Use robust affine axis lengths and cap ray steps by voxel-coordinate motion under shear.",
+    "Advance empty-cell exits by floating-point successor instead of a fixed world-space epsilon.",
+    "Scale extinction by actual world step to preserve optical density."
+  ],
+  "tests": [
+    "crates/molgfx-core/src/representation/volume_validation_tests.rs",
+    "crates/molgfx-math/src/types/matrix_tests.rs",
+    "crates/molgfx-render/src/scene_gpu/volume_uniforms_tests.rs",
+    "crates/molgfx-wgpu/tests/gpu_volume_traversal_tests.rs"
+  ],
+  "regressions": {
+    "requested_scale": {
+      "before": "0.05 silently packed as 0.2",
+      "after": "all tested scales preserve their exact float bits"
+    },
+    "small_affine": {
+      "before_changed_pixels": 0,
+      "after": "surface changes more than half of 96x96 pixels, with both occupied and skippable bricks"
+    },
+    "strong_shear": {
+      "before_changed_pixels": 0,
+      "after": "surface changes more than half of 96x96 pixels"
+    },
+    "deep_and_empty": "previous deep-crossing and byte-exact empty-scene checks remain passing"
+  },
+  "verification": {
+    "format": "passed",
+    "workspace_clippy_all_targets_all_features": "passed",
+    "workspace_tests_all_features": "passed",
+    "actual_wasm_check_and_clippy": "passed",
+    "python_development_install": "passed",
+    "ruff_format": "passed",
+    "ruff_check": "passed",
+    "mypy": "passed",
+    "python_tests_69": "passed",
+    "stubtest": "passed",
+    "policy_checks": "passed",
+    "native_gpu_tests_3": "passed"
+  },
+  "integration_golden": {
+    "case": "P2-iso-solid-skewMRC",
+    "extent": [
+      384,
+      384
+    ],
+    "ssim": 0.9999830887642442,
+    "mean_delta_e": 0.007561912417587385,
+    "p99_delta_e": 0.31854761782993135,
+    "status": "passed without reblessing",
+    "scope": "current affine-volume integration checkout",
+    "image": "target/gallery-volume-sampling-verified/P2-iso-solid-skewMRC/molgfx-converged/image.png"
+  },
+  "measurements": {
+    "procedure": {
+      "recipe": "interactive",
+      "extent": [
+        768,
+        768
+      ],
+      "warmup_outputs": 120,
+      "measured_outputs": 1200,
+      "paired_trials": 3,
+      "orbit_degrees_per_output": 0.5
+    },
+    "binary_sha256": {
+      "before": "f84216d93612dbf6ce8367bbe2c6b0aeadc953739d5a926633b1e4d4ee0c138a",
+      "after": "4e1ed62e6d08d86ddbeca5fba962d146d445bbd987d6c010042c8a5d6d81edc0"
+    },
+    "results": {
+      "P2-iso-solid-skewMRC": {
+        "before": {
+          "trials": [
+            {
+              "p50_ns": 1805625,
+              "p95_ns": 2073125,
+              "p99_ns": 2128750,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 543.670851836729
+            },
+            {
+              "p50_ns": 1804834,
+              "p95_ns": 2046458,
+              "p99_ns": 2107083,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 544.2707565590296
+            },
+            {
+              "p50_ns": 1786083,
+              "p95_ns": 2031167,
+              "p99_ns": 2125542,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 548.4152191085861
+            }
+          ],
+          "median_trial_p50_ns": 1804834
+        },
+        "after": {
+          "trials": [
+            {
+              "p50_ns": 1828958,
+              "p95_ns": 2118625,
+              "p99_ns": 2167916,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 531.492646268632
+            },
+            {
+              "p50_ns": 1828375,
+              "p95_ns": 2119708,
+              "p99_ns": 2202750,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 530.597376819512
+            },
+            {
+              "p50_ns": 1823375,
+              "p95_ns": 2106750,
+              "p99_ns": 2156250,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 532.7831852049711
+            }
+          ],
+          "median_trial_p50_ns": 1828375
+        }
+      },
+      "P2-direct-model_density": {
+        "before": {
+          "trials": [
+            {
+              "p50_ns": 1769750,
+              "p95_ns": 2364750,
+              "p99_ns": 2560834,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 480.58465526235943
+            },
+            {
+              "p50_ns": 1780166,
+              "p95_ns": 2375458,
+              "p99_ns": 2557625,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 478.7228553155344
+            },
+            {
+              "p50_ns": 1777833,
+              "p95_ns": 2403375,
+              "p99_ns": 2551167,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 477.71568303265855
+            }
+          ],
+          "median_trial_p50_ns": 1777833
+        },
+        "after": {
+          "trials": [
+            {
+              "p50_ns": 1790958,
+              "p95_ns": 2450917,
+              "p99_ns": 2633666,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 473.8957956458652
+            },
+            {
+              "p50_ns": 1793375,
+              "p95_ns": 2462291,
+              "p99_ns": 2610417,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 473.330154837196
+            },
+            {
+              "p50_ns": 1794958,
+              "p95_ns": 2441167,
+              "p99_ns": 2638625,
+              "heap_allocations_per_output": 231,
+              "gpu_resolved_count": 0,
+              "serial_completed_outputs_per_second": 459.51739498829045
+            }
+          ],
+          "median_trial_p50_ns": 1793375
+        }
+      }
+    },
+    "scope": "same affine-volume integration checkout before and after sampling corrections; quality preserved",
+    "limitation": "Whole-frame GPU timestamps unavailable because a cached pass has stale timestamps; individual pass durations overlap and cannot be summed. No optimization claim."
+  },
+  "evidence_directory": "target/sampling-verification"
+}

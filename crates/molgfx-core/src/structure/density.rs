@@ -60,6 +60,11 @@ impl ScalarVolume {
             .all(|component| component.is_finite())
             || !voxel_to_world.determinant().is_finite()
             || voxel_to_world.determinant().abs() <= 1e-8
+            || !voxel_to_world
+                .inverse()
+                .to_cols_array()
+                .iter()
+                .all(|component| component.is_finite())
         {
             return Err(invalid("voxel transform must be finite and invertible"));
         }

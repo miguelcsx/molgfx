@@ -330,6 +330,21 @@ impl Mat4 {
     pub fn transform_point3(self, point: Vec3) -> Vec3 {
         glam::Mat4::from(self).transform_point3(point.into()).into()
     }
+    /// Shortest transformed unit-axis length, including scale and shear.
+    ///
+    /// Hypotenuse evaluation avoids overflow and underflow from squaring
+    /// strongly anisotropic axes. This is not a singular-value estimate.
+    #[must_use]
+    pub fn minimum_axis_length(self) -> f32 {
+        [Vec3::X, Vec3::Y, Vec3::Z]
+            .into_iter()
+            .map(|axis| {
+                let vector = self.transform_vector3(axis);
+                vector.x.hypot(vector.y).hypot(vector.z)
+            })
+            .fold(f32::INFINITY, f32::min)
+    }
+
     /// Transforms a direction.
     #[must_use]
     #[inline]
@@ -406,3 +421,7 @@ impl Mul<Vec4> for Mat4 {
         (glam::Mat4::from(self) * glam::Vec4::from(rhs)).into()
     }
 }
+
+#[cfg(test)]
+#[path = "matrix_tests.rs"]
+mod tests;
