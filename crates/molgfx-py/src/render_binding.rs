@@ -85,6 +85,49 @@ impl PyImage {
     }
 }
 
+/// A completed scene-linear half-float image; presentation effects are omitted.
+#[pyclass(name = "HdrImage")]
+struct PyHdrImage(molgfx::HdrImage);
+
+#[pymethods]
+impl PyHdrImage {
+    #[getter]
+    fn width(&self) -> u32 {
+        self.0.width()
+    }
+
+    #[getter]
+    fn height(&self) -> u32 {
+        self.0.height()
+    }
+
+    fn quality_json(&self) -> PyResult<String> {
+        serde_json::to_string(self.0.quality())
+            .map_err(|cause| crate::binding::MolgfxError::new_err(cause.to_string()))
+    }
+
+    fn rgba16f<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, self.0.rgba16f())
+    }
+
+    fn exr_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        let bytes = py.detach(|| self.0.exr_bytes()).map_err(error)?;
+        Ok(PyBytes::new(py, &bytes))
+    }
+
+    /// Saves half-float `OpenEXR`; other filename extensions raise `ValueError`.
+    fn save(&self, py: Python<'_>, path: &Bound<'_, PyAny>) -> PyResult<()> {
+        let path = path.extract::<std::path::PathBuf>()?;
+        let extension = path.extension().and_then(std::ffi::OsStr::to_str);
+        if !extension.is_some_and(|value| value.eq_ignore_ascii_case("exr")) {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "HDR images can only be saved with an .exr extension",
+            ));
+        }
+        py.detach(|| self.0.save_exr(path)).map_err(error)
+    }
+}
+
 #[pyclass(name = "Renderer")]
 struct PyRenderer(molgfx::Renderer);
 
@@ -113,6 +156,19 @@ impl PyRenderer {
     ) -> PyResult<PyImage> {
         py.detach(|| self.0.render_image(&scene.inner, size))
             .map(PyImage)
+            .map_err(error)
+    }
+
+    /// Renders a converged, bloom-free scene-linear HDR exposure.
+    #[pyo3(signature = (scene, *, size))]
+    fn render_hdr_image(
+        &mut self,
+        py: Python<'_>,
+        scene: &PyScene,
+        size: (u32, u32),
+    ) -> PyResult<PyHdrImage> {
+        py.detach(|| self.0.render_hdr_image(&scene.inner, size))
+            .map(PyHdrImage)
             .map_err(error)
     }
 
@@ -188,5 +244,6 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(system_info, module)?)?;
     module.add_class::<PyPickResult>()?;
     module.add_class::<PyImage>()?;
+    module.add_class::<PyHdrImage>()?;
     module.add_class::<PyRenderer>()
 }

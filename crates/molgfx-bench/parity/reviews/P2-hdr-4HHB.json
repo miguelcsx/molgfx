@@ -1,0 +1,189 @@
+{
+  "unit": "Phase 2.5 HDR export",
+  "owner": "Phase 2.5",
+  "status": "implemented and verified",
+  "parent_commit": "5157dc2457d4ad6bf8115d2bbbc79ade538df163",
+  "molframe_revision": "2f48db5ad9e01ca0d310302d0ffdc167fd2dd293",
+  "implementation": [
+    "crates/molgfx-scene/src/render/hdr_image.rs",
+    "crates/molgfx-py/src/render_binding.rs",
+    "crates/molgfx-render/src/engine/exr.rs"
+  ],
+  "tests": [
+    "crates/molgfx-render/src/engine/exr_tests.rs",
+    "python/tests/headless_hdr.py"
+  ],
+  "capture": {
+    "file": "target/hdr-verified/P2-hdr-4HHB.exr",
+    "max_rgb": 1.1533203125,
+    "quality": {
+      "extent": [
+        512,
+        384
+      ],
+      "tier": "high",
+      "samples_required": 64,
+      "samples_submitted": 64,
+      "samples_completed": 64,
+      "surface_spacing_requested": 0.25,
+      "surface_spacing_effective": null,
+      "surface_limit": "none",
+      "ribbon_steps_max": 8,
+      "occlusion_rays_per_sample": 4,
+      "lighting": {
+        "zenith": {
+          "r": 226,
+          "g": 232,
+          "b": 240,
+          "a": 255
+        },
+        "horizon": {
+          "r": 188,
+          "g": 194,
+          "b": 202,
+          "a": 255
+        },
+        "ground": {
+          "r": 150,
+          "g": 146,
+          "b": 141,
+          "a": 255
+        },
+        "rim_color": {
+          "r": 120,
+          "g": 132,
+          "b": 152,
+          "a": 255
+        },
+        "key_color": {
+          "r": 255,
+          "g": 244,
+          "b": 230,
+          "a": 255
+        },
+        "fill_color": {
+          "r": 206,
+          "g": 214,
+          "b": 226,
+          "a": 255
+        },
+        "key_direction": [
+          -0.42,
+          0.58,
+          0.7
+        ],
+        "fill_direction": [
+          0.78,
+          -0.12,
+          0.5
+        ],
+        "diffuse_strength": 0.62,
+        "specular_strength": 0.72,
+        "rim_strength": 0.16,
+        "key_strength": 1.35,
+        "fill_strength": 0.3,
+        "key_angular_radius": 0.2,
+        "shadow_strength": 0.66
+      },
+      "illumination_bounces": 0,
+      "lod_mode_max": 0,
+      "progressive": false,
+      "adaptive": false,
+      "full_residency": true,
+      "complete": true
+    }
+  },
+  "exr": {
+    "evidence": "target/hdr-verified/P2-hdr-4HHB.exr",
+    "sha256": "dfd1831b10fe11d7fa0f3d5209424c5a0c45f1791dc02c961e0e285bbafcdd93",
+    "channels": [
+      "A",
+      "B",
+      "G",
+      "R"
+    ],
+    "channel_type": "half-float",
+    "compression": "uncompressed",
+    "extent": [
+      512,
+      384
+    ]
+  },
+  "fixture": {
+    "name": "4HHB.cif",
+    "sha256": "2d3ca1bf21ddff35af2e2bc5d331720f7bfc46a16c4829ea3ec1b41062d5f5a6"
+  },
+  "verification": [
+    {
+      "command": "cargo fmt --all --check",
+      "result": "pass",
+      "log_sha256": "80a1623908b321a834025de00567a6b3a632820a29359a47c76b7b5a4a866e29"
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+      "result": "pass",
+      "log_sha256": "cc4536d49cc3b8e330e8e4ae32fdcc0546a94f3241f6e4f4eedae59903661c85"
+    },
+    {
+      "command": "cargo test --workspace --all-features",
+      "result": "pass",
+      "log_sha256": "01f093ff295f619d4ca7fbc1f3dd896318342db7d3f889a38433ee241e55af1e"
+    },
+    {
+      "command": "cargo check -p molgfx-wasm --target wasm32-unknown-unknown",
+      "result": "pass",
+      "log_sha256": "4d21f7ea7e0d00becd487d170251889838bdf9663492beaa6f109f00f4d6a65f"
+    },
+    {
+      "command": "cargo clippy -p molgfx-wasm --target wasm32-unknown-unknown --all-targets -- -D warnings",
+      "result": "pass",
+      "log_sha256": "75bf6d5274389044a6ec0ce7bceabacd09df3c3924aaa9da759b1c136aee4129"
+    },
+    {
+      "command": "maturin develop -m crates/molgfx-py/Cargo.toml",
+      "result": "pass",
+      "log_sha256": "246c2e5072f14b676de34e61ba59a2bb23eb12ab2490c5667ebdbd9bd2db10c3"
+    },
+    {
+      "command": "python -m unittest discover -s python/tests",
+      "result": "pass",
+      "log_sha256": "8be81bf25927828f53a1d0392ae925176174c90be5ed0c3cd8b485449c6ae92d"
+    },
+    {
+      "command": "python -m mypy.stubtest molgfx._engine",
+      "result": "pass",
+      "log_sha256": "62da4fc54c562df868a008dec15c01dbe2e33b26f8fb0c43f41c446e2d7c5f60"
+    },
+    {
+      "command": "python -m mypy",
+      "result": "pass",
+      "log_sha256": "ca16d6d1a06c6903f5407ba5268cb8b5eb5d8c7811b7532282916ec31807c328"
+    },
+    {
+      "command": "ruff check",
+      "result": "pass",
+      "log_sha256": "8bb62d66ad7a0c2839cc4fd5353c2a579a222cd2cdb3d136fc8f160851689c28"
+    },
+    {
+      "command": "ruff format --check .",
+      "result": "pass",
+      "log_sha256": "a29905b4529aee76474b804c49e3c3820a3c2ffa2c958cba5ab50986b9fe0db0"
+    },
+    {
+      "command": "python python/tests/headless_hdr.py 4HHB.cif target/phase2-hdr.exr",
+      "result": "pass",
+      "log_sha256": "b3f98d4bf617de4aae5642ad3194b0fa5a9fa60715c4542b0f4c006b925d22ca"
+    },
+    {
+      "command": "exrheader target/phase2-hdr.exr",
+      "result": "pass",
+      "log_sha256": "bc2d3e4173b62700b0a9264a2c52601951282acc7bbaf7bf2a104418c43a81c3"
+    }
+  ],
+  "policy": "file cap, lint suppression, production unwrap and unsafe checks pass",
+  "notes": [
+    "The public API wraps the existing converged HDR capture; no rendering algorithm or steady-state hot path changes.",
+    "The isolated commit passes 69 Python tests and stubtest. The GPU smoke checks unclipped finite channels, zero-size rejection, non-EXR rejection without file creation, and byte-for-byte equality between streamed and in-memory export.",
+    "This native HDR unit has no required cross-engine gallery or golden in the phase work record. It does not close the other Phase 2 units."
+  ]
+}

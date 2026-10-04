@@ -502,6 +502,22 @@ class Image:
     def save(self, path: str | PathLike[str]) -> None: ...
 
 @final
+class HdrImage:
+    """Converged scene-linear RGBA16F, without bloom or display processing."""
+
+    @property
+    def width(self) -> int: ...
+    @property
+    def height(self) -> int: ...
+    def quality_json(self) -> str: ...
+    def rgba16f(self) -> bytes:
+        """Return row-major RGBA as little-endian IEEE binary16 words."""
+    def exr_bytes(self) -> bytes:
+        """Encode uncompressed half-float RGBA OpenEXR."""
+    def save(self, path: str | PathLike[str]) -> None:
+        """Write OpenEXR; reject other filename extensions with ValueError."""
+
+@final
 class PickResult:
     @property
     def kind(
@@ -671,6 +687,8 @@ class Renderer:
         size: tuple[int, int],
         fps: int,
     ) -> list[Image]: ...
+    def render_hdr_image(self, scene: Scene, *, size: tuple[int, int]) -> HdrImage:
+        """Render a complete HDR exposure using the scene framing camera."""
     def pick(self, x: int, y: int) -> PickResult | None: ...
     def explain(self, scene: Scene) -> str: ...
 
@@ -998,6 +1016,7 @@ __all__ = [
     "Ellipsoid",
     "EllipsoidId",
     "FlyController",
+    "HdrImage",
     "Image",
     "Interaction",
     "InteractionId",

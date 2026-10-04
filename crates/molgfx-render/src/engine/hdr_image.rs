@@ -53,6 +53,16 @@ impl HdrImage {
         &self.rgba16f
     }
 
+    /// Encodes deterministic, uncompressed half-float RGBA `OpenEXR`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RenderError::ImageEncoding`] for malformed pixels or layout
+    /// overflow. Use [`Self::write_exr`] to avoid allocating encoded bytes.
+    pub fn exr_bytes(&self) -> Result<Vec<u8>, RenderError> {
+        super::exr::encode(self)
+    }
+
     /// Streams deterministic, uncompressed `OpenEXR` to a caller-owned sink.
     ///
     /// Only one planar scanline is allocated and reused, so a 4K export does

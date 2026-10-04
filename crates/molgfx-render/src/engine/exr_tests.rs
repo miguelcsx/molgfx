@@ -47,6 +47,42 @@ fn streamed_exr_is_byte_deterministic() {
     assert_eq!(encoded(&image), encoded(&image));
 }
 
+#[test]
+fn in_memory_exr_matches_the_streamed_encoding_and_preserves_highlights() {
+    let image = HdrImage {
+        width: 2,
+        height: 1,
+        rgba16f: vec![
+            0x00, 0x40, 0x00, 0x42, 0x00, 0x44, 0x00, 0x3c, 0x00, 0x3c, 0x00, 0x38, 0x00, 0x34,
+            0x00, 0x3c,
+        ],
+        quality: crate::engine::tests::engine().effective_quality(64, 0),
+    };
+    let bytes = image.exr_bytes().expect("in-memory EXR encodes");
+    assert_eq!(bytes, encoded(&image));
+    let header_end = parse_header_end(&bytes);
+    let block = usize::try_from(read_u64(&bytes, header_end)).expect("offset fits");
+    assert_eq!(
+        &bytes[block + 8..block + 24],
+        &[
+            0x00, 0x3c, 0x00, 0x3c, 0x00, 0x44, 0x00, 0x34, 0x00, 0x42, 0x00, 0x38, 0x00, 0x40,
+            0x00, 0x3c,
+        ],
+        "RGB highlights remain above one in the planar half-float data"
+    );
+}
+
+#[test]
+fn in_memory_exr_rejects_an_invalid_pixel_layout() {
+    let image = HdrImage {
+        width: 0,
+        height: 1,
+        rgba16f: Vec::new(),
+        quality: crate::engine::tests::engine().effective_quality(64, 0),
+    };
+    assert!(image.exr_bytes().is_err());
+}
+
 fn encoded(image: &HdrImage) -> Vec<u8> {
     let mut output = Vec::new();
     if let Err(error) = super::write(image, &mut output) {

@@ -7,8 +7,6 @@
 
 #![forbid(unsafe_code)]
 
-#[cfg(not(target_arch = "wasm32"))]
-pub use molgfx_scene::Image;
 pub use molgfx_scene::PickReadback;
 pub use molgfx_scene::Renderer;
 #[cfg(not(target_arch = "wasm32"))]
@@ -29,6 +27,8 @@ pub use molgfx_scene::{
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_scene::{FrameTiming, GpuTiming};
+#[cfg(not(target_arch = "wasm32"))]
+pub use molgfx_scene::{HdrImage, Image};
 
 pub use molgfx_scene::{OverlayHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding};
 pub use molgfx_scene::{annotation, density, ellipsoid, interaction, measurement, trajectory};

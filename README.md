@@ -30,6 +30,20 @@ scene.add(molgfx.rep.ball_and_stick(target=molgfx.sel.ligands()))
 molgfx.Renderer().render_image(scene, size=(1920, 1080)).save("structure.png")
 ```
 
+For native HDR export, retain scene-linear highlights in half-float OpenEXR:
+
+```python
+hdr = molgfx.Renderer(profile=molgfx.profile.converged()).render_hdr_image(scene, size=(1920, 1080))
+hdr.save("structure.exr")
+```
+
+`HdrImage` exposes `width`, `height`, `exr_bytes()`, `rgba16f()` and
+`quality_json()`. HDR capture completes the profile's exposure without baking
+in bloom, exposure, tone mapping, display conversion or screen overlays.
+Python `.save()` accepts only `.exr` filenames and raises `ValueError` before
+writing any other format. Rust uses `HdrImage::save_exr` and also supports an
+explicit camera through `Renderer::render_hdr_image_with_camera`.
+
 Targets are MolFrame queries, and a small command language works around them
 through `molgfx.Session`:
 

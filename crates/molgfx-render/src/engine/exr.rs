@@ -12,6 +12,18 @@ const CHANNEL_COUNT: usize = 4;
 const BLOCK_HEADER_BYTES: usize = 8;
 const OFFSET_BYTES: usize = 8;
 
+pub(super) fn encode(image: &HdrImage) -> Result<Vec<u8>, RenderError> {
+    let height = usize::try_from(image.height).map_err(|_| encoding_overflow())?;
+    let capacity = height
+        .checked_mul(OFFSET_BYTES + BLOCK_HEADER_BYTES)
+        .and_then(|overhead| overhead.checked_add(HEADER_CAPACITY))
+        .and_then(|overhead| overhead.checked_add(image.rgba16f.len()))
+        .ok_or_else(encoding_overflow)?;
+    let mut output = Vec::with_capacity(capacity);
+    write(image, &mut output)?;
+    Ok(output)
+}
+
 pub(super) fn write(image: &HdrImage, mut writer: impl Write) -> Result<(), RenderError> {
     let width = usize::try_from(image.width).map_err(|_| encoding_overflow())?;
     let height = usize::try_from(image.height).map_err(|_| encoding_overflow())?;
