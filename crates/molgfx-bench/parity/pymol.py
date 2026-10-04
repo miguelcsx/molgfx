@@ -99,6 +99,20 @@ def main():
     settings = catalog["recipe_settings"][recipe]
     for name, value in settings.items():
         cmd.set(name, value)
+    effect = fixture.get("effect")
+    effect_evidence = {"requested": effect, "applied": None, "omissions": []}
+    if effect == "depth_cue":
+        cmd.set("depth_cue", 1)
+        cmd.set("fog_start", 0.25)
+        cmd.set("ray_trace_fog", 1)
+        cmd.set("ray_trace_fog_start", 0.25)
+        effect_evidence["applied"] = "PyMOL depth fog; engine-specific depth range"
+    elif effect in {"bloom", "dof", "motion_blur", "shape_cues"}:
+        effect_evidence["omissions"].append(
+            f"PyMOL has no equivalent {effect} presentation effect; base lighting retained"
+        )
+    elif effect not in {None, "bloom_control"}:
+        raise ValueError(f"unknown reference effect: {effect}")
     # No engine-specific selection grammar: all source rows, first model only.
     cmd.load(request["path"], "fixture")
     cmd.frame(1)
@@ -204,6 +218,7 @@ def main():
                 "image_evidence": evidence,
                 "measurement_scope": "completed PyMOL draw (framebuffer readback and supersampling included) or blocking ray; cached PNG export/decoding excluded; cpu_ns is blocking API wall time, not exclusive CPU work",
                 "effective_settings": {
+                    "effect": effect_evidence,
                     "settings": {name: cmd.get(name) for name in settings},
                     "view": list(cmd.get_view()),
                     "extent": [width, height],

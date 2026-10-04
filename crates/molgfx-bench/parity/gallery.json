@@ -3019,6 +3019,649 @@
           "fps": 5
         }
       }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-effects-1AON-bloom",
+      "effect": "bloom",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "FX-3"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      },
+      "omissions": {
+        "pymol-ray": "PyMOL 3.1 has no equivalent bloom presentation effect; effect parity is omitted."
+      }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-effects-1AON-bloom_control",
+      "effect": "bloom_control",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "FX-3"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      },
+      "omissions": {}
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-effects-1AON-dof",
+      "effect": "dof",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "FX-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      },
+      "omissions": {
+        "pymol-ray": "PyMOL 3.1 has no equivalent dof presentation effect; effect parity is omitted."
+      }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-effects-1AON-motion_blur",
+      "effect": "motion_blur",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "FX-4"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        },
+        "video": {
+          "kind": "orbit_y",
+          "frames": 24,
+          "fps": 24
+        }
+      },
+      "omissions": {
+        "pymol-ray": "PyMOL 3.1 has no equivalent motion_blur presentation effect; effect parity is omitted.",
+        "molstar-imagepass": "Mol* ImagePass has no equivalent motion_blur presentation effect; effect parity is omitted."
+      }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-effects-1AON-motion_blur_control",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "FX-4"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        },
+        "video": {
+          "kind": "orbit_y",
+          "frames": 24,
+          "fps": 24
+        }
+      },
+      "omissions": {}
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-effects-1AON-depth_cue",
+      "effect": "depth_cue",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "FX-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      },
+      "omissions": {}
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-effects-1AON-shape_cues",
+      "effect": "shape_cues",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      },
+      "omissions": {
+        "pymol-ray": "PyMOL 3.1 has no equivalent shape_cues presentation effect; effect parity is omitted.",
+        "molstar-imagepass": "Mol* ImagePass has no equivalent shape_cues presentation effect; effect parity is omitted."
+      }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-effects-1AON-dof_control",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "FX-2"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-effects-1AON-depth_cue_control",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "FX-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
+    },
+    {
+      "category": "large_protein",
+      "file": "1AON.cif",
+      "format": "mmcif",
+      "url": "https://files.rcsb.org/download/1AON.cif",
+      "license": "CC0-1.0",
+      "license_url": "https://www.wwpdb.org/about/usage-policies",
+      "citation": "https://doi.org/10.2210/pdb1AON/pdb",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "selection": "all",
+      "camera": {
+        "position": [
+          0,
+          0,
+          600
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "fov_y_degrees": 45,
+        "near": 1,
+        "far": 2000
+      },
+      "id": "P2-effects-1AON-shape_cues_control",
+      "form": "script",
+      "script": {
+        "molgfx": [
+          "show cartoon as main, protein",
+          "color chain, @main"
+        ],
+        "pymol": [
+          "show cartoon, fixture",
+          "util.cbc fixture"
+        ],
+        "molstar": [
+          {
+            "kind": "representation",
+            "params": {
+              "type": "cartoon",
+              "color": "chain-id",
+              "size": "uniform"
+            }
+          }
+        ],
+        "checklist": [
+          "GEN-1"
+        ],
+        "fit": {
+          "selection": "all",
+          "fov_y_degrees": 45,
+          "margin": 1.15
+        }
+      }
     }
   ]
 }

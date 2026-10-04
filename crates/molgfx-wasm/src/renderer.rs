@@ -38,8 +38,10 @@ impl WebRenderer {
         canvas: web_sys::HtmlCanvasElement,
         quality: Option<String>,
         target_fps: Option<u16>,
+        effects_json: Option<String>,
     ) -> Result<WebRenderer, JsError> {
-        let profile = crate::quality::profile(quality.as_deref(), target_fps)?;
+        let profile =
+            crate::quality::profile(quality.as_deref(), target_fps, effects_json.as_deref())?;
         let width = canvas.width().max(1);
         let height = canvas.height().max(1);
         let mut inner = molgfx::Renderer::for_canvas(canvas, profile)

@@ -30,6 +30,20 @@ scene.add(molgfx.rep.ball_and_stick(target=molgfx.sel.ligands()))
 molgfx.Renderer().render_image(scene, size=(1920, 1080)).save("structure.png")
 ```
 
+Presentation effects are explicit values on a render profile:
+
+```python
+profile = molgfx.profile.converged().with_effect(molgfx.effect.bloom(intensity=0.8))
+renderer = molgfx.Renderer(profile=profile)
+```
+
+`molgfx.effect` also provides depth cue, depth of field, motion blur, backdrop,
+lighting, shape cues, display and anti-aliasing constructors. Invalid settings
+raise an error before rendering. `without_effect(kind)` restores the quality
+recipe's default for that kind. Rust exposes the same values under
+`molgfx::profile`; WASM `Renderer.create` accepts an optional effects JSON array
+of `{ "kind": ..., "settings": ... }` records validated by the shared core.
+
 For native HDR export, retain scene-linear highlights in half-float OpenEXR:
 
 ```python

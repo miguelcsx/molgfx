@@ -104,37 +104,24 @@ impl PyRenderProfile {
         }
     }
 
-    #[getter]
-    fn depth_cue(&self) -> Option<(f32, f32, f32)> {
+    fn with_effect(&self, effect: &crate::effect_binding::PyEffect) -> PyResult<Self> {
         self.0
-            .depth_cue
-            .map(|cue| (cue.near_distance(), cue.far_distance(), cue.strength()))
-    }
-
-    #[pyo3(signature = (*, near_distance, far_distance, strength))]
-    fn with_depth_cue(
-        &self,
-        near_distance: f32,
-        far_distance: f32,
-        strength: f32,
-    ) -> PyResult<Self> {
-        molgfx::profile::DepthCue::new(near_distance, far_distance, strength)
-            .map(|cue| Self(self.0.with_depth_cue(cue)))
+            .with_effect(effect.0)
+            .map(Self)
             .map_err(crate::binding::error)
     }
 
-    fn without_depth_cue(&self) -> Self {
-        Self(self.0.without_depth_cue())
+    fn without_effect(&self, effect: &crate::effect_binding::PyEffect) -> Self {
+        Self(self.0.without_effect(effect.0.kind()))
     }
 
-    #[getter]
-    fn edge_smoothing(&self) -> Option<bool> {
-        self.0.edge_smoothing
-    }
-
-    #[pyo3(signature = (*, enabled))]
-    fn with_edge_smoothing(&self, enabled: bool) -> Self {
-        Self(self.0.with_edge_smoothing(enabled))
+    fn effect(
+        &self,
+        effect: &crate::effect_binding::PyEffect,
+    ) -> Option<crate::effect_binding::PyEffect> {
+        self.0
+            .effect(effect.0.kind())
+            .map(crate::effect_binding::PyEffect)
     }
 }
 

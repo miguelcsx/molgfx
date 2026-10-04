@@ -1,5 +1,5 @@
 //! Shared latency percentiles without inventing external renderer counters.
-use super::catalog::Result;
+use molgfx_bench::gallery::Result;
 use molgfx_bench::{FrameSample, summarize};
 use serde_json::{Value, json};
 use std::io;

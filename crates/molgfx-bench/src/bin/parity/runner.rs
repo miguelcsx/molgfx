@@ -1,9 +1,6 @@
 //! Execute every selected fixture, retaining failures and pre-image inspection.
-use super::{
-    catalog::{Fixture, Result},
-    config::Config,
-    external, golden, metadata, native, script, sheet, telemetry,
-};
+use super::{config::Config, external, golden, metadata, native, script, sheet, telemetry};
+use molgfx_bench::gallery::{Fixture, Result};
 use serde_json::{Value, json};
 use std::{io, path::Path};
 

@@ -1,10 +1,8 @@
 //! Production facade adapter; measurement excludes screenshot readback.
-use super::{
-    catalog::{Catalog, Fixture, Result, Style},
-    script,
-};
+use super::script;
 use molgfx::profile::MeasuredOutput;
-use molgfx::{Color, ColorSpec, FrameTiming, PassTiming, Renderer, Scene, profile, rep, sel};
+use molgfx::{Color, ColorSpec, FrameTiming, PassTiming, Renderer, Scene, rep, sel};
+use molgfx_bench::gallery::{Catalog, Fixture, Result, Style};
 use molgfx_bench::{
     CumulativeTelemetry, FrameSample, HeapMeasurement, measure_heap, profile_metadata_json,
     summarize,
@@ -80,11 +78,7 @@ pub(super) fn render(
     } else {
         MeasuredOutput::Converged
     };
-    let profile = if recipe == "molgfx-converged" {
-        profile::converged()
-    } else {
-        profile::highest_fixed(120)
-    };
+    let profile = molgfx_bench::gallery::profile(fixture, kind)?;
     let mut renderer = Renderer::with_profile(profile)?;
     let size = (catalog.extent[0], catalog.extent[1]);
     let (heap, cold) =

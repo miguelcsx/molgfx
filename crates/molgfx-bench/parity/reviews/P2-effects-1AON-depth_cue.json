@@ -1,0 +1,37 @@
+{
+  "case": "P2-effects-1AON-depth_cue",
+  "owner": "Phase 2.1",
+  "items": [
+    {
+      "id": "FX-1",
+      "verdict": "pass",
+      "note": "Camera-relative distance fades deep geometry toward the backdrop. Molecular colours and source coordinates are unchanged; PyMOL and Mol* use their native fog controls."
+    }
+  ],
+  "native_evidence": "target/gallery-effects-verified/P2-effects-1AON-depth_cue",
+  "reference_evidence": "target/gallery-effects-corrected/P2-effects-1AON-depth_cue",
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P2-effects-1AON-depth_cue.png",
+    "verification": {
+      "mean_delta_e": 0.0,
+      "p99_delta_e": 0.0,
+      "ssim": 1.0,
+      "status": "passed"
+    },
+    "sha256": "4892af99046a92f85ce15431adf7ce5a7231f4cef7e5e8229aff74c5f5484bd3"
+  },
+  "control_measurements": {
+    "molgfx-converged": {
+      "mean_absolute_rgba_delta": 4.752600351969401,
+      "changed_pixels": 78327,
+      "image_sha256": "4892af99046a92f85ce15431adf7ce5a7231f4cef7e5e8229aff74c5f5484bd3"
+    },
+    "molgfx-interactive": {
+      "mean_absolute_rgba_delta": 2.833521948920356,
+      "changed_pixels": 79088,
+      "image_sha256": "32a9b0ebaacaa0c1612ff3a7be3e98acd4d733cbe9bc8535bd797c80da40e532"
+    }
+  },
+  "test": "crates/molgfx-scene/src/render/engine_config_tests.rs::every_public_effect_reaches_the_resolved_render_plan",
+  "reference_policy": "Only supported native reference effects are compared. Unsupported effect comparisons are explicitly omitted in the gallery manifest; no physical-equivalence claim."
+}

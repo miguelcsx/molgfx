@@ -55,6 +55,7 @@ fn fs_bloom_bright(
     let origin =
         vec2i(in.position.xy) * 4;
 
+    // Extract bright energy before downsampling so narrow highlights survive.
     var total =
         vec3f(0.0);
 
@@ -66,11 +67,11 @@ fn fs_bloom_bright(
         for (var y = 0; y < 4; y++) {
             for (var x = 0; x < 4; x++) {
                 total +=
-                    textureLoad(
+                    above_threshold(textureLoad(
                         source_texture,
                         origin + vec2i(x, y),
                         0,
-                    ).rgb;
+                    ).rgb, frame.atmosphere[5].x);
             }
         }
     } else {
@@ -80,7 +81,7 @@ fn fs_bloom_bright(
         for (var y = 0; y < 4; y++) {
             for (var x = 0; x < 4; x++) {
                 total +=
-                    textureLoad(
+                    above_threshold(textureLoad(
                         source_texture,
                         clamp(
                             origin + vec2i(x, y),
@@ -88,16 +89,13 @@ fn fs_bloom_bright(
                             maximum,
                         ),
                         0,
-                    ).rgb;
+                    ).rgb, frame.atmosphere[5].x);
             }
         }
     }
 
     return vec4f(
-        above_threshold(
-            total * BLOOM_AVERAGE_4X4,
-            frame.atmosphere[5].x,
-        ),
+        total * BLOOM_AVERAGE_4X4,
         1.0,
     );
 }

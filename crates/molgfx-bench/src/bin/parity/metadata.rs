@@ -1,9 +1,6 @@
 //! Metadata inspection precedes all image production for each fixture.
-use super::{
-    catalog::{Fixture, Result},
-    config::Config,
-    external, native,
-};
+use super::{config::Config, external, native};
+use molgfx_bench::gallery::{Fixture, Result};
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, io, path::Path};
 

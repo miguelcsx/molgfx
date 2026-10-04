@@ -1,6 +1,7 @@
 //! Public renderer policy and its named recipes.
 
-use super::DepthCue;
+use super::{Effect, EffectKind, EffectSet};
+use crate::Error;
 
 /// Adaptive or fixed quality policy.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
@@ -23,13 +24,8 @@ pub struct RenderProfile {
     pub target_fps: u16,
     /// Quality policy.
     pub quality: Quality,
-    /// Optional explicit view-space depth cue.
-    pub depth_cue: Option<DepthCue>,
-    /// Optional explicit edge-smoothing choice.
-    ///
-    /// Left unset, realtime edges are smoothed while converged accumulation
-    /// already averages sub-pixel coverage.
-    pub edge_smoothing: Option<bool>,
+    /// Optional, validated presentation overrides.
+    pub effects: EffectSet,
 }
 
 impl Default for RenderProfile {
@@ -39,25 +35,26 @@ impl Default for RenderProfile {
 }
 
 impl RenderProfile {
-    /// Enables one validated depth cue without changing quality policy.
+    /// Replaces one effect without changing the quality policy.
+    ///
+    /// # Errors
+    /// Returns `InvalidSpec` if an effect has invalid numeric settings.
+    pub fn with_effect(mut self, effect: Effect) -> Result<Self, Error> {
+        self.effects = self.effects.with(effect.validate()?);
+        Ok(self)
+    }
+
+    /// Removes an explicit effect, exposing the quality recipe beneath it.
     #[must_use]
-    pub const fn with_depth_cue(mut self, depth_cue: DepthCue) -> Self {
-        self.depth_cue = Some(depth_cue);
+    pub fn without_effect(mut self, kind: EffectKind) -> Self {
+        self.effects = self.effects.without(kind);
         self
     }
 
-    /// Sets edge smoothing explicitly, overriding the tier default.
+    /// Returns only the explicit override, not the quality recipe default.
     #[must_use]
-    pub const fn with_edge_smoothing(mut self, edge_smoothing: bool) -> Self {
-        self.edge_smoothing = Some(edge_smoothing);
-        self
-    }
-
-    /// Removes the explicit depth cue.
-    #[must_use]
-    pub const fn without_depth_cue(mut self) -> Self {
-        self.depth_cue = None;
-        self
+    pub const fn effect(self, kind: EffectKind) -> Option<Effect> {
+        self.effects.effect(kind)
     }
 }
 
@@ -67,7 +64,7 @@ pub const fn interactive() -> RenderProfile {
     adaptive(60)
 }
 
-/// Converged converged profile with maximum fixed detail.
+/// Converged profile with maximum fixed detail.
 #[must_use]
 pub const fn converged() -> RenderProfile {
     recipe(1, Quality::Converged)
@@ -96,7 +93,6 @@ const fn recipe(target_fps: u16, quality: Quality) -> RenderProfile {
     RenderProfile {
         target_fps,
         quality,
-        depth_cue: None,
-        edge_smoothing: None,
+        effects: EffectSet::empty(),
     }
 }

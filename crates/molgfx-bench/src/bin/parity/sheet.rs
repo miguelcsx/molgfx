@@ -1,5 +1,5 @@
 //! Contact sheet: every recipe's image of a case side by side, in recipe order.
-use super::catalog::Result;
+use molgfx_bench::gallery::Result;
 use std::{fs::File, io, path::Path};
 
 const GAP: usize = 8;

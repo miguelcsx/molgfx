@@ -1,5 +1,6 @@
 //! Golden-image comparison and blessing of the converged native image.
-use super::{catalog::Result, sheet};
+use super::sheet;
+use molgfx_bench::gallery::Result;
 use molgfx_bench::image_compare::{delta_e76, diff_png, ssim_luma};
 use serde_json::{Value, json};
 use std::{io, path::Path};

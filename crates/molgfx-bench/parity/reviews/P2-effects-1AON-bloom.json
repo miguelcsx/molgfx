@@ -1,0 +1,198 @@
+{
+  "case": "P2-effects-1AON-bloom",
+  "owner": "Phase 2.1",
+  "items": [
+    {
+      "id": "FX-3",
+      "verdict": "pass",
+      "note": "Bright energy is extracted before downsampling; a one-pixel HDR highlight survives while below-threshold pixels contribute zero. The dark backdrop remains dark."
+    }
+  ],
+  "native_evidence": "target/gallery-effects-verified/P2-effects-1AON-bloom",
+  "reference_evidence": "target/gallery-effects-corrected/P2-effects-1AON-bloom",
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P2-effects-1AON-bloom.png",
+    "verification": {
+      "mean_delta_e": 0.0,
+      "p99_delta_e": 0.0,
+      "ssim": 1.0,
+      "status": "passed"
+    },
+    "sha256": "47f43395bd94421bb3f656ba1645866e295b37e96aa68a4613f737a77154a385"
+  },
+  "control_measurements": {
+    "molgfx-converged": {
+      "mean_absolute_rgba_delta": 0.00037680731879340275,
+      "changed_pixels": 865,
+      "image_sha256": "47f43395bd94421bb3f656ba1645866e295b37e96aa68a4613f737a77154a385"
+    },
+    "molgfx-interactive": {
+      "mean_absolute_rgba_delta": 0.04220538669162326,
+      "changed_pixels": 48506,
+      "image_sha256": "c5ce2bde6143502e1c689b529611f4b0266ef64bded750de959684f2351a05ec"
+    }
+  },
+  "test": "crates/molgfx-scene/src/render/engine_config_tests.rs::every_public_effect_reaches_the_resolved_render_plan",
+  "reference_policy": "Only supported native reference effects are compared. Unsupported effect comparisons are explicitly omitted in the gallery manifest; no physical-equivalence claim.",
+  "gpu_regression": "crates/molgfx-wgpu/tests/gpu_bloom_tests.rs::a_single_bright_pixel_survives_bloom_downsampling",
+  "regression": "Previous shader fails the real-device regression; corrected shader passes.",
+  "measurements": {
+    "runs": {
+      "before": [
+        {
+          "evidence": "target/bloom-correction-before-1/P2-effects-1AON-bloom/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 175833,
+            "cpu_p95_ns": 207708,
+            "cpu_p99_ns": 285083,
+            "frame_median_ns": 2401291,
+            "frame_p95_ns": 2469375,
+            "frame_p99_ns": 2568042,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 271,
+            "max_heap_reallocations": 22,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        },
+        {
+          "evidence": "target/bloom-correction-before-2/P2-effects-1AON-bloom/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 174083,
+            "cpu_p95_ns": 214917,
+            "cpu_p99_ns": 263584,
+            "frame_median_ns": 2399167,
+            "frame_p95_ns": 2485875,
+            "frame_p99_ns": 2546125,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 271,
+            "max_heap_reallocations": 22,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        },
+        {
+          "evidence": "target/bloom-correction-before-3/P2-effects-1AON-bloom/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 176583,
+            "cpu_p95_ns": 209958,
+            "cpu_p99_ns": 298958,
+            "frame_median_ns": 2401666,
+            "frame_p95_ns": 2475000,
+            "frame_p99_ns": 2613500,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 271,
+            "max_heap_reallocations": 22,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        }
+      ],
+      "after": [
+        {
+          "evidence": "target/bloom-correction-after-1/P2-effects-1AON-bloom/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 177625,
+            "cpu_p95_ns": 207542,
+            "cpu_p99_ns": 258292,
+            "frame_median_ns": 2399375,
+            "frame_p95_ns": 2478584,
+            "frame_p99_ns": 2538125,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 271,
+            "max_heap_reallocations": 22,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        },
+        {
+          "evidence": "target/bloom-correction-after-2/P2-effects-1AON-bloom/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 177834,
+            "cpu_p95_ns": 209750,
+            "cpu_p99_ns": 257583,
+            "frame_median_ns": 2400667,
+            "frame_p95_ns": 2473292,
+            "frame_p99_ns": 2642292,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 271,
+            "max_heap_reallocations": 22,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        },
+        {
+          "evidence": "target/bloom-correction-after-3/P2-effects-1AON-bloom/molgfx-interactive/report.json",
+          "summary": {
+            "cpu_median_ns": 176083,
+            "cpu_p95_ns": 203417,
+            "cpu_p99_ns": 291167,
+            "frame_median_ns": 2407792,
+            "frame_p95_ns": 2494083,
+            "frame_p99_ns": 2572125,
+            "gpu_median_ns": null,
+            "gpu_p95_ns": null,
+            "gpu_p99_ns": null,
+            "gpu_resolved_count": 0,
+            "heap_measured_count": 1200,
+            "max_heap_allocations": 271,
+            "max_heap_reallocations": 22,
+            "max_residency_allocation_events": 0,
+            "max_stall_events": 0,
+            "max_upload_bytes": 2336,
+            "output_count": 1200,
+            "peak_resident_bytes": 65536
+          }
+        }
+      ]
+    },
+    "extent": [
+      768,
+      768
+    ],
+    "warmup_outputs": 120,
+    "measured_outputs_per_trial": 1200,
+    "quality": "highest fixed interactive, unchanged",
+    "baseline_binary_manifest": "target/bloom-correction-binaries.json",
+    "median_trial_frame_ns": {
+      "before": 2401291,
+      "after": 2400667
+    },
+    "interpretation": "Correctness fix; timings are effectively unchanged. No optimization claim. GPU timestamps unavailable; 271 allocations and 22 reallocations per output remain owned by Phase 9."
+  }
+}

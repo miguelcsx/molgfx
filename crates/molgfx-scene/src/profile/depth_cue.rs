@@ -22,6 +22,9 @@ impl DepthCue {
             || near_distance < 0.0
             || far_distance <= near_distance
             || !(0.0..=1.0).contains(&strength)
+            || near_distance > 999_999.0
+            || far_distance > 1_000_000.0
+            || far_distance < near_distance + near_distance.mul_add(1.0e-6, 1.0e-3)
         {
             return Err(crate::Error::InvalidSpec(
                 "depth cue requires finite non-negative near distance, a larger far distance, and strength in [0, 1]"

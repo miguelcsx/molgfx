@@ -4,6 +4,7 @@
 
 mod fallback;
 pub mod fixtures;
+pub mod gallery;
 pub mod image_compare;
 pub mod ladder;
 mod metrics;

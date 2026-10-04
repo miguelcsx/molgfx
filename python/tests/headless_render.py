@@ -1,4 +1,4 @@
-"""Render a real PNG through an installed wheel.
+"""Render real PNG and OpenEXR images through an installed wheel.
 
 Not a unittest (the name is not `test*.py`): it needs a graphics API, which the
 workflow provides, and it must run against the wheel, not a development build.
@@ -7,6 +7,8 @@ workflow provides, and it must run against the wheel, not a development build.
 import json
 import os
 import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import cast
 
 import molframe
@@ -55,6 +57,63 @@ pixels = image.pixels()
 assert any(pixel != 0 for pixel in pixels), "render output is entirely transparent black"
 assert image.png_bytes().startswith(b"\x89PNG")
 print("rendered a non-empty 64x64 PNG")
+
+effect = molgfx.effect.backdrop_gradient(top=(11, 23, 37), bottom=(11, 23, 37), glow_strength=0)
+assert effect.kind == "backdrop"
+profile = molgfx.profile.interactive().with_effect(effect)
+assert profile.effect(effect) is not None
+custom = molgfx.Renderer(profile=profile).render_image(scene, size=(64, 64))
+assert bytes(custom.pixels()) != bytes(image.pixels()), (
+    "explicit backdrop did not affect the output"
+)
+restored = profile.without_effect(effect)
+assert restored.effect(effect) is None
+try:
+    molgfx.effect.bloom(intensity=float("nan"))
+except molgfx.SpecError:
+    pass
+else:
+    message = "non-finite bloom intensity was accepted"
+    raise AssertionError(message)
+print("profile effects change image pixels and reject invalid settings")
+
+hdr_renderer = molgfx.Renderer(profile=molgfx.profile.converged())
+for invalid_size in ((0, 64), (64, 0)):
+    try:
+        hdr_renderer.render_hdr_image(scene, size=invalid_size)
+    except molgfx.SpecError:
+        pass
+    else:
+        message = f"HDR render accepted an empty image: {invalid_size}"
+        raise AssertionError(message)
+hdr = hdr_renderer.render_hdr_image(scene, size=(64, 64))
+assert isinstance(hdr, molgfx.HdrImage)
+assert (hdr.width, hdr.height) == (64, 64)
+assert len(hdr.rgba16f()) == 64 * 64 * 8
+hdr_quality = json.loads(hdr.quality_json())
+assert hdr_quality["complete"], hdr_quality
+assert hdr_quality["samples_completed"] == hdr_quality["samples_required"]
+assert not hdr_quality["progressive"]
+assert hdr_quality["full_residency"]
+exr = hdr.exr_bytes()
+assert exr[:4] == b"\x76\x2f\x31\x01"
+with TemporaryDirectory() as directory:
+    exr_path = Path(directory) / "capture.exr"
+    hdr.save(exr_path)
+    assert exr_path.read_bytes() == exr
+    hdr.save(str(exr_path))
+    assert exr_path.read_bytes() == exr
+    for suffix in (".png", ".jpg", ".exr.png", ""):
+        rejected_path = Path(directory) / f"rejected{suffix}"
+        try:
+            hdr.save(rejected_path)
+        except ValueError:
+            pass
+        else:
+            message = f"HDR save accepted a non-EXR path: {rejected_path}"
+            raise AssertionError(message)
+        assert not rejected_path.exists(), "extension rejection must precede writing"
+print("rendered and saved a complete scene-linear 64x64 OpenEXR")
 
 # The camera primitives must agree with where the renderer draws: an atom's
 # projected pixel lies on the drawn atom, and a far corner does not.

@@ -1,13 +1,11 @@
 //! Script cases: scenes built from command text, fitted cameras and orbit frames.
-use super::{
-    catalog::{Camera, Catalog, FitCamera, Fixture, Result, Video, VideoKind},
-    native,
-};
+use super::native;
 use molgfx::{
     Renderer, Scene, StructureId, TrajectoryBinding, TrajectoryFrame, camera, command::Session,
     profile::MeasuredOutput, schema::DataSource, trajectory,
 };
 use molgfx_bench::fallback;
+use molgfx_bench::gallery::{Camera, Catalog, FitCamera, Fixture, Result, Video, VideoKind};
 use num_traits::ToPrimitive;
 use serde_json::Value;
 use std::{io, path::Path};

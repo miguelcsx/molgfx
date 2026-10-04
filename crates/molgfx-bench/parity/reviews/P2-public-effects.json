@@ -1,0 +1,93 @@
+{
+  "unit": "Phase 2.1",
+  "status": "verified",
+  "owner": "scene profile / facade / Python / WASM",
+  "base_commit": "29af0500a5deae1638a984f586f12b0f3c25a823",
+  "provider_revision": "2f48db5ad9e01ca0d310302d0ffdc167fd2dd293",
+  "effects": [
+    "depth_cue",
+    "anti_aliasing",
+    "bloom",
+    "depth_of_field",
+    "motion_blur",
+    "backdrop",
+    "lighting",
+    "shape_cues",
+    "display"
+  ],
+  "reviews": [
+    "crates/molgfx-bench/parity/reviews/P2-effects-1AON-bloom.json",
+    "crates/molgfx-bench/parity/reviews/P2-effects-1AON-dof.json",
+    "crates/molgfx-bench/parity/reviews/P2-effects-1AON-motion_blur.json",
+    "crates/molgfx-bench/parity/reviews/P2-effects-1AON-depth_cue.json",
+    "crates/molgfx-bench/parity/reviews/P2-effects-1AON-shape_cues.json"
+  ],
+  "verification": {
+    "unit-final-tests": {
+      "path": "target/effects-verification/molgfx-effects-unit-final-tests.log",
+      "sha256": "f90b0a0c2e657196e44caf562910282adf9cca8f0e6d9a986f60ee2a116e544f"
+    },
+    "unit-final-clippy": {
+      "path": "target/effects-verification/molgfx-effects-unit-final-clippy.log",
+      "sha256": "84e10cf892c89cfa475e1bde748e059c043ef3b948cfb6684fdf9899b1c62d20"
+    },
+    "unit-final-wasm": {
+      "path": "target/effects-verification/molgfx-effects-unit-final-wasm.log",
+      "sha256": "2cf4c391d7f6325227a5dc4c1c39ed8afc5d1d8bb3fd5f40de9bf0bf8b88ffae"
+    },
+    "unit-final-wasm-clippy": {
+      "path": "target/effects-verification/molgfx-effects-unit-final-wasm-clippy.log",
+      "sha256": "f92aacbee92ac7f82a128f02e4c674676f8f6958b4e616435ba1c1b8124b7ed2"
+    },
+    "unit-final-python-install": {
+      "path": "target/effects-verification/molgfx-effects-unit-final-python-install.log",
+      "sha256": "982064a8ac7295dab1b5dd64fcea567aa56bf40f35f95a33d5c3a67528effe99"
+    },
+    "unit-final-python-tests": {
+      "path": "target/effects-verification/molgfx-effects-unit-final-python-tests.log",
+      "sha256": "3f6a90a5f4bab970e73bc7f4bda278d46cc997385c3c79504ffafa2f533424c2"
+    },
+    "unit-final-headless": {
+      "path": "target/effects-verification/molgfx-effects-unit-final-headless.log",
+      "sha256": "133ae7759009c331f0bdb5684224a478f0842ebd4e62569b6b26a31eeac8c9c0"
+    },
+    "unit-stubtest": {
+      "path": "target/effects-verification/molgfx-effects-unit-stubtest.log",
+      "sha256": "62da4fc54c562df868a008dec15c01dbe2e33b26f8fb0c43f41c446e2d7c5f60"
+    },
+    "unit-rust-format": {
+      "path": "target/effects-verification/molgfx-effects-unit-rust-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "unit-format": {
+      "path": "target/effects-verification/molgfx-effects-unit-format.log",
+      "sha256": "a29905b4529aee76474b804c49e3c3820a3c2ffa2c958cba5ab50986b9fe0db0"
+    },
+    "unit-gpu": {
+      "path": "target/effects-verification/molgfx-effects-unit-gpu.log",
+      "sha256": "9f2415146bbec5118012ea89871bed74c9989affde47beea04ce2772627c0590"
+    },
+    "browser": {
+      "path": "target/effects-verification/molgfx-effects-browser.log",
+      "sha256": "a8e871fdf1c659b208f4c5748da8f73e1be74fe023198f117b90d3ee166b9fbd"
+    },
+    "unit-golden-check": {
+      "path": "target/effects-verification/molgfx-effects-unit-golden-check.log",
+      "sha256": "762678d99790e7224e38be1f3dbe91c3feafcd296fb16ba9f3da90338a335c42"
+    },
+    "bloom-before-regression": {
+      "path": "target/effects-verification/molgfx-effects-bloom-before-regression.log",
+      "sha256": "ccce1fafe0952dfbaad7d7822113cf50dd45f1d2c40e1066fca157b18f945fb8"
+    }
+  },
+  "additional_checks": {
+    "ruff": "passed",
+    "mypy": "16 source files passed",
+    "repository_policy": "suppression, unwrap, unsafe and 500-line limits passed"
+  },
+  "python_tests": 69,
+  "browser_test": "web/tests/browser/effects.spec.mjs",
+  "architecture": "One validated scene EffectSet; bindings and shared gallery recipes consume the core behavior. Render payload structs are reused without duplicate public definitions.",
+  "migration": "Removed superseded scene depth-cue and edge-smoothing setters; with_effect/without_effect resolve explicit overrides over the quality recipe.",
+  "limits": "No overall project completion or Phase 7/9 closure claim. Rendering references compare semantics, not identical physical configurations."
+}

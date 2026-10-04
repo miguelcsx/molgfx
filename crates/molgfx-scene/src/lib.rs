@@ -48,7 +48,7 @@ pub use overlay::{
     VolumeBinding, VolumeSpec,
 };
 pub use patch::{PatchOperation, ScenePatch};
-pub use profile::{DepthCue, Quality, RenderProfile};
+pub use profile::{AntiAliasing, DepthCue, Effect, EffectKind, EffectSet, Quality, RenderProfile};
 pub use property::{PropertySpec, ScalarProperty, ScalarPropertyBinding};
 pub use render::PickReadback;
 pub use render::Renderer;

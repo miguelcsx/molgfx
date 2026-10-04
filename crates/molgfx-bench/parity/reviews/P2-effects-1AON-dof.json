@@ -1,0 +1,37 @@
+{
+  "case": "P2-effects-1AON-dof",
+  "owner": "Phase 2.1",
+  "items": [
+    {
+      "id": "FX-2",
+      "verdict": "pass",
+      "note": "Camera-target focus retains readable ribbons near the focal plane; foreground/background defocus agrees with the authored thin-lens intent. Mol* uses its camera-target focus plane, with different physical parameters."
+    }
+  ],
+  "native_evidence": "target/gallery-effects-verified/P2-effects-1AON-dof",
+  "reference_evidence": "target/gallery-effects-corrected/P2-effects-1AON-dof",
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P2-effects-1AON-dof.png",
+    "verification": {
+      "mean_delta_e": 0.0,
+      "p99_delta_e": 0.0,
+      "ssim": 1.0,
+      "status": "passed"
+    },
+    "sha256": "9851d613e19b02b4eea933f953708588020e6bd4d394d7d644000131d1d1d425"
+  },
+  "control_measurements": {
+    "molgfx-converged": {
+      "mean_absolute_rgba_delta": 2.1257459852430554,
+      "changed_pixels": 70394,
+      "image_sha256": "9851d613e19b02b4eea933f953708588020e6bd4d394d7d644000131d1d1d425"
+    },
+    "molgfx-interactive": {
+      "mean_absolute_rgba_delta": 2.0686781141493054,
+      "changed_pixels": 77232,
+      "image_sha256": "e1c448004ca5a74e2feaca4e54fe2857f48074853e62be357788f560fec20fb7"
+    }
+  },
+  "test": "crates/molgfx-scene/src/render/engine_config_tests.rs::every_public_effect_reaches_the_resolved_render_plan",
+  "reference_policy": "Only supported native reference effects are compared. Unsupported effect comparisons are explicitly omitted in the gallery manifest; no physical-equivalence claim."
+}

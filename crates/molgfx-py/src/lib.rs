@@ -7,6 +7,7 @@ mod binding;
 mod camera_path_binding;
 mod command_binding;
 mod controls_binding;
+mod effect_binding;
 mod ensemble_binding;
 mod id_binding;
 mod native_adapter;

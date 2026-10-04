@@ -1,8 +1,6 @@
 //! CLI configuration and manifest validation before engine initialization.
-use super::{
-    catalog::{Catalog, Fixture, Result},
-    external::Programs,
-};
+use super::external::Programs;
+use molgfx_bench::gallery::{Catalog, Fixture, Result};
 use std::{io, path::PathBuf};
 
 pub(super) struct Config {

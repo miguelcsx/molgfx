@@ -19,3 +19,29 @@ fn depth_cues_validate_order_and_strength() {
     assert!(DepthCue::new(18.0, 4.0, 0.35).is_err());
     assert!(DepthCue::new(4.0, 18.0, 1.1).is_err());
 }
+
+#[test]
+fn light_directions_must_be_finite_and_normalizable() {
+    use molgfx_math::Vec3;
+
+    for direction in [
+        Vec3::ZERO,
+        Vec3::splat(f32::MAX),
+        Vec3::splat(f32::MIN_POSITIVE),
+    ] {
+        for key in [true, false] {
+            let mut lighting = LightingEnvironment::soft_key();
+            if key {
+                lighting.key_direction = direction;
+            } else {
+                lighting.fill_direction = direction;
+            }
+            assert!(Effect::Lighting(lighting).validate().is_err());
+        }
+    }
+    assert!(
+        Effect::Lighting(LightingEnvironment::soft_key())
+            .validate()
+            .is_ok()
+    );
+}

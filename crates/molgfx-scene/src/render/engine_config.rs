@@ -13,20 +13,7 @@ pub(super) fn engine_config(
             molgfx_render::RenderProfile::bare()
         }
     };
-    if let Some(cue) = profile.depth_cue {
-        presentation = presentation.with_effect(molgfx_render::PresentationEffect::DepthCue(
-            molgfx_render::DepthCue {
-                near_distance: cue.near_distance(),
-                far_distance: cue.far_distance(),
-                strength: cue.strength(),
-            },
-        ));
-    }
-    if let Some(edge_smoothing) = profile.edge_smoothing {
-        presentation = presentation.with_effect(molgfx_render::PresentationEffect::AntiAliasing(
-            molgfx_render::AntiAliasingStyle { edge_smoothing },
-        ));
-    }
+    presentation = profile.effects.apply(presentation);
     let adaptive = match profile.quality {
         Quality::Auto => AdaptiveQualityConfig::interactive(profile.target_fps),
         Quality::Interactive => {
@@ -51,3 +38,7 @@ pub(super) fn engine_config(
         ..molgfx_render::EngineConfig::default()
     }
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "engine_config_tests.rs"]
+mod tests;

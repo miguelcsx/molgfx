@@ -549,22 +549,86 @@ class PickResult:
     def volume_label(self) -> int | None: ...
 
 @final
+class Effect:
+    @property
+    def kind(
+        self,
+    ) -> Literal[
+        "depth_cue",
+        "anti_aliasing",
+        "bloom",
+        "depth_of_field",
+        "motion_blur",
+        "backdrop",
+        "lighting",
+        "shape_cues",
+        "display",
+    ]: ...
+
+@final
 class RenderProfile:
     @property
     def target_fps(self) -> int: ...
     @property
-    def quality(
-        self,
-    ) -> Literal["auto", "interactive", "highest_fixed", "converged"]: ...
-    @property
-    def depth_cue(self) -> tuple[float, float, float] | None: ...
-    def with_depth_cue(
-        self, *, near_distance: float, far_distance: float, strength: float
-    ) -> Self: ...
-    def without_depth_cue(self) -> Self: ...
-    @property
-    def edge_smoothing(self) -> bool | None: ...
-    def with_edge_smoothing(self, *, enabled: bool) -> Self: ...
+    def quality(self) -> Literal["auto", "interactive", "highest_fixed", "converged"]: ...
+    def with_effect(self, effect: Effect) -> Self: ...
+    def without_effect(self, effect: Effect) -> Self: ...
+    def effect(self, effect: Effect) -> Effect | None: ...
+
+class _Effect:
+    @staticmethod
+    def depth_cue(*, near_distance: float, far_distance: float, strength: float) -> Effect: ...
+    @staticmethod
+    def fxaa() -> Effect: ...
+    @staticmethod
+    def no_anti_aliasing() -> Effect: ...
+    @staticmethod
+    def bloom(
+        *, threshold: float = 1.7, intensity: float = 0.26, radius: float = 2.0
+    ) -> Effect: ...
+    @staticmethod
+    def depth_of_field(
+        *,
+        focal_length_mm: float = 50.0,
+        f_number: float = 8.0,
+        sensor_width_mm: float = 36.0,
+        max_blur_pixels: float = 14.0,
+        blade_count: int = 7,
+        focus_distance: float | None = None,
+    ) -> Effect: ...
+    @staticmethod
+    def motion_blur(*, shutter: float = 0.55, max_blur_pixels: float = 18.0) -> Effect: ...
+    @staticmethod
+    def backdrop_gradient(
+        *,
+        top: tuple[int, int, int] = (238, 241, 245),
+        bottom: tuple[int, int, int] = (206, 214, 223),
+        glow_color: tuple[int, int, int] = (255, 255, 255),
+        glow_strength: float = 0.3,
+    ) -> Effect: ...
+    @staticmethod
+    def lighting(
+        *, key_strength: float = 1.35, fill_strength: float = 0.30, shadow_strength: float = 0.66
+    ) -> Effect: ...
+    @staticmethod
+    def shape_cues(
+        *,
+        silhouette_strength: float = 0.65,
+        cavity_strength: float = 0.35,
+        depth_cue_strength: float = 0.15,
+        posterize_levels: float = 0.0,
+        motion_persistence: float = 0.0,
+        outline_width: float = 0.0,
+    ) -> Effect: ...
+    @staticmethod
+    def display(
+        *,
+        exposure_ev: float = 0.22,
+        contrast: float = 1.18,
+        saturation: float = 1.3,
+        vignette_strength: float = 0.16,
+        peak_luminance_nits: float = 100.0,
+    ) -> Effect: ...
 
 def system_info() -> dict[str, object]: ...
 
@@ -676,6 +740,8 @@ class Renderer:
         surface_memory_mib: int | None = None,
     ) -> Self: ...
     def render_image(self, scene: Scene, *, size: tuple[int, int]) -> Image: ...
+    def render_hdr_image(self, scene: Scene, *, size: tuple[int, int]) -> HdrImage:
+        """Render a complete HDR exposure using the scene framing camera."""
     def render_sequence(
         self, scene: Scene, *, size: tuple[int, int], fps: int, frames: int
     ) -> list[Image]: ...
@@ -687,8 +753,6 @@ class Renderer:
         size: tuple[int, int],
         fps: int,
     ) -> list[Image]: ...
-    def render_hdr_image(self, scene: Scene, *, size: tuple[int, int]) -> HdrImage:
-        """Render a complete HDR exposure using the scene framing camera."""
     def pick(self, x: int, y: int) -> PickResult | None: ...
     def explain(self, scene: Scene) -> str: ...
 
@@ -988,6 +1052,7 @@ class _Ellipsoid:
 rep: _Rep
 color: _Color
 profile: _Profile
+effect: _Effect
 visual: _Visual
 data: _Data
 annotation: _Annotation
@@ -1013,6 +1078,7 @@ __all__ = [
     "CommandResult",
     "DataSource",
     "DifferenceStyle",
+    "Effect",
     "Ellipsoid",
     "EllipsoidId",
     "FlyController",
@@ -1055,6 +1121,7 @@ __all__ = [
     "color",
     "data",
     "density",
+    "effect",
     "ellipsoid",
     "interaction",
     "measurement",

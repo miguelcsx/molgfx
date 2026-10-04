@@ -1,0 +1,37 @@
+{
+  "case": "P2-effects-1AON-shape_cues",
+  "owner": "Phase 2.1",
+  "items": [
+    {
+      "id": "GEN-1",
+      "verdict": "pass",
+      "note": "The key light is consistent and crevices remain darker without light leaks. Converged already enables the same restrained cues; the explicit override changes the interactive recipe."
+    }
+  ],
+  "native_evidence": "target/gallery-effects-verified/P2-effects-1AON-shape_cues",
+  "reference_evidence": "target/gallery-effects-corrected/P2-effects-1AON-shape_cues",
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P2-effects-1AON-shape_cues.png",
+    "verification": {
+      "mean_delta_e": 0.0,
+      "p99_delta_e": 0.0,
+      "ssim": 1.0,
+      "status": "passed"
+    },
+    "sha256": "7e492ea8e084b3a3c766b8fe9ae313e659f9760a6ff0a855d426987efeed34cf"
+  },
+  "control_measurements": {
+    "molgfx-converged": {
+      "mean_absolute_rgba_delta": 0.0,
+      "changed_pixels": 0,
+      "image_sha256": "7e492ea8e084b3a3c766b8fe9ae313e659f9760a6ff0a855d426987efeed34cf"
+    },
+    "molgfx-interactive": {
+      "mean_absolute_rgba_delta": 3.8627632988823786,
+      "changed_pixels": 77063,
+      "image_sha256": "79c06d6d6662ce003954f8c7cf5c1264c369414b7f27a542ed58001b816912af"
+    }
+  },
+  "test": "crates/molgfx-scene/src/render/engine_config_tests.rs::every_public_effect_reaches_the_resolved_render_plan",
+  "reference_policy": "Only supported native reference effects are compared. Unsupported effect comparisons are explicitly omitted in the gallery manifest; no physical-equivalence claim."
+}

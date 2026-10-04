@@ -2393,6 +2393,7 @@ dependencies = [
  "molgfx",
  "molgfx-math",
  "num-traits",
+ "serde",
  "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",

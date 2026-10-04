@@ -1,4 +1,5 @@
 // Bundled against the requested local Mol* source checkout; runs in a real DOM.
+const effects = require("./molstar-effects.cjs");
 const { PluginContext } = require('@molstar/mol-plugin/context');
 const { DefaultPluginSpec } = require('@molstar/mol-plugin/spec');
 const { ParamDefinition: PD } = require('@molstar/mol-util/param-definition');
@@ -68,6 +69,7 @@ async function execute(request, bytes) {
     canvas.camera.manualReset = true;
     canvas.camera.helper.axes = { name: 'off', params: {} };
     canvas.cameraFog = { name: 'off', params: {} };
+    const effectEvidence = effects.configure(canvas, fixture.effect);
     canvas.cameraResetDurationMs = 0;
     const spec = DefaultPluginSpec();
     spec.canvas3d = canvas;
@@ -150,7 +152,7 @@ async function execute(request, bytes) {
         if (!(distance > c.near && c.far > distance)) throw new Error('Camera clipping planes cannot be represented by the Mol* radius contract');
         plugin.canvas3d.camera.setState({ mode: 'perspective', position: c.position, target: c.target, up: c.up,
             fov: c.fov_y_degrees * Math.PI / 180, radius: distance - c.near, radiusMax: c.far - distance,
-            clipFar: false, minNear: c.near, minFar: c.far - distance, fog: 0 }, 0);
+            clipFar: false, minNear: c.near, minFar: c.far - distance, fog: canvas.cameraFog.name === 'on' ? canvas.cameraFog.params.intensity : 0 }, 0);
         plugin.canvas3d.camera.update();
         const pass = plugin.canvas3d.getImagePass({ renderer: plugin.canvas3d.props.renderer,
             postprocessing: plugin.canvas3d.props.postprocessing, multiSample: settings.multiSample,
@@ -206,7 +208,7 @@ async function execute(request, bytes) {
         response.cpu_timing_scope = 'wall-including-GPU-completion-not-exclusive';
         const debug = gl.getExtension('WEBGL_debug_renderer_info');
         response.effective_settings = { canvas: plugin.canvas3d.props, imagePass: pass.props,
-            requested: settings, requested_camera: c, camera: plugin.canvas3d.camera.getSnapshot(),
+            effect: effectEvidence, requested: settings, requested_camera: c, camera: plugin.canvas3d.camera.getSnapshot(),
             view: Array.from(pass._camera.view), projection: Array.from(pass._camera.projection),
             near: pass._camera.near, far: pass._camera.far, extent: [pass.width, pass.height],
             representation: representation.cell.params.values,

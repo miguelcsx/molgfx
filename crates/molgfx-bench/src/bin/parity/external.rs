@@ -1,5 +1,5 @@
 //! Process-isolated adapters using real engine libraries, not guessed CLI flags.
-use super::catalog::{Catalog, Fixture, Result};
+use molgfx_bench::gallery::{Catalog, Fixture, Result};
 use serde_json::{Value, json};
 use std::{io, path::Path, process::Command};
 

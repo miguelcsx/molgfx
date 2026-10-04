@@ -1,0 +1,43 @@
+{
+  "case": "P2-effects-1AON-motion_blur",
+  "owner": "Phase 2.1",
+  "items": [
+    {
+      "id": "FX-4",
+      "verdict": "pass",
+      "note": "Static interactive frames match the control. The 24-frame orbit produces bounded shutter-dependent differences, with readable molecular structure."
+    }
+  ],
+  "native_evidence": "target/gallery-effects-verified/P2-effects-1AON-motion_blur",
+  "reference_evidence": "target/gallery-effects-corrected/P2-effects-1AON-motion_blur",
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P2-effects-1AON-motion_blur.png",
+    "verification": {
+      "mean_delta_e": 0.0,
+      "p99_delta_e": 0.0,
+      "ssim": 1.0,
+      "status": "passed"
+    },
+    "sha256": "bbde819a73f4b8d9c57fe8de11c99ff3be958f848a5ecf312afef49e864a1893"
+  },
+  "control_measurements": {
+    "molgfx-converged": {
+      "mean_absolute_rgba_delta": 0.5064425998263888,
+      "changed_pixels": 64669,
+      "image_sha256": "bbde819a73f4b8d9c57fe8de11c99ff3be958f848a5ecf312afef49e864a1893"
+    },
+    "molgfx-interactive": {
+      "mean_absolute_rgba_delta": 0.0,
+      "changed_pixels": 0,
+      "image_sha256": "568376615bbb97449a6635853675ace2f79b71e62d1767bd4fb6b14d4b957ffc"
+    }
+  },
+  "test": "crates/molgfx-scene/src/render/engine_config_tests.rs::every_public_effect_reaches_the_resolved_render_plan",
+  "reference_policy": "Only supported native reference effects are compared. Unsupported effect comparisons are explicitly omitted in the gallery manifest; no physical-equivalence claim.",
+  "video": "target/gallery-effects-verified/P2-effects-1AON-motion_blur/video.mp4",
+  "orbit_frame_mean_rgba_deltas": {
+    "0002": 0.5488921271430122,
+    "0012": 0.37477535671657985,
+    "0024": 0.50599119398329
+  }
+}
