@@ -85,14 +85,21 @@ import hashlib
 import struct
 import molgfx
 
-values = [max(0.0, 1.0 - ((x - 3.5) ** 2 + (y - 3.5) ** 2 + (z - 3.5) ** 2) ** 0.5 / 4.0)
-          for z in range(8) for y in range(8) for x in range(8)]
+values = [
+    max(0.0, 1.0 - ((x - 3.5) ** 2 + (y - 3.5) ** 2 + (z - 3.5) ** 2) ** 0.5 / 4.0)
+    for z in range(8)
+    for y in range(8)
+    for x in range(8)
+]
 source = molgfx.data.source(hashlib.sha256(struct.pack("<512f", *values)).hexdigest())
 scene = molgfx.Scene()
 volume = molgfx.density.volume(source=source, dimensions=(8, 8, 8))
-volume = volume.isosurface(0.5, color=(220, 40, 70)).direct([
-    (0.0, (50, 150, 255), 0.0), (1.0, (50, 150, 255), 0.4),
-])
+volume = volume.isosurface(0.5, color=(220, 40, 70)).direct(
+    [
+        (0.0, (50, 150, 255), 0.0),
+        (1.0, (50, 150, 255), 0.4),
+    ]
+)
 identity = scene.add(volume)
 scene.bind_volume(identity, values)
 molgfx.Renderer().render_image(scene, size=(640, 480)).save("density.png")

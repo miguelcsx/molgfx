@@ -2,10 +2,44 @@
 
 All notable changes to MolGFX are recorded here. The project follows
 [Semantic Versioning](https://semver.org/); before 1.0 a minor release may
-change the public API. MolGFX 0.4 needs `molframe>=0.4.0`: publish or install
+change the public API. MolGFX 0.5 needs `molframe>=0.5.0`: publish or install
 that first.
 
+## 0.5.0
+
+### Changed
+
+- Require MolFrame 0.5.0 in Rust and Python, with the native Python bridge
+  pinned to its published upstream source.
+- Cartoon helix and nucleic cross-sections expose elliptical, rounded and
+  square profiles, aspect ratio and strand arrow factor across Rust, Python
+  and WASM. Source-anchored direction wedges follow live coordinates.
+- Ribbon and mesh rendering uses native indexed draws. Requested ribbon
+  detail is preserved for large structures; geometry exceeding GPU index
+  limits fails explicitly rather than truncating.
+
+### Fixed
+
+- Canonical polymer gaps and closed ribbon end faces preserve source topology.
+- Reactivating a resident trajectory initializes previous coordinates at its
+  new sample, preventing motion blur from a previous activation.
+
 ## 0.4.2
+
+### Added
+
+- Native scene-linear HDR export through the public Rust and Python renderer.
+  `HdrImage` preserves half-float highlights above one, exposes encoded OpenEXR
+  bytes and streams files without duplicating the full pixel buffer. Python
+  `.save()` rejects non-EXR filenames before writing.
+- Render profiles expose explicit validated bloom, depth of field, motion blur,
+  depth cue, anti-aliasing, backdrop, lighting, shape cues and display overrides
+  in Rust, Python and WASM.
+- Affine scalar volumes support isosurfaces, voxel-space mesh/dot masks, direct
+  transfer, slices and regions in volume-only or molecular scenes. Categorical
+  segmentations carry independent labels and styles with generational picks.
+- Named session snapshots restore scene state atomically and remain undoable;
+  duplicate snapshot, fitting and cell values have been removed.
 
 ### Fixed
 
@@ -53,6 +87,19 @@ that first.
 
 ### Changed
 
+- **Exact secondary structure.** Preserve all eleven MolFrame states, including
+  three-ten/pi/other/PPII helices, isolated beta bridges and bends, across
+  palette categories, native Python import, picking, hashes and scene manifests.
+  Canonical labels replace the old helix label; invalid labels/codes fail.
+  Helix and sheet queries use family semantics; cartoon/rocket profiles retain
+  the full assignment. A distinct Paul Tol scientific categorical palette gives
+  every state its own colour; reference palettes and PyMOL subtype limits stay
+  explicit. Modern mkdssp, rather than Mol*'s older assignment, is the oracle.
+- **Secondary palette gallery.** Add named 1AON and 7QPD cases with all four
+  secondary-structure review items. `frame_time --manifest FILE --case ID`
+  measures the authored gallery commands, with corpus checksum verification.
+  Reference engine subtype and palette limits remain review evidence, not
+  cross-engine pixel-equality claims.
 - **Engine names replace use-case names.** `Quality::Publication`,
   `profile::publication()`, `ImagePurpose::Publication`, `RenderMode::Cinematic`
   and the `molgfx-publication` recipe are now `Converged`/`converged()`; the

@@ -34,7 +34,7 @@ impl NativeProvider {
                 if error.is_instance_of::<PyAttributeError>(object.py()) {
                     PyAttributeError::new_err(
                         "the molframe Structure has no secondary-structure accessor; \
-                         molgfx requires molframe>=0.4.0",
+                         molgfx requires molframe>=0.5.0",
                     )
                 } else {
                     error

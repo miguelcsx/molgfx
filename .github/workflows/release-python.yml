@@ -109,7 +109,7 @@ jobs:
           set -euo pipefail
           python -m venv .venv
           . .venv/bin/activate
-          python -m pip install --upgrade pip 'maturin>=1.15,<2' mypy numpy 'molframe>=0.4.0'
+          python -m pip install --upgrade pip 'maturin>=1.15,<2' mypy numpy 'molframe>=0.5.0'
           python build_backend.py
           python .github/scripts/test-python-packaging.py
           maturin develop -m crates/molgfx-py/Cargo.toml
@@ -264,7 +264,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m venv .venv
-          .venv/bin/python -m pip install dist/*.whl 'molframe>=0.4.0'
+          .venv/bin/python -m pip install dist/*.whl 'molframe>=0.5.0'
           if [ "${{ matrix.name }}" = default ]; then
             env -u WGPU_BACKEND .venv/bin/python python/tests/headless_render.py
           else

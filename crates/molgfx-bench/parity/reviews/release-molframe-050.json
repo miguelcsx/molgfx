@@ -1,0 +1,30 @@
+{
+  "status": "verified release integration; registry publication handled by release workflows",
+  "version": "0.5.0",
+  "molframe_version": "0.5.0",
+  "molframe_revision": "80be15056042d27ae965a9e1922a6ef312f5cc6b",
+  "verification": {
+    "directory": "target/release-050-verification",
+    "full_repository_gate": "passed",
+    "python_tests": 85,
+    "wasm_node_contracts": 3,
+    "native_gpu_regressions": "passed",
+    "documentation_warnings_denied": "passed",
+    "packaging_tests": 9,
+    "web_tests": 3
+  },
+  "visual": {
+    "directory": "target/release-050-gallery",
+    "converged_golden_checks": 13,
+    "byte_identical_images_against_previous_verified_release_work": 26
+  },
+  "upstream_bridge": {
+    "change": "Restore optional-domain feature boundaries without enabling full",
+    "full_verification": "passed",
+    "python_tests": 337,
+    "single_feature_matrix": "passed"
+  },
+  "limitations": [
+    "This release does not close remaining Phase 3\u201311 requirements."
+  ]
+}
