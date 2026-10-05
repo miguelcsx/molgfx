@@ -3,6 +3,13 @@
 use molgfx_math::Rgba8;
 use serde::{Deserialize, Serialize};
 
+/// Native CPK colour shared by molecular atoms and generic point renderings.
+#[must_use]
+pub fn element_rgb(atomic_number: u8) -> [u8; 3] {
+    let color = molgfx_core::cpk_color(atomic_number);
+    [color.r, color.g, color.b]
+}
+
 /// A serializable RGBA color.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub struct Color(pub [u8; 4]);

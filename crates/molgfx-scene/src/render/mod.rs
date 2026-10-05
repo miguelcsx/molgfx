@@ -14,7 +14,9 @@ mod hdr_image;
 #[cfg(not(target_arch = "wasm32"))]
 mod image;
 mod pick_result;
+mod point_cloud;
 mod renderer;
+pub use point_cloud::PointCloud;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use hdr_image::HdrImage;

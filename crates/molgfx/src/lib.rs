@@ -8,7 +8,6 @@
 #![forbid(unsafe_code)]
 
 pub use molgfx_scene::PickReadback;
-pub use molgfx_scene::Renderer;
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_scene::{AdapterReport, SystemInfo, system_info};
 pub use molgfx_scene::{
@@ -31,6 +30,7 @@ pub use molgfx_scene::{
 pub use molgfx_scene::{FrameTiming, GpuTiming};
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_scene::{HdrImage, Image};
+pub use molgfx_scene::{PointCloud, Renderer};
 
 pub use molgfx_scene::{OverlayHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding};
 pub use molgfx_scene::{annotation, density, ellipsoid, interaction, measurement, trajectory};
@@ -71,7 +71,8 @@ pub mod schema {
 /// screen pixels.
 pub mod camera {
     pub use molgfx_scene::camera::{
-        CameraEasing, CameraKeyframe, CameraPath, Ray, ScreenPoint, path, perspective, project, ray,
+        CameraEasing, CameraKeyframe, CameraPath, Ray, ScreenPoint, frame_bounds, path,
+        perspective, project, ray,
     };
 }
 
@@ -109,8 +110,8 @@ pub mod sel {
 pub mod color {
     pub use molgfx_scene::color::{
         AtomCategory, AtomMetric, Color, ColorSpec, Legend, LegendStop, carbon_by_chain, chain,
-        element, entity, metric, molecule_type, palette_names, property, ramp_names, residue,
-        residue_name, secondary_structure, uniform,
+        element, element_rgb, entity, metric, molecule_type, palette_names, property, ramp_names,
+        residue, residue_name, secondary_structure, uniform,
     };
 }
 

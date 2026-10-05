@@ -53,7 +53,6 @@ pub use patch::{PatchOperation, ScenePatch};
 pub use profile::{AntiAliasing, DepthCue, Effect, EffectKind, EffectSet, Quality, RenderProfile};
 pub use property::{PropertySpec, ScalarProperty, ScalarPropertyBinding};
 pub use render::PickReadback;
-pub use render::Renderer;
 pub use render::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming,
     MeasuredOutput, PassTiming, PassTimingCoverage, QualityTier, SurfaceLimit,
@@ -61,6 +60,7 @@ pub use render::{
 #[cfg(not(target_arch = "wasm32"))]
 pub use render::{HdrImage, Image};
 pub use render::{PickKind, PickResult};
+pub use render::{PointCloud, Renderer};
 pub use representation::RepresentationSpec;
 pub use representation::{SceneItem, Selection};
 pub use scene::domains::AssemblyChoice;

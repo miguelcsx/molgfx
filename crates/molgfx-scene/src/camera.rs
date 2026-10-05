@@ -1,5 +1,32 @@
 //! Validated camera construction without exposing math implementation types.
 
+/// Frames finite coordinate bounds through the native aspect-aware camera policy.
+///
+/// # Errors
+/// Returns an error for inverted/non-finite bounds or a non-positive aspect ratio.
+pub fn frame_bounds(
+    minimum: [f32; 3],
+    maximum: [f32; 3],
+    aspect: f32,
+) -> Result<crate::Camera, crate::Error> {
+    let min = molgfx_math::Vec3::from_array(minimum);
+    let max = molgfx_math::Vec3::from_array(maximum);
+    if !min.is_finite()
+        || !max.is_finite()
+        || minimum.iter().zip(maximum).any(|(a, b)| *a > b)
+        || !aspect.is_finite()
+        || aspect <= 0.0
+    {
+        return Err(crate::Error::InvalidSpec(
+            "camera bounds and aspect must be finite and ordered".into(),
+        ));
+    }
+    Ok(crate::Camera::framing_aabb(
+        &molgfx_math::Aabb { min, max },
+        aspect,
+    ))
+}
+
 /// Builds a perspective look-at camera from plain coordinate triples.
 ///
 /// # Errors

@@ -6,6 +6,18 @@ use crate::spec::SceneSpec;
 use std::collections::BTreeMap;
 
 impl Scene {
+    pub(crate) fn resolved_snapshot(&self) -> Result<molgfx_core::Scene, crate::Error> {
+        super::runtime::resolve_reusing(
+            &self.spec,
+            &self.structures,
+            &self.property_bindings,
+            &self.overlay_bindings,
+            &self.rows,
+            Some(&self.structure_assets),
+        )
+        .map(|resolution| resolution.scene)
+    }
+
     /// The scene's molecular sources, keyed by structure.
     ///
     /// Read-only: the coordinates and topology behind these sources are what
