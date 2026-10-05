@@ -74,9 +74,17 @@ fn core_rejection_reasons(storage_buffers_per_stage: u32, r32_storage: bool) -> 
     reasons
 }
 
-fn rank(adapter: &wgpu::Adapter, preference: PowerPreference) -> (u8, String) {
-    let info = adapter.get_info();
-    (rank_device(preference, info.device_type), info.name)
+fn rank(adapter: &wgpu::Adapter, preference: PowerPreference) -> (u8, bool, String) {
+    rank_info(&adapter.get_info(), preference)
+}
+
+fn rank_info(info: &wgpu::AdapterInfo, preference: PowerPreference) -> (u8, bool, String) {
+    let non_native = cfg!(target_vendor = "apple") && info.backend != wgpu::Backend::Metal;
+    (
+        rank_device(preference, info.device_type),
+        non_native,
+        info.name.clone(),
+    )
 }
 
 const fn rank_device(preference: PowerPreference, device_type: wgpu::DeviceType) -> u8 {
@@ -108,46 +116,5 @@ pub(super) async fn request_adapter<'a>(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{core_rejection_reasons, rank_device};
-    use molgfx_gpu::PowerPreference;
-
-    #[test]
-    fn headless_selection_prefers_power_matched_physical_adapters() {
-        assert!(
-            rank_device(
-                PowerPreference::HighPerformance,
-                wgpu::DeviceType::DiscreteGpu
-            ) < rank_device(
-                PowerPreference::HighPerformance,
-                wgpu::DeviceType::IntegratedGpu
-            )
-        );
-        assert!(
-            rank_device(PowerPreference::LowPower, wgpu::DeviceType::IntegratedGpu)
-                < rank_device(PowerPreference::LowPower, wgpu::DeviceType::DiscreteGpu)
-        );
-    }
-
-    #[test]
-    fn headless_selection_prefers_physical_adapters_over_software() {
-        assert!(
-            rank_device(
-                PowerPreference::HighPerformance,
-                wgpu::DeviceType::DiscreteGpu
-            ) < rank_device(PowerPreference::HighPerformance, wgpu::DeviceType::Cpu)
-        );
-    }
-
-    #[test]
-    fn headless_selection_rejects_missing_core_capabilities() {
-        assert_eq!(core_rejection_reasons(8, true), Vec::<String>::new());
-        assert_eq!(
-            core_rejection_reasons(7, false),
-            vec![
-                "max_storage_buffers_per_shader_stage=7 (required 8)".to_owned(),
-                "r32float storage writes unavailable".to_owned(),
-            ]
-        );
-    }
-}
+#[path = "adapter_tests.rs"]
+mod tests;
