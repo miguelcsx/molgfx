@@ -43,7 +43,7 @@ async function prepare(page) {
     const entry = (await import(url)).default; URL.revokeObjectURL(url);
     let submits = 0;
     const submit = GPUQueue.prototype.submit;
-    GPUQueue.prototype.submit = function (...args) { submits++; return submit.apply(this, args); };
+    GPUQueue.prototype.submit = function (...args) { submits++; window.widget.queue = this; return submit.apply(this, args); };
     window.widget = { states, Model, entry, model: new Model(states.initial), submits: () => submits };
     window.widget.close = await entry.render({ model: window.widget.model, el: document.querySelector("#viewer") });
   });
@@ -198,10 +198,14 @@ test("hovering a settled scene does not restart presentation sampling", async ({
   const canvas = page.locator("canvas");
   await expect(canvas).toBeVisible();
   await expect.poll(async () => {
-    const before = await page.evaluate(() => window.widget.submits());
+    const before = await page.evaluate(async () => {
+      await window.widget.queue.onSubmittedWorkDone();
+      return window.widget.submits();
+    });
     await page.waitForTimeout(200);
     return (await page.evaluate(() => window.widget.submits())) === before;
   }).toBe(true);
+  await page.evaluate(() => window.widget.queue.onSubmittedWorkDone());
   const before = await canvas.screenshot();
   await canvas.hover({ position: { x: 100, y: 100 } });
   await page.waitForTimeout(300);
