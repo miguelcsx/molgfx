@@ -77,6 +77,7 @@ fn every_interaction_class_has_a_distinct_visual_vocabulary() {
         InteractionKind::PiStacking,
         InteractionKind::Hydrophobic,
         InteractionKind::MetalCoordination,
+        InteractionKind::Contact,
     ]
     .map(|kind| edge(kind).resolved_style());
     for (index, style) in styles.iter().enumerate() {

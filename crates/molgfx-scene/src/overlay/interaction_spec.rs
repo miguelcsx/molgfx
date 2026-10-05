@@ -21,27 +21,20 @@ pub enum InteractionKind {
     Hydrophobic,
     /// Metal-ligand coordination.
     MetalCoordination,
-    /// Unclassified spatial contact. `molframe` has no unclassified class, so
-    /// this authoring kind lowers onto [`Self::Hydrophobic`], its non-polar
-    /// contact.
+    /// Spatial contact without an asserted chemical interaction class.
     Contact,
 }
 
 impl InteractionKind {
-    /// Nearest `molframe` interaction class this authoring kind lowers onto.
-    ///
-    /// Two authoring kinds have no exact upstream counterpart: `CationPi`
-    /// lowers onto [`molgfx_core::InteractionKind::PiStacking`] and `Contact`
-    /// onto [`molgfx_core::InteractionKind::Hydrophobic`]. A covalent
-    /// disulfide bridge is not a contact interaction at all, so it is not an
-    /// authorable kind rather than being mapped onto a class it contradicts.
+    /// Renderer class preserving the caller's interaction vocabulary.
     #[must_use]
     pub const fn core_kind(self) -> molgfx_core::InteractionKind {
         match self {
             Self::HydrogenBond => molgfx_core::InteractionKind::HydrogenBond,
             Self::SaltBridge => molgfx_core::InteractionKind::SaltBridge,
             Self::PiStacking | Self::CationPi => molgfx_core::InteractionKind::PiStacking,
-            Self::Hydrophobic | Self::Contact => molgfx_core::InteractionKind::Hydrophobic,
+            Self::Hydrophobic => molgfx_core::InteractionKind::Hydrophobic,
+            Self::Contact => molgfx_core::InteractionKind::Contact,
             Self::MetalCoordination => molgfx_core::InteractionKind::MetalCoordination,
         }
     }

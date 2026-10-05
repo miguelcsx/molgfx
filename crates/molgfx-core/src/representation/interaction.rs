@@ -26,6 +26,8 @@ pub enum InteractionKind {
     Hydrophobic,
     /// Metal-to-ligand coordination.
     MetalCoordination,
+    /// Spatial contact without an asserted chemical interaction class.
+    Contact,
 }
 
 /// Direction carried by an interaction, when its source establishes one.
@@ -401,6 +403,13 @@ impl InteractionEdge {
     #[must_use]
     pub fn resolved_style(&self) -> InteractionStyle {
         let (color, pattern, base_width, period, duty) = match self.kind {
+            InteractionKind::Contact => (
+                Rgba8::opaque(35, 120, 145),
+                InteractionPattern::Dashes,
+                2.0,
+                8.0,
+                0.6,
+            ),
             InteractionKind::HydrogenBond => (
                 Rgba8::opaque(70, 180, 255),
                 InteractionPattern::Dashes,
