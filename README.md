@@ -11,6 +11,12 @@ parse, fetch, dock, simulate, or open an application window.
 
 ## Install
 
+macOS builds include native Metal and Vulkan portability. For repeatable headless
+images on virtual machines, install a software Vulkan adapter and select it with
+`WGPU_BACKEND=vulkan` and `VK_DRIVER_FILES`. Byte-exact rendering is checked on an
+explicit reference adapter; Apple's hosted paravirtual Metal device produces
+different pixels for repeated static exposures.
+
 ```bash
 python -m pip install --upgrade molgfx
 ```

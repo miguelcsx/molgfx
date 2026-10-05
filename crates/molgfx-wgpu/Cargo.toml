@@ -16,7 +16,9 @@ futures-channel.workspace = true
 raw-window-handle.workspace = true
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
-wgpu = { workspace = true, features = ["std", "parking_lot", "metal", "wgsl"] }
+# Metal stays native; Vulkan portability also admits caller-installed software
+# reference adapters on hosts whose virtual Metal device is not reproducible.
+wgpu = { workspace = true, features = ["std", "parking_lot", "metal", "vulkan-portability", "wgsl"] }
 
 # `webgpu` only means anything against a JS host, so this matches the same
 # `target_os = "unknown"` predicate used everywhere else this codebase gates
