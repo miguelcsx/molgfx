@@ -175,3 +175,20 @@ test("AnyWidget requests full resync for a patch missed during GPU initializatio
   expect(result).toEqual({ resyncs: 1, error: "", revision: 3, canvas: true, listeners: 0 });
   expect(errors).toEqual([]);
 });
+
+test("large wheel movements retain a finite interactive camera", async ({ page }) => {
+  await prepare(page);
+  const canvas = page.locator("canvas");
+  await expect(canvas).toBeVisible();
+  await canvas.dispatchEvent("wheel", { deltaY: 2400, bubbles: true, cancelable: true });
+  await expect.poll(() => page.evaluate(() => {
+    const model = window.widget.model;
+    if (model.get("error")) return model.get("error");
+    const camera = model.get("camera");
+    return [camera.position, camera.target, camera.up].every(
+      vector => Array.isArray(vector) && vector.length === 3 && vector.every(Number.isFinite),
+    );
+  })).toBe(true);
+  expect(await page.evaluate(() => window.widget.model.get("error"))).toBe("");
+  await page.evaluate(() => window.widget.close());
+});

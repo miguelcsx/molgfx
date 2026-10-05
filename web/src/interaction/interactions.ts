@@ -183,7 +183,7 @@ export function mountInteractions(
               : event.deltaMode === 2
                 ? canvas.clientHeight
                 : 1);
-          loop.setCamera(controller.scroll(-pixels, loop.camera));
+          loop.setCamera(controller.scroll(-pixels / 120, loop.camera));
           cancelPublish();
           timer = setTimeout(publish, 200);
         }),
@@ -203,7 +203,7 @@ export function mountInteractions(
         if (["+", "=", "-"].includes(event.key)) {
           event.preventDefault();
           loop.setCamera(
-            controller.scroll(event.key === "-" ? -120 : 120, loop.camera),
+            controller.scroll(event.key === "-" ? -1 : 1, loop.camera),
           );
           publish();
           return;
