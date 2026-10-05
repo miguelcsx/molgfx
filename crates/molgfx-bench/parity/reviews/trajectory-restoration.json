@@ -1,0 +1,29 @@
+{
+  "status": "verified on Apple M5 Pro Metal; registry publication pending upstream",
+  "molframe_revision": "b78c195c702e28bbfc46f50a5d959d6718b1a02a",
+  "regression": {
+    "test": "crates/molgfx-wgpu/tests/gpu_trajectory_reactivation_tests.rs",
+    "behavior": "Removing a resident trajectory restores the exact converged source image; reactivation matches a fresh renderer",
+    "comparison": "exact RGBA bytes at 128 by 128 pixels",
+    "quality": "highest fixed with motion blur and traced ambient occlusion",
+    "native_debug": "passed",
+    "native_release": "passed"
+  },
+  "verification": {
+    "directory": "target/trajectory-restoration-verification",
+    "rust_workspace_all_features": "passed",
+    "rust_workspace_clippy_warnings_denied": "passed",
+    "wasm_target_check_and_clippy": "passed",
+    "wasm_node_contracts": "passed",
+    "native_gpu_regressions": "passed",
+    "web_release_build": "passed",
+    "python_editable_install": "passed with upstream CI wheel from pinned commit",
+    "python_tests": "passed",
+    "python_lint_types_and_stubtest": "passed",
+    "repository_policies": "passed"
+  },
+  "limitations": [
+    "The earlier macOS hosted-wheel image mismatch is not reproduced by this local regression.",
+    "This evidence does not close remaining representation or rendering-quality phases."
+  ]
+}

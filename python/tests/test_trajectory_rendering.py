@@ -21,7 +21,7 @@ class TrajectoryRenderingTests(unittest.TestCase):
         scene = molgfx.Scene(source)
         scene.add(molgfx.rep.spacefill(target="all"))
         scene.set_camera(scene.frame("all"))
-        # Isolate resident coordinates and motion history from temporal AO sampling.
+        # Hold quality fixed across trajectory edits so adaptation cannot change the image.
         profile = molgfx.profile.highest_fixed(60).with_effect(molgfx.effect.motion_blur())
         renderer = molgfx.Renderer(profile=profile)
         reference = renderer.render_image(scene, size=(128, 128)).pixels()
