@@ -135,6 +135,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: Software graphics adapter for rendering tests
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libvulkan1 mesa-vulkan-drivers libgl1-mesa-dri libegl1
+
       - name: Build and rebuild the source distribution
         run: |
           set -euo pipefail
@@ -211,6 +216,12 @@ jobs:
           path: dist
 
       # Exercise the actual installed extension and notebook assets, not the source tree.
+      - name: Software graphics adapter for rendering tests
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libvulkan1 mesa-vulkan-drivers libgl1-mesa-dri libegl1
+
       - name: Test the installed wheel
         shell: bash
         run: |
