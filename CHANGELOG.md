@@ -2,8 +2,17 @@
 
 All notable changes to MolGFX are recorded here. The project follows
 [Semantic Versioning](https://semver.org/); before 1.0 a minor release may
-change the public API. MolGFX 0.5 needs `molframe>=0.5.0`: publish or install
+change the public API. MolGFX 0.5 needs `molframe>=0.5.1`: publish or install
 that first.
+
+## 0.5.1 — 2026-10-05
+
+- Compose compact native point clouds with immutable molecular snapshots.
+- Expose typed Python cloud rendering, camera framing and shared CPK colours.
+- Make full source-row sampling explicit and preserve it in serialized scenes.
+- Preserve hydrophobic contact identities independently of generic contacts.
+- Refresh shared point caches when indirect render arenas grow.
+- Build the native bridge against the released MolFrame 0.5.1 source revision.
 
 ## 0.5.0
 

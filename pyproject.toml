@@ -5,7 +5,7 @@ backend-path = ["."]
 
 [project]
 name = "molgfx"
-version = "0.5.0"
+version = "0.5.1"
 description = "Semantic, GPU-native molecular rendering engine"
 readme = "README.md"
 authors = [{ name = "Miguel Cárdenas", email = "miguelecsx@gmail.com" }]
@@ -29,7 +29,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 requires-python = ">=3.12"
-dependencies = ["molframe>=0.5.0", "anywidget>=0.9.18", "traitlets>=5.14"]
+dependencies = ["molframe>=0.5.1", "anywidget>=0.9.18", "traitlets>=5.14"]
 # PEP 639. maturin gained full support for the SPDX expression and
 # `license-files` in 1.9.0, which the build requirement below already covers.
 license = "MIT"
