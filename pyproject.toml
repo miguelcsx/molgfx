@@ -5,7 +5,7 @@ backend-path = ["."]
 
 [project]
 name = "molgfx"
-version = "0.5.2"
+version = "0.5.3"
 description = "Semantic, GPU-native molecular rendering engine"
 readme = "README.md"
 authors = [{ name = "Miguel Cárdenas", email = "miguelecsx@gmail.com" }]

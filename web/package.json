@@ -1,6 +1,6 @@
 {
   "name": "molgfx",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "type": "module",
   "description": "Semantic molecular rendering SDK and browser host shared with Python notebooks.",
   "license": "MIT",
