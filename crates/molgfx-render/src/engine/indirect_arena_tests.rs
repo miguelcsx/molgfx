@@ -78,3 +78,43 @@ fn different_cull_policies_read_different_slots_of_one_arena() {
         "atom and bond slots of one representation are distinct offsets"
     );
 }
+
+#[test]
+fn many_distinct_record_sets_upload_every_argument_to_the_final_arena() {
+    let mut scene = represented_scene(1, 0);
+    let selection = scene.add_selection(molgfx_core::AtomSelection::All);
+    for scale in 1_u16..=10 {
+        let handle = scene
+            .represent(selection, RepresentationKind::Spacefill)
+            .expect("representation");
+        scene
+            .representation_mut(handle)
+            .expect("representation exists")
+            .params
+            .radius_scale = f32::from(scale);
+    }
+    let mut engine = engine();
+    engine.render(&scene, &camera()).expect("frame renders");
+    let buffers = engine.device.log.buffers.lock().expect("buffers");
+    let arenas: Vec<_> = buffers
+        .iter()
+        .filter(|(_, label, _)| *label == "indirect draw arguments")
+        .collect();
+    assert_eq!(
+        arenas.len(),
+        1,
+        "reserve the complete frame before writing arguments"
+    );
+    let arena = arenas[0].0;
+    let writes = engine.device.log.writes.lock().expect("writes");
+    let offsets: BTreeSet<_> = writes
+        .iter()
+        .filter(|(id, _, size, _)| *id == arena && *size == 16)
+        .map(|(_, offset, _, _)| *offset)
+        .collect();
+    assert_eq!(
+        offsets.len(),
+        30,
+        "all ten sets retain their three arguments"
+    );
+}

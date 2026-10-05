@@ -222,6 +222,28 @@ impl<D: Device> GpuScene<D> {
         derived_cache: &mut crate::DerivedCache,
         derived_frame: u64,
     ) -> Result<(), RenderError> {
+        let additional = policies
+            .iter()
+            .filter_map(|policy| {
+                let visibility = self
+                    .visibility
+                    .keys()
+                    .find(|key| key.records == policy.records)?;
+                Some(
+                    [
+                        crate::scene_gpu::IndirectSlotKey::Atom(visibility),
+                        crate::scene_gpu::IndirectSlotKey::Bond(visibility),
+                        crate::scene_gpu::IndirectSlotKey::Surface(policy.records),
+                    ]
+                    .into_iter()
+                    .filter(|key| !self.indirect.contains(*key))
+                    .count(),
+                )
+            })
+            .sum();
+        if self.indirect.reserve(device, additional)? {
+            self.cull_binding_revision = self.cull_binding_revision.wrapping_add(1);
+        }
         self.argument_offsets.clear();
         let mut live = Vec::with_capacity(policies.len());
         for policy in policies {
@@ -236,21 +258,18 @@ impl<D: Device> GpuScene<D> {
                 continue;
             };
             let atom = self.indirect.write(
-                device,
                 queue,
                 crate::scene_gpu::IndirectSlotKey::Atom(visibility),
                 6,
                 0,
             )?;
             let bond = self.indirect.write(
-                device,
                 queue,
                 crate::scene_gpu::IndirectSlotKey::Bond(visibility),
                 6,
                 0,
             )?;
             let surface = self.indirect.write(
-                device,
                 queue,
                 crate::scene_gpu::IndirectSlotKey::Surface(policy.records),
                 6,

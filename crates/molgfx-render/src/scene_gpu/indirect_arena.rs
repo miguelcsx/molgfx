@@ -56,15 +56,51 @@ impl<D: Device> IndirectArgsArena<D> {
         }
     }
 
+    fn next_slot(&self) -> u64 {
+        match self.slots.iter().map(|(_, index)| u64::from(*index)).max() {
+            Some(index) => index + 1,
+            None => 0,
+        }
+    }
+
+    pub(super) fn contains(&self, key: IndirectSlotKey) -> bool {
+        self.slots.iter().any(|(candidate, _)| *candidate == key)
+    }
+
+    /// Reserves all new keys before any argument is written or bound.
+    pub(super) fn reserve(&mut self, device: &D, additional: usize) -> Result<bool, RenderError> {
+        let additional =
+            u64::try_from(additional).map_err(|_| molgfx_gpu::GpuError::LimitExceeded {
+                resource: "indirect argument slots",
+                limit: u64::from(u32::MAX),
+            })?;
+        let needed = SLOT_STRIDE.saturating_mul(self.next_slot().saturating_add(additional));
+        if needed == 0 || self.buffer.is_some() && needed <= self.capacity {
+            return Ok(false);
+        }
+        self.capacity = needed.next_power_of_two().max(SLOT_STRIDE * 16);
+        self.buffer = Some(
+            device.create_buffer(&BufferDesc {
+                label: "indirect draw arguments",
+                size: self.capacity,
+                usage: BufferUsage::INDIRECT
+                    .union(BufferUsage::STORAGE)
+                    .union(BufferUsage::COPY_DST),
+            })?,
+        );
+        self.written.clear();
+        Ok(true)
+    }
+
     /// The byte offset of `key`'s slot, allocating one if it is new.
-    fn slot(&mut self, device: &D, key: IndirectSlotKey) -> Result<u64, RenderError> {
+    fn slot(&mut self, key: IndirectSlotKey) -> Result<u64, RenderError> {
         let index =
             if let Some((_, index)) = self.slots.iter().find(|(candidate, _)| *candidate == key) {
                 *index
             } else {
                 // Slots are never recycled within a frame, so a released key's
                 // index can only be reused after the frame's writes are gone.
-                let index = u32::try_from(self.slots.len()).map_err(|_| {
+                let index = u32::try_from(self.next_slot()).map_err(|_| {
                     molgfx_gpu::GpuError::LimitExceeded {
                         resource: "indirect argument slots",
                         limit: u64::from(u32::MAX),
@@ -73,35 +109,18 @@ impl<D: Device> IndirectArgsArena<D> {
                 self.slots.push((key, index));
                 index
             };
-        let needed = SLOT_STRIDE.saturating_mul(u64::from(index) + 1);
-        if self.buffer.is_none() || needed > self.capacity {
-            // Sized with headroom for a scene's initial slots: growing one slot
-            // at a time would allocate a new arena per representation, which is
-            // the per-slot allocation the single arena exists to avoid.
-            self.capacity = needed.next_power_of_two().max(SLOT_STRIDE * 16);
-            self.buffer = Some(
-                device.create_buffer(&BufferDesc {
-                    label: "indirect draw arguments",
-                    size: self.capacity,
-                    usage: BufferUsage::INDIRECT
-                        .union(BufferUsage::STORAGE)
-                        .union(BufferUsage::COPY_DST),
-                })?,
-            );
-        }
         Ok(SLOT_STRIDE.saturating_mul(u64::from(index)))
     }
 
     /// Writes one draw's arguments into its slot.
     pub(super) fn write(
         &mut self,
-        device: &D,
         queue: &D::Queue,
         key: IndirectSlotKey,
         vertex_count: u32,
         instance_count: u32,
     ) -> Result<u64, RenderError> {
-        let offset = self.slot(device, key)?;
+        let offset = self.slot(key)?;
         let arguments = (vertex_count, instance_count);
         // A stable frame must upload nothing but its own uniforms, so a slot is
         // rewritten only when its arguments actually change.
