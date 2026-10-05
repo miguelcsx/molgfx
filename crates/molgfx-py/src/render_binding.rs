@@ -176,6 +176,20 @@ impl PyRenderer {
             .map_err(error)
     }
 
+    /// Renders a compact native point cloud without molecular atom expansion.
+    #[pyo3(signature = (cloud, *, camera, size))]
+    fn render_cloud(
+        &mut self,
+        py: Python<'_>,
+        cloud: &crate::point_cloud_binding::PyPointCloud,
+        camera: &crate::authoring_binding::PyCamera,
+        size: (u32, u32),
+    ) -> PyResult<PyImage> {
+        py.detach(|| self.0.render_cloud_image(&cloud.0, &camera.0, size))
+            .map(PyImage)
+            .map_err(error)
+    }
+
     /// Renders a converged, bloom-free scene-linear HDR exposure.
     #[pyo3(signature = (scene, *, size))]
     fn render_hdr_image(

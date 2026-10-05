@@ -53,6 +53,19 @@ impl PyCamera {
         .map_err(crate::binding::error)
     }
 
+    /// Frames coordinate bounds with the native aspect-aware camera policy.
+    #[staticmethod]
+    #[pyo3(signature = (minimum, maximum, *, aspect=1.0))]
+    fn frame_bounds(minimum: Triple, maximum: Triple, aspect: f32) -> PyResult<Self> {
+        molgfx::camera::frame_bounds(
+            [minimum.0, minimum.1, minimum.2],
+            [maximum.0, maximum.1, maximum.2],
+            aspect,
+        )
+        .map(Self)
+        .map_err(crate::binding::error)
+    }
+
     #[getter]
     fn position(&self) -> (f32, f32, f32) {
         (self.0.eye.x, self.0.eye.y, self.0.eye.z)
@@ -141,6 +154,11 @@ impl PyColorSpec {
 #[pyfunction]
 fn element() -> PyColorSpec {
     PyColorSpec(molgfx::color::element())
+}
+
+#[pyfunction]
+fn element_rgb(atomic_number: u8) -> [u8; 3] {
+    molgfx::color::element_rgb(atomic_number)
 }
 
 #[pyfunction]
@@ -272,6 +290,7 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyScalarProperty>()?;
     let color = PyModule::new(module.py(), "color")?;
     color.add_function(wrap_pyfunction!(element, &color)?)?;
+    color.add_function(wrap_pyfunction!(element_rgb, &color)?)?;
     color.add_function(wrap_pyfunction!(chain, &color)?)?;
     color.add_function(wrap_pyfunction!(residue, &color)?)?;
     color.add_function(wrap_pyfunction!(secondary_structure, &color)?)?;

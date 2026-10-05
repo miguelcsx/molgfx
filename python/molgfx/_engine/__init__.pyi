@@ -250,6 +250,13 @@ class Camera:
         near: float = 0.1,
         far: float = 10_000.0,
     ) -> Self: ...
+    @staticmethod
+    def frame_bounds(
+        minimum: tuple[float, float, float],
+        maximum: tuple[float, float, float],
+        *,
+        aspect: float = 1.0,
+    ) -> Camera: ...
     @property
     def position(self) -> tuple[float, float, float]: ...
     @property
@@ -797,6 +804,14 @@ class DifferenceStyle:
     def domain(self) -> tuple[float, float]: ...
 
 @final
+class PointCloud:
+    def __new__(cls, groups: Sequence[tuple[object, _Rgb]], *, radius: float = 0.04) -> Self: ...
+    @property
+    def point_count(self) -> int: ...
+    def with_scene(self, scene: Scene) -> PointCloud:
+        """Compose shared points with a molecular snapshot; later edits are independent."""
+
+@final
 class Renderer:
     def __new__(
         cls,
@@ -805,6 +820,9 @@ class Renderer:
         surface_memory_mib: int | None = None,
     ) -> Self: ...
     def render_image(self, scene: Scene, *, size: tuple[int, int]) -> Image: ...
+    def render_cloud(
+        self, cloud: PointCloud, *, camera: Camera, size: tuple[int, int]
+    ) -> Image: ...
     def render_hdr_image(self, scene: Scene, *, size: tuple[int, int]) -> HdrImage:
         """Render a complete HDR exposure using the scene framing camera."""
     def render_sequence(
@@ -977,6 +995,8 @@ class _Rep:
 
 class _Color:
     def element(self) -> ColorSpec: ...
+    def element_rgb(self, atomic_number: int) -> _Rgb:
+        """Return the same CPK colour used for molecular atoms."""
     def chain(self) -> ColorSpec: ...
     def residue(self) -> ColorSpec: ...
     def secondary_structure(self) -> ColorSpec: ...
@@ -1198,6 +1218,7 @@ __all__ = [
     "OrbitController",
     "PickResult",
     "PocketStyle",
+    "PointCloud",
     "RenderProfile",
     "Renderer",
     "Representation",

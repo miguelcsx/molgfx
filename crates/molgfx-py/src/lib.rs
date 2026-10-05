@@ -13,6 +13,7 @@ mod id_binding;
 mod native_adapter;
 mod overlay_binding;
 mod pocket_binding;
+mod point_cloud_binding;
 mod render_binding;
 mod scene_binding;
 mod scene_composition_binding;

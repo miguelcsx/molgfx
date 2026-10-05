@@ -349,6 +349,7 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     crate::scene_composition_binding::register(module)?;
     crate::ensemble_binding::register(module)?;
     crate::render_binding::register(module)?;
+    crate::point_cloud_binding::register(module)?;
     crate::overlay_binding::register(module)?;
     crate::visual_binding::register(module)?;
     crate::command_binding::register(module)?;
