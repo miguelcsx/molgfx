@@ -167,7 +167,7 @@ jobs:
             label: linux-aarch64
           - runner: macos-15-intel
             label: macos-x86_64
-          - runner: macos-14
+          - runner: macos-15
             label: macos-aarch64
           - runner: windows-latest
             label: windows-x86_64
@@ -221,6 +221,20 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq libvulkan1 mesa-vulkan-drivers libgl1-mesa-dri libegl1
+
+      # Hosted ARM Macs expose a paravirtual Metal device whose repeated static
+      # exposures differ. Keep byte-exact tests on an explicit software adapter;
+      # Intel macOS and physical Apple GPUs still exercise the native Metal path.
+      - name: Software reference adapter on macOS ARM
+        if: matrix.label == 'macos-aarch64'
+        shell: bash
+        run: |
+          brew install mesa vulkan-loader
+          driver=$(find "$(brew --prefix mesa)/share/vulkan/icd.d" -name 'lvp_icd*.json')
+          test -n "$driver"
+          echo "VK_DRIVER_FILES=$driver" >> "$GITHUB_ENV"
+          echo "DYLD_FALLBACK_LIBRARY_PATH=$(brew --prefix vulkan-loader)/lib" >> "$GITHUB_ENV"
+          echo "WGPU_BACKEND=vulkan" >> "$GITHUB_ENV"
 
       - name: Test the installed wheel
         shell: bash
