@@ -192,3 +192,22 @@ test("large wheel movements retain a finite interactive camera", async ({ page }
   expect(await page.evaluate(() => window.widget.model.get("error"))).toBe("");
   await page.evaluate(() => window.widget.close());
 });
+
+test("hovering a settled scene does not restart presentation sampling", async ({ page }) => {
+  await prepare(page);
+  const canvas = page.locator("canvas");
+  await expect(canvas).toBeVisible();
+  await expect.poll(async () => {
+    const before = await page.evaluate(() => window.widget.submits());
+    await page.waitForTimeout(200);
+    return (await page.evaluate(() => window.widget.submits())) === before;
+  }).toBe(true);
+  const before = await canvas.screenshot();
+  await canvas.hover({ position: { x: 100, y: 100 } });
+  await page.waitForTimeout(300);
+  await canvas.hover({ position: { x: 130, y: 120 } });
+  await page.waitForTimeout(300);
+  expect((await canvas.screenshot()).equals(before)).toBe(true);
+  expect(await page.evaluate(() => window.widget.model.get("error"))).toBe("");
+  await page.evaluate(() => window.widget.close());
+});

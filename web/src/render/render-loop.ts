@@ -143,7 +143,14 @@ export class RenderLoop {
     const result = this.#pickTail.then(async (): Promise<PickResult> => {
       if (this.#disposed || epoch !== this.#viewEpoch)
         return { performed: false };
-      this.drawNow();
+      // Picking reuses settled buffers; a new temporal sample would move
+      // subpixel coverage even though the camera and scene are unchanged.
+      if (
+        this.#frame !== undefined ||
+        this.#cameraDirty ||
+        this.#sizeDirty ||
+        this.#pixelRatio !== (window.devicePixelRatio || 1)
+      ) this.drawNow();
       if (epoch !== this.#viewEpoch) return { performed: false };
       const submittedEpoch = this.#viewEpoch;
       let readback: WasmPickReadback | undefined;
