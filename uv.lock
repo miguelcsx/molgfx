@@ -136,23 +136,23 @@ wheels = [
 
 [[package]]
 name = "molframe"
-version = "0.5.0"
+version = "0.5.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ad/f1/ecc89613968a1cb07a2ae4824e7893b859975c04157db1a26e7d19a59af9/molframe-0.5.0.tar.gz", hash = "sha256:9ded1d8ffbc5c19a431cbd951a4348b3534faed30d3f305dfc802b29fdfd4baf", size = 5136121, upload-time = "2026-10-05T00:17:00.84Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/25/2d/9cf2d76c5a071e0aff8b572b6e06bac0db94aabf9d9d67707165c69853ac/molframe-0.5.1.tar.gz", hash = "sha256:53e47cff67a74b96430214fac5fa073739c225e0a0b823613c86df304e8cb042", size = 5145648, upload-time = "2026-10-05T13:14:59.006Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/71/d9/97fe79fb81cca4b1a2c460eab75ff9008d2fc34767e3aaa5eb2a7227459d/molframe-0.5.0-cp312-abi3-macosx_10_12_x86_64.whl", hash = "sha256:529648161a24b4c500f1b0f4526226dbbbdcf8c0254efb2f84485d59c427fcb3", size = 8232256, upload-time = "2026-10-05T00:16:51.566Z" },
-    { url = "https://files.pythonhosted.org/packages/36/a9/3874b5b51fbfecb0606a41726c8dae6d5d42122da9573afa8b57ef822359/molframe-0.5.0-cp312-abi3-macosx_11_0_arm64.whl", hash = "sha256:ed1cb76a16489b6edcda55bf57388227c40415638a04d01ea94a04ee2116759d", size = 7609245, upload-time = "2026-10-05T00:16:53.836Z" },
-    { url = "https://files.pythonhosted.org/packages/f5/91/389a19ff3bf400f74b483d22495f8c4b7cfda57f2c92861048a993553a9d/molframe-0.5.0-cp312-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:231ca48475c7879abe1d1304830fe6579bf8e27e37cb394032f0a4c050211f0a", size = 8192145, upload-time = "2026-10-05T00:16:55.538Z" },
-    { url = "https://files.pythonhosted.org/packages/7b/98/974de981c9f566e190b1c175fa01c20c6c7b697894c6ad7e9c3571492271/molframe-0.5.0-cp312-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:2f5e9de174815b4fe960c49163c014c6d23b8a4a30c412d7d0e9c5186303bea5", size = 8669519, upload-time = "2026-10-05T00:16:57.207Z" },
-    { url = "https://files.pythonhosted.org/packages/8f/36/490727042483f77ea9108694030edb830d54cc25c2972cda299a9ba4706f/molframe-0.5.0-cp312-abi3-win_amd64.whl", hash = "sha256:3e8cda59397dba827fdec60fb348da3bf3669df42cdce1c0798a3ede42ba1767", size = 8365139, upload-time = "2026-10-05T00:16:59.218Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/54/3bae1d436cea80379098a3f1140f65181f1d8841b83f51ccc21c1daa69aa/molframe-0.5.1-cp312-abi3-macosx_10_12_x86_64.whl", hash = "sha256:185912252871373a150bdf2983ae235605f74995f2755d5163ed3eb539d6dca5", size = 8288071, upload-time = "2026-10-05T13:14:47.418Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/3a/f954189a0ce724aed5cc87f2f0b2e43ae5a8573f21ad6a36fdcbcadb6f8b/molframe-0.5.1-cp312-abi3-macosx_11_0_arm64.whl", hash = "sha256:f8b6cd7c14b9b20fe5478504752f8b482bd158e13819a061aa6594ed15645da2", size = 7657765, upload-time = "2026-10-05T13:14:49.847Z" },
+    { url = "https://files.pythonhosted.org/packages/8f/36/4cc8ab1432e9bc2dd17c3554d5c528add9f3a6b5b2c72ac091627b33fa88/molframe-0.5.1-cp312-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:baca4693da2b9675299836e661ba6ddaa73cdde52f637f3f48ebebd6dfc1ab65", size = 8241459, upload-time = "2026-10-05T13:14:51.795Z" },
+    { url = "https://files.pythonhosted.org/packages/72/fe/d44f2a7c968aaf034897c69d4a2d920368fc50c7a1496d1e6f62baea9d4b/molframe-0.5.1-cp312-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:616ca78b2b0859b001ec9f2d409f570e19b351f0fe26566b9388258703015402", size = 8720545, upload-time = "2026-10-05T13:14:53.862Z" },
+    { url = "https://files.pythonhosted.org/packages/1a/fa/0836653f089b0fc82e6ce318796f1a0c9c90d80fafc54a38ab1a1587ff62/molframe-0.5.1-cp312-abi3-win_amd64.whl", hash = "sha256:92d3019af4b09aa88042c00d109cb578e6c4be68c95c222dda40e6195146e4c4", size = 8419355, upload-time = "2026-10-05T13:14:56.88Z" },
 ]
 
 [[package]]
 name = "molgfx"
-version = "0.5.0"
+version = "0.5.2"
 source = { editable = "." }
 dependencies = [
     { name = "anywidget" },
@@ -163,7 +163,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "anywidget", specifier = ">=0.9.18" },
-    { name = "molframe", specifier = ">=0.5.0" },
+    { name = "molframe", specifier = ">=0.5.1" },
     { name = "traitlets", specifier = ">=5.14" },
 ]
 

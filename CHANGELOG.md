@@ -5,6 +5,13 @@ All notable changes to MolGFX are recorded here. The project follows
 change the public API. MolGFX 0.5 needs `molframe>=0.5.1`: publish or install
 that first.
 
+## 0.5.2 — 2026-10-05
+
+- Render source-backed dashed polymer gaps with explicit styles.
+- Include Vulkan portability alongside native Metal on macOS.
+- Keep native Metal preferred while allowing explicit software reference adapters.
+- Run hosted macOS ARM wheel tests on lavapipe with unchanged byte-exact assertions.
+
 ## 0.5.1 — 2026-10-05
 
 - Compose compact native point clouds with immutable molecular snapshots.
