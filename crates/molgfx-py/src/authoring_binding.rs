@@ -157,8 +157,9 @@ fn element() -> PyColorSpec {
 }
 
 #[pyfunction]
-fn element_rgb(atomic_number: u8) -> [u8; 3] {
-    molgfx::color::element_rgb(atomic_number)
+fn element_rgb(atomic_number: u8) -> (u8, u8, u8) {
+    let [red, green, blue] = molgfx::color::element_rgb(atomic_number);
+    (red, green, blue)
 }
 
 #[pyfunction]

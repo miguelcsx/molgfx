@@ -22,7 +22,7 @@ class PointCloudTests(unittest.TestCase):
         cloud = PointCloud([(np.zeros((2, 3), dtype=np.float32), (0, 0, 0))])
         composed = cloud.with_scene(Scene())
         assert composed.point_count == cloud.point_count == 2
-        assert tuple(color.element_rgb(8)) == (216, 40, 40)
+        assert color.element_rgb(8) == (216, 40, 40)
 
     def test_invalid_positions_and_empty_groups_are_rejected(self) -> None:
         """A malformed cloud cannot reach GPU packing."""
