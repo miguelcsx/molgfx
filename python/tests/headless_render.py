@@ -77,6 +77,29 @@ else:
     raise AssertionError(message)
 print("profile effects change image pixels and reject invalid settings")
 
+for surface_color in (molgfx.color.element(), (230, 60, 65)):
+    surface_images: list[bytes] = []
+    for opacity in (1.0, 0.1):
+        surface_scene = molgfx.Scene(molframe.read(MMCIF, name="surface.cif"))
+        surface_scene.add(molgfx.rep.surface(target="all", color=surface_color, opacity=opacity))
+        surface_images.append(
+            molgfx.Renderer(profile=profile).render_image(surface_scene, size=(64, 64)).pixels()
+        )
+    empty_surface = molgfx.Scene(molframe.read(MMCIF, name="surface.cif"))
+    background = (
+        molgfx.Renderer(profile=profile).render_image(empty_surface, size=(64, 64)).pixels()
+    )
+    contrast = [
+        sum(
+            abs(pixel - base)
+            for i, (pixel, base) in enumerate(zip(pixels, background, strict=True))
+            if i % 4 != 3
+        )
+        for pixels in surface_images
+    ]
+    assert contrast[1] < contrast[0] * 0.65, "surface opacity did not reveal the backdrop"
+print("surface opacity affects fixed and element-coloured presentation")
+
 hdr_renderer = molgfx.Renderer(profile=molgfx.profile.converged())
 for invalid_size in ((0, 64), (64, 0)):
     try:
