@@ -2,7 +2,9 @@
 
 use crate::color::ColorSpec;
 use crate::id::StructureId;
-use crate::representation::{CartoonProfile, CartoonStyle, Selection, SurfaceKind, SurfaceStyle};
+use crate::representation::{
+    CartoonProfile, CartoonStyle, GapStyle, Selection, SurfaceKind, SurfaceStyle,
+};
 use crate::visual::{ParameterValue, VisualStyle};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -26,6 +28,8 @@ pub(crate) struct RepresentationCommonSpec {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(crate) enum RepresentationFormSpec {
     Cartoon {
+        #[serde(default)]
+        gaps: GapStyle,
         width: f32,
         style: CartoonStyle,
         aspect_ratio: f32,
@@ -35,15 +39,23 @@ pub(crate) enum RepresentationFormSpec {
         nucleic_profile: CartoonProfile,
     },
     Backbone {
+        #[serde(default)]
+        gaps: GapStyle,
         width: f32,
     },
     Trace {
+        #[serde(default)]
+        gaps: GapStyle,
         radius: f32,
     },
     Tube {
+        #[serde(default)]
+        gaps: GapStyle,
         radius: f32,
     },
     Putty {
+        #[serde(default)]
+        gaps: GapStyle,
         domain_min: f32,
         domain_max: f32,
         radius_min: f32,
@@ -246,6 +258,7 @@ impl RepresentationSpec {
                 arrow_factor,
                 direction_wedges,
                 style,
+                gaps,
                 ..
             } => validate_cartoon(
                 *width,
@@ -253,15 +266,17 @@ impl RepresentationSpec {
                 *arrow_factor,
                 *direction_wedges,
                 *style,
+                *gaps,
             )?,
-            RepresentationFormSpec::Backbone { width }
+            RepresentationFormSpec::Backbone { width, .. }
             | RepresentationFormSpec::Lines { width }
             | RepresentationFormSpec::NucleicAcid { width }
             | RepresentationFormSpec::Glycan { width } => positive("width", *width)?,
             RepresentationFormSpec::Points { size } | RepresentationFormSpec::Dots { size } => {
                 positive("point size", *size)?;
             }
-            RepresentationFormSpec::Trace { radius } | RepresentationFormSpec::Tube { radius } => {
+            RepresentationFormSpec::Trace { radius, .. }
+            | RepresentationFormSpec::Tube { radius, .. } => {
                 positive("tube radius", *radius)?;
             }
             RepresentationFormSpec::Putty {
@@ -269,6 +284,7 @@ impl RepresentationSpec {
                 domain_max,
                 radius_min,
                 radius_max,
+                ..
             } => {
                 for (name, value) in [
                     ("putty domain minimum", *domain_min),
@@ -344,10 +360,11 @@ fn validate_cartoon(
     arrow_factor: f32,
     direction_wedges: bool,
     style: CartoonStyle,
+    gaps: GapStyle,
 ) -> Result<(), crate::Error> {
-    if direction_wedges && style == CartoonStyle::Glycan {
+    if (direction_wedges || gaps == GapStyle::Dashed) && style == CartoonStyle::Glycan {
         return Err(crate::Error::InvalidSpec(
-            "direction wedges require a polymer backbone".to_owned(),
+            "direction wedges and dashed gaps require a polymer backbone".to_owned(),
         ));
     }
     positive("width", width)?;

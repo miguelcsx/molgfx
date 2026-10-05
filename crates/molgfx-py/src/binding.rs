@@ -185,6 +185,8 @@ macro_rules! named_control {
     };
 }
 
+named_control!(molgfx::rep::GapStyle, "gap style", ["hidden" => Hidden, "dashed" => Dashed]);
+
 named_control!(molgfx::rep::CartoonProfile, "cartoon profile", [
     "elliptical" => Elliptical,
     "rounded" => Rounded,
@@ -295,7 +297,7 @@ fn reject_unknown_options(
     Ok(())
 }
 
-representation!(cartoon, width: f32, style: String, aspect_ratio: f32, arrow_factor: f32, direction_wedges: bool, helix_profile: String, nucleic_profile: String);
+representation!(cartoon, gaps: String, width: f32, style: String, aspect_ratio: f32, arrow_factor: f32, direction_wedges: bool, helix_profile: String, nucleic_profile: String);
 representation!(ball_and_stick, radius: f32, bond_radius: f32);
 representation!(spacefill, radius: f32);
 representation!(licorice, radius: f32, bond_radius: f32);
@@ -315,11 +317,12 @@ representation!(base_pairs, radius: f32, bond_radius: f32);
 representation!(glycan, width: f32);
 representation!(beads, radius: f32);
 representation!(dots, size: f32);
-representation!(backbone, width: f32);
-representation!(trace, radius: f32);
-representation!(tube, radius: f32);
+representation!(backbone, gaps: String, width: f32);
+representation!(trace, gaps: String, radius: f32);
+representation!(tube, gaps: String, radius: f32);
 representation!(
     putty,
+    gaps: String,
     domain_min: f32,
     domain_max: f32,
     radius_min: f32,

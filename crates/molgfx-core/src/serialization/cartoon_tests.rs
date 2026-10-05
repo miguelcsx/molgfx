@@ -9,6 +9,7 @@ fn authored_cartoon_proportions_survive_cold_scene_restoration() {
     let selection = scene.add_selection(AtomSelection::All);
     let recipe = RepresentationConfig::new(RepresentationKind::Cartoon)
         .direction_wedges(true)
+        .gaps(crate::GapStyle::Dashed)
         .cartoon_profiles(
             crate::CartoonProfile::Rounded,
             crate::CartoonProfile::Square,

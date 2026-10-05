@@ -7,7 +7,7 @@
 
 use super::form::{RepresentationFormSpec, RepresentationSpec};
 use super::item::{SceneItem, private};
-use super::{CartoonProfile, CartoonStyle, Selection, SurfaceKind, SurfaceStyle};
+use super::{CartoonProfile, CartoonStyle, GapStyle, Selection, SurfaceKind, SurfaceStyle};
 use crate::color::ColorSpec;
 
 /// Controls shared by every representation, independent of its form.
@@ -143,6 +143,8 @@ macro_rules! representation {
 representation! {
     /// Typed cartoon specification.
     Cartoon => Cartoon {
+        /// Selects connectors across real polymer gaps.
+        gaps => gaps: GapStyle = GapStyle::Hidden,
         /// Sets ribbon width in ångström.
         width => width: f32 = 1.2,
         /// Selects a cartoon recipe without changing its semantic target.
@@ -163,6 +165,8 @@ representation! {
 representation! {
     /// Typed backbone trace specification.
     Backbone => Backbone {
+        /// Selects connectors across real polymer gaps.
+        gaps => gaps: GapStyle = GapStyle::Hidden,
         /// Sets the trace radius in ångström.
         width => width: f32 = 0.3,
     }
@@ -171,6 +175,8 @@ representation! {
 representation! {
     /// Typed smooth polymer trace specification.
     Trace => Trace {
+        /// Selects connectors across real polymer gaps.
+        gaps => gaps: GapStyle = GapStyle::Hidden,
         /// Sets the trace radius in ångström.
         radius => radius: f32 = 0.3,
     }
@@ -179,6 +185,8 @@ representation! {
 representation! {
     /// Typed smooth polymer tube specification.
     Tube => Tube {
+        /// Selects connectors across real polymer gaps.
+        gaps => gaps: GapStyle = GapStyle::Hidden,
         /// Sets the tube radius in ångström.
         radius => radius: f32 = 0.3,
     }
@@ -187,6 +195,8 @@ representation! {
 representation! {
     /// Typed B-factor putty tube specification.
     Putty => Putty {
+        /// Selects connectors across real polymer gaps.
+        gaps => gaps: GapStyle = GapStyle::Hidden,
         /// Lower B-factor domain bound.
         domain_min => domain_min: f32 = 0.0,
         /// Upper B-factor domain bound.

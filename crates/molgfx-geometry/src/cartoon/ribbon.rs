@@ -255,6 +255,45 @@ impl RibbonMesh {
         Ok(())
     }
 
+    /// Appends closed, source-anchored dashes across real polymer gaps.
+    /// Trajectory endpoints reserve every dash needed throughout the interval.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed geometry error for unrepresentable distances or indices.
+    pub fn append_polymer_gaps(
+        &mut self,
+        structure: &molframe::Structure,
+        selection: &molgfx_core::AtomSelection,
+        trajectory: Option<&molgfx_core::TrajectorySegment>,
+        params: RibbonParams,
+    ) -> Result<(), CartoonError> {
+        self.pad_static_deformations();
+        let first_vertex = self.vertices.len();
+        let first_index = self.indices.len();
+        let first_recipe = self.deformations.len();
+        let result = super::gaps::append_gaps(
+            structure,
+            selection,
+            trajectory,
+            &mut RibbonBuild {
+                params,
+                samples: &mut self.samples,
+                demand: &mut self.demand,
+                frames: &mut self.frames,
+                vertices: &mut self.vertices,
+                indices: &mut self.indices,
+                deformations: &mut self.deformations,
+            },
+        );
+        if result.is_err() {
+            self.vertices.truncate(first_vertex);
+            self.indices.truncate(first_index);
+            self.deformations.truncate(first_recipe);
+        }
+        result
+    }
+
     /// Generates a ribbon along a glycan's glycosidic tree.
     ///
     /// The traces come from connectivity rather than residue order, so each

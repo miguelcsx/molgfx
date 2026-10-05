@@ -80,10 +80,10 @@ pub mod rep {
     //! Typed representation constructors.
     pub use crate::representation::{
         Backbone, BallAndStick, BasePairs, Bases, Beads, Cartoon, CartoonProfile, CartoonStyle,
-        Dots, Glycan, Licorice, Lines, NucleicAcid, PointRepresentation, Putty, Spacefill, Surface,
-        SurfaceKind, SurfaceStyle, Trace, Tube, backbone, ball_and_stick, base_pairs, bases, beads,
-        cartoon, dots, glycan, licorice, lines, nucleic_acid, points, putty, spacefill, surface,
-        trace, tube,
+        Dots, GapStyle, Glycan, Licorice, Lines, NucleicAcid, PointRepresentation, Putty,
+        Spacefill, Surface, SurfaceKind, SurfaceStyle, Trace, Tube, backbone, ball_and_stick,
+        base_pairs, bases, beads, cartoon, dots, glycan, licorice, lines, nucleic_acid, points,
+        putty, spacefill, surface, trace, tube,
     };
 }
 

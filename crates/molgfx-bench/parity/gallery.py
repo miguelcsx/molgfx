@@ -80,6 +80,14 @@ def color_case(scheme, pymol_color, mol_color):
 
 CASES = [
     case(
+        "P3-cartoon-gaps-1HZH",
+        "1HZH",
+        ["show cartoon gaps=dashed as main, protein", "color chain, @main"],
+        ["show cartoon, fixture", "set cartoon_gap_cutoff, 8", "util.cbc fixture"],
+        [rep("cartoon", visuals=["polymer-trace", "polymer-gap"])],
+        [*STILL, "CT-3"],
+    ),
+    case(
         "P3-cartoon-wedges-4HHB",
         "4HHB",
         ["show cartoon direction_wedges=true as main, protein", "color chain, @main"],

@@ -267,11 +267,12 @@ fn a_target_where_the_form_belongs_says_how_show_is_written() {
 
 #[test]
 fn cartoon_shape_controls_survive_command_printing_and_parsing() {
-    let source = "show cartoon aspect_ratio=3 arrow_factor=2 helix_profile=rounded nucleic_profile=square direction_wedges=true, protein";
+    let source = "show cartoon gaps=dashed aspect_ratio=3 arrow_factor=2 helix_profile=rounded nucleic_profile=square direction_wedges=true, protein";
     let first = commands(source);
     let printed = first[0].to_string();
     assert_eq!(commands(&printed), first);
     assert!(printed.contains("aspect_ratio=3"));
     assert!(printed.contains("arrow_factor=2"));
     assert!(printed.contains("direction_wedges=true"));
+    assert!(printed.contains("gaps=dashed"));
 }

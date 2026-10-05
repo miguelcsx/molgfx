@@ -1,0 +1,45 @@
+{
+  "case": "P3-cartoon-gaps-1HZH",
+  "source": "db31f963 + dashed polymer gaps working tree",
+  "owner": "Phase 3.1",
+  "items": [
+    {
+      "id": "GEN-1",
+      "verdict": "pass",
+      "note": "Converged native lighting and shadows remain coherent. Public Python source close-up resolves round closed dash ends without rectangular texture substitutes."
+    },
+    {
+      "id": "GEN-2",
+      "verdict": "pass",
+      "note": "768 and 384 native stills are populated and finite. Source-aligned dash spacing and trajectory growth have geometry/native GPU coverage; full orbit certification remains open."
+    },
+    {
+      "id": "GEN-3",
+      "verdict": "pass",
+      "note": "Native, Mol* and PyMOL harness-fitted 768 captures retain the same antibody orientation and extent. Reference palettes differ and are not used as pixel identity expectations."
+    },
+    {
+      "id": "CT-3",
+      "verdict": "pass",
+      "note": "The first prescribed fixture with an internal missing interval of at least three residues is 1HZH. Label chain B has seven missing positions 142\u2013148 between observed guides 141 and 149, plus three missing 233\u2013235. Public Python auth-chain K close-up shows the first connector; geometry tests reject connections across chains or excluded existing guides and cover spatial breaks. Physical dash length/gap is 0.5/0.5 \u00c5 with 0.15 \u00c5 radius. Native picking distinguishes dash from space and validates newly visible dashes after trajectory growth."
+    }
+  ],
+  "native_evidence": "target/cartoon-gaps-gallery/native/P3-cartoon-gaps-1HZH",
+  "reference_evidence": "target/cartoon-gaps-gallery/reference/P3-cartoon-gaps-1HZH",
+  "detail_evidence": "target/cartoon-gaps-verification/python-1HZH-detail-dashed.png",
+  "control_evidence": "target/cartoon-gaps-verification/python-1HZH-detail-hidden.png",
+  "golden": {
+    "path": "crates/molgfx-bench/parity/references/P3-cartoon-gaps-1HZH.png",
+    "extent": [
+      384,
+      384
+    ],
+    "verification": "target/cartoon-gaps-gallery/final-golden"
+  },
+  "reference_notes": [
+    "Mol* polymer-gap-cylinder.ts uses closed cylinders with theme-relative size and ten dashes. MolGFX retains the project-required physical dash dimensions.",
+    "PyMOL RepCartoon.cpp uses residue-gap cutoff and excludes deliberately invisible residues; cartoon_gap_cutoff=8 includes this internal interval.",
+    "Reference captions certify missing-interval semantics, not superior global image quality."
+  ],
+  "remaining": "Tubular helices, nucleotide modes/live rings and full Phase 3 representation defect sweep remain open. Presentation antialiasing remains Phase 7 work."
+}

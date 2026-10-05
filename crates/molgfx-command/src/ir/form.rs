@@ -10,7 +10,7 @@
 
 use super::value::{Finite, NonNegative, Positive};
 use molgfx_scene::RepresentationSpec;
-use molgfx_scene::rep::{CartoonProfile, CartoonStyle, SurfaceKind, SurfaceStyle};
+use molgfx_scene::rep::{CartoonProfile, CartoonStyle, GapStyle, SurfaceKind, SurfaceStyle};
 use serde::{Deserialize, Serialize};
 
 /// How one control's value is written and checked.
@@ -155,6 +155,8 @@ macro_rules! choice {
         }
     };
 }
+
+choice!(GapStyle, ["hidden" => Hidden, "dashed" => Dashed]);
 
 choice!(CartoonProfile, [
     "elliptical" => Elliptical,
@@ -372,6 +374,7 @@ macro_rules! forms {
 forms! {
     /// Secondary-structure ribbon along the polymer backbone.
     Cartoon = "cartoon" via cartoon {
+        gaps: GapStyle => "presentation of real polymer gaps",
         width: Positive => "ribbon width in ångström",
         style: CartoonStyle => "ribbon recipe",
         aspect_ratio: Positive => "helix and sheet width divided by thickness",
@@ -382,18 +385,22 @@ forms! {
     }
     /// Backbone trace through polymer guide atoms.
     Backbone = "backbone" via backbone {
+        gaps: GapStyle => "presentation of real polymer gaps",
         width: Positive => "trace radius in ångström",
     }
     /// Thin smooth polymer trace.
     Trace = "trace" via trace {
+        gaps: GapStyle => "presentation of real polymer gaps",
         radius: Positive => "trace radius in ångström",
     }
     /// Round smooth polymer tube.
     Tube = "tube" via tube {
+        gaps: GapStyle => "presentation of real polymer gaps",
         radius: Positive => "tube radius in ångström",
     }
     /// B-factor-driven variable-radius tube.
     Putty = "putty" via putty {
+        gaps: GapStyle => "presentation of real polymer gaps",
         domain_min: Finite => "lower B-factor domain",
         domain_max: Finite => "upper B-factor domain",
         radius_min: Positive => "radius at the lower domain bound",

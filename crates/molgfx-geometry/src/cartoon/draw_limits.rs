@@ -45,6 +45,33 @@ pub(super) fn check_glyph(vertices: usize, indices: usize) -> Result<(), Packing
     Ok(())
 }
 
+/// Checks the complete dash stream before reserving or emitting any vertices.
+pub(super) fn check_gap_capacity(
+    vertices: usize,
+    indices: usize,
+    length: f32,
+    period: f32,
+) -> Result<(), PackingError> {
+    let dashes = (f64::from(length) / f64::from(period)).ceil();
+    let sides = checked_u32("ribbon profile sides", super::ribbon::PROFILE_SIDES as u64)?;
+    // Two side rings and two independently shaded, closed end fans.
+    let dash_vertices = f64::from(4 * sides + 2);
+    let dash_indices = f64::from(12 * sides);
+    for (resource, offset, count) in [
+        ("ribbon vertices", vertices, dash_vertices),
+        ("ribbon draw indices", indices, dash_indices),
+    ] {
+        let offset = checked_u32(resource, offset as u64)?;
+        if f64::from(offset) + dashes * count > f64::from(u32::MAX) {
+            return Err(PackingError::IndexOverflow {
+                resource,
+                index: u64::from(u32::MAX) + 1,
+            });
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 #[path = "draw_limits_tests.rs"]
 mod tests;

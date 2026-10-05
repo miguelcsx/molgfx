@@ -35,6 +35,9 @@ pub struct RepresentationDescription {
     pub cartoon_arrow_factor: f32,
     /// Source-anchored polymer direction wedges.
     pub cartoon_direction_wedges: bool,
+    /// Presentation of real polymer gaps.
+    #[serde(default)]
+    pub gaps: crate::GapStyle,
     /// Protein helix cross-section.
     pub cartoon_helix_profile: crate::CartoonProfile,
     /// Nucleic backbone cross-section.

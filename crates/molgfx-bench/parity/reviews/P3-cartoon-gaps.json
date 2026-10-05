@@ -1,0 +1,782 @@
+{
+  "status": "Verified dashed polymer gaps; full Phase 3.1 remains open",
+  "owner": "Phase 3.1",
+  "source_before": "db31f963",
+  "architecture": [
+    "One GapStyle enum drives Rust configurations/builders, scene values, canonical restorable descriptions, command parser/printer, Python keyword/stubs and WASM serialization. All five polymer families share geometry.",
+    "One ordered chain traversal finds canonical missing guide intervals, missing guide coordinates and spatial breaks over 8 \u00c5. Excluded existing guide atoms reset the interval. Chains and mixed polymer guide types never connect.",
+    "Closed tubes use 0.15 \u00c5 radius and 0.5 \u00c5 dash/spacing. Existing spline scratch, deformation rows and beauty/OIT/shadow/picking shaders are reused. Source coordinates remain borrowed and source atom identity is retained.",
+    "Resident frame endpoints bound maximum dash capacity by convexity of norm under linear interpolation. Sample-only updates deform resident vertices without traversal, rebuilding or uploading gap buffers. New coordinate intervals invalidate geometry; camera-only changes retain it.",
+    "Preflight capacity rejects unrepresentable geometry before emission; failed appends roll back. Reserved invisible dashes collapse to zero-area triangles, avoiding ghosts and erroneous picks.",
+    "Culling modes and dispatch resource types now have a separate cohesive module, keeping all Rust/WGSL source files within repository size limits."
+  ],
+  "complexity": "Cold traversal O(residues \u00d7 selection membership cost), geometry O(dashes), retained scratch O(samples) and output O(dashes). Each straight dash adds 66 vertices and 192 indices; no extra per-dash draw or GPU pass.",
+  "verification": {
+    "directory": "target/cartoon-gaps-verification",
+    "full_unit_gate": "passed",
+    "geometry_gap_tests": 5,
+    "native_gap_gpu_tests": 1,
+    "python_consumer": "target/cartoon-gaps-verification/python-consumer.json",
+    "chromium_consumer": "target/cartoon-gaps-verification/browser-consumer.json",
+    "policy": "target/cartoon-gaps-verification/policy.log"
+  },
+  "visual_review": {
+    "review": "crates/molgfx-bench/parity/reviews/P3-cartoon-gaps-1HZH.json",
+    "golden": "crates/molgfx-bench/parity/references/P3-cartoon-gaps-1HZH.png",
+    "regression": "target/cartoon-gaps-gallery/regression",
+    "converged_golden_checks": 13,
+    "comparisons": 26,
+    "byte_identical_captures": 13,
+    "difference_evidence": "target/cartoon-gaps-gallery/regression/equivalence.json",
+    "limits": "13 captures differ in 1\u201314 channels; maximum channel difference is 8 for Putty and 1 otherwise. All existing converged golden checks pass without blessing. Full orbit certification and superior presentation claims remain open."
+  },
+  "feature_measurements": {
+    "scope": "Feature cost only, not Phase 9 baselines or optimization evidence. Same release binary, 1HZH, camera, fixed quality, 768x768; only gaps differs.",
+    "binary_sha256": "2b31f75a16f64b6d5c2e51d022cf3a3ecd933fd9f083d578ae32034994cd56de",
+    "warmup_outputs": 120,
+    "measured_outputs_per_trial": 1200,
+    "trials_per_variant": 3,
+    "orbit_degrees_per_output": 0,
+    "effective_quality": {
+      "adaptive": false,
+      "complete": false,
+      "extent": [
+        768,
+        768
+      ],
+      "full_residency": true,
+      "illumination_bounces": 0,
+      "lighting": {
+        "diffuse_strength": 0.6200000047683716,
+        "fill_color": {
+          "a": 255,
+          "b": 226,
+          "g": 214,
+          "r": 206
+        },
+        "fill_direction": [
+          0.7799999713897705,
+          -0.11999999731779099,
+          0.5
+        ],
+        "fill_strength": 0.30000001192092896,
+        "ground": {
+          "a": 255,
+          "b": 141,
+          "g": 146,
+          "r": 150
+        },
+        "horizon": {
+          "a": 255,
+          "b": 202,
+          "g": 194,
+          "r": 188
+        },
+        "key_angular_radius": 0.20000000298023224,
+        "key_color": {
+          "a": 255,
+          "b": 230,
+          "g": 244,
+          "r": 255
+        },
+        "key_direction": [
+          -0.41999998688697815,
+          0.5799999833106995,
+          0.699999988079071
+        ],
+        "key_strength": 1.350000023841858,
+        "rim_color": {
+          "a": 255,
+          "b": 152,
+          "g": 132,
+          "r": 120
+        },
+        "rim_strength": 0.1599999964237213,
+        "shadow_strength": 0.6600000262260437,
+        "specular_strength": 0.7200000286102295,
+        "zenith": {
+          "a": 255,
+          "b": 240,
+          "g": 232,
+          "r": 226
+        }
+      },
+      "lod_mode_max": 0,
+      "occlusion_rays_per_sample": 2,
+      "progressive": true,
+      "ribbon_steps_max": 8,
+      "samples_completed": 1,
+      "samples_required": 1,
+      "samples_submitted": 1,
+      "surface_limit": "none",
+      "surface_spacing_effective": null,
+      "surface_spacing_requested": 0.25,
+      "tier": "high"
+    },
+    "trials": [
+      {
+        "variant": "disabled",
+        "trial": 1,
+        "evidence": "target/cartoon-gaps-measurements/disabled-1.jsonl",
+        "p50_ns": 776791,
+        "p95_ns": 856417,
+        "p99_ns": 976458,
+        "outputs_per_second": 1273.891040906051,
+        "cold_completed_ns": 30774209,
+        "cold_cpu_stages": {
+          "completion_wait_ns": 7989542,
+          "preparation_ns": 5727917,
+          "recording_ns": 13419833,
+          "submission_ns": 3005834,
+          "timestamp_readback_ns": 630625
+        },
+        "cold_heap": {
+          "allocated_bytes": 26794826,
+          "allocations": 73875,
+          "deallocated_bytes": 23892017,
+          "reallocations": 12646,
+          "retained_bytes": 2902809
+        },
+        "summary": {
+          "cpu_median_ns": 143542,
+          "cpu_p95_ns": 160708,
+          "cpu_p99_ns": 193000,
+          "frame_median_ns": 776791,
+          "frame_p95_ns": 856417,
+          "frame_p99_ns": 976458,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "peak_process_rss_bytes": 79790080,
+        "rss_source": "target/cartoon-gaps-measurements/disabled-1.stderr",
+        "gpu_envelope_reason": "unresolved",
+        "unresolved_pass_occurrences": 1200,
+        "top_resolved_pass_occurrences": [
+          {
+            "kind": "render",
+            "label": "HDR tonemap",
+            "occurrence": 9,
+            "median_gpu_ns": 215270.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "temporal HDR resolve",
+            "occurrence": 8,
+            "median_gpu_ns": 161750.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "HDR deferred lighting",
+            "occurrence": 6,
+            "median_gpu_ns": 135625.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "clear categorical segment ids",
+            "occurrence": 7,
+            "median_gpu_ns": 130250.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "occlusion denoise",
+            "occurrence": 5,
+            "median_gpu_ns": 117041.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "cartoon ribbons",
+            "occurrence": 3,
+            "median_gpu_ns": 110917.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "scene-fit analytic shadows",
+            "occurrence": 2,
+            "median_gpu_ns": 66750.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "molecular ambient occlusion",
+            "occurrence": 4,
+            "median_gpu_ns": 37291.0,
+            "resolved_occurrences": 1200
+          }
+        ]
+      },
+      {
+        "variant": "disabled",
+        "trial": 2,
+        "evidence": "target/cartoon-gaps-measurements/disabled-2.jsonl",
+        "p50_ns": 773292,
+        "p95_ns": 829250,
+        "p99_ns": 878792,
+        "outputs_per_second": 1291.041850600906,
+        "cold_completed_ns": 23953125,
+        "cold_cpu_stages": {
+          "completion_wait_ns": 7856957,
+          "preparation_ns": 4118333,
+          "recording_ns": 9562250,
+          "submission_ns": 2189916,
+          "timestamp_readback_ns": 225333
+        },
+        "cold_heap": {
+          "allocated_bytes": 26794826,
+          "allocations": 73875,
+          "deallocated_bytes": 23892017,
+          "reallocations": 12646,
+          "retained_bytes": 2902809
+        },
+        "summary": {
+          "cpu_median_ns": 142209,
+          "cpu_p95_ns": 160208,
+          "cpu_p99_ns": 200166,
+          "frame_median_ns": 773292,
+          "frame_p95_ns": 829250,
+          "frame_p99_ns": 878792,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "peak_process_rss_bytes": 79872000,
+        "rss_source": "target/cartoon-gaps-measurements/disabled-2.stderr",
+        "gpu_envelope_reason": "unresolved",
+        "unresolved_pass_occurrences": 1200,
+        "top_resolved_pass_occurrences": [
+          {
+            "kind": "render",
+            "label": "HDR tonemap",
+            "occurrence": 9,
+            "median_gpu_ns": 214937.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "temporal HDR resolve",
+            "occurrence": 8,
+            "median_gpu_ns": 161208.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "HDR deferred lighting",
+            "occurrence": 6,
+            "median_gpu_ns": 133875.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "clear categorical segment ids",
+            "occurrence": 7,
+            "median_gpu_ns": 126854.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "occlusion denoise",
+            "occurrence": 5,
+            "median_gpu_ns": 116125.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "cartoon ribbons",
+            "occurrence": 3,
+            "median_gpu_ns": 111167.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "scene-fit analytic shadows",
+            "occurrence": 2,
+            "median_gpu_ns": 66666.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "molecular ambient occlusion",
+            "occurrence": 4,
+            "median_gpu_ns": 37458.0,
+            "resolved_occurrences": 1200
+          }
+        ]
+      },
+      {
+        "variant": "disabled",
+        "trial": 3,
+        "evidence": "target/cartoon-gaps-measurements/disabled-3.jsonl",
+        "p50_ns": 775750,
+        "p95_ns": 829667,
+        "p99_ns": 875875,
+        "outputs_per_second": 1287.0883104046165,
+        "cold_completed_ns": 24409250,
+        "cold_cpu_stages": {
+          "completion_wait_ns": 7997416,
+          "preparation_ns": 4253166,
+          "recording_ns": 9626209,
+          "submission_ns": 2279750,
+          "timestamp_readback_ns": 252500
+        },
+        "cold_heap": {
+          "allocated_bytes": 26794826,
+          "allocations": 73875,
+          "deallocated_bytes": 23892017,
+          "reallocations": 12646,
+          "retained_bytes": 2902809
+        },
+        "summary": {
+          "cpu_median_ns": 142083,
+          "cpu_p95_ns": 153708,
+          "cpu_p99_ns": 174292,
+          "frame_median_ns": 775750,
+          "frame_p95_ns": 829667,
+          "frame_p99_ns": 875875,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "peak_process_rss_bytes": 79757312,
+        "rss_source": "target/cartoon-gaps-measurements/disabled-3.stderr",
+        "gpu_envelope_reason": "unresolved",
+        "unresolved_pass_occurrences": 1200,
+        "top_resolved_pass_occurrences": [
+          {
+            "kind": "render",
+            "label": "HDR tonemap",
+            "occurrence": 9,
+            "median_gpu_ns": 214625.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "temporal HDR resolve",
+            "occurrence": 8,
+            "median_gpu_ns": 161125.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "HDR deferred lighting",
+            "occurrence": 6,
+            "median_gpu_ns": 134042.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "clear categorical segment ids",
+            "occurrence": 7,
+            "median_gpu_ns": 127167.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "occlusion denoise",
+            "occurrence": 5,
+            "median_gpu_ns": 116354.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "cartoon ribbons",
+            "occurrence": 3,
+            "median_gpu_ns": 111417.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "scene-fit analytic shadows",
+            "occurrence": 2,
+            "median_gpu_ns": 66333.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "molecular ambient occlusion",
+            "occurrence": 4,
+            "median_gpu_ns": 37333.0,
+            "resolved_occurrences": 1200
+          }
+        ]
+      },
+      {
+        "variant": "enabled",
+        "trial": 1,
+        "evidence": "target/cartoon-gaps-measurements/enabled-1.jsonl",
+        "p50_ns": 770875,
+        "p95_ns": 860750,
+        "p99_ns": 1970459,
+        "outputs_per_second": 1234.5588516133562,
+        "cold_completed_ns": 24143500,
+        "cold_cpu_stages": {
+          "completion_wait_ns": 7336958,
+          "preparation_ns": 4313083,
+          "recording_ns": 9625667,
+          "submission_ns": 2265875,
+          "timestamp_readback_ns": 601708
+        },
+        "cold_heap": {
+          "allocated_bytes": 26794826,
+          "allocations": 73875,
+          "deallocated_bytes": 23892017,
+          "reallocations": 12646,
+          "retained_bytes": 2902809
+        },
+        "summary": {
+          "cpu_median_ns": 143000,
+          "cpu_p95_ns": 158708,
+          "cpu_p99_ns": 168875,
+          "frame_median_ns": 770875,
+          "frame_p95_ns": 860750,
+          "frame_p99_ns": 1970459,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "peak_process_rss_bytes": 80101376,
+        "rss_source": "target/cartoon-gaps-measurements/enabled-1.stderr",
+        "gpu_envelope_reason": "unresolved",
+        "unresolved_pass_occurrences": 1200,
+        "top_resolved_pass_occurrences": [
+          {
+            "kind": "render",
+            "label": "HDR tonemap",
+            "occurrence": 9,
+            "median_gpu_ns": 214166.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "temporal HDR resolve",
+            "occurrence": 8,
+            "median_gpu_ns": 160729.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "HDR deferred lighting",
+            "occurrence": 6,
+            "median_gpu_ns": 131792.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "occlusion denoise",
+            "occurrence": 5,
+            "median_gpu_ns": 114104.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "cartoon ribbons",
+            "occurrence": 3,
+            "median_gpu_ns": 110958.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "scene-fit analytic shadows",
+            "occurrence": 2,
+            "median_gpu_ns": 66458.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "molecular ambient occlusion",
+            "occurrence": 4,
+            "median_gpu_ns": 64000.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "clear categorical segment ids",
+            "occurrence": 7,
+            "median_gpu_ns": 37209.0,
+            "resolved_occurrences": 1200
+          }
+        ]
+      },
+      {
+        "variant": "enabled",
+        "trial": 2,
+        "evidence": "target/cartoon-gaps-measurements/enabled-2.jsonl",
+        "p50_ns": 775792,
+        "p95_ns": 836042,
+        "p99_ns": 901333,
+        "outputs_per_second": 1283.4696462771024,
+        "cold_completed_ns": 24634584,
+        "cold_cpu_stages": {
+          "completion_wait_ns": 7885334,
+          "preparation_ns": 4402209,
+          "recording_ns": 9678916,
+          "submission_ns": 2086542,
+          "timestamp_readback_ns": 581333
+        },
+        "cold_heap": {
+          "allocated_bytes": 26794826,
+          "allocations": 73875,
+          "deallocated_bytes": 23892017,
+          "reallocations": 12646,
+          "retained_bytes": 2902809
+        },
+        "summary": {
+          "cpu_median_ns": 143792,
+          "cpu_p95_ns": 160084,
+          "cpu_p99_ns": 196750,
+          "frame_median_ns": 775792,
+          "frame_p95_ns": 836042,
+          "frame_p99_ns": 901333,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "peak_process_rss_bytes": 80150528,
+        "rss_source": "target/cartoon-gaps-measurements/enabled-2.stderr",
+        "gpu_envelope_reason": "unresolved",
+        "unresolved_pass_occurrences": 1200,
+        "top_resolved_pass_occurrences": [
+          {
+            "kind": "render",
+            "label": "HDR tonemap",
+            "occurrence": 9,
+            "median_gpu_ns": 216521.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "temporal HDR resolve",
+            "occurrence": 8,
+            "median_gpu_ns": 162833.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "HDR deferred lighting",
+            "occurrence": 6,
+            "median_gpu_ns": 136708.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "clear categorical segment ids",
+            "occurrence": 7,
+            "median_gpu_ns": 131145.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "occlusion denoise",
+            "occurrence": 5,
+            "median_gpu_ns": 117375.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "cartoon ribbons",
+            "occurrence": 3,
+            "median_gpu_ns": 110875.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "scene-fit analytic shadows",
+            "occurrence": 2,
+            "median_gpu_ns": 66625.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "molecular ambient occlusion",
+            "occurrence": 4,
+            "median_gpu_ns": 37292.0,
+            "resolved_occurrences": 1200
+          }
+        ]
+      },
+      {
+        "variant": "enabled",
+        "trial": 3,
+        "evidence": "target/cartoon-gaps-measurements/enabled-3.jsonl",
+        "p50_ns": 776541,
+        "p95_ns": 837667,
+        "p99_ns": 908250,
+        "outputs_per_second": 1279.2878630895468,
+        "cold_completed_ns": 24367708,
+        "cold_cpu_stages": {
+          "completion_wait_ns": 7733251,
+          "preparation_ns": 4418917,
+          "recording_ns": 9517666,
+          "submission_ns": 2230375,
+          "timestamp_readback_ns": 467250
+        },
+        "cold_heap": {
+          "allocated_bytes": 26794826,
+          "allocations": 73875,
+          "deallocated_bytes": 23892017,
+          "reallocations": 12646,
+          "retained_bytes": 2902809
+        },
+        "summary": {
+          "cpu_median_ns": 143584,
+          "cpu_p95_ns": 166417,
+          "cpu_p99_ns": 206958,
+          "frame_median_ns": 776541,
+          "frame_p95_ns": 837667,
+          "frame_p99_ns": 908250,
+          "gpu_median_ns": null,
+          "gpu_p95_ns": null,
+          "gpu_p99_ns": null,
+          "gpu_resolved_count": 0,
+          "heap_measured_count": 1200,
+          "max_heap_allocations": 226,
+          "max_heap_reallocations": 22,
+          "max_residency_allocation_events": 0,
+          "max_stall_events": 0,
+          "max_upload_bytes": 2336,
+          "output_count": 1200,
+          "peak_resident_bytes": 65536
+        },
+        "peak_process_rss_bytes": 79773696,
+        "rss_source": "target/cartoon-gaps-measurements/enabled-3.stderr",
+        "gpu_envelope_reason": "unresolved",
+        "unresolved_pass_occurrences": 1200,
+        "top_resolved_pass_occurrences": [
+          {
+            "kind": "render",
+            "label": "HDR tonemap",
+            "occurrence": 9,
+            "median_gpu_ns": 215958.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "temporal HDR resolve",
+            "occurrence": 8,
+            "median_gpu_ns": 162270.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "HDR deferred lighting",
+            "occurrence": 6,
+            "median_gpu_ns": 133042.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "occlusion denoise",
+            "occurrence": 5,
+            "median_gpu_ns": 114145.5,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "cartoon ribbons",
+            "occurrence": 3,
+            "median_gpu_ns": 111333.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "scene-fit analytic shadows",
+            "occurrence": 2,
+            "median_gpu_ns": 66375.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "molecular ambient occlusion",
+            "occurrence": 4,
+            "median_gpu_ns": 64583.0,
+            "resolved_occurrences": 1200
+          },
+          {
+            "kind": "render",
+            "label": "clear categorical segment ids",
+            "occurrence": 7,
+            "median_gpu_ns": 37167.0,
+            "resolved_occurrences": 1200
+          }
+        ]
+      }
+    ],
+    "median_of_three": {
+      "disabled": {
+        "p50_ns": 775750,
+        "p95_ns": 829667,
+        "p99_ns": 878792,
+        "cold_completed_ns": 24409250,
+        "peak_process_rss_bytes": 79790080
+      },
+      "enabled": {
+        "p50_ns": 775792,
+        "p95_ns": 837667,
+        "p99_ns": 908250,
+        "cold_completed_ns": 24367708,
+        "peak_process_rss_bytes": 80101376
+      }
+    },
+    "limitations": [
+      "Raw concurrent measurements are preserved separately as diagnostic and excluded from this final comparison.",
+      "Whole-frame GPU envelopes are unresolved; resolved pass occurrences are reported independently and not summed.",
+      "Peak RSS comes from macOS /usr/bin/time -l over the complete benchmark process, including startup; it is not steady-state GPU memory.",
+      "Existing steady-state heap allocations remain; the Phase 9 zero-allocation gate is open."
+    ]
+  },
+  "remaining": [
+    "Tubular helices, nucleotide modes/live rings and full representation defect sweep.",
+    "Full Phase 9 ladder and zero steady-state allocations.",
+    "Publications and pushes are deferred by the user; no package version changes in this unit."
+  ]
+}

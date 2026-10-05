@@ -5,6 +5,7 @@ mod directions;
 mod draw_limits;
 pub(crate) mod ends;
 mod error;
+mod gaps;
 mod glycan;
 pub(crate) mod nucleic;
 pub(crate) mod paper_chain;

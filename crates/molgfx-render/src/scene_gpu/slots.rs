@@ -358,7 +358,9 @@ impl<D: Device> GpuSlot<D> {
             });
         let _ = selection_bounds;
         let geometry_changed = self.synced.is_none_or(|old| {
-            old.ribbon != current.ribbon
+            (input.representation.params.gaps == molgfx_core::GapStyle::Dashed
+                && old.spatial_bounds != current.spatial_bounds)
+                || old.ribbon != current.ribbon
                 || old.properties != current.properties
                 || old.color_overlay != current.color_overlay
                 || old.secondary_structure != current.secondary_structure

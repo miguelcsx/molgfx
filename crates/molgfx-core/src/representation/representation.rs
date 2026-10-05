@@ -202,6 +202,8 @@ pub struct RepresentationParams {
     pub cartoon_arrow_factor: f32,
     /// Draws a source-anchored N-to-C direction wedge at each polymer guide.
     pub cartoon_direction_wedges: bool,
+    /// Presentation of real polymer gaps.
+    pub gaps: crate::GapStyle,
     /// Cross-section of protein helices.
     pub cartoon_helix_profile: crate::CartoonProfile,
     /// Cross-section of nucleic-acid backbones.
@@ -233,6 +235,7 @@ impl Default for RepresentationParams {
             cartoon_aspect_ratio: 5.0,
             cartoon_arrow_factor: 1.5,
             cartoon_direction_wedges: false,
+            gaps: crate::GapStyle::Hidden,
             cartoon_helix_profile: crate::CartoonProfile::Elliptical,
             cartoon_nucleic_profile: crate::CartoonProfile::Square,
             tube_radius: 0.3,

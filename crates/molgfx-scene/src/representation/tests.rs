@@ -126,6 +126,7 @@ fn cartoon_shape_is_validated_and_retained_by_portable_specifications() {
         .aspect_ratio(3.0)
         .arrow_factor(2.0)
         .direction_wedges(true)
+        .gaps(rep::GapStyle::Dashed)
         .helix_profile(rep::CartoonProfile::Rounded)
         .nucleic_profile(rep::CartoonProfile::Square)
         .into();

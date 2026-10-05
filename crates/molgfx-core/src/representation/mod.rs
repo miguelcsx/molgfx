@@ -6,6 +6,7 @@ mod attribute;
 mod cartoon_profile;
 mod color_overlay;
 mod config;
+mod gap_style;
 pub(crate) mod guide;
 pub(crate) mod interaction;
 #[path = "representation.rs"]
@@ -37,6 +38,7 @@ pub use attribute::{AttributeColumn, AttributeDescriptor, AttributeKind, Attribu
 pub use cartoon_profile::CartoonProfile;
 pub use color_overlay::{ColorOverlay, MAX_COLOR_OVERLAY_CLASSES};
 pub use config::RepresentationConfig;
+pub use gap_style::GapStyle;
 pub use guide::{Guide, GuideCap, GuideStyle, PolylineKind};
 pub use interaction::{
     InteractionAnchor, InteractionDirection, InteractionEdge, InteractionGeometry, InteractionKind,

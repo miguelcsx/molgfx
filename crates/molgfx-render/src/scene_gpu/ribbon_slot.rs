@@ -214,6 +214,14 @@ fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), Rend
             params,
         )?;
     }
+    if input.representation.params.gaps == molgfx_core::GapStyle::Dashed {
+        input.mesh.append_polymer_gaps(
+            structure,
+            input.selection,
+            input.placed.trajectory(),
+            params,
+        )?;
+    }
     append_nucleotide_geometry(input)?;
     if !matches!(
         input.representation.kind,

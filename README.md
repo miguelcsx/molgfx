@@ -48,6 +48,13 @@ uses the direction of its source polymer; an isolated residue requires N/CA/C
 error. Glycan cartoon mode rejects this control. Rust uses
 `.direction_wedges(true)`; commands use `direction_wedges=true`.
 
+Use `gaps="dashed"` on cartoon, backbone, trace, tube or putty to connect
+missing polymer intervals with closed tubes of radius 0.15 Å and 0.5 Å
+dashes separated by 0.5 Å. The default is `"hidden"`. Chain boundaries
+and excluded residues remain disconnected. Connectors follow live coordinates
+and retain source atom identity for picking. Rust uses
+`.gaps(molgfx::rep::GapStyle::Dashed)`; commands use `gaps=dashed`.
+
 Presentation effects are explicit values on a render profile:
 
 ```python

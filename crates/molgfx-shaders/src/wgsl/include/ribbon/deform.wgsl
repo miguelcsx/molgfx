@@ -139,6 +139,35 @@ fn ribbon_rotate(rotation: vec4f, value: vec3f) -> vec3f {
 }
 
 const RIBBON_ATOM_ANCHOR: u32 = 1u;
+const RIBBON_GAP_ANCHOR: u32 = 2u;
+
+fn ribbon_gap_vertex(
+    deformation: RibbonDeformation,
+    base_position: vec3f,
+    base_normal: vec3f,
+    start: vec3f,
+    end: vec3f,
+    reference_start: vec3f,
+    reference_end: vec3f,
+) -> DeformedRibbonVertex {
+    let span = end - start;
+    let span_length = length(span);
+    // Collapse reserved dashes past the current endpoint to zero-area triangles.
+    if span_length <= deformation.parameter.y {
+        return DeformedRibbonVertex(start, base_normal, 1u);
+    }
+    let tangent = span / span_length;
+    let reference_tangent = normalize(reference_end - reference_start);
+    let offset = deformation.parameter.x;
+    let reference_center = reference_start + reference_tangent * offset;
+    let center = start + tangent * min(offset, span_length);
+    let rotation = ribbon_rotation_arc(reference_tangent, tangent);
+    return DeformedRibbonVertex(
+        center + ribbon_rotate(rotation, base_position - reference_center),
+        normalize(ribbon_rotate(rotation, base_normal)),
+        1u,
+    );
+}
 
 fn ribbon_deform(
     vertex_id: u32,
@@ -161,6 +190,9 @@ fn ribbon_deform(
     let r1 = ribbon_base_coordinate(deformation.controls.y);
     let r2 = ribbon_base_coordinate(deformation.controls.z);
     let r3 = ribbon_base_coordinate(deformation.controls.w);
+    if bitcast<u32>(deformation.parameter.w) == RIBBON_GAP_ANCHOR {
+        return ribbon_gap_vertex(deformation, base_position, base_normal, p0, p1, r0, r1);
+    }
     let parameter = deformation.parameter.x;
     var center = ribbon_catmull_position(p0, p1, p2, p3, parameter);
     var derivative = ribbon_catmull_tangent(p0, p1, p2, p3, parameter);

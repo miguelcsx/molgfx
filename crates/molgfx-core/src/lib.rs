@@ -60,7 +60,7 @@ pub use representation::{
     AnchorLayout, Annotation, AnnotationAnchor, AnnotationKind, AtomProperty, AtomPropertyMeaning,
     AttributeColumn, AttributeDescriptor, AttributeKind, AttributeValues, BoolExpr, CartoonProfile,
     CategoryPalette, ColorColumns, ColorExpr, ColorOverlay, ColorParameter, ColorScheme,
-    FaceVisibility, Guide, GuideCap, GuideStyle, InteractionAnchor, InteractionDirection,
+    FaceVisibility, GapStyle, Guide, GuideCap, GuideStyle, InteractionAnchor, InteractionDirection,
     InteractionEdge, InteractionGeometry, InteractionKind, InteractionPattern, InteractionStyle,
     MAX_COLOR_OVERLAY_CLASSES, MAX_MESH_VERTICES, MAX_PALETTE_COLORS, MAX_RAMP_STOPS,
     MAX_VISUAL_INSTRUCTIONS, MAX_VISUAL_PARAMETERS, MAX_VISUAL_PROPERTIES,

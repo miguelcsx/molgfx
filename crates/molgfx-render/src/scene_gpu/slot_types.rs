@@ -266,6 +266,7 @@ pub(super) struct RibbonState {
     aspect_ratio: u32,
     arrow_factor: u32,
     direction_wedges: bool,
+    gaps: molgfx_core::GapStyle,
     helix_profile: molgfx_core::CartoonProfile,
     nucleic_profile: molgfx_core::CartoonProfile,
     radius: u32,
@@ -284,6 +285,7 @@ impl RibbonState {
             aspect_ratio: representation.params.cartoon_aspect_ratio.to_bits(),
             arrow_factor: representation.params.cartoon_arrow_factor.to_bits(),
             direction_wedges: representation.params.cartoon_direction_wedges,
+            gaps: representation.params.gaps,
             helix_profile: representation.params.cartoon_helix_profile,
             nucleic_profile: representation.params.cartoon_nucleic_profile,
             radius: representation.params.tube_radius.to_bits(),
@@ -415,86 +417,4 @@ pub(super) struct SlotSync<'a, D: Device> {
     pub(super) ribbon: &'a mut molgfx_geometry::RibbonMesh,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub(crate) struct CullModes(u8);
-
-impl CullModes {
-    const LOD: u8 = 1 << 0;
-    const FAST_POINTS: u8 = 1 << 1;
-    const DIRECT_BONDS: u8 = 1 << 2;
-    const CULL_VISUAL: u8 = 1 << 3;
-    const SHADING_VISUAL: u8 = 1 << 4;
-    const SHADING_ALL: u8 = 1 << 5;
-
-    pub(crate) const fn with_lod(mut self, enabled: bool) -> Self {
-        self.0 |= Self::flag(enabled, Self::LOD);
-        self
-    }
-
-    pub(crate) const fn with_fast_points(mut self, enabled: bool) -> Self {
-        self.0 |= Self::flag(enabled, Self::FAST_POINTS);
-        self
-    }
-
-    pub(crate) const fn with_direct_bonds(mut self, enabled: bool) -> Self {
-        self.0 |= Self::flag(enabled, Self::DIRECT_BONDS);
-        self
-    }
-
-    pub(crate) const fn with_cull_visual(mut self, enabled: bool) -> Self {
-        self.0 |= Self::flag(enabled, Self::CULL_VISUAL);
-        self
-    }
-
-    pub(crate) const fn with_shading_visual(mut self, enabled: bool) -> Self {
-        self.0 |= Self::flag(enabled, Self::SHADING_VISUAL);
-        self
-    }
-
-    pub(crate) const fn with_shading_all(mut self, enabled: bool) -> Self {
-        self.0 |= Self::flag(enabled, Self::SHADING_ALL);
-        self
-    }
-
-    const fn flag(enabled: bool, flag: u8) -> u8 {
-        if enabled { flag } else { 0 }
-    }
-
-    pub(crate) const fn lod(self) -> bool {
-        self.0 & Self::LOD != 0
-    }
-
-    pub(crate) const fn fast_points(self) -> bool {
-        self.0 & Self::FAST_POINTS != 0
-    }
-
-    pub(crate) const fn direct_bonds(self) -> bool {
-        self.0 & Self::DIRECT_BONDS != 0
-    }
-
-    pub(crate) const fn cull_visual(self) -> bool {
-        self.0 & Self::CULL_VISUAL != 0
-    }
-
-    pub(crate) const fn shading_visual(self) -> bool {
-        self.0 & Self::SHADING_VISUAL != 0
-    }
-
-    pub(crate) const fn shading_all(self) -> bool {
-        self.0 & Self::SHADING_ALL != 0
-    }
-}
-
-pub(crate) struct CullDispatch<'a, D: Device> {
-    /// The visibility key this dispatch computes, when the slot has one.
-    pub(crate) key: Option<super::visibility_cache::VisibilityKey>,
-    pub(crate) atom_group: &'a D::BindGroup,
-    pub(crate) bond_group: &'a D::BindGroup,
-    pub(crate) visual_group: &'a D::BindGroup,
-    pub(crate) atom_groups: [u32; 2],
-    pub(crate) bin_groups: [u32; 2],
-    pub(crate) tile_groups: [u32; 2],
-    pub(crate) modes: CullModes,
-    pub(crate) bond_groups: [u32; 2],
-    pub(crate) visual_groups: [u32; 2],
-}
+pub(crate) use super::slot_culling::{CullDispatch, CullModes};

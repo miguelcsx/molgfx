@@ -148,10 +148,7 @@ fn extract_traces(
         let mut previous_sequence = None;
         for residue in chain.residues() {
             let sequence = residue.label_seq_id();
-            let missing_interval = match (previous_sequence, sequence) {
-                (Some(previous), Some(current)) => i64::from(current) > i64::from(previous) + 1,
-                _ => false,
-            };
+            let missing_interval = missing_sequence_interval(previous_sequence, sequence);
             previous_sequence = sequence;
             if missing_interval && output.points.len() > trace_start {
                 finish_trace(
@@ -240,7 +237,16 @@ fn extract_traces(
     Ok(())
 }
 
-fn polymer_guide(residue: molframe::ResidueRef<'_>) -> Option<(molframe::AtomRef<'_>, GuideKind)> {
+pub(super) fn missing_sequence_interval(previous: Option<i32>, current: Option<i32>) -> bool {
+    match (previous, current) {
+        (Some(previous), Some(current)) => i64::from(current) > i64::from(previous) + 1,
+        _ => false,
+    }
+}
+
+pub(super) fn polymer_guide(
+    residue: molframe::ResidueRef<'_>,
+) -> Option<(molframe::AtomRef<'_>, GuideKind)> {
     residue
         .atom("CA")
         .map(|atom| (atom, GuideKind::AlphaCarbon))

@@ -52,6 +52,7 @@ mod scalar_overlay;
 mod segmentation_lookup;
 mod segmentation_slot;
 mod segmentation_uniforms;
+mod slot_culling;
 mod slot_types;
 mod slots;
 mod structure;

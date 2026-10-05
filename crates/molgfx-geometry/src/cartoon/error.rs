@@ -15,6 +15,8 @@ pub enum CartoonError {
     },
     /// Direction wedges require a linear polymer guide trace.
     DirectionProfile,
+    /// Gap geometry cannot resolve finite, distinct dash positions.
+    GapResolution,
 }
 
 impl From<PackingError> for CartoonError {
@@ -30,6 +32,7 @@ impl fmt::Display for CartoonError {
             Self::GuideDirection { entity } => {
                 write!(formatter, "polymer guide {entity} has no source direction")
             }
+            Self::GapResolution => formatter.write_str("polymer gap exceeds coordinate resolution"),
             Self::DirectionProfile => {
                 formatter.write_str("direction wedges require a linear polymer backbone")
             }
@@ -41,7 +44,7 @@ impl std::error::Error for CartoonError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Packing(error) => Some(error),
-            Self::GuideDirection { .. } | Self::DirectionProfile => None,
+            Self::GuideDirection { .. } | Self::DirectionProfile | Self::GapResolution => None,
         }
     }
 }

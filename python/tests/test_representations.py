@@ -53,6 +53,23 @@ class RepresentationControlTests(unittest.TestCase):
                 representation = constructor(target="all", **controls)
                 self.assertIsInstance(representation, molgfx.Representation)
 
+    def test_gap_controls_are_shared_by_all_polymer_forms(self) -> None:
+        for constructor in (
+            molgfx.rep.cartoon,
+            molgfx.rep.backbone,
+            molgfx.rep.trace,
+            molgfx.rep.tube,
+            molgfx.rep.putty,
+        ):
+            with self.subTest(constructor.__name__):
+                self.assertIsInstance(
+                    constructor(target="all", gaps="dashed"), molgfx.Representation
+                )
+                with self.assertRaisesRegex(ValueError, "hidden.*dashed"):
+                    _with(constructor, gaps="unknown")
+        with self.assertRaises(TypeError):
+            _with(molgfx.rep.spacefill, gaps="dashed")
+
     def test_direction_wedges_require_a_boolean(self) -> None:
         """The binding refuses truthy strings and integers before scene mutation."""
         invalid_values: tuple[object, ...] = ("true", 1, 0, [])

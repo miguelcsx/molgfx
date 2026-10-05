@@ -168,18 +168,23 @@ fn apply_form(
     form: &RepresentationFormSpec,
 ) -> Result<molgfx_core::RepresentationConfig, crate::Error> {
     match form {
-        RepresentationFormSpec::Backbone { width } => {
-            native.tube_radius(*width).map_err(crate::Error::from)
-        }
-        RepresentationFormSpec::Trace { radius } | RepresentationFormSpec::Tube { radius } => {
-            native.tube_radius(*radius).map_err(crate::Error::from)
-        }
+        RepresentationFormSpec::Backbone { width, gaps } => native
+            .gaps(*gaps)
+            .tube_radius(*width)
+            .map_err(crate::Error::from),
+        RepresentationFormSpec::Trace { radius, gaps }
+        | RepresentationFormSpec::Tube { radius, gaps } => native
+            .gaps(*gaps)
+            .tube_radius(*radius)
+            .map_err(crate::Error::from),
         RepresentationFormSpec::Putty {
+            gaps,
             domain_min,
             domain_max,
             radius_min,
             radius_max,
         } => native
+            .gaps(*gaps)
             .putty_b_factor([*domain_min, *domain_max], [*radius_min, *radius_max])
             .map_err(crate::Error::from),
         RepresentationFormSpec::Cartoon {
@@ -187,11 +192,13 @@ fn apply_form(
             aspect_ratio,
             arrow_factor,
             direction_wedges,
+            gaps,
             helix_profile,
             nucleic_profile,
             ..
         } => native
             .ribbon_width(*width)
+            .gaps(*gaps)
             .direction_wedges(*direction_wedges)
             .cartoon_profiles(*helix_profile, *nucleic_profile)
             .cartoon_shape(*aspect_ratio, *arrow_factor)

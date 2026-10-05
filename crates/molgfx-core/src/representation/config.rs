@@ -128,6 +128,13 @@ impl RepresentationConfig {
         Ok(self)
     }
 
+    /// Selects connectors across real polymer gaps.
+    #[must_use]
+    pub const fn gaps(mut self, style: crate::GapStyle) -> Self {
+        self.params.gaps = style;
+        self
+    }
+
     /// Enables source-anchored polymer direction wedges.
     #[must_use]
     pub const fn direction_wedges(mut self, enabled: bool) -> Self {
