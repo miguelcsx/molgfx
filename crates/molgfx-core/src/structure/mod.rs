@@ -39,7 +39,7 @@ pub use occupancy::OccupancyStream;
 pub use particle::{Particle, ParticleBoundary, ParticleMotion, ParticleShape};
 pub use placed::PlacedStructure;
 pub use planar::PlanarRegion;
-pub use point_batch::{PointBatch, PointGlyph, PointStyle};
+pub use point_batch::{PointBatch, PointGlyph, PointSampling, PointStyle};
 pub use pose_batch::{LicoriceTemplate, LigandPose, LigandPoseBatch};
 pub use primitive::{
     AnisotropicEllipsoid, CarbohydrateShape, CarbohydrateSymbol, Primitive, SymmetryInstance,

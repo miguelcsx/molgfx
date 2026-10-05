@@ -11,7 +11,7 @@ use std::sync::Arc;
 #[test]
 fn schema_eight_round_trips_generic_identity_payloads_and_visuals() {
     let mut scene = Scene::new();
-    let point_batch = point_batch(10, &[101, 103]);
+    let point_batch = point_batch(10, &[101, 103]).with_sampling(crate::PointSampling::All);
     let point_handle = scene.add_point_batch(point_batch);
     let instance_batch = instance_batch();
     let instance_handle = scene.add_instance_batch(instance_batch);
@@ -48,6 +48,10 @@ fn schema_eight_round_trips_generic_identity_payloads_and_visuals() {
         .unwrap_or_else(|error| panic!("visual attaches: {error}"));
 
     let description = scene.describe();
+    assert_eq!(
+        description.point_batches[0].sampling,
+        crate::PointSampling::All
+    );
     let point_sources: Vec<_> = scene
         .point_batches()
         .map(|(_, value)| value.clone())

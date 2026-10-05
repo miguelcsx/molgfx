@@ -363,7 +363,10 @@ fn write_config<D: Device>(queue: &D::Queue, batch: &PointBatch, target: &PointC
                 target.page,
                 target.tile_extent[0],
                 target.tile_count,
-                u32::from(batch.source_rows().len() <= 0x00ff_fffe),
+                u32::from(
+                    batch.source_rows().len() <= 0x00ff_fffe
+                        && batch.sampling() == molgfx_core::PointSampling::ScreenRepresentatives,
+                ),
             ],
             timeline: [
                 if target.materialized {

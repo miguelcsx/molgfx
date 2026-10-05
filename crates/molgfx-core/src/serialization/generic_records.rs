@@ -34,6 +34,7 @@ pub(crate) fn point_batch(
         radius_bits: batch.style().radius.to_bits(),
         color: rgba(batch.style().color),
         visible: batch.visible(),
+        sampling: batch.sampling(),
         payload: point_payload(handle, batch),
     }
 }

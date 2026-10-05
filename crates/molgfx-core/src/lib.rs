@@ -121,9 +121,9 @@ pub use structure::{
     CoordRef, CrystalCell, Ensemble, EnsembleOpacity, EntityProvenance, Hierarchy, InstanceBatch,
     InstanceStyle, LicoriceTemplate, LigandPose, LigandPoseBatch, MolecularProvider,
     MolecularSource, OccupancyStream, Particle, ParticleBoundary, ParticleMotion, ParticleShape,
-    PlacedStructure, PlanarRegion, PointBatch, PointGlyph, PointStyle, Primitive, ProvenanceDetail,
-    RigidInstance, ScalarVolume, SecondaryStructure, SegmentStyle, SegmentStyleTable,
-    SegmentationPresentation, SegmentationStyle, SegmentedVolume, SourceAtom, SourceBond,
-    SourceTopology, SymmetryInstance, TopologyBond, TrajectoryFrame, TrajectorySegment,
+    PlacedStructure, PlanarRegion, PointBatch, PointGlyph, PointSampling, PointStyle, Primitive,
+    ProvenanceDetail, RigidInstance, ScalarVolume, SecondaryStructure, SegmentStyle,
+    SegmentStyleTable, SegmentationPresentation, SegmentationStyle, SegmentedVolume, SourceAtom,
+    SourceBond, SourceTopology, SymmetryInstance, TopologyBond, TrajectoryFrame, TrajectorySegment,
     ValidationKind, ValidationMarker, dominant_index, ensemble_opacities, is_metal_atomic_number,
 };

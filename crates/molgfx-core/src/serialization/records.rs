@@ -397,6 +397,7 @@ fn interaction_kind(kind: InteractionKind) -> &'static str {
         InteractionKind::SaltBridge => "salt_bridge",
         InteractionKind::PiStacking => "pi_stacking",
         InteractionKind::Hydrophobic => "hydrophobic",
+        InteractionKind::Contact => "contact",
         InteractionKind::MetalCoordination => "metal_coordination",
     }
 }

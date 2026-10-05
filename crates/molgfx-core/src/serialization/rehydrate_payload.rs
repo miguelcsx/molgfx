@@ -349,6 +349,7 @@ fn parse_interaction_kind(value: &str) -> Result<InteractionKind, crate::CoreErr
         "salt_bridge" => Ok(InteractionKind::SaltBridge),
         "pi_stacking" => Ok(InteractionKind::PiStacking),
         "hydrophobic" => Ok(InteractionKind::Hydrophobic),
+        "contact" => Ok(InteractionKind::Contact),
         "metal_coordination" => Ok(InteractionKind::MetalCoordination),
         _ => invalid("unknown interaction kind"),
     }

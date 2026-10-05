@@ -21,6 +21,17 @@ pub enum PointGlyph {
     Sphere = 1,
 }
 
+/// Which source rows survive the point-screen density policy.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PointSampling {
+    /// Keep every visible source row, suitable for geometric/scientific exports.
+    All,
+    /// Keep a depth-selected row per screen tile when glyphs are subpixel.
+    #[default]
+    ScreenRepresentatives,
+}
+
 /// Batch-wide fallback appearance. Per-row variation belongs in attributes.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct PointStyle {
@@ -48,6 +59,7 @@ pub struct PointBatch {
     style: PointStyle,
     bounds: Aabb,
     visible: bool,
+    sampling: PointSampling,
 }
 
 impl PointBatch {
@@ -87,7 +99,21 @@ impl PointBatch {
             style,
             bounds,
             visible: true,
+            sampling: PointSampling::default(),
         })
+    }
+
+    /// Sets the explicit source-row sampling policy before scene insertion.
+    #[must_use]
+    pub const fn with_sampling(mut self, sampling: PointSampling) -> Self {
+        self.sampling = sampling;
+        self
+    }
+
+    /// The source-row sampling policy retained by this batch.
+    #[must_use]
+    pub const fn sampling(&self) -> PointSampling {
+        self.sampling
     }
 
     /// Shared 12-byte rows in logical order.

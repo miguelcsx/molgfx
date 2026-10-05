@@ -43,6 +43,9 @@ pub struct PointBatchDescription {
     pub color: [u8; 4],
     /// Whether the batch draws.
     pub visible: bool,
+    /// Source-row screen sampling policy.
+    #[serde(default)]
+    pub sampling: crate::PointSampling,
     /// Content-addressed positions, keys and immutable batch metadata.
     pub payload: PayloadReference,
 }
