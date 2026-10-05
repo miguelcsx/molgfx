@@ -76,6 +76,9 @@ impl<D: Device> GpuTrajectory<D> {
             self.active = false;
             self.dirty = false;
             self.needs_settle = false;
+            // Resident frames survive deactivation, but temporal provenance
+            // does not: reactivation initializes both outputs at its sample.
+            self.alpha = None;
             return Ok(TrajectorySync {
                 changed,
                 coordinate_binding_changed: changed,

@@ -1,0 +1,55 @@
+{
+  "status": "verified regression correction; Phase 3.1 remains open",
+  "owner": "render trajectory lifecycle",
+  "source_before": "39b3d0c1db4845710c041d9a6f024766da493098",
+  "problem": "Reactivating an unchanged resident frame pair at a new sample retained temporal provenance from its previous activation.",
+  "change": "Clear the previous interpolation sample on deactivation; retain resident coordinate buffers and frame-pair identity.",
+  "failing_before": {
+    "test": "reactivating_a_resident_pair_starts_without_motion_from_the_old_activation",
+    "previous_alpha": 0.25,
+    "expected_previous_alpha": 0.75
+  },
+  "tests": [
+    "crates/molgfx-render/src/scene_gpu/trajectory_slot_tests.rs",
+    "crates/molgfx-wgpu/tests/gpu_trajectory_reactivation_tests.rs",
+    "python/tests/test_trajectory_rendering.py"
+  ],
+  "verified_behavior": [
+    "New-sample and same-sample reactivation initialize previous coordinates at the current sample.",
+    "Continuous playback preserves previous-sample motion.",
+    "Reactivation reuses resident buffers and writes one uniform; the subsequent unchanged sample writes nothing.",
+    "Native motion-blur pixels equal a fresh activation at the same sample.",
+    "Public Python removal restores source pixels; reactivation advances, repeats deterministically and matches a fresh renderer with motion blur enabled."
+  ],
+  "verification": {
+    "clippy": "target/trajectory-reactivation-verification/clippy.log",
+    "format": "target/trajectory-reactivation-verification/format.log",
+    "gpu-boundary": "target/trajectory-reactivation-verification/gpu-boundary.log",
+    "gpu-categorical": "target/trajectory-reactivation-verification/gpu-categorical.log",
+    "gpu-directions": "target/trajectory-reactivation-verification/gpu-directions.log",
+    "gpu-gradients": "target/trajectory-reactivation-verification/gpu-gradients.log",
+    "gpu-indexed": "target/trajectory-reactivation-verification/gpu-indexed.log",
+    "gpu-reactivation": "target/trajectory-reactivation-verification/gpu-reactivation.log",
+    "install": "target/trajectory-reactivation-verification/install.log",
+    "mypy": "target/trajectory-reactivation-verification/mypy.log",
+    "policy": "target/trajectory-reactivation-verification/policy.log",
+    "python": "target/trajectory-reactivation-verification/python.log",
+    "ruff-format": "target/trajectory-reactivation-verification/ruff-format.log",
+    "ruff": "target/trajectory-reactivation-verification/ruff.log",
+    "stubtest": "target/trajectory-reactivation-verification/stubtest.log",
+    "tests": "target/trajectory-reactivation-verification/tests.log",
+    "wasm-check": "target/trajectory-reactivation-verification/wasm-check.log",
+    "wasm-clippy": "target/trajectory-reactivation-verification/wasm-clippy.log",
+    "wasm-node": "target/trajectory-reactivation-verification/wasm-node.log",
+    "web-release": "target/trajectory-reactivation-verification/web-release.log"
+  },
+  "python_tests": 85,
+  "gallery": {
+    "directory": "target/trajectory-reactivation-gallery",
+    "unchanged_images": 26,
+    "converged_goldens_passed": 13,
+    "equivalence": "target/trajectory-reactivation-gallery/equivalence.json"
+  },
+  "performance_scope": "Constant-time lifecycle correction, no added resources or coordinate uploads. Transfer/resource-count assertions are not a Phase 9 latency or heap-allocation benchmark.",
+  "remaining": "Tubular helices, dashed gaps, nucleotide fidelity, representation sweep and later phases remain open."
+}
