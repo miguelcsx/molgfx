@@ -54,13 +54,17 @@ pub(super) fn pack_records<D: Device>(
     Ok(())
 }
 
-/// Leaves a positive point-cull radius only on selected atoms without a bond.
+/// Suppresses markers on selected atoms with a bond, preserving endpoint bounds.
 ///
 /// Bond endpoints already index the compact atom table, so this is one linear
 /// pass with no degree array or additional allocation.
 fn hide_bonded_line_atoms(atoms: &mut [molgfx_core::AtomGpu], bonds: &[molgfx_core::BondGpu]) {
     for bond in bonds {
-        atoms[bond.atom_a as usize].radius = 0.0;
-        atoms[bond.atom_b as usize].radius = 0.0;
+        atoms[bond.atom_a as usize].flags = atoms[bond.atom_a as usize]
+            .flags
+            .union(molgfx_core::AtomFlags::HIDE_MARKER);
+        atoms[bond.atom_b as usize].flags = atoms[bond.atom_b as usize]
+            .flags
+            .union(molgfx_core::AtomFlags::HIDE_MARKER);
     }
 }

@@ -10,6 +10,7 @@ impl RepresentationKind {
             Self::Spacefill => "spacefill",
             Self::BallAndStick => "ball_and_stick",
             Self::Licorice => "licorice",
+            Self::Bonds => "bonds",
             Self::Lines => "lines",
             Self::Cartoon => "cartoon",
             Self::Trace => "trace",
@@ -22,6 +23,9 @@ impl RepresentationKind {
             Self::Twister => "twister",
             Self::PaperChain => "paper-chain",
             Self::Points => "points",
+            Self::Dots => "dots",
+            Self::Bases => "bases",
+            Self::BasePairs => "base_pairs",
         }
     }
 
@@ -32,6 +36,7 @@ impl RepresentationKind {
             "spacefill" => Self::Spacefill,
             "ball_and_stick" => Self::BallAndStick,
             "licorice" => Self::Licorice,
+            "bonds" => Self::Bonds,
             "lines" => Self::Lines,
             "cartoon" => Self::Cartoon,
             "trace" => Self::Trace,
@@ -44,6 +49,9 @@ impl RepresentationKind {
             "twister" => Self::Twister,
             "paper-chain" => Self::PaperChain,
             "points" => Self::Points,
+            "dots" => Self::Dots,
+            "bases" => Self::Bases,
+            "base_pairs" => Self::BasePairs,
             _ => return None,
         })
     }

@@ -66,6 +66,21 @@ pub enum GpuError {
         detail: String,
     },
 
+    /// A host-supplied device cannot run the renderer.
+    #[error("host GPU context is missing: {}", missing.join("; "))]
+    HostRequirements {
+        /// Every unmet requirement, one sentence each, naming the feature,
+        /// limit or format capability.
+        missing: Vec<String>,
+    },
+
+    /// A host-supplied texture cannot be rendered into.
+    #[error("host texture is unusable: {}", problems.join("; "))]
+    HostTarget {
+        /// Every problem found, one sentence each.
+        problems: Vec<String>,
+    },
+
     /// A GPU operation failed validation or exhausted backend resources.
     #[error("GPU runtime operation failed: {detail}")]
     Runtime {
@@ -86,6 +101,8 @@ impl GpuError {
             Self::Surface(_) => "MOLGFX-E0003",
             Self::Capability { .. } => "MOLGFX-E0010",
             Self::LimitExceeded { .. } => "MOLGFX-E0011",
+            Self::HostRequirements { .. } => "MOLGFX-E0012",
+            Self::HostTarget { .. } => "MOLGFX-E0013",
             Self::ShaderCompile { .. } => "MOLGFX-E0060",
             Self::Runtime { .. } => "MOLGFX-E0061",
         }

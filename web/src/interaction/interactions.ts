@@ -12,6 +12,7 @@ interface InteractionOptions {
   publishCamera(camera: CameraState): void;
   onPick(x: number, y: number, modifiers: InteractionModifiers): void;
   onClearSelection(): void;
+  onHover(result: string | undefined): void;
   onError(error: unknown): void;
 }
 export interface ViewerInteractions {
@@ -90,6 +91,7 @@ export function mountInteractions(
         };
         suppressClick = false;
         hoverToken += 1;
+        options.onHover(undefined);
         canvas.focus();
         loop.setCamera(
           controller.pointerButton(
@@ -126,11 +128,13 @@ export function mountInteractions(
         const token = ++hoverToken;
         void loop.pickHover(...point).then(
           ({ performed, result }) => {
-            if (token === hoverToken && performed && !loop.disposed)
+            if (token === hoverToken && performed && !loop.disposed) {
+              perform(() => options.onHover(result));
               canvas.classList.toggle(
                 "is-hovering-entity",
                 result !== undefined,
               );
+            }
           },
           (error) => {
             if (!loop.disposed) options.onError(error);
@@ -155,6 +159,7 @@ export function mountInteractions(
     listen(canvas, "pointerleave", () => {
       hoverToken += 1;
       canvas.classList.remove("is-hovering-entity");
+      perform(() => options.onHover(undefined));
     }),
   );
   cleanup.add(

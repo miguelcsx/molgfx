@@ -301,6 +301,8 @@ representation!(cartoon, gaps: String, width: f32, style: String, aspect_ratio: 
 representation!(ball_and_stick, radius: f32, bond_radius: f32);
 representation!(spacefill, radius: f32);
 representation!(licorice, radius: f32, bond_radius: f32);
+representation!(bonds, bond_radius: f32);
+representation!(paper_chain, width: f32);
 representation!(lines, width: f32);
 representation!(points, size: f32);
 representation!(
@@ -362,6 +364,8 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     rep.add_function(wrap_pyfunction!(ball_and_stick, &rep)?)?;
     rep.add_function(wrap_pyfunction!(spacefill, &rep)?)?;
     rep.add_function(wrap_pyfunction!(licorice, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(bonds, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(paper_chain, &rep)?)?;
     rep.add_function(wrap_pyfunction!(lines, &rep)?)?;
     rep.add_function(wrap_pyfunction!(points, &rep)?)?;
     rep.add_function(wrap_pyfunction!(surface, &rep)?)?;

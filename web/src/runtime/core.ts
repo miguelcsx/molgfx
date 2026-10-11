@@ -139,6 +139,9 @@ export class ViewerCore {
             this.reportError(error),
           );
         },
+        onHover: (pick) => {
+          if (this.#scene?.setPointerHover(pick)) this.#loop?.requestFrame();
+        },
         onClearSelection: () => {
           if (this.#host)
             this.#host.sink.publishInteraction({

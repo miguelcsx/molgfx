@@ -190,18 +190,18 @@ impl FrameUniforms {
 
 fn projection_parameters(projection: Projection, matrix: Mat4) -> [f32; 4] {
     let orthographic = matches!(projection, Projection::Orthographic { .. });
-    let factor = |scale: f32| {
+    let factor = |scale: f32, shift: f32| {
         let scale = scale.abs();
         if orthographic {
             scale
         } else {
-            scale.hypot(1.0)
+            scale.hypot(1.0 + shift.abs())
         }
     };
     [
         if orthographic { 1.0 } else { 0.0 },
-        factor(matrix.x_axis.x),
-        factor(matrix.y_axis.y),
+        factor(matrix.x_axis.x, matrix.z_axis.x),
+        factor(matrix.y_axis.y, matrix.z_axis.y),
         0.0,
     ]
 }
@@ -305,7 +305,11 @@ impl RepresentationUniforms {
             options: [
                 representation.params.surface_kind as u32,
                 march_steps(dimensions, max_dimension),
-                u32::from(PROBE_SAMPLE_COUNT),
+                if representation.kind == molgfx_core::RepresentationKind::Dots {
+                    super::slot_types::DOT_SAMPLE_COUNT
+                } else {
+                    u32::from(PROBE_SAMPLE_COUNT)
+                },
                 representation.params.surface_style as u32,
             ],
             grid_size: [dimensions[0], dimensions[1], dimensions[2], total],
@@ -314,13 +318,11 @@ impl RepresentationUniforms {
                 representation.params.surface_pattern_spacing.max(0.05),
                 representation.params.surface_pattern_width_pixels.max(0.25),
                 if representation.kind == molgfx_core::RepresentationKind::Surface {
-                    if gaussian {
-                        0.0
-                    } else {
-                        representation.params.radius_scale.max(0.0)
-                    }
+                    representation.params.radius_scale.max(0.0)
                 } else if representation.kind == molgfx_core::RepresentationKind::Lines {
                     representation.params.line_width_pixels.max(0.5)
+                } else if representation.kind == molgfx_core::RepresentationKind::Dots {
+                    -1.0
                 } else {
                     0.0
                 },

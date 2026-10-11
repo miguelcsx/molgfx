@@ -187,23 +187,30 @@ fn chain_position(ordinal: usize, count: usize) -> f32 {
 ///
 /// The whole structure is sampled once: accessibility is a property of the
 /// assembly, not of one atom, so a per-atom call would be both wrong and
-/// quadratic. A structure without coordinates leaves every atom missing.
+/// quadratic. Both inputs are built one entry per atom in atom-index order, so
+/// a value can be read back by index. The radius is the one the renderer draws
+/// the atom with — an unlisted element therefore falls back to carbon's radius
+/// here exactly as it does on screen, rather than shifting the shell. A
+/// structure with any atom missing a position leaves every atom missing,
+/// because accessibility cannot be sampled over an incomplete shell.
 fn fill_sasa(structure: &molframe::Structure, values: &mut [f32]) {
-    let positions: Vec<[f32; 3]> = structure
+    let Some(positions) = structure
         .atoms()
         .into_iter()
-        .filter_map(molframe::AtomRef::position)
-        .collect();
+        .map(molframe::AtomRef::position)
+        .collect::<Option<Vec<[f32; 3]>>>()
+    else {
+        return;
+    };
     if positions.len() != values.len() {
         return;
     }
     let radii: Vec<f32> = structure
         .atoms()
         .into_iter()
-        .filter_map(|atom| {
-            atom.element().and_then(|element| {
-                molframe::chemistry::vdw_radius(element, molframe::chemistry::RadiusSet::Bondi)
-            })
+        .map(|atom| {
+            let atomic_number = atom.element().map_or(0, molframe::Element::atomic_number);
+            molgfx_core::vdw_radius(atomic_number)
         })
         .collect();
     if radii.len() != values.len() {

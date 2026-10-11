@@ -57,6 +57,9 @@ pub enum RenderError {
     /// Source-backed cartoon geometry could not preserve its guide direction.
     #[error(transparent)]
     Cartoon(#[from] molgfx_geometry::CartoonError),
+    /// `MolFrame` could not evaluate the nucleotide pairing geometry.
+    #[error("base-pair geometry failed: {0}")]
+    BasePairGeometry(molframe::spatial::SpatialError),
 
     /// A source field could not produce complete finite boundary geometry.
     #[error(transparent)]
@@ -93,6 +96,13 @@ pub enum RenderError {
     #[error("invalid render sequence: {reason}")]
     InvalidSequence {
         /// Stable caller-actionable reason.
+        reason: &'static str,
+    },
+
+    /// Stereo cameras or eye images cannot form a valid output.
+    #[error("invalid stereo output: {reason}")]
+    InvalidStereo {
+        /// Caller-actionable validation failure.
         reason: &'static str,
     },
 
@@ -181,6 +191,7 @@ impl RenderError {
                 "MOLGFX-E0079"
             }
             Self::Cartoon(_) => "MOLGFX-E0095",
+            Self::BasePairGeometry(_) => "MOLGFX-E0096",
             Self::FieldGeometry(_) => "MOLGFX-E0093",
             Self::RepresentationInput(_) => "MOLGFX-E0094",
             Self::GraphCycle { .. } => "MOLGFX-E0070",
@@ -188,6 +199,7 @@ impl RenderError {
             Self::InvalidImageSize => "MOLGFX-E0072",
             Self::SourceCapabilityMissing { .. } => "MOLGFX-E0092",
             Self::InvalidSequence { .. } => "MOLGFX-E0089",
+            Self::InvalidStereo { .. } => "MOLGFX-E0097",
             Self::SequenceBackpressure { .. } => "MOLGFX-E0090",
             Self::InvalidFocusTarget { .. } => "MOLGFX-E0073",
             Self::ImageEncoding { .. } => "MOLGFX-E0074",

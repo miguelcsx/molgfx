@@ -11,7 +11,7 @@ fn vs_bond_capsule(
     @builtin(instance_index) instance_index: u32,
 ) -> BondCapsuleVsOut {
     let bond =
-        bonds[visible_bonds[instance_index]];
+        molecular_bond(visible_bonds[instance_index]);
 
     var radius =
         abs(bond.radius);
@@ -65,7 +65,7 @@ fn vs_bond_capsule(
     let strand_radius = radius * variant.radius_fraction;
     let separation =
         bond_view_direction(
-            bond_perpendicular(bond_world_axis(world_a, world_b)),
+            bond_separation_direction(bond_world_axis(world_a, world_b), bond.flags),
         ) * (variant.offset_radii * radius);
 
     let endpoint_a =

@@ -48,6 +48,21 @@ impl WebCamera {
         .map_err(javascript_error)
     }
 
+    /// Derives parallel left and right cameras with a shared convergence plane.
+    ///
+    /// # Errors
+    /// Returns an error for invalid separation, convergence or camera geometry.
+    #[wasm_bindgen(js_name = stereoEyes)]
+    pub fn stereo_eyes(
+        &self,
+        separation: f32,
+        convergence: f32,
+    ) -> Result<Vec<WebCamera>, JsError> {
+        molgfx::camera::stereo_eyes(self.inner, separation, convergence)
+            .map(|eyes| eyes.into_iter().map(|inner| Self { inner }).collect())
+            .map_err(javascript_error)
+    }
+
     /// The eye position.
     #[must_use]
     #[wasm_bindgen(getter)]

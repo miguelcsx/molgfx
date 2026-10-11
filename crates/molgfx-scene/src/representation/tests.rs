@@ -81,6 +81,7 @@ fn the_superseded_optional_field_wire_shape_is_rejected() {
 #[test]
 fn a_blob_surface_round_trips_and_names_its_soft_union_style() {
     let specification: RepresentationSpec = rep::surface("all")
+        .kind(SurfaceKind::VanDerWaals)
         .style(SurfaceStyle::SoftUnion)
         .probe_radius(1.6)
         .isolevel(0.6)
@@ -145,5 +146,24 @@ fn cartoon_shape_is_validated_and_retained_by_portable_specifications() {
             .arrow_factor(arrow)
             .into();
         assert!(invalid.validate_values().is_err());
+    }
+}
+
+#[test]
+fn unsupported_soft_union_fields_are_rejected_instead_of_ignoring_the_style() {
+    for kind in [SurfaceKind::Gaussian, SurfaceKind::SolventExcluded] {
+        let specification: RepresentationSpec = rep::surface("all")
+            .kind(kind)
+            .style(SurfaceStyle::SoftUnion)
+            .into();
+        assert!(specification.validate_values().is_err());
+    }
+    for kind in [SurfaceKind::VanDerWaals, SurfaceKind::SolventAccessible] {
+        let specification: RepresentationSpec = rep::surface("all")
+            .kind(kind)
+            .style(SurfaceStyle::SoftUnion)
+            .blob_spread(5.0)
+            .into();
+        assert!(specification.validate_values().is_ok());
     }
 }

@@ -106,6 +106,7 @@ impl<D: Device> GpuSlot<D> {
             layout: input.atom_layout,
             entries: &[
                 buffer_entry(0, atoms),
+                buffer_entry(1, bonds),
                 buffer_entry(2, visible_atoms),
                 arena_range(4, arena, atom_args),
                 arena_range(5, arena, bond_args),

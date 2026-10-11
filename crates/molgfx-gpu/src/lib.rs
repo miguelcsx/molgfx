@@ -14,6 +14,7 @@ mod descriptors;
 mod device;
 mod encoder;
 mod error;
+mod host;
 mod queue;
 mod residency;
 mod surface;
@@ -38,6 +39,7 @@ pub use device::{
 };
 pub use encoder::{CommandEncoder, ComputePassEncoder, RayQueryCommandEncoder, RenderPassEncoder};
 pub use error::GpuError;
+pub use host::{HostDevice, HostDeviceDesc, ImportedTarget};
 pub use queue::{Queue, Readback};
 pub use residency::{
     ArenaAllocation, ArenaError, ArenaMetrics, CommandScratch, CommandScratchMetrics, FenceValue,

@@ -118,7 +118,9 @@ impl SelectionBoundsCache {
 
 fn effective_radius_scale(representation: &Representation) -> f32 {
     if representation.params.surface_kind == SurfaceKind::Gaussian {
-        0.0
+        representation.params.gaussian_sigma.max(0.05)
+            * 4.0
+            * representation.params.radius_scale.max(0.0)
     } else {
         representation.params.radius_scale.max(0.0)
     }

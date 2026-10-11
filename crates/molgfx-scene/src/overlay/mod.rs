@@ -25,13 +25,19 @@ pub use surfaces::{AssemblyInstance, AssemblySpec, FitResult, UnitCellSpec, Vali
 mod anchor;
 mod data_source;
 mod ellipsoid_spec;
+mod field_lines;
+#[cfg(test)]
+mod field_lines_tests;
 mod identity;
 mod interaction_spec;
 mod item;
 mod label_spec;
 mod lower_volume;
 mod measurement_spec;
+#[cfg(test)]
+mod orbital_tests;
 mod trajectory_spec;
+pub use field_lines::FieldLines;
 mod volume_presentation;
 mod volume_spec;
 pub use identity::OverlayId;

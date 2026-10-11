@@ -9,8 +9,8 @@ use crate::error::RenderError;
 use crate::graph::{self, PassNode, ResourceDesc, TransientPool};
 use crate::passes::{
     AmbientOcclusionPass, AoDenoisePass, BloomPass, CullPass, DepthOfFieldPass, FrameBindings,
-    Lazy, LightingPass, MotionBlurPass, OccupancyBoundsFormat, OccupancyPass, OitCompositePass,
-    OitPass, OverlayPass, ParticleMotionPass, RelationResolvePass, ShadowPass,
+    HelixFitPass, Lazy, LightingPass, MotionBlurPass, OccupancyBoundsFormat, OccupancyPass,
+    OitCompositePass, OitPass, OverlayPass, ParticleMotionPass, RelationResolvePass, ShadowPass,
     SurfaceComponentPass, SurfaceFieldPass, TemporalPass, TonemapPass, TrajectoryPass,
 };
 use crate::scene_gpu::GpuScene;
@@ -40,7 +40,7 @@ pub struct Engine<D: Device> {
     pub(crate) profiler: Option<GpuProfiler<D>>,
     pub(crate) picker: Picker<D>,
     pub(crate) temporal: TemporalState,
-    pub(crate) temporal_scene_identity: Option<u64>,
+    pub(crate) temporal_scene_identity: Option<super::temporal_scene::TemporalSceneKey>,
     pub(crate) mode: RenderMode,
     /// The closed adaptive-quality loop: frame time in, quality tier out.
     pub(crate) adaptive: AdaptiveQuality,
@@ -156,6 +156,7 @@ fn realtime_passes<D: Device>(
             &scene.overlay_layout,
         )?,
         trajectory: TrajectoryPass::new(device, &scene.trajectory_layout)?,
+        helix_fit: HelixFitPass::new(device, &scene.ribbon_layouts.fit)?,
         occupancy: None,
         particle_motion: ParticleMotionPass::new(device, &scene.primitive_motion_layout)?,
     })
@@ -219,10 +220,25 @@ impl<D: Device> Engine<D> {
         config: &EngineConfig,
         opened: Opened<D>,
     ) -> Result<Self, RenderError> {
+        Self::from_opened_with(config, opened, None)
+    }
+
+    /// Builds the engine from an opened device. `output_format` pins the
+    /// format the final passes write, for host-owned targets; `None` lets
+    /// the surface (or the off-screen default) decide.
+    pub(super) fn from_opened_with(
+        config: &EngineConfig,
+        opened: Opened<D>,
+        output_format: Option<TextureFormat>,
+    ) -> Result<Self, RenderError> {
         let mut surface = opened.surface;
         let device = opened.device;
 
-        let target_format = super::target::configure(&device, &mut surface, config);
+        let configured = super::target::configure(&device, &mut surface, config);
+        let target_format = match output_format {
+            Some(format) => format,
+            None => configured,
+        };
 
         let profile = config.profile.clone();
         let resolved_plan = profile.resolve();

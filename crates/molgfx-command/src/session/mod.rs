@@ -21,6 +21,9 @@ mod plan;
 mod pocket_tests;
 mod property;
 mod resolve;
+mod restyle;
+#[cfg(test)]
+mod restyle_tests;
 #[cfg(test)]
 mod segment_tests;
 #[cfg(test)]

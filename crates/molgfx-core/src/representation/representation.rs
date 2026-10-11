@@ -32,11 +32,13 @@ pub enum RepresentationKind {
     BallAndStick,
     /// Uniform-radius atom junctions and bond capsules.
     Licorice,
+    /// Bond capsules without atom spheres or junctions.
+    Bonds,
     /// Pixel-stable bond wires without atom junctions.
     Lines,
     /// Ribbon cartoon along the polymer trace.
     Cartoon,
-    /// Thin smooth spline through polymer guide atoms.
+    /// Thin straight segments between polymer guide atoms.
     Trace,
     /// Round smooth tube through polymer guide atoms.
     Tube,
@@ -56,6 +58,12 @@ pub enum RepresentationKind {
     PaperChain,
     /// One point per atom.
     Points,
+    /// Point samples distributed over each atom's van der Waals sphere.
+    Dots,
+    /// Ring-footprint nucleotide prisms and sugar attachments.
+    Bases,
+    /// Nucleotide prisms restricted to supported canonical pairs.
+    BasePairs,
 }
 
 /// Declarative parity presets built from the canonical representation paths.
@@ -117,6 +125,18 @@ pub enum SurfaceStyle {
     /// distinct from exact [`SurfaceStyle::Solid`] measurement geometry.
     SoftUnion = 5,
 }
+impl SurfaceStyle {
+    /// Whether this presentation is defined for the selected molecular field.
+    #[must_use]
+    pub const fn supports(self, kind: SurfaceKind) -> bool {
+        !matches!(self, Self::SoftUnion)
+            || matches!(
+                kind,
+                SurfaceKind::VanDerWaals | SurfaceKind::SolventAccessible
+            )
+    }
+}
+
 /// How atoms in a representation are colored.
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
 #[non_exhaustive]
@@ -173,7 +193,7 @@ pub struct RepresentationParams {
     pub bond_radius: f32,
     /// Solvent probe radius for surfaces, Ångström; water by default.
     pub probe_radius: f32,
-    /// Standard deviation of the atom-centred Gaussian density, Ångström.
+    /// Multiplier of each atom's van der Waals radius for Gaussian standard deviation.
     /// This is used only by [`SurfaceKind::Gaussian`].
     pub gaussian_sigma: f32,
     /// Level-set threshold for surfaces and volumes.
@@ -217,6 +237,22 @@ pub struct RepresentationParams {
     /// Diameter of a bond wire in physical pixels.
     pub line_width_pixels: f32,
 }
+impl RepresentationParams {
+    /// Checks that an authored surface presentation can be evaluated.
+    ///
+    /// # Errors
+    /// Returns a scene-description error for an unsupported field/style pair.
+    pub fn validate_surface(&self) -> Result<(), crate::CoreError> {
+        if self.surface_style.supports(self.surface_kind) {
+            return Ok(());
+        }
+        Err(crate::CoreError::InvalidSceneDescription {
+            summary: "soft union requires a van der Waals or solvent-accessible boundary"
+                .to_owned(),
+        })
+    }
+}
+
 impl Default for RepresentationParams {
     fn default() -> Self {
         Self {

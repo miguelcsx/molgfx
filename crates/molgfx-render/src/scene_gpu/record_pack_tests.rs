@@ -1,5 +1,5 @@
 use super::hide_bonded_line_atoms;
-use molgfx_core::{AtomGpu, BondGpu};
+use molgfx_core::{AtomFlags, AtomGpu, BondGpu};
 
 #[test]
 fn line_crosses_remain_only_for_atoms_without_selected_bonds() {
@@ -25,7 +25,10 @@ fn line_crosses_remain_only_for_atoms_without_selected_bonds() {
 
     hide_bonded_line_atoms(&mut atoms, &bonds);
 
-    assert_eq!(atoms[0].radius.to_bits(), 0.0f32.to_bits());
-    assert_eq!(atoms[1].radius.to_bits(), 0.0f32.to_bits());
+    assert!(atoms[0].flags.contains(AtomFlags::HIDE_MARKER));
+    assert!(atoms[1].flags.contains(AtomFlags::HIDE_MARKER));
+    assert!(!atoms[2].flags.contains(AtomFlags::HIDE_MARKER));
+    assert_eq!(atoms[0].radius.to_bits(), 1.0f32.to_bits());
+    assert_eq!(atoms[1].radius.to_bits(), 1.5f32.to_bits());
     assert_eq!(atoms[2].radius.to_bits(), 2.0f32.to_bits());
 }

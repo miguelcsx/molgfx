@@ -13,14 +13,14 @@ pub use molgfx_scene::{AdapterReport, SystemInfo, system_info};
 pub use molgfx_scene::{
     Anchor, AnnotationId, AnnotationSpec, AppearanceRuleId, AppearanceRuleSpec, AssemblyCopy,
     AssemblySpec, Camera, Color, ColorSpec, DepthCue, EllipsoidId, EllipsoidSpec, Error,
-    InteractionChannel, InteractionId, InteractionKind, InteractionSpec, IsoStyle, Legend,
-    LegendStop, MAX_APPEARANCE_CLASSES, MeasurementId, MeasurementSpec, OverlayId, Parameter,
-    ParameterType, ParameterValue, PatchError, PickKind, PickResult, PlaneId, PlaneSpec, Quality,
-    RenderProfile, RepresentationId, RepresentationSpec, ScalarProperty, ScalarPropertyBinding,
-    Scene, SceneItem, ScenePatch, SceneSpec, SceneTransaction, SegmentStyle, SegmentationBinding,
-    SegmentationId, SegmentationPresentation, SegmentationSpec, Selection, StructureId,
-    TrajectoryId, TrajectorySpec, UnitCellSpec, VisualStyle, VolumeId, VolumePresentation,
-    VolumeRegion, VolumeSpec, VolumeTransferPoint, chain_selection, molframe,
+    FieldLines, InteractionChannel, InteractionId, InteractionKind, InteractionSpec, IsoStyle,
+    Legend, LegendStop, MAX_APPEARANCE_CLASSES, MeasurementId, MeasurementSpec, OverlayId,
+    Parameter, ParameterType, ParameterValue, PatchError, PickKind, PickResult, PlaneId, PlaneSpec,
+    Quality, RenderProfile, RepresentationId, RepresentationSpec, ResolvedPick, ScalarProperty,
+    ScalarPropertyBinding, Scene, SceneItem, ScenePatch, SceneSpec, SceneTransaction, SegmentStyle,
+    SegmentationBinding, SegmentationId, SegmentationPresentation, SegmentationSpec, Selection,
+    StructureId, TrajectoryId, TrajectorySpec, UnitCellSpec, VisualStyle, VolumeId,
+    VolumePresentation, VolumeRegion, VolumeSpec, VolumeTransferPoint, chain_selection, molframe,
 };
 pub use molgfx_scene::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, PassTiming, PassTimingCoverage,
@@ -29,8 +29,11 @@ pub use molgfx_scene::{
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_scene::{FrameTiming, GpuTiming};
 #[cfg(not(target_arch = "wasm32"))]
-pub use molgfx_scene::{HdrImage, Image};
+pub use molgfx_scene::{HdrImage, Image, StereoImages, StereoLayout};
 pub use molgfx_scene::{PointCloud, Renderer};
+
+#[cfg(feature = "host")]
+pub use molgfx_scene::host;
 
 pub use molgfx_scene::{OverlayHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding};
 pub use molgfx_scene::{annotation, density, ellipsoid, interaction, measurement, trajectory};
@@ -72,7 +75,7 @@ pub mod schema {
 pub mod camera {
     pub use molgfx_scene::camera::{
         CameraEasing, CameraKeyframe, CameraPath, Ray, ScreenPoint, frame_bounds, path,
-        perspective, project, ray,
+        perspective, project, ray, stereo_eyes,
     };
 }
 
@@ -87,11 +90,12 @@ pub mod controls {
 /// Immutable representation specifications and constructors.
 pub mod rep {
     pub use molgfx_scene::rep::{
-        Backbone, BallAndStick, BasePairs, Bases, Beads, Cartoon, CartoonProfile, CartoonStyle,
-        Dots, GapStyle, Glycan, Licorice, Lines, NucleicAcid, PointRepresentation, Putty,
+        Backbone, BallAndStick, BasePairs, Bases, Beads, Bonds, Cartoon, CartoonProfile,
+        CartoonStyle, Dots, GapStyle, Glycan, Licorice, Lines, NucleicAcid, PaperChain,
+        PointRepresentation, Putty, RepresentationApplicability, RepresentationRequirement,
         Spacefill, Surface, SurfaceKind, SurfaceStyle, Trace, Tube, backbone, ball_and_stick,
-        base_pairs, bases, beads, cartoon, dots, glycan, licorice, lines, nucleic_acid, points,
-        putty, spacefill, surface, trace, tube,
+        base_pairs, bases, beads, bonds, cartoon, dots, glycan, licorice, lines, nucleic_acid,
+        paper_chain, points, putty, spacefill, surface, trace, tube,
     };
 }
 

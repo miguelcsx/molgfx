@@ -65,7 +65,13 @@ pub fn append_base_slabs(
             let Some(sugar) = residue.atom(SUGAR_ATTACHMENT) else {
                 continue;
             };
-            if !selection.contains(sugar.index().get()) {
+            if !selection.contains(sugar.index().get())
+                && !RING_ATOMS.iter().any(|name| {
+                    residue
+                        .atom(name)
+                        .is_some_and(|atom| selection.contains(atom.index().get()))
+                })
+            {
                 continue;
             }
             let Some(sugar_position) = sugar.position().map(Vec3::from) else {
@@ -122,7 +128,13 @@ pub fn append_base_polygons(
             let Some(sugar) = residue.atom(SUGAR_ATTACHMENT) else {
                 continue;
             };
-            if !selection.contains(sugar.index().get()) {
+            if !selection.contains(sugar.index().get())
+                && !RING_ATOMS.iter().any(|name| {
+                    residue
+                        .atom(name)
+                        .is_some_and(|atom| selection.contains(atom.index().get()))
+                })
+            {
                 continue;
             }
             let Some(sugar_position) = sugar.position().map(Vec3::from) else {

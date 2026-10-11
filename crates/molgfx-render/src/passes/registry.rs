@@ -2,7 +2,7 @@
 
 use super::{
     AmbientOcclusionPass, AoDenoisePass, BloomPass, BondPass, CartoonPass, CullPass,
-    DepthOfFieldPass, InteractionPass, LabelPass, Lazy, LightingPass, MotionBlurPass,
+    DepthOfFieldPass, HelixFitPass, InteractionPass, LabelPass, Lazy, LightingPass, MotionBlurPass,
     OccupancyPass, OitCompositePass, OitPass, OverlayPass, ParticleMotionPass, PointPass,
     PrimitivePass, RelationResolvePass, ShadowPass, SpherePass, SurfaceComponentPass,
     SurfaceFieldPass, SurfacePass, TemporalPass, TonemapPass, TrajectoryPass,
@@ -69,6 +69,7 @@ pub(crate) struct PassRegistry<D: Device> {
     pub(crate) overlay: OverlayPass<D>,
     /// Topology-stable coordinate interpolation.
     pub(crate) trajectory: TrajectoryPass<D>,
+    pub(crate) helix_fit: HelixFitPass<D>,
     /// GPU-resident temporal occupancy accumulation.
     pub(crate) occupancy: Option<OccupancyPass<D>>,
     /// Fixed-step caller-supplied visual particle advection.

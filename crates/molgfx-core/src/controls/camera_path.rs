@@ -269,6 +269,29 @@ fn interpolate_projection(start: Projection, end: Projection, phase: f32) -> Pro
     let blend = |left: f32, right: f32| left + (right - left) * phase;
     match (start, end) {
         (
+            Projection::OffAxis {
+                fov_y: start_fov,
+                aspect: start_aspect,
+                near: start_near,
+                far: start_far,
+                shift: start_shift,
+            },
+            Projection::OffAxis {
+                fov_y: end_fov,
+                aspect: end_aspect,
+                near: end_near,
+                far: end_far,
+                shift: end_shift,
+            },
+        ) => Projection::OffAxis {
+            fov_y: blend(start_fov, end_fov),
+            aspect: blend(start_aspect, end_aspect),
+            near: blend(start_near, end_near),
+            far: blend(start_far, end_far),
+            shift: blend(start_shift, end_shift),
+        },
+
+        (
             Projection::Perspective {
                 fov_y: start_fov,
                 aspect: start_aspect,
@@ -327,6 +350,21 @@ fn validate_camera(camera: Camera) -> Result<(), CoreError> {
 
 fn valid_projection(projection: Projection) -> bool {
     match projection {
+        Projection::OffAxis {
+            fov_y,
+            aspect,
+            near,
+            far,
+            shift,
+        } => {
+            shift.is_finite()
+                && valid_projection(Projection::Perspective {
+                    fov_y,
+                    aspect,
+                    near,
+                    far,
+                })
+        }
         Projection::Perspective {
             fov_y,
             aspect,

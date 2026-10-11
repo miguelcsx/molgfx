@@ -198,9 +198,6 @@ impl<D: Device> Engine<D> {
     ) -> Result<PendingImage<D>, RenderError> {
         config.validate(self.device.capabilities().max_texture_dim)?;
         let layout = ImageLayout::new(config, 4)?;
-        self.width = config.width;
-        self.height = config.height;
-        let mut exposure = self.prepare_exposure(scene, camera, purpose)?;
         let texture = self.device.create_texture(&TextureDesc {
             label: "off-screen image",
             width: config.width,
@@ -218,6 +215,39 @@ impl<D: Device> Engine<D> {
             size: layout.buffer_size,
             usage: BufferUsage::COPY_DST.union(BufferUsage::MAP_READ),
         })?;
+        let copy = ReadbackCopy {
+            texture: &texture,
+            buffer: &readback,
+            padded_row: layout.padded_row,
+        };
+        let (completion, quality) =
+            self.render_exposure(scene, camera, config, purpose, &view, Some(&copy))?;
+        Ok(PendingImage {
+            config,
+            layout,
+            buffer: readback,
+            _texture: texture,
+            completion,
+            quality,
+        })
+    }
+
+    /// Records and submits one exposure into `view`, optionally copying the
+    /// finished frame into a readback buffer. The one off-screen frame path:
+    /// the readback image and every GPU-resident target share it, so their
+    /// pixels are identical by construction.
+    pub(super) fn render_exposure(
+        &mut self,
+        scene: &Scene,
+        camera: &Camera,
+        config: ImageConfig,
+        purpose: ImagePurpose,
+        view: &D::TextureView,
+        copy: Option<&ReadbackCopy<'_, D>>,
+    ) -> Result<(FenceValue, super::EffectiveQuality), RenderError> {
+        self.width = config.width;
+        self.height = config.height;
+        let mut exposure = self.prepare_exposure(scene, camera, purpose)?;
         let samples = exposure.samples;
         let mut encoder = self.device.create_command_encoder();
         for sample in 0..samples {
@@ -226,15 +256,17 @@ impl<D: Device> Engine<D> {
             if sample == 0 {
                 self.record_scene_compute(&mut encoder, traced, None);
             }
-            self.record_image(&mut encoder, &view, None, traced, false)?;
-            if sample + 1 == samples {
+            self.record_image(&mut encoder, view, None, traced, false)?;
+            if let Some(copy) = copy
+                && sample + 1 == samples
+            {
                 encoder.copy_texture_to_buffer(
-                    &texture,
+                    copy.texture,
                     (0, 0),
                     (config.width, config.height),
-                    layout.padded_row,
+                    copy.padded_row,
                     0,
-                    &readback,
+                    copy.buffer,
                 );
             }
             self.flush_exposure_run(&mut exposure, sample, &mut encoder)?;
@@ -249,14 +281,7 @@ impl<D: Device> Engine<D> {
             self.temporal.prepared_samples(),
         );
         quality.progressive = purpose != ImagePurpose::Converged;
-        Ok(PendingImage {
-            config,
-            layout,
-            buffer: readback,
-            _texture: texture,
-            completion,
-            quality,
-        })
+        Ok((completion, quality))
     }
 
     /// Prepares the off-screen frame: scene sync, tier publication and pool
@@ -373,6 +398,13 @@ impl<D: Device> Engine<D> {
             None => Ok(()),
         }
     }
+}
+
+/// The readback destination of one exposure.
+pub(super) struct ReadbackCopy<'a, D: Device> {
+    pub(super) texture: &'a D::Texture,
+    pub(super) buffer: &'a D::Buffer,
+    pub(super) padded_row: u32,
 }
 
 pub(super) struct PendingImage<D: Device> {

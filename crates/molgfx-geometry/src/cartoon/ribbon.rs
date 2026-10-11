@@ -3,10 +3,15 @@
 use super::directions::{DirectionBuild, DirectionStorage};
 use super::error::CartoonError;
 use super::sweep::{RibbonTrace, append_ribbon};
-use super::traces::{PolymerTraces, extract_polymer_traces};
+use super::traces::{PolymerTraces, extract_backbone_traces};
 use molgfx_core::{CartoonProfile, SecondaryStructure};
 use molgfx_math::{CurveSample, Rgba8, TransportFrame, Vec3};
+mod helix;
+mod residue;
 
+#[cfg(test)]
+#[path = "ribbon_rendering_tests.rs"]
+mod rendering_tests;
 #[cfg(test)]
 #[path = "ribbon_tests.rs"]
 mod tests;
@@ -45,8 +50,8 @@ pub(crate) struct RibbonDeformation {
     pub controls: [u32; 4],
     /// Local curve parameter, bit-cast left/right guide scalar indices, and a
     /// anchor-mode lane. Keeping these in existing lanes preserves the 32-byte
-    /// deformation row. Zero uses the spline; one anchors at the second control
-    /// and uses the first-to-third vector as its direction.
+    /// deformation row. Modes select spline, atom, gap, linear, peptide-plane,
+    /// rigid residue or fitted helix anchors over the borrowed coordinate rows.
     pub parameter: [f32; 4],
 }
 
@@ -110,6 +115,8 @@ pub enum SplineProfile {
     Cartoon,
     /// Constant-radius circular tube.
     Tube,
+    /// Straight intervals joining successive polymer guides.
+    Trace,
     /// Discrete secondary-structure solids: helices as round columns, strands
     /// as flat arrows, coil as a thin cord. Where the cartoon profile reads as
     /// one continuous ribbon whose width tells the story, this one separates
@@ -136,6 +143,8 @@ pub struct RibbonMesh {
     /// One GPU deformation recipe per vertex.
     deformations: Vec<RibbonDeformation>,
     samples: Vec<CurveSample>,
+    fitted: Vec<Vec3>,
+    fit_jobs: Vec<u32>,
     /// Per-interval twist demand, reused so a regenerate allocates nothing.
     demand: Vec<f32>,
     frames: Vec<TransportFrame>,
@@ -176,6 +185,13 @@ impl RibbonMesh {
         self.indices.clear();
         self.deformations.clear();
         self.traces.properties.clear();
+        self.fit_jobs.clear();
+        let trace = if params.profile == SplineProfile::Rocket {
+            super::rocket::project_trace(trace, styles, &mut self.fitted);
+            &self.fitted[..]
+        } else {
+            trace
+        };
         let mut build = RibbonBuild {
             params,
             samples: &mut self.samples,
@@ -193,6 +209,7 @@ impl RibbonMesh {
             property_count: 0,
             normals: &[],
             guides: &[],
+            plane_rows: &[],
         };
         append_ribbon(input, &mut build)?;
         if params.direction_wedges {
@@ -232,7 +249,14 @@ impl RibbonMesh {
         params: RibbonParams,
     ) -> Result<(), CartoonError> {
         self.clear();
-        extract_polymer_traces(structure, selection, secondary, max_gap, &mut self.traces)?;
+        extract_backbone_traces(
+            structure,
+            selection,
+            secondary,
+            max_gap,
+            matches!(params.profile, SplineProfile::Trace | SplineProfile::Tube),
+            &mut self.traces,
+        )?;
         self.generate_traces(params, GuideProperties::RadiusSources)?;
         if params.direction_wedges {
             let result = self.directions.generate(
@@ -323,6 +347,7 @@ impl RibbonMesh {
         params: RibbonParams,
         properties: GuideProperties,
     ) -> Result<(), crate::PackingError> {
+        self.fit_jobs.clear();
         let mut build = RibbonBuild {
             params,
             samples: &mut self.samples,
@@ -333,6 +358,14 @@ impl RibbonMesh {
             deformations: &mut self.deformations,
         };
         for range in &self.traces.ranges {
+            let points = &self.traces.points[range.points.clone()];
+            let styles = &self.traces.styles[range.points.clone()];
+            let points = if params.profile == SplineProfile::Rocket {
+                super::rocket::project_trace(points, styles, &mut self.fitted);
+                &self.fitted[..]
+            } else {
+                points
+            };
             let property_base = match properties {
                 GuideProperties::RadiusSources => {
                     super::draw_limits::vertex_index(range.points.start).map(Some)
@@ -342,13 +375,14 @@ impl RibbonMesh {
             let result = property_base.and_then(|property_base| {
                 append_ribbon(
                     RibbonTrace {
-                        points: &self.traces.points[range.points.clone()],
+                        points,
                         entities: &self.traces.entities[range.points.clone()],
                         styles: &self.traces.styles[range.points.clone()],
                         property_base,
                         property_count: range.points.len(),
                         normals: plane_slice(&self.traces.normals, range.points.clone()),
                         guides: &self.traces.guides[range.points.clone()],
+                        plane_rows: plane_rows_slice(&self.traces.plane_rows, range.points.clone()),
                     },
                     &mut build,
                 )
@@ -374,6 +408,7 @@ impl RibbonMesh {
         self.indices.clear();
         self.deformations.clear();
         self.traces.properties.clear();
+        self.fit_jobs.clear();
     }
 
     /// Pads caller-appended static geometry so every vertex has one recipe.
@@ -418,6 +453,13 @@ pub(super) struct RibbonBuild<'a> {
 /// it has no values for.
 fn plane_slice(normals: &[Vec3], range: std::ops::Range<usize>) -> &[Vec3] {
     match normals.get(range) {
+        Some(slice) => slice,
+        None => &[],
+    }
+}
+
+fn plane_rows_slice(rows: &[u32], range: std::ops::Range<usize>) -> &[u32] {
+    match rows.get(range) {
         Some(slice) => slice,
         None => &[],
     }

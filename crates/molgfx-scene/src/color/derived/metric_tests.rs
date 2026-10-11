@@ -90,6 +90,42 @@ fn sasa_reads_the_current_coordinates_and_is_finite_for_every_atom() {
 }
 
 #[test]
+fn sasa_stays_aligned_when_an_element_has_no_listed_radius() {
+    // Sodium carries no Bondi radius in the reference table, and neither does
+    // any element the renderer has no listed radius for. Accessibility must
+    // still describe every atom: before the fallback, one such atom shifted
+    // every later atom's area onto the wrong atom and left the first atom's
+    // value at the missing sentinel, so the whole column rendered grey.
+    const PDB: &str = "\
+ATOM      1 NA   NA A   1       0.000   0.000   0.000  1.00  0.00          NA\n\
+ATOM      2  C   ALA A   2       0.000   0.000   3.000  1.00  0.00           C\n\
+ATOM      3  C   ALA A   2       3.000   0.000   3.000  1.00  0.00           C\n\
+END\n";
+    let Ok((structure, _)) = molframe::read_bytes(
+        PDB.as_bytes().to_vec(),
+        Some("sasa-align.pdb"),
+        &molframe::ReadOptions::new(),
+    ) else {
+        panic!("fixture must parse")
+    };
+    let source = MolecularSource::from_molframe(&structure);
+    let values = AtomMetric::Sasa
+        .column(&source)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(values.len(), 3);
+    assert!(
+        values.iter().all(|value| value.is_finite() && *value > 0.0),
+        "every atom has an area, not a shifted or missing one: {values:?}"
+    );
+
+    // The no-radius element is a whole structure's first atom, where a dropped
+    // entry cannot be masked by a later atom: it must be the largest, not the
+    // smallest, of an exposed pair.
+    let sodium = values[0];
+    assert!(sodium > 0.0, "the sodium atom itself keeps an area");
+}
+
+#[test]
 fn every_metric_has_a_distinct_name_and_a_ramp_that_covers_its_domain() {
     let mut names: Vec<&str> = AtomMetric::ALL.into_iter().map(AtomMetric::name).collect();
     names.sort_unstable();

@@ -17,10 +17,9 @@ pub struct PolymerTraces {
     pub(super) styles: Vec<SecondaryStructure>,
     pub(super) guides: Vec<GuideKind>,
     pub(super) properties: Vec<f32>,
-    /// Per-point orientation the ribbon's flat face is held in, where the
-    /// source residue has one. A polymer guide atom carries no such plane, so
-    /// this stays empty for backbone traces and the ribbon keeps its twist-free
-    /// transport frames.
+    /// Source oxygen rows used to orient protein ribbons as coordinates move.
+    pub(super) plane_rows: Vec<u32>,
+    /// Per-point thickness directions derived from residue geometry.
     pub(super) normals: Vec<Vec3>,
     pub(super) ranges: Vec<TraceRange>,
 }
@@ -33,6 +32,7 @@ impl PolymerTraces {
         self.guides.clear();
         self.properties.clear();
         self.normals.clear();
+        self.plane_rows.clear();
         self.ranges.clear();
     }
 
@@ -64,6 +64,7 @@ impl PolymerTraces {
         self.points = points;
         self.entities = entities;
         self.normals = normals;
+        self.plane_rows.clear();
         self.ranges = ranges;
     }
 }
@@ -73,6 +74,7 @@ impl PolymerTraces {
 pub(super) enum GuideKind {
     AlphaCarbon,
     SugarCarbon,
+    Phosphate,
     RingCenter,
 }
 
@@ -113,7 +115,25 @@ pub fn extract_polymer_traces(
     max_gap: f32,
     output: &mut PolymerTraces,
 ) -> Result<(), crate::PackingError> {
-    extract_traces(structure, selection, secondary, max_gap, 2, output)
+    extract_backbone_traces(structure, selection, secondary, max_gap, false, output)
+}
+
+pub(super) fn extract_backbone_traces(
+    structure: &molframe::Structure,
+    selection: &molgfx_core::AtomSelection,
+    secondary: &[SecondaryStructure],
+    max_gap: f32,
+    phosphate: bool,
+    output: &mut PolymerTraces,
+) -> Result<(), crate::PackingError> {
+    extract_traces(
+        structure,
+        selection,
+        secondary,
+        max_gap,
+        (2, phosphate),
+        output,
+    )
 }
 
 pub(super) fn extract_direction_traces(
@@ -127,7 +147,7 @@ pub(super) fn extract_direction_traces(
         &molgfx_core::AtomSelection::All,
         secondary,
         max_gap,
-        1,
+        (1, false),
         output,
     )
 }
@@ -137,10 +157,11 @@ fn extract_traces(
     selection: &molgfx_core::AtomSelection,
     secondary: &[SecondaryStructure],
     max_gap: f32,
-    minimum_points: usize,
+    policy: (usize, bool),
     output: &mut PolymerTraces,
 ) -> Result<(), crate::PackingError> {
     output.clear();
+    let (minimum_points, phosphate) = policy;
     let max_gap_sq = max_gap.max(0.0).powi(2);
     for chain in structure.chains() {
         let chain_id = chain.index().get();
@@ -160,7 +181,11 @@ fn extract_traces(
                 );
                 trace_start = output.points.len();
             }
-            let guide = polymer_guide(residue);
+            let guide = if phosphate && residue.atom("CA").is_none() {
+                residue.atom("P").map(|atom| (atom, GuideKind::Phosphate))
+            } else {
+                polymer_guide(residue)
+            };
             let Some((atom, guide_kind)) = guide else {
                 finish_trace(
                     chain_id,
@@ -210,21 +235,7 @@ fn extract_traces(
                 );
                 trace_start = output.points.len();
             }
-            let entity = molgfx_core::EntityId::pack(
-                molgfx_core::EntityKind::Atom,
-                u64::from(atom.index().get()),
-            )?;
-            output.points.push(position);
-            output.guides.push(guide_kind);
-            output.entities.push(entity.0);
-            let residue_index = residue.index().as_usize();
-            output.styles.push(match secondary.get(residue_index) {
-                Some(&style) => style,
-                None => SecondaryStructure::Unknown,
-            });
-            output
-                .properties
-                .push(atom.b_factor().into_iter().fold(f32::NAN, |_, value| value));
+            append_guide(residue, atom, guide_kind, position, secondary, output)?;
         }
         finish_trace(
             chain_id,
@@ -234,6 +245,40 @@ fn extract_traces(
             minimum_points,
         );
     }
+    Ok(())
+}
+
+fn append_guide(
+    residue: molframe::ResidueRef<'_>,
+    atom: molframe::AtomRef<'_>,
+    guide_kind: GuideKind,
+    position: Vec3,
+    secondary: &[SecondaryStructure],
+    output: &mut PolymerTraces,
+) -> Result<(), crate::PackingError> {
+    let entity =
+        molgfx_core::EntityId::pack(molgfx_core::EntityKind::Atom, u64::from(atom.index().get()))?;
+    output.points.push(position);
+    output.plane_rows.push(match residue.atom("O") {
+        Some(oxygen) if guide_kind == GuideKind::AlphaCarbon => oxygen.index().get(),
+        _ => u32::MAX,
+    });
+    output.normals.push(
+        match residue.atom("O").and_then(molframe::AtomRef::position) {
+            Some(oxygen) if guide_kind == GuideKind::AlphaCarbon => Vec3::from(oxygen) - position,
+            _ => Vec3::ZERO,
+        },
+    );
+    output.guides.push(guide_kind);
+    output.entities.push(entity.0);
+    let residue_index = residue.index().as_usize();
+    output.styles.push(match secondary.get(residue_index) {
+        Some(&style) => style,
+        None => SecondaryStructure::Unknown,
+    });
+    output
+        .properties
+        .push(atom.b_factor().into_iter().fold(f32::NAN, |_, value| value));
     Ok(())
 }
 

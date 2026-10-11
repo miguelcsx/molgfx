@@ -6,6 +6,7 @@ use wasm_bindgen::prelude::*;
 #[cfg(test)]
 #[path = "contract/cartoon_tests.rs"]
 mod cartoon_tests;
+mod pointer_hover;
 mod segmentation;
 #[cfg(test)]
 #[path = "contract/volume_tests.rs"]

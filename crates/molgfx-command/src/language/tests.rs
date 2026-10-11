@@ -131,6 +131,59 @@ fn every_named_colour_parses_to_its_own_srgb_triple() {
 }
 
 #[test]
+fn the_element_colour_words_resolve_to_the_element_table() {
+    // A script written for the reference engines says `color oxygen` or
+    // `color nitrogen`; those words must reach the same colour the element
+    // scheme draws, not fail and not invent a hue.
+    for (word, atomic_number) in [
+        ("hydrogen", 1u8),
+        ("carbon", 6),
+        ("nitrogen", 7),
+        ("oxygen", 8),
+        ("sulfur", 16),
+    ] {
+        let rgb = crate::registry::named_color(word);
+        assert_eq!(rgb, Some(molgfx_scene::color::element_rgb(atomic_number)));
+        assert!(crate::registry::color_words().any(|word| word == word));
+        let Some(Command::Color { color, .. }) =
+            commands(&format!("color {word}, all")).into_iter().next()
+        else {
+            panic!("color {word} parses")
+        };
+        assert!(color.scheme().is_some(), "{word} resolves");
+    }
+    assert_eq!(crate::registry::named_color("nonsense"), None);
+}
+
+#[test]
+fn the_shared_colour_names_keep_the_reference_values() {
+    // A script written for the reference engines must draw the same colour
+    // here. These are the PyMOL `reg_named_color` values; the primitive colours
+    // among them had previously been softened to a palette-like set, which made
+    // `color red` a dull crimson instead of red.
+    for (name, rgb) in [
+        ("red", [255, 0, 0]),
+        ("green", [0, 255, 0]),
+        ("blue", [0, 0, 255]),
+        ("cyan", [0, 255, 255]),
+        ("yellow", [255, 255, 0]),
+        ("magenta", [255, 0, 255]),
+        ("orange", [255, 128, 0]),
+        ("salmon", [255, 153, 153]),
+        ("lime", [128, 255, 128]),
+        ("slate", [128, 128, 255]),
+        ("marine", [0, 128, 255]),
+        ("teal", [0, 191, 191]),
+        ("purple", [191, 0, 191]),
+        ("grey", [128, 128, 128]),
+        ("white", [255, 255, 255]),
+        ("black", [0, 0, 0]),
+    ] {
+        assert_eq!(crate::registry::named_color(name), Some(rgb), "{name}");
+    }
+}
+
+#[test]
 fn canonical_text_parses_back_to_the_same_command() {
     for source in [
         "select pocket, byres (within 5 of resname HEM)",

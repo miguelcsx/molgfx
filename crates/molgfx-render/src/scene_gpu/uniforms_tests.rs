@@ -267,7 +267,7 @@ fn gaussian_surface_uniforms_encode_bounded_support_and_sigma() {
     assert_eq!(uniforms.surface[0].to_bits(), (4.0 * 0.75f32).to_bits());
     assert_eq!(uniforms.surface[1].to_bits(), 0.35f32.to_bits());
     assert_eq!(uniforms.surface[2].to_bits(), 0.75f32.to_bits());
-    assert_eq!(uniforms.visual[3].to_bits(), 0.0f32.to_bits());
+    assert_eq!(uniforms.visual[3].to_bits(), 1.0f32.to_bits());
     assert_eq!(uniforms.options[0], SurfaceKind::Gaussian as u32);
 }
 
@@ -366,5 +366,26 @@ fn projection_parameters_precompute_exact_sphere_frustum_factors() {
     assert_eq!(
         packed[1].to_bits(),
         orthographic_matrix.x_axis.x.abs().to_bits()
+    );
+}
+
+#[test]
+fn off_axis_culling_uses_the_wider_of_the_two_frustum_planes() {
+    let projection = Projection::OffAxis {
+        fov_y: 1.0,
+        aspect: 1.5,
+        near: 0.1,
+        far: 100.0,
+        shift: 0.4,
+    };
+    let matrix = projection.matrix();
+    let packed = projection_parameters(projection, matrix);
+    assert_eq!(
+        packed[1].to_bits(),
+        matrix.x_axis.x.abs().hypot(1.4).to_bits()
+    );
+    assert_eq!(
+        packed[2].to_bits(),
+        matrix.y_axis.y.abs().hypot(1.0).to_bits()
     );
 }

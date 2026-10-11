@@ -82,7 +82,6 @@ fn union_sample(point: vec3f, probe: f32) -> DistanceSample {
 // and reversible density control rather than a distance disguised as one.
 fn gaussian_sample(point: vec3f) -> DistanceSample {
     let sigma = max(representation.surface.z, 1e-4);
-    let support = max(representation.surface.x, sigma * GAUSSIAN_SUPPORT_SIGMAS);
     var density = 0.0;
     var nearest = EMPTY_COMPACT_INDEX;
     var nearest_distance = 1e20;
@@ -97,6 +96,7 @@ fn gaussian_sample(point: vec3f) -> DistanceSample {
         }
         let node = bvh_nodes[node_index];
         let lower_bound = distance_to_box(point, node.min_left.xyz, node.max_radius.xyz);
+        let support = node.max_radius.w * representation.visual.w * sigma * GAUSSIAN_SUPPORT_SIGMAS;
         if lower_bound > support {
             continue;
         }
@@ -113,10 +113,11 @@ fn gaussian_sample(point: vec3f) -> DistanceSample {
                 let base = source_index * 3u;
                 let center = vec3f(coords[base], coords[base + 1u], coords[base + 2u]);
                 let distance = length(point - center);
-                if distance > support {
+                let atom_sigma = max(atoms[compact_index].radius * sigma, 1e-4);
+                if distance > atom_sigma * GAUSSIAN_SUPPORT_SIGMAS {
                     continue;
                 }
-                let normalized = distance / sigma;
+                let normalized = distance / atom_sigma;
                 density += exp(-0.5 * normalized * normalized);
                 if distance < nearest_distance {
                     nearest_distance = distance;

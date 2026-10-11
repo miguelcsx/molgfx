@@ -365,9 +365,10 @@ pub(super) fn atom_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     })
 }
 
-fn atom_cull_entries() -> [BindGroupLayoutEntry; 11] {
+fn atom_cull_entries() -> [BindGroupLayoutEntry; 12] {
     [
         storage_visible(0, ShaderStages::COMPUTE),
+        storage_visible(1, ShaderStages::COMPUTE),
         writable_storage(2),
         writable_storage(4),
         writable_storage(5),
@@ -442,4 +443,31 @@ pub(super) fn trajectory_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     })
 }
 
+pub(super) fn helix_fit_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+    device.create_bind_group_layout(&BindGroupLayoutDesc {
+        label: "live helix fitting",
+        entries: &[
+            storage(0),
+            storage(1),
+            storage(2),
+            storage(3),
+            writable_storage(4),
+        ],
+    })
+}
+
 include!("layouts_helpers.rs");
+
+/// The draw and live helix-fit layouts share the persistent ribbon resources.
+#[derive(Debug)]
+pub(crate) struct RibbonLayouts<D: Device> {
+    pub(crate) draw: D::BindGroupLayout,
+    pub(crate) fit: D::BindGroupLayout,
+}
+
+pub(super) fn ribbon_layouts<D: Device>(device: &D) -> RibbonLayouts<D> {
+    RibbonLayouts {
+        draw: cartoon_layout(device),
+        fit: helix_fit_layout(device),
+    }
+}

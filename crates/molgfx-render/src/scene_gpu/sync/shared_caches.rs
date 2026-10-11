@@ -6,7 +6,50 @@ use crate::error::RenderError;
 use crate::scene_gpu::slots::GpuSlot;
 use molgfx_core::Scene;
 use molgfx_gpu::Device;
-use std::collections::BTreeMap;
+
+/// Fills the per-slot culling policies and the distinct record keys they need,
+/// into caller-owned storage so a steady-state frame allocates nothing.
+fn pack_slot_policies<D: Device>(
+    gpu: &GpuScene<D>,
+    scene: &Scene,
+    detail: crate::scene_gpu::detail::TierDetail,
+    needed: &mut std::collections::BTreeMap<crate::scene_gpu::record_cache::RecordKey, usize>,
+    policies: &mut Vec<crate::scene_gpu::slot_types::CullPolicy>,
+) {
+    for (slot_index, slot) in gpu.slots.iter().enumerate() {
+        let Some(representation) = scene.representation(slot.key.representation) else {
+            continue;
+        };
+        let Some(selection_handle) = representation.selection() else {
+            continue;
+        };
+        let Some(placed) = scene.structure(slot.key.structure) else {
+            continue;
+        };
+        let Some(structure_gpu) = gpu.structures.get(slot.structure_index) else {
+            continue;
+        };
+        let (_, property_revisions) =
+            properties::resolve(scene, representation, slot.key.structure);
+        let key = crate::scene_gpu::record_cache::RecordCache::<D>::key(
+            scene,
+            placed,
+            slot.key.structure,
+            representation,
+            selection_handle,
+            structure_gpu.asset_identity(),
+            property_revisions,
+        );
+        let _ = needed.entry(key).or_insert(slot_index);
+        policies.push(crate::scene_gpu::slot_types::CullPolicy {
+            records: key,
+            kind: representation.kind,
+            visual_enabled: representation.visual.is_some(),
+            lod_enabled: detail.lod_enabled,
+            bond_break_length: placed.bond_break_length(),
+        });
+    }
+}
 
 impl<D: Device> GpuScene<D> {
     /// Pass one: pack every distinct record set this frame needs.
@@ -23,100 +66,79 @@ impl<D: Device> GpuScene<D> {
         derived_frame: u64,
     ) -> Result<(), RenderError> {
         let (requires_bvh, detail) = sampling;
-        let mut needed: BTreeMap<crate::scene_gpu::record_cache::RecordKey, usize> =
-            BTreeMap::new();
-        let mut policies: Vec<crate::scene_gpu::slot_types::CullPolicy> =
-            Vec::with_capacity(self.slots.len());
-        for (slot_index, slot) in self.slots.iter().enumerate() {
-            let Some(representation) = scene.representation(slot.key.representation) else {
-                continue;
+        // Rebuild into the scene's retained capacity: a steady-state frame
+        // must not allocate a fresh map and policy vector per frame.
+        let mut needed = std::mem::take(&mut self.sync_scratch.needed_records);
+        needed.clear();
+        let mut policies = std::mem::take(&mut self.sync_scratch.cull_policies);
+        policies.clear();
+        pack_slot_policies(self, scene, detail, &mut needed, &mut policies);
+        {
+            let slots: &[GpuSlot<D>] = &self.slots;
+            let (records, acceleration) = (&mut self.records, &mut self.acceleration);
+            let mut scratch = crate::scene_gpu::record_cache::RecordScratch {
+                atoms: &mut self.atom_scratch,
+                bonds: &mut self.bond_scratch,
+                compaction: &mut self.compaction_scratch,
             };
-            let Some(selection_handle) = representation.selection() else {
-                continue;
+            let mut budget = crate::scene_gpu::record_cache::RecordBudget::<D> {
+                ledger: derived_cache,
+                frame: derived_frame,
+                _device: std::marker::PhantomData,
             };
-            let Some(placed) = scene.structure(slot.key.structure) else {
-                continue;
-            };
-            let Some(structure_gpu) = self.structures.get(slot.structure_index) else {
-                continue;
-            };
-            let (_, property_revisions) =
-                properties::resolve(scene, representation, slot.key.structure);
-            let key = crate::scene_gpu::record_cache::RecordCache::<D>::key(
-                scene,
-                placed,
-                slot.key.structure,
-                representation,
-                selection_handle,
-                structure_gpu.asset_identity(),
-                property_revisions,
-            );
-            let _ = needed.entry(key).or_insert(slot_index);
-            policies.push(crate::scene_gpu::slot_types::CullPolicy {
-                records: key,
-                kind: representation.kind,
-                visual_enabled: representation.visual.is_some(),
-                lod_enabled: detail.lod_enabled,
-                bond_break_length: placed.bond_break_length(),
-            });
+            records.sync(
+                acceleration,
+                &mut budget,
+                &needed,
+                requires_bvh,
+                &mut scratch,
+                |slot_index, key| {
+                    let Some(slot) = slots.get(slot_index) else {
+                        return Ok(None);
+                    };
+                    let Some(representation) = scene.representation(slot.key.representation) else {
+                        return Ok(None);
+                    };
+                    let Some(selection_handle) = representation.selection() else {
+                        return Ok(None);
+                    };
+                    let Some(selection) =
+                        scene.selection_for(selection_handle, key.selection.structure)
+                    else {
+                        return Ok(None);
+                    };
+                    let Some(placed) = scene.structure(key.selection.structure) else {
+                        return Ok(None);
+                    };
+                    let (color, _) =
+                        properties::resolve(scene, representation, key.selection.structure);
+                    Ok(Some(crate::scene_gpu::record_cache::RecordPrepare {
+                        device,
+                        queue,
+                        placed,
+                        representation,
+                        selection,
+                        color,
+                    }))
+                },
+            )?;
         }
-        let slots: &[GpuSlot<D>] = &self.slots;
-        let (records, acceleration) = (&mut self.records, &mut self.acceleration);
-        let mut scratch = crate::scene_gpu::record_cache::RecordScratch {
-            atoms: &mut self.atom_scratch,
-            bonds: &mut self.bond_scratch,
-            compaction: &mut self.compaction_scratch,
-        };
-        let mut budget = crate::scene_gpu::record_cache::RecordBudget::<D> {
-            ledger: derived_cache,
-            frame: derived_frame,
-            _device: std::marker::PhantomData,
-        };
-        records.sync(
-            acceleration,
-            &mut budget,
-            &needed,
-            requires_bvh,
-            &mut scratch,
-            |slot_index, key| {
-                let Some(slot) = slots.get(slot_index) else {
-                    return Ok(None);
-                };
-                let Some(representation) = scene.representation(slot.key.representation) else {
-                    return Ok(None);
-                };
-                let Some(selection_handle) = representation.selection() else {
-                    return Ok(None);
-                };
-                let Some(selection) =
-                    scene.selection_for(selection_handle, key.selection.structure)
-                else {
-                    return Ok(None);
-                };
-                let Some(placed) = scene.structure(key.selection.structure) else {
-                    return Ok(None);
-                };
-                let (color, _) =
-                    properties::resolve(scene, representation, key.selection.structure);
-                Ok(Some(crate::scene_gpu::record_cache::RecordPrepare {
-                    device,
-                    queue,
-                    placed,
-                    representation,
-                    selection,
-                    color,
-                }))
-            },
-        )?;
-        self.sync_visibility(
-            device,
-            queue,
-            scene,
-            &policies,
-            derived_cache,
-            derived_frame,
-        )?;
-        self.sync_argument_slots(device, queue, &policies, derived_cache, derived_frame)
+        let result = (|| {
+            self.sync_visibility(
+                device,
+                queue,
+                scene,
+                &policies,
+                derived_cache,
+                derived_frame,
+            )?;
+            self.sync_argument_slots(device, queue, &policies, derived_cache, derived_frame)
+        })();
+        // Return the buffers whatever the outcome so a failed frame keeps the
+        // capacity for the next one.
+        self.sync_scratch.needed_records = needed;
+        self.sync_scratch.cull_policies = policies;
+        result
     }
 
     /// Derives one shared visible set per distinct culling policy.
@@ -133,10 +155,8 @@ impl<D: Device> GpuScene<D> {
         derived_cache: &mut crate::DerivedCache,
         derived_frame: u64,
     ) -> Result<(), RenderError> {
-        let mut visibility_needed: BTreeMap<
-            crate::scene_gpu::VisibilityKey,
-            (u32, u32, crate::scene_gpu::buffers::CullCountInput),
-        > = BTreeMap::new();
+        let mut visibility_needed = std::mem::take(&mut self.sync_scratch.visibility_needed);
+        visibility_needed.clear();
         for &crate::scene_gpu::slot_types::CullPolicy {
             records: record_key,
             kind,
@@ -189,12 +209,10 @@ impl<D: Device> GpuScene<D> {
                     .entry(key)
                     .or_insert((set.atom_count, set.bond_count, counts));
         }
-        self.visibility.sync(device, queue, &visibility_needed)?;
-        for key in self.visibility.keys().collect::<Vec<_>>() {
-            let footprint = self.visibility.get(key).map_or(
-                0,
-                crate::scene_gpu::visibility_cache::VisibilitySet::resident_bytes,
-            );
+        let synced = self.visibility.sync(device, queue, &visibility_needed);
+        self.sync_scratch.visibility_needed = visibility_needed;
+        synced?;
+        for (key, footprint) in self.visibility.resident() {
             let _ = derived_cache.retain(
                 key,
                 crate::DerivedCacheClass::Visibility,
@@ -245,7 +263,8 @@ impl<D: Device> GpuScene<D> {
             self.cull_binding_revision = self.cull_binding_revision.wrapping_add(1);
         }
         self.argument_offsets.clear();
-        let mut live = Vec::with_capacity(policies.len());
+        let mut live = std::mem::take(&mut self.sync_scratch.live_argument_slots);
+        live.clear();
         for policy in policies {
             if self.argument_offsets.contains_key(&policy.records) {
                 continue;
@@ -260,7 +279,11 @@ impl<D: Device> GpuScene<D> {
             let atom = self.indirect.write(
                 queue,
                 crate::scene_gpu::IndirectSlotKey::Atom(visibility),
-                6,
+                if policy.kind == molgfx_core::RepresentationKind::Dots {
+                    6 * super::super::slot_types::DOT_SAMPLE_COUNT
+                } else {
+                    6
+                },
                 0,
             )?;
             let bond = self.indirect.write(
@@ -286,6 +309,7 @@ impl<D: Device> GpuScene<D> {
                 .insert(policy.records, (atom, bond, surface));
         }
         self.indirect.retain(&live);
+        self.sync_scratch.live_argument_slots = live;
         // The arena is one scene-wide allocation; it is charged against the
         // first key that needed it so the ledger can see it at all.
         if let Some((key, _)) = self.argument_offsets.iter().next() {

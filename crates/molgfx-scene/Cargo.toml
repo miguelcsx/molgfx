@@ -9,8 +9,13 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+# Host interop: render into a texture owned by an embedding application.
+host = ["molgfx-wgpu/host"]
+
 [dependencies]
 molgfx-core.workspace = true
+molgfx-geometry.workspace = true
 molgfx-gpu.workspace = true
 molgfx-math.workspace = true
 molgfx-render.workspace = true

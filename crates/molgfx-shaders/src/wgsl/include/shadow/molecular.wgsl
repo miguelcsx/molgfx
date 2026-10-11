@@ -25,13 +25,9 @@ fn vs_shadow_sphere(
             visible_atoms[instance]
         ];
 
-    let center =
-        shadow_view_position(
-            atom_position(atom.entity_id)
-        );
-
-    let radius =
-        abs(atom.radius);
+    let sphere = molecular_sphere(atom, false);
+    let center = shadow_view_position(sphere.xyz);
+    let radius = sphere.w;
 
     let light_xy =
         center.xy
@@ -156,9 +152,7 @@ fn vs_shadow_bond(
     @builtin(instance_index) instance: u32,
 ) -> ShadowBondVsOut {
     let bond =
-        bonds[
-            visible_bonds[instance]
-        ];
+        molecular_bond(visible_bonds[instance]);
 
     let endpoint_a =
         shadow_view_position(

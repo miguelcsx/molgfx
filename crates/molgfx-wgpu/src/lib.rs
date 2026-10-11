@@ -16,3 +16,12 @@ pub use backend::{
     WgpuBuffer, WgpuCommandEncoder, WgpuDevice, WgpuQueue, WgpuReadback, WgpuShaderModule,
     WgpuSurface, WgpuTexture,
 };
+
+/// The wgpu version the host-interop types are expressed in. A host must use
+/// this exact version (or re-export it) so its handles are the same types.
+#[cfg(feature = "host")]
+pub use backend::{
+    HostContext, HostRequirements, host_device_descriptor, host_requirements, unmet_requirements,
+};
+#[cfg(feature = "host")]
+pub use wgpu;

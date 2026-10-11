@@ -19,6 +19,7 @@ pub(super) struct RibbonTrace<'a> {
     pub(super) property_count: usize,
     pub(super) normals: &'a [Vec3],
     pub(super) guides: &'a [GuideKind],
+    pub(super) plane_rows: &'a [u32],
 }
 
 pub(super) fn append_ribbon(
@@ -26,42 +27,21 @@ pub(super) fn append_ribbon(
     build: &mut RibbonBuild<'_>,
 ) -> Result<(), crate::PackingError> {
     let RibbonTrace {
-        points: trace,
         entities,
         styles,
         normals,
         guides,
         ..
     } = input;
-    // The adaptive sampler sees the shape of the curve and nothing else, so a
-    // twisting ribbon has to tell it how far it turns; without that a glycan
-    // earns one sample per sugar and folds. The demand is per interval, so a
-    // run of coplanar rings still costs what a straight ribbon costs.
-    if build.params.profile == SplineProfile::Twister {
-        super::twist::twist_demand(trace, normals, build.demand);
-    } else {
-        build.demand.clear();
-    }
-    molgfx_math::sample_catmull_rom_demanding(
-        trace,
-        build.params.tolerance,
-        build.params.max_steps,
-        build.demand,
-        build.samples,
-    );
-    if matches!(
-        build.params.profile,
-        SplineProfile::Cartoon | SplineProfile::Rocket
-    ) && build.params.arrow_factor > 0.0
-    {
-        super::profiles::arrow_shoulders(styles, build.samples);
-    }
+    sample_trace(input, build)?;
     molgfx_math::parallel_transport(build.samples, build.frames);
     if build.samples.len() < 2 || build.samples.len() != build.frames.len() {
         return Ok(());
     }
     if build.params.profile == SplineProfile::Twister {
         super::twist::orient_to_rings(build.samples, normals, build.frames);
+    } else if build.params.profile == SplineProfile::Cartoon {
+        super::orientation::orient_to_peptides(build.samples, normals, build.frames);
     }
     let shell_indices: u64 = build
         .samples
@@ -107,6 +87,76 @@ pub(super) fn append_ribbon(
     append_end_caps(entities, styles, guides, half_width, half_thickness, build)
 }
 
+fn sample_trace(
+    input: RibbonTrace<'_>,
+    build: &mut RibbonBuild<'_>,
+) -> Result<(), crate::PackingError> {
+    let RibbonTrace {
+        points: trace,
+        styles,
+        normals,
+        ..
+    } = input;
+    // The adaptive sampler sees the shape of the curve and nothing else, so a
+    // twisting ribbon has to tell it how far it turns; without that a glycan
+    // earns one sample per sugar and folds. The demand is per interval, so a
+    // run of coplanar rings still costs what a straight ribbon costs.
+    if build.params.profile == SplineProfile::Twister {
+        super::twist::twist_demand(trace, normals, build.demand);
+    } else {
+        build.demand.clear();
+    }
+    if build.params.profile == SplineProfile::Trace {
+        build.samples.clear();
+        for (segment, interval) in trace.windows(2).enumerate() {
+            let segment = super::draw_limits::vertex_index(segment)?;
+            for parameter in [0.0, 1.0] {
+                build.samples.push(molgfx_math::CurveSample {
+                    position: interval[0].lerp(interval[1], parameter),
+                    tangent: (interval[1] - interval[0]).normalize_or_zero(),
+                    segment,
+                    parameter,
+                });
+            }
+        }
+    } else {
+        molgfx_math::sample_catmull_rom_demanding(
+            trace,
+            build.params.tolerance,
+            build.params.max_steps,
+            build.demand,
+            build.samples,
+        );
+    }
+    if matches!(
+        build.params.profile,
+        SplineProfile::Cartoon | SplineProfile::Rocket
+    ) && build.params.arrow_factor > 0.0
+    {
+        super::profiles::arrow_shoulders(styles, build.samples);
+    }
+    if build.params.profile == SplineProfile::Rocket {
+        let mut helix = None;
+        for sample in build.samples.iter_mut() {
+            let segment = sample.segment as usize;
+            if helix
+                .as_ref()
+                .is_none_or(|run: &std::ops::Range<usize>| !run.contains(&segment))
+            {
+                helix = super::rocket::helix_run(styles, segment);
+            }
+            if let Some(run) = &helix
+                && segment + 1 < run.end
+                && segment + 1 < trace.len()
+            {
+                sample.position = trace[segment].lerp(trace[segment + 1], sample.parameter);
+                sample.tangent = (trace[segment + 1] - trace[segment]).normalize_or_zero();
+            }
+        }
+    }
+    Ok(())
+}
+
 fn flat_interval(
     samples: &[molgfx_math::CurveSample],
     styles: &[SecondaryStructure],
@@ -127,11 +177,10 @@ fn append_vertices(input: RibbonTrace<'_>, build: &mut RibbonBuild<'_>) {
     let RibbonTrace {
         entities,
         styles,
-        property_base,
-        property_count,
         guides,
         ..
     } = input;
+    let mut helix = None;
     for (sample, frame) in build.samples.iter().zip(build.frames.iter()) {
         let segment = usize::try_from(sample.segment)
             .into_iter()
@@ -152,8 +201,7 @@ fn append_vertices(input: RibbonTrace<'_>, build: &mut RibbonBuild<'_>) {
             segment,
             guides.get(segment).copied(),
         );
-        let controls = control_rows(entities, segment);
-        let radius_controls = radius_control_rows(property_base, property_count, segment);
+        let deformation = deformation(input, build.params.profile, sample, segment, &mut helix);
         for side in 0..PROFILE_SIDES {
             let (x, y, normal) = cross_section(
                 sample_profile(build.params, style, guides.get(segment).copied()),
@@ -175,16 +223,67 @@ fn append_vertices(input: RibbonTrace<'_>, build: &mut RibbonBuild<'_>) {
                 normal: normal.to_array(),
                 color: profile_color(build.params.profile, y, build.params.color),
             });
-            build.deformations.push(RibbonDeformation {
-                controls,
-                parameter: [
-                    sample.parameter,
-                    f32::from_bits(radius_controls[0]),
-                    f32::from_bits(radius_controls[1]),
-                    0.0,
-                ],
-            });
+            build.deformations.push(deformation);
         }
+    }
+}
+
+fn deformation(
+    input: RibbonTrace<'_>,
+    profile: SplineProfile,
+    sample: &molgfx_math::CurveSample,
+    segment: usize,
+    helix: &mut Option<std::ops::Range<usize>>,
+) -> RibbonDeformation {
+    let RibbonTrace {
+        entities,
+        styles,
+        property_base,
+        property_count,
+        plane_rows,
+        ..
+    } = input;
+    let mut controls = control_rows(entities, segment);
+    let mut radius_controls = radius_control_rows(property_base, property_count, segment);
+    let mut mode = if profile == SplineProfile::Trace {
+        3
+    } else {
+        0
+    };
+    if profile == SplineProfile::Rocket {
+        if helix
+            .as_ref()
+            .is_none_or(|run: &std::ops::Range<usize>| !run.contains(&segment))
+        {
+            *helix = super::rocket::helix_run(styles, segment);
+        }
+        if let Some(run) = &*helix
+            && segment + 1 < run.end
+        {
+            let first = control_rows(entities, run.start)[1];
+            let last = control_rows(entities, run.end - 1)[1];
+            controls = [controls[1], controls[2], first, last];
+            radius_controls = [u32::MAX; 2];
+            mode = 6;
+        }
+    }
+    if profile == SplineProfile::Cartoon
+        && let (Some(&left), Some(&right)) = (plane_rows.get(segment), plane_rows.get(segment + 1))
+        && left != u32::MAX
+        && right != u32::MAX
+    {
+        radius_controls = [left, right];
+        mode = 4;
+    }
+
+    RibbonDeformation {
+        controls,
+        parameter: [
+            sample.parameter,
+            f32::from_bits(radius_controls[0]),
+            f32::from_bits(radius_controls[1]),
+            f32::from_bits(mode),
+        ],
     }
 }
 

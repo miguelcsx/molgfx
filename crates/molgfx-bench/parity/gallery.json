@@ -777,9 +777,9 @@
       "form": "script",
       "script": {
         "molgfx": [
-          "show nucleic_acid as main, nucleic",
+          "show tube as main, nucleic",
           "show bases, nucleic",
-          "color chain, @main"
+          "color chain, all"
         ],
         "pymol": [
           "show cartoon, fixture",
@@ -845,8 +845,9 @@
       "form": "script",
       "script": {
         "molgfx": [
-          "show nucleic_acid as main, nucleic",
-          "show base_pairs, nucleic"
+          "show tube as main, nucleic",
+          "show base_pairs, nucleic",
+          "color chain, all"
         ],
         "pymol": [
           "show cartoon, fixture",
@@ -1623,7 +1624,7 @@
       "script": {
         "molgfx": [
           "show cartoon, protein",
-          "show surface kind=gaussian style=soft_union as shell, protein",
+          "show surface kind=van_der_waals style=soft_union as shell, protein",
           "opacity 0.6, @shell",
           "color chain, @shell"
         ],

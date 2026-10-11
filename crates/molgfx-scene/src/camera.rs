@@ -80,6 +80,22 @@ pub fn perspective(
 pub use molgfx_core::{CameraEasing, CameraKeyframe, CameraPath};
 pub use molgfx_math::{Ray, ScreenPoint};
 
+/// Parallel left/right eye cameras with a shared convergence distance.
+///
+/// # Errors
+/// Returns an invalid specification error for invalid stereo or camera parameters.
+pub fn stereo_eyes(
+    camera: crate::Camera,
+    separation: f32,
+    convergence: f32,
+) -> Result<[crate::Camera; 2], crate::Error> {
+    camera.stereo_eyes(separation, convergence).ok_or_else(|| {
+        crate::Error::InvalidSpec(
+            "stereo separation and convergence must be finite, ordered and non-degenerate".into(),
+        )
+    })
+}
+
 /// Where a world point lands on a render target of `size`, in pixels from the
 /// top-left, with the renderer's conventions; `None` behind the eye.
 #[must_use]

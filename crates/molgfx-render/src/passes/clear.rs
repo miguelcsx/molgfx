@@ -61,8 +61,13 @@ impl ClearPass {
 
     /// Clears the categorical picking attachments to their shared empty
     /// sentinel before any transparent segment draw.
+    ///
+    /// Skipped when no representation draws a segmentation, matching every
+    /// other pass that writes these attachments: with nothing to draw, the
+    /// cleared values are never read, and clearing two full-resolution integer
+    /// attachments is not free.
     pub(crate) fn segment_ids<D: Device>(ctx: &mut PassContext<'_, D>) {
-        if ctx.scene.is_massive_points_only() {
+        if ctx.scene.is_massive_points_only() || ctx.scene.segmentation_draws().next().is_none() {
             return;
         }
         let (Some(volume), Some(label)) = (

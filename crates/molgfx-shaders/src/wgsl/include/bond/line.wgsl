@@ -32,7 +32,7 @@ fn vs_bond_line(
     if bond_index == HIDDEN_WIRE_BOND {
         return hidden_bond_line();
     }
-    let bond = bonds[bond_index];
+    let bond = molecular_bond(bond_index);
 
     let atom_a = atoms[bond.atom_a];
     let atom_b = atoms[bond.atom_b];
@@ -51,7 +51,7 @@ fn vs_bond_line(
         );
     let separation =
         bond_view_direction(
-            bond_perpendicular(bond_world_axis(world_a, world_b)),
+            bond_separation_direction(bond_world_axis(world_a, world_b), bond.flags),
         ) * (variant.offset_radii * abs(bond.radius));
 
     let endpoint_a = bond_view_position(world_a) + separation;

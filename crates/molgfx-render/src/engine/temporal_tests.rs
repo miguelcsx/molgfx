@@ -166,3 +166,18 @@ fn convergence_is_a_four_sample_budget_reached_in_order_and_restarted_by_any_cha
     let _ = state.prepare(&moved, &options(false));
     assert!(state.needs_another_frame(BUDGET));
 }
+
+#[test]
+fn a_semantic_reset_restarts_the_same_projection_sequence_as_a_fresh_view() {
+    let view = camera();
+    let mut initial = TemporalState::default();
+    let expected: Vec<_> = (0..8)
+        .map(|_| initial.prepare(&view, &options(true)).proj)
+        .collect();
+    let mut reset = options(true);
+    reset.reset = true;
+    assert_eq!(initial.prepare(&view, &reset).proj, expected[0]);
+    for projection in &expected[1..] {
+        assert_eq!(initial.prepare(&view, &options(true)).proj, *projection);
+    }
+}

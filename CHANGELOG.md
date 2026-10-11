@@ -5,6 +5,41 @@ All notable changes to MolGFX are recorded here. The project follows
 change the public API. MolGFX 0.5 needs `molframe>=0.5.1`: publish or install
 that first.
 
+## Unreleased
+
+- Correct Trace segments, nucleotide phosphate guides, Dotted surface samples,
+  residue Beads, Lines endpoint picking, Licorice scaling and Gaussian widths.
+- Orient Cartoon ribbons from peptide planes; render distinct base-ring polygons
+  and geometrically supported canonical base pairs using MolFrame detection.
+- Refit Rocket helices from all resident guides on the GPU and follow internal
+  base-ring motion during trajectories, including previous-frame coordinates.
+- Add parallel stereo cameras, separate eye exposures and standard image layouts.
+- Connect browser pointer hover to transient molecular highlighting and preserve
+  settled state on repeated picks. Restart semantic resets with the same temporal
+  sampling sequence as fresh views. Exclude settled-frame idle time from browser
+  adaptive timing feedback.
+
+- Add `Scene::set_trajectory_pair` and `clear_trajectory_pair`: play a structure from a
+  pair of caller-owned frames without declaring a trajectory or resolving the scene
+  again. The pair shares the caller's coordinate arrays, refits the structure's
+  hierarchy once, and survives edits that resolve the scene again, so an application
+  can stream decoded frames (sliding the pair one frame at a time) at display rate.
+- Accept `molframe >=0.5.1, <0.7` so a host can pair molgfx with molframe 0.6.
+- Feed the adaptive quality loop from host-target frames. `render_to_host` never
+  did, so a host never left the initial reduced tier (no ambient occlusion, no
+  shadows, coarse ribbons) however fast its frames were.
+- Fix cartoons and surfaces of more than 131 072 atoms drawing nothing in the
+  adaptive realtime path: tile-depth LOD kept one nearest atom per screen tile,
+  which erases a ribbon built from neighbouring atoms. Cartoon and surface
+  representations no longer use it; atom forms and point clouds are unchanged.
+
+- Add the `host` cargo feature and `molgfx::host`: build a `Renderer` on a wgpu
+  adapter, device and queue the host already owns, with typed errors listing
+  every unmet feature or limit (`host_requirements`, `host_device_descriptor`).
+- Render realtime or converged frames into host-owned textures with no CPU
+  readback, or into renderer-owned targets the host can sample; each frame
+  returns a fence on the shared queue. One renderer drives several targets.
+
 ## 0.5.2 — 2026-10-05
 
 - Render source-backed dashed polymer gaps with explicit styles.

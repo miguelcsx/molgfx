@@ -8,6 +8,7 @@ mod init;
 mod paged_instances;
 pub(crate) use paged_instances::PagedInstancesSync;
 pub(crate) use paged_relations::PagedRelationsSync;
+mod helix_fits;
 mod paged_relations;
 mod properties;
 mod relations;
@@ -95,7 +96,7 @@ pub(crate) struct GpuScene<D: Device> {
     pub surface_field_input_layout: D::BindGroupLayout,
     pub surface_field_erosion_layout: D::BindGroupLayout,
     pub surface_component_layout: D::BindGroupLayout,
-    pub ribbon_layout: D::BindGroupLayout,
+    pub ribbon_layouts: super::layouts::RibbonLayouts<D>,
     pub atom_cull_layout: D::BindGroupLayout,
     pub bond_cull_layout: D::BindGroupLayout,
     pub visual_cull_layout: D::BindGroupLayout,
@@ -183,10 +184,34 @@ pub(crate) struct GpuScene<D: Device> {
     atom_scratch: Vec<AtomGpu>,
     bond_scratch: Vec<BondGpu>,
     compaction_scratch: Vec<u32>,
+    /// Reused per-frame inputs for the record, visibility and argument syncs.
+    /// Kept together and retained across frames so a steady-state frame rebuilds
+    /// these containers into existing capacity instead of allocating.
+    sync_scratch: SyncScratch,
     ribbon_scratch: molgfx_geometry::RibbonMesh,
     residency: ResidencyWorkspace<FrameUploadCommand>,
     residency_machine: ResidencyMachine,
     frame_residency: residency_init::FrameUniformResidency,
+}
+
+/// Reusable per-frame containers for the three sync passes.
+///
+/// Every field is cleared and refilled each frame rather than reallocated, so
+/// a steady-state frame's bookkeeping allocates nothing.
+#[derive(Debug, Default)]
+pub(crate) struct SyncScratch {
+    /// Distinct record keys this frame needs, mapped to a representative slot.
+    pub(super) needed_records:
+        std::collections::BTreeMap<crate::scene_gpu::record_cache::RecordKey, usize>,
+    /// One culling policy per slot.
+    pub(super) cull_policies: Vec<crate::scene_gpu::slot_types::CullPolicy>,
+    /// Distinct visibility keys and their packed counts.
+    pub(super) visibility_needed: std::collections::BTreeMap<
+        crate::scene_gpu::VisibilityKey,
+        (u32, u32, crate::scene_gpu::buffers::CullCountInput),
+    >,
+    /// Live indirect-argument slots, rebuilt per frame and passed to `retain`.
+    pub(super) live_argument_slots: Vec<crate::scene_gpu::IndirectSlotKey>,
 }
 
 impl<D: Device> GpuScene<D> {
@@ -221,7 +246,7 @@ impl<D: Device> GpuScene<D> {
                 queue,
                 mesh,
                 (
-                    &self.ribbon_layout,
+                    &self.ribbon_layouts.draw,
                     structure,
                     self.visual_fallback.entries(),
                 ),

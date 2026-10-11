@@ -211,7 +211,7 @@ impl TrajectoryFrame {
     }
 
     /// Retains this frame as core's own frame type.
-    fn native(&self) -> Result<molgfx_core::TrajectoryFrame, Error> {
+    pub(crate) fn native(&self) -> Result<molgfx_core::TrajectoryFrame, Error> {
         Ok(molgfx_core::TrajectoryFrame::new(
             self.index,
             self.time_seconds,

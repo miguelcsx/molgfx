@@ -140,6 +140,7 @@ fn append_connector(
                     property_count: 0,
                     normals: &[],
                     guides: &[],
+                    plane_rows: &[],
                 },
                 build,
             )?;

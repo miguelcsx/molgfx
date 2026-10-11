@@ -171,15 +171,19 @@ impl VisualCompatibility {
             RepresentationKind::Spacefill
             | RepresentationKind::BallAndStick
             | RepresentationKind::Licorice
+            | RepresentationKind::Bonds
             | RepresentationKind::Lines
             | RepresentationKind::Beads
-            | RepresentationKind::Points => Self::DEFORMABLE,
+            | RepresentationKind::Points
+            | RepresentationKind::Dots => Self::DEFORMABLE,
             RepresentationKind::Cartoon
             | RepresentationKind::Trace
             | RepresentationKind::Tube
             | RepresentationKind::Rocket
             | RepresentationKind::Twister
-            | RepresentationKind::PaperChain => Self::RIBBON,
+            | RepresentationKind::PaperChain
+            | RepresentationKind::Bases
+            | RepresentationKind::BasePairs => Self::RIBBON,
             RepresentationKind::Volume | RepresentationKind::Segmentation => Self::NONE,
         }
     }

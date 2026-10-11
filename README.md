@@ -61,6 +61,19 @@ and excluded residues remain disconnected. Connectors follow live coordinates
 and retain source atom identity for picking. Rust uses
 `.gaps(molgfx::rep::GapStyle::Dashed)`; commands use `gaps=dashed`.
 
+The browser viewer highlights picked atoms and bond endpoints on hover without
+changing the authored scene or selection. Rust hosts can use
+`Scene::set_pointer_hover`; leaving the molecule restores the authored hover channel.
+Repeated picks of the same entity preserve the settled exposure.
+
+For stereo, Rust uses `molgfx::camera::stereo_eyes` and
+`Renderer::render_stereo_images`. `StereoImages::compose` supports parallel and
+crossed side-by-side views, HD compression, checkerboard, rows, columns and
+red/cyan, red/blue or red/green anaglyphs. Eye cameras remain parallel and
+converge through an off-axis projection. Python uses `Camera.stereo_eyes`,
+and WASM uses `Camera.stereoEyes`. The `stereo_image` Rust example saves eye images
+and display layouts; the embedding host owns window-specific stereo presentation.
+
 Presentation effects are explicit values on a render profile:
 
 ```python
@@ -164,6 +177,29 @@ session.execute("show cartoon, protein")
 viewer = molgfx.Viewer(session)
 viewer  # Display in Jupyter.
 ```
+
+## Embedding in a host application
+
+An application that already owns a wgpu device (a desktop shell, a compositor)
+can render without any CPU copy. Enable the `host` feature of `molgfx`, create
+the device from `molgfx::host::host_device_descriptor(&adapter)` (or merge
+`host_requirements()` into your own), then:
+
+- `Renderer::from_host(profile, HostContext { adapter, device, queue }, HostOutputFormat::Rgba8)`
+  refuses a device that lacks a feature or limit and lists each one.
+- `renderer.host_target(&texture)` checks a texture you own (2-D, one layer and
+  mip, not multisampled, `RENDER_ATTACHMENT`; an sRGB texture must list its
+  linear sibling in `view_formats`). `renderer.create_host_target(w, h)` makes
+  one the renderer owns (render attachment, texture binding, copy source).
+- `render_to_host` (realtime) and `render_to_host_converged` record one
+  submission on your queue and return a `HostFrame { report, fence }`. Work you
+  submit later on the same queue is ordered after it; wait on the fence only to
+  read results on the CPU. Resize by making a new target. Several targets may
+  share one renderer, but they share its temporal history, so alternating sizes
+  restarts accumulation.
+
+See `crates/molgfx/examples/host_embed.rs`. The renderer and host must use the
+same wgpu version; `molgfx::host::wgpu` re-exports the one in use.
 
 ## Browser SDK
 

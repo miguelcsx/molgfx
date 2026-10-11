@@ -29,6 +29,7 @@ impl Scene {
             next_structure: 1,
             next_representation: 1,
             snapshot_bindings: super::snapshot::SnapshotBindings::default(),
+            playback: BTreeMap::new(),
         }
     }
     /// Builds a scene over a shared immutable `MolFrame` snapshot.
@@ -77,6 +78,7 @@ impl Scene {
             next_structure: 2,
             next_representation: 1,
             snapshot_bindings: super::snapshot::SnapshotBindings::default(),
+            playback: BTreeMap::new(),
         })
     }
 
@@ -172,6 +174,7 @@ impl Scene {
             next_structure,
             next_representation,
             snapshot_bindings: super::snapshot::SnapshotBindings::default(),
+            playback: BTreeMap::new(),
         })
     }
 }

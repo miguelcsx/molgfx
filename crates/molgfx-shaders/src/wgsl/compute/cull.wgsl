@@ -6,6 +6,7 @@
 
 const ENTITY_ID_MASK: u32 = 0x1FFFFFFFu;
 const VISIBLE_FLAG: u32 = 0x00010000u;
+const HIDE_MARKER_FLAG: u32 = 0x00100000u;
 const TILE_SIZE: u32 = 8u;
 const MAX_LOD_RADIUS_PIXELS: f32 = 8.0;
 const TILE_BITS: u32 = 18u;
@@ -43,7 +44,21 @@ struct AtomProjection {
 }
 
 @group(0) @binding(0) var<storage, read> input_atoms: array<AtomRecord>;
-@group(0) @binding(1) var<storage, read> input_bonds: array<BondRecord>;
+@group(0) @binding(1) var<storage, read> input_auxiliary: array<u32>;
+
+fn cull_bond(index: u32) -> BondRecord {
+    let start = index * 6u;
+    return BondRecord(input_auxiliary[start], input_auxiliary[start + 1u],
+        bitcast<f32>(input_auxiliary[start + 2u]), input_auxiliary[start + 3u],
+        input_auxiliary[start + 4u], input_auxiliary[start + 5u]);
+}
+
+fn bead_word(index: u32) -> u32 { return input_auxiliary[index]; }
+fn bead_coordinate(row: u32, previous: bool) -> vec3f {
+    let start = row * 3u;
+    return vec3f(coordinates[start], coordinates[start + 1u], coordinates[start + 2u]);
+}
+//!include "include/residue_beads.wgsl"
 @group(0) @binding(2) var<storage, read_write> output_atoms: array<u32>;
 @group(0) @binding(3) var<storage, read_write> output_bonds: array<u32>;
 @group(0) @binding(4) var<storage, read_write> atom_args: DrawArgs;
@@ -87,9 +102,11 @@ fn near_visibility(world: vec3f, radius: f32) -> u32 {
 /// Performs the expensive geometric visibility test once per atom.
 fn project_atom(index: u32) -> AtomProjection {
     let atom = input_atoms[index];
-    var radius = atom.radius;
+    let molecular = bead_geometry(atom, false);
+    var radius = molecular.w;
 
-    if (atom.element_flags & VISIBLE_FLAG) == 0u || radius <= 0.0 {
+    if (atom.element_flags & VISIBLE_FLAG) == 0u
+        || (atom.element_flags & HIDE_MARKER_FLAG) != 0u || radius <= 0.0 {
         return AtomProjection(0u, 0u, 0u, 0u);
     }
     let geometry = visual_result_word(
@@ -104,7 +121,8 @@ fn project_atom(index: u32) -> AtomProjection {
         radius *= f32((geometry >> 16u) & 0xffu) / 64.0;
     }
 
-    let local = resolved_position(atom.entity_id);
+    var local = molecular.xyz;
+    if counts.visual_enabled != 0u { local += visual_result_offset(atom.entity_id & ENTITY_ID_MASK); }
 
     // Model transforms are affine. Keep the known homogeneous component out
     // of both matrix products and construct it only for clip projection.
@@ -190,7 +208,8 @@ fn bond_over_break_length(bond: BondRecord) -> bool {
 
 fn is_visible(index: u32) -> bool {
     let atom = input_atoms[index];
-    var radius = atom.radius;
+    let molecular = bead_geometry(atom, false);
+    var radius = molecular.w;
     if (atom.element_flags & VISIBLE_FLAG) == 0u || radius <= 0.0 {
         return false;
     }
@@ -205,7 +224,8 @@ fn is_visible(index: u32) -> bool {
     if counts.visual_enabled != 0u {
         radius *= f32((geometry >> 16u) & 0xffu) / 64.0;
     }
-    let local = resolved_position(atom.entity_id);
+    var local = molecular.xyz;
+    if counts.visual_enabled != 0u { local += visual_result_offset(atom.entity_id & ENTITY_ID_MASK); }
     let world =
         model_to_world[0].xyz * local.x
         + model_to_world[1].xyz * local.y
@@ -366,6 +386,7 @@ fn cull_atoms(
             if counts.bonds != 0u {
                 output_atoms[counts.atoms + index] = select(0u, 1u, keep);
             }
+            keep = keep && (input_atoms[index].element_flags & HIDE_MARKER_FLAG) == 0u;
         } else {
             let cached = output_atoms[counts.atoms + index];
             keep = cached != 0u;
@@ -394,7 +415,7 @@ fn cull_bonds(
     var keep = false;
 
     if index < counts.bonds {
-        let bond = input_bonds[index];
+        let bond = cull_bond(index);
         let atom_a = bond.atom_a;
 
         if output_atoms[counts.atoms + atom_a] != 0u {
@@ -423,7 +444,7 @@ fn cull_bonds_direct(
 ) {
     let index = id.x + id.y * groups.x * 64u;
     if index < counts.bonds {
-        let bond = input_bonds[index];
+        let bond = cull_bond(index);
         let keep = is_visible(bond.atom_a)
             && is_visible(bond.atom_b)
             && !bond_over_break_length(bond);

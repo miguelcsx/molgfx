@@ -42,6 +42,24 @@ pub struct VolumeTransferPoint {
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum VolumePresentation {
+    /// Positive and negative lobes of a caller-sampled wavefunction amplitude.
+    Orbital {
+        /// Strictly positive wavefunction amplitude magnitude.
+        amplitude: f32,
+        /// Color of the positive lobe.
+        positive: Color,
+        /// Color of the negative lobe.
+        negative: Color,
+        /// Opacity shared by both lobes.
+        opacity: f32,
+        /// Solid, line or dot boundary presentation.
+        style: IsoStyle,
+    },
+    /// Gradient streamlines integrated from the bound scalar field.
+    FieldLines {
+        /// Integration and stroke controls.
+        options: super::FieldLines,
+    },
     /// Lit scalar boundary.
     Isosurface {
         /// Absolute scalar level.
@@ -97,6 +115,29 @@ impl VolumePresentation {
     pub(crate) fn native(&self) -> Result<RepresentationConfig, Error> {
         let config = molgfx_core::Representation::volume();
         Ok(match self {
+            Self::Orbital {
+                amplitude,
+                positive,
+                opacity,
+                style,
+                ..
+            } => {
+                if !amplitude.is_finite() || *amplitude <= 0.0 {
+                    return Err(invalid(
+                        "orbital amplitude magnitude must be finite and positive",
+                    ));
+                }
+                Self::Isosurface {
+                    isovalue: *amplitude,
+                    color: *positive,
+                    opacity: *opacity,
+                    style: *style,
+                }
+                .native()?
+            }
+            Self::FieldLines { .. } => {
+                return Err(invalid("field lines require scalar-grid geometry lowering"));
+            }
             Self::Isosurface {
                 isovalue,
                 color,
@@ -172,6 +213,30 @@ impl VolumePresentation {
                 domain,
             } => slice(config, *point, *normal, ramp, *domain)?,
         })
+    }
+}
+
+impl VolumePresentation {
+    pub(super) fn orbital_lobes(&self) -> Result<Option<[RepresentationConfig; 2]>, Error> {
+        let Self::Orbital {
+            amplitude,
+            negative,
+            opacity,
+            style,
+            ..
+        } = self
+        else {
+            return Ok(None);
+        };
+        let positive = self.native()?;
+        let negative = Self::Isosurface {
+            isovalue: -*amplitude,
+            color: *negative,
+            opacity: *opacity,
+            style: *style,
+        }
+        .native()?;
+        Ok(Some([positive, negative]))
     }
 }
 

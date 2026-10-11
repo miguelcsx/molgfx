@@ -58,8 +58,7 @@ impl Scene {
     /// A channel edit is not a rebuild. Rebuilding every column re-evaluates
     /// every declared query and walks the whole molecule per channel, so the
     /// edit an application performs per frame — the hover that moves between
-    /// atoms — would cost the size of the structure. Clearing first and then
-    /// setting exactly the rows the new query selects costs the molecule once
+    /// atoms — would cost the size of the structure. Visiting selected rows and clearing the gaps costs the molecule once
     /// per edit, not once per channel.
     ///
     /// The column itself is the authority on which rows used to carry the bit,
@@ -89,20 +88,25 @@ impl Scene {
             });
         }
         let mut changed = false;
-        for word in words.iter_mut() {
-            let cleared = *word & !mask;
-            changed |= cleared != *word;
-            *word = cleared;
-        }
+        let mut cursor = 0;
         if let Some(rows) = rows {
             rows.for_each(atom_count, |row| {
-                if let Some(word) = words.get_mut(row as usize)
-                    && *word & mask == 0
-                {
-                    *word |= mask;
-                    changed = true;
+                let row = row as usize;
+                if row < cursor {
+                    return;
                 }
+                for word in &mut words[cursor..row] {
+                    changed |= *word & mask != 0;
+                    *word &= !mask;
+                }
+                changed |= words[row] & mask != mask;
+                words[row] |= mask;
+                cursor = row + 1;
             });
+        }
+        for word in &mut words[cursor..] {
+            changed |= *word & mask != 0;
+            *word &= !mask;
         }
         if changed {
             self.interaction_state_revision = self.interaction_state_revision.wrapping_add(1);

@@ -7,6 +7,7 @@ mod ensembles;
 mod generic_batches;
 mod generic_timeline;
 mod interaction_state;
+mod pointer_hover;
 pub use difference::{AtomCorrespondence, DifferenceScene, DifferenceStyle, DifferenceView};
 pub use generic_timeline::{InstanceFramePair, PointFramePair};
 pub use interaction_state::InteractionState;

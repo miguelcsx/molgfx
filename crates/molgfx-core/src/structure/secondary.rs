@@ -102,6 +102,10 @@ impl SecondaryStructure {
     }
 
     /// Whether the state is a strand or an isolated beta bridge.
+    ///
+    /// Both carry Mol*'s beta category, so both take the flat arrow
+    /// cross-section rather than the round coil cord: an isolated bridge drawn
+    /// as a loop breaks the visual continuity of the sheet it belongs to.
     #[must_use]
     pub const fn is_sheet_like(self) -> bool {
         matches!(self, Self::Strand | Self::BetaBridge)

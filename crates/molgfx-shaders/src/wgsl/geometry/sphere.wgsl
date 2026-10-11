@@ -55,7 +55,7 @@ fn vs_sphere_opaque(
 
     out.previous_softness =
         vec4f(
-            previous_atom_position(atom.entity_id) -
+            molecular_sphere(atom, true).xyz -
                 geometry.world_center,
             0.0,
         );

@@ -257,6 +257,8 @@ class Camera:
         *,
         aspect: float = 1.0,
     ) -> Camera: ...
+    def stereo_eyes(self, separation: float, convergence: float) -> tuple[Camera, Camera]:
+        """Return parallel left and right cameras with a shared convergence plane."""
     @property
     def position(self) -> tuple[float, float, float]: ...
     @property
@@ -449,6 +451,8 @@ type _Form = Literal[
     "ball_and_stick",
     "spacefill",
     "licorice",
+    "bonds",
+    "paper_chain",
     "lines",
     "points",
     "surface",
@@ -878,6 +882,22 @@ class _Rep:
         target: _Target,
         radius: float | None = None,
         bond_radius: float | None = None,
+        opacity: float = 1.0,
+        color: _ColorLike | None = None,
+    ) -> Representation: ...
+    def bonds(
+        self,
+        *,
+        target: _Target,
+        bond_radius: float | None = None,
+        opacity: float = 1.0,
+        color: _ColorLike | None = None,
+    ) -> Representation: ...
+    def paper_chain(
+        self,
+        *,
+        target: _Target,
+        width: float | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
     ) -> Representation: ...

@@ -115,3 +115,38 @@ fn padded_rows_are_compacted_without_reallocating_the_frame() {
     assert_eq!(compact.as_ptr(), allocation);
     assert_eq!(compact, (0_u8..24).collect::<Vec<_>>());
 }
+
+#[test]
+fn stereo_composition_reports_the_selected_eye_and_rejects_mixed_quality() {
+    let left = Image {
+        width: 2,
+        height: 1,
+        pixels: vec![0; 8],
+        quality: unrendered_quality(),
+    };
+    let mut right = Image {
+        width: 2,
+        height: 1,
+        pixels: vec![1; 8],
+        quality: left.quality,
+    };
+    right.quality.samples_submitted = 64;
+    right.quality.samples_completed = Some(64);
+    assert!(
+        left.compose_stereo(&right, crate::StereoLayout::SideBySide)
+            .is_err()
+    );
+    assert!(
+        left.compose_stereo(&right, crate::StereoLayout::Right)
+            .expect("right eye composes")
+            .quality
+            .complete()
+    );
+    assert!(
+        !left
+            .compose_stereo(&right, crate::StereoLayout::Left)
+            .expect("left eye composes")
+            .quality
+            .complete()
+    );
+}

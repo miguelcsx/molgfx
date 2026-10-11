@@ -1,6 +1,7 @@
 //! Construction of persistent scene layouts, fallbacks, and empty tables.
 
 use super::GpuScene;
+use super::SyncScratch;
 use super::fallback::fallback_texture;
 use crate::ResidencyConfig;
 use crate::error::RenderError;
@@ -11,13 +12,13 @@ use crate::scene_gpu::instance_batch_table::GpuInstanceBatches;
 use crate::scene_gpu::interaction_table::GpuInteractions;
 use crate::scene_gpu::label_table::GpuLabels;
 use crate::scene_gpu::layouts::{
-    atom_cull_layout, attribute_timeline_layout, bond_cull_layout, cartoon_layout,
-    generic_instance_cull_layout, generic_instance_render_layout, generic_point_cull_layout,
-    generic_point_render_layout, instance_timeline_layout, interaction_layout,
-    label_declutter_layout, label_render_layout, ligand_pose_layout, occupancy_layout,
-    overlay_layout, primitive_layout, primitive_motion_layout, primitive_shadow_layout,
-    quality_layout, relation_cull_layout, relation_resolve_layout, representation_layout,
-    segmentation_layout, trajectory_layout, visual_cull_layout, volume_layout,
+    atom_cull_layout, attribute_timeline_layout, bond_cull_layout, generic_instance_cull_layout,
+    generic_instance_render_layout, generic_point_cull_layout, generic_point_render_layout,
+    instance_timeline_layout, interaction_layout, label_declutter_layout, label_render_layout,
+    ligand_pose_layout, occupancy_layout, overlay_layout, primitive_layout,
+    primitive_motion_layout, primitive_shadow_layout, quality_layout, relation_cull_layout,
+    relation_resolve_layout, representation_layout, ribbon_layouts, segmentation_layout,
+    trajectory_layout, visual_cull_layout, volume_layout,
 };
 use crate::scene_gpu::ligand_pose_table::GpuLigandPoses;
 use crate::scene_gpu::overlay_table::GpuOverlays;
@@ -60,7 +61,7 @@ struct InitialLayouts<D: Device> {
     volume: D::BindGroupLayout,
     segmentation: D::BindGroupLayout,
     field_boundary: D::BindGroupLayout,
-    ribbon: D::BindGroupLayout,
+    ribbon: super::super::layouts::RibbonLayouts<D>,
     atom_cull: D::BindGroupLayout,
     bond_cull: D::BindGroupLayout,
     visual_cull: D::BindGroupLayout,
@@ -173,7 +174,7 @@ fn assemble<D: Device>(
         surface_field_input_layout: prepared.surface.layouts.input,
         surface_field_erosion_layout: prepared.surface.layouts.erosion,
         surface_component_layout: prepared.surface.layouts.component,
-        ribbon_layout: prepared.layouts.ribbon,
+        ribbon_layouts: prepared.layouts.ribbon,
         atom_cull_layout: prepared.layouts.atom_cull,
         bond_cull_layout: prepared.layouts.bond_cull,
         visual_cull_layout: prepared.layouts.visual_cull,
@@ -251,6 +252,7 @@ fn assemble<D: Device>(
         atom_scratch: Vec::new(),
         bond_scratch: Vec::new(),
         compaction_scratch: Vec::new(),
+        sync_scratch: SyncScratch::default(),
         ribbon_scratch: molgfx_geometry::RibbonMesh::default(),
         residency: residency.workspace,
         residency_machine: residency.machine,
@@ -265,7 +267,7 @@ fn initial_layouts<D: Device>(device: &D) -> Result<InitialLayouts<D>, RenderErr
         volume: volume_layout(device),
         segmentation: segmentation_layout(device),
         field_boundary: super::super::field_boundary::layout(device),
-        ribbon: cartoon_layout(device),
+        ribbon: ribbon_layouts(device),
         atom_cull: atom_cull_layout(device),
         bond_cull: bond_cull_layout(device),
         visual_cull: visual_cull_layout(device),

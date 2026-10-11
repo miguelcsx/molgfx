@@ -9,6 +9,102 @@ fn profile_diameters(vertices: &[crate::RibbonVertex]) -> (f32, f32) {
 }
 
 #[test]
+fn every_helix_has_helix_profiles_and_every_sheet_like_state_stays_flat() {
+    for state in SecondaryStructure::ALL {
+        let styles = [state; 3];
+        let expected = if state.is_helix() {
+            SecondaryStructure::AlphaHelix
+        } else if state.is_sheet_like() {
+            SecondaryStructure::Strand
+        } else {
+            SecondaryStructure::Coil
+        };
+        assert_eq!(
+            crate::cartoon::profiles::profile_scale(
+                state,
+                0.5,
+                &styles,
+                1,
+                RibbonParams::default().aspect_ratio,
+                RibbonParams::default().arrow_factor
+            ),
+            crate::cartoon::profiles::profile_scale(
+                expected,
+                0.5,
+                &styles,
+                1,
+                RibbonParams::default().aspect_ratio,
+                RibbonParams::default().arrow_factor
+            )
+        );
+        assert_eq!(
+            crate::cartoon::profiles::rocket_scale(
+                state,
+                0.5,
+                &styles,
+                1,
+                RibbonParams::default().arrow_factor
+            ),
+            crate::cartoon::profiles::rocket_scale(
+                expected,
+                0.5,
+                &styles,
+                1,
+                RibbonParams::default().arrow_factor
+            )
+        );
+    }
+}
+
+#[test]
+fn an_isolated_beta_bridge_takes_the_strand_arrow_not_the_coil_cord() {
+    use crate::cartoon::profiles::{arrow_shoulders, profile_scale};
+    let params = RibbonParams::default();
+    let styles = [SecondaryStructure::BetaBridge; 3];
+    let scale = |state| {
+        profile_scale(
+            state,
+            0.5,
+            &styles,
+            1,
+            params.aspect_ratio,
+            params.arrow_factor,
+        )
+    };
+    assert_eq!(
+        scale(SecondaryStructure::BetaBridge),
+        scale(SecondaryStructure::Strand),
+        "a bridge is drawn as the strand it is"
+    );
+    assert_ne!(
+        scale(SecondaryStructure::BetaBridge),
+        scale(SecondaryStructure::Coil),
+        "a bridge is not a round loop"
+    );
+    // The arrow shoulder that ends a beta run must also be added where a lone
+    // bridge forms the whole run, or the terminal bridge keeps its square end.
+    let lone_bridge = [
+        SecondaryStructure::Coil,
+        SecondaryStructure::BetaBridge,
+        SecondaryStructure::Coil,
+    ];
+    let sample = |segment: u32, parameter: f32| molgfx_math::CurveSample {
+        position: Vec3::ZERO,
+        tangent: Vec3::Z,
+        segment,
+        parameter,
+    };
+    let mut samples = vec![sample(0, 1.0), sample(1, 0.0)];
+    let before = samples.len();
+    arrow_shoulders(&lone_bridge, &mut samples);
+    assert_eq!(
+        samples.len(),
+        before + 1,
+        "the lone bridge gains its arrow shoulder"
+    );
+}
+
+#[test]
 fn a_straight_strand_places_its_authored_arrow_shoulder_at_the_last_strand_guide() {
     let mut mesh = RibbonMesh::default();
     let guides = [Vec3::ZERO, Vec3::X, Vec3::X * 2.0];

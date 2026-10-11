@@ -28,10 +28,20 @@ pub fn auto_representations(
     let size = StructureSize::from_polymer_residues(polymer);
     let mut forms = Vec::new();
     match size {
-        StructureSize::Small => forms.push(atomic(sel::all().into(), atoms, structure)),
+        StructureSize::Small => {
+            let target = (!sel::water() & !sel::ions()).into();
+            if count(source, &target)? > 0 {
+                forms.push(atomic(target, atoms, structure));
+            }
+            ion_form(source, structure, &mut forms)?;
+        }
         StructureSize::Medium => {
             polymer_forms(source, structure, &mut forms)?;
-            forms.push(atomic(non_polymer_non_solvent(), atoms, structure));
+            let target = non_polymer_non_solvent();
+            if count(source, &target)? > 0 {
+                forms.push(atomic(target, atoms, structure));
+            }
+            ion_form(source, structure, &mut forms)?;
         }
         StructureSize::Large => polymer_forms(source, structure, &mut forms)?,
         StructureSize::Huge => forms.push(
@@ -62,7 +72,7 @@ fn row_count(source: &MolecularSource) -> u32 {
 }
 
 fn non_polymer_non_solvent() -> Selection {
-    (!sel::polymer() & !sel::water()).into()
+    (!sel::polymer() & !sel::water() & !sel::ions()).into()
 }
 
 fn atomic(target: Selection, atoms: u64, structure: StructureId) -> RepresentationSpec {
@@ -121,4 +131,16 @@ fn polymer_residues(source: &MolecularSource) -> Result<u64, Error> {
         }
     });
     Ok(residues)
+}
+
+fn ion_form(
+    source: &MolecularSource,
+    structure: StructureId,
+    forms: &mut Vec<RepresentationSpec>,
+) -> Result<(), Error> {
+    let target: Selection = sel::ions().into();
+    if count(source, &target)? > 0 {
+        forms.push(rep::spacefill(target).structure(structure).into());
+    }
+    Ok(())
 }

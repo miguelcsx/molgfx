@@ -86,7 +86,7 @@ fn pack_atoms_inner(
             EntityId::pack(EntityKind::Atom, u64::from(index)).map_err(PackingError::from)?;
         Ok(Some(AtomGpu {
             radius: if representation.kind == RepresentationKind::Licorice {
-                representation.params.bond_radius
+                representation.params.bond_radius * scale
             } else {
                 radius * scale + surface_inflation
             },

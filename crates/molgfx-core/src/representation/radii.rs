@@ -1,65 +1,179 @@
-//! Display constants per element: van der Waals radii and CPK colors.
+//! Display constants per element: van der Waals radii and element colors.
 //!
-//! These are presentation defaults, not chemistry: the radius set is the
-//! community-standard one (Bondi 1964 with common extensions) and the colors
-//! follow the CPK convention chemists already read fluently. Both are
-//! indexed by atomic number in `O(1)`.
+//! These are presentation defaults, not chemistry: the radius set is the widely
+//! used one (Bondi 1964 with the common extensions the reference engines share)
+//! and the colors are the Jmol element table, so an atom reads the same here as
+//! it does in either `Mol*` or `PyMOL`. Both are indexed by atomic number in
+//! `O(1)` and cover the whole periodic table through mendelevium, which is where
+//! the shared radius table stops; anything past it takes a default rather than a
+//! wrong value.
 
 use molgfx_math::Rgba8;
 
-/// The radius drawn for an element no table covers, in Ångström.
-const DEFAULT_RADIUS: f32 = 1.7;
+/// The radius drawn for an element the table stops before, in Ångström.
+///
+/// Carbon's radius, which is the fallback the reference engines use for an
+/// unknown element.
+const DEFAULT_RADIUS: f32 = 1.70;
+
+/// Van der Waals radii in Ångström, indexed by atomic number.
+///
+/// Values match the reference element table, which is itself the Bondi set
+/// `PyMOL` draws atoms with. Elements with no agreed radius in that table,
+/// notably several transition metals, are absent rather than invented, and read
+/// as [`DEFAULT_RADIUS`]. A missing entry is stored as `0.0` so the table stays
+/// dense and indexable.
+const VDW_RADII: [f32; 110] = [
+    0.0, 1.10, 1.40, 1.81, 1.53, 1.92, 1.70, 1.55, 1.52,
+    1.47, // 0-9 (H, He, Li, Be, B, C, N, O, F)
+    1.54, 2.27, 1.73, 1.84, 2.10, 1.80, 1.80, 1.75, 1.88, 2.75, // 10-19
+    2.31, 2.30, 2.15, 2.05, 2.05, 2.05, 2.05, 2.00, 2.00, 2.00, // 20-29
+    2.10, 1.87, 2.11, 1.85, 1.90, 1.83, 2.02, 3.03, 2.49, 2.40, // 30-39
+    2.30, 2.15, 2.10, 2.05, 2.05, 2.00, 2.05, 2.10, 2.20, 2.20, // 40-49
+    1.93, 2.17, 2.06, 1.98, 2.16, 3.43, 2.68, 2.50, 2.48, 2.47, // 50-59
+    2.45, 2.43, 2.42, 2.40, 2.38, 2.37, 2.35, 2.33, 2.32, 2.30, // 60-69
+    2.28, 2.27, 2.25, 2.20, 2.10, 2.05, 2.00, 2.00, 2.05, 2.10, // 70-79
+    2.05, 1.96, 2.02, 2.07, 1.97, 2.02, 2.20, 3.48, 2.83, 2.00, // 80-89
+    2.40, 2.00, 2.30, 2.00, 2.00, 2.00, 2.00, 2.00, 2.00, 2.00, // 90-99
+    2.00, 2.00, 2.00, 2.00, 2.00, 2.00, 2.00, 2.00, 2.00, 2.00, // 100-109
+];
+
+/// Element colors in sRGB, indexed by atomic number.
+///
+/// This is the Jmol element table the reference engines color atoms with, so a
+/// carbon is the same grey and an iron the same orange across all of them.
+/// Elements the table leaves white are drawn white rather than given an
+/// invented hue.
+const ELEMENT_COLORS: [(u8, u8, u8); 110] = [
+    (0xFF, 0xFF, 0xFF),
+    (0xFF, 0xFF, 0xFF),
+    (0xD9, 0xFF, 0xFF),
+    (0xCC, 0x80, 0xFF),
+    (0xC2, 0xFF, 0x00), // 0-4
+    (0xFF, 0xB5, 0xB5),
+    (0x90, 0x90, 0x90),
+    (0x30, 0x50, 0xF8),
+    (0xFF, 0x0D, 0x0D),
+    (0x90, 0xE0, 0x50), // 5-9
+    (0xB3, 0xE3, 0xF5),
+    (0xAB, 0x5C, 0xF2),
+    (0x8A, 0xFF, 0x00),
+    (0xBF, 0xA6, 0xA6),
+    (0xF0, 0xC8, 0xA0), // 10-14
+    (0xFF, 0x80, 0x00),
+    (0xFF, 0xFF, 0x30),
+    (0x1F, 0xF0, 0x1F),
+    (0x80, 0xD1, 0xE3),
+    (0x8F, 0x40, 0xD4), // 15-19
+    (0x3D, 0xFF, 0x00),
+    (0xE6, 0xE6, 0xE6),
+    (0xBF, 0xC2, 0xC7),
+    (0xA6, 0xA6, 0xAB),
+    (0x8A, 0x99, 0xC7), // 20-24
+    (0x9C, 0x7A, 0xC7),
+    (0xE0, 0x66, 0x33),
+    (0xF0, 0x90, 0xA0),
+    (0x50, 0xD0, 0x50),
+    (0xC8, 0x80, 0x33), // 25-29
+    (0x7D, 0x80, 0xB0),
+    (0xC2, 0x8F, 0x8F),
+    (0x66, 0x8F, 0x8F),
+    (0xBD, 0x80, 0xE3),
+    (0xFF, 0xA1, 0x00), // 30-34
+    (0xA6, 0x29, 0x29),
+    (0x5C, 0xB8, 0xD1),
+    (0x70, 0x2E, 0xB0),
+    (0x00, 0xFF, 0x00),
+    (0x94, 0xFF, 0xFF), // 35-39
+    (0x94, 0xE0, 0xE0),
+    (0x73, 0xC2, 0xC9),
+    (0x54, 0xB5, 0xB5),
+    (0x3B, 0x9E, 0x9E),
+    (0x24, 0x8F, 0x8F), // 40-44
+    (0x0A, 0x7D, 0x8C),
+    (0x00, 0x69, 0x85),
+    (0xC0, 0xC0, 0xC0),
+    (0xFF, 0xD9, 0x8F),
+    (0xA6, 0x75, 0x73), // 45-49
+    (0x66, 0x80, 0x80),
+    (0x9E, 0x63, 0xB5),
+    (0xD4, 0x7A, 0x00),
+    (0x94, 0x00, 0x94),
+    (0x94, 0x00, 0x94), // 50-54
+    (0x57, 0x17, 0x8F),
+    (0x00, 0xC9, 0x00),
+    (0x70, 0xD4, 0xFF),
+    (0xFF, 0xFF, 0xC7),
+    (0xD9, 0xFF, 0xC7), // 55-59
+    (0xC7, 0xFF, 0xC7),
+    (0xA3, 0xFF, 0xC7),
+    (0x8F, 0xFF, 0xC7),
+    (0x61, 0xFF, 0xC7),
+    (0x45, 0xFF, 0xC7), // 60-64
+    (0x30, 0xFF, 0xC7),
+    (0x1F, 0xFF, 0xC7),
+    (0x00, 0xFF, 0x9C),
+    (0x00, 0xE6, 0x75),
+    (0x00, 0xD4, 0x52), // 65-69
+    (0x00, 0xBF, 0x38),
+    (0x00, 0xAB, 0x24),
+    (0x4D, 0xC2, 0xFF),
+    (0x4D, 0xA6, 0xFF),
+    (0x21, 0x94, 0xD6), // 70-74
+    (0x26, 0x7D, 0xAB),
+    (0x26, 0x66, 0x96),
+    (0x17, 0x54, 0x87),
+    (0xD0, 0xD0, 0xE0),
+    (0xFF, 0xD1, 0x23), // 75-79
+    (0xB8, 0xB8, 0xD0),
+    (0xA6, 0x54, 0x4D),
+    (0x57, 0x59, 0x61),
+    (0x9E, 0x4F, 0xB5),
+    (0xAB, 0x5C, 0x00), // 80-84
+    (0x75, 0x4F, 0x45),
+    (0x42, 0x82, 0x96),
+    (0x42, 0x00, 0x66),
+    (0x00, 0x7D, 0x00),
+    (0x70, 0xAB, 0xFA), // 85-89
+    (0x00, 0xBA, 0xFF),
+    (0x00, 0xA1, 0xFF),
+    (0x00, 0x8F, 0xFF),
+    (0x00, 0x80, 0xFF),
+    (0x00, 0x6B, 0xFF), // 90-94
+    (0x54, 0x5C, 0xF2),
+    (0x78, 0x5C, 0xE3),
+    (0x8A, 0x4F, 0xE3),
+    (0xA1, 0x36, 0xD4),
+    (0xB3, 0x1F, 0xD4), // 95-99
+    (0xB3, 0x1F, 0xBA),
+    (0xB3, 0x0D, 0xA6),
+    (0xBD, 0x0D, 0x87),
+    (0xC7, 0x00, 0x66),
+    (0xCC, 0x00, 0x59), // 100-104
+    (0xD1, 0x00, 0x4F),
+    (0xD9, 0x00, 0x45),
+    (0xE0, 0x00, 0x38),
+    (0xE6, 0x00, 0x2E),
+    (0xEB, 0x00, 0x26), // 105-109
+];
 
 /// Van der Waals radius in Ångström for an atomic number.
+///
+/// An element the table stops before, or one with no agreed radius, reads as
+/// [`DEFAULT_RADIUS`] rather than as a zero-radius point.
 #[must_use]
 pub fn vdw_radius(atomic_number: u8) -> f32 {
-    match atomic_number {
-        1 => 1.20,       // H
-        2 => 1.40,       // He
-        3 => 1.82,       // Li
-        6 => 1.70,       // C
-        7 => 1.55,       // N
-        8 => 1.52,       // O
-        9 => 1.47,       // F
-        11 => 2.27,      // Na
-        12 => 1.73,      // Mg
-        14 => 2.10,      // Si
-        15 | 16 => 1.80, // P, S
-        17 => 1.75,      // Cl
-        19 => 2.75,      // K
-        20 => 2.31,      // Ca
-        25 => 2.05,      // Mn
-        26 => 2.04,      // Fe
-        27 => 2.00,      // Co
-        28 => 1.97,      // Ni
-        29 => 1.96,      // Cu
-        30 => 2.01,      // Zn
-        34 => 1.90,      // Se
-        35 => 1.85,      // Br
-        53 => 1.98,      // I
+    match VDW_RADII.get(usize::from(atomic_number)) {
+        Some(&radius) if radius > 0.0 => radius,
         _ => DEFAULT_RADIUS,
     }
 }
 
-/// CPK display color for an atomic number.
+/// Element color for an atomic number, in sRGB.
 #[must_use]
 pub fn cpk_color(atomic_number: u8) -> Rgba8 {
-    match atomic_number {
-        1 => Rgba8::opaque(0xE8, 0xE8, 0xE8),       // H, near-white
-        6 => Rgba8::opaque(0x55, 0x55, 0x55),       // C, dark grey
-        7 => Rgba8::opaque(0x32, 0x64, 0xC8),       // N, blue
-        8 => Rgba8::opaque(0xD8, 0x28, 0x28),       // O, red
-        9 => Rgba8::opaque(0x7F, 0xC8, 0x3F),       // F, green
-        15 => Rgba8::opaque(0xFF, 0x8C, 0x1A),      // P, orange
-        16 => Rgba8::opaque(0xE6, 0xC8, 0x28),      // S, yellow
-        17 => Rgba8::opaque(0x1F, 0xC0, 0x1F),      // Cl, green
-        26 => Rgba8::opaque(0xC8, 0x78, 0x28),      // Fe, ochre
-        30 => Rgba8::opaque(0x7D, 0x80, 0xB0),      // Zn, slate
-        34 => Rgba8::opaque(0xFF, 0xA1, 0x00),      // Se, deep orange
-        35 => Rgba8::opaque(0xA6, 0x2A, 0x2A),      // Br, dark red
-        53 => Rgba8::opaque(0x94, 0x0F, 0x94),      // I, violet
-        11 | 19 => Rgba8::opaque(0xAB, 0x5C, 0xF2), // Na, K, purple
-        12 | 20 => Rgba8::opaque(0x3C, 0xB4, 0x3C), // Mg, Ca, green
-        _ => Rgba8::opaque(0xE0, 0x8A, 0xC8),       // unknown, CPK pink
+    match ELEMENT_COLORS.get(usize::from(atomic_number)) {
+        Some(&(red, green, blue)) => Rgba8::opaque(red, green, blue),
+        None => Rgba8::opaque(0xFF, 0xFF, 0xFF),
     }
 }

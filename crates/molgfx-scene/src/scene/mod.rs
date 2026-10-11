@@ -21,6 +21,7 @@ mod interaction_tests;
 mod operations;
 mod overlay;
 mod overlay_pick;
+mod pointer_hover;
 mod presets;
 pub(crate) mod properties;
 pub(crate) mod runtime;
@@ -42,6 +43,9 @@ mod construction;
 mod derived_bindings;
 mod editing;
 mod items;
+mod restyle;
+#[cfg(test)]
+mod restyle_tests;
 mod snapshot;
 #[cfg(test)]
 mod snapshot_tests;

@@ -1,4 +1,4 @@
-// GPU-side Catmull-Rom ribbon deformation over resident coordinate columns.
+// GPU-side spline, segment and residue deformation over resident coordinates.
 
 struct RibbonDeformation {
     controls: vec4u,
@@ -140,6 +140,29 @@ fn ribbon_rotate(rotation: vec4f, value: vec3f) -> vec3f {
 
 const RIBBON_ATOM_ANCHOR: u32 = 1u;
 const RIBBON_GAP_ANCHOR: u32 = 2u;
+const RIBBON_LINEAR_ANCHOR: u32 = 3u;
+const RIBBON_PEPTIDE_ANCHOR: u32 = 4u;
+const RIBBON_RESIDUE_ANCHOR: u32 = 5u;
+const RIBBON_HELIX_ANCHOR: u32 = 6u;
+
+fn ribbon_fit_vector(offset: u32) -> vec3f {
+    return vec3f(ribbon_radius_sources[offset], ribbon_radius_sources[offset+1u], ribbon_radius_sources[offset+2u]);
+}
+
+fn ribbon_residue_basis(a: vec3f, b: vec3f, c: vec3f) -> mat3x3f {
+    let x = normalize(b - a);
+    let z = normalize(cross(x, c - a));
+    return mat3x3f(x, cross(z, x), z);
+}
+
+fn ribbon_peptide_width(left: vec3f, right: vec3f, tangent: vec3f, amount: f32) -> vec3f {
+    let first = left - tangent * dot(left, tangent);
+    let second = right - tangent * dot(right, tangent);
+    if dot(first, first) < 1e-12 || dot(second, second) < 1e-12 { return vec3f(0.0); }
+    let a = normalize(first);
+    let b = normalize(second) * select(1.0, -1.0, dot(first, second) < 0.0);
+    return normalize(mix(a, b, amount));
+}
 
 fn ribbon_gap_vertex(
     deformation: RibbonDeformation,
@@ -190,6 +213,22 @@ fn ribbon_deform(
     let r1 = ribbon_base_coordinate(deformation.controls.y);
     let r2 = ribbon_base_coordinate(deformation.controls.z);
     let r3 = ribbon_base_coordinate(deformation.controls.w);
+    if bitcast<u32>(deformation.parameter.w) == RIBBON_RESIDUE_ANCHOR {
+        let reference_cross = cross(r1 - r0, r2 - r0);
+        let current_cross = cross(p1 - p0, p2 - p0);
+        if dot(reference_cross, reference_cross) <= 1e-12 || dot(current_cross, current_cross) <= 1e-12 {
+            return DeformedRibbonVertex(base_position + p0 - r0, base_normal, 1u);
+        }
+        let current_normal = normalize(current_cross);
+        let reference_normal = normalize(reference_cross);
+        let local = deformation.parameter.xyz;
+        let position = p0 + local.x * (p1 - p0) + local.y * (p2 - p0) + local.z * current_normal;
+        // Transform normals with the inverse transpose of the local affine map.
+        let normal = cross(p2 - p0, current_normal) * dot(base_normal, r1 - r0)
+            + cross(current_normal, p1 - p0) * dot(base_normal, r2 - r0)
+            + current_cross * dot(base_normal, reference_normal);
+        return DeformedRibbonVertex(position, normalize(normal), 1u);
+    }
     if bitcast<u32>(deformation.parameter.w) == RIBBON_GAP_ANCHOR {
         return ribbon_gap_vertex(deformation, base_position, base_normal, p0, p1, r0, r1);
     }
@@ -204,6 +243,26 @@ fn ribbon_deform(
         reference_center = r1;
         reference_derivative = r2 - r0;
     }
+    if bitcast<u32>(deformation.parameter.w) == RIBBON_LINEAR_ANCHOR {
+        center = mix(p1, p2, parameter);
+        derivative = p2 - p1;
+        reference_center = mix(r1, r2, parameter);
+        reference_derivative = r2 - r1;
+    }
+    if bitcast<u32>(deformation.parameter.w) == RIBBON_HELIX_ANCHOR {
+        let fit = bitcast<u32>(deformation.parameter.y);
+        let current_fit = fit + select(0u, 8u, previous);
+        let origin = ribbon_fit_vector(current_fit);
+        let axis = ribbon_fit_vector(current_fit + 4u);
+        let reference_origin = ribbon_fit_vector(fit + 16u);
+        let reference_axis = ribbon_fit_vector(fit + 20u);
+        let projected = mix(p0, p1, parameter);
+        let reference_projected = mix(r0, r1, parameter);
+        center = origin + axis * dot(projected - origin, axis);
+        derivative = axis;
+        reference_center = reference_origin + reference_axis * dot(reference_projected - reference_origin, reference_axis);
+        reference_derivative = reference_axis;
+    }
     let length_sq = dot(derivative, derivative);
     let reference_length_sq = dot(reference_derivative, reference_derivative);
     let reference_tangent = select(
@@ -212,8 +271,32 @@ fn ribbon_deform(
         reference_length_sq > 1e-12,
     );
     let tangent = select(reference_tangent, derivative * inverseSqrt(length_sq), length_sq > 1e-12);
-    let rotation = ribbon_rotation_arc(reference_tangent, tangent);
-    let radius_scale = ribbon_mapped_radius(deformation) / max(ribbon_uniforms.tube.x, 1e-6);
+    var rotation = ribbon_rotation_arc(reference_tangent, tangent);
+    if bitcast<u32>(deformation.parameter.w) == RIBBON_PEPTIDE_ANCHOR {
+        let rows = bitcast<vec2u>(deformation.parameter.yz);
+        let width = ribbon_peptide_width(
+            ribbon_coordinate(rows.x, previous) - p1,
+            ribbon_coordinate(rows.y, previous) - p2, tangent, parameter,
+        );
+        let base_width = ribbon_peptide_width(
+            ribbon_base_coordinate(rows.x) - r1,
+            ribbon_base_coordinate(rows.y) - r2, reference_tangent, parameter,
+        );
+        let transported = ribbon_rotate(rotation, base_width);
+        if dot(width, width) > 0.0 && dot(base_width, base_width) > 0.0 {
+            let oriented_width = width * select(1.0, -1.0, dot(width, transported) < 0.0);
+            let twist = ribbon_rotation_arc(transported, oriented_width);
+            // Compose the twist after the tangent rotation.
+            rotation = vec4f(
+                twist.w * rotation.xyz + rotation.w * twist.xyz + cross(twist.xyz, rotation.xyz),
+                twist.w * rotation.w - dot(twist.xyz, rotation.xyz),
+            );
+        }
+    }
+    var radius_scale = 1.0;
+    if bitcast<u32>(deformation.parameter.w) != RIBBON_HELIX_ANCHOR {
+        radius_scale = ribbon_mapped_radius(deformation) / max(ribbon_uniforms.tube.x, 1e-6);
+    }
     let position = center
         + ribbon_rotate(rotation, base_position - reference_center) * radius_scale;
     let surface_normal = normalize(ribbon_rotate(rotation, base_normal));

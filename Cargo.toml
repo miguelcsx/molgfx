@@ -72,10 +72,10 @@ molgfx-command = { version = "0.5.3", path = "crates/molgfx-command" }
 # The structural model and every detection the engine consumes. The revision
 # patch below keeps the engine and its companion parser on one source tree while
 # the package requirement remains publishable.
-molframe = { version = "0.5.1", default-features = false, features = ["mmcif", "bcif", "pdb"] }
+molframe = { version = ">=0.5.1, <0.7", default-features = false, features = ["mmcif", "bcif", "pdb"] }
 # The provider's Python bridge names its library target `_native`, so the
 # dependency is renamed back to the package name for `molframe_py::` to resolve.
-molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "b78c195c702e28bbfc46f50a5d959d6718b1a02a", default-features = false, features = ["base", "analysis", "crystal"] }
+molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "b66a017cc57588d07b70c75f03a1dfe78787e47c", default-features = false, features = ["base", "analysis", "crystal"] }
 
 # Python ABI shared by the thin binding crate and the sibling molframe bridge.
 pyo3 = "0.29"
@@ -146,4 +146,4 @@ lto = "thin"
 # crates still resolve `molframe` from the registry. The patch names the
 # exact upstream revision so clean checkouts and release builders share its types.
 [patch.crates-io]
-molframe = { git = "https://github.com/miguelcsx/molframe", rev = "b78c195c702e28bbfc46f50a5d959d6718b1a02a" }
+molframe = { git = "https://github.com/miguelcsx/molframe", rev = "b66a017cc57588d07b70c75f03a1dfe78787e47c" }

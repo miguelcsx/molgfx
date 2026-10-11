@@ -374,3 +374,79 @@ fn an_unmatched_trajectory_source_stays_unresolved() {
     );
     assert_eq!(scene.spec().trajectories.len(), 1);
 }
+
+#[test]
+fn a_frame_pair_plays_without_a_declared_trajectory_and_shares_the_caller_arrays() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    let positions: Arc<[[f32; 3]]> = Arc::new([[12.0, 6.0, -6.0]]);
+    let start = TrajectoryFrame::new(4, 4.0, Arc::clone(&positions));
+    let end = TrajectoryFrame::new(5, 5.0, Arc::new([[13.0, 6.0, -6.0]]));
+    scene
+        .set_trajectory_pair(StructureId::new(1), start, end, 4.5)
+        .unwrap_or_else(|error| panic!("{error}"));
+    let segment = first_placed(&scene)
+        .trajectory()
+        .unwrap_or_else(|| panic!("the pair is resident"));
+    assert_eq!(segment.start().positions(), [[12.0, 6.0, -6.0]]);
+    assert!((segment.interpolation() - 0.5).abs() < 1e-6);
+    assert!(
+        std::ptr::eq(segment.start().positions().as_ptr(), positions.as_ptr()),
+        "the renderer reads the caller's array, not a copy"
+    );
+}
+
+#[test]
+fn sliding_the_pair_forward_replaces_it_and_clearing_returns_the_structure_to_itself() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    let frame = |i: u8, x: f32| {
+        TrajectoryFrame::new(u64::from(i), f32::from(i), Arc::new([[x, 6.0, -6.0]]))
+    };
+    scene
+        .set_trajectory_pair(StructureId::new(1), frame(0, 1.0), frame(1, 2.0), 0.0)
+        .unwrap_or_else(|error| panic!("{error}"));
+    scene
+        .set_trajectory_pair(StructureId::new(1), frame(1, 2.0), frame(2, 3.0), 1.5)
+        .unwrap_or_else(|error| panic!("{error}"));
+    let segment = first_placed(&scene)
+        .trajectory()
+        .unwrap_or_else(|| panic!("the pair is resident"));
+    assert_eq!(segment.start().index(), 1);
+    assert_eq!(segment.end().index(), 2);
+    scene.clear_trajectory_pair(StructureId::new(1));
+    assert!(first_placed(&scene).trajectory().is_none());
+}
+
+#[test]
+fn a_pair_that_does_not_fit_the_structure_is_refused() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    let two: Arc<[[f32; 3]]> = Arc::new([[0.0; 3], [1.0; 3]]);
+    let result = scene.set_trajectory_pair(
+        StructureId::new(1),
+        TrajectoryFrame::new(0, 0.0, Arc::clone(&two)),
+        TrajectoryFrame::new(1, 1.0, two),
+        0.5,
+    );
+    assert!(result.is_err(), "two positions cannot play on one atom");
+    assert!(first_placed(&scene).trajectory().is_none());
+}
+
+#[test]
+fn an_edit_that_resolves_the_scene_again_does_not_stop_the_animation() {
+    use crate::{rep, sel};
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    scene
+        .set_trajectory_pair(
+            StructureId::new(1),
+            TrajectoryFrame::new(0, 0.0, Arc::new([[1.0, 6.0, -6.0]])),
+            TrajectoryFrame::new(1, 1.0, Arc::new([[2.0, 6.0, -6.0]])),
+            0.5,
+        )
+        .unwrap_or_else(|error| panic!("{error}"));
+    let _ = scene
+        .add(rep::spacefill(sel::all()))
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert!(
+        first_placed(&scene).trajectory().is_some(),
+        "adding a representation must keep the pair"
+    );
+}

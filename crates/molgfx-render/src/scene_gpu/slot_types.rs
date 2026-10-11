@@ -324,7 +324,16 @@ pub(crate) const fn lod_mode(
     kind: RepresentationKind,
     enabled: bool,
 ) -> u32 {
-    if !enabled || atoms < LOD_ATOM_THRESHOLD {
+    // Tile-depth LOD keeps one nearest atom per screen tile. A ribbon or a
+    // surface is built from neighbouring atoms, so culling atoms individually
+    // erases it: above the threshold a cartoon drew nothing at all.
+    if !enabled
+        || atoms < LOD_ATOM_THRESHOLD
+        || matches!(
+            kind,
+            RepresentationKind::Cartoon | RepresentationKind::Surface
+        )
+    {
         0
     } else if matches!(kind, RepresentationKind::Points)
         && bonds == 0
@@ -336,11 +345,15 @@ pub(crate) const fn lod_mode(
     }
 }
 
+/// Fixed sphere sampling budget; vertices are generated procedurally per atom.
+pub(super) const DOT_SAMPLE_COUNT: u32 = 64;
+
 fn kind_id(kind: RepresentationKind) -> u8 {
     match kind {
         RepresentationKind::Spacefill => 0,
         RepresentationKind::BallAndStick => 1,
         RepresentationKind::Licorice => 2,
+        RepresentationKind::Bonds => 18,
         RepresentationKind::Cartoon => 3,
         RepresentationKind::Surface => 4,
         RepresentationKind::Volume => 5,
@@ -353,6 +366,9 @@ fn kind_id(kind: RepresentationKind) -> u8 {
         RepresentationKind::Rocket => 12,
         RepresentationKind::Twister => 13,
         RepresentationKind::PaperChain => 14,
+        RepresentationKind::Dots => 15,
+        RepresentationKind::Bases => 16,
+        RepresentationKind::BasePairs => 17,
     }
 }
 
@@ -375,6 +391,7 @@ pub(super) struct SlotSync<'a, D: Device> {
     pub(super) quality_layout: &'a D::BindGroupLayout,
     pub(super) ray_query_layout: Option<&'a D::BindGroupLayout>,
     pub(super) ribbon_layout: &'a D::BindGroupLayout,
+    pub(super) helix_fit_layout: &'a D::BindGroupLayout,
     pub(super) atom_cull_layout: &'a D::BindGroupLayout,
     pub(super) bond_cull_layout: &'a D::BindGroupLayout,
     pub(super) visual_cull_layout: &'a D::BindGroupLayout,
@@ -418,3 +435,7 @@ pub(super) struct SlotSync<'a, D: Device> {
 }
 
 pub(crate) use super::slot_culling::{CullDispatch, CullModes};
+
+#[cfg(test)]
+#[path = "slot_types_tests.rs"]
+mod tests;

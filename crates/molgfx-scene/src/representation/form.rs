@@ -72,6 +72,12 @@ pub(crate) enum RepresentationFormSpec {
         radius: f32,
         bond_radius: f32,
     },
+    Bonds {
+        bond_radius: f32,
+    },
+    PaperChain {
+        width: f32,
+    },
     Lines {
         width: f32,
     },
@@ -185,6 +191,8 @@ impl RepresentationSpec {
             RepresentationFormSpec::Spacefill { .. } => "spacefill",
             RepresentationFormSpec::Licorice { .. } => "licorice",
             RepresentationFormSpec::Lines { .. } => "lines",
+            RepresentationFormSpec::Bonds { .. } => "bonds",
+            RepresentationFormSpec::PaperChain { .. } => "paper_chain",
             RepresentationFormSpec::Points { .. } => "points",
             RepresentationFormSpec::Dots { .. } => "dots",
             RepresentationFormSpec::Surface { .. } => "surface",
@@ -269,9 +277,11 @@ impl RepresentationSpec {
                 *gaps,
             )?,
             RepresentationFormSpec::Backbone { width, .. }
+            | RepresentationFormSpec::PaperChain { width }
             | RepresentationFormSpec::Lines { width }
             | RepresentationFormSpec::NucleicAcid { width }
             | RepresentationFormSpec::Glycan { width } => positive("width", *width)?,
+            RepresentationFormSpec::Bonds { bond_radius } => positive("bond radius", *bond_radius)?,
             RepresentationFormSpec::Points { size } | RepresentationFormSpec::Dots { size } => {
                 positive("point size", *size)?;
             }
@@ -324,21 +334,10 @@ impl RepresentationSpec {
                 probe_radius,
                 isolevel,
                 blob_spread,
-                ..
+                surface,
+                style,
             } => {
-                positive("probe radius", *probe_radius)?;
-                if !isolevel.is_finite() {
-                    return Err(crate::Error::InvalidSpec(
-                        "isolevel must be finite".to_owned(),
-                    ));
-                }
-                // A blob spread is a distance; it may be zero to request the
-                // exact union, but never negative or non-finite.
-                if !blob_spread.is_finite() || *blob_spread < 0.0 {
-                    return Err(crate::Error::InvalidSpec(
-                        "blob spread must be finite and non-negative".to_owned(),
-                    ));
-                }
+                validate_surface(*surface, *style, *probe_radius, *isolevel, *blob_spread)?;
             }
         }
         Ok(())
@@ -372,6 +371,34 @@ fn validate_cartoon(
     if !arrow_factor.is_finite() || arrow_factor < 0.0 {
         return Err(crate::Error::InvalidSpec(
             "arrow factor must be finite and non-negative".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_surface(
+    surface: SurfaceKind,
+    style: SurfaceStyle,
+    probe_radius: f32,
+    isolevel: f32,
+    blob_spread: f32,
+) -> Result<(), crate::Error> {
+    if !style.native().supports(surface.native()) {
+        return Err(crate::Error::InvalidSpec(
+            "soft union requires a van der Waals or solvent-accessible boundary".to_owned(),
+        ));
+    }
+    positive("probe radius", probe_radius)?;
+    if !isolevel.is_finite() {
+        return Err(crate::Error::InvalidSpec(
+            "isolevel must be finite".to_owned(),
+        ));
+    }
+    // A blob spread is a distance; it may be zero to request the
+    // exact union, but never negative or non-finite.
+    if !blob_spread.is_finite() || blob_spread < 0.0 {
+        return Err(crate::Error::InvalidSpec(
+            "blob spread must be finite and non-negative".to_owned(),
         ));
     }
     Ok(())

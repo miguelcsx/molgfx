@@ -31,7 +31,8 @@ pub use engine::{
     PICK_READBACK_BYTES, PendingPick, Pick, PickEntity, PointChunkPlacement, PresentationEffect,
     QualityTier, RelationChunkPlacement, RenderMode, RenderProfile, RenderSession,
     ResidentGenericChunk, ResidentStructureChunk, ResidentTrajectoryChunk, ResolvedRenderPlan,
-    ShapeCueStyle, StructureChunkPlacement, ToneMapping, TrajectoryChunkWindow, TransferFunction,
+    ShapeCueStyle, StereoImages, StereoLayout, StructureChunkPlacement, ToneMapping,
+    TrajectoryChunkWindow, TransferFunction,
 };
 pub use engine::{CompletedFrame, CpuStages, EffectiveQuality, SurfaceLimit};
 pub(crate) use engine::{
@@ -39,6 +40,7 @@ pub(crate) use engine::{
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use engine::{FrameTicket, SequenceConfig, SequenceExposure, SequenceFrame, SequenceRenderer};
+pub use engine::{HostFrame, HostTarget};
 pub use engine::{PassTiming, PassTimingCoverage};
 pub use error::RenderError;
 pub use molgfx_geometry::PackingError;

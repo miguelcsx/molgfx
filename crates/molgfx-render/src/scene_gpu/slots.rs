@@ -58,7 +58,7 @@ pub(super) struct GpuSlot<D: Device> {
     /// `None`, so its draws keep the interpreted pipeline.
     specialized: DrawSpecializations,
     hardware: PlacementAcceleration<D>,
-    ribbon: RibbonSlot<D>,
+    pub(in crate::scene_gpu) ribbon: RibbonSlot<D>,
     visual: VisualSlot<D>,
 }
 
@@ -108,6 +108,9 @@ impl<D: Device> GpuSlot<D> {
     }
 
     pub(super) fn sync(&mut self, mut input: SlotSync<'_, D>) -> Result<bool, RenderError> {
+        if input.representation.kind == RepresentationKind::Surface {
+            input.representation.params.validate_surface()?;
+        }
         self.visible = input.representation.visible;
         self.kind = input.representation.kind;
         let current = synced_state(&input);
@@ -294,6 +297,12 @@ impl<D: Device> GpuSlot<D> {
         let visual = self
             .visual
             .cull_entries(instructions, parameters, properties);
+        self.ribbon.bind_helix_fits(
+            input.device,
+            input.helix_fit_layout,
+            input.structure_gpu,
+            input.asset_arena,
+        );
         self.ribbon.bind(
             input.device,
             input.ribbon_layout,

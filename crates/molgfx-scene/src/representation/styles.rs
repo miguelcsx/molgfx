@@ -46,3 +46,27 @@ pub enum SurfaceStyle {
     /// surface both reference engines show for a rounded molecular envelope.
     SoftUnion,
 }
+
+impl SurfaceKind {
+    pub(crate) fn native(self) -> molgfx_core::SurfaceKind {
+        match self {
+            SurfaceKind::SolventExcluded => molgfx_core::SurfaceKind::SolventExcluded,
+            SurfaceKind::VanDerWaals => molgfx_core::SurfaceKind::VanDerWaals,
+            SurfaceKind::SolventAccessible => molgfx_core::SurfaceKind::SolventAccessible,
+            SurfaceKind::Gaussian => molgfx_core::SurfaceKind::Gaussian,
+        }
+    }
+}
+
+impl SurfaceStyle {
+    pub(crate) fn native(self) -> molgfx_core::SurfaceStyle {
+        match self {
+            SurfaceStyle::Solid => molgfx_core::SurfaceStyle::Solid,
+            SurfaceStyle::Contour => molgfx_core::SurfaceStyle::Contour,
+            SurfaceStyle::Dots => molgfx_core::SurfaceStyle::Dots,
+            SurfaceStyle::FilledContour => molgfx_core::SurfaceStyle::FilledContour,
+            SurfaceStyle::Mesh => molgfx_core::SurfaceStyle::Mesh,
+            SurfaceStyle::SoftUnion => molgfx_core::SurfaceStyle::SoftUnion,
+        }
+    }
+}

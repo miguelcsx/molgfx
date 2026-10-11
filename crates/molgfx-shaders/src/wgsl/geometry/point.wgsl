@@ -26,6 +26,17 @@
 
 const POINT_NORMAL: vec3f = vec3f(0.0, 0.0, 1.0);
 const POINT_COVERAGE_EPSILON: f32 = 1.0e-6;
+const SPHERE_GOLDEN_ANGLE: f32 = 2.39996323;
+
+// O(atoms × samples) procedural dots, gathered from the borrowed coordinates.
+fn point_surface_offset(atom: AtomRecord, vertex: u32) -> vec3f {
+    if representation.visual.w >= 0.0 { return vec3f(0.0); }
+    let sample = f32(vertex / 6u);
+    let z = 1.0 - 2.0 * (sample + 0.5) / f32(representation.options.z);
+    let radial = sqrt(max(0.0, 1.0 - z * z));
+    let angle = sample * SPHERE_GOLDEN_ANGLE;
+    return vec3f(radial * cos(angle), radial * sin(angle), z) * atom.radius;
+}
 
 /// Signed distance to the selected screen-space point shape.
 ///
@@ -102,7 +113,7 @@ fn point_geometry(
         camera_view_clip(view_position);
 
     let corner =
-        quad_corner(vertex);
+        quad_corner(vertex % 6u);
 
     var half_extent_pixels = representation.visual.x;
     if representation.visual.w > 0.0 {
@@ -153,8 +164,9 @@ fn vs_point(
         ];
 
     let positions = atom_motion_positions(atom.entity_id);
-    let world_position = positions.current;
-    let previous_world = positions.previous;
+    let offset = point_surface_offset(atom, vertex);
+    let world_position = positions.current + (model.model_to_world * vec4f(offset, 0.0)).xyz;
+    let previous_world = positions.previous + (model.previous_model_to_world * vec4f(offset, 0.0)).xyz;
 
     let geometry =
         point_geometry(
@@ -285,7 +297,7 @@ fn vs_point_transparent(
     let world_position =
         atom_position(
             atom.entity_id
-        );
+        ) + (model.model_to_world * vec4f(point_surface_offset(atom, vertex), 0.0)).xyz;
 
     let geometry =
         point_geometry(

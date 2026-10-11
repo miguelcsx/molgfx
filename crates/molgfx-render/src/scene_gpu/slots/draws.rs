@@ -183,7 +183,7 @@ impl<D: Device> GpuSlot<D> {
             && self.atom_count > 0
             && matches!(
                 self.kind,
-                RepresentationKind::Points | RepresentationKind::Lines
+                RepresentationKind::Points | RepresentationKind::Dots | RepresentationKind::Lines
             )
             && self.translucent == translucent)
             .then_some((self.group2.as_ref()?, self.atom_args?, self.shading))
@@ -202,6 +202,8 @@ impl<D: Device> GpuSlot<D> {
                     | RepresentationKind::Rocket
                     | RepresentationKind::Twister
                     | RepresentationKind::PaperChain
+                    | RepresentationKind::Bases
+                    | RepresentationKind::BasePairs
             )
             && self.translucent == translucent)
             .then(|| self.ribbon.draw())?
@@ -338,5 +340,7 @@ const fn is_spline_kind(kind: RepresentationKind) -> bool {
             | RepresentationKind::Rocket
             | RepresentationKind::Twister
             | RepresentationKind::PaperChain
+            | RepresentationKind::Bases
+            | RepresentationKind::BasePairs
     )
 }

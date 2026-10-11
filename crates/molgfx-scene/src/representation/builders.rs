@@ -229,7 +229,7 @@ representation! {
 representation! {
     /// Typed licorice representation.
     Licorice => Licorice {
-        /// Scales atom radii.
+        /// Scales atom junctions relative to the bond radius.
         radius => radius: f32 = 1.0,
         /// Sets bond radius in ångström; the conventional stick radius.
         bond_radius => bond_radius: f32 = 0.25,
@@ -419,3 +419,6 @@ pub fn base_pairs(target: impl Into<Selection>) -> BasePairs {
 pub fn glycan(target: impl Into<Selection>) -> Glycan {
     Glycan::new(target)
 }
+
+mod extended;
+pub use extended::{Bonds, PaperChain, bonds, paper_chain};

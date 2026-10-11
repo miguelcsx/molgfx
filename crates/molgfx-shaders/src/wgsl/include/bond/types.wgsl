@@ -16,6 +16,13 @@ const BOND_CAP_MATERIAL: f32 = 0.05;
 const BOND_STYLE_SOLID: u32 = 0u;
 const BOND_STYLE_AROMATIC: u32 = 1u;
 const BOND_STYLE_METAL: u32 = 2u;
+/// Bit 31 of `BondRecord.flags`: an in-plane reference direction is packed.
+const BOND_PLANE_PRESENT: u32 = 0x80000000u;
+/// Bits 4-19 of `flags`: the in-plane direction, in 1/65536 of a turn.
+const BOND_PLANE_SHIFT: u32 = 4u;
+const BOND_PLANE_MASK: u32 = 0xffffu;
+/// One packed plane unit as a fraction of a full turn.
+const BOND_PLANE_TURN: f32 = 1.0 / 65536.0;
 /// The inner stroke of an aromatic bond: two short segments rather than a
 /// uniform cadence, so the ring reads as a solid line with a broken inner
 /// line on the inside of the ring.
@@ -100,6 +107,32 @@ fn bond_style_visible(style: u32, along: f32) -> bool {
         return fract(along * 2.0) < 0.62;
     }
     return fract(along * 4.0) < 0.52;
+}
+
+/// The world-space direction a multiple bond's strands are displaced along.
+///
+/// When the bond packs an in-plane reference (bit 31 of `flags`), the
+/// displacement is that direction rotated by the bond's recorded turn and
+/// projected perpendicular to the axis, so a carbonyl or ring bond is drawn in
+/// the plane its substituents define rather than about an axis chosen from the
+/// bond direction alone. Without a third atom to define a plane — a genuinely
+/// terminal bond — the deterministic [`bond_perpendicular`] is kept.
+fn bond_separation_direction(axis: vec3f, flags: u32) -> vec3f {
+    if (flags & BOND_PLANE_PRESENT) == 0u {
+        return bond_perpendicular(axis);
+    }
+    // Recover the recorded direction exactly as `bond_perpendicular`'s own
+    // reference choice, then rotate it by the packed turn about the axis.
+    let reference = bond_perpendicular(axis);
+    if dot(reference, reference) < BOND_AXIS_EPSILON_SQ {
+        return reference;
+    }
+    let turns = f32((flags >> BOND_PLANE_SHIFT) & BOND_PLANE_MASK);
+    let angle = turns * BOND_PLANE_TURN * 6.2831855;
+    let along = dot(reference, axis) * axis;
+    let basis_x = normalize(reference - along);
+    let basis_y = cross(axis, basis_x);
+    return basis_x * cos(angle) + basis_y * sin(angle);
 }
 
 /// A stable unit vector perpendicular to `axis`.

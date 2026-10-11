@@ -1,5 +1,4 @@
 //! GPU record layouts.
-//!
 //! These structs are byte-for-byte what the shaders read, so their size,
 //! alignment and field order are part of the engine's binary contract; the
 //! sibling tests assert every offset. Uploading a slice of them is a cast,
@@ -28,6 +27,10 @@ impl AtomFlags {
     pub const FOCUSED: Self = Self(1 << 2);
     /// The atom is demoted context: drawn faded, still present.
     pub const GHOSTED: Self = Self(1 << 3);
+    /// Suppresses the atom marker while retaining its bond endpoint.
+    pub const HIDE_MARKER: Self = Self(1 << 4);
+    /// The auxiliary stream resolves a selected residue centroid and enclosure.
+    pub const RESIDUE_CENTER: Self = Self(1 << 5);
 
     /// True when every bit of `other` is set in `self`.
     #[must_use]

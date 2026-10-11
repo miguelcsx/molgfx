@@ -9,9 +9,25 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+# Host interop: render into a texture owned by an embedding application.
+host = ["molgfx-scene/host"]
+
 [dependencies]
 molgfx-scene.workspace = true
 molgfx-command.workspace = true
+
+[dev-dependencies]
+pollster.workspace = true
+
+[[test]]
+name = "host_targets"
+path = "tests/host_targets_tests.rs"
+required-features = ["host"]
+
+[[example]]
+name = "host_embed"
+required-features = ["host"]
 
 [lints]
 workspace = true

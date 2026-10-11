@@ -66,6 +66,13 @@ impl PyCamera {
         .map_err(crate::binding::error)
     }
 
+    /// Parallel eye cameras with separation and convergence in world units.
+    fn stereo_eyes(&self, separation: f32, convergence: f32) -> PyResult<(Self, Self)> {
+        molgfx::camera::stereo_eyes(self.0, separation, convergence)
+            .map(|[left, right]| (Self(left), Self(right)))
+            .map_err(crate::binding::error)
+    }
+
     #[getter]
     fn position(&self) -> (f32, f32, f32) {
         (self.0.eye.x, self.0.eye.y, self.0.eye.z)

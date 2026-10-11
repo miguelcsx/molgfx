@@ -46,6 +46,10 @@ impl VolumeSpec {
                 molgfx_core::VolumeRegion::new(region.minimum, region.maximum, self.dimensions)?;
         }
         for presentation in &self.presentations {
+            if let VolumePresentation::FieldLines { options } = presentation {
+                let _ = options.parameters()?;
+                continue;
+            }
             presentation.native()?.validate_volume_grid(
                 self.dimensions,
                 Mat4::from_cols_array(&self.voxel_to_world),
@@ -158,6 +162,36 @@ impl Volume {
     pub fn presentation(mut self, presentation: VolumePresentation) -> Self {
         self.0.presentations.push(presentation);
         self
+    }
+
+    /// Adds scalar-gradient field lines integrated from the bound voxel data.
+    #[must_use]
+    pub fn field_lines(self, options: super::FieldLines) -> Self {
+        self.presentation(VolumePresentation::FieldLines { options })
+    }
+
+    /// Renders both signs of a sampled molecular wavefunction amplitude.
+    ///
+    /// The binding must contain wavefunction amplitudes supplied by the caller
+    /// or `MolFrame` (for example, one orbital extracted from a Cube file).
+    /// Spin, excitation and orbital selection happen upstream when sampling;
+    /// this engine renders the selected field without doing quantum chemistry.
+    #[must_use]
+    pub fn orbital(
+        self,
+        amplitude: f32,
+        positive: Color,
+        negative: Color,
+        opacity: f32,
+        style: IsoStyle,
+    ) -> Self {
+        self.presentation(VolumePresentation::Orbital {
+            amplitude,
+            positive,
+            negative,
+            opacity,
+            style,
+        })
     }
 
     /// Adds a solid isosurface.

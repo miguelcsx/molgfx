@@ -1,3 +1,4 @@
+use num_traits::ToPrimitive;
 // The index-to-float casts below build fixture coordinates from a loop
 // counter whose range is a fixed literal in this file; nothing truncates.
 
@@ -340,19 +341,25 @@ fn licorice_uses_the_bond_radius_for_atom_junctions() {
         Ok(handle) => handle,
         Err(error) => panic!("licorice applies: {error}"),
     };
+    let Some(representation) = scene.representation_mut(representation) else {
+        panic!("representation resolves")
+    };
+    representation.params.radius_scale = 2.0;
     let Some(table) = scene.first_atoms() else {
         panic!("scene has atoms")
     };
-    let Some(representation) = scene.representation(representation) else {
-        panic!("representation resolves")
-    };
+    let representation = scene
+        .representations()
+        .next()
+        .expect("representation exists")
+        .1;
     let mut atoms = Vec::new();
     pack_atoms(table, representation, &AtomSelection::All, &mut atoms)
         .unwrap_or_else(|error| panic!("{error}"));
     assert!(
-        atoms
-            .iter()
-            .all(|atom| (atom.radius - representation.params.bond_radius).abs() < f32::EPSILON)
+        atoms.iter().all(
+            |atom| (atom.radius - representation.params.bond_radius * 2.0).abs() < f32::EPSILON
+        )
     );
 }
 
@@ -440,11 +447,11 @@ fn a_bead_encloses_its_residue_and_keeps_one_sphere_per_residue() {
             .filter(|(_, candidate)| candidate == &residue)
             .map(|(index, _)| index)
             .collect();
-        let centre = coords
-            .get(first as usize)
-            .map_or(molgfx_math::Vec3::ZERO, |value| {
-                molgfx_math::Vec3::from_array(*value)
-            });
+        let centre = members
+            .iter()
+            .map(|&row| molgfx_math::Vec3::from_array(coords[row]))
+            .sum::<molgfx_math::Vec3>()
+            / members.len().to_f32().expect("small fixture");
         for member in members {
             let Some(point) = coords.get(member).copied() else {
                 continue;

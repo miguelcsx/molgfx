@@ -33,6 +33,22 @@ def _distance(a: tuple[float, float, float], b: tuple[float, float, float]) -> f
 class ProjectionTests(unittest.TestCase):
     """Where a point lands, and the ray that lands on it."""
 
+    def test_stereo_eyes_converge_and_keep_vertical_alignment(self) -> None:
+        left, right = _camera().stereo_eyes(1.2, 20.0)
+        centre_left = left.project((0.0, 0.0, 0.0), (200, 200))
+        centre_right = right.project((0.0, 0.0, 0.0), (200, 200))
+        assert centre_left is not None
+        assert centre_right is not None
+        self.assertAlmostEqual(centre_left[0], centre_right[0], places=3)
+        near_left = left.project((1.0, 2.0, 5.0), (200, 200))
+        near_right = right.project((1.0, 2.0, 5.0), (200, 200))
+        assert near_left is not None
+        assert near_right is not None
+        self.assertAlmostEqual(near_left[1], near_right[1], places=3)
+        self.assertNotAlmostEqual(near_left[0], near_right[0], places=1)
+        with self.assertRaises(molgfx.MolgfxError):
+            _camera().stereo_eyes(-1.0, 20.0)
+
     def test_the_target_lands_at_the_centre_and_depth_is_the_distance(self) -> None:
         target = _camera().project((0.0, 0.0, 0.0), (200, 100))
         assert target is not None, "a point in front of the eye projects"
@@ -77,15 +93,26 @@ class ProjectionTests(unittest.TestCase):
                 self.skipTest("needs a graphics adapter; headless_render.py covers it")
             raise
         pixels = bytes(image.pixels())
-        dark = [
+        # The atom is found by contrast against the same camera's background,
+        # not by darkness: the element colour is data, so a test that assumed a
+        # dark element would stop noticing the atom the moment carbon's grey
+        # changed. A scene with the representation removed gives the backdrop
+        # every pixel the atom can differ from.
+        empty = molgfx.Scene(molframe.read(ONE_ATOM, name="one.pdb"))
+        empty.set_camera(view)
+        background = bytes(molgfx.Renderer().render_image(empty, size=size).pixels())
+        foreground = [
             (index // 4 % size[0], index // 4 // size[0])
             for index in range(0, len(pixels), 4)
-            if pixels[index] < 140 and pixels[index + 1] < 140 and pixels[index + 2] < 140
+            if any(
+                abs(pixels[index + channel] - background[index + channel]) > 24
+                for channel in range(3)
+            )
         ]
-        self.assertGreater(len(dark), 200, "the atom is drawn")
+        self.assertGreater(len(foreground), 200, "the atom is drawn")
         centroid = (
-            sum(x for x, _ in dark) / len(dark),
-            sum(y for _, y in dark) / len(dark),
+            sum(x for x, _ in foreground) / len(foreground),
+            sum(y for _, y in foreground) / len(foreground),
         )
         projected = view.project((4.0, 2.5, 0.0), size)
         assert projected is not None, "a point in front of the eye projects"

@@ -39,7 +39,7 @@ impl<D: Device> GpuScene<D> {
         let layouts = SpecializationLayouts::<D> {
             group0: &self.group0_layout,
             group2: &self.group2_layout,
-            ribbon: &self.ribbon_layout,
+            ribbon: &self.ribbon_layouts.draw,
             quality: &self.quality_layout,
         };
         let specialized = &mut self.specialized;

@@ -43,11 +43,11 @@ pub use molgfx_core::SegmentationPresentation;
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_wgpu::{AdapterReport, SystemInfo, system_info};
 pub use overlay::{
-    Anchor, AnnotationSpec, AssemblySpec, DataSource, EllipsoidSpec, FitResult, InteractionKind,
-    InteractionSpec, IsoStyle, MeasurementSpec, OverlayHandles, OverlayId, PlaneSpec, SegmentStyle,
-    SegmentationBinding, SegmentationSpec, TrajectoryBinding, TrajectoryFrame, TrajectorySpec,
-    UnitCellSpec, ValidationFinding, VolumeBinding, VolumePresentation, VolumeRegion, VolumeSpec,
-    VolumeTransferPoint,
+    Anchor, AnnotationSpec, AssemblySpec, DataSource, EllipsoidSpec, FieldLines, FitResult,
+    InteractionKind, InteractionSpec, IsoStyle, MeasurementSpec, OverlayHandles, OverlayId,
+    PlaneSpec, SegmentStyle, SegmentationBinding, SegmentationSpec, TrajectoryBinding,
+    TrajectoryFrame, TrajectorySpec, UnitCellSpec, ValidationFinding, VolumeBinding,
+    VolumePresentation, VolumeRegion, VolumeSpec, VolumeTransferPoint,
 };
 pub use patch::{PatchOperation, ScenePatch};
 pub use profile::{AntiAliasing, DepthCue, Effect, EffectKind, EffectSet, Quality, RenderProfile};
@@ -58,9 +58,23 @@ pub use render::{
     MeasuredOutput, PassTiming, PassTimingCoverage, QualityTier, SurfaceLimit,
 };
 #[cfg(not(target_arch = "wasm32"))]
-pub use render::{HdrImage, Image};
+pub use render::{HdrImage, Image, StereoImages, StereoLayout};
 pub use render::{PickKind, PickResult};
 pub use render::{PointCloud, Renderer};
+
+/// Host interop: render into textures owned by an embedding application.
+///
+/// The one place the public API names the graphics backend. The host and the
+/// renderer must agree on a single wgpu version, so it is re-exported here.
+#[cfg(feature = "host")]
+pub mod host {
+    pub use crate::render::{HostFrame, HostOutputFormat, HostTarget};
+    pub use molgfx_gpu::FenceValue;
+    pub use molgfx_wgpu::{
+        HostContext, HostRequirements, host_device_descriptor, host_requirements,
+        unmet_requirements, wgpu,
+    };
+}
 pub use representation::RepresentationSpec;
 pub use representation::{SceneItem, Selection};
 pub use scene::domains::AssemblyChoice;
@@ -79,11 +93,12 @@ pub use visual::{
 pub mod rep {
     //! Typed representation constructors.
     pub use crate::representation::{
-        Backbone, BallAndStick, BasePairs, Bases, Beads, Cartoon, CartoonProfile, CartoonStyle,
-        Dots, GapStyle, Glycan, Licorice, Lines, NucleicAcid, PointRepresentation, Putty,
+        Backbone, BallAndStick, BasePairs, Bases, Beads, Bonds, Cartoon, CartoonProfile,
+        CartoonStyle, Dots, GapStyle, Glycan, Licorice, Lines, NucleicAcid, PaperChain,
+        PointRepresentation, Putty, RepresentationApplicability, RepresentationRequirement,
         Spacefill, Surface, SurfaceKind, SurfaceStyle, Trace, Tube, backbone, ball_and_stick,
-        base_pairs, bases, beads, cartoon, dots, glycan, licorice, lines, nucleic_acid, points,
-        putty, spacefill, surface, trace, tube,
+        base_pairs, bases, beads, bonds, cartoon, dots, glycan, licorice, lines, nucleic_acid,
+        paper_chain, points, putty, spacefill, surface, trace, tube,
     };
 }
 

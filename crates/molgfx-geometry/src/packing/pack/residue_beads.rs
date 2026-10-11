@@ -34,9 +34,14 @@ pub fn pack_residue_beads(
             continue;
         };
         let first = first_row as usize;
-        let centre = coords
-            .get(first)
-            .map_or(Vec3::ZERO, |point| Vec3::from_array(*point));
+        let (sum, count) = atoms
+            .clone()
+            .filter(|row| selection.contains(*row))
+            .filter_map(|row| coords.get(row as usize))
+            .fold((Vec3::ZERO, 0.0f32), |(sum, count), point| {
+                (sum + Vec3::from_array(*point), count + 1.0)
+            });
+        let centre = sum / count.max(1.0);
         let radius = atoms
             .filter(|row| selection.contains(*row))
             .map(|row| {
@@ -86,6 +91,9 @@ pub fn pack_residue_beads(
                 .into_iter()
                 .fold(0, |_, value| value),
         });
+        if let Some(bead) = out.last_mut() {
+            bead.flags = bead.flags.union(molgfx_core::AtomFlags::RESIDUE_CENTER);
+        }
     }
     Ok(())
 }

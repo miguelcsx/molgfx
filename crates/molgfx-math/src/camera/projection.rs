@@ -23,6 +23,19 @@ const MIN_NEAR: f32 = 0.01;
 /// distances compare across the image.
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Projection {
+    /// Perspective projection with a horizontal shift in normalized clip space.
+    OffAxis {
+        /// Vertical field of view, radians.
+        fov_y: f32,
+        /// Width over height.
+        aspect: f32,
+        /// Near plane distance, Ångström.
+        near: f32,
+        /// Far plane distance, Ångström.
+        far: f32,
+        /// Horizontal lens shift in normalized clip coordinates.
+        shift: f32,
+    },
     /// Perspective projection with a vertical field of view in radians.
     Perspective {
         /// Vertical field of view, radians.
@@ -52,6 +65,18 @@ impl Projection {
     #[must_use]
     pub fn matrix(&self) -> Mat4 {
         match *self {
+            Self::OffAxis {
+                fov_y,
+                aspect,
+                near,
+                far,
+                shift,
+            } => {
+                let mut matrix: Mat4 =
+                    glam::camera::rh::proj::directx::perspective(fov_y, aspect, far, near).into();
+                matrix.z_axis.x = shift;
+                matrix
+            }
             Self::Perspective {
                 fov_y,
                 aspect,
@@ -87,7 +112,9 @@ impl Projection {
         let new_far = distance + bound.radius + pad;
         let new_near = (distance - bound.radius - pad).max(MIN_NEAR);
         match self {
-            Self::Perspective { near, far, .. } | Self::Orthographic { near, far, .. } => {
+            Self::Perspective { near, far, .. }
+            | Self::OffAxis { near, far, .. }
+            | Self::Orthographic { near, far, .. } => {
                 *near = new_near;
                 *far = new_far;
             }
@@ -98,14 +125,18 @@ impl Projection {
     #[must_use]
     pub fn aspect(&self) -> f32 {
         match *self {
-            Self::Perspective { aspect, .. } | Self::Orthographic { aspect, .. } => aspect,
+            Self::Perspective { aspect, .. }
+            | Self::OffAxis { aspect, .. }
+            | Self::Orthographic { aspect, .. } => aspect,
         }
     }
 
     /// Updates the aspect ratio, preserving everything else.
     pub fn set_aspect(&mut self, new_aspect: f32) {
         match self {
-            Self::Perspective { aspect, .. } | Self::Orthographic { aspect, .. } => {
+            Self::Perspective { aspect, .. }
+            | Self::OffAxis { aspect, .. }
+            | Self::Orthographic { aspect, .. } => {
                 *aspect = new_aspect;
             }
         }

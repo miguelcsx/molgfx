@@ -15,6 +15,9 @@ pub struct BondStyle {
     pub metal: bool,
     /// Zero-based endpoint-offset variant for a multi-bond.
     pub variant: u32,
+    /// In-plane reference direction for a multiple bond, in units of a 16-bit
+    /// turn, or `None` when the bond has no third atom to define a plane.
+    pub plane_turns: Option<u16>,
 }
 
 impl BondStyle {
@@ -26,7 +29,15 @@ impl BondStyle {
             aromatic,
             metal,
             variant,
+            plane_turns: None,
         }
+    }
+
+    /// Attaches the in-plane reference direction for this bond's strands.
+    #[must_use]
+    pub const fn with_plane_turns(mut self, turns: u16) -> Self {
+        self.plane_turns = Some(turns);
+        self
     }
 }
 
@@ -54,12 +65,21 @@ impl BondGpu {
     ) -> Self {
         let magnitude = radius.abs().max(MIN_BOND_RADIUS);
         let radius = if style.aromatic { -magnitude } else { magnitude };
+        // Bits 0-2 are the metal bit and the two-bit variant; the remaining
+        // twenty-nine were unused. Bit 31 records that an in-plane reference
+        // exists and bits 4-19 carry its direction, so a multiple bond can be
+        // drawn in the plane its substituents define without growing this
+        // record, which the cull, pick and atom paths all read.
+        let plane = match style.plane_turns {
+            Some(turns) => (1 << 31) | (u32::from(turns) << 4),
+            None => 0,
+        };
         Self {
             atom_a,
             atom_b,
             radius,
             order: style.order.clamp(1, 3),
-            flags: u32::from(style.metal) | (style.variant.min(3) << 1),
+            flags: u32::from(style.metal) | (style.variant.min(3) << 1) | plane,
             entity_id,
         }
     }
@@ -96,6 +116,17 @@ impl BondGpu {
     #[must_use]
     pub fn is_aromatic(self) -> bool {
         self.radius.is_sign_negative()
+    }
+
+    /// In-plane reference direction for this multiple bond, in units of a
+    /// 16-bit turn about the bond axis, or `None` when the bond has no third
+    /// atom and the renderer's deterministic perpendicular is used instead.
+    #[must_use]
+    pub const fn plane_turns(self) -> Option<u16> {
+        if self.flags & (1 << 31) == 0 {
+            return None;
+        }
+        Some(((self.flags >> 4) & 0xffff) as u16)
     }
 }
 

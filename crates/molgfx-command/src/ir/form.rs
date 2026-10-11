@@ -420,6 +420,14 @@ forms! {
         radius: Positive => "atom junction scale",
         bond_radius: Positive => "stick radius in ångström",
     }
+    /// Bond capsules without atom spheres.
+    Bonds = "bonds" via bonds {
+        bond_radius: Positive => "bond radius in ångström",
+    }
+    /// Pucker-coloured ring bipyramids.
+    PaperChain = "paper_chain" via paper_chain {
+        width: Positive => "ring pyramid thickness in ångström",
+    }
     /// Pixel-stable bond wires.
     Lines = "lines" via lines {
         width: Positive => "line width in pixels",

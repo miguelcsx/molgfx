@@ -73,6 +73,7 @@ impl DirectionStorage {
                 property_base: None,
                 property_count: 0,
                 normals: &[],
+                plane_rows: &[],
             };
             sample(input, build.params, &mut self.samples, &mut self.frames);
             append_trace(

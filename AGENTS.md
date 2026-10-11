@@ -13,7 +13,11 @@ simulate, or open a window; those are out of scope or the caller's job.
 - **Rust edition 2024**, stable toolchain (pinned in `rust-toolchain.toml`). No
   nightly.
 - **wgpu + WGSL** is the GPU backend; `glam` for math; `bytemuck` for GPU casts.
-  There is exactly one backend, `molgfx-wgpu`, and callers never name it.
+  There is exactly one backend, `molgfx-wgpu`, and callers never name it. The one
+  sanctioned exception is host interop (`molgfx::host`, cargo feature `host`):
+  an embedding application that already owns a wgpu device must hand it over,
+  so that module re-exports `wgpu` and takes `wgpu` handles. Nothing outside it
+  may name the backend, and the default build, Python and WASM never enable it.
 - **`molframe` is an external dependency** (`github.com/miguelcsx/molframe`) — not a
   submodule, not vendored. Don't reimplement parsing or the structural model; use
   `molframe`. If detection (interactions, SASA, secondary structure) is missing, add
@@ -72,6 +76,10 @@ Ordinary callers import from `molgfx` only. Backends are chosen by capability,
 never named in the public API. The facade deliberately does not re-export inner
 crates or provide a `Deref` escape hatch. Low-level schema records live under
 `molgfx::schema`; advanced mechanisms live in explicit curated namespaces.
+Host interop is layered like everything else: the neutral `HostDevice` trait
+and `HostTarget` bookkeeping live in `molgfx-gpu`/`molgfx-render`, the wgpu
+implementation in `molgfx-wgpu::backend::host`, and only the `host`-gated
+`molgfx::host` facade namespace exposes backend types.
 `molgfx-py` and `molgfx-wasm` depend on `molgfx` alone — a binding that needs
 something inward is a missing curated namespace, not a reason to add a
 dependency.

@@ -82,22 +82,6 @@ impl<D: Device> Engine<D> {
         Ok(scene_changed)
     }
 
-    /// Updates the cached temporal scene identity.
-    ///
-    /// Returns `true` when the identity changed. An unchanged scene avoids an
-    /// unnecessary write to the cached identity on the steady-state path.
-    #[inline]
-    fn update_temporal_scene_identity(&mut self, scene: &Scene) -> bool {
-        let identity = scene.cache_identity();
-        let changed = self.temporal_scene_identity != Some(identity);
-
-        if changed {
-            self.temporal_scene_identity = Some(identity);
-        }
-
-        changed
-    }
-
     /// Returns whether scene state invalidates temporal accumulation.
     #[inline]
     pub(crate) fn temporal_reset_required(scene_reset: bool, pool_rebuilt: bool) -> bool {
@@ -172,7 +156,11 @@ impl<D: Device> Engine<D> {
     /// Returns an error for GPU validation or device failures, scene
     /// synchronization failures, pool reconstruction failures, optics
     /// resolution failures, or frame-uniform upload failures.
-    fn prepare_frame(&mut self, scene: &Scene, camera: &Camera) -> Result<(), RenderError> {
+    pub(super) fn prepare_frame(
+        &mut self,
+        scene: &Scene,
+        camera: &Camera,
+    ) -> Result<(), RenderError> {
         self.adaptive.set_atom_count(scene.atom_count());
         self.sync_quality_tier();
         self.device.check_errors()?;
@@ -186,7 +174,7 @@ impl<D: Device> Engine<D> {
         self.scene_gpu
             .settle_specializations(&self.device, scene, &self.passes);
 
-        let scene_reset = self.update_temporal_scene_identity(scene);
+        let scene_reset = self.update_temporal_scene_key(scene);
         let traced = self.tier() >= QualityTier::Standard;
 
         let optics = self.resolve_optics(scene, camera)?;
@@ -228,7 +216,7 @@ impl<D: Device> Engine<D> {
     /// `scene` remains part of the existing signature for compatibility.
     /// Specialization settlement is performed once by `prepare_frame` before
     /// this method is reached.
-    fn record_frame(
+    pub(super) fn record_frame(
         &mut self,
         encoder: &mut D::CommandEncoder,
         scene: &Scene,
@@ -285,7 +273,7 @@ impl<D: Device> Engine<D> {
     /// later poll observes the backend fence. That fence fires when submitted
     /// GPU work is done *executing* on the device, strictly later than host
     /// queue-completion, and is never GPU execution time itself.
-    fn submit_frame(&mut self, encoder: D::CommandEncoder) {
+    pub(super) fn submit_frame(&mut self, encoder: D::CommandEncoder) {
         self.last_submission_id = self.last_submission_id.wrapping_add(1);
         self.last_submission_timestamp_ns = duration_ns(self.clock_origin.elapsed());
         self.last_completion_timestamp_ns = None;
@@ -301,7 +289,12 @@ impl<D: Device> Engine<D> {
         // elapsed time, so only it needs the submission moment recorded.
         #[cfg(target_arch = "wasm32")]
         {
-            self.frame_submitted_at = Some(self.clock_origin.elapsed());
+            // The settled sample may next be polled after an arbitrarily long
+            // host idle; that gap says nothing about rendering performance.
+            self.frame_submitted_at = self
+                .temporal
+                .needs_another_frame(self.tier().temporal_samples())
+                .then(|| self.clock_origin.elapsed());
         }
     }
 
@@ -317,8 +310,9 @@ impl<D: Device> Engine<D> {
     /// the profiling path.
     ///
     /// On browser targets a completed submission also feeds one
-    /// submission-to-completion elapsed time to the adaptive controller. The
-    /// sample includes host scheduling latency between submit and the fence
+    /// submission-to-completion elapsed time to the adaptive controller for
+    /// active exposure samples. The settled sample is excluded because its next
+    /// poll may follow a host idle. Active samples include host scheduling latency between submit and the fence
     /// callback, so it is a conservative queue-depth signal, not device time.
     /// On native targets this poll is a no-op for the controller: `render`
     /// already measured the frame's full CPU duration before returning, and a
@@ -327,7 +321,7 @@ impl<D: Device> Engine<D> {
     /// # Errors
     ///
     /// Returns an error when the device cannot report the completed fence.
-    fn poll_pending_submission(&mut self) -> Result<bool, RenderError> {
+    pub(super) fn poll_pending_submission(&mut self) -> Result<bool, RenderError> {
         let was_pending = self.frame_submission_pending;
         let completed = self.queue.completed_fence(&self.device)?;
 
@@ -387,6 +381,9 @@ impl<D: Device> Engine<D> {
             self.scene_gpu
                 .record_trajectories(encoder, &self.passes.trajectory, timestamps);
 
+        self.scene_gpu
+            .record_helix_fits(encoder, &self.passes.helix_fit);
+
         let paged_coordinates_changed = self
             .passes
             .cull
@@ -422,7 +419,7 @@ impl<D: Device> Engine<D> {
     /// A skipped call has not fulfilled the caller's requested scene/view, even
     /// when an older exposure is already converged. Retry until it is presented;
     /// successful submissions idle only after streaming and exposure settle.
-    fn frame_report(&self, status: FrameStatus) -> FrameReport {
+    pub(super) fn frame_report(&self, status: FrameStatus) -> FrameReport {
         let residency = self.chunk_residency.metrics();
         let derived = self.derived_cache.usage();
         let physical = self.device.resource_memory();

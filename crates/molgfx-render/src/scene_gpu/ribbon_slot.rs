@@ -7,6 +7,7 @@ use super::indexed_draw::{IndexedDraw, write_arguments};
 use super::structure::GpuStructure;
 use super::uniforms::ClipUniforms;
 use super::visual::VisualCullEntries;
+mod helix;
 use crate::error::RenderError;
 use molgfx_core::{
     AtomSelection, ColorScheme, PlacedStructure, Representation, RepresentationKind,
@@ -20,6 +21,9 @@ pub(super) struct RibbonSlot<D: Device> {
     indices: GrowBuffer<D>,
     deformations: GrowBuffer<D>,
     radius_sources: GrowBuffer<D>,
+    fit_jobs: GrowBuffer<D>,
+    fit_group: Option<D::BindGroup>,
+    fit_count: u32,
     args: Option<D::Buffer>,
     group: Option<D::BindGroup>,
     clipping: Option<D::Buffer>,
@@ -33,6 +37,9 @@ impl<D: Device> RibbonSlot<D> {
             indices: GrowBuffer::index(),
             deformations: GrowBuffer::new(),
             radius_sources: GrowBuffer::new(),
+            fit_jobs: GrowBuffer::new(),
+            fit_group: None,
+            fit_count: 0,
             args: None,
             group: None,
             clipping: None,
@@ -66,6 +73,16 @@ impl<D: Device> RibbonSlot<D> {
             input.queue,
             "cartoon guide radius sources",
             input.mesh.radius_source_values(),
+        )?;
+        self.fit_count = match input.mesh.helix_fit_jobs().first() {
+            Some(count) => *count,
+            None => 0,
+        };
+        self.fit_jobs.upload(
+            input.device,
+            input.queue,
+            "helix fit jobs",
+            input.mesh.helix_fit_jobs(),
         )?;
         write_arguments(
             input.device,
@@ -199,7 +216,10 @@ fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), Rend
             capability: "ribbon topology",
         })?;
     let params = spline_params(input.representation, input.ribbon_steps);
-    if input.representation.kind == RepresentationKind::PaperChain {
+    if matches!(
+        input.representation.kind,
+        RepresentationKind::PaperChain | RepresentationKind::Bases | RepresentationKind::BasePairs
+    ) {
         input.mesh.clear();
     } else if input.representation.kind == RepresentationKind::Twister {
         input
@@ -250,10 +270,12 @@ fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), Rend
         input.representation.clipping,
     );
     input.mesh.pad_static_deformations();
+    input.mesh.prepare_helix_fits()?;
     Ok(())
 }
 
 fn append_nucleotide_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), RenderError> {
+    let start = input.mesh.vertices.len();
     let structure = input
         .placed
         .source
@@ -278,12 +300,42 @@ fn append_nucleotide_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Resul
             &mut input.mesh.vertices,
             &mut input.mesh.indices,
         )?;
+    } else if matches!(
+        input.representation.kind,
+        RepresentationKind::Bases | RepresentationKind::BasePairs
+    ) {
+        let paired = if input.representation.kind == RepresentationKind::BasePairs {
+            Some(super::nucleotide_pairs::selected_pairs(
+                structure,
+                input.selection,
+            )?)
+        } else {
+            None
+        };
+        let selection = match &paired {
+            Some(selection) => selection,
+            None => input.selection,
+        };
+        molgfx_geometry::append_base_polygons(
+            structure,
+            selection,
+            input.representation.params.radius_scale,
+            if paired.is_some() {
+                input.representation.params.bond_radius
+            } else {
+                BASE_OUTLINE_RADIUS
+            },
+            &mut input.mesh.vertices,
+            &mut input.mesh.indices,
+        )?;
     }
+    input.mesh.anchor_nucleotide_vertices(structure, start);
     Ok(())
 }
 
 /// Full depth of a nucleotide base slab, Ångström.
 const BASE_SLAB_THICKNESS: f32 = 0.5;
+const BASE_OUTLINE_RADIUS: f32 = 0.08;
 /// Half-depth of a ring plate, Ångström.
 ///
 /// A sugar ring is roughly 2.9 A across, so the former 1.0 A half-height drew a
@@ -321,7 +373,11 @@ pub(super) fn spline_params(representation: &Representation, steps: u8) -> Ribbo
             RibbonParams {
                 width: diameter,
                 thickness: diameter,
-                profile: SplineProfile::Tube,
+                profile: if representation.kind == RepresentationKind::Trace {
+                    SplineProfile::Trace
+                } else {
+                    SplineProfile::Tube
+                },
                 max_steps: steps,
                 color,
                 ..RibbonParams::default()

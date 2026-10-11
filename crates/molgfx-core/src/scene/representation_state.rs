@@ -32,6 +32,9 @@ impl Scene {
         };
         let representation = representation.into();
         let kind = representation.kind;
+        if kind == RepresentationKind::Surface {
+            representation.params.validate_surface()?;
+        }
         self.validate_representation_target(target, kind)?;
         if let Some(visual) = representation.visual_style() {
             visual
@@ -217,6 +220,7 @@ impl Scene {
             .ok_or(CoreError::StaleHandle)?;
         stored.value.visual = visual;
         stored.revision = stored.revision.wrapping_add(1);
+        self.representation_revision = self.representation_revision.wrapping_add(1);
         Ok(())
     }
 
@@ -247,6 +251,7 @@ impl Scene {
                 summary: error.to_string(),
             })?;
         *revision = revision.wrapping_add(1);
+        self.representation_revision = self.representation_revision.wrapping_add(1);
         Ok(())
     }
 
@@ -277,6 +282,7 @@ impl Scene {
                 summary: error.to_string(),
             })?;
         *revision = revision.wrapping_add(1);
+        self.representation_revision = self.representation_revision.wrapping_add(1);
         Ok(())
     }
 
@@ -307,6 +313,7 @@ impl Scene {
                 summary: error.to_string(),
             })?;
         *revision = revision.wrapping_add(1);
+        self.representation_revision = self.representation_revision.wrapping_add(1);
         Ok(())
     }
 

@@ -61,6 +61,7 @@ pub(super) fn synced_state<D: Device>(input: &SlotSync<'_, D>) -> SlotSynced {
             input.representation.kind,
             RepresentationKind::BallAndStick
                 | RepresentationKind::Licorice
+                | RepresentationKind::Bonds
                 | RepresentationKind::Lines
         ) {
             input.placed.bond_topology_revision()
@@ -123,5 +124,7 @@ pub(super) const fn is_spline(kind: RepresentationKind) -> bool {
             | RepresentationKind::Rocket
             | RepresentationKind::Twister
             | RepresentationKind::PaperChain
+            | RepresentationKind::Bases
+            | RepresentationKind::BasePairs
     )
 }

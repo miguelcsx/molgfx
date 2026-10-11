@@ -77,7 +77,7 @@ fn ribbon_set<D: Device>(env: &PassEnv<'_, D>) -> Result<VisualPipelineSet<D>, R
             layouts: &[
                 Some(&env.scene.group0_layout),
                 None,
-                Some(&env.scene.ribbon_layout),
+                Some(&env.scene.ribbon_layouts.draw),
             ],
             shader: &shader,
             vs_entry: "vs_shadow_ribbon",

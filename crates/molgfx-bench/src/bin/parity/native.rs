@@ -67,7 +67,9 @@ pub(super) fn render(
     if kind == MeasuredOutput::Converged && !image.quality().complete() {
         return Err(io::Error::other("incomplete native screenshot").into());
     }
-    validate_pixels(image.pixels())?;
+    let background =
+        renderer.render_output_with_camera(&molgfx::Scene::empty(), &camera, size, kind)?;
+    validate_pixels(image.pixels(), background.pixels())?;
     std::fs::write(output.join("image.png"), image.png_bytes()?)?;
     if recipe == "molgfx-converged"
         && let (Some(video), Some(directory)) = (
@@ -142,8 +144,16 @@ fn telemetry(timing: &FrameTiming) -> CumulativeTelemetry {
     }
 }
 
-fn validate_pixels(pixels: &[u8]) -> Result<()> {
-    if pixels.is_empty() || pixels.iter().all(|byte| *byte == 0) {
+fn validate_pixels(pixels: &[u8], background: &[u8]) -> Result<()> {
+    // Independent captures may differ by rounding under jittered presentation.
+    const BACKGROUND_ROUNDING: u8 = 2;
+    if pixels.is_empty()
+        || pixels.len() != background.len()
+        || !pixels
+            .iter()
+            .zip(background)
+            .any(|(pixel, backdrop)| pixel.abs_diff(*backdrop) > BACKGROUND_ROUNDING)
+    {
         return Err(io::Error::other("native gallery capture contains no visible pixels").into());
     }
     Ok(())

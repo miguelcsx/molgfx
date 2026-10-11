@@ -34,7 +34,7 @@ for (const invalidate of ["camera", "resize", "scene", "dispose"] as const) test
   if (invalidate === "resize") { Object.defineProperty(f.canvas, "clientWidth", { value: 140 }); f.loop.markSizeDirty(); }
   if (invalidate === "scene") f.loop.invalidatePicks();
   if (invalidate === "dispose") f.loop.dispose();
-  if (invalidate !== "dispose") { f.loop.drawNow(); check(f.counts().draws === 3, "readback incorrectly gates drawing"); }
+  if (invalidate !== "dispose") { const before = f.counts().draws; f.loop.drawNow(); check(f.counts().draws === before + 1, "readback incorrectly gates drawing"); }
   f.resolve(new Uint8Array(4)); const result = await pending;
   check(!result.performed && f.counts().finishes === 0 && f.counts().frees === 1, "stale result finished or readback leaked");
   f.loop.dispose(); await f.loop.settled(); check(frames.size === 0, "RAF remains after disposal");

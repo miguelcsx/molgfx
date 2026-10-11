@@ -61,7 +61,7 @@ pub(crate) fn cartoon<D: Device>(env: &PassEnv<'_, D>) -> Result<CartoonPass<D>,
     CartoonPass::new(
         env.device,
         &env.scene.group0_layout,
-        &env.scene.ribbon_layout,
+        &env.scene.ribbon_layouts.draw,
     )
 }
 
@@ -75,7 +75,7 @@ pub(crate) fn oit<D: Device>(
         (
             &env.scene.group0_layout,
             &env.scene.group2_layout,
-            &env.scene.ribbon_layout,
+            &env.scene.ribbon_layouts.draw,
         ),
         (&env.scene.primitive_layout, &env.scene.ligand_pose_layout),
         (

@@ -155,7 +155,9 @@ impl TemporalState {
         // Camera motion is already changing the image every frame. Sampling a
         // different projection then creates visible subpixel swimming instead
         // of useful convergence, so only stable frames use the Halton sequence.
-        let jitter = if camera_changed && !options.converged {
+        // A semantic reset starts the same sequence as a fresh view, so undoing
+        // a highlight restores identical pixels once both exposures settle.
+        let jitter = if (camera_changed || options.reset) && !options.converged {
             [0.0; 2]
         } else {
             JITTER[(self.frame_index as usize) % JITTER.len()]

@@ -3,6 +3,7 @@
 mod acceleration_cache;
 mod asset;
 mod asset_arena;
+mod bead_recipes;
 pub(crate) mod brick_atlas;
 mod buffers;
 pub(crate) mod color_uniforms;
@@ -29,6 +30,7 @@ mod ligand_pose_types;
 mod ligand_pose_upload;
 mod mesh_caps;
 mod mesh_slot;
+mod nucleotide_pairs;
 mod occupancy_slot;
 mod overlay_table;
 pub(crate) mod paged_bonds;

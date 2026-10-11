@@ -25,7 +25,29 @@ struct ModelUniforms {
 
 @group(2) @binding(2) var<uniform> model: ModelUniforms;
 
-@group(2) @binding(3) var<storage, read> bonds: array<BondRecord>;
+// Covalent BondRecord words, or residue coordinate recipes for Beads.
+@group(2) @binding(3) var<storage, read> molecular_auxiliary: array<u32>;
+
+fn molecular_bond(index: u32) -> BondRecord {
+    let start = index * 6u;
+    return BondRecord(molecular_auxiliary[start], molecular_auxiliary[start + 1u],
+        bitcast<f32>(molecular_auxiliary[start + 2u]), molecular_auxiliary[start + 3u],
+        molecular_auxiliary[start + 4u], molecular_auxiliary[start + 5u]);
+}
+
+fn bead_word(index: u32) -> u32 { return molecular_auxiliary[index]; }
+fn bead_coordinate(row: u32, previous: bool) -> vec3f {
+    if previous { return previous_atom_local_position(row * 3u); }
+    return atom_local_position(row * 3u);
+}
+//!include "include/residue_beads.wgsl"
+
+fn molecular_sphere(atom: AtomRecord, previous: bool) -> vec4f {
+    let local = bead_geometry(atom, previous);
+    var transform = model.model_to_world;
+    if previous { transform = model.previous_model_to_world; }
+    return vec4f(atom_transform_point(transform, local.xyz + atom_visual_offset(atom.entity_id)), local.w);
+}
 @group(2) @binding(4) var<storage, read> visible_atoms: array<u32>;
 @group(2) @binding(5) var<storage, read> visible_bonds: array<u32>;
 @group(2) @binding(13) var<storage, read> previous_coords: array<f32>;

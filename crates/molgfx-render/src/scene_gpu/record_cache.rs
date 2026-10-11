@@ -287,14 +287,34 @@ impl<D: Device> RecordSet<D> {
             &mut set.atoms,
             &mut set.atoms_capacity,
         )?;
-        upload_grow(
-            input.device,
-            input.queue,
-            "bond instances",
-            scratch.bonds,
-            &mut set.bonds,
-            &mut set.bonds_capacity,
-        )?;
+        if input.representation.kind == molgfx_core::RepresentationKind::Beads {
+            let mut recipes = Vec::new();
+            super::bead_recipes::append_recipes(
+                input.placed,
+                input.selection,
+                scratch.atoms,
+                scratch.compaction,
+                input.representation.params.radius_scale,
+                &mut recipes,
+            )?;
+            upload_grow(
+                input.device,
+                input.queue,
+                "residue coordinate recipes",
+                &recipes,
+                &mut set.bonds,
+                &mut set.bonds_capacity,
+            )?;
+        } else {
+            upload_grow(
+                input.device,
+                input.queue,
+                "bond instances",
+                scratch.bonds,
+                &mut set.bonds,
+                &mut set.bonds_capacity,
+            )?;
+        }
         upload_grow(
             input.device,
             input.queue,

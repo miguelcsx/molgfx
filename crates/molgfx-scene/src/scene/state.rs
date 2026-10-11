@@ -29,6 +29,9 @@ pub struct Scene {
     pub(super) next_representation: u64,
     /// Immutable bindings removed by a restore, retained for inverse and redo.
     pub(super) snapshot_bindings: super::snapshot::SnapshotBindings,
+    /// The frame pair each structure is being played from, re-applied whenever
+    /// the scene is resolved again so a layer edit never stops an animation.
+    pub(super) playback: BTreeMap<StructureId, super::overlay::PlaybackPair>,
 }
 
 pub(crate) struct Resolution {

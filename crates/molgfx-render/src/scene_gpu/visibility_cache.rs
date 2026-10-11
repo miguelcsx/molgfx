@@ -130,6 +130,13 @@ impl<D: Device> VisibilityCache<D> {
     pub(crate) fn keys(&self) -> impl Iterator<Item = VisibilityKey> + '_ {
         self.entries.iter().map(|(key, _)| *key)
     }
+
+    /// The resident keys with their GPU footprint, in key order.
+    pub(crate) fn resident(&self) -> impl Iterator<Item = (VisibilityKey, u64)> + '_ {
+        self.entries
+            .iter()
+            .map(|(key, set)| (*key, set.resident_bytes()))
+    }
 }
 
 impl<D: Device> VisibilitySet<D> {

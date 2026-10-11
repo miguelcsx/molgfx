@@ -9,6 +9,11 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+# Host interop: lend an existing wgpu device and textures to the renderer.
+# Exposes `wgpu` types publicly, so it is off unless an embedder asks for it.
+host = []
+
 [dependencies]
 molgfx-gpu.workspace = true
 pollster.workspace = true

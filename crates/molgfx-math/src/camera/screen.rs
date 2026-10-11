@@ -80,6 +80,18 @@ impl Camera {
         let right = forward.cross(camera.up).try_normalize()?;
         let up = right.cross(forward);
         let (origin, direction) = match camera.projection {
+            crate::Projection::OffAxis {
+                fov_y,
+                aspect,
+                shift,
+                ..
+            } => {
+                let half_height = (fov_y * 0.5).tan();
+                let direction = forward
+                    + right * ((ndc_x + shift) * half_height * aspect)
+                    + up * (ndc_y * half_height);
+                (camera.eye, direction.try_normalize()?)
+            }
             crate::Projection::Perspective { fov_y, aspect, .. } => {
                 let half_height = (fov_y * 0.5).tan();
                 let direction =

@@ -117,15 +117,15 @@ fn sphere_geometry(
     atom: AtomRecord,
     vertex: u32,
 ) -> SphereGeometry {
-    let world_center =
-        atom_position(atom.entity_id);
+    let molecular = molecular_sphere(atom, false);
+    let world_center = molecular.xyz;
 
     let center =
         sphere_view_position(
             world_center,
         );
 
-    var radius = atom.radius;
+    var radius = molecular.w;
     if visual_counts.visual_enabled != 0u {
         radius *= atom_visual_geometry(atom.entity_id).z * 4.0;
     }

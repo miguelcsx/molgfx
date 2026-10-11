@@ -36,8 +36,7 @@ impl<D: Device> Engine<D> {
         purpose: ImagePurpose,
     ) -> Result<Exposure, RenderError> {
         let preparation = self.prepare_image(scene, purpose)?;
-        let scene_reset = self.temporal_scene_identity.replace(scene.cache_identity())
-            != Some(scene.cache_identity());
+        let scene_reset = self.update_temporal_scene_key(scene);
         let converged = purpose == ImagePurpose::Converged;
         let samples = if converged {
             self.tier().image_samples()

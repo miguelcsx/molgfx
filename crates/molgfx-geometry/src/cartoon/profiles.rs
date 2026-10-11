@@ -81,10 +81,20 @@ const LOOP_RADIUS: f32 = 0.2;
 /// Body width of a strand relative to the reference half width.
 const STRAND_WIDTH_SCALE: f32 = STRAND_HALF_WIDTH / REFERENCE_HALF_WIDTH;
 
+/// Whether a sample's cross-section is a beta strand rather than a helix or a
+/// connecting loop. An isolated beta bridge is drawn as the strand it is: it
+/// carries the same beta category as a ladder residue, and drawing it as a loop
+/// would break the sheet's visual continuity.
+#[inline]
+fn is_strand_like(style: SecondaryStructure) -> bool {
+    style.is_sheet_like()
+}
+
 /// Width of a beta-strand at one spline sample.
 ///
-/// Non-terminal strands retain their body width. A terminal strand widens into
-/// the arrow shoulder and then narrows towards its tip.
+/// A strand that runs into another strand, or that ends without one following,
+/// keeps its body width. A strand that runs into something which is not a
+/// strand ends in the arrow shoulder, narrowing towards its tip.
 #[inline]
 fn strand_width(
     parameter: f32,
@@ -94,14 +104,12 @@ fn strand_width(
 ) -> f32 {
     let next_style = segment.checked_add(1).and_then(|next| styles.get(next));
 
-    if matches!(next_style, Some(SecondaryStructure::Strand))
-        || next_style.is_none()
-        || arrow_factor == 0.0
-    {
-        return STRAND_WIDTH_SCALE;
+    match next_style {
+        Some(next) if !is_strand_like(*next) && arrow_factor != 0.0 => {
+            arrow_factor * (1.0 - parameter) * STRAND_WIDTH_SCALE
+        }
+        _ => STRAND_WIDTH_SCALE,
     }
-
-    arrow_factor * (1.0 - parameter) * STRAND_WIDTH_SCALE
 }
 
 /// Cross-section for the rocket profile.
@@ -120,7 +128,7 @@ pub(super) fn rocket_scale(
 ) -> (f32, f32) {
     match style {
         state if state.is_helix() => (1.35, 1.35),
-        SecondaryStructure::Strand => {
+        state if is_strand_like(state) => {
             (strand_width(parameter, styles, segment, arrow_factor), 0.34)
         }
         _ => (0.3, 0.3),
@@ -141,7 +149,7 @@ pub(super) fn profile_scale(
             HELIX_HALF_WIDTH / REFERENCE_HALF_WIDTH,
             HELIX_HALF_WIDTH / aspect_ratio / REFERENCE_HALF_THICKNESS,
         ),
-        SecondaryStructure::Strand => (
+        state if is_strand_like(state) => (
             strand_width(parameter, styles, segment, arrow_factor),
             STRAND_HALF_WIDTH / aspect_ratio / REFERENCE_HALF_THICKNESS,
         ),
@@ -172,10 +180,10 @@ pub(super) fn profile_extents(
         SplineProfile::Rocket => {
             rocket_scale(style, parameter, styles, segment, params.arrow_factor)
         }
-        SplineProfile::Tube | SplineProfile::Twister => (1.0, 1.0),
+        SplineProfile::Tube | SplineProfile::Trace | SplineProfile::Twister => (1.0, 1.0),
     };
     let depth = if params.profile == SplineProfile::Cartoon
-        && (style.is_helix() || style == SecondaryStructure::Strand)
+        && (style.is_helix() || is_strand_like(style))
     {
         params.width.abs() * 0.5 * REFERENCE_HALF_THICKNESS / REFERENCE_HALF_WIDTH * thickness
     } else {
@@ -194,9 +202,10 @@ pub(super) fn sample_profile(
         SplineProfile::Twister => CartoonProfile::Square,
         SplineProfile::Cartoon if guide == Some(GuideKind::SugarCarbon) => params.nucleic_profile,
         SplineProfile::Cartoon if style.is_helix() => params.helix_profile,
-        SplineProfile::Cartoon | SplineProfile::Rocket | SplineProfile::Tube => {
-            CartoonProfile::Elliptical
-        }
+        SplineProfile::Cartoon
+        | SplineProfile::Rocket
+        | SplineProfile::Tube
+        | SplineProfile::Trace => CartoonProfile::Elliptical,
     }
 }
 
@@ -229,10 +238,12 @@ pub(super) fn arrow_shoulders(
             return false;
         };
         sample.parameter.to_bits() == 1.0_f32.to_bits()
-            && styles.get(segment + 1) == Some(&SecondaryStructure::Strand)
+            && styles
+                .get(segment + 1)
+                .is_some_and(|style| is_strand_like(*style))
             && styles
                 .get(segment + 2)
-                .is_some_and(|style| *style != SecondaryStructure::Strand)
+                .is_some_and(|style| !is_strand_like(*style))
     };
     let count = samples.iter().filter(|sample| shoulder(sample)).count();
     if count == 0 {

@@ -26,9 +26,44 @@ fn elements_are_atomic_numbers_and_drive_radius_and_color() {
     assert_eq!(elements[7], 16);
     let radii = t.radius().values();
     assert!((radii[0] - 1.55).abs() < 1e-6, "nitrogen vdW radius");
-    assert!((radii[4] - 1.20).abs() < 1e-6, "hydrogen vdW radius");
+    assert!((radii[4] - 1.10).abs() < 1e-6, "hydrogen vdW radius");
     let colors = t.color().values();
     assert_ne!(colors[0], colors[1], "nitrogen and carbon differ");
+}
+
+#[test]
+fn the_element_table_covers_every_element_the_references_define() {
+    // The table is what a ligand's halogen, selenium or metal is drawn and
+    // coloured from. Anything the reference engines define and this one does
+    // not is a visible difference on a real structure, so the coverage is
+    // asserted element by element rather than by spot check.
+    let cases: [(u8, f32, [u8; 3]); 12] = [
+        (1, 1.10, [0xFF, 0xFF, 0xFF]),  // H
+        (6, 1.70, [0x90, 0x90, 0x90]),  // C
+        (7, 1.55, [0x30, 0x50, 0xF8]),  // N
+        (8, 1.52, [0xFF, 0x0D, 0x0D]),  // O
+        (9, 1.47, [0x90, 0xE0, 0x50]),  // F
+        (15, 1.80, [0xFF, 0x80, 0x00]), // P
+        (16, 1.80, [0xFF, 0xFF, 0x30]), // S
+        (17, 1.75, [0x1F, 0xF0, 0x1F]), // Cl
+        (26, 2.05, [0xE0, 0x66, 0x33]), // Fe
+        (30, 2.10, [0x7D, 0x80, 0xB0]), // Zn
+        (34, 1.90, [0xFF, 0xA1, 0x00]), // Se
+        (53, 1.98, [0x94, 0x00, 0x94]), // I
+    ];
+    for (z, radius, rgb) in cases {
+        assert!(
+            (radii::vdw_radius(z) - radius).abs() < 1e-6,
+            "element {z} radius"
+        );
+        let color = radii::cpk_color(z);
+        assert_eq!([color.r, color.g, color.b], rgb, "element {z} color");
+        assert_eq!(color.a, 255, "an element colour is opaque");
+    }
+    // An element the table stops before takes the carbon radius rather than a
+    // zero, so an exotic atom is never drawn as a point.
+    assert!((radii::vdw_radius(200) - 1.70).abs() < 1e-6);
+    assert!((radii::vdw_radius(0) - radii::vdw_radius(200)).abs() < 1e-6);
 }
 
 #[test]

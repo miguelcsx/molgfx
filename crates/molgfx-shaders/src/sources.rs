@@ -168,6 +168,10 @@ pub const CULL: &str = include_str!(concat!(env!("OUT_DIR"), "/cull.wgsl"));
 pub const VISUAL_PROGRAM: &str = include_str!(concat!(env!("OUT_DIR"), "/visual_program.wgsl"));
 
 /// Topology-stable two-frame coordinate interpolation.
+/// Fits current, previous and reference axes from borrowed helix guides.
+pub const HELIX_FIT: &str = include_str!(concat!(env!("OUT_DIR"), "/helix_fit.wgsl"));
+
+/// Interpolates caller-supplied topology-aligned trajectory frames.
 pub const TRAJECTORY: &str = include_str!(concat!(env!("OUT_DIR"), "/trajectory.wgsl"));
 
 /// GPU-resident temporal occupancy accumulation and volume resolution.
@@ -276,6 +280,7 @@ pub const UNITS: &[(&str, &str)] = &[
     ("temporal_resolve", TEMPORAL_RESOLVE),
     ("tonemap", TONEMAP),
     ("trajectory", TRAJECTORY),
+    ("helix_fit", HELIX_FIT),
     ("visual_program", VISUAL_PROGRAM),
     ("volume", VOLUME),
 ];

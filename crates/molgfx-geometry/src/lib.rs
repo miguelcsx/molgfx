@@ -9,6 +9,8 @@
 
 mod cartoon;
 mod field;
+mod field_lines;
+pub use field_lines::{FieldLineError, FieldLineParams, field_lines, field_lines_in_region};
 mod packing;
 mod polyhedra;
 
