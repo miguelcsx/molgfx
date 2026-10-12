@@ -36,5 +36,8 @@ web-sys.workspace = true
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
 sha2 = { workspace = true, features = ["asm"] }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+molframe = { workspace = true, features = ["analysis"] }
+
 [lints]
 workspace = true

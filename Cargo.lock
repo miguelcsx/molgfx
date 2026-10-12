@@ -2015,7 +2015,6 @@ dependencies = [
 [[package]]
 name = "molframe"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "molframe-analysis",
  "molframe-bcif",
@@ -2040,7 +2039,6 @@ dependencies = [
 [[package]]
 name = "molframe-analysis"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "faer",
  "molframe-chem",
@@ -2059,7 +2057,6 @@ dependencies = [
 [[package]]
 name = "molframe-bcif"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "indexmap 2.14.2",
  "molframe-cif",
@@ -2075,7 +2072,6 @@ dependencies = [
 [[package]]
 name = "molframe-chem"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "molframe-cif",
  "molframe-core",
@@ -2085,7 +2081,6 @@ dependencies = [
 [[package]]
 name = "molframe-cif"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "indexmap 2.14.2",
  "memchr",
@@ -2098,7 +2093,6 @@ dependencies = [
 [[package]]
 name = "molframe-core"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "bytemuck",
  "hashbrown 0.16.1",
@@ -2106,13 +2100,13 @@ dependencies = [
  "rayon",
  "sha2",
  "smallvec",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "molframe-engine"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "molframe-core",
  "thiserror 2.0.21",
@@ -2121,7 +2115,6 @@ dependencies = [
 [[package]]
 name = "molframe-geom"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "molframe-core",
  "num-traits",
@@ -2131,7 +2124,6 @@ dependencies = [
 [[package]]
 name = "molframe-ic"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "molframe-core",
  "molframe-geom",
@@ -2141,7 +2133,6 @@ dependencies = [
 [[package]]
 name = "molframe-interop"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "arrow",
  "molframe-analysis",
@@ -2158,7 +2149,6 @@ dependencies = [
 [[package]]
 name = "molframe-pdb"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "molframe-core",
  "num-traits",
@@ -2170,7 +2160,6 @@ dependencies = [
 [[package]]
 name = "molframe-py"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "molframe",
  "numpy",
@@ -2181,7 +2170,6 @@ dependencies = [
 [[package]]
 name = "molframe-query"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "molframe-chem",
  "molframe-core",
@@ -2190,15 +2178,14 @@ dependencies = [
 [[package]]
 name = "molframe-seq"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "molframe-core",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "molframe-spatial"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "molframe-chem",
  "molframe-core",
@@ -2211,11 +2198,11 @@ dependencies = [
 [[package]]
 name = "molframe-surface"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "molframe-core",
  "molframe-spatial",
  "num-traits",
+ "rayon",
  "thiserror 2.0.21",
  "wide",
 ]
@@ -2223,7 +2210,6 @@ dependencies = [
 [[package]]
 name = "molframe-traj"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "bytemuck",
  "hdf5-reader",
@@ -2247,7 +2233,6 @@ dependencies = [
 [[package]]
 name = "molframe-xtal"
 version = "0.6.0"
-source = "git+https://github.com/miguelcsx/molframe?rev=b66a017cc57588d07b70c75f03a1dfe78787e47c#b66a017cc57588d07b70c75f03a1dfe78787e47c"
 dependencies = [
  "molframe-chem",
  "molframe-cif",

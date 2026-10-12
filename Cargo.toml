@@ -69,13 +69,13 @@ molgfx-semantic = { version = "0.5.3", path = "crates/molgfx-semantic" }
 molgfx-scene = { version = "0.5.3", path = "crates/molgfx-scene" }
 molgfx-command = { version = "0.5.3", path = "crates/molgfx-command" }
 
-# The structural model and every detection the engine consumes. The revision
+# The structural model and every detection the engine consumes. The local
 # patch below keeps the engine and its companion parser on one source tree while
 # the package requirement remains publishable.
-molframe = { version = ">=0.5.1, <0.7", default-features = false, features = ["mmcif", "bcif", "pdb"] }
+molframe = { version = ">=0.6.0, <0.7", default-features = false, features = ["mmcif", "bcif", "pdb"] }
 # The provider's Python bridge names its library target `_native`, so the
 # dependency is renamed back to the package name for `molframe_py::` to resolve.
-molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", rev = "b66a017cc57588d07b70c75f03a1dfe78787e47c", default-features = false, features = ["base", "analysis", "crystal"] }
+molframe-py = { package = "molframe-py", path = "../molframe/crates/molframe-py", default-features = false, features = ["base", "analysis", "crystal"] }
 
 # Python ABI shared by the thin binding crate and the sibling molframe bridge.
 pyo3 = "0.29"
@@ -139,11 +139,8 @@ codegen-units = 1
 # any LTO measures a call sequence the release build never emits.
 lto = "thin"
 
-# The Python bridge is not on crates.io (`publish = false` upstream), so it comes
-# from git, and it builds against the molframe in that same checkout. Without
-# this patch the workspace would hold two copies of `molframe` whose types do not
-# match. `[patch]` only applies to this workspace's own builds; the published
-# crates still resolve `molframe` from the registry. The patch names the
-# exact upstream revision so clean checkouts and release builders share its types.
+# Development uses the sibling structural provider for both the engine and its
+# Python bridge. The registry requirement remains publishable; release builds
+# must replace this workspace-local patch with the tested upstream revision.
 [patch.crates-io]
-molframe = { git = "https://github.com/miguelcsx/molframe", rev = "b66a017cc57588d07b70c75f03a1dfe78787e47c" }
+molframe = { path = "../molframe/crates/molframe" }

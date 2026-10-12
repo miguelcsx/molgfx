@@ -11,7 +11,7 @@ categories.workspace = true
 
 [dependencies]
 molgfx-scene.workspace = true
-molframe = { workspace = true, features = ["query"] }
+molframe = { workspace = true, features = ["query", "surface"] }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
