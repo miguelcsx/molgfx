@@ -195,6 +195,38 @@ fn relation_payload(handle: crate::RelationBatchHandle, batch: &RelationBatch) -
         hash.anchor(relation.start);
         hash.anchor(relation.end);
     }
+    if let Some(geometry) = batch.oriented_geometry() {
+        for constraint in geometry.iter() {
+            hash.anchor(SpatialAnchor::Entity(constraint.pivot));
+            hash.u32(constraint.geometry.maximum_endpoint_distance.to_bits());
+            hash.u32(constraint.geometry.minimum_angle_degrees.to_bits());
+            hash.u32(u32::from(
+                constraint.geometry.maximum_pivot_end_distance.is_some(),
+            ));
+            if let Some(distance) = constraint.geometry.maximum_pivot_end_distance {
+                hash.u32(distance.to_bits());
+            }
+        }
+    }
+    hash.u32(u32::from(batch.molecular_coordinates().is_some()));
+    if let Some(coordinates) = batch.molecular_coordinates() {
+        hash.u32(coordinates.structure().row());
+        hash.u32(coordinates.structure().generation());
+        hash.u32(u32::from(coordinates.covers_interval()));
+        let pose = coordinates.pose();
+        hash.bytes(bytemuck::cast_slice(pose.source().coordinates()));
+        hash.u32(u32::from(pose.trajectory().is_some()));
+        if let Some(segment) = pose.trajectory() {
+            for frame in [segment.start(), segment.end()] {
+                hash.u64(frame.index());
+                hash.u32(frame.time_seconds().to_bits());
+                hash.bytes(bytemuck::cast_slice(frame.positions()));
+            }
+            if !coordinates.covers_interval() {
+                hash.u32(segment.sample_seconds().to_bits());
+            }
+        }
+    }
     hash.finish(
         ReferencedPayloadKind::Relations,
         batch.source_rows().namespace().0,

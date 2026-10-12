@@ -4,6 +4,7 @@
 mod color;
 #[path = "rehydrate_generic.rs"]
 mod generic;
+mod interactions;
 #[path = "rehydrate_payload.rs"]
 mod payload;
 mod render;
@@ -109,7 +110,7 @@ impl Scene {
         )?;
         generic::rehydrate(&mut scene, description, generic_sources)?;
         payload::rehydrate_guides(&mut scene, &description.guides)?;
-        payload::rehydrate_interactions(&mut scene, &description.interactions)?;
+        interactions::rehydrate_interactions(&mut scene, &description.interactions)?;
         payload::rehydrate_labels(
             &mut scene,
             &description.annotations,

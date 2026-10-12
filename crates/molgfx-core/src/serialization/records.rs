@@ -269,6 +269,9 @@ pub(crate) fn interactions(scene: &Scene) -> Vec<InteractionDescription> {
             persistence_half_life_frames: edge.persistence_half_life_frames(),
             provenance: edge.provenance().to_owned(),
             visible: edge.visible(),
+            static_coordinates: edge.static_coordinates().map(|input| {
+                input.map(|(owner, transform)| (identity(owner), transform.to_cols_array()))
+            }),
         })
         .collect()
 }

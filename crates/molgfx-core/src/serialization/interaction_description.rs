@@ -38,4 +38,7 @@ pub struct InteractionDescription {
     pub provenance: String,
     /// Whether the edge participates in rendering.
     pub visible: bool,
+    /// Original static molecular placements; world-space guides need no dependency.
+    #[serde(default)]
+    pub static_coordinates: [Option<(ObjectIdentity, [f32; 16])>; 2],
 }

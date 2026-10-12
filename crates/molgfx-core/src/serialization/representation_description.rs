@@ -29,8 +29,20 @@ pub struct RepresentationDescription {
     /// Numeric geometry controls in the fixed order of `representation_params`.
     /// Material opacity and draw order are stored only in their named records.
     pub params: [f32; 14],
+    /// Pairwise cutoff for distance-defined geometry, ångström.
+    pub distance_cutoff: f32,
+    /// Largest molecular ring displayed by ring geometry.
+    pub max_ring_size: u8,
+    /// Samples per atom for dotted boundaries.
+    pub point_samples: u16,
+    /// Gaussian support in standard deviations.
+    pub gaussian_cutoff: f32,
+    /// Requested sampled-field spacing in ångström.
+    pub surface_spacing: Option<f32>,
     /// Secondary-structure cross-section aspect ratio.
     pub cartoon_aspect_ratio: f32,
+    /// Radius of fitted circular helix columns.
+    pub cartoon_helix_radius: f32,
     /// Strand arrow shoulder scale.
     pub cartoon_arrow_factor: f32,
     /// Source-anchored polymer direction wedges.
@@ -56,6 +68,9 @@ pub struct RepresentationDescription {
     pub segmentation: SegmentationStyleDescription,
     /// Optional scalar field sampled over a molecular surface.
     pub surface_scalar: Option<SurfaceScalarDescription>,
+    /// Shared analytical provider geometry with original molecular atom rows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub molecular_surface: Option<super::MolecularSurfaceDescription>,
     /// Optional safe typed visual program and its current parameter block.
     pub visual: Option<VisualStyleDescription>,
 }

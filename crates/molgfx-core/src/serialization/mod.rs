@@ -8,6 +8,8 @@ mod generic_records;
 #[cfg(test)]
 mod generic_serialization_tests;
 mod ligand_pose_description;
+mod molecular_surface_description;
+pub use molecular_surface_description::MolecularSurfaceDescription;
 mod manifest_io;
 mod records;
 mod rehydrate;
@@ -41,5 +43,7 @@ pub use types::{
 };
 
 mod sources;
+#[cfg(test)]
+mod surface_serialization_tests;
 
 pub use sources::{GenericSceneDescriptionSources, SceneDescriptionSources};

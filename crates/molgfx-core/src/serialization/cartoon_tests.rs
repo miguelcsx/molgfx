@@ -8,6 +8,8 @@ fn authored_cartoon_proportions_survive_cold_scene_restoration() {
     let mut scene = Scene::from_structure(&structure).expect("source binds");
     let selection = scene.add_selection(AtomSelection::All);
     let recipe = RepresentationConfig::new(RepresentationKind::Cartoon)
+        .cartoon_helix_radius(2.7)
+        .expect("independent radius")
         .direction_wedges(true)
         .gaps(crate::GapStyle::Dashed)
         .cartoon_profiles(
@@ -32,6 +34,12 @@ fn authored_cartoon_proportions_survive_cold_scene_restoration() {
     )
     .expect("cold restore");
     assert_eq!(restored.describe(), description);
+    assert_eq!(
+        description.representations[0]
+            .cartoon_helix_radius
+            .to_bits(),
+        2.7_f32.to_bits()
+    );
     assert_eq!(
         description.representations[0]
             .cartoon_aspect_ratio

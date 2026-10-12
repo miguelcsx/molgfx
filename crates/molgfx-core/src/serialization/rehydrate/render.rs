@@ -1,21 +1,21 @@
 //! Reconstruction of representation and material state.
 
+mod volume;
+use volume::{parse_segmentation_style, parse_volume_style};
+
 use super::color::{parse_color, rgba};
 use super::{Scene, insert, invalid, invalid_value, resolve_existing, resolve_raw};
 use crate::CoreError;
 use crate::scene::StoredRepresentation;
 use crate::serialization::types::{self, TargetDescription};
 use crate::serialization::types::{
-    MaterialDescription, RepresentationDescription, SegmentationStyleDescription,
-    VisualStyleDescription, VolumeStyleDescription,
+    MaterialDescription, RepresentationDescription, VisualStyleDescription,
 };
 use crate::{
     AttributeKind, ClipCap, ClipPlane, ClipSet, Material, MaterialModel, Representation,
-    RepresentationKind, RepresentationParams, RepresentationTarget, RowDomain, ScalarRamp,
-    SegmentStyle, SegmentStyleTable, SurfaceKind, SurfaceStyle, TubeRadiusMapping,
-    VisualAttributeRef, VisualCompatibility, VisualOutput, VisualProgram, VisualStyle,
-    VolumeRegion, VolumeRendering, VolumeSlice, VolumeStyle, VolumeTransferFunction,
-    VolumeTransferPoint,
+    RepresentationKind, RepresentationParams, RepresentationTarget, RowDomain, SurfaceKind,
+    SurfaceStyle, TubeRadiusMapping, VisualAttributeRef, VisualCompatibility, VisualOutput,
+    VisualProgram, VisualStyle,
 };
 use molgfx_math::Vec3;
 
@@ -28,6 +28,14 @@ pub(crate) fn rehydrate_representations(
         let kind = RepresentationKind::from_stable_name(&description.kind)
             .ok_or_else(|| invalid_value("manifest references an unknown representation kind"))?;
         let mut value = Representation::new(target, kind);
+        value.molecular_surface = description
+            .molecular_surface
+            .as_ref()
+            .map(crate::serialization::MolecularSurfaceDescription::geometry)
+            .transpose()?;
+        if kind == RepresentationKind::MolecularSurface && value.molecular_surface.is_none() {
+            return invalid("analytical molecular surface requires complete geometry");
+        }
         value.visible = description.visible;
         value.order = description.order;
         value.params = representation_params(
@@ -35,6 +43,28 @@ pub(crate) fn rehydrate_representations(
             description.cartoon_aspect_ratio,
             description.cartoon_arrow_factor,
         )?;
+        if !description.distance_cutoff.is_finite() || description.distance_cutoff <= 0.0 {
+            return invalid("distance cutoff must be finite and positive");
+        }
+        value.params.distance_cutoff = description.distance_cutoff;
+        if !(3..=12).contains(&description.max_ring_size) {
+            return invalid("ring size must lie between three and twelve");
+        }
+        value.params.max_ring_size = description.max_ring_size;
+        if !(1..=4096).contains(&description.point_samples) {
+            return invalid("point samples must lie between one and 4096");
+        }
+        value.params.point_samples = description.point_samples;
+        value.params.gaussian_cutoff = description.gaussian_cutoff;
+        value.params.surface_spacing = description.surface_spacing;
+        value.params.validate_surface()?;
+        if !description.cartoon_helix_radius.is_finite()
+            || description.cartoon_helix_radius <= 0.0
+            || !(description.cartoon_helix_radius * 2.0).is_finite()
+        {
+            return invalid("cartoon helix radius must be finite and positive");
+        }
+        value.params.cartoon_helix_radius = description.cartoon_helix_radius;
         value.params.cartoon_direction_wedges = description.cartoon_direction_wedges;
         value.params.gaps = description.gaps;
         value.params.cartoon_helix_profile = description.cartoon_helix_profile;
@@ -257,6 +287,7 @@ fn representation_params(
     }
     Ok(RepresentationParams {
         cartoon_aspect_ratio: aspect_ratio,
+        cartoon_helix_radius: RepresentationParams::default().cartoon_helix_radius,
         cartoon_arrow_factor: arrow_factor,
         cartoon_direction_wedges: false,
         gaps: crate::GapStyle::Hidden,
@@ -264,8 +295,13 @@ fn representation_params(
         cartoon_nucleic_profile: crate::CartoonProfile::Elliptical,
         radius_scale: values[0],
         bond_radius: values[1],
+        distance_cutoff: RepresentationParams::default().distance_cutoff,
+        max_ring_size: RepresentationParams::default().max_ring_size,
+        point_samples: RepresentationParams::default().point_samples,
         probe_radius: values[2],
         gaussian_sigma: values[3],
+        gaussian_cutoff: RepresentationParams::default().gaussian_cutoff,
+        surface_spacing: None,
         isolevel: values[4],
         surface_kind: parse_surface_kind(values[5])?,
         surface_style: parse_surface_style(values[6])?,
@@ -379,109 +415,6 @@ fn parse_clip(value: &types::ClipDescription) -> Result<ClipSet, crate::CoreErro
         _ => return invalid("unknown clip cap mode"),
     };
     Ok(ClipSet::new(&planes)?.with_cap(cap))
-}
-
-fn parse_volume_style(value: &VolumeStyleDescription) -> Result<VolumeStyle, crate::CoreError> {
-    let points = value
-        .transfer
-        .iter()
-        .map(|point| VolumeTransferPoint::new(point.value, rgba(point.color), point.opacity))
-        .collect::<Vec<_>>();
-    let transfer = VolumeTransferFunction::new(&points)?;
-    let style = VolumeStyle {
-        rendering: parse_volume_rendering(&value.rendering)?,
-        transfer,
-        opacity_scale: finite_nonnegative(value.opacity_scale, "volume opacity scale")?,
-        step_scale: positive_finite(value.step_scale, "volume step scale")?,
-        slice: value.slice.map(parse_slice).transpose()?,
-        slice_ramp: value
-            .slice_ramp
-            .as_deref()
-            .map(parse_slice_ramp)
-            .transpose()?,
-        region: value.region.map(parse_region).transpose()?,
-        iso_width_voxels: finite_nonnegative(value.iso_width_voxels, "volume lattice width")?,
-    };
-    style.validate()?;
-    Ok(style)
-}
-
-fn parse_slice_ramp(
-    points: &[types::VolumeTransferPointDescription],
-) -> Result<ScalarRamp, crate::CoreError> {
-    if points
-        .iter()
-        .any(|point| point.opacity.to_bits() != 1.0_f32.to_bits())
-    {
-        return invalid("slice palette stops must have opacity one");
-    }
-    let values: Vec<_> = points.iter().map(|point| point.value).collect();
-    let colors: Vec<_> = points.iter().map(|point| rgba(point.color)).collect();
-    ScalarRamp::new(&values, &colors)
-}
-
-fn parse_volume_rendering(value: &str) -> Result<VolumeRendering, crate::CoreError> {
-    match value {
-        "direct" => Ok(VolumeRendering::Direct),
-        "isosurface" => Ok(VolumeRendering::Isosurface),
-        "medium" => Ok(VolumeRendering::Medium),
-        "slice" => Ok(VolumeRendering::Slice),
-        "liquid_surface" => Ok(VolumeRendering::LiquidSurface),
-        "iso_mesh" => Ok(VolumeRendering::IsoMesh),
-        "iso_dots" => Ok(VolumeRendering::IsoDots),
-        _ => invalid("unknown volume rendering mode"),
-    }
-}
-
-fn parse_segmentation_style(
-    value: &SegmentationStyleDescription,
-) -> Result<crate::SegmentationStyle, crate::CoreError> {
-    let styles = value
-        .styles
-        .iter()
-        .map(|style| SegmentStyle::new(style.label, rgba(style.color), style.opacity))
-        .collect::<Vec<_>>();
-    Ok(crate::SegmentationStyle {
-        presentation: value.presentation,
-        styles: SegmentStyleTable::new(&styles)?,
-        opacity_scale: finite_nonnegative(value.opacity_scale, "segmentation opacity scale")?,
-        slice: value.slice.map(parse_slice).transpose()?,
-        region: value.region.map(parse_region).transpose()?,
-    })
-}
-
-fn parse_slice(value: [f32; 4]) -> Result<VolumeSlice, crate::CoreError> {
-    let normal = Vec3::new(value[0], value[1], value[2]);
-    if !normal.is_finite() || !value[3].is_finite() || normal.length_squared() <= 1.0e-12 {
-        return invalid("volume slice plane is malformed");
-    }
-    Ok(VolumeSlice::new(ClipPlane {
-        normal,
-        offset: value[3],
-    }))
-}
-
-fn parse_region(value: types::RegionDescription) -> Result<VolumeRegion, crate::CoreError> {
-    if (0..3).any(|axis| value.minimum[axis] >= value.maximum[axis]) {
-        return invalid("volume region is empty");
-    }
-    VolumeRegion::new(value.minimum, value.maximum, [u32::MAX; 3])
-}
-
-fn finite_nonnegative(value: f32, label: &'static str) -> Result<f32, crate::CoreError> {
-    if value.is_finite() && value >= 0.0 {
-        Ok(value)
-    } else {
-        invalid(label)
-    }
-}
-
-fn positive_finite(value: f32, label: &'static str) -> Result<f32, crate::CoreError> {
-    if value.is_finite() && value > 0.0 {
-        Ok(value)
-    } else {
-        invalid(label)
-    }
 }
 
 mod overlays;

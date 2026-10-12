@@ -226,6 +226,9 @@ fn surface_styles_survive_cold_source_rehydration() {
             panic!("surface resolves")
         };
         representation.params.surface_style = style;
+        if style == crate::SurfaceStyle::SoftUnion {
+            representation.params.surface_kind = crate::SurfaceKind::SolventAccessible;
+        }
         let description = scene.describe();
         let rebuilt = match Scene::from_description(
             &description,

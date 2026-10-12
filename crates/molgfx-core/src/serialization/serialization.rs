@@ -213,7 +213,13 @@ fn representation_description(
             params.line_width_pixels,
             params.blob_spread,
         ],
+        distance_cutoff: params.distance_cutoff,
+        max_ring_size: params.max_ring_size,
+        point_samples: params.point_samples,
+        gaussian_cutoff: params.gaussian_cutoff,
+        surface_spacing: params.surface_spacing,
         cartoon_aspect_ratio: params.cartoon_aspect_ratio,
+        cartoon_helix_radius: params.cartoon_helix_radius,
         cartoon_arrow_factor: params.cartoon_arrow_factor,
         cartoon_direction_wedges: params.cartoon_direction_wedges,
         gaps: params.gaps,
@@ -245,6 +251,10 @@ fn representation_description(
             .surface_scalar
             .as_ref()
             .map(records::surface_scalar_description),
+        molecular_surface: representation
+            .molecular_surface
+            .as_ref()
+            .map(super::MolecularSurfaceDescription::from_geometry),
         visual: representation.visual.as_ref().map(visual_description),
     }
 }

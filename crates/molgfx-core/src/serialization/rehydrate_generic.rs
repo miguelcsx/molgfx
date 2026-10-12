@@ -107,6 +107,9 @@ fn relation_batches(
         if generic_records::relation_batch(handle, source) != *description {
             return invalid("supplied relation batch does not match its manifest");
         }
+        if let Some(coordinates) = source.molecular_coordinates() {
+            coordinates.validate_source(scene)?;
+        }
         for dependency in source.dependencies().iter() {
             let rows = scene
                 .row_count(dependency.domain)

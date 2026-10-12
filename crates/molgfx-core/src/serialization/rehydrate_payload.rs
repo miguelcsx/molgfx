@@ -5,14 +5,13 @@ use crate::annotation::LabelObject;
 use crate::serialization::types;
 use crate::serialization::types::{
     AnchorDescription, AnnotationDescription, EntityDescription, GuideDescription,
-    InteractionDescription, MeasurementDescription, ParticleMotionDescription,
-    PrimitiveDescription,
+    MeasurementDescription, ParticleMotionDescription, PrimitiveDescription,
 };
 use crate::{
     AnisotropicEllipsoid, Annotation, AnnotationAnchor, CarbohydrateShape, CarbohydrateSymbol,
     EntityKind, EntityRef, Guide, GuideCap, GuideStyle, InteractionAnchor, InteractionDirection,
-    InteractionEdge, InteractionGeometry, InteractionKind, MarkerShape, MarkerStyle, Measurement,
-    Particle, ParticleBoundary, ParticleMotion, ParticleShape, PlanarRegion, Primitive,
+    InteractionKind, MarkerShape, MarkerStyle, Measurement, Particle, ParticleBoundary,
+    ParticleMotion, ParticleShape, PlanarRegion, Primitive,
 };
 use molgfx_math::{Aabb, Quat, Rgba8, Vec3};
 
@@ -133,43 +132,6 @@ pub(crate) fn rehydrate_guides(
     Ok(())
 }
 
-pub(crate) fn rehydrate_interactions(
-    scene: &mut Scene,
-    descriptions: &[InteractionDescription],
-) -> Result<(), crate::CoreError> {
-    for description in descriptions {
-        let owner = owner(scene, description.owner)?;
-        let mut value = InteractionEdge::new(
-            owner,
-            parse_interaction_anchor(scene, &description.start)?,
-            parse_interaction_anchor(scene, &description.end)?,
-            parse_interaction_kind(&description.kind)?,
-            InteractionGeometry::new(description.distance_angstrom, description.angle_degrees)?,
-            description.provenance.clone(),
-        )?
-        .with_direction(parse_interaction_direction(&description.direction)?);
-        if let Some(occupancy) = description.occupancy {
-            value = value.with_occupancy(occupancy)?;
-        }
-        if let Some(strength) = description.normalized_strength {
-            value = value.with_normalized_strength(strength)?;
-        }
-        value = value.with_phase_speed(description.phase_speed_pixels_per_frame)?;
-        value = value.with_persistence(
-            description.persistence_age_frames,
-            description.persistence_half_life_frames,
-        )?;
-        value.set_visible(description.visible);
-        insert(
-            scene
-                .interactions
-                .insert_at(super::raw(description.row, description.generation), value),
-            "interaction identity collision",
-        )?;
-    }
-    Ok(())
-}
-
 pub(crate) fn rehydrate_labels(
     scene: &mut Scene,
     annotations: &[AnnotationDescription],
@@ -221,7 +183,7 @@ pub(crate) fn rehydrate_labels(
     Ok(())
 }
 
-fn owner(
+pub(super) fn owner(
     scene: &Scene,
     identity: types::ObjectIdentity,
 ) -> Result<crate::StructureHandle, crate::CoreError> {
@@ -230,16 +192,8 @@ fn owner(
 }
 
 fn parse_carbohydrate(value: &str) -> Result<CarbohydrateShape, crate::CoreError> {
-    match value {
-        "unknown" => Ok(CarbohydrateShape::Unknown),
-        "glc" => Ok(CarbohydrateShape::Glc),
-        "gal" => Ok(CarbohydrateShape::Gal),
-        "man" => Ok(CarbohydrateShape::Man),
-        "fuc" => Ok(CarbohydrateShape::Fuc),
-        "xyl" => Ok(CarbohydrateShape::Xyl),
-        "neu5ac" => Ok(CarbohydrateShape::Neu5Ac),
-        _ => invalid("unknown carbohydrate shape"),
-    }
+    CarbohydrateShape::from_stable_name(value)
+        .map_or_else(|| invalid("unknown carbohydrate shape"), Ok)
 }
 
 fn parse_particle_shape(value: &str) -> Result<ParticleShape, crate::CoreError> {
@@ -309,7 +263,7 @@ fn parse_guide_cap(value: &str) -> Result<GuideCap, crate::CoreError> {
     }
 }
 
-fn parse_interaction_anchor(
+pub(super) fn parse_interaction_anchor(
     scene: &Scene,
     value: &AnchorDescription,
 ) -> Result<InteractionAnchor, crate::CoreError> {
@@ -343,7 +297,7 @@ fn parse_entity(scene: &Scene, value: &EntityDescription) -> Result<EntityRef, c
     })
 }
 
-fn parse_interaction_kind(value: &str) -> Result<InteractionKind, crate::CoreError> {
+pub(super) fn parse_interaction_kind(value: &str) -> Result<InteractionKind, crate::CoreError> {
     match value {
         "hydrogen_bond" => Ok(InteractionKind::HydrogenBond),
         "salt_bridge" => Ok(InteractionKind::SaltBridge),
@@ -355,7 +309,9 @@ fn parse_interaction_kind(value: &str) -> Result<InteractionKind, crate::CoreErr
     }
 }
 
-fn parse_interaction_direction(value: &str) -> Result<InteractionDirection, crate::CoreError> {
+pub(super) fn parse_interaction_direction(
+    value: &str,
+) -> Result<InteractionDirection, crate::CoreError> {
     match value {
         "undirected" => Ok(InteractionDirection::Undirected),
         "forward" => Ok(InteractionDirection::Forward),
