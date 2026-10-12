@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING
 
 from molframe import sel as sel
 
+from . import place as place
+from . import playback as playback
+from . import properties as properties
 from ._engine import (
     Anchor,
     AnnotationId,
@@ -30,6 +33,7 @@ from ._engine import (
     Label,
     Measurement,
     MeasurementId,
+    MolecularPose,
     MolgfxError,
     OrbitController,
     PickResult,
@@ -77,6 +81,8 @@ from ._engine import (
     visual,
     vocabulary,
 )
+from .properties import bind as bind_array
+from .properties import by_array as by_array
 
 if TYPE_CHECKING:
     from .viewer import Viewer
@@ -90,6 +96,11 @@ def __getattr__(name: str) -> object:
         return viewer
     message = f"module {__name__!r} has no attribute {name!r}"
     raise AttributeError(message)
+
+
+def __dir__() -> list[str]:
+    """List the public names, including the lazily loaded `Viewer`."""
+    return sorted({*globals(), *__all__})
 
 
 __all__ = [
@@ -117,6 +128,7 @@ __all__ = [
     "Label",
     "Measurement",
     "MeasurementId",
+    "MolecularPose",
     "MolgfxError",
     "OrbitController",
     "PickResult",
@@ -150,6 +162,8 @@ __all__ = [
     "VolumeId",
     "__version__",
     "annotation",
+    "bind_array",
+    "by_array",
     "color",
     "data",
     "density",
@@ -157,7 +171,10 @@ __all__ = [
     "ellipsoid",
     "interaction",
     "measurement",
+    "place",
+    "playback",
     "profile",
+    "properties",
     "rep",
     "segmentation",
     "sel",

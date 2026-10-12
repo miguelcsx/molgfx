@@ -45,6 +45,52 @@ class Viewer(anywidget.AnyWidget):
     structure_names = traitlets.List(traitlets.Unicode()).tag(sync=True)
     structure_payloads = traitlets.List(traitlets.Bytes()).tag(sync=True)
     structure_sources = traitlets.List(traitlets.Int()).tag(sync=True)
+    volume_bindings = traitlets.List(traitlets.Tuple(traitlets.Unicode(), traitlets.Bytes())).tag(
+        sync=True
+    )
+    hydrogen_bond_bindings = traitlets.List(
+        traitlets.Tuple(
+            traitlets.Unicode(),
+            traitlets.Bytes(),
+            traitlets.Float(allow_none=True),
+            traitlets.Unicode(),
+        )
+    ).tag(sync=True)
+    molecular_surface_bindings = traitlets.List(
+        traitlets.Tuple(
+            traitlets.Unicode(),
+            traitlets.Unicode(),
+            traitlets.Bytes(),
+            traitlets.Bytes(),
+            traitlets.Bytes(),
+            traitlets.Bytes(),
+        )
+    ).tag(sync=True)
+    coordinate_frames = traitlets.List(
+        traitlets.Tuple(
+            traitlets.Unicode(), traitlets.Unicode(), traitlets.Float(), traitlets.Bytes()
+        )
+    ).tag(sync=True)
+    trajectory_bindings = traitlets.List(
+        traitlets.Tuple(
+            traitlets.Unicode(), traitlets.Unicode(), traitlets.Unicode(), traitlets.Float()
+        )
+    ).tag(sync=True)
+    trajectory_sample = traitlets.Tuple(
+        traitlets.Unicode(), traitlets.Float(), default_value=("", 0.0)
+    ).tag(sync=True)
+    playback_bindings = traitlets.List(
+        traitlets.Tuple(
+            traitlets.Unicode(), traitlets.Unicode(), traitlets.Unicode(), traitlets.Float()
+        )
+    ).tag(sync=True)
+    playback_pair = traitlets.Tuple(
+        traitlets.Unicode(),
+        traitlets.Unicode(),
+        traitlets.Unicode(),
+        traitlets.Float(),
+        default_value=("", "", "", 0.0),
+    ).tag(sync=True)
     pick = traitlets.Dict().tag(sync=True)
     camera = traitlets.Dict().tag(sync=True)
     error = traitlets.Unicode().tag(sync=True)
@@ -56,6 +102,7 @@ class Viewer(anywidget.AnyWidget):
         """Bind one live session and its BinaryCIF sources to the browser."""
         self._closed = True
         self._subscription: weakref.WeakMethod[Callable[[str], None]] | None = None
+        self._runtime_subscription: weakref.WeakMethod[Callable[[str], None]] | None = None
         self._last_clear_event: str | None = None
         runtime = load_runtime()
         self.session = source if isinstance(source, Session) else Session(source)
@@ -65,6 +112,8 @@ class Viewer(anywidget.AnyWidget):
         self._structures: dict[int, tuple[str, bytes]] = {}
         self._materialize(self.scene.browser_sources())
         ids, names, payloads, sources = self._structure_columns()
+        volumes, hydrogen_bonds, surfaces = self._scientific_columns()
+        frames, trajectories, playback = self._motion_columns()
         super().__init__(
             _esm=(_STATIC / "anywidget.js").read_text(encoding="utf-8"),
             _css=(_STATIC / "viewer.css").read_text(encoding="utf-8"),
@@ -77,11 +126,19 @@ class Viewer(anywidget.AnyWidget):
             structure_names=names,
             structure_payloads=payloads,
             structure_sources=sources,
+            volume_bindings=volumes,
+            hydrogen_bond_bindings=hydrogen_bonds,
+            molecular_surface_bindings=surfaces,
+            coordinate_frames=frames,
+            trajectory_bindings=trajectories,
+            playback_bindings=playback,
             **kwargs,
         )
         self._closed = False
         self._subscription = weakref.WeakMethod(self._on_scene_patch)
         self.scene.subscribe(self._subscription)
+        self._runtime_subscription = weakref.WeakMethod(self._on_runtime_sample)
+        self.scene.subscribe_runtime(self._runtime_subscription)
         self.observe(self._on_sync_request, names="sync_request")
         self.observe(self._on_interaction, names="interaction_event")
 
@@ -134,6 +191,9 @@ class Viewer(anywidget.AnyWidget):
         if self._subscription is not None:
             self.scene.unsubscribe(self._subscription)
             self._subscription = None
+        if self._runtime_subscription is not None:
+            self.scene.unsubscribe_runtime(self._runtime_subscription)
+            self._runtime_subscription = None
         self.unobserve(self._on_sync_request, names="sync_request")
         self.unobserve(self._on_interaction, names="interaction_event")
         self._structures.clear()
@@ -188,6 +248,14 @@ class Viewer(anywidget.AnyWidget):
                 self.structure_payloads,
                 self.structure_sources,
             ) = self._structure_columns()
+            (
+                self.volume_bindings,
+                self.hydrogen_bond_bindings,
+                self.molecular_surface_bindings,
+            ) = self._scientific_columns()
+            self.coordinate_frames, self.trajectory_bindings, self.playback_bindings = (
+                self._motion_columns()
+            )
             self.revision = self.scene.revision
             self.scene_patch = ""
             self.scene_spec = self.scene.to_json()
@@ -198,9 +266,17 @@ class Viewer(anywidget.AnyWidget):
         # The committed scene is authoritative even for empty or replayed patches.
         patch = cast("dict[str, object]", json.loads(patch_json))
         operations = cast("list[dict[str, object]]", patch["operations"])
-        if any(
-            operation["op"] in {"add_structure", "replace_structure", "remove_structure"}
-            for operation in operations
+        previous = self._binding_identity
+        previous_motion = self._motion_identity
+        self._scientific_columns()
+        self._motion_columns()
+        if (
+            previous != self._binding_identity
+            or previous_motion != self._motion_identity
+            or any(
+                operation["op"] in {"add_structure", "replace_structure", "remove_structure"}
+                for operation in operations
+            )
         ):
             self._resync_structures()
             return
@@ -208,3 +284,83 @@ class Viewer(anywidget.AnyWidget):
             self.revision = self.scene.revision
             self.scene_patch = patch_json
             self.patch_sequence += 1
+
+    def _scientific_columns(
+        self,
+    ) -> tuple[
+        list[tuple[str, bytes]],
+        list[tuple[str, bytes, float | None, str]],
+        list[tuple[str, str, bytes, bytes, bytes, bytes]],
+    ]:
+        volumes, hydrogen_bonds, surfaces = self.scene.browser_bindings()
+        # Payload object identities are cached; style edits never compare large buffers.
+        self._binding_identity = (
+            tuple((identity, id(values)) for identity, values in volumes),
+            tuple(
+                (identity, id(rows), distance, metadata)
+                for identity, rows, distance, metadata in hydrogen_bonds
+            ),
+            tuple(
+                (identity, metadata, id(vertices), id(normals), id(faces), id(atoms))
+                for identity, metadata, vertices, normals, faces, atoms in surfaces
+            ),
+        )
+        return (
+            [(str(identity), values) for identity, values in volumes],
+            [
+                (str(identity), rows, distance, metadata)
+                for identity, rows, distance, metadata in hydrogen_bonds
+            ],
+            [
+                (str(identity), metadata, vertices, normals, faces, atoms)
+                for identity, metadata, vertices, normals, faces, atoms in surfaces
+            ],
+        )
+
+    def _on_runtime_sample(self, event_json: str) -> None:
+        if not self._closed:
+            event: object = json.loads(event_json)
+            if isinstance(event, dict):
+                identity = str(event["structure"])
+                frames, trajectories, playback = self._motion_columns()
+                interval = next(interval for interval in playback if interval[0] == identity)
+                with self.hold_sync():
+                    self.coordinate_frames = frames
+                    self.trajectory_bindings = trajectories
+                    self.playback_bindings = playback
+                    self.playback_pair = interval
+                return
+            identity, seconds = cast("tuple[str, float]", event)
+            self.trajectory_sample = (identity, seconds)
+
+    def _motion_columns(
+        self,
+    ) -> tuple[
+        list[tuple[str, str, float, bytes]],
+        list[tuple[str, str, str, float]],
+        list[tuple[str, str, str, float]],
+    ]:
+        frames, intervals = self.scene.browser_motion_bindings()
+        playback = self.scene.browser_playback_bindings()
+        self._motion_identity = (
+            tuple(
+                (identity, index, seconds, id(positions))
+                for identity, index, seconds, positions in frames
+            ),
+            tuple((identity, start, end) for identity, start, end, _ in intervals),
+            tuple((identity, start, end) for identity, start, end, _ in playback),
+        )
+        return (
+            [
+                (str(identity), str(index), seconds, positions)
+                for identity, index, seconds, positions in frames
+            ],
+            [
+                (str(identity), str(start), str(end), seconds)
+                for identity, start, end, seconds in intervals
+            ],
+            [
+                (str(identity), str(start), str(end), seconds)
+                for identity, start, end, seconds in playback
+            ],
+        )

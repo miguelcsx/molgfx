@@ -5,6 +5,8 @@ from os import PathLike
 from types import TracebackType
 from typing import Literal, Protocol, Self, final, overload
 
+from molframe.surface import MolecularSurface as _MolecularSurface
+
 class _QueryLike(Protocol):
     @property
     def source(self) -> str: ...
@@ -87,6 +89,30 @@ class Anchor: ...
 
 @final
 class Volume:
+    def field_lines(
+        self,
+        *,
+        seed_stride: int = 4,
+        seed_gradient: tuple[float, float] = ...,
+        step: float = 0.25,
+        length: tuple[float, float] = ...,
+        critical_gradient: float = 1e-6,
+        max_steps: int = 1024,
+        max_segments: int = 1000000,
+        width_pixels: float = 1.5,
+        color: _Rgb = ...,
+        opacity: float = 1.0,
+    ) -> Self: ...
+    def orbital(
+        self,
+        amplitude: float,
+        *,
+        positive: _Rgb = ...,
+        negative: _Rgb = ...,
+        opacity: float = 1.0,
+        style: Literal["solid", "mesh", "dots"] = "solid",
+        width: float = 0.1,
+    ) -> Self: ...
     def isosurface(
         self,
         isovalue: float,
@@ -315,7 +341,11 @@ class SceneTransaction:
 class Scene:
     def __new__(cls, structure: object | None = None) -> Self: ...
     @overload
-    def add(self, item: Representation) -> RepresentationId: ...
+    def add(self, item: Representation, *, allow_empty: bool = False) -> RepresentationId:
+        """Add a representation; raise `SpecError` if its target selects no atoms.
+
+        Pass `allow_empty=True` to add it anyway (for example before the atoms exist).
+        """
     @overload
     def add(self, item: Volume) -> VolumeId: ...
     @overload
@@ -331,7 +361,8 @@ class Scene:
     @overload
     def add(self, item: Ellipsoid) -> EllipsoidId: ...
     def add_structure(self, structure: object) -> StructureId: ...
-    def auto(self, *, structure: StructureId | None = None) -> Sequence[RepresentationId]: ...
+    def auto(self, *, structure: StructureId | None = None) -> Sequence[RepresentationId]:
+        """Add default representations for the structure's molecule types."""
     def ensemble(
         self,
         members: Sequence[tuple[StructureId, float, tuple[int, int, int]]],
@@ -350,7 +381,12 @@ class Scene:
     ) -> RepresentationId: ...
     def place(
         self, matrix: Sequence[float], *, structure: StructureId | None = None
-    ) -> StructureId: ...
+    ) -> StructureId:
+        """Copy a structure at a column-major 4x4 matrix (16 floats).
+
+        A row-major NumPy ``M`` must be passed as ``M.T.reshape(-1).tolist()``;
+        ``molgfx.place.from_rotation_translation`` does that for ``R @ x + t``.
+        """
     def assembly(
         self, instances: Sequence[object], *, of: StructureId | None = None
     ) -> list[AssemblyCopy]: ...
@@ -360,7 +396,8 @@ class Scene:
         *,
         structure: StructureId | None = None,
         style: PocketStyle | None = None,
-    ) -> Sequence[RepresentationId]: ...
+    ) -> Sequence[RepresentationId]:
+        """Add a pocket view around ``focus``; raise `SpecError` if it selects no atoms."""
     def bind_property(
         self,
         *,
@@ -370,7 +407,8 @@ class Scene:
         values: Sequence[float],
         units: str | None = None,
         domain: tuple[float, float] | None = None,
-    ) -> ScalarProperty: ...
+    ) -> ScalarProperty:
+        """Bind one scalar per atom; colour it with ``color.property`` or ``molgfx.by_array``."""
     def bind_trajectory(
         self,
         *,
@@ -378,9 +416,32 @@ class Scene:
         start: TrajectoryFrame,
         end: TrajectoryFrame,
         sample_time: float | None = None,
-    ) -> None: ...
-    def set_trajectory_time(self, *, structure: StructureId, seconds: float) -> None: ...
+    ) -> None:
+        """Bind a frame pair for a declared ``trajectory.bind`` source; a hash binds once.
+
+        For N-frame playback use ``molgfx.playback.attach``.
+        """
+    def set_trajectory_time(self, *, structure: StructureId, seconds: float) -> None:
+        """Move the sample time of the resident pair; needs a bound or set pair first."""
     def bind_volume(self, identity: VolumeId, values: list[float]) -> None: ...
+    def bind_molecular_surface(
+        self,
+        identity: RepresentationId,
+        data: str | _MolecularSurface,
+        *,
+        pose: MolecularPose | None = None,
+    ) -> None: ...
+    def molecular_pose(self, *, structure: StructureId) -> MolecularPose:
+        """Retain the exact calculation sample without copying molecular coordinates."""
+    def unresolved_representations(self) -> list[RepresentationId]: ...
+    def bind_hydrogen_bonds(
+        self,
+        identity: InteractionId,
+        endpoints: Sequence[Sequence[int]],
+        *,
+        candidate_distance: float | None = None,
+        pose: MolecularPose | None = None,
+    ) -> None: ...
     def bind_segmentation(self, identity: SegmentationId, labels: Sequence[int]) -> None: ...
     def set_segment_styles(
         self, identity: SegmentationId, styles: Sequence[SegmentStyle]
@@ -438,21 +499,60 @@ class Scene:
     def explain(self) -> str: ...
     def browser_sources(self) -> list[tuple[int, str, bytes]]:
         """Return compact structure payloads; encoding is cached by the scene."""
+    def browser_bindings(
+        self,
+    ) -> tuple[
+        list[tuple[int, bytes]],
+        list[tuple[int, bytes, float | None, str]],
+        list[tuple[int, str, bytes, bytes, bytes, bytes]],
+    ]:
+        """Return cached little-endian scalar, interaction and scientific surface columns."""
+    def browser_motion_bindings(
+        self,
+    ) -> tuple[list[tuple[int, int, float, bytes]], list[tuple[int, int, int, float]]]:
+        """Return shared binary coordinate frames and the resident trajectory intervals."""
+    def browser_playback_bindings(self) -> list[tuple[int, int, int, float]]:
+        """Return imperative intervals sharing the scientific coordinate frame identities."""
+    def set_trajectory_pair(
+        self,
+        *,
+        structure: StructureId,
+        start: TrajectoryFrame,
+        end: TrajectoryFrame,
+        sample_time: float,
+    ) -> None:
+        """Replace the resident interval without changing the authored document or revision."""
+    def subscribe_runtime(self, subscriber: Callable[[], Callable[[str], object] | None]) -> None:
+        """Register a weak callable receiving runtime sample events as JSON."""
+    def unsubscribe_runtime(self, subscriber: Callable[[], Callable[[str], object] | None]) -> None:
+        """Remove the exact weak runtime subscription."""
     def subscribe(self, subscriber: Callable[[], Callable[[str], object] | None]) -> None:
         """Register a weak callable receiving each committed patch as JSON."""
     def unsubscribe(self, subscriber: Callable[[], Callable[[str], object] | None]) -> None:
         """Remove the exact weak subscription previously registered."""
+
+@final
+class MolecularPose:
+    @property
+    def interpolation(self) -> float | None: ...
 
 class CommandError(MolgfxError):
     errors: list[dict[str, object]]
 
 type _Form = Literal[
     "cartoon",
+    "new_cartoon",
     "ball_and_stick",
     "spacefill",
     "licorice",
     "bonds",
+    "dynamic_bonds",
     "paper_chain",
+    "new_ribbons",
+    "quick_surf",
+    "ribbons",
+    "polyhedra",
+    "solvent",
     "lines",
     "points",
     "surface",
@@ -823,7 +923,8 @@ class Renderer:
         profile: RenderProfile | None = None,
         surface_memory_mib: int | None = None,
     ) -> Self: ...
-    def render_image(self, scene: Scene, *, size: tuple[int, int]) -> Image: ...
+    def render_image(self, scene: Scene, *, size: tuple[int, int]) -> Image:
+        """Render the scene's current state at ``size=(width, height)``."""
     def render_cloud(
         self, cloud: PointCloud, *, camera: Camera, size: tuple[int, int]
     ) -> Image: ...
@@ -831,7 +932,11 @@ class Renderer:
         """Render a complete HDR exposure using the scene framing camera."""
     def render_sequence(
         self, scene: Scene, *, size: tuple[int, int], fps: int, frames: int
-    ) -> list[Image]: ...
+    ) -> list[Image]:
+        """Render the current state ``frames`` times; it never advances trajectory time.
+
+        Use ``molgfx.playback.attach(...).render(...)`` to animate a trajectory.
+        """
     def render_camera_path(
         self,
         scene: Scene,
@@ -850,7 +955,22 @@ class _Rep:
         target: _Target,
         gaps: Literal["hidden", "dashed"] | None = None,
         width: float | None = None,
+        helix_radius: float | None = None,
         style: _CartoonStyle | None = None,
+        aspect_ratio: float | None = None,
+        arrow_factor: float | None = None,
+        direction_wedges: bool | None = None,
+        helix_profile: _CartoonProfile | None = None,
+        nucleic_profile: _CartoonProfile | None = None,
+        opacity: float = 1.0,
+        color: _ColorLike | None = None,
+    ) -> Representation: ...
+    def new_cartoon(
+        self,
+        *,
+        target: _Target,
+        gaps: Literal["hidden", "dashed"] | None = None,
+        width: float | None = None,
         aspect_ratio: float | None = None,
         arrow_factor: float | None = None,
         direction_wedges: bool | None = None,
@@ -885,6 +1005,15 @@ class _Rep:
         opacity: float = 1.0,
         color: _ColorLike | None = None,
     ) -> Representation: ...
+    def dynamic_bonds(
+        self,
+        *,
+        target: _Target,
+        cutoff: float | None = None,
+        bond_radius: float | None = None,
+        opacity: float = 1.0,
+        color: _ColorLike | None = None,
+    ) -> Representation: ...
     def bonds(
         self,
         *,
@@ -893,11 +1022,87 @@ class _Rep:
         opacity: float = 1.0,
         color: _ColorLike | None = None,
     ) -> Representation: ...
-    def paper_chain(
+    def ribbons(
         self,
         *,
         target: _Target,
         width: float | None = None,
+        edge_radius: float | None = None,
+        gaps: Literal["hidden", "dashed"] | None = None,
+        opacity: float = 1.0,
+        color: _ColorLike | None = None,
+    ) -> Representation: ...
+    def surf(
+        self,
+        *,
+        target: _Target,
+        source: DataSource,
+        probe_radius: float | None = None,
+        wire: bool | None = None,
+        width: float | None = None,
+        opacity: float = 1.0,
+        color: _ColorLike | None = None,
+    ) -> Representation: ...
+    def msms(
+        self,
+        *,
+        target: _Target,
+        source: DataSource,
+        probe_radius: float | None = None,
+        density: float | None = None,
+        all_components: bool | None = None,
+        wire: bool | None = None,
+        width: float | None = None,
+        opacity: float = 1.0,
+        color: _ColorLike | None = None,
+    ) -> Representation: ...
+    def quick_surf(
+        self,
+        *,
+        target: _Target,
+        radius: float | None = None,
+        sigma: float | None = None,
+        isolevel: float | None = None,
+        grid_spacing: float | None = None,
+        cutoff: float | None = None,
+        opacity: float = 1.0,
+        color: _ColorLike | None = None,
+    ) -> Representation: ...
+    def new_ribbons(
+        self,
+        *,
+        target: _Target,
+        width: float | None = None,
+        aspect_ratio: float | None = None,
+        profile: Literal["elliptical", "rounded", "square"] | None = None,
+        gaps: Literal["hidden", "dashed"] | None = None,
+        opacity: float = 1.0,
+        color: _ColorLike | None = None,
+    ) -> Representation: ...
+    def solvent(
+        self,
+        *,
+        target: _Target,
+        probe_radius: float | None = None,
+        size: float | None = None,
+        samples: int | None = None,
+        opacity: float = 1.0,
+        color: _ColorLike | None = None,
+    ) -> Representation: ...
+    def polyhedra(
+        self,
+        *,
+        target: _Target,
+        cutoff: float | None = None,
+        opacity: float = 1.0,
+        color: _ColorLike | None = None,
+    ) -> Representation: ...
+    def paper_chain(
+        self,
+        *,
+        target: _Target,
+        height: float | None = None,
+        max_ring_size: int | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
     ) -> Representation: ...
@@ -975,6 +1180,7 @@ class _Rep:
         *,
         target: _Target,
         size: float | None = None,
+        samples: int | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
     ) -> Representation: ...
@@ -1161,6 +1367,17 @@ type _InteractionKind = Literal[
 ]
 
 class _Interaction:
+    def hydrogen_bonds(
+        self,
+        *,
+        structure: StructureId,
+        source: DataSource,
+        target: str = "all",
+        width: float = 1.5,
+        color: tuple[int, int, int] = (128, 204, 255),
+        opacity: float = 1.0,
+        geometry: tuple[float, float, float | None] | None = None,
+    ) -> Interaction: ...
     def explicit(self, *, kind: _InteractionKind, first: Anchor, second: Anchor) -> Interaction: ...
 
 @final
@@ -1239,6 +1456,7 @@ __all__ = [
     "Label",
     "Measurement",
     "MeasurementId",
+    "MolecularPose",
     "MolgfxError",
     "OrbitController",
     "PickResult",
