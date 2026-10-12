@@ -11,6 +11,7 @@ mod tests;
 use crate::{CoreError, EntityRef, StructureHandle};
 use molgfx_math::{Rgba8, Vec3};
 use std::sync::Arc;
+mod coordinates;
 
 /// Chemically meaningful interaction class supplied by the caller.
 #[repr(u32)]
@@ -185,6 +186,7 @@ pub struct InteractionEdge {
     persistence_half_life_frames: f32,
     provenance: Arc<str>,
     visible: bool,
+    static_coordinates: [Option<coordinates::StaticCoordinates>; 2],
 }
 
 impl InteractionEdge {
@@ -230,6 +232,7 @@ impl InteractionEdge {
             persistence_half_life_frames: 0.0,
             provenance,
             visible: true,
+            static_coordinates: [None, None],
         })
     }
 

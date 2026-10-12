@@ -4,6 +4,13 @@
 #[path = "relation_tests.rs"]
 mod tests;
 
+mod coordinates;
+mod dependencies;
+mod geometry;
+pub use coordinates::RelationCoordinates;
+use dependencies::relation_dependencies;
+pub use geometry::{OrientedGeometry, OrientedRelation};
+
 use crate::{CoreError, InstanceBatchHandle, RowDomain, RowEntityRef, SourceRows};
 use molgfx_math::{Rgba8, Vec3};
 use std::ops::Range;
@@ -281,6 +288,8 @@ pub struct RelationBatch {
     remap: Option<Arc<[u32]>>,
     dependencies: Arc<[RelationDependency]>,
     visible: bool,
+    geometry: Option<Arc<[OrientedRelation]>>,
+    coordinates: Option<RelationCoordinates>,
 }
 
 impl RelationBatch {
@@ -315,7 +324,7 @@ impl RelationBatch {
             return Err(invalid("relation style must be finite and bounded"));
         }
         let (partitions, remap) = partition_relations(&relations)?;
-        let dependencies = relation_dependencies(&relations);
+        let dependencies = relation_dependencies(&relations, None);
         Ok(Self {
             relations,
             source_rows,
@@ -324,6 +333,8 @@ impl RelationBatch {
             remap,
             dependencies,
             visible: true,
+            geometry: None,
+            coordinates: None,
         })
     }
 
@@ -421,50 +432,6 @@ fn partition_relations(relations: &[Relation]) -> Result<PartitionPlan, CoreErro
         partitions.into(),
         (!identity).then(|| Arc::from(remap.into_boxed_slice())),
     ))
-}
-
-fn relation_dependencies(relations: &[Relation]) -> Arc<[RelationDependency]> {
-    let mut rows = std::collections::BTreeMap::<RowDomain, u32>::new();
-    for anchor in relations
-        .iter()
-        .flat_map(|relation| [relation.start, relation.end])
-    {
-        match anchor {
-            SpatialAnchor::World(_) => {}
-            SpatialAnchor::Entity(entity) => {
-                add_dependency(&mut rows, entity.domain(), entity.row());
-            }
-            SpatialAnchor::TemplatePart(reference) => {
-                add_dependency(
-                    &mut rows,
-                    RowDomain::Instances(reference.batch()),
-                    reference.instance_row(),
-                );
-                add_dependency(
-                    &mut rows,
-                    RowDomain::TemplateParts(reference.batch()),
-                    reference.part_row(),
-                );
-            }
-        }
-    }
-    rows.into_iter()
-        .map(|(domain, maximum_row)| RelationDependency {
-            domain,
-            maximum_row,
-        })
-        .collect::<Vec<_>>()
-        .into()
-}
-
-fn add_dependency(
-    rows: &mut std::collections::BTreeMap<RowDomain, u32>,
-    domain: RowDomain,
-    row: u32,
-) {
-    rows.entry(domain)
-        .and_modify(|maximum| *maximum = (*maximum).max(row))
-        .or_insert(row);
 }
 
 const fn anchor_from_index(index: usize) -> AnchorLayout {

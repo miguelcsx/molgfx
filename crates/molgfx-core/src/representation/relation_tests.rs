@@ -1,4 +1,7 @@
-use super::{AnchorLayout, Relation, RelationBatch, RelationStyle, SpatialAnchor};
+use super::{
+    AnchorLayout, OrientedGeometry, OrientedRelation, Relation, RelationBatch, RelationStyle,
+    SpatialAnchor,
+};
 use crate::{
     InstanceBatchHandle, PointBatchHandle, RowDomain, RowEntityRef, SourceNamespace, SourceRows,
     TemplatePartRef, handle::RawHandle,
@@ -73,4 +76,79 @@ fn template_part_anchors_require_an_exact_instance_occurrence() {
     assert_eq!(batch.dependencies().len(), 2);
     assert_eq!(batch.dependencies()[0].maximum_row, 5);
     assert_eq!(batch.dependencies()[1].maximum_row, 3);
+}
+
+#[test]
+fn oriented_geometry_tracks_the_pivot_dependency_and_rejects_invalid_gates() {
+    let atoms = RowDomain::Atoms(crate::StructureHandle(RawHandle::new_for_test(1, 0)));
+    let batch = RelationBatch::new(
+        Arc::from([Relation {
+            start: SpatialAnchor::entity(RowEntityRef::new(atoms, 0)).unwrap(),
+            end: SpatialAnchor::entity(RowEntityRef::new(atoms, 1)).unwrap(),
+        }]),
+        SourceRows::ordered(SourceNamespace(4), 1),
+        RelationStyle::default(),
+    )
+    .unwrap();
+    let constraint = OrientedRelation {
+        pivot: RowEntityRef::new(atoms, 9),
+        geometry: OrientedGeometry {
+            maximum_endpoint_distance: 3.5,
+            minimum_angle_degrees: 150.0,
+            maximum_pivot_end_distance: Some(2.5),
+        },
+    };
+    let gated = batch
+        .clone()
+        .with_oriented_geometry(Arc::from([constraint]))
+        .unwrap();
+    assert_eq!(gated.dependencies()[0].maximum_row, 9);
+    assert_eq!(gated.oriented_geometry().unwrap()[0], constraint);
+    assert!(batch.clone().with_oriented_geometry(Arc::from([])).is_err());
+    assert!(
+        batch
+            .clone()
+            .with_oriented_geometry(Arc::from([OrientedRelation {
+                pivot: RowEntityRef::new(atoms, 0),
+                ..constraint
+            }]))
+            .is_err()
+    );
+    assert!(
+        batch
+            .clone()
+            .with_oriented_geometry(Arc::from([OrientedRelation {
+                pivot: RowEntityRef::new(points(), 9),
+                ..constraint
+            }]))
+            .is_err()
+    );
+    for geometry in [
+        OrientedGeometry {
+            maximum_endpoint_distance: f32::MAX,
+            ..constraint.geometry
+        },
+        OrientedGeometry {
+            minimum_angle_degrees: f32::NAN,
+            ..constraint.geometry
+        },
+        OrientedGeometry {
+            minimum_angle_degrees: 181.0,
+            ..constraint.geometry
+        },
+        OrientedGeometry {
+            maximum_pivot_end_distance: Some(0.0),
+            ..constraint.geometry
+        },
+    ] {
+        assert!(
+            batch
+                .clone()
+                .with_oriented_geometry(Arc::from([OrientedRelation {
+                    geometry,
+                    ..constraint
+                }]))
+                .is_err()
+        );
+    }
 }
