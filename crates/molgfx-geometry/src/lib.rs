@@ -13,6 +13,8 @@ mod field_lines;
 pub use field_lines::{FieldLineError, FieldLineParams, field_lines, field_lines_in_region};
 mod packing;
 mod polyhedra;
+mod snfg;
+pub use snfg::{SNFG_SYMBOL_SIZE, SnfgSymbolSet, glyph as snfg_glyph, glyph_size as snfg_glyph_size};
 
 pub use cartoon::{
     CARTOON_GAP_CUTOFF, CartoonError, PolymerTraces, RibbonMesh, RibbonParams, RibbonVertex,
