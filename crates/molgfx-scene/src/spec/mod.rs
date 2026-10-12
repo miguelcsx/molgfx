@@ -1,11 +1,13 @@
 //! Canonical scene specifications and atomic patches.
 
+mod form;
 pub(crate) mod lowering;
 
 pub(crate) use crate::patch::{PatchOperation, ScenePatch};
 
 mod camera_validation;
 mod interaction_channel;
+mod runtime_sources;
 mod scene_spec;
 mod stable_hash;
 mod structure_source;

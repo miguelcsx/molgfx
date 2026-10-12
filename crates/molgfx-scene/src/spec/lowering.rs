@@ -1,5 +1,7 @@
 //! Inward lowering from semantic representation values to the physical engine.
 
+use super::form::apply_form;
+
 use crate::color::ColorSpec;
 use crate::representation::form::{RepresentationFormSpec, RepresentationSpec};
 use crate::visual::{ColorExpr, ScalarExpr, VisualStyle};
@@ -13,6 +15,10 @@ use std::collections::BTreeMap;
 #[derive(Clone, Copy)]
 pub(crate) struct Lowering<'a> {
     pub(crate) properties: &'a BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
+    pub(crate) surfaces: Option<(
+        &'a crate::overlay::OverlayBindings,
+        &'a BTreeMap<crate::StructureId, molgfx_core::MolecularSource>,
+    )>,
     pub(crate) channels: &'a [Box<str>],
 }
 
@@ -45,6 +51,29 @@ impl RepresentationSpec {
             None
         };
         native = apply_form(native, &self.form)?;
+        if let RepresentationFormSpec::MolecularSurface { source, .. } = &self.form {
+            let (bindings, molecules) = lowering.surfaces.ok_or_else(|| {
+                crate::Error::InvalidSpec("analytical surface geometry is unresolved".to_owned())
+            })?;
+            let structure = self.structure_id().ok_or_else(|| {
+                crate::Error::InvalidSpec(
+                    "analytical surface has no molecular structure".to_owned(),
+                )
+            })?;
+            let binding = bindings
+                .molecular_surface(&source.content_hash, structure)
+                .ok_or_else(|| {
+                    crate::Error::InvalidSpec(
+                        "analytical surface geometry is unresolved".to_owned(),
+                    )
+                })?;
+            let molecule = self
+                .structure_id()
+                .and_then(|id| molecules.get(&id))
+                .ok_or(crate::Error::MissingId)?;
+            binding.matches(self, molecule)?;
+            native = native.molecular_surface(binding.geometry.clone());
+        }
         Ok((native, resolved))
     }
 
@@ -156,88 +185,19 @@ fn native_kind(spec: &RepresentationSpec) -> molgfx_core::RepresentationKind {
         RepresentationFormSpec::Licorice { .. } => Native::Licorice,
         RepresentationFormSpec::Lines { .. } => Native::Lines,
         RepresentationFormSpec::Bonds { .. } => Native::Bonds,
+        RepresentationFormSpec::DynamicBonds { .. } => Native::DynamicBonds,
+        RepresentationFormSpec::Polyhedra { .. } => Native::Polyhedra,
+        RepresentationFormSpec::NewRibbons { .. } => Native::NewRibbons,
+        RepresentationFormSpec::Ribbons { .. } => Native::Ribbons,
         RepresentationFormSpec::PaperChain { .. } => Native::PaperChain,
         RepresentationFormSpec::Points { .. } => Native::Points,
         RepresentationFormSpec::Dots { .. } => Native::Dots,
-        RepresentationFormSpec::Surface { .. } => Native::Surface,
+        RepresentationFormSpec::Solvent { .. } => Native::Solvent,
+        RepresentationFormSpec::Surface { .. } | RepresentationFormSpec::QuickSurf { .. } => {
+            Native::Surface
+        }
         RepresentationFormSpec::Beads { .. } => Native::Beads,
-    }
-}
-
-fn apply_form(
-    native: molgfx_core::RepresentationConfig,
-    form: &RepresentationFormSpec,
-) -> Result<molgfx_core::RepresentationConfig, crate::Error> {
-    match form {
-        RepresentationFormSpec::Backbone { width, gaps } => native
-            .gaps(*gaps)
-            .tube_radius(*width)
-            .map_err(crate::Error::from),
-        RepresentationFormSpec::Trace { radius, gaps }
-        | RepresentationFormSpec::Tube { radius, gaps } => native
-            .gaps(*gaps)
-            .tube_radius(*radius)
-            .map_err(crate::Error::from),
-        RepresentationFormSpec::Putty {
-            gaps,
-            domain_min,
-            domain_max,
-            radius_min,
-            radius_max,
-        } => native
-            .gaps(*gaps)
-            .putty_b_factor([*domain_min, *domain_max], [*radius_min, *radius_max])
-            .map_err(crate::Error::from),
-        RepresentationFormSpec::Cartoon {
-            width,
-            aspect_ratio,
-            arrow_factor,
-            direction_wedges,
-            gaps,
-            helix_profile,
-            nucleic_profile,
-            ..
-        } => native
-            .ribbon_width(*width)
-            .gaps(*gaps)
-            .direction_wedges(*direction_wedges)
-            .cartoon_profiles(*helix_profile, *nucleic_profile)
-            .cartoon_shape(*aspect_ratio, *arrow_factor)
-            .map_err(crate::Error::from),
-        RepresentationFormSpec::NucleicAcid { width }
-        | RepresentationFormSpec::Glycan { width }
-        | RepresentationFormSpec::PaperChain { width } => Ok(native.ribbon_width(*width)),
-        RepresentationFormSpec::BallAndStick {
-            radius,
-            bond_radius,
-        }
-        | RepresentationFormSpec::Licorice {
-            radius,
-            bond_radius,
-        }
-        | RepresentationFormSpec::BasePairs {
-            radius,
-            bond_radius,
-        } => Ok(native.radius_scale(*radius).bond_radius(*bond_radius)),
-        RepresentationFormSpec::Spacefill { radius }
-        | RepresentationFormSpec::Bases { radius }
-        | RepresentationFormSpec::Beads { radius } => Ok(native.radius_scale(*radius)),
-        RepresentationFormSpec::Lines { width } => Ok(native.line_width(*width)),
-        RepresentationFormSpec::Bonds { bond_radius } => Ok(native.bond_radius(*bond_radius)),
-        RepresentationFormSpec::Points { size } | RepresentationFormSpec::Dots { size } => {
-            Ok(native.point_size(*size))
-        }
-        RepresentationFormSpec::Surface {
-            surface,
-            style,
-            probe_radius,
-            isolevel,
-            blob_spread,
-        } => Ok(native
-            .surface(surface.native(), style.native())
-            .probe_radius(*probe_radius)
-            .isolevel(*isolevel)
-            .blob_spread(*blob_spread)),
+        RepresentationFormSpec::MolecularSurface { .. } => Native::MolecularSurface,
     }
 }
 
