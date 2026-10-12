@@ -12,6 +12,7 @@ use crate::registry;
 use molgfx_scene::{AppearanceRuleSpec, PatchOperation, SceneTransaction, StructureId};
 use std::collections::BTreeMap;
 mod auto;
+mod metric;
 mod overlay;
 mod segment;
 mod selection;
@@ -364,6 +365,9 @@ impl Planner<'_> {
             ));
         }
         let structure = self.structure(structure)?;
+        if matches!(color, ColorValue::Metric { .. }) {
+            return self.metric_color(color, query, structure);
+        }
         let selection = self.resolver().selection(query)?;
         let replaced: Vec<_> = self
             .state

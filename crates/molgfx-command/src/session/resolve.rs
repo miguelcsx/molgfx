@@ -5,6 +5,36 @@ use crate::error::{CommandError, ErrorKind, Span};
 use crate::ir::{Name, QueryText};
 use crate::registry;
 
+impl super::Session {
+    /// Resolves a textual target through this session's named selections.
+    /// # Errors
+    /// Refuses unknown aliases, cycles or invalid query syntax.
+    pub fn resolve_selection(
+        &self,
+        source: &str,
+    ) -> Result<molgfx_scene::Selection, crate::error::CommandErrors> {
+        let query = QueryText::compile(source).map_err(|diagnostics| {
+            crate::error::CommandErrors(
+                diagnostics
+                    .into_iter()
+                    .map(|diagnostic| {
+                        let (message, suggestion) = registry::describe_query_finding(&diagnostic);
+                        let mut error =
+                            CommandError::new(ErrorKind::Query, message).suggest(suggestion);
+                        error.code = Some(diagnostic.code().to_string());
+                        error
+                    })
+                    .collect(),
+            )
+        })?;
+        Ok(Resolver {
+            state: &self.state,
+            site: None,
+        }
+        .selection(&query)?)
+    }
+}
+
 pub(crate) struct Resolver<'a> {
     pub(crate) state: &'a State,
     /// The statement being planned, to locate a name in its text.

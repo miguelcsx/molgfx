@@ -102,15 +102,8 @@ impl Planner<'_> {
         &mut self,
         interaction: &InteractionSpec,
     ) -> Result<(), CommandError> {
-        // The command path accepts only the API's explicit variant. The API
-        // validates anchors against the scene when this patch is staged; no
-        // chemistry or MolFrame analysis occurs here.
-        if !matches!(interaction, InteractionSpec::Explicit { .. }) {
-            return Err(CommandError::new(
-                ErrorKind::Scene,
-                "overlay interactions must be explicit caller-supplied values",
-            ));
-        }
+        // Source-backed tables are classified by the caller and remain
+        // unresolved until their data binding arrives, just like other overlays.
         let next = self
             .transaction
             .spec()
