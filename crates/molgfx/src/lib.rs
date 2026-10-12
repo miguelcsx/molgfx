@@ -13,14 +13,18 @@ pub use molgfx_scene::{AdapterReport, SystemInfo, system_info};
 pub use molgfx_scene::{
     Anchor, AnnotationId, AnnotationSpec, AppearanceRuleId, AppearanceRuleSpec, AssemblyCopy,
     AssemblySpec, Camera, Color, ColorSpec, DepthCue, EllipsoidId, EllipsoidSpec, Error,
-    FieldLines, InteractionChannel, InteractionId, InteractionKind, InteractionSpec, IsoStyle,
-    Legend, LegendStop, MAX_APPEARANCE_CLASSES, MeasurementId, MeasurementSpec, OverlayId,
-    Parameter, ParameterType, ParameterValue, PatchError, PickKind, PickResult, PlaneId, PlaneSpec,
-    Quality, RenderProfile, RepresentationId, RepresentationSpec, ResolvedPick, ScalarProperty,
-    ScalarPropertyBinding, Scene, SceneItem, ScenePatch, SceneSpec, SceneTransaction, SegmentStyle,
-    SegmentationBinding, SegmentationId, SegmentationPresentation, SegmentationSpec, Selection,
-    StructureId, TrajectoryId, TrajectorySpec, UnitCellSpec, VisualStyle, VolumeId,
-    VolumePresentation, VolumeRegion, VolumeSpec, VolumeTransferPoint, chain_selection, molframe,
+    FieldLines, HydrogenBondBinding, HydrogenBondGeometry, HydrogenBonds, InteractionChannel,
+    InteractionId, InteractionKind, InteractionSpec, IsoStyle, Legend, LegendStop,
+    MAX_APPEARANCE_CLASSES, MeasurementId, MeasurementSpec, MolecularSurfaceBinding,
+    MolecularSurfaceControls, MolecularSurfaceData, MolecularSurfaceGeometry,
+    MolecularSurfaceMethod, MolecularSurfaceSource, OverlayId, Parameter, ParameterType,
+    ParameterValue, PatchError, PickKind, PickResult, PlaneId, PlaneSpec, PlaybackBinding, Quality,
+    RenderProfile, RepresentationId, RepresentationSpec, ResolvedPick, RuntimeBindings,
+    ScalarProperty, ScalarPropertyBinding, Scene, SceneItem, ScenePatch, SceneSpec,
+    SceneTransaction, SegmentStyle, SegmentationBinding, SegmentationId, SegmentationPresentation,
+    SegmentationSpec, Selection, StructureId, TrajectoryId, TrajectorySpec, UnitCellSpec,
+    VisualStyle, VolumeId, VolumePresentation, VolumeRegion, VolumeSpec, VolumeTransferPoint,
+    chain_selection, molframe,
 };
 pub use molgfx_scene::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, PassTiming, PassTimingCoverage,
@@ -42,8 +46,8 @@ pub use molgfx_scene::{annotation, density, ellipsoid, interaction, measurement,
 pub mod source {
     pub use molgfx_scene::molframe::Structure;
     pub use molgfx_scene::source::{
-        AtomSelection, CoreError, MolecularProvider, MolecularSource, SourceAtom, SourceBond,
-        SourceTopology, is_metal_atomic_number, topology_identity,
+        AtomSelection, CoreError, MolecularPose, MolecularProvider, MolecularSource, SourceAtom,
+        SourceBond, SourceTopology, topology_identity,
     };
 
     /// Re-parses a transported molecular payload into the structural model.
@@ -66,6 +70,7 @@ pub mod source {
 
 /// Low-level wire-schema values.
 pub mod schema {
+    pub use molgfx_scene::source::MolecularSurfaceDescription;
     pub use molgfx_scene::source::SecondaryStructure;
     pub use molgfx_scene::{DataSource, PatchOperation, StructureSource};
 }
@@ -83,7 +88,8 @@ pub mod camera {
 /// edits. The host translates its toolkit's events; no window is named here.
 pub mod controls {
     pub use molgfx_scene::controls::{
-        ArcballController, Button, FlyController, InputEvent, Key, OrbitController,
+        ArcballController, Button, FlyController, InputEvent, Key, OrbitCamera, OrbitController,
+        ScaleController,
     };
 }
 
@@ -91,11 +97,13 @@ pub mod controls {
 pub mod rep {
     pub use molgfx_scene::rep::{
         Backbone, BallAndStick, BasePairs, Bases, Beads, Bonds, Cartoon, CartoonProfile,
-        CartoonStyle, Dots, GapStyle, Glycan, Licorice, Lines, NucleicAcid, PaperChain,
-        PointRepresentation, Putty, RepresentationApplicability, RepresentationRequirement,
-        Spacefill, Surface, SurfaceKind, SurfaceStyle, Trace, Tube, backbone, ball_and_stick,
-        base_pairs, bases, beads, bonds, cartoon, dots, glycan, licorice, lines, nucleic_acid,
-        paper_chain, points, putty, spacefill, surface, trace, tube,
+        CartoonStyle, Dots, DynamicBonds, GapStyle, Glycan, Licorice, Lines, MolecularSurface,
+        NewRibbons, NucleicAcid, PaperChain, PointRepresentation, Polyhedra, Putty, QuickSurf,
+        RepresentationApplicability, RepresentationRequirement, RepresentationReview, Ribbons,
+        Solvent, Spacefill, Surface, SurfaceKind, SurfaceStyle, Trace, Tube, backbone,
+        ball_and_stick, base_pairs, bases, beads, bonds, cartoon, dots, dynamic_bonds, glycan,
+        licorice, lines, msms, new_cartoon, new_ribbons, nucleic_acid, paper_chain, points,
+        polyhedra, putty, quick_surf, ribbons, solvent, spacefill, surf, surface, trace, tube,
     };
 }
 
@@ -113,17 +121,18 @@ pub mod sel {
 /// Color values and mappings.
 pub mod color {
     pub use molgfx_scene::color::{
-        AtomCategory, AtomMetric, Color, ColorSpec, Legend, LegendStop, carbon_by_chain, chain,
-        element, element_rgb, entity, metric, molecule_type, palette_names, property, ramp_names,
-        residue, residue_name, secondary_structure, uniform,
+        AtomCategory, AtomMetric, Color, ColorSpec, ConfidenceBand, Legend, LegendStop,
+        PLDDT_BANDS, carbon_by_chain, chain, element, element_rgb, entity, metric, molecule_type,
+        palette_names, property, ramp_names, residue, residue_name, secondary_structure, uniform,
     };
 }
 
 /// Size- and focus-aware default representations.
 pub mod preset {
     pub use molgfx_scene::preset::{
-        DifferenceStyle, EnsembleMember, EnsembleStyle, PocketStyle, StructureSize,
-        auto_representations, difference_visual, ensemble_representations, pocket_representations,
+        AtomicTargets, DifferenceStyle, EnsembleMember, EnsembleStyle, PocketStyle, StructureSize,
+        atomic_targets, auto_representations, difference_visual, ensemble_representations,
+        pocket_representations,
     };
 }
 
@@ -156,7 +165,8 @@ pub mod streaming {
 /// Portable scene interchange.
 pub mod interop {
     pub use molgfx_scene::interop::{
-        Diagnostic, MvsDocument, MvsImport, from_mvsj, from_mvsx, to_mvsj, to_mvsx,
+        Diagnostic, MvsDocument, MvsImport, RuntimeCapture, SceneArchive, from_mvsj, from_mvsx,
+        to_mvsj, to_mvsx,
     };
 }
 
@@ -165,10 +175,10 @@ pub mod interop {
 pub mod command {
     pub use molgfx_command::registry;
     pub use molgfx_command::{
-        ColorValue, Command, CommandError, CommandErrors, Completion, ErrorKind, Finite, Form,
-        FormKind, InvalidName, LayerSpec, Name, Opacity, OptionError, OptionInfo, OptionKind,
-        Outcome, Positive, Program, QueryText, RuleSpec, Session, SessionSpec, Show, Span,
-        Statement, Target,
+        ColorValue, Command, CommandError, CommandErrors, Completion, ContentHash, ErrorKind,
+        Finite, Form, FormKind, InvalidName, LayerSpec, Name, NamedSnapshot, Opacity, OptionError,
+        OptionInfo, OptionKind, Outcome, Positive, Program, QueryText, RuleSpec, Session,
+        SessionSpec, Show, SnapshotSymbols, Span, Statement, Target,
     };
 }
 
