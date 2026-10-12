@@ -2,16 +2,37 @@
 
 use super::directions::{DirectionBuild, DirectionStorage};
 use super::error::CartoonError;
-use super::sweep::{RibbonTrace, append_ribbon};
 use super::traces::{PolymerTraces, extract_backbone_traces};
 use molgfx_core::{CartoonProfile, SecondaryStructure};
 use molgfx_math::{CurveSample, Rgba8, TransportFrame, Vec3};
+mod generation;
 mod helix;
+mod helix_cells;
+mod helix_connections;
+mod legacy;
+mod molecular_surface;
+mod polyhedra;
 mod residue;
+mod rings;
+mod schematic;
+mod storage;
+mod strand_connections;
+mod strand_frames;
+mod strands;
+mod styled;
+mod sugar;
+mod twister;
+pub use sugar::has_selected_sugar_faces;
 
 #[cfg(test)]
 #[path = "ribbon_rendering_tests.rs"]
 mod rendering_tests;
+#[cfg(test)]
+#[path = "ribbon/hetero_tests.rs"]
+mod hetero_tests;
+#[cfg(test)]
+#[path = "ribbon/selection_tests.rs"]
+mod selection_tests;
 #[cfg(test)]
 #[path = "ribbon_tests.rs"]
 mod tests;
@@ -71,6 +92,8 @@ pub struct RibbonParams {
     pub max_steps: u8,
     /// Full width in Ångström.
     pub width: f32,
+    /// Radius of fitted circular helix columns for the classic profile.
+    pub helix_radius: f32,
     /// Full thickness in Ångström.
     pub thickness: f32,
     /// Secondary-structure cross-section width divided by thickness.
@@ -95,6 +118,7 @@ impl Default for RibbonParams {
             tolerance: 0.08,
             max_steps: 8,
             width: 1.2,
+            helix_radius: molgfx_core::RepresentationParams::default().cartoon_helix_radius,
             thickness: 0.28,
             aspect_ratio: 5.0,
             arrow_factor: 1.5,
@@ -107,12 +131,27 @@ impl Default for RibbonParams {
     }
 }
 
+impl RibbonParams {
+    pub(super) fn validate_classic_radius(self) -> Result<(), CartoonError> {
+        if self.profile == SplineProfile::Rocket
+            && (!self.helix_radius.is_finite()
+                || self.helix_radius <= 0.0
+                || !(self.helix_radius * 2.0).is_finite())
+        {
+            return Err(CartoonError::HelixRadius);
+        }
+        Ok(())
+    }
+}
+
 /// Cross-section over the common adaptively sampled polymer spline.
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub enum SplineProfile {
     /// Secondary-structure-aware ribbon with strand arrows and coil narrowing.
     #[default]
     Cartoon,
+    /// Oriented constant-width ribbon, independent of secondary structure.
+    NewRibbons,
     /// Constant-radius circular tube.
     Tube,
     /// Straight intervals joining successive polymer guides.
@@ -145,6 +184,8 @@ pub struct RibbonMesh {
     samples: Vec<CurveSample>,
     fitted: Vec<Vec3>,
     fit_jobs: Vec<u32>,
+    classic: bool,
+    strand_fits: Vec<strands::StrandFit>,
     /// Per-interval twist demand, reused so a regenerate allocates nothing.
     demand: Vec<f32>,
     frames: Vec<TransportFrame>,
@@ -168,71 +209,6 @@ impl RibbonMesh {
         self.generate_styled(trace, entities, &[], params)
     }
 
-    /// Regenerates a ribbon with one reversible secondary-structure style per
-    /// control point. Missing styles resolve to coil without changing topology.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::CartoonError`] for GPU index limits or a guide without a direction.
-    pub fn generate_styled(
-        &mut self,
-        trace: &[Vec3],
-        entities: &[u32],
-        styles: &[SecondaryStructure],
-        params: RibbonParams,
-    ) -> Result<(), CartoonError> {
-        self.vertices.clear();
-        self.indices.clear();
-        self.deformations.clear();
-        self.traces.properties.clear();
-        self.fit_jobs.clear();
-        let trace = if params.profile == SplineProfile::Rocket {
-            super::rocket::project_trace(trace, styles, &mut self.fitted);
-            &self.fitted[..]
-        } else {
-            trace
-        };
-        let mut build = RibbonBuild {
-            params,
-            samples: &mut self.samples,
-            demand: &mut self.demand,
-            frames: &mut self.frames,
-            vertices: &mut self.vertices,
-            indices: &mut self.indices,
-            deformations: &mut self.deformations,
-        };
-        let input = RibbonTrace {
-            points: trace,
-            entities,
-            styles,
-            property_base: None,
-            property_count: 0,
-            normals: &[],
-            guides: &[],
-            plane_rows: &[],
-        };
-        append_ribbon(input, &mut build)?;
-        if params.direction_wedges {
-            let result = super::directions::append_trace(
-                input,
-                &self.samples,
-                &self.frames,
-                None,
-                &mut DirectionBuild {
-                    params,
-                    vertices: &mut self.vertices,
-                    indices: &mut self.indices,
-                    deformations: &mut self.deformations,
-                },
-            );
-            if let Err(error) = result {
-                self.clear();
-                return Err(error);
-            }
-        }
-        Ok(())
-    }
-
     /// Generates every selected polymer trace in one structure into a single
     /// GPU-ready mesh, preserving chain breaks and guide-atom provenance.
     ///
@@ -248,16 +224,58 @@ impl RibbonMesh {
         max_gap: f32,
         params: RibbonParams,
     ) -> Result<(), CartoonError> {
+        params.validate_classic_radius()?;
         self.clear();
-        extract_backbone_traces(
-            structure,
-            selection,
-            secondary,
-            max_gap,
-            matches!(params.profile, SplineProfile::Trace | SplineProfile::Tube),
-            &mut self.traces,
-        )?;
+        let phosphate = matches!(params.profile, SplineProfile::Trace | SplineProfile::Tube);
+        let selected_spline = !matches!(selection, molgfx_core::AtomSelection::All)
+            && matches!(
+                params.profile,
+                SplineProfile::Cartoon | SplineProfile::NewRibbons
+            );
+        if params.profile == SplineProfile::Rocket {
+            super::traces::extract_protein_traces(
+                structure,
+                selection,
+                secondary,
+                max_gap,
+                &mut self.traces,
+            )?;
+        } else if phosphate || selected_spline {
+            super::traces::extract_contextual_traces(
+                structure,
+                selection,
+                secondary,
+                max_gap,
+                if phosphate {
+                    super::traces::GuidePolicy::Phosphate
+                } else {
+                    super::traces::GuidePolicy::Sugar
+                },
+                &mut self.traces,
+            )?;
+        } else {
+            extract_backbone_traces(
+                structure,
+                selection,
+                secondary,
+                max_gap,
+                false,
+                &mut self.traces,
+            )?;
+        }
         self.generate_traces(params, GuideProperties::RadiusSources)?;
+        if params.profile == SplineProfile::Rocket
+            && let Err(error) = self.append_structure_strands(params)
+        {
+            self.clear();
+            return Err(error.into());
+        }
+        if params.profile == SplineProfile::NewRibbons
+            && let Err(error) = self.append_sugar_faces(structure, selection, params.color)
+        {
+            self.clear();
+            return Err(error.into());
+        }
         if params.direction_wedges {
             let result = self.directions.generate(
                 structure,
@@ -337,99 +355,10 @@ impl RibbonMesh {
         if params.direction_wedges {
             return Err(CartoonError::DirectionProfile);
         }
-        super::glycan::extract_glycosidic_traces(structure, selection, &mut self.traces);
-        self.generate_traces(params, GuideProperties::Unmapped)
-            .map_err(CartoonError::from)
-    }
-
-    fn generate_traces(
-        &mut self,
-        params: RibbonParams,
-        properties: GuideProperties,
-    ) -> Result<(), crate::PackingError> {
-        self.fit_jobs.clear();
-        let mut build = RibbonBuild {
-            params,
-            samples: &mut self.samples,
-            demand: &mut self.demand,
-            frames: &mut self.frames,
-            vertices: &mut self.vertices,
-            indices: &mut self.indices,
-            deformations: &mut self.deformations,
-        };
-        for range in &self.traces.ranges {
-            let points = &self.traces.points[range.points.clone()];
-            let styles = &self.traces.styles[range.points.clone()];
-            let points = if params.profile == SplineProfile::Rocket {
-                super::rocket::project_trace(points, styles, &mut self.fitted);
-                &self.fitted[..]
-            } else {
-                points
-            };
-            let property_base = match properties {
-                GuideProperties::RadiusSources => {
-                    super::draw_limits::vertex_index(range.points.start).map(Some)
-                }
-                GuideProperties::Unmapped => Ok(None),
-            };
-            let result = property_base.and_then(|property_base| {
-                append_ribbon(
-                    RibbonTrace {
-                        points,
-                        entities: &self.traces.entities[range.points.clone()],
-                        styles: &self.traces.styles[range.points.clone()],
-                        property_base,
-                        property_count: range.points.len(),
-                        normals: plane_slice(&self.traces.normals, range.points.clone()),
-                        guides: &self.traces.guides[range.points.clone()],
-                        plane_rows: plane_rows_slice(&self.traces.plane_rows, range.points.clone()),
-                    },
-                    &mut build,
-                )
-            });
-            if let Err(error) = result {
-                build.vertices.clear();
-                build.indices.clear();
-                build.deformations.clear();
-                return Err(error);
-            }
-        }
+        let rings = super::glycan::extract_with_rings(structure, selection, &mut self.traces)?;
+        self.generate_traces(params, GuideProperties::Unmapped)?;
+        self.bind_ring_guides(&rings)?;
         Ok(())
-    }
-
-    /// Empties every generated column, including the deformation recipes.
-    ///
-    /// A caller that appends its own geometry rather than calling one of the
-    /// generators has to start from a clean mesh: the mesh is shared scratch,
-    /// and a leftover recipe would otherwise survive `pad_static_deformations`
-    /// and pull an unrelated vertex onto a spline it never belonged to.
-    pub fn clear(&mut self) {
-        self.vertices.clear();
-        self.indices.clear();
-        self.deformations.clear();
-        self.traces.properties.clear();
-        self.fit_jobs.clear();
-    }
-
-    /// Pads caller-appended static geometry so every vertex has one recipe.
-    pub fn pad_static_deformations(&mut self) {
-        self.deformations
-            .resize(self.vertices.len(), RibbonDeformation::STATIC);
-    }
-
-    /// Packed GPU deformation recipes, one 32-byte row per vertex.
-    #[must_use]
-    pub fn deformation_bytes(&self) -> &[u8] {
-        bytemuck::cast_slice(&self.deformations)
-    }
-
-    /// Compact B-factor stream aligned with extracted backbone guides.
-    ///
-    /// The stream contains no coordinates; deformation reads those directly
-    /// from the structure asset's borrowed coordinate binding.
-    #[must_use]
-    pub fn radius_source_values(&self) -> &[f32] {
-        &self.traces.properties
     }
 }
 

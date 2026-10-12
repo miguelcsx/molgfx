@@ -146,7 +146,7 @@ fn putty_cpu_reference_matches_missing_value_shader_policy() {
 }
 
 #[test]
-fn secondary_structure_changes_cross_section_without_changing_topology() {
+fn secondary_structure_selects_distinct_shell_topology_while_preserving_atom_provenance() {
     let trace = trace();
     let entities = [10, 11, 12, 13, 14];
     let mut helix = RibbonMesh::default();
@@ -168,8 +168,34 @@ fn secondary_structure_changes_cross_section_without_changing_topology() {
         )
         .expect("ribbon indices fit");
 
-    assert_eq!(helix.indices, strand.indices);
-    assert_eq!(helix.vertices.len(), strand.vertices.len());
+    assert_ne!(helix.indices, strand.indices);
+    for mesh in [&helix, &strand] {
+        assert!(
+            mesh.indices
+                .iter()
+                .all(|&index| (index as usize) < mesh.vertices.len())
+        );
+        assert!(
+            mesh.vertices
+                .iter()
+                .all(|vertex| Vec3::from(vertex.normal).is_normalized())
+        );
+    }
+    let provenance = |mesh: &RibbonMesh| {
+        mesh.vertices
+            .iter()
+            .map(|vertex| vertex.entity_id)
+            .collect::<std::collections::BTreeSet<_>>()
+    };
+    assert_eq!(provenance(&helix), provenance(&strand));
+    assert_eq!(
+        strand.vertices[0].position.map(f32::to_bits),
+        strand.vertices[15].position.map(f32::to_bits)
+    );
+    assert_ne!(
+        strand.vertices[0].normal.map(f32::to_bits),
+        strand.vertices[15].normal.map(f32::to_bits)
+    );
     let helix_profile = profile_diameters(&helix.vertices);
     let strand_profile = profile_diameters(&strand.vertices);
     assert!(strand_profile.0 > helix_profile.0);
