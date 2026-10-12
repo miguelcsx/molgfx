@@ -1,34 +1,22 @@
-//! Ring-pucker plates for the `PaperChain` representation.
+//! Topology-backed ring queries and continuous puckering colours.
 //!
-//! Each known biological ring is drawn as a thin two-sided sheet through its
-//! deposited atoms, so the sheet bends exactly as the ring puckers. Its colour
-//! reports total out-of-plane puckering on a continuous ramp, so a planar
-//! aromatic base and a chair-form sugar are visually distinct without two
-//! near-identical rings landing in different colour bands. Geometry generation
-//! is `O(ring atoms)` and runs only when topology changes.
+//! Cycle matching is delegated to `MolFrame`. With maximum ring size k and
+//! maximum degree d its search is O(atoms × d^k), performed at topology changes.
 
-use crate::RibbonVertex;
-use molgfx_core::{AtomSelection, EntityId, EntityKind};
+use crate::{PackingError, RibbonMesh, RibbonVertex};
+use molgfx_core::AtomSelection;
 use molgfx_math::{Rgba8, Vec3};
+use std::collections::BTreeSet;
 
 #[cfg(test)]
 #[path = "paper_chain_tests.rs"]
 mod tests;
 
-const PYRANOSE: [&str; 6] = ["O5", "C1", "C2", "C3", "C4", "C5"];
-const FURANOSE: [&str; 5] = ["O4", "C1", "C2", "C3", "C4"];
-const RIBOSE: [&str; 5] = ["O4'", "C1'", "C2'", "C3'", "C4'"];
-const PYRIMIDINE: [&str; 6] = ["N1", "C2", "N3", "C4", "C5", "C6"];
-const PURINE_SIX: [&str; 6] = ["N1", "C2", "N3", "C4", "C5", "C6"];
-const PURINE_FIVE: [&str; 5] = ["C4", "C5", "N7", "C8", "N9"];
-
-/// Appends pucker-coloured bipyramids for selected carbohydrate and nucleotide
-/// rings. A partial ring is omitted rather than visually closed across absent
-/// source atoms.
+/// Appends selected molecular ring bipyramids with total height in ångström.
+/// Molecular bonds, rather than residue names, determine the rings.
 ///
 /// # Errors
-///
-/// Returns [`crate::PackingError`] when a ring atom row cannot be encoded.
+/// Returns an error for unavailable topology, invalid controls or GPU limits.
 pub fn append_paper_chain(
     structure: &molframe::Structure,
     selection: &AtomSelection,
@@ -36,169 +24,115 @@ pub fn append_paper_chain(
     opacity: u8,
     vertices: &mut Vec<RibbonVertex>,
     indices: &mut Vec<u32>,
-) -> Result<(), crate::PackingError> {
-    for residue in structure.residues() {
-        if residue.atom("O5").is_some() {
-            append_named_ring(
-                residue, &PYRANOSE, selection, height, opacity, vertices, indices,
-            )?;
-        } else if residue.atom("O4").is_some() && residue.atom("C1").is_some() {
-            append_named_ring(
-                residue, &FURANOSE, selection, height, opacity, vertices, indices,
-            )?;
-        }
-        append_named_ring(
-            residue, &RIBOSE, selection, height, opacity, vertices, indices,
-        )?;
-        if residue.atom("N9").is_some() {
-            append_named_ring(
-                residue,
-                &PURINE_SIX,
-                selection,
-                height,
-                opacity,
-                vertices,
-                indices,
-            )?;
-            append_named_ring(
-                residue,
-                &PURINE_FIVE,
-                selection,
-                height,
-                opacity,
-                vertices,
-                indices,
-            )?;
-        } else if residue.atom("N1").is_some() {
-            append_named_ring(
-                residue,
-                &PYRIMIDINE,
-                selection,
-                height,
-                opacity,
-                vertices,
-                indices,
-            )?;
-        }
+) -> Result<(), PackingError> {
+    let mut mesh = RibbonMesh::default();
+    mesh.generate_ring_bipyramids(structure, selection, height, 6, opacity)?;
+    let offset = u32::try_from(vertices.len()).map_err(|_| PackingError::IndexOverflow {
+        resource: "ring vertices",
+        index: vertices.len() as u64,
+    })?;
+    for index in &mesh.indices {
+        offset
+            .checked_add(*index)
+            .ok_or(PackingError::IndexOverflow {
+                resource: "ring indices",
+                index: u64::from(offset) + u64::from(*index),
+            })?;
     }
+    indices.extend(mesh.indices.iter().map(|index| offset + index));
+    vertices.extend_from_slice(&mesh.vertices);
     Ok(())
 }
 
-fn append_named_ring(
-    residue: molframe::ResidueRef<'_>,
-    names: &[&str],
+pub(super) fn selected_rings(
+    structure: &molframe::Structure,
     selection: &AtomSelection,
-    height: f32,
-    opacity: u8,
-    vertices: &mut Vec<RibbonVertex>,
-    indices: &mut Vec<u32>,
-) -> Result<(), crate::PackingError> {
-    let mut ring = Vec::with_capacity(names.len());
-    let mut entity = None;
-    for name in names {
-        let Some(atom) = residue.atom(name) else {
-            return Ok(());
-        };
-        if !selection.contains(atom.index().get()) {
-            return Ok(());
+    maximum: u8,
+) -> Result<BTreeSet<Vec<u32>>, PackingError> {
+    check_search_budget(structure, maximum)?;
+    let mut rings = BTreeSet::new();
+    for size in 3..=maximum {
+        let query = format!("*1{}~1", "~*".repeat(usize::from(size - 1)));
+        let pattern = molframe::chemistry::SmartsPattern::parse(&query).map_err(|_| {
+            PackingError::Topology {
+                operation: "cycle pattern",
+            }
+        })?;
+        let matches = pattern
+            .find_structure_matches(structure.engine())
+            .map_err(|_| PackingError::Topology {
+                operation: "molecular ring connectivity",
+            })?;
+        for matched in matches {
+            let rows: Vec<u32> = matched
+                .atom_indices
+                .iter()
+                .copied()
+                .map(|row| {
+                    u32::try_from(row).map_err(|_| PackingError::IndexOverflow {
+                        resource: "ring atom rows",
+                        index: row as u64,
+                    })
+                })
+                .collect::<Result<_, _>>()?;
+            if rows.iter().any(|row| !selection.contains(*row)) {
+                continue;
+            }
+            let Some((start, _)) = rows.iter().enumerate().min_by_key(|(_, row)| *row) else {
+                continue;
+            };
+            let forward: Vec<u32> = (0..rows.len())
+                .map(|i| rows[(start + i) % rows.len()])
+                .collect();
+            let reverse: Vec<u32> = (0..rows.len())
+                .map(|i| rows[(start + rows.len() - i) % rows.len()])
+                .collect();
+            rings.insert(forward.min(reverse));
+            if rings.len() > 100_000 {
+                return Err(PackingError::GeometryBudget {
+                    resource: "molecular rings",
+                });
+            }
         }
-        let Some(position) = atom.position() else {
-            return Ok(());
-        };
-        ring.push(Vec3::from(position));
-        let entity_id = EntityId::pack(EntityKind::Atom, u64::from(atom.index().get()))?;
-        entity.get_or_insert(entity_id.0);
     }
-    let Some(entity) = entity else {
-        return Ok(());
-    };
-    emit_plate(&ring, height, opacity, entity, vertices, indices);
+    Ok(rings)
+}
+
+// Count walks without visited-node pruning. This bounds the matcher's search
+// before allocating matches, at O(maximum × bonds) cost and O(atoms) storage.
+fn check_search_budget(structure: &molframe::Structure, maximum: u8) -> Result<(), PackingError> {
+    const MAX_SEARCH_STATES: u64 = 200_000_000;
+    let source = structure.engine();
+    let adjacency = source.data().bonds.adjacency(source.atom_count());
+    let mut previous = vec![1u64; source.atom_count() as usize];
+    let mut current = vec![0u64; previous.len()];
+    let mut total = 0u64;
+    for depth in 1..maximum {
+        for (row, value) in current.iter_mut().enumerate() {
+            let row = u32::try_from(row).map_err(|_| PackingError::GeometryBudget {
+                resource: "ring atom rows",
+            })?;
+            *value = adjacency
+                .neighbours(molframe::AtomIndex::new(row))
+                .iter()
+                .fold(0u64, |sum, neighbor| {
+                    sum.saturating_add(previous[neighbor.as_usize()])
+                });
+        }
+        let visits = current
+            .iter()
+            .fold(0u64, |sum, count| sum.saturating_add(*count));
+        total = total.saturating_add(visits.saturating_mul(u64::from(maximum - depth)));
+        if total > MAX_SEARCH_STATES {
+            return Err(PackingError::GeometryBudget {
+                resource: "complete molecular ring search",
+            });
+        }
+        std::mem::swap(&mut previous, &mut current);
+    }
     Ok(())
 }
 
-/// Emits one ring as a plate: two capped faces separated by a lit rim.
-///
-/// The cap vertices are the deposited ring atoms offset along the plane normal,
-/// not a fitted polygon, so the pucker stays in the picture as the bend in the
-/// sheet. A bipyramid built to a centroid apex instead reads as a solid gem and
-/// buries the very displacement the colour is reporting.
-///
-/// The rim exists so the plate has a silhouette. A zero-thickness polygon has a
-/// razor edge that no amount of sampling resolves, and at 4K that edge is the
-/// first thing that looks wrong.
-fn emit_plate(
-    ring: &[Vec3],
-    height: f32,
-    opacity: u8,
-    entity: u32,
-    vertices: &mut Vec<RibbonVertex>,
-    indices: &mut Vec<u32>,
-) {
-    if ring.len() < 3 {
-        return;
-    }
-    let count = u16::try_from(ring.len()).map_or(f32::from(u16::MAX), f32::from);
-    let centroid = ring.iter().copied().sum::<Vec3>() / count.max(1.0);
-    let Some(normal) = ring_normal(ring) else {
-        return;
-    };
-    let offset = normal * height.abs().max(0.02);
-    let color = pucker_color(pucker_amplitude(ring, centroid, normal), opacity);
-    for edge in 0..ring.len() {
-        let next = (edge + 1) % ring.len();
-        let (top, top_next) = (ring[edge] + offset, ring[next] + offset);
-        let (bottom, bottom_next) = (ring[edge] - offset, ring[next] - offset);
-        // Both caps take the ring's own plane normal rather than the normal of
-        // each fan triangle. The positions still carry the pucker, so the sheet
-        // bends in silhouette; giving every wedge its own normal instead lights
-        // the face as a six-bladed pinwheel, which reads as crumpled foil and
-        // hides the very displacement the colour is reporting.
-        push_face(
-            [centroid + offset, top, top_next],
-            normal,
-            entity,
-            color,
-            vertices,
-            indices,
-        );
-        push_face(
-            [centroid - offset, bottom_next, bottom],
-            -normal,
-            entity,
-            color,
-            vertices,
-            indices,
-        );
-        // The rim is a real edge and keeps its geometric normal, which is what
-        // gives the plate a lit border instead of a razor silhouette.
-        push_triangle(top, bottom, bottom_next, entity, color, vertices, indices);
-        push_triangle(top, bottom_next, top_next, entity, color, vertices, indices);
-    }
-}
-
-fn ring_normal(ring: &[Vec3]) -> Option<Vec3> {
-    let mut normal = Vec3::ZERO;
-    for (index, current) in ring.iter().enumerate() {
-        normal += current.cross(ring[(index + 1) % ring.len()]);
-    }
-    normal.try_normalize()
-}
-
-fn pucker_amplitude(ring: &[Vec3], centroid: Vec3, normal: Vec3) -> f32 {
-    ring.iter()
-        .map(|point| ((*point - centroid).dot(normal)).powi(2))
-        .sum::<f32>()
-        .sqrt()
-}
-
-/// Colour ramp stops, each paired with the pucker amplitude it sits at in
-/// hundredths of an Angstrom.
-///
-/// Keeping the stops as data and interpolating between them replaces the step
-/// function these thresholds used to drive. Two rings whose pucker differs by a
-/// hundredth of an Angstrom now differ by a hundredth of a hue instead of
-/// jumping a whole band, which is what a reader expects from a quantity that is
-/// itself continuous.
 const PUCKER_STOPS: [(u16, [u8; 3]); 6] = [
     (0, [220, 62, 55]),
     (19, [240, 178, 48]),
@@ -208,7 +142,42 @@ const PUCKER_STOPS: [(u16, [u8; 3]); 6] = [
     (130, [184, 76, 190]),
 ];
 
-fn pucker_color(amplitude: f32, opacity: u8) -> Rgba8 {
+pub(super) fn append_palette(values: &mut Vec<f32>, opacity: u8) {
+    for (amplitude, [r, g, b]) in PUCKER_STOPS {
+        values.push(f32::from(amplitude) / 100.0);
+        values.push(f32::from_bits(u32::from_le_bytes([r, g, b, opacity])));
+    }
+}
+
+pub(super) fn pucker_amplitude(points: &[Vec3]) -> f32 {
+    let Ok(count) = u8::try_from(points.len()) else {
+        return 0.0;
+    };
+    if count < 3 {
+        return 0.0;
+    }
+    let center = points.iter().copied().sum::<Vec3>() / f32::from(count);
+    let mut sine = Vec3::ZERO;
+    let mut cosine = Vec3::ZERO;
+    for (index, point) in points.iter().enumerate() {
+        let Ok(index) = u8::try_from(index) else {
+            return 0.0;
+        };
+        let (s, c) = (std::f32::consts::TAU * f32::from(index) / f32::from(count)).sin_cos();
+        sine += (*point - center) * s;
+        cosine += (*point - center) * c;
+    }
+    let Some(normal) = sine.cross(cosine).try_normalize() else {
+        return 0.0;
+    };
+    points
+        .iter()
+        .map(|point| (*point - center).dot(normal).powi(2))
+        .sum::<f32>()
+        .sqrt()
+}
+
+pub(super) fn pucker_color(amplitude: f32, opacity: u8) -> Rgba8 {
     let scaled = centi_angstrom(amplitude);
     let mut color = PUCKER_STOPS[PUCKER_STOPS.len() - 1].1;
     for window in PUCKER_STOPS.windows(2) {
@@ -248,42 +217,4 @@ fn mix_channel(start: u8, end: u8, amount: u16, span: u16) -> u8 {
 /// report an amplitude the source never reached.
 fn centi_angstrom(amplitude: f32) -> u16 {
     molgfx_math::truncate_u16(amplitude * 100.0)
-}
-
-fn push_triangle(
-    a: Vec3,
-    b: Vec3,
-    c: Vec3,
-    entity_id: u32,
-    color: Rgba8,
-    vertices: &mut Vec<RibbonVertex>,
-    indices: &mut Vec<u32>,
-) {
-    let Some(normal) = (b - a).cross(c - a).try_normalize() else {
-        return;
-    };
-    push_face([a, b, c], normal, entity_id, color, vertices, indices);
-}
-
-/// Appends one triangle carrying a normal the caller chose.
-fn push_face(
-    corners: [Vec3; 3],
-    normal: Vec3,
-    entity_id: u32,
-    color: Rgba8,
-    vertices: &mut Vec<RibbonVertex>,
-    indices: &mut Vec<u32>,
-) {
-    let Ok(base) = u32::try_from(vertices.len()) else {
-        return;
-    };
-    for position in corners {
-        vertices.push(RibbonVertex {
-            position: position.to_array(),
-            entity_id,
-            normal: normal.to_array(),
-            color,
-        });
-    }
-    indices.extend([base, base.saturating_add(1), base.saturating_add(2)]);
 }
