@@ -1,3 +1,5 @@
+#![allow(clippy::unreadable_literal, clippy::cast_precision_loss)]
+
 use super::*;
 use molgfx_core::Scene;
 use std::fmt::Write as _;

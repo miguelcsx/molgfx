@@ -14,6 +14,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 molframe-py.workspace = true
+molgfx-geometry.workspace = true
 molgfx.workspace = true
 numpy.workspace = true
 pyo3 = { workspace = true, features = ["multiple-pymethods"] }

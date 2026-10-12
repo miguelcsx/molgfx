@@ -14,7 +14,7 @@ pub use field_lines::{FieldLineError, FieldLineParams, field_lines, field_lines_
 mod packing;
 mod polyhedra;
 mod snfg;
-pub use snfg::{SNFG_SYMBOL_SIZE, SnfgSymbolSet, glyph as snfg_glyph, glyph_size as snfg_glyph_size};
+pub use snfg::{SNFG_SYMBOL_SIZE, component_symbol as snfg_component_symbol, SnfgSymbolSet, glyph as snfg_glyph, glyph_size as snfg_glyph_size};
 
 pub use cartoon::{
     CARTOON_GAP_CUTOFF, CartoonError, PolymerTraces, RibbonMesh, RibbonParams, RibbonVertex,

@@ -2345,6 +2345,7 @@ version = "0.5.3"
 dependencies = [
  "molframe-py",
  "molgfx",
+ "molgfx-geometry",
  "numpy",
  "pyo3",
  "serde_json",

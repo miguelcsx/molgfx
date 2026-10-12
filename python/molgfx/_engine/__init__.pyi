@@ -1416,6 +1416,11 @@ class _Ellipsoid:
     ) -> Ellipsoid: ...
 
 rep: _Rep
+
+class _Snfg(Protocol):
+    def glyph(self, component: str) -> tuple[str, str, str] | None: ...
+
+snfg: _Snfg
 color: _Color
 profile: _Profile
 effect: _Effect
@@ -1499,6 +1504,7 @@ __all__ = [
     "measurement",
     "profile",
     "rep",
+    "snfg",
     "segmentation",
     "system_info",
     "trajectory",

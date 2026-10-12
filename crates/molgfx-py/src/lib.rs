@@ -23,6 +23,7 @@ mod scene_binding;
 mod scene_composition_binding;
 mod scene_state_binding;
 mod session_binding;
+mod snfg_binding;
 mod subscription_binding;
 mod transaction_binding;
 mod visual_binding;

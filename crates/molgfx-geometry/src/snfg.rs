@@ -92,6 +92,14 @@ fn pose(normal: [f32; 3], anomeric: Option<[f32; 3]>) -> Option<Quat> {
     quat.is_finite().then_some(quat)
 }
 
+/// Glyph, primary colour (0xRRGGBB) and community abbreviation of a CCD
+/// component, or `None` when it is not a curated monosaccharide.
+#[must_use]
+pub fn component_symbol(component: &str) -> Option<(CarbohydrateShape, u32, &'static str)> {
+    molframe::chemistry::snfg_symbol(component)
+        .map(|symbol| (glyph(symbol.shape), symbol.color, symbol.abbreviation))
+}
+
 /// Column storage of every SNFG symbol of a selection, built once.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SnfgSymbolSet {
