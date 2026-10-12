@@ -2,6 +2,9 @@
 
 mod bonds;
 mod color;
+mod distance;
+#[cfg(test)]
+mod distance_tests;
 mod error;
 pub(crate) mod pack;
 

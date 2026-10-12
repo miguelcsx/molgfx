@@ -26,8 +26,9 @@ pub use bounds::{
 };
 pub use camera::{Camera, Projection, Ray, ScreenPoint};
 pub use curves::{
-    CurveSample, TransportFrame, parallel_transport, sample_catmull_rom,
-    sample_catmull_rom_demanding, sample_catmull_rom_fixed, sample_cubic_bezier,
+    CurveSample, TransportFrame, catmull_rom_position, catmull_rom_tangent, parallel_transport,
+    sample_catmull_rom, sample_catmull_rom_demanding, sample_catmull_rom_fixed,
+    sample_cubic_bezier,
 };
 pub use parallel::{BLOCK, map_zip_blocks_into};
 pub use quantize::{round_u8, truncate_u16, unit_to_grid, unorm8};

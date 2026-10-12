@@ -91,6 +91,9 @@ pub fn pack_bonds(
     out: &mut Vec<BondGpu>,
 ) -> Result<(), PackingError> {
     out.clear();
+    if representation.kind == RepresentationKind::DynamicBonds {
+        return super::distance::pack_distance_bonds(placed, representation, compaction, out);
+    }
     if !matches!(
         representation.kind,
         RepresentationKind::BallAndStick

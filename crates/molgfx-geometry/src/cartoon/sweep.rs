@@ -20,14 +20,22 @@ pub(super) struct RibbonTrace<'a> {
     pub(super) normals: &'a [Vec3],
     pub(super) guides: &'a [GuideKind],
     pub(super) plane_rows: &'a [u32],
+    pub(super) parameter_range: Option<[f32; 2]>,
 }
 
 pub(super) fn append_ribbon(
     input: RibbonTrace<'_>,
     build: &mut RibbonBuild<'_>,
 ) -> Result<(), crate::PackingError> {
+    if build.params.width == 0.0
+        && matches!(
+            build.params.profile,
+            SplineProfile::Trace | SplineProfile::Tube
+        )
+    {
+        return super::stroke::append(input, build);
+    }
     let RibbonTrace {
-        entities,
         styles,
         normals,
         guides,
@@ -40,7 +48,10 @@ pub(super) fn append_ribbon(
     }
     if build.params.profile == SplineProfile::Twister {
         super::twist::orient_to_rings(build.samples, normals, build.frames);
-    } else if build.params.profile == SplineProfile::Cartoon {
+    } else if matches!(
+        build.params.profile,
+        SplineProfile::Cartoon | SplineProfile::NewRibbons | SplineProfile::Rocket
+    ) {
         super::orientation::orient_to_peptides(build.samples, normals, build.frames);
     }
     let shell_indices: u64 = build
@@ -62,8 +73,6 @@ pub(super) fn append_ribbon(
         build.params.profile == SplineProfile::Twister,
     )?;
     let base_vertex = super::draw_limits::vertex_index(build.vertices.len())?;
-    let half_width = build.params.width.abs() * 0.5;
-    let half_thickness = build.params.thickness.abs() * 0.5;
     build.vertices.reserve(build.samples.len() * PROFILE_SIDES);
     build
         .deformations
@@ -84,7 +93,12 @@ pub(super) fn append_ribbon(
         );
         append_ring(ring, base_vertex, flat, build.indices)?;
     }
-    append_end_caps(entities, styles, guides, half_width, half_thickness, build)
+    append_end_caps(
+        input,
+        build.params.width.abs() * 0.5,
+        build.params.thickness.abs() * 0.5,
+        build,
+    )
 }
 
 fn sample_trace(
@@ -154,6 +168,14 @@ fn sample_trace(
             }
         }
     }
+    if let Some(range) = input.parameter_range {
+        super::selection_span::clip_samples(
+            input.points,
+            range,
+            build.params.profile == SplineProfile::Trace,
+            build.samples,
+        )?;
+    }
     Ok(())
 }
 
@@ -185,7 +207,9 @@ fn append_vertices(input: RibbonTrace<'_>, build: &mut RibbonBuild<'_>) {
         let segment = usize::try_from(sample.segment)
             .into_iter()
             .fold(usize::MAX, |_, value| value);
-        let entity_id = match entities.get(segment) {
+        let owner =
+            super::selection_span::entity_index(segment, sample.parameter, input.parameter_range);
+        let entity_id = match entities.get(owner) {
             Some(&value) => value,
             None => u32::MAX,
         };
@@ -267,7 +291,7 @@ fn deformation(
             mode = 6;
         }
     }
-    if profile == SplineProfile::Cartoon
+    if matches!(profile, SplineProfile::Cartoon | SplineProfile::NewRibbons)
         && let (Some(&left), Some(&right)) = (plane_rows.get(segment), plane_rows.get(segment + 1))
         && left != u32::MAX
         && right != u32::MAX

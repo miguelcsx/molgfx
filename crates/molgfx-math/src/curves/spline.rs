@@ -75,9 +75,9 @@ pub fn sample_catmull_rom_demanding(
         let start = u8::from(segment != 0);
         for step in start..=steps {
             let t = f32::from(step) / f32::from(steps);
-            let derivative = tangent(curve, t);
+            let derivative = catmull_rom_tangent(curve, t);
             out.push(CurveSample {
-                position: position(curve, t),
+                position: catmull_rom_position(curve, t),
                 tangent: normalized(derivative, Vec3::Z),
                 segment: u32::try_from(segment)
                     .into_iter()
@@ -117,8 +117,8 @@ pub fn sample_catmull_rom_fixed(
         for step in start..=steps {
             let t = f32::from(step) / f32::from(steps);
             out.push(CurveSample {
-                position: position(curve, t),
-                tangent: normalized(tangent(curve, t), Vec3::Z),
+                position: catmull_rom_position(curve, t),
+                tangent: normalized(catmull_rom_tangent(curve, t), Vec3::Z),
                 segment: u32::try_from(segment)
                     .into_iter()
                     .fold(u32::MAX, |_, value| value),
@@ -141,11 +141,11 @@ fn segment_points(points: &[Vec3], segment: usize) -> [Vec3; 4] {
 
 #[inline]
 fn adaptive_steps(points: [Vec3; 4], tolerance: f32, maximum: u8, extra: f32) -> u8 {
-    let midpoint = position(points, 0.5);
+    let midpoint = catmull_rom_position(points, 0.5);
     let chord_midpoint = (points[1] + points[2]) * 0.5;
     let deviation = midpoint.distance(chord_midpoint);
-    let start = normalized(tangent(points, 0.0), Vec3::Z);
-    let end = normalized(tangent(points, 1.0), start);
+    let start = normalized(catmull_rom_tangent(points, 0.0), Vec3::Z);
+    let end = normalized(catmull_rom_tangent(points, 1.0), start);
     let turn = start.dot(end).clamp(-1.0, 1.0).acos();
     let demand = (deviation / tolerance).sqrt() + turn * 2.0 + extra;
     let mut steps = 1u8;
@@ -164,7 +164,9 @@ fn normalized(value: Vec3, fallback: Vec3) -> Vec3 {
 }
 
 #[inline]
-fn position(points: [Vec3; 4], t: f32) -> Vec3 {
+/// Evaluates the middle interval of four uniform Catmull–Rom controls.
+#[must_use]
+pub fn catmull_rom_position(points: [Vec3; 4], t: f32) -> Vec3 {
     let [p0, p1, p2, p3] = points;
     let t2 = t * t;
     let t3 = t2 * t;
@@ -176,7 +178,10 @@ fn position(points: [Vec3; 4], t: f32) -> Vec3 {
 }
 
 #[inline]
-fn tangent(points: [Vec3; 4], t: f32) -> Vec3 {
+/// Evaluates the derivative of the middle Catmull–Rom interval.
+/// The magnitude is retained for callers computing surface derivatives.
+#[must_use]
+pub fn catmull_rom_tangent(points: [Vec3; 4], t: f32) -> Vec3 {
     let [p0, p1, p2, p3] = points;
     let t2 = t * t;
     ((p2 - p0)

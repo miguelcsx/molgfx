@@ -81,13 +81,11 @@ const LOOP_RADIUS: f32 = 0.2;
 /// Body width of a strand relative to the reference half width.
 const STRAND_WIDTH_SCALE: f32 = STRAND_HALF_WIDTH / REFERENCE_HALF_WIDTH;
 
-/// Whether a sample's cross-section is a beta strand rather than a helix or a
-/// connecting loop. An isolated beta bridge is drawn as the strand it is: it
-/// carries the same beta category as a ladder residue, and drawing it as a loop
-/// would break the sheet's visual continuity.
+/// A beta ladder has a sheet body; an isolated bridge has no continuous ladder
+/// to extrude and retains the connecting cord.
 #[inline]
 fn is_strand_like(style: SecondaryStructure) -> bool {
-    style.is_sheet_like()
+    style.is_strand()
 }
 
 /// Width of a beta-strand at one spline sample.
@@ -109,29 +107,6 @@ fn strand_width(
             arrow_factor * (1.0 - parameter) * STRAND_WIDTH_SCALE
         }
         _ => STRAND_WIDTH_SCALE,
-    }
-}
-
-/// Cross-section for the rocket profile.
-///
-/// A helix becomes a round column: equal width and thickness, so it reads as a
-/// solid rather than a twisted band. A strand keeps the cartoon's flat arrow,
-/// because that is what distinguishes it from a helix at a glance. Coil drops
-/// to a thin cord so the elements stand out from what connects them.
-#[inline]
-pub(super) fn rocket_scale(
-    style: SecondaryStructure,
-    parameter: f32,
-    styles: &[SecondaryStructure],
-    segment: usize,
-    arrow_factor: f32,
-) -> (f32, f32) {
-    match style {
-        state if state.is_helix() => (1.35, 1.35),
-        state if is_strand_like(state) => {
-            (strand_width(parameter, styles, segment, arrow_factor), 0.34)
-        }
-        _ => (0.3, 0.3),
     }
 }
 
@@ -168,6 +143,10 @@ pub(super) fn profile_extents(
     styles: &[SecondaryStructure],
     segment: usize,
 ) -> (f32, f32) {
+    if params.profile == SplineProfile::Rocket {
+        let radius = params.helix_radius / 7.0;
+        return (radius, radius);
+    }
     let (width, thickness) = match params.profile {
         SplineProfile::Cartoon => profile_scale(
             style,
@@ -177,10 +156,11 @@ pub(super) fn profile_extents(
             params.aspect_ratio,
             params.arrow_factor,
         ),
-        SplineProfile::Rocket => {
-            rocket_scale(style, parameter, styles, segment, params.arrow_factor)
-        }
-        SplineProfile::Tube | SplineProfile::Trace | SplineProfile::Twister => (1.0, 1.0),
+        SplineProfile::Rocket
+        | SplineProfile::NewRibbons
+        | SplineProfile::Tube
+        | SplineProfile::Trace
+        | SplineProfile::Twister => (1.0, 1.0),
     };
     let depth = if params.profile == SplineProfile::Cartoon
         && (style.is_helix() || is_strand_like(style))
@@ -200,8 +180,10 @@ pub(super) fn sample_profile(
 ) -> CartoonProfile {
     match params.profile {
         SplineProfile::Twister => CartoonProfile::Square,
+        SplineProfile::NewRibbons => params.helix_profile,
         SplineProfile::Cartoon if guide == Some(GuideKind::SugarCarbon) => params.nucleic_profile,
         SplineProfile::Cartoon if style.is_helix() => params.helix_profile,
+        SplineProfile::Cartoon if style.is_strand() => CartoonProfile::Square,
         SplineProfile::Cartoon
         | SplineProfile::Rocket
         | SplineProfile::Tube

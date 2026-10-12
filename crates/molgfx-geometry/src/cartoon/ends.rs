@@ -10,7 +10,7 @@ use super::profiles::{profile_color, profile_extents_for_guide, sample_profile};
 use super::ribbon::{
     PROFILE_SIDES, RibbonBuild, RibbonDeformation, RibbonVertex, SplineProfile, control_rows,
 };
-use super::traces::GuideKind;
+use super::sweep::RibbonTrace;
 use molgfx_core::SecondaryStructure;
 use molgfx_math::{CurveSample, TransportFrame};
 
@@ -32,9 +32,7 @@ struct RibbonEnd {
 /// side normals it would get by reusing the ring, which shades a blunt tip as if
 /// it were the ribbon's edge at exactly the place the eye picks the ribbon up.
 pub(super) fn append_end_caps(
-    entities: &[u32],
-    styles: &[SecondaryStructure],
-    guides: &[GuideKind],
+    input: RibbonTrace<'_>,
     width: f32,
     thickness: f32,
     build: &mut RibbonBuild<'_>,
@@ -72,9 +70,9 @@ pub(super) fn append_end_caps(
     ];
     for (end, recipe) in ends.into_iter().zip(recipes) {
         if build.params.profile == SplineProfile::Twister {
-            append_cap(end, entities, width, thickness, build)?;
+            append_cap(end, input, width, thickness, build)?;
         } else if let Some(recipe) = recipe {
-            append_round_cap(end, entities, styles, guides, recipe, build)?;
+            append_round_cap(end, input, recipe, build)?;
         }
     }
     Ok(())
@@ -82,7 +80,7 @@ pub(super) fn append_end_caps(
 
 fn append_cap(
     end: RibbonEnd,
-    entities: &[u32],
+    input: RibbonTrace<'_>,
     width: f32,
     thickness: f32,
     build: &mut RibbonBuild<'_>,
@@ -90,11 +88,13 @@ fn append_cap(
     let segment = usize::try_from(end.sample.segment)
         .into_iter()
         .fold(usize::MAX, |_, value| value);
-    let entity_id = match entities.get(segment) {
+    let owner =
+        super::selection_span::entity_index(segment, end.sample.parameter, input.parameter_range);
+    let entity_id = match input.entities.get(owner) {
         Some(&value) => value,
         None => u32::MAX,
     };
-    let controls = control_rows(entities, segment);
+    let controls = control_rows(input.entities, segment);
     let normal = end.frame.tangent * end.outward;
     let base = super::draw_limits::vertex_index(build.vertices.len())?;
     for [x, y] in SQUARE_CORNERS {
@@ -123,19 +123,19 @@ fn append_cap(
 
 fn append_round_cap(
     end: RibbonEnd,
-    entities: &[u32],
-    styles: &[SecondaryStructure],
-    guides: &[GuideKind],
+    input: RibbonTrace<'_>,
     recipe: RibbonDeformation,
     build: &mut RibbonBuild<'_>,
 ) -> Result<(), crate::PackingError> {
     let Ok(segment) = usize::try_from(end.sample.segment) else {
         return Ok(());
     };
-    let Some(&entity_id) = entities.get(segment) else {
+    let owner =
+        super::selection_span::entity_index(segment, end.sample.parameter, input.parameter_range);
+    let Some(&entity_id) = input.entities.get(owner) else {
         return Ok(());
     };
-    let style = match styles.get(segment) {
+    let style = match input.styles.get(segment) {
         Some(&style) => style,
         None => SecondaryStructure::Unknown,
     };
@@ -143,9 +143,9 @@ fn append_round_cap(
         build.params,
         style,
         end.sample.parameter,
-        styles,
+        input.styles,
         segment,
-        guides.get(segment).copied(),
+        input.guides.get(segment).copied(),
     );
     let base = super::draw_limits::vertex_index(build.vertices.len())?;
     let normal = (end.frame.tangent * end.outward).to_array();
@@ -158,7 +158,7 @@ fn append_round_cap(
     build.deformations.push(recipe);
     for side in 0..PROFILE_SIDES {
         let (x, y, _) = cross_section(
-            sample_profile(build.params, style, guides.get(segment).copied()),
+            sample_profile(build.params, style, input.guides.get(segment).copied()),
             side,
             width,
             thickness,

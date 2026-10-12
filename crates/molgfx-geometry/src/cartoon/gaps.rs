@@ -34,7 +34,7 @@ pub(super) fn append_gaps(
         let mut previous: Option<Guide> = None;
         let mut missing_guide = false;
         for residue in chain.residues() {
-            let Some((atom, kind)) = polymer_guide(residue) else {
+            let Some((atom, kind)) = polymer_guide(residue, selection) else {
                 missing_guide = true;
                 continue;
             };
@@ -141,6 +141,7 @@ fn append_connector(
                     normals: &[],
                     guides: &[],
                     plane_rows: &[],
+                    parameter_range: None,
                 },
                 build,
             )?;

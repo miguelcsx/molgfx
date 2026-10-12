@@ -2,6 +2,34 @@ use crate::{RibbonMesh, RibbonParams};
 use molgfx_core::SecondaryStructure;
 use molgfx_math::Vec3;
 
+#[test]
+fn smooth_cartoon_sweeps_sheet_faces_while_classic_cartoon_connects_discrete_cells_with_cords() {
+    use crate::cartoon::profiles::sample_profile;
+    for (profile, shape) in [
+        (
+            crate::SplineProfile::Cartoon,
+            molgfx_core::CartoonProfile::Square,
+        ),
+        (
+            crate::SplineProfile::Rocket,
+            molgfx_core::CartoonProfile::Elliptical,
+        ),
+    ] {
+        let params = RibbonParams {
+            profile,
+            ..RibbonParams::default()
+        };
+        assert_eq!(
+            sample_profile(params, SecondaryStructure::Strand, None),
+            shape
+        );
+        assert_eq!(
+            sample_profile(params, SecondaryStructure::Coil, None),
+            molgfx_core::CartoonProfile::Elliptical
+        );
+    }
+}
+
 fn profile_diameters(vertices: &[crate::RibbonVertex]) -> (f32, f32) {
     let width = Vec3::from(vertices[0].position).distance(Vec3::from(vertices[8].position));
     let depth = Vec3::from(vertices[4].position).distance(Vec3::from(vertices[12].position));
@@ -9,12 +37,12 @@ fn profile_diameters(vertices: &[crate::RibbonVertex]) -> (f32, f32) {
 }
 
 #[test]
-fn every_helix_has_helix_profiles_and_every_sheet_like_state_stays_flat() {
+fn every_helix_has_helix_profiles_and_only_beta_ladders_have_sheet_bodies() {
     for state in SecondaryStructure::ALL {
         let styles = [state; 3];
         let expected = if state.is_helix() {
             SecondaryStructure::AlphaHelix
-        } else if state.is_sheet_like() {
+        } else if state.is_strand() {
             SecondaryStructure::Strand
         } else {
             SecondaryStructure::Coil
@@ -37,27 +65,11 @@ fn every_helix_has_helix_profiles_and_every_sheet_like_state_stays_flat() {
                 RibbonParams::default().arrow_factor
             )
         );
-        assert_eq!(
-            crate::cartoon::profiles::rocket_scale(
-                state,
-                0.5,
-                &styles,
-                1,
-                RibbonParams::default().arrow_factor
-            ),
-            crate::cartoon::profiles::rocket_scale(
-                expected,
-                0.5,
-                &styles,
-                1,
-                RibbonParams::default().arrow_factor
-            )
-        );
     }
 }
 
 #[test]
-fn an_isolated_beta_bridge_takes_the_strand_arrow_not_the_coil_cord() {
+fn an_isolated_beta_bridge_keeps_the_connecting_cord_without_an_arrow() {
     use crate::cartoon::profiles::{arrow_shoulders, profile_scale};
     let params = RibbonParams::default();
     let styles = [SecondaryStructure::BetaBridge; 3];
@@ -73,21 +85,12 @@ fn an_isolated_beta_bridge_takes_the_strand_arrow_not_the_coil_cord() {
     };
     assert_eq!(
         scale(SecondaryStructure::BetaBridge),
-        scale(SecondaryStructure::Strand),
-        "a bridge is drawn as the strand it is"
+        scale(SecondaryStructure::Coil)
     );
     assert_ne!(
         scale(SecondaryStructure::BetaBridge),
-        scale(SecondaryStructure::Coil),
-        "a bridge is not a round loop"
+        scale(SecondaryStructure::Strand)
     );
-    // The arrow shoulder that ends a beta run must also be added where a lone
-    // bridge forms the whole run, or the terminal bridge keeps its square end.
-    let lone_bridge = [
-        SecondaryStructure::Coil,
-        SecondaryStructure::BetaBridge,
-        SecondaryStructure::Coil,
-    ];
     let sample = |segment: u32, parameter: f32| molgfx_math::CurveSample {
         position: Vec3::ZERO,
         tangent: Vec3::Z,
@@ -96,12 +99,15 @@ fn an_isolated_beta_bridge_takes_the_strand_arrow_not_the_coil_cord() {
     };
     let mut samples = vec![sample(0, 1.0), sample(1, 0.0)];
     let before = samples.len();
-    arrow_shoulders(&lone_bridge, &mut samples);
-    assert_eq!(
-        samples.len(),
-        before + 1,
-        "the lone bridge gains its arrow shoulder"
+    arrow_shoulders(
+        &[
+            SecondaryStructure::Coil,
+            SecondaryStructure::BetaBridge,
+            SecondaryStructure::Coil,
+        ],
+        &mut samples,
     );
+    assert_eq!(samples.len(), before);
 }
 
 #[test]
@@ -126,7 +132,7 @@ fn a_straight_strand_places_its_authored_arrow_shoulder_at_the_last_strand_guide
         .vertices
         .iter()
         .filter(|vertex| (vertex.position[0] - 1.0).abs() < 1.0e-6)
-        .map(|vertex| (Vec3::from(vertex.position) - Vec3::X).length())
+        .map(|vertex| vertex.position[1].abs().max(vertex.position[2].abs()))
         .fold(0.0, f32::max);
     assert!(
         (shoulder - 2.8).abs() < 1.0e-5,
@@ -183,5 +189,34 @@ fn changing_cartoon_width_preserves_the_authored_cross_section_aspect_ratio() {
         .expect("ribbon indices fit");
         let (wide, thin) = profile_diameters(&mesh.vertices);
         assert!((wide / thin - 7.0).abs() < 1.0e-5);
+    }
+}
+
+#[test]
+fn a_uniform_ribbon_keeps_its_width_and_depth_across_all_secondary_states() {
+    let mut reference = None;
+    for state in SecondaryStructure::ALL {
+        let mut mesh = RibbonMesh::default();
+        mesh.generate_styled(
+            &[Vec3::ZERO, Vec3::X, Vec3::X * 2.0],
+            &[1, 2, 3],
+            &[state; 3],
+            RibbonParams {
+                profile: crate::SplineProfile::NewRibbons,
+                width: 2.0,
+                thickness: 0.4,
+                arrow_factor: 0.0,
+                ..RibbonParams::default()
+            },
+        )
+        .expect("ribbon fits");
+        let (width, depth) = profile_diameters(&mesh.vertices);
+        assert!((width - 2.0).abs() < 1.0e-5);
+        assert!((depth - 0.4).abs() < 1.0e-5);
+        if let Some(vertices) = &reference {
+            assert_eq!(&mesh.vertices, vertices);
+        } else {
+            reference = Some(mesh.vertices);
+        }
     }
 }

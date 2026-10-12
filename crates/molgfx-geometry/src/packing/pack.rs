@@ -222,9 +222,10 @@ const MIN_PARALLEL_ATOMS: u64 = 8192;
 const PARALLEL_BLOCK: usize = 8192;
 
 fn surface_inflation_of(representation: &Representation) -> f32 {
-    if representation.kind == RepresentationKind::Surface
-        && representation.params.surface_kind == SurfaceKind::SolventAccessible
-        && representation.params.surface_style == SurfaceStyle::Solid
+    if representation.kind == RepresentationKind::Solvent
+        || (representation.kind == RepresentationKind::Surface
+            && representation.params.surface_kind == SurfaceKind::SolventAccessible
+            && representation.params.surface_style == SurfaceStyle::Solid)
     {
         representation.params.probe_radius.max(0.0)
     } else {

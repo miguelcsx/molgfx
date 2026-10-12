@@ -6,6 +6,7 @@ pub(crate) mod transport;
 
 pub use bezier::sample_cubic_bezier;
 pub use spline::{
-    CurveSample, sample_catmull_rom, sample_catmull_rom_demanding, sample_catmull_rom_fixed,
+    CurveSample, catmull_rom_position, catmull_rom_tangent, sample_catmull_rom,
+    sample_catmull_rom_demanding, sample_catmull_rom_fixed,
 };
 pub use transport::{TransportFrame, parallel_transport};

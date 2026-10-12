@@ -465,3 +465,25 @@ fn a_bead_encloses_its_residue_and_keeps_one_sphere_per_residue() {
         }
     }
 }
+
+#[test]
+fn solvent_samples_pack_the_probe_once_for_both_rendering_and_frustum_culling() {
+    let (mut scene, handle) = scene_table();
+    let representation = scene.representation_mut(handle).expect("representation");
+    representation.kind = RepresentationKind::Solvent;
+    representation.params.radius_scale = 2.0;
+    representation.params.probe_radius = 1.4;
+    let (_, placed) = scene.structures().next().expect("source");
+    let representation = scene.representation(handle).expect("representation");
+    let mut atoms = Vec::new();
+    pack_atoms(
+        &placed.atoms,
+        representation,
+        &AtomSelection::All,
+        &mut atoms,
+    )
+    .expect("samples pack");
+    for (atom, radius) in atoms.iter().zip(placed.atoms.radius().values()) {
+        assert!((atom.radius - (radius * 2.0 + 1.4)).abs() < 1e-6);
+    }
+}

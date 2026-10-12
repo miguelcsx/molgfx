@@ -68,26 +68,28 @@ fn every_selected_guide_including_the_terminal_one_gets_one_forward_wedge() {
 
 #[test]
 fn an_isolated_selection_uses_its_parent_polymer_direction_without_drawing_neighbors() {
+    let source = structure(false, false);
+    let selection = AtomSelection::Sparse(vec![1]);
+    let mut plain = RibbonMesh::default();
+    plain
+        .generate_structure(&source, &selection, &[], 8.0, RibbonParams::default())
+        .expect("selected ribbon");
     let mut mesh = RibbonMesh::default();
-    mesh.generate_structure(
-        &structure(false, false),
-        &AtomSelection::Sparse(vec![1]),
-        &[],
-        8.0,
-        params(),
-    )
-    .expect("parent direction");
-    assert_eq!(mesh.vertices.len(), 3);
-    assert_eq!(mesh.indices, [0, 1, 2]);
-    assert!((mesh.vertices[0].position[0] - 2.4).abs() < 1.0e-6);
+    mesh.generate_structure(&source, &selection, &[], 8.0, params())
+        .expect("parent direction");
+    assert_eq!(mesh.vertices.len(), plain.vertices.len() + 3);
+    assert_eq!(&mesh.vertices[..plain.vertices.len()], &plain.vertices);
+    assert_eq!(mesh.indices.len(), plain.indices.len() + 3);
+    assert!((mesh.vertices[plain.vertices.len()].position[0] - 2.4).abs() < 1.0e-6);
     assert!(
         mesh.vertices
             .iter()
             .all(|vertex| EntityId(vertex.entity_id).unpack() == Some((EntityKind::Atom, 1)))
     );
     let recipe: &[u32] = bytemuck::cast_slice(mesh.deformation_bytes());
-    assert_eq!(&recipe[..4], &[0, 0, 1, 2]);
-    assert_eq!(recipe[4], 1.0_f32.to_bits());
+    let wedge_recipe = &recipe[plain.vertices.len() * 8..];
+    assert_eq!(&wedge_recipe[..4], &[0, 0, 1, 2]);
+    assert_eq!(wedge_recipe[4], 1.0_f32.to_bits());
 }
 
 #[test]

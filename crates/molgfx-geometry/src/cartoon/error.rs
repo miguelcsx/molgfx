@@ -17,6 +17,8 @@ pub enum CartoonError {
     DirectionProfile,
     /// Gap geometry cannot resolve finite, distinct dash positions.
     GapResolution,
+    /// A fitted helix radius cannot define a finite positive diameter.
+    HelixRadius,
 }
 
 impl From<PackingError> for CartoonError {
@@ -33,6 +35,9 @@ impl fmt::Display for CartoonError {
                 write!(formatter, "polymer guide {entity} has no source direction")
             }
             Self::GapResolution => formatter.write_str("polymer gap exceeds coordinate resolution"),
+            Self::HelixRadius => {
+                formatter.write_str("fitted helix radius must define a finite positive diameter")
+            }
             Self::DirectionProfile => {
                 formatter.write_str("direction wedges require a linear polymer backbone")
             }
@@ -44,7 +49,10 @@ impl std::error::Error for CartoonError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Packing(error) => Some(error),
-            Self::GuideDirection { .. } | Self::DirectionProfile | Self::GapResolution => None,
+            Self::GuideDirection { .. }
+            | Self::DirectionProfile
+            | Self::GapResolution
+            | Self::HelixRadius => None,
         }
     }
 }
