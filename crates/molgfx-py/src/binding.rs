@@ -167,6 +167,18 @@ impl Control<f32> for f32 {
     }
 }
 
+impl Control<u8> for u8 {
+    fn control(self) -> PyResult<u8> {
+        Ok(self)
+    }
+}
+
+impl Control<u16> for u16 {
+    fn control(self) -> PyResult<u16> {
+        Ok(self)
+    }
+}
+
 /// Declares the string spellings of one enumerated control.
 macro_rules! named_control {
     ($type:ty, $label:literal, [$($name:literal => $variant:ident),* $(,)?]) => {
@@ -223,18 +235,19 @@ named_control!(molgfx::rep::SurfaceStyle, "surface style", [
 /// exists in one language exists in the other and neither can drift into
 /// offering a parameter the renderer has no place to put.
 macro_rules! representation {
-    ($name:ident $(, $control:ident : $type:ty)* $(,)?) => {
+    ($name:ident $(($source:ident: $source_type:ty))? $(, $control:ident : $type:ty)* $(,)?) => {
         #[pyfunction]
-        #[pyo3(signature = (target, **options))]
+        #[pyo3(signature = (target $(, $source)?, **options))]
         fn $name(
             target: &Bound<'_, PyAny>,
+            $($source: $source_type,)?
             options: Option<&Bound<'_, pyo3::types::PyDict>>,
         ) -> PyResult<PyRepresentation> {
             // One Rust parameter per Python keyword would exceed the
             // crate's argument budget as forms grow, so every optional
             // control arrives in one keyword map and is read by name.
             reject_unknown_options(stringify!($name), options)?;
-            let mut value = molgfx::rep::$name(selection(target)?).opacity(match options {
+            let mut value = molgfx::rep::$name(selection(target)? $(, $source.0.clone())?).opacity(match options {
                 Some(dict) => keyword(dict, "opacity")?.map_or(Ok(1.0), |raw| raw.extract())?,
                 None => 1.0,
             });
@@ -297,12 +310,21 @@ fn reject_unknown_options(
     Ok(())
 }
 
-representation!(cartoon, gaps: String, width: f32, style: String, aspect_ratio: f32, arrow_factor: f32, direction_wedges: bool, helix_profile: String, nucleic_profile: String);
+representation!(cartoon, gaps: String, width: f32, helix_radius: f32, style: String, aspect_ratio: f32, arrow_factor: f32, direction_wedges: bool, helix_profile: String, nucleic_profile: String);
+representation!(new_cartoon, gaps: String, width: f32, aspect_ratio: f32, arrow_factor: f32, direction_wedges: bool, helix_profile: String, nucleic_profile: String);
 representation!(ball_and_stick, radius: f32, bond_radius: f32);
 representation!(spacefill, radius: f32);
 representation!(licorice, radius: f32, bond_radius: f32);
 representation!(bonds, bond_radius: f32);
-representation!(paper_chain, width: f32);
+representation!(dynamic_bonds, cutoff: f32, bond_radius: f32);
+representation!(paper_chain, height: f32, max_ring_size: u8);
+representation!(polyhedra, cutoff: f32);
+representation!(solvent, probe_radius: f32, size: f32, samples: u16);
+representation!(ribbons, width: f32, edge_radius: f32, gaps: String);
+representation!(surf(source: &crate::overlay_binding::PyDataSource), probe_radius: f32, wire: bool, width: f32);
+representation!(msms(source: &crate::overlay_binding::PyDataSource), probe_radius: f32, density: f32, all_components: bool, wire: bool, width: f32);
+representation!(quick_surf, radius: f32, sigma: f32, isolevel: f32, grid_spacing: f32, cutoff: f32);
+representation!(new_ribbons, width: f32, aspect_ratio: f32, profile: String, gaps: String);
 representation!(lines, width: f32);
 representation!(points, size: f32);
 representation!(
@@ -318,7 +340,7 @@ representation!(bases, radius: f32);
 representation!(base_pairs, radius: f32, bond_radius: f32);
 representation!(glycan, width: f32);
 representation!(beads, radius: f32);
-representation!(dots, size: f32);
+representation!(dots, size: f32, samples: u16);
 representation!(backbone, gaps: String, width: f32);
 representation!(trace, gaps: String, radius: f32);
 representation!(tube, gaps: String, radius: f32);
@@ -344,6 +366,7 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PySceneSpec>()?;
     module.add_class::<PyScenePatch>()?;
     module.add_class::<crate::scene_binding::PyScene>()?;
+    module.add_class::<crate::molecular_surface_binding::PyMolecularPose>()?;
     crate::id_binding::register(module)?;
     crate::transaction_binding::register(module)?;
     crate::authoring_binding::register(module)?;
@@ -361,11 +384,20 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     crate::session_binding::register(module)?;
     let rep = PyModule::new(module.py(), "rep")?;
     rep.add_function(wrap_pyfunction!(cartoon, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(new_cartoon, &rep)?)?;
     rep.add_function(wrap_pyfunction!(ball_and_stick, &rep)?)?;
     rep.add_function(wrap_pyfunction!(spacefill, &rep)?)?;
     rep.add_function(wrap_pyfunction!(licorice, &rep)?)?;
     rep.add_function(wrap_pyfunction!(bonds, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(dynamic_bonds, &rep)?)?;
     rep.add_function(wrap_pyfunction!(paper_chain, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(polyhedra, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(solvent, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(quick_surf, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(surf, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(msms, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(new_ribbons, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(ribbons, &rep)?)?;
     rep.add_function(wrap_pyfunction!(lines, &rep)?)?;
     rep.add_function(wrap_pyfunction!(points, &rep)?)?;
     rep.add_function(wrap_pyfunction!(surface, &rep)?)?;

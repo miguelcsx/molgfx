@@ -6,13 +6,23 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes};
 use std::sync::{Arc, OnceLock};
 
+/// A mutable, declarative scene over one or more `molframe` structures.
+///
+/// Build it from a structure (`Scene(structure)`), add representations and
+/// overlays with `add`, then draw it with a `Renderer`. Every edit is a patch
+/// against `revision`, so a scene can be observed, replayed and serialized with
+/// `to_json`. `Scene()` makes an empty scene that holds only overlays and
+/// volumes until `add_structure` supplies a molecule.
 #[pyclass(name = "Scene")]
 pub(super) struct PyScene {
     pub(super) inner: molgfx::Scene,
     pub(super) pending: Option<Vec<molgfx::schema::PatchOperation>>,
     pub(super) structure_id: u64,
     pub(super) browser_sources: Vec<BrowserSource>,
-    subscribers: Vec<Py<PyAny>>,
+    pub(super) browser_bindings: crate::bulk_binding::BindingCache,
+    pub(super) subscribers: Vec<Py<PyAny>>,
+    pub(super) runtime_subscribers: Vec<Py<PyAny>>,
+    pub(super) browser_frames: crate::motion_binding::FrameCache,
 }
 
 pub(super) struct BrowserSource {
@@ -28,49 +38,48 @@ impl PyScene {
     pub(super) fn for_structure(structure: &Bound<'_, PyAny>) -> PyResult<Self> {
         Self::new(Some(structure))
     }
+}
 
-    pub(super) fn stage_or_apply(
-        &mut self,
-        py: Python<'_>,
-        operation: molgfx::schema::PatchOperation,
-    ) -> PyResult<()> {
-        if let Some(pending) = &mut self.pending {
+/// Refuses a representation that would select no atom, naming the query.
+fn reject_empty_target(
+    scene: &molgfx::Scene,
+    representation: &molgfx::RepresentationSpec,
+) -> PyResult<()> {
+    if scene.spec().structures.is_empty() {
+        return Ok(());
+    }
+    let query = representation.selection();
+    if scene.selection_bounds(query).map_err(error)?.is_some() {
+        return Ok(());
+    }
+    Err(error(molgfx::Error::InvalidSpec(format!(
+        "the representation target {query:?} selects no atoms in this scene; check the query \
+         (`chain` and `resid` use the author's names, `label_chain` and `label_resid` the mmCIF \
+         label ones, and `sel.residue(...)` takes a residue name) or pass `allow_empty=True` to \
+         add it anyway"
+    ))))
+}
+
+/// Stages one transaction operation or publishes it after releasing the scene borrow.
+pub(super) fn stage_or_apply(
+    slf: &Bound<'_, PyScene>,
+    py: Python<'_>,
+    operation: molgfx::schema::PatchOperation,
+) -> PyResult<()> {
+    let patch = {
+        let mut scene = slf.borrow_mut();
+        if let Some(pending) = &mut scene.pending {
             pending.push(operation);
             return Ok(());
         }
         let patch = molgfx::ScenePatch {
-            base_revision: self.inner.revision(),
+            base_revision: scene.inner.revision(),
             operations: vec![operation],
         };
-        self.inner.apply(&patch).map_err(error)?;
-        self.publish(py, &patch)
-    }
-
-    pub(super) fn publish(&mut self, py: Python<'_>, patch: &molgfx::ScenePatch) -> PyResult<()> {
-        deliver_subscribers(py, &mut self.subscribers, patch)
-    }
-}
-
-/// Calls every live weak subscriber with one encoded patch.
-///
-/// Dropped weak references are pruned; `Subscriber callback error` propagates.
-fn deliver_subscribers(
-    py: Python<'_>,
-    subscribers: &mut Vec<Py<PyAny>>,
-    patch: &molgfx::ScenePatch,
-) -> PyResult<()> {
-    let encoded = patch.to_json().map_err(error)?;
-    let mut index = 0;
-    while index < subscribers.len() {
-        let callback = subscribers[index].call0(py)?;
-        if callback.bind(py).is_none() {
-            subscribers.remove(index);
-        } else {
-            let _ = callback.call1(py, (&encoded,))?;
-            index += 1;
-        }
-    }
-    Ok(())
+        scene.inner.apply(&patch).map_err(error)?;
+        patch
+    };
+    deliver(slf, py, &patch)
 }
 
 /// Announces one patch to subscribers without holding a borrow of the scene.
@@ -82,31 +91,7 @@ pub(super) fn deliver(
     let encoded = patch.to_json().map_err(error)?;
     // Keep the authoritative list in the scene while callbacks run: a callback
     // can unsubscribe itself, subscribe another view, or publish a nested edit.
-    let subscribers: Vec<_> = slf
-        .borrow()
-        .subscribers
-        .iter()
-        .map(|reference| reference.clone_ref(py))
-        .collect();
-    for reference in subscribers {
-        if !slf
-            .borrow()
-            .subscribers
-            .iter()
-            .any(|current| current.bind(py).is(reference.bind(py)))
-        {
-            continue;
-        }
-        let callback = reference.call0(py)?;
-        if callback.bind(py).is_none() {
-            slf.borrow_mut()
-                .subscribers
-                .retain(|current| !current.bind(py).is(reference.bind(py)));
-        } else {
-            let _ = callback.call1(py, (&encoded,))?;
-        }
-    }
-    Ok(())
+    crate::subscription_binding::publish(slf, py, &encoded, false)
 }
 
 #[pymethods]
@@ -120,7 +105,10 @@ impl PyScene {
                 pending: None,
                 structure_id: 0,
                 browser_sources: Vec::new(),
+                browser_bindings: crate::bulk_binding::BindingCache::default(),
                 subscribers: Vec::new(),
+                runtime_subscribers: Vec::new(),
+                browser_frames: crate::motion_binding::FrameCache::default(),
             });
         };
         let provider = Arc::new(crate::native_adapter::NativeProvider::import(structure)?);
@@ -136,25 +124,21 @@ impl PyScene {
                 provider,
                 encoded: Arc::new(OnceLock::new()),
             }],
+            browser_bindings: crate::bulk_binding::BindingCache::default(),
             subscribers: Vec::new(),
+            runtime_subscribers: Vec::new(),
+            browser_frames: crate::motion_binding::FrameCache::default(),
         })
     }
 
-    /// Binds the scalar values for an authored volume identity.
-    fn bind_volume(&mut self, identity: &Bound<'_, PyAny>, values: Vec<f32>) -> PyResult<()> {
-        let identity = identity.extract::<PyRef<'_, crate::id_binding::PyVolumeId>>()?;
-        let spec = self
-            .inner
-            .spec()
-            .volumes
-            .get(&molgfx::VolumeId::new(identity.0))
-            .ok_or_else(|| PyValueError::new_err("unknown volume identity"))?;
-        self.inner
-            .bind_volume(
-                molgfx::VolumeBinding::new(spec.source.clone(), spec.dimensions, Arc::from(values))
-                    .affine(spec.voxel_to_world),
-            )
-            .map_err(error)
+    fn __repr__(&self) -> String {
+        let spec = self.inner.spec();
+        format!(
+            "Scene(structures={}, representations={}, revision={})",
+            spec.structures.len(),
+            spec.representations.len(),
+            self.inner.revision(),
+        )
     }
 
     fn unresolved_overlays(&self) -> PyResult<String> {
@@ -162,44 +146,74 @@ impl PyScene {
             .map_err(|err| PyValueError::new_err(err.to_string()))
     }
 
-    fn add(&mut self, py: Python<'_>, item: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
-        if self.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "scene items cannot be added inside a scene transaction",
-            ));
-        }
-        let base_revision = self.inner.revision();
-        let (id, operation) = if let Ok(representation) =
-            item.extract::<PyRef<'_, PyRepresentation>>()
-        {
-            let id = representation.add_to(&mut self.inner).map_err(error)?;
-            let inserted = self
-                .inner
-                .spec()
-                .representations
-                .get(&id)
-                .cloned()
-                .ok_or_else(|| PyValueError::new_err("inserted representation is unavailable"))?;
+    /// Adds a representation, volume, segmentation, label, measurement,
+    /// interaction, trajectory descriptor or ellipsoid, and returns its id.
+    ///
+    /// A representation whose `target` selects no atom of the scene raises
+    /// `SpecError`, because it would draw nothing and a typo in a query would
+    /// otherwise go unnoticed (`Scene.pocket` rejects an empty focus the same
+    /// way). The message names the query and the usual causes. Pass
+    /// `allow_empty=True` to add it anyway, for example a ligand layer that is
+    /// declared before the ligand is loaded. The check is skipped for a scene
+    /// that holds no structure yet.
+    #[pyo3(signature = (item, *, allow_empty=false))]
+    fn add(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        item: &Bound<'_, PyAny>,
+        allow_empty: bool,
+    ) -> PyResult<Py<PyAny>> {
+        let (id, patch) = {
+            let mut this = slf.borrow_mut();
+            if this.pending.is_some() {
+                return Err(PyValueError::new_err(
+                    "scene items cannot be added inside a scene transaction",
+                ));
+            }
+            let base_revision = this.inner.revision();
+            let (id, operation) =
+                if let Ok(representation) = item.extract::<PyRef<'_, PyRepresentation>>() {
+                    if !allow_empty {
+                        reject_empty_target(&this.inner, &representation.0)?;
+                    }
+                    let id = representation.add_to(&mut this.inner).map_err(error)?;
+                    let inserted = this
+                        .inner
+                        .spec()
+                        .representations
+                        .get(&id)
+                        .cloned()
+                        .ok_or_else(|| {
+                            PyValueError::new_err("inserted representation is unavailable")
+                        })?;
+                    (
+                        crate::id_binding::PySceneId::Representation(id.get()),
+                        molgfx::schema::PatchOperation::AddRepresentation {
+                            id,
+                            representation: inserted,
+                        },
+                    )
+                } else {
+                    crate::overlay_binding::add_item(item, &mut this.inner)?
+                };
             (
-                crate::id_binding::PySceneId::Representation(id.get()),
-                molgfx::schema::PatchOperation::AddRepresentation {
-                    id,
-                    representation: inserted,
+                id,
+                molgfx::ScenePatch {
+                    base_revision,
+                    operations: vec![operation],
                 },
             )
-        } else {
-            crate::overlay_binding::add_item(item, &mut self.inner)?
         };
-        self.publish(
-            py,
-            &molgfx::ScenePatch {
-                base_revision,
-                operations: vec![operation],
-            },
-        )?;
+        deliver(slf, py, &patch)?;
         id.into_python(py)
     }
 
+    /// Binds one scalar per atom to a structure and returns a `ScalarProperty`.
+    ///
+    /// `source_hash` identifies the data (any stable string, such as a content
+    /// hash); `values` must have one entry per atom. Colour with
+    /// `molgfx.color.property(property=..., ramp=..., domain=...)`, or use
+    /// `molgfx.by_array(scene, values, ...)`, which derives the hash from the data.
     #[pyo3(signature = (*, structure, name, source_hash, values, units=None, domain=None))]
     fn bind_property(
         &mut self,
@@ -228,48 +242,14 @@ impl PyScene {
             .map_err(error)
     }
 
-    /// Binds the two resident frames a trajectory descriptor samples between.
-    ///
-    /// The pair replaces whatever interval the structure held, and the sample
-    /// time is clamped to it.
-    #[pyo3(signature = (*, source_hash, start, end, sample_time=None))]
-    fn bind_trajectory(
-        &mut self,
-        source_hash: &str,
-        start: &crate::overlay_binding::PyTrajectoryFrame,
-        end: &crate::overlay_binding::PyTrajectoryFrame,
-        sample_time: Option<f32>,
-    ) -> PyResult<()> {
-        let binding = molgfx::TrajectoryBinding::new(
-            molgfx::schema::DataSource::new(source_hash),
-            start.0.clone(),
-            end.0.clone(),
-        );
-        let binding = match sample_time {
-            Some(sample_time) => binding.sample_seconds(sample_time),
-            None => binding,
-        };
-        self.inner.bind_trajectory(binding).map_err(error)
-    }
-
-    /// Advances a structure's presentation time inside its resident interval.
-    #[pyo3(signature = (*, structure, seconds))]
-    fn set_trajectory_time(&mut self, structure: &Bound<'_, PyAny>, seconds: f32) -> PyResult<()> {
-        self.inner
-            .set_trajectory_time(
-                molgfx::StructureId::new(crate::id_binding::structure_id(structure)?),
-                seconds,
-            )
-            .map_err(error)
-    }
-
     fn set_visible(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         representation: &Bound<'_, PyAny>,
         visible: bool,
     ) -> PyResult<()> {
-        self.stage_or_apply(
+        stage_or_apply(
+            slf,
             py,
             molgfx::schema::PatchOperation::SetVisibility {
                 id: molgfx::RepresentationId::new(crate::id_binding::representation_id(
@@ -281,12 +261,13 @@ impl PyScene {
     }
 
     fn set_opacity(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         representation: &Bound<'_, PyAny>,
         opacity: f32,
     ) -> PyResult<()> {
-        self.stage_or_apply(
+        stage_or_apply(
+            slf,
             py,
             molgfx::schema::PatchOperation::SetOpacity {
                 id: molgfx::RepresentationId::new(crate::id_binding::representation_id(
@@ -298,12 +279,13 @@ impl PyScene {
     }
 
     fn set_visual(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         representation: &Bound<'_, PyAny>,
         visual: Option<&crate::visual_binding::PyVisualStyle>,
     ) -> PyResult<()> {
-        self.stage_or_apply(
+        stage_or_apply(
+            slf,
             py,
             molgfx::schema::PatchOperation::SetVisual {
                 id: molgfx::RepresentationId::new(crate::id_binding::representation_id(
@@ -314,8 +296,9 @@ impl PyScene {
         )
     }
 
-    fn focus(&mut self, py: Python<'_>, target: &Bound<'_, PyAny>) -> PyResult<()> {
-        self.stage_or_apply(
+    fn focus(slf: &Bound<'_, Self>, py: Python<'_>, target: &Bound<'_, PyAny>) -> PyResult<()> {
+        stage_or_apply(
+            slf,
             py,
             molgfx::schema::PatchOperation::SetFocus {
                 selection: Some(selection(target)?.into()),
@@ -323,14 +306,17 @@ impl PyScene {
         )
     }
 
-    fn apply(&mut self, py: Python<'_>, patch: &PyScenePatch) -> PyResult<()> {
-        if self.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "patches cannot be applied inside a scene transaction",
-            ));
+    fn apply(slf: &Bound<'_, Self>, py: Python<'_>, patch: &PyScenePatch) -> PyResult<()> {
+        {
+            let mut scene = slf.borrow_mut();
+            if scene.pending.is_some() {
+                return Err(PyValueError::new_err(
+                    "patches cannot be applied inside a scene transaction",
+                ));
+            }
+            scene.inner.apply(&patch.0).map_err(error)?;
         }
-        self.inner.apply(&patch.0).map_err(error)?;
-        self.publish(py, &patch.0)
+        deliver(slf, py, &patch.0)
     }
 
     #[getter]

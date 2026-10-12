@@ -33,15 +33,15 @@ impl PyScene {
         Ok(())
     }
 
-    /// Publishes inserted representations, then any extra operations, as one
-    /// patch, and returns the new identities.
-    pub(super) fn publish_added(
-        &mut self,
+    /// Describes inserted representations and extra operations as one patch.
+    /// The caller publishes it after releasing the scene borrow.
+    pub(super) fn describe_added(
+        &self,
         py: Python<'_>,
         base_revision: u64,
         inserted: Vec<molgfx::RepresentationId>,
         extra: Vec<molgfx::schema::PatchOperation>,
-    ) -> PyResult<Vec<Py<PyAny>>> {
+    ) -> PyResult<(Vec<Py<PyAny>>, molgfx::ScenePatch)> {
         let mut operations = Vec::with_capacity(inserted.len() + extra.len());
         let mut ids = Vec::with_capacity(inserted.len());
         for id in inserted {
@@ -57,18 +57,17 @@ impl PyScene {
             ids.push(crate::id_binding::PySceneId::Representation(id.get()));
         }
         operations.extend(extra);
-        if !operations.is_empty() {
-            self.publish(
-                py,
-                &molgfx::ScenePatch {
-                    base_revision,
-                    operations,
-                },
-            )?;
-        }
-        ids.into_iter()
+        let ids = ids
+            .into_iter()
             .map(|id| id.into_python(py))
-            .collect::<PyResult<Vec<_>>>()
+            .collect::<PyResult<Vec<_>>>()?;
+        Ok((
+            ids,
+            molgfx::ScenePatch {
+                base_revision,
+                operations,
+            },
+        ))
     }
 }
 
@@ -190,61 +189,89 @@ impl PyScene {
         Ok(described)
     }
 
+    /// Adds the default representations for a structure's molecule types
+    /// (cartoon for polymers, ball-and-stick for ligands, and so on) and
+    /// returns their ids.
     #[pyo3(signature = (*, structure=None))]
     fn auto(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         structure: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Vec<Py<PyAny>>> {
-        if self.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "default forms cannot be added inside a scene transaction",
-            ));
+        let (ids, patch) = {
+            let mut this = slf.borrow_mut();
+            if this.pending.is_some() {
+                return Err(PyValueError::new_err(
+                    "default forms cannot be added inside a scene transaction",
+                ));
+            }
+            let target = match structure {
+                Some(structure) => crate::id_binding::structure_id(structure)?,
+                None => this.structure_id,
+            };
+            let base_revision = this.inner.revision();
+            let inserted = this
+                .inner
+                .add_auto(molgfx::StructureId::new(target))
+                .map_err(error)?;
+            this.describe_added(py, base_revision, inserted, Vec::new())
+        }?;
+        if !patch.operations.is_empty() {
+            deliver(slf, py, &patch)?;
         }
-        let target = match structure {
-            Some(structure) => crate::id_binding::structure_id(structure)?,
-            None => self.structure_id,
-        };
-        let base_revision = self.inner.revision();
-        let inserted = self
-            .inner
-            .add_auto(molgfx::StructureId::new(target))
-            .map_err(error)?;
-        self.publish_added(py, base_revision, inserted, Vec::new())
+        Ok(ids)
     }
 
+    /// Adds a binding-pocket view around `focus` (a query string or `sel`
+    /// query) and returns the representation ids.
+    ///
+    /// Raises `SpecError` when `focus` selects no atoms, for example
+    /// `"resname LIG"` on an entry that has no ligand.
     #[pyo3(signature = (focus, *, structure=None, style=None))]
     fn pocket(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         focus: &Bound<'_, PyAny>,
         structure: Option<&Bound<'_, PyAny>>,
         style: Option<PyRef<'_, crate::pocket_binding::PyPocketStyle>>,
     ) -> PyResult<Vec<Py<PyAny>>> {
-        if self.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "a pocket view cannot be added inside a scene transaction",
-            ));
+        let (ids, patch) = {
+            let mut this = slf.borrow_mut();
+            if this.pending.is_some() {
+                return Err(PyValueError::new_err(
+                    "a pocket view cannot be added inside a scene transaction",
+                ));
+            }
+            let target = match structure {
+                Some(structure) => crate::id_binding::structure_id(structure)?,
+                None => this.structure_id,
+            };
+            let focus = molgfx::Selection::from(selection(focus)?);
+            let style = style.map_or_else(molgfx::preset::PocketStyle::default, |style| style.0);
+            let base_revision = this.inner.revision();
+            let inserted = this
+                .inner
+                .add_pocket(molgfx::StructureId::new(target), focus.clone(), style)
+                .map_err(error)?;
+            let focus = molgfx::schema::PatchOperation::SetFocus {
+                selection: Some(focus),
+            };
+            this.describe_added(py, base_revision, inserted, vec![focus])
+        }?;
+        if !patch.operations.is_empty() {
+            deliver(slf, py, &patch)?;
         }
-        let target = match structure {
-            Some(structure) => crate::id_binding::structure_id(structure)?,
-            None => self.structure_id,
-        };
-        let focus = molgfx::Selection::from(selection(focus)?);
-        let style = style.map_or_else(molgfx::preset::PocketStyle::default, |style| style.0);
-        let base_revision = self.inner.revision();
-        let inserted = self
-            .inner
-            .add_pocket(molgfx::StructureId::new(target), focus.clone(), style)
-            .map_err(error)?;
-        let focus = molgfx::schema::PatchOperation::SetFocus {
-            selection: Some(focus),
-        };
-        self.publish_added(py, base_revision, inserted, vec![focus])
+        Ok(ids)
     }
 
-    /// A copy of a structure's molecular source at a column-major 4×4 affine
-    /// matrix; it is a structure of its own with its own representations.
+    /// A copy of a structure's molecular source at a column-major 4x4 affine
+    /// matrix (16 floats); it is a structure of its own with its own
+    /// representations.
+    ///
+    /// The matrix is column-major: a row-major NumPy `M` must be passed as
+    /// `M.T.reshape(-1).tolist()`. `molgfx.place.from_rotation_translation(R, t)`
+    /// and `molgfx.place.apply(scene, superposition)` do that conversion for a
+    /// molframe `superpose` result (`x' = R @ x + t`).
     #[pyo3(signature = (matrix, *, structure=None))]
     fn place(
         slf: &Bound<'_, Self>,
