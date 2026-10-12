@@ -56,7 +56,7 @@ fn atom(source: u64) -> AtomGpu {
 }
 
 #[test]
-fn bond_hierarchy_is_persistent_and_covers_each_compact_bond() {
+fn analytic_hierarchy_is_persistent_and_covers_each_compact_atom_and_bond() {
     let device = MockDevice::default();
     let queue = device.queue();
     let placed = placed_structure();
@@ -79,7 +79,10 @@ fn bond_hierarchy_is_persistent_and_covers_each_compact_bond() {
     acceleration
         .sync_topology(&device, &queue, &atoms, &bonds, &placed)
         .unwrap_or_else(|error| panic!("quality hierarchy uploads: {error}"));
-    assert_eq!(acceleration.hierarchy.primitive_indices.len(), bonds.len());
+    assert_eq!(
+        acceleration.hierarchy.primitive_indices.len(),
+        atoms.len() + bonds.len()
+    );
     assert!(acceleration.counts().nodes > 0);
     assert_eq!(
         acceleration.upload_words.len(),
@@ -93,7 +96,7 @@ fn bond_hierarchy_is_persistent_and_covers_each_compact_bond() {
         bytemuck::cast_slice::<BondGpu, u32>(&bonds)
     );
     let capacities = (
-        acceleration.primitives.capacity(),
+        acceleration.upload_words.capacity(),
         acceleration.bounds.capacity(),
         acceleration.hierarchy.nodes.capacity(),
         acceleration.upload_indices.capacity(),
@@ -104,7 +107,7 @@ fn bond_hierarchy_is_persistent_and_covers_each_compact_bond() {
     assert_eq!(
         capacities,
         (
-            acceleration.primitives.capacity(),
+            acceleration.upload_words.capacity(),
             acceleration.bounds.capacity(),
             acceleration.hierarchy.nodes.capacity(),
             acceleration.upload_indices.capacity(),
@@ -113,7 +116,7 @@ fn bond_hierarchy_is_persistent_and_covers_each_compact_bond() {
 }
 
 #[test]
-fn empty_bond_sets_reuse_the_structure_binding_without_allocating() {
+fn empty_geometry_releases_the_analytic_hierarchy() {
     let device = MockDevice::default();
     let queue = device.queue();
     let placed = placed_structure();
@@ -130,7 +133,7 @@ fn empty_bond_sets_reuse_the_structure_binding_without_allocating() {
         .unwrap_or_else(|error| panic!("non-empty quality hierarchy binds: {error}"));
     assert!(acceleration.nodes().is_some());
     acceleration
-        .sync_topology(&device, &queue, &atoms, &[], &placed)
+        .sync_topology(&device, &queue, &[], &[], &placed)
         .unwrap_or_else(|error| panic!("empty quality hierarchy binds: {error}"));
     assert_eq!(acceleration.counts().nodes, 0);
     assert_eq!(acceleration.counts().indices, 0);
@@ -251,4 +254,53 @@ fn missing_ray_query_capability_keeps_the_compute_path_selected() {
         Some(super::super::quality_hardware::HardwareFailure::Unavailable)
     );
     assert!(acceleration.nodes().is_some());
+}
+
+#[test]
+fn analytic_atom_bounds_use_compact_source_rows_and_the_drawn_radii() {
+    let placed = placed_structure();
+    let mut atoms = [atom(2), atom(0)];
+    atoms[0].radius = 0.25;
+    atoms[1].radius = 0.5;
+    let device = MockDevice::default();
+    let queue = device.queue();
+    let mut acceleration = QualityAcceleration::new();
+    acceleration
+        .sync_topology(&device, &queue, &atoms, &[], &placed)
+        .unwrap();
+    assert!((acceleration.bounds[0].min - Vec3::new(3.75, 0.75, -0.25)).length() < 1e-6);
+    assert!((acceleration.bounds[1].max - Vec3::splat(0.5)).length() < 1e-6);
+    atoms[0].radius = 5.0;
+    acceleration
+        .sync_topology(&device, &queue, &atoms, &[], &placed)
+        .unwrap();
+    assert!((acceleration.bounds[0].max - Vec3::new(9.0, 6.0, 5.0)).length() < 1e-6);
+}
+
+#[test]
+fn invalid_bonds_do_not_shift_the_compact_indices_of_valid_occluders() {
+    let placed = placed_structure();
+    let atoms = [atom(2), atom(0)];
+    let bonds = [
+        BondGpu {
+            atom_a: 99,
+            atom_b: 0,
+            radius: 0.25,
+            ..BondGpu::default()
+        },
+        BondGpu {
+            atom_a: 0,
+            atom_b: 1,
+            radius: 0.25,
+            ..BondGpu::default()
+        },
+    ];
+    let device = MockDevice::default();
+    let queue = device.queue();
+    let mut acceleration = QualityAcceleration::new();
+    acceleration
+        .sync_topology(&device, &queue, &atoms, &bonds, &placed)
+        .unwrap();
+    assert!(acceleration.hierarchy.primitive_indices.contains(&3));
+    assert!(!acceleration.hierarchy.primitive_indices.contains(&2));
 }

@@ -311,12 +311,12 @@ fn bonded_structure() -> molframe::Structure {
     let (chunks, coordinates) = atoms.finish();
     let mut bonds = molframe::BondTableBuilder::new();
     for (a, b) in [(1, 2), (0, 1)] {
-        bonds.push(molframe::BondRecord {
-            atom_a: molframe::AtomIndex::new(a),
-            atom_b: molframe::AtomIndex::new(b),
-            order: molframe::BondOrder::Single,
-            provenance: molframe::BondProvenance::File,
-        });
+        bonds.push(molframe::BondRecord::unclassified(
+            molframe::AtomIndex::new(a),
+            molframe::AtomIndex::new(b),
+            molframe::BondOrder::Single,
+            molframe::BondProvenance::File,
+        ));
     }
     let mut data = frame::StructureData::empty();
     data.chunks = Arc::new(chunks);

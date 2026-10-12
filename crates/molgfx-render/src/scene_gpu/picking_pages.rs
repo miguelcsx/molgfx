@@ -98,6 +98,36 @@ impl PickPages {
         self.resolver.capacity()
     }
 
+    /// Makes room for `needed` simultaneous pages, growing the table on demand.
+    ///
+    /// The configured capacity is only the initial size. Existing pages and
+    /// their generations survive growth, so a pick submitted before it still
+    /// resolves. Past [`molgfx_core::MAX_PICK_PAGES`] the error names that limit.
+    fn reserve_pages(&mut self, needed: usize) -> Result<(), RenderError> {
+        let limit = molgfx_core::MAX_PICK_PAGES;
+        if needed > limit as usize {
+            return Err(molgfx_core::PickingError::PageLimit { limit }.into());
+        }
+        let current = self.resolver.capacity();
+        if needed <= current {
+            return Ok(());
+        }
+        let target = needed.next_power_of_two().min(limit as usize);
+        let target_u32 = u32::try_from(target).map_err(|_| molgfx_core::PickingError::CapacityTooLarge)?;
+        self.resolver.grow(target_u32)?;
+        self.source_keys.resize(target, None);
+        Ok(())
+    }
+
+    /// Rejects a plan list that could never fit, before any work is done.
+    fn check_plan_room(len: usize) -> Result<(), RenderError> {
+        let limit = molgfx_core::MAX_PICK_PAGES;
+        if len >= limit as usize {
+            return Err(molgfx_core::PickingError::PageLimit { limit }.into());
+        }
+        Ok(())
+    }
+
     pub(super) fn sync(&mut self, scene: &Scene) -> Result<bool, RenderError> {
         let revision = revision(scene);
         if self.revision == Some(revision) {
@@ -128,8 +158,11 @@ impl PickPages {
             .iter()
             .filter(|value| !is_draw(value.kind))
             .count();
-        if retained.saturating_add(plans.len()) > self.chunk_plans.capacity() {
-            return Err(molgfx_core::PickingError::WorkingSetFull.into());
+        if retained.saturating_add(plans.len()) > molgfx_core::MAX_PICK_PAGES as usize {
+            return Err(molgfx_core::PickingError::PageLimit {
+                limit: molgfx_core::MAX_PICK_PAGES,
+            }
+            .into());
         }
         self.chunk_plans.retain(|value| !is_draw(value.kind));
         self.chunk_plans.extend(plans.iter().map(|plan| PagePlan {
@@ -182,8 +215,11 @@ impl PickPages {
             .iter()
             .filter(|value| value.kind != kind)
             .count();
-        if retained.saturating_add(plans.len()) > self.chunk_plans.capacity() {
-            return Err(molgfx_core::PickingError::WorkingSetFull.into());
+        if retained.saturating_add(plans.len()) > molgfx_core::MAX_PICK_PAGES as usize {
+            return Err(molgfx_core::PickingError::PageLimit {
+                limit: molgfx_core::MAX_PICK_PAGES,
+            }
+            .into());
         }
         self.chunk_plans.retain(|value| value.kind != kind);
         self.chunk_plans.extend(plans.iter().map(|plan| PagePlan {
@@ -198,10 +234,8 @@ impl PickPages {
     }
 
     fn rebuild_pages(&mut self) -> Result<(), RenderError> {
-        if self.scene_plans.len() + self.chunk_plans.len() > self.resolver.capacity() {
-            return Err(molgfx_core::PickingError::WorkingSetFull.into());
-        }
         self.release_pages()?;
+        self.reserve_pages(self.scene_plans.len() + self.chunk_plans.len())?;
         let scene_count = self.scene_plans.len();
         for (index, plan) in self.scene_plans.iter().chain(&self.chunk_plans).enumerate() {
             let descriptor =
@@ -458,9 +492,7 @@ impl PickPages {
         if rows.is_empty() {
             return Ok(());
         }
-        if self.scene_plans.len() == self.scene_plans.capacity() {
-            return Err(molgfx_core::PickingError::WorkingSetFull.into());
-        }
+        Self::check_plan_room(self.scene_plans.len())?;
         self.scene_plans.push(PagePlan {
             dataset: DatasetId::new(rows.namespace().0),
             chunk,
@@ -481,9 +513,7 @@ impl PickPages {
         if row_count == 0 {
             return Ok(());
         }
-        if self.scene_plans.len() == self.scene_plans.capacity() {
-            return Err(molgfx_core::PickingError::WorkingSetFull.into());
-        }
+        Self::check_plan_room(self.scene_plans.len())?;
         self.scene_plans.push(PagePlan {
             dataset,
             chunk,

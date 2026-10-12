@@ -30,7 +30,7 @@ fn packed(state: &RecordState) -> [u64; 8] {
         u64::from(state.radius_scale()) << 32 | u64::from(state.bond_radius()),
         u64::from(state.surface()[0]) << 32 | u64::from(state.surface()[1]),
         u64::from(state.surface()[2]) << 32 | u64::from(state.surface()[3]),
-        0,
+        u64::from(state.distance_cutoff()),
         0,
         0,
     ]

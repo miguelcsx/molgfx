@@ -163,7 +163,12 @@ pub struct EngineConfig {
     /// reports the spacing it used; a larger budget buys finer surfaces of
     /// larger structures.
     pub surface_field_budget_bytes: u64,
-    /// Maximum number of simultaneously resident dataset/namespace pick pages.
+    /// Initial number of simultaneously resident dataset/namespace pick pages.
+    ///
+    /// The table grows on demand, so a scene of thousands of placed structures
+    /// renders without raising this; it only sets the starting allocation. The
+    /// hard ceiling is [`molgfx_core::MAX_PICK_PAGES`], and a scene beyond it is
+    /// rejected at synchronisation with an error naming that limit.
     pub picking_page_capacity: u32,
 }
 

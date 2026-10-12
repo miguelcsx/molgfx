@@ -225,7 +225,7 @@ impl<D: Device> Engine<D> {
         // Preserve the existing signature without repeating specialization work.
         let _ = scene;
 
-        let traced = self.tier() >= QualityTier::Standard;
+        let traced = self.temporal.occlusion_rays() > 0;
 
         self.record_scene_compute(encoder, traced, None);
 

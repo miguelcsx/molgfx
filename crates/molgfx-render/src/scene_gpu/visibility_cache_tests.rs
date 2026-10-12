@@ -80,8 +80,8 @@ fn counts(atoms: u32, bonds: u32) -> crate::scene_gpu::buffers::CullCountInput {
         visual_enabled: false,
         atom_bvh_nodes: 0,
         atom_bvh_indices: 0,
-        bond_bvh_nodes: 0,
-        bond_bvh_indices: 0,
+        quality_bvh_nodes: 0,
+        quality_bvh_indices: 0,
     }
 }
 

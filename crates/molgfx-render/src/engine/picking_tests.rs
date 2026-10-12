@@ -112,3 +112,19 @@ fn concurrent_picks_are_bounded_and_each_owns_its_readback() {
     assert!(matches!(engine.begin_pick(0, 0), Ok(Some(_))));
     assert!(matches!(engine.begin_pick(engine.width, 0), Ok(None)));
 }
+
+#[test]
+fn thousands_of_placed_structures_render_and_pick_past_the_initial_page_table() {
+    let mut engine = engine();
+    let initial = engine.scene_gpu.pick_page_capacity();
+    let scene = represented_scene(initial + 1_500, 1);
+    if let Err(error) = engine.render(&scene, &camera()) {
+        panic!("a scene beyond the initial pick-page table renders: {error}")
+    }
+    assert!(engine.scene_gpu.pick_page_capacity() > initial);
+    let submission = engine
+        .capture_pick_submission_for_test()
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(submission.len(), engine.scene_gpu.pick_page_capacity());
+    assert!(matches!(engine.pick(0, 0), Ok(Some(_))));
+}

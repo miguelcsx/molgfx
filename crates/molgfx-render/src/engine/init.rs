@@ -249,7 +249,7 @@ impl<D: Device> Engine<D> {
         let order = graph::schedule(&pass_nodes)?;
 
         let profiler = GpuProfiler::new(&device, target_format)?;
-        let picker = Picker::new(&device, config.picking_page_capacity)?;
+        let picker = Picker::new(&device)?;
         let chunk_residency = ChunkGpuResidency::new(&device, config.residency)?;
         Ok(Self {
             device,

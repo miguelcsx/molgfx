@@ -38,6 +38,23 @@ impl<D: Device> Engine<D> {
         }
     }
 
+    /// Releases the transient render targets (the pool and the bindings over it)
+    /// while nothing is being drawn, and returns their memory. The next frame
+    /// builds them again at the current extent; temporal history is dropped with
+    /// them, and picking returns nothing until that frame has been drawn.
+    pub fn release_transients(&mut self) {
+        self.bindings = None;
+        self.pool = None;
+        self.temporal.reset();
+    }
+
+    /// Whether the transient render targets exist (a frame has been drawn since
+    /// they were last released).
+    #[must_use]
+    pub fn has_transients(&self) -> bool {
+        self.pool.is_some()
+    }
+
     /// Rebuilds transient render resources when the presentation extent changes.
     ///
     /// Existing bindings and the old pool are released before allocating the

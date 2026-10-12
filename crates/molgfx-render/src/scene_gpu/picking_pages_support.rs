@@ -47,9 +47,7 @@ impl PickPages {
             }
             return Ok(());
         }
-        if self.scene_plans.len() == self.scene_plans.capacity() {
-            return Err(molgfx_core::PickingError::WorkingSetFull.into());
-        }
+        Self::check_plan_room(self.scene_plans.len())?;
         self.scene_plans.push(PagePlan {
             dataset,
             chunk: MONOLITHIC_CHUNK,
@@ -133,6 +131,11 @@ impl<D: Device> GpuScene<D> {
         submission: &[Option<PickPageTicket>],
     ) -> Result<GlobalPickIdentity, RenderError> {
         self.picking_pages.resolve(token, submission)
+    }
+
+    /// Current number of pick pages the table holds before it grows.
+    pub(crate) fn pick_page_capacity(&self) -> usize {
+        self.picking_pages.capacity()
     }
 
     #[cfg(test)]

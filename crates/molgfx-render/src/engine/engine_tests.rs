@@ -271,6 +271,38 @@ fn points_use_their_own_opaque_and_translucent_routes() {
 }
 
 #[test]
+fn translucent_surfaces_are_routed_to_the_transparent_pass_only() {
+    let source = structure();
+    let mut scene = match Scene::from_structure(&source) {
+        Ok(scene) => scene,
+        Err(error) => panic!("fixture scene builds: {error}"),
+    };
+    let selection = scene.add_selection(AtomSelection::All);
+    let handle = match scene.represent(selection, RepresentationKind::Surface) {
+        Ok(handle) => handle,
+        Err(error) => panic!("surface applies: {error}"),
+    };
+    let mut engine = engine();
+    if let Err(error) = engine.render(&scene, &camera()) {
+        panic!("opaque surface renders: {error}")
+    }
+    assert_eq!(engine.scene_gpu.surface_draws(true).count(), 0);
+    let opaque =
+        engine.scene_gpu.surface_draws(false).count() + engine.scene_gpu.atom_draws(false).count();
+    assert_eq!(opaque, 1);
+    let Some(representation) = scene.representation_mut(handle) else {
+        panic!("surface resolves")
+    };
+    representation.material.opacity = 0.4;
+    if let Err(error) = engine.render(&scene, &camera()) {
+        panic!("translucent surface renders: {error}")
+    }
+    assert_eq!(engine.scene_gpu.surface_draws(false).count(), 0);
+    assert_eq!(engine.scene_gpu.atom_draws(false).count(), 0);
+    assert_eq!(engine.scene_gpu.surface_draws(true).count(), 1);
+}
+
+#[test]
 fn an_unchanged_scene_uploads_only_the_frame_uniforms() {
     let mut engine = engine();
     let scene = represented_scene(1, 1);

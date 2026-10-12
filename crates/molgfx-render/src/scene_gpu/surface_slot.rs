@@ -51,12 +51,14 @@ impl SurfaceSlot {
         representation: &molgfx_core::Representation,
         geometry: RecordGeometry,
         atom_count: u32,
+        coordinate_source: [u64; 2],
     ) {
         let shades_surface = representation.kind == RepresentationKind::Surface
             && (representation.params.surface_kind != molgfx_core::SurfaceKind::VanDerWaals
                 || representation.params.surface_components.is_enabled())
             && atom_count > 0;
-        self.key = shades_surface.then(|| key_of(uniforms, representation, geometry));
+        self.key =
+            shades_surface.then(|| key_of(uniforms, representation, geometry, coordinate_source));
     }
 
     /// The boundary this slot shades, or the scene fallback when it has none.
@@ -85,13 +87,16 @@ pub(super) fn key_of(
     uniforms: &RepresentationUniforms,
     representation: &molgfx_core::Representation,
     geometry: RecordGeometry,
+    coordinate_source: [u64; 2],
 ) -> SurfaceFieldKey {
     SurfaceFieldKey::new(
         representation,
         geometry,
         FieldSampling {
+            coordinate_source,
             probe: uniforms.surface[0],
             sigma: uniforms.surface[2],
+            cutoff: uniforms.surface[3],
             radius_scale: uniforms.visual[3],
             isolevel: uniforms.surface[1],
             grid_min: [

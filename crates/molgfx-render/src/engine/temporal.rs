@@ -143,7 +143,9 @@ impl TemporalState {
 
     pub(crate) fn prepare(&mut self, camera: &Camera, options: &TemporalOptions) -> FrameUniforms {
         let camera_changed = self.camera_changed(camera);
-        if camera_changed || options.reset {
+        let occlusion_rays = super::occlusion_rays(options.quality, options.converged);
+        // Screen-space shading and traced shading cannot share an exposure.
+        if camera_changed || options.reset || self.occlusion_rays != occlusion_rays {
             // Several analytic and provider-backed paths cannot encode exact
             // per-fragment velocity for every topology/trajectory transition.
             // Reusing their history during camera motion turns disocclusions
@@ -151,7 +153,7 @@ impl TemporalState {
             // while the camera is stable; camera motion starts clean history.
             self.reset();
         }
-        self.occlusion_rays = super::occlusion_rays(options.quality, options.converged);
+        self.occlusion_rays = occlusion_rays;
         // Camera motion is already changing the image every frame. Sampling a
         // different projection then creates visible subpixel swimming instead
         // of useful convergence, so only stable frames use the Halton sequence.

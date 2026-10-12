@@ -35,6 +35,8 @@ pub(crate) struct RecordKey {
     pub(crate) records: RecordState,
     /// Content revisions of the two physical columns the packer reads.
     pub(crate) properties: [u64; 2],
+    /// Swept analytic bounds depend on the resident trajectory endpoint pair.
+    pub(crate) trajectory: [u64; 2],
 }
 
 /// The projection of a record key that a *sampled geometry* depends on.
@@ -168,13 +170,25 @@ impl<D: Device> RecordCache<D> {
         property_revisions: [u64; 2],
     ) -> RecordKey {
         RecordKey {
+            trajectory: if placed.trajectory().is_some() {
+                [scene.cache_identity(), placed.trajectory_pair_revision()]
+            } else {
+                [0; 2]
+            },
             selection: SelectionKey {
                 structure,
                 identity: match scene.selection_fingerprint(selection_handle) {
                     Some(fingerprint) => SelectionIdentity::Query(fingerprint),
-                    None => SelectionIdentity::Mask(selection_handle),
+                    None => SelectionIdentity::Mask {
+                        scene: scene.cache_identity(),
+                        handle: selection_handle,
+                    },
                 },
-                topology: placed.bond_topology_revision(),
+                topology: if representation.kind == RepresentationKind::DynamicBonds {
+                    placed.trajectory_pair_revision()
+                } else {
+                    placed.bond_topology_revision()
+                },
             },
             asset,
             records: RecordState::new(representation),
@@ -235,28 +249,40 @@ impl<D: Device> RecordCache<D> {
             fresh.push((*key, set));
         }
         for (key, set) in fresh {
-            if !ledger.retain(
-                key,
-                crate::DerivedCacheClass::RecordSet,
-                crate::DerivedFootprint {
-                    cpu_bytes: 0,
-                    gpu_bytes: set.resident_bytes(),
-                },
-                frame,
-            ) {
-                // The budget refused it; the frame falls back to the
-                // interpreter-free path that needs no shared records.
-                continue;
-            }
-            let position = match self.entries.binary_search_by_key(&key, |(key, _)| *key) {
-                Ok(position) | Err(position) => position,
-            };
-            self.entries.insert(position, (key, set));
+            self.admit(ledger, key, set, frame);
         }
         self.entries.retain(|(key, _)| needed.contains_key(key));
         acceleration.retain(needed, requires_bvh, ledger, frame);
         let _ = hierarchy_inputs;
         Ok(())
+    }
+
+    /// Makes a freshly packed set resident and registers it with the ledger.
+    ///
+    /// Record sets are the geometry every draw reads, not an optional
+    /// derived cache. A set the budget refuses (one larger than the whole
+    /// limit) therefore stays resident and unaccounted: dropping it would
+    /// draw nothing and repack and re-upload every atom on every frame.
+    pub(super) fn admit(
+        &mut self,
+        ledger: &mut crate::DerivedCache,
+        key: RecordKey,
+        set: RecordSet<D>,
+        frame: u64,
+    ) {
+        let _accounted = ledger.retain(
+            key,
+            crate::DerivedCacheClass::RecordSet,
+            crate::DerivedFootprint {
+                cpu_bytes: 0,
+                gpu_bytes: set.resident_bytes(),
+            },
+            frame,
+        );
+        let position = match self.entries.binary_search_by_key(&key, |(key, _)| *key) {
+            Ok(position) | Err(position) => position,
+        };
+        self.entries.insert(position, (key, set));
     }
 
     /// The shared set for one key, when resident.

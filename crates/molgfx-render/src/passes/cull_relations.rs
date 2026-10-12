@@ -3,6 +3,9 @@
 struct RelationPipelines<D: Device> {
     reset: D::Pipeline,
     cull: D::Pipeline,
+    scan: D::Pipeline,
+    prefix: D::Pipeline,
+    scatter: D::Pipeline,
 }
 
 impl<D: Device> RelationPipelines<D> {
@@ -32,6 +35,9 @@ impl<D: Device> RelationPipelines<D> {
                 "cull generic relations",
                 "cull_relations",
             )?,
+            scan: pipeline(device, &shader, layouts, "scan relation rows", "scan_relation_rows")?,
+            prefix: pipeline(device, &shader, layouts, "scan relation groups", "scan_relation_groups")?,
+            scatter: pipeline(device, &shader, layouts, "scatter relation rows", "scatter_relation_rows")?,
         })
     }
 }
@@ -55,4 +61,11 @@ fn record_relations<D: Device, P: ComputePassEncoder<D>>(
         pass.set_bind_group(1, dispatch.group, &[]);
         pass.dispatch(dispatch.groups[0], dispatch.groups[1], 1);
     }
+    pass.set_bind_group(1, first.group, &[]);
+    pass.set_pipeline(&cull.relation_scan);
+    pass.dispatch(first.compaction_groups[0], first.compaction_groups[1], 1);
+    pass.set_pipeline(&cull.relation_prefix);
+    pass.dispatch(1, 1, 1);
+    pass.set_pipeline(&cull.relation_scatter);
+    pass.dispatch(first.compaction_groups[0], first.compaction_groups[1], 1);
 }

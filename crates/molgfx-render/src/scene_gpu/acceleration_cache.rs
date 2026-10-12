@@ -1,6 +1,6 @@
 //! Key-shared quality acceleration.
 //!
-//! The CPU BVH, its packed bond hierarchy and the optional hardware BLAS are
+//! The packed analytic hierarchy and the optional hardware BLAS are
 //! functions of the packed records, not of how a representation draws them, so
 //! they are built once per [`RecordKey`] and shared. The placement TLAS stays
 //! per slot because it carries the model transform.

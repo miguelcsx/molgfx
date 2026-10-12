@@ -1,6 +1,5 @@
 //! Grow-only buffer helpers shared by scene slots.
 
-use super::slot_types::CullCounts;
 use crate::error::RenderError;
 use molgfx_core::DrawIndirectArgs;
 use molgfx_gpu::{BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
@@ -97,6 +96,23 @@ fn grow_capacity(needed: u64, limit: u64, label: &'static str) -> Result<u64, Re
     Ok(grown.max(256).min(limit))
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub(super) struct CullCounts {
+    pub(super) atoms: u32,
+    pub(super) bonds: u32,
+    pub(super) lod_enabled: u32,
+    pub(super) padding: u32,
+    /// Model-space length past which a stretched bond is culled; zero disables.
+    pub(super) bond_break_length: f32,
+    /// One when a typed visual result table should affect culling/shading.
+    pub(super) visual_enabled: u32,
+    pub(super) atom_bvh_nodes: u32,
+    pub(super) atom_bvh_indices: u32,
+    pub(super) quality_bvh_nodes: u32,
+    pub(super) quality_bvh_indices: u32,
+}
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub(super) struct CullCountInput {
     pub(super) atoms: u32,
@@ -106,8 +122,8 @@ pub(super) struct CullCountInput {
     pub(super) visual_enabled: bool,
     pub(super) atom_bvh_nodes: u32,
     pub(super) atom_bvh_indices: u32,
-    pub(super) bond_bvh_nodes: u32,
-    pub(super) bond_bvh_indices: u32,
+    pub(super) quality_bvh_nodes: u32,
+    pub(super) quality_bvh_indices: u32,
 }
 
 impl From<CullCountInput> for CullCounts {
@@ -125,8 +141,8 @@ impl From<CullCountInput> for CullCounts {
             visual_enabled: u32::from(input.visual_enabled),
             atom_bvh_nodes: input.atom_bvh_nodes,
             atom_bvh_indices: input.atom_bvh_indices,
-            bond_bvh_nodes: input.bond_bvh_nodes,
-            bond_bvh_indices: input.bond_bvh_indices,
+            quality_bvh_nodes: input.quality_bvh_nodes,
+            quality_bvh_indices: input.quality_bvh_indices,
         }
     }
 }

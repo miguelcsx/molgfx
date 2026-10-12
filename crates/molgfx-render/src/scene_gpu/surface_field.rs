@@ -22,8 +22,10 @@ use molgfx_gpu::{
 /// never disagree about what was sampled.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct FieldSampling {
+    pub(crate) coordinate_source: [u64; 2],
     pub(crate) probe: f32,
     pub(crate) sigma: f32,
+    pub(crate) cutoff: f32,
     pub(crate) radius_scale: f32,
     pub(crate) isolevel: f32,
     pub(crate) grid_min: [f32; 3],
@@ -41,12 +43,15 @@ pub(crate) struct FieldSampling {
 /// colour or opacity change is not.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(crate) struct SurfaceFieldKey {
+    /// Scene and resident trajectory interval; zero for shared static assets.
+    pub(crate) coordinate_source: [u64; 2],
     pub(crate) geometry: RecordGeometry,
     /// Which physically distinct boundary this field is.
     pub(crate) kind: u32,
     /// Probe radius, Gaussian support, radius scale and iso-level, as bits.
     pub(crate) probe: u32,
     pub(crate) sigma: u32,
+    pub(crate) cutoff: u32,
     pub(crate) radius_scale: u32,
     pub(crate) isolevel: u32,
     /// Local-space grid origin and spacing.
@@ -69,8 +74,10 @@ impl SurfaceFieldKey {
         sampling: FieldSampling,
     ) -> Self {
         let FieldSampling {
+            coordinate_source,
             probe,
             sigma,
+            cutoff,
             radius_scale,
             isolevel,
             grid_min,
@@ -79,10 +86,12 @@ impl SurfaceFieldKey {
             memory_limited,
         } = sampling;
         Self {
+            coordinate_source,
             geometry,
             kind: representation.params.surface_kind as u32,
             probe: probe.to_bits(),
             sigma: sigma.to_bits(),
+            cutoff: cutoff.to_bits(),
             radius_scale: radius_scale.to_bits(),
             isolevel: isolevel.to_bits(),
             grid_min: grid_min.map(f32::to_bits),
@@ -200,6 +209,9 @@ pub(super) struct SharedField<D: Device> {
     /// Set once when the key is created and cleared by the record pass, so a
     /// field shared by four surfaces is generated once, not four times.
     pub(super) pending: bool,
+    /// Last interpolated pose sampled into the resident field.
+    pub(super) coordinate_revision: u64,
+    pub(super) dynamic: bool,
 }
 
 impl<D: Device> SharedField<D> {
@@ -221,7 +233,7 @@ impl<D: Device> SharedField<D> {
     /// Lets the generation input go; only a boundary that erodes may, because
     /// otherwise the inflated field is the one shading reads.
     pub(super) fn release_generation_input(&mut self) {
-        if self.field.is_some() {
+        if self.field.is_some() && !self.dynamic {
             self.inflated = None;
             self.output = None;
             self.erosion = None;
@@ -258,6 +270,7 @@ pub(super) struct FieldSync<'a, D: Device> {
     pub(super) erosion_layout: &'a D::BindGroupLayout,
     pub(super) component_layout: &'a D::BindGroupLayout,
     pub(super) key: SurfaceFieldKey,
+    pub(super) coordinate_revision: u64,
     /// The policy the key encodes, for the component uniforms.
     pub(super) policy: SurfaceComponentPolicy,
     pub(super) dimensions: [u32; 3],
@@ -341,6 +354,8 @@ pub(super) fn build_field<D: Device>(
         dimensions,
         gaussian: sync.key.gaussian(),
         pending: true,
+        coordinate_revision: sync.coordinate_revision,
+        dynamic: sync.key.coordinate_source != [0, 0],
     })
 }
 

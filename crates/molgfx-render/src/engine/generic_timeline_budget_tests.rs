@@ -120,7 +120,7 @@ fn zero_budget_relations_sample_instance_frames_without_a_derived_allocation() {
             .iter()
             .filter(|groups| **groups == (1, 1, 1))
             .count(),
-        10,
+        16,
         "the rigid relation resolves again after the GPU timeline sample changes"
     );
 }

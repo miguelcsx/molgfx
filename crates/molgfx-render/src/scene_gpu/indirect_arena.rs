@@ -28,7 +28,7 @@ pub(super) const SLOT_STRIDE: u64 = 256;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(crate) enum IndirectSlotKey {
     /// Atoms of one shared visible set.
-    Atom(VisibilityKey),
+    Atom(VisibilityKey, u32),
     /// Bonds of one shared visible set.
     Bond(VisibilityKey),
     /// The surface mesh of one shared record set.

@@ -50,13 +50,10 @@ struct PickBuffer<D: Device> {
 #[derive(Debug)]
 pub(crate) struct Picker<D: Device> {
     buffers: Box<[PickBuffer<D>]>,
-    page_capacity: usize,
 }
 
 impl<D: Device> Picker<D> {
-    pub(crate) fn new(device: &D, page_capacity: u32) -> Result<Self, RenderError> {
-        let page_capacity = usize::try_from(page_capacity)
-            .map_err(|_| molgfx_core::PickingError::CapacityTooLarge)?;
+    pub(crate) fn new(device: &D) -> Result<Self, RenderError> {
         let mut buffers = Vec::new();
         buffers
             .try_reserve_exact(PICKS_IN_FLIGHT)
@@ -69,7 +66,6 @@ impl<D: Device> Picker<D> {
         }
         Ok(Self {
             buffers: buffers.into_boxed_slice(),
-            page_capacity,
         })
     }
 
@@ -250,9 +246,9 @@ impl<D: Device> Engine<D> {
         };
         let mut submission = Vec::new();
         submission
-            .try_reserve_exact(self.picker.page_capacity)
+            .try_reserve_exact(self.scene_gpu.pick_page_capacity())
             .map_err(|_| molgfx_core::PickingError::AllocationFailed)?;
-        submission.resize(self.picker.page_capacity, None);
+        submission.resize(self.scene_gpu.pick_page_capacity(), None);
         let mut submission = submission.into_boxed_slice();
         self.scene_gpu.capture_pick_submission(&mut submission)?;
         let destination = &self.picker.buffers[index].buffer;
@@ -337,7 +333,7 @@ impl<D: Device> Engine<D> {
     pub(crate) fn capture_pick_submission_for_test(
         &mut self,
     ) -> Result<Box<[Option<PickPageTicket>]>, RenderError> {
-        let mut submission = vec![None; self.picker.page_capacity].into_boxed_slice();
+        let mut submission = vec![None; self.scene_gpu.pick_page_capacity()].into_boxed_slice();
         self.scene_gpu.capture_pick_submission(&mut submission)?;
         Ok(submission)
     }
@@ -347,7 +343,7 @@ impl<D: Device> Engine<D> {
         &self,
         token: GpuPickToken,
     ) -> Result<GlobalPickIdentity, RenderError> {
-        let submission = vec![None; self.picker.page_capacity].into_boxed_slice();
+        let submission = vec![None; self.scene_gpu.pick_page_capacity()].into_boxed_slice();
         let mut submission = submission;
         self.scene_gpu.capture_pick_submission(&mut submission)?;
         self.scene_gpu.resolve_global_pick(token, &submission)

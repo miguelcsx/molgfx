@@ -127,6 +127,7 @@ impl<D: Device> VisibilityCache<D> {
     }
 
     /// The keys currently resident.
+    #[cfg(test)]
     pub(crate) fn keys(&self) -> impl Iterator<Item = VisibilityKey> + '_ {
         self.entries.iter().map(|(key, _)| *key)
     }

@@ -55,11 +55,19 @@ impl<D: Device> SurfaceFieldCache<D> {
         &mut self,
         sync: &super::surface_field::FieldSync<'_, D>,
     ) -> Result<(), crate::error::RenderError> {
-        let Err(position) = self
+        let position = match self
             .entries
             .binary_search_by_key(&sync.key, |(key, _)| *key)
-        else {
-            return Ok(());
+        {
+            Ok(position) => {
+                let field = &mut self.entries[position].1;
+                if field.dynamic && field.coordinate_revision != sync.coordinate_revision {
+                    field.coordinate_revision = sync.coordinate_revision;
+                    field.pending = true;
+                }
+                return Ok(());
+            }
+            Err(position) => position,
         };
         let field = super::surface_field::build_field(sync)?;
         self.entries.insert(position, (sync.key, field));

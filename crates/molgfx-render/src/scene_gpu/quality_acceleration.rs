@@ -1,4 +1,8 @@
-//! Persistent bond acceleration used by traced ray traversal.
+//! Persistent analytic acceleration over the atoms and bonds actually drawn.
+//!
+//! One compact hierarchy uses representation radii and compact indices, so a
+//! ray can stop at either kind of occluder without walking a second hierarchy.
+//! Rebuilding costs O(atoms + bonds) and runs only when packed records change.
 
 use super::buffers::upload_grow;
 use crate::error::RenderError;
@@ -27,7 +31,6 @@ pub(super) struct HierarchyCounts {
 pub(super) struct QualityAcceleration<D: Device> {
     nodes: Option<D::Buffer>,
     nodes_capacity: u64,
-    primitives: Vec<BondPrimitive>,
     bounds: Vec<Aabb>,
     hierarchy: Bvh,
     build_scratch: BvhBuildScratch,
@@ -41,7 +44,6 @@ impl<D: Device> QualityAcceleration<D> {
         Self {
             nodes: None,
             nodes_capacity: 0,
-            primitives: Vec::new(),
             bounds: Vec::new(),
             hierarchy: Bvh::default(),
             build_scratch: BvhBuildScratch::default(),
@@ -59,7 +61,7 @@ impl<D: Device> QualityAcceleration<D> {
         self.counts
     }
 
-    /// Resident device bytes of the packed bond hierarchy.
+    /// Resident device bytes of the packed analytic hierarchy.
     #[must_use]
     pub(super) fn resident_bytes(&self) -> u64 {
         self.nodes_capacity
@@ -73,19 +75,7 @@ impl<D: Device> QualityAcceleration<D> {
         bonds: &[BondGpu],
         placed: &PlacedStructure,
     ) -> Result<(), RenderError> {
-        self.primitives.clear();
-        self.primitives.extend(bonds.iter().filter_map(|bond| {
-            let atom_a = atoms.get(bond.atom_a as usize)?;
-            let atom_b = atoms.get(bond.atom_b as usize)?;
-            let (kind_a, source_a) = atom_a.entity_id.unpack()?;
-            let (kind_b, source_b) = atom_b.entity_id.unpack()?;
-            (kind_a == EntityKind::Atom && kind_b == EntityKind::Atom).then_some(BondPrimitive {
-                source_a,
-                source_b,
-                radius: bond.radius.abs(),
-            })
-        }));
-        self.rebuild(device, queue, bonds, placed)?;
+        self.rebuild(device, queue, atoms, bonds, placed)?;
         Ok(())
     }
 
@@ -93,15 +83,15 @@ impl<D: Device> QualityAcceleration<D> {
         &mut self,
         device: &D,
         queue: &D::Queue,
+        atoms: &[AtomGpu],
         bonds: &[BondGpu],
         placed: &PlacedStructure,
     ) -> Result<(), RenderError> {
         self.bounds.clear();
-        self.bounds.extend(
-            self.primitives
-                .iter()
-                .map(|primitive| primitive_bound(primitive, placed)),
-        );
+        self.bounds
+            .extend(atoms.iter().map(|atom| atom_bound(atom, placed)));
+        self.bounds
+            .extend(bonds.iter().map(|bond| bond_bound(bond, atoms, placed)));
         self.hierarchy
             .rebuild(&self.bounds, &mut self.build_scratch)?;
         self.upload_indices.clear();
@@ -125,7 +115,7 @@ impl<D: Device> QualityAcceleration<D> {
         upload_grow(
             device,
             queue,
-            "quality packed bond hierarchy",
+            "quality packed analytic hierarchy",
             &self.upload_words,
             &mut self.nodes,
             &mut self.nodes_capacity,
@@ -173,4 +163,47 @@ fn extend_endpoint(bound: &mut Aabb, positions: &[[f32; 3]], source: u32, radius
     if let Some(position) = positions.get(source as usize).copied() {
         bound.extend_sphere(Vec3::from_array(position), radius);
     }
+}
+
+fn atom_bound(atom: &AtomGpu, placed: &PlacedStructure) -> Aabb {
+    let Some((EntityKind::Atom, source)) = atom.entity_id.unpack() else {
+        return Aabb::EMPTY;
+    };
+    let mut bound = Aabb::EMPTY;
+    if let Some(segment) = placed.trajectory() {
+        for positions in [segment.start().positions(), segment.end().positions()] {
+            extend_endpoint(&mut bound, positions, source, atom.radius.abs());
+        }
+    } else {
+        extend_endpoint(
+            &mut bound,
+            placed.atoms.coords().slice(),
+            source,
+            atom.radius.abs(),
+        );
+    }
+    bound
+}
+
+fn bond_bound(bond: &BondGpu, atoms: &[AtomGpu], placed: &PlacedStructure) -> Aabb {
+    let Some(atom_a) = atoms.get(bond.atom_a as usize) else {
+        return Aabb::EMPTY;
+    };
+    let Some(atom_b) = atoms.get(bond.atom_b as usize) else {
+        return Aabb::EMPTY;
+    };
+    let Some((EntityKind::Atom, source_a)) = atom_a.entity_id.unpack() else {
+        return Aabb::EMPTY;
+    };
+    let Some((EntityKind::Atom, source_b)) = atom_b.entity_id.unpack() else {
+        return Aabb::EMPTY;
+    };
+    primitive_bound(
+        &BondPrimitive {
+            source_a,
+            source_b,
+            radius: bond.radius.abs(),
+        },
+        placed,
+    )
 }

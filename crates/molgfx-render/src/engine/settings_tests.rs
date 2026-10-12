@@ -1,5 +1,6 @@
 use super::*;
 use crate::testing::MockDevice;
+use crate::{AdaptiveQualityConfig, EngineConfig};
 
 fn engine() -> Engine<MockDevice> {
     match Engine::new(&crate::engine::EngineConfig::default(), None) {
@@ -149,4 +150,54 @@ fn an_interactive_tier_climb_keeps_edge_smoothing_on() {
         !engine.edge_smoothing(),
         "the converged path relies on accumulation instead"
     );
+}
+
+#[test]
+fn adaptive_camera_motion_keeps_the_same_shading_method() {
+    let mut engine = engine();
+    for _ in 0..1_000 {
+        engine.adaptive.observe(1);
+    }
+    let scene = crate::engine::tests::represented_scene(1, 1);
+    let mut camera = crate::engine::tests::camera();
+    engine.prepare_frame(&scene, &camera).unwrap();
+    assert_eq!(engine.temporal.occlusion_rays(), 2);
+    engine.prepare_frame(&scene, &camera).unwrap();
+    assert_eq!(engine.temporal.occlusion_rays(), 2);
+    assert_eq!(engine.temporal.prepared_samples(), 2);
+    camera.eye *= 0.8;
+    engine.prepare_frame(&scene, &camera).unwrap();
+    assert_eq!(engine.temporal.occlusion_rays(), 2);
+    engine.prepare_frame(&scene, &camera).unwrap();
+    assert_eq!(engine.temporal.occlusion_rays(), 2);
+
+    engine.set_render_mode(RenderMode::Converged);
+    camera.eye *= 0.8;
+    engine.prepare_frame(&scene, &camera).unwrap();
+    assert_eq!(engine.temporal.occlusion_rays(), 4);
+}
+
+#[test]
+fn fixed_quality_keeps_ray_tracing_during_camera_motion() {
+    let mut engine = Engine::<MockDevice>::new(
+        &EngineConfig {
+            adaptive: AdaptiveQualityConfig::highest_fixed(60),
+            ..EngineConfig::default()
+        },
+        None,
+    )
+    .unwrap();
+    let scene = crate::engine::tests::represented_scene(1, 1);
+    let mut camera = crate::engine::tests::camera();
+    engine.prepare_frame(&scene, &camera).unwrap();
+    assert_eq!(engine.temporal.occlusion_rays(), 4);
+    let textures = engine.device.log.textures.lock().unwrap().len();
+    let buffers = engine.device.log.buffers.lock().unwrap().len();
+    for _ in 0..8 {
+        camera.eye *= 0.8;
+        engine.prepare_frame(&scene, &camera).unwrap();
+        assert_eq!(engine.temporal.occlusion_rays(), 4);
+        assert_eq!(engine.device.log.textures.lock().unwrap().len(), textures);
+        assert_eq!(engine.device.log.buffers.lock().unwrap().len(), buffers);
+    }
 }

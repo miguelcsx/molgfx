@@ -50,7 +50,7 @@ fn static_world_relations_share_one_indirect_analytic_draw() {
         .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(
         dispatches.as_slice(),
-        &[(1, 1, 1), (1, 1, 1)],
+        &[(1, 1, 1); 5],
         "relations reset and compact visibility entirely on the GPU"
     );
 }
@@ -241,8 +241,8 @@ fn dynamic_point_relations_resolve_once_without_cpu_endpoint_uploads() {
         .lock()
         .map_or_else(|error| panic!("{error}"), |dispatches| dispatches.len());
     assert_eq!(
-        first_dispatches, 6,
-        "one resolver, three point LOD and two relation cull dispatches run"
+        first_dispatches, 9,
+        "one resolver, three point LOD and five stable relation cull dispatches run"
     );
     let writes_before = engine
         .device
@@ -261,7 +261,16 @@ fn dynamic_point_relations_resolve_once_without_cpu_endpoint_uploads() {
         .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(
         &dispatches[first_dispatches..],
-        &[(250, 1, 1), (1, 1, 1), (250, 1, 1), (1, 1, 1), (1, 1, 1),],
+        &[
+            (250, 1, 1),
+            (1, 1, 1),
+            (250, 1, 1),
+            (1, 1, 1),
+            (1, 1, 1),
+            (1, 1, 1),
+            (1, 1, 1),
+            (1, 1, 1),
+        ],
         "stable endpoints skip resolution while visibility still follows the camera"
     );
     drop(dispatches);
@@ -353,14 +362,7 @@ fn atom_relations_follow_model_changes_without_reuploading_endpoints() {
         .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(
         dispatches.as_slice(),
-        &[
-            (1, 1, 1),
-            (1, 1, 1),
-            (1, 1, 1),
-            (1, 1, 1),
-            (1, 1, 1),
-            (1, 1, 1),
-        ],
+        &[(1, 1, 1); 12],
         "each frame culls on GPU and the atom stream re-resolves only after model motion"
     );
 }
@@ -415,7 +417,7 @@ fn template_part_relations_resolve_the_local_part_through_its_rigid_instance() {
         .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(
         dispatches.as_slice(),
-        &[(1, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1),],
+        &[(1, 1, 1); 8],
         "one rigid resolver precedes instance and relation reset/culling"
     );
 }
