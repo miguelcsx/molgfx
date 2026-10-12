@@ -6,7 +6,12 @@ use wasm_bindgen::prelude::*;
 #[cfg(test)]
 #[path = "contract/cartoon_tests.rs"]
 mod cartoon_tests;
+mod hydrogen_bonds;
+mod molecular_surface;
+mod motion;
+mod playback;
 mod pointer_hover;
+mod restoration;
 mod segmentation;
 #[cfg(test)]
 #[path = "contract/volume_tests.rs"]
@@ -115,9 +120,17 @@ impl WebScenePatch {
 /// Resolved browser scene retaining parsed molecular storage by shared ownership.
 pub struct WebScene {
     pub(crate) spec: molgfx::SceneSpec,
-    structures: BTreeMap<molgfx::StructureId, molframe::Structure>,
+    structures: BTreeMap<molgfx::StructureId, molgfx::source::MolecularSource>,
     volume_bindings: BTreeMap<Box<str>, molgfx::VolumeBinding>,
+    hydrogen_bond_bindings: BTreeMap<Box<str>, molgfx::HydrogenBondBinding>,
+    molecular_surface_bindings: BTreeMap<
+        molgfx::RepresentationId,
+        (molgfx::RepresentationSpec, molgfx::MolecularSurfaceBinding),
+    >,
     segmentation_bindings: BTreeMap<Box<str>, molgfx::SegmentationBinding>,
+    coordinate_frames: BTreeMap<u64, molgfx::TrajectoryFrame>,
+    trajectory_bindings: BTreeMap<Box<str>, molgfx::TrajectoryBinding>,
+    playback_bindings: BTreeMap<molgfx::StructureId, molgfx::PlaybackBinding>,
     pub(crate) resolved: Option<molgfx::Scene>,
 }
 
@@ -131,7 +144,12 @@ impl WebScene {
             spec: resolved.to_spec(),
             structures: BTreeMap::new(),
             volume_bindings: BTreeMap::new(),
+            hydrogen_bond_bindings: BTreeMap::new(),
+            molecular_surface_bindings: BTreeMap::new(),
             segmentation_bindings: BTreeMap::new(),
+            coordinate_frames: BTreeMap::new(),
+            trajectory_bindings: BTreeMap::new(),
+            playback_bindings: BTreeMap::new(),
             resolved: Some(resolved),
         }
     }
@@ -195,7 +213,12 @@ impl WebScene {
             spec,
             structures: BTreeMap::new(),
             volume_bindings: BTreeMap::new(),
+            hydrogen_bond_bindings: BTreeMap::new(),
+            molecular_surface_bindings: BTreeMap::new(),
             segmentation_bindings: BTreeMap::new(),
+            coordinate_frames: BTreeMap::new(),
+            trajectory_bindings: BTreeMap::new(),
+            playback_bindings: BTreeMap::new(),
             resolved: None,
         })
     }
@@ -220,12 +243,24 @@ impl WebScene {
         let resolved = molgfx::Scene::from_structure(&structure).map_err(javascript_error)?;
         let spec = resolved.to_spec();
         let mut structures = BTreeMap::new();
-        let _ = structures.insert(molgfx::StructureId::new(1), structure);
+        let _ = structures.insert(
+            molgfx::StructureId::new(1),
+            resolved
+                .sources()
+                .get(&molgfx::StructureId::new(1))
+                .ok_or_else(|| JsError::new("parsed molecular source is unavailable"))?
+                .clone(),
+        );
         Ok(Self {
             spec,
             structures,
             volume_bindings: BTreeMap::new(),
+            hydrogen_bond_bindings: BTreeMap::new(),
+            molecular_surface_bindings: BTreeMap::new(),
             segmentation_bindings: BTreeMap::new(),
+            coordinate_frames: BTreeMap::new(),
+            trajectory_bindings: BTreeMap::new(),
+            playback_bindings: BTreeMap::new(),
             resolved: Some(resolved),
         })
     }
@@ -254,48 +289,41 @@ impl WebScene {
         let (structure, _) =
             molframe::read_bytes(bytes, Some(&name), &molframe::ReadOptions::new())
                 .map_err(javascript_error)?;
-        let _ = self.structures.insert(identity, structure);
+        let _ = self.structures.insert(
+            identity,
+            molgfx::source::MolecularSource::from_molframe(&structure),
+        );
         self.resolved = None;
         Ok(())
     }
 
-    /// Updates the resident trajectory sample without recording a command.
-    ///
-    /// # Errors
-    ///
-    /// Returns a JavaScript error when the scene is unresolved or the trajectory
-    /// sample is invalid.
-    pub fn set_trajectory_time(
-        &mut self,
-        structure: u64,
-        sample_seconds: f32,
-    ) -> Result<(), JsError> {
-        self.resolved
-            .as_mut()
-            .ok_or_else(|| JsError::new("scene must be resolved before trajectory updates"))?
-            .set_trajectory_time(molgfx::StructureId::new(structure), sample_seconds)
-            .map_err(javascript_error)
-    }
     /// Validates all bindings and creates the physical renderer scene.
     ///
     /// # Errors
     ///
     /// Returns a JavaScript error for missing or content-mismatched sources.
     pub fn resolve(&mut self) -> Result<(), JsError> {
-        let mut resolved = molgfx::Scene::from_spec(self.spec.clone(), self.structures.clone())
-            .map_err(javascript_error)?;
-        for binding in self.volume_bindings.values() {
-            resolved
-                .bind_volume(binding.clone())
-                .map_err(javascript_error)?;
-        }
-        for binding in self.segmentation_bindings.values() {
-            resolved
-                .bind_segmentation(binding.clone())
-                .map_err(javascript_error)?;
-        }
-        self.spec = resolved.to_spec();
+        let bindings = molgfx::RuntimeBindings {
+            volumes: self.volume_bindings.values().cloned().collect(),
+            hydrogen_bonds: self.hydrogen_bond_bindings.values().cloned().collect(),
+            molecular_surfaces: self
+                .molecular_surface_bindings
+                .values()
+                .map(|(_, binding)| binding.clone())
+                .collect(),
+            segmentations: self.segmentation_bindings.values().cloned().collect(),
+            trajectories: self.trajectory_bindings.values().cloned().collect(),
+            playback: self.playback_bindings.values().cloned().collect(),
+        };
+        let resolved = molgfx::Scene::from_spec_with_bindings(
+            self.spec.clone(),
+            self.structures.clone(),
+            BTreeMap::new(),
+            bindings,
+        )
+        .map_err(javascript_error)?;
         self.resolved = Some(resolved);
+        self.prune_coordinate_frames();
         Ok(())
     }
 
@@ -321,6 +349,19 @@ impl WebScene {
                 .values()
                 .any(|segmentation| segmentation.source.content_hash == *hash)
         });
+        self.molecular_surface_bindings
+            .retain(|identity, (recipe, _)| {
+                candidate_spec
+                    .representations
+                    .get(identity)
+                    .is_some_and(|current| {
+                        current.structure_id() == recipe.structure_id()
+                            && current.molecular_surface_recipe()
+                                == recipe.molecular_surface_recipe()
+                    })
+            });
+        self.prune_motion_bindings(&candidate_spec);
+        self.prune_coordinate_frames();
         self.spec = candidate_spec;
         Ok(())
     }
