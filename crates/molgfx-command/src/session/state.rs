@@ -48,7 +48,7 @@ pub struct SessionSpec {
     pub focus: Option<QueryText>,
     /// Complete portable scenes captured under authoring names.
     #[serde(default)]
-    pub snapshots: BTreeMap<Name, molgfx_scene::interop::SceneSnapshot>,
+    pub snapshots: BTreeMap<Name, super::NamedSnapshot>,
 }
 
 impl SessionSpec {

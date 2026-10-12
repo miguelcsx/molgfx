@@ -1,6 +1,99 @@
 use super::tests::{fail, run, scene};
 use crate::{Command, ErrorKind, Program, Session, SessionSpec};
 
+#[test]
+fn snapshots_restore_symbolic_targets_controls_and_dependencies_through_undo_and_redo() {
+    let mut scene = scene();
+    let mut session = Session::new(&scene);
+    run(
+        &mut session,
+        &mut scene,
+        "select core, chain A; select site, $core; show ball_and_stick radius=0.42 as atoms, $site; focus $site; snapshot save initial",
+    );
+    let initial = session.spec().clone();
+    run(
+        &mut session,
+        &mut scene,
+        "select core, chain B; focus chain B",
+    );
+    let name = crate::Name::new("atoms").expect("layer name");
+    session
+        .restyle(&mut scene, &name, crate::Form::new(crate::FormKind::Points))
+        .expect("form changes");
+    let changed = session.spec().clone();
+    run(&mut session, &mut scene, "snapshot restore initial");
+    assert_eq!(session.spec(), &initial);
+    assert_eq!(
+        session
+            .resolve_selection("$site")
+            .expect("restored alias")
+            .source(),
+        "chain A"
+    );
+    run(&mut session, &mut scene, "undo");
+    assert_eq!(session.spec(), &changed);
+    run(&mut session, &mut scene, "redo");
+    assert_eq!(session.spec(), &initial);
+}
+
+#[test]
+fn imported_snapshots_reject_contradictory_forms_and_cyclic_symbolic_targets() {
+    let mut scene = scene();
+    let mut session = Session::new(&scene);
+    run(
+        &mut session,
+        &mut scene,
+        "select core, chain A; show points as atoms, $core; snapshot save initial",
+    );
+    let mut invalid = session.spec().clone();
+    let name = crate::Name::new("initial").expect("capture name");
+    let atoms = crate::Name::new("atoms").expect("layer name");
+    invalid
+        .snapshots
+        .get_mut(&name)
+        .expect("capture")
+        .symbols
+        .layers
+        .get_mut(&atoms)
+        .expect("layer")
+        .form = crate::Form::new(crate::FormKind::Spacefill);
+    assert!(SessionSpec::from_json(&invalid.to_json().expect("encoding")).is_err());
+    let mut invalid = session.spec().clone();
+    invalid
+        .snapshots
+        .get_mut(&name)
+        .expect("capture")
+        .symbols
+        .selections
+        .insert(
+            crate::Name::new("core").expect("alias"),
+            crate::QueryText::compile("$core").expect("query"),
+        );
+    assert!(SessionSpec::from_json(&invalid.to_json().expect("encoding")).is_err());
+}
+
+#[test]
+fn layers_authored_from_the_previous_selection_remain_capturable_after_selection_is_cleared() {
+    let mut scene = scene();
+    let mut session = Session::new(&scene);
+    run(
+        &mut session,
+        &mut scene,
+        "selection chain A; show points as atoms, $sel; selection; snapshot save initial",
+    );
+    let saved = authored(&scene);
+    let encoded = session.spec().to_json().expect("encoding");
+    let mut restored =
+        Session::from_spec(SessionSpec::from_json(&encoded).expect("decoding"), &scene);
+    run(
+        &mut restored,
+        &mut scene,
+        "hide @atoms; snapshot restore initial",
+    );
+    assert_eq!(authored(&scene), saved);
+    assert!(scene.spec().selected.is_none());
+}
+
 fn authored(scene: &molgfx_scene::Scene) -> molgfx_scene::SceneSpec {
     let mut spec = scene.to_spec();
     spec.revision = 0;

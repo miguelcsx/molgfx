@@ -139,7 +139,7 @@ impl Session {
             "snapshot" => spec
                 .snapshots
                 .iter()
-                .map(|(name, snapshot)| (name, snapshot.content_hash.to_string()))
+                .map(|(name, snapshot)| (name, snapshot.scene.content_hash.to_string()))
                 .collect(),
             _ => spec
                 .structures

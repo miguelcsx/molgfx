@@ -28,6 +28,34 @@ pub fn suggest<'a>(word: &str, candidates: impl IntoIterator<Item = &'a str>) ->
     best.map(|(_, candidate)| candidate.to_owned())
 }
 
+/// Up to `count` candidates within the same tolerance as [`suggest`], nearest
+/// first, with ties kept in candidate order.
+#[must_use]
+pub fn suggest_many<'a>(
+    word: &str,
+    candidates: impl IntoIterator<Item = &'a str>,
+    count: usize,
+) -> Vec<&'a str> {
+    const LONGEST: usize = 64;
+    if word.is_empty() || word.len() > LONGEST {
+        return Vec::new();
+    }
+    let word = word.to_ascii_lowercase();
+    let limit = (word.len() / 3).max(1);
+    let mut near: Vec<(usize, &str)> = Vec::new();
+    for candidate in candidates {
+        if candidate.len() > LONGEST || candidate.eq_ignore_ascii_case(&word) {
+            continue;
+        }
+        let distance = distance(word.as_bytes(), candidate.to_ascii_lowercase().as_bytes());
+        if distance <= limit {
+            near.push((distance, candidate));
+        }
+    }
+    near.sort_by_key(|(distance, _)| *distance);
+    near.into_iter().take(count).map(|(_, word)| word).collect()
+}
+
 /// Levenshtein distance with adjacent transpositions counted as one edit.
 fn distance(left: &[u8], right: &[u8]) -> usize {
     let width = right.len() + 1;

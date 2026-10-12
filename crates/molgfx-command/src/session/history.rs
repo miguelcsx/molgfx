@@ -66,4 +66,22 @@ impl History {
     pub(crate) fn can_redo(&self) -> bool {
         !self.undone.is_empty()
     }
+
+    pub(crate) fn operations(&self) -> impl Iterator<Item = &PatchOperation> {
+        self.done
+            .iter()
+            .chain(&self.undone)
+            .flat_map(|entry| entry.forward.iter().chain(&entry.inverse))
+    }
+
+    pub(crate) fn snapshots(&self) -> impl Iterator<Item = &molgfx_scene::interop::SceneSnapshot> {
+        self.done.iter().chain(&self.undone).flat_map(|entry| {
+            entry
+                .before
+                .snapshots
+                .values()
+                .chain(entry.after.snapshots.values())
+                .map(|snapshot| &snapshot.scene)
+        })
+    }
 }

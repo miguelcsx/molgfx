@@ -7,7 +7,14 @@
 
 mod suggest;
 
-pub use suggest::suggest;
+pub use suggest::{suggest, suggest_many};
+
+mod keywords;
+
+pub use keywords::{
+    COLUMN_WORDS, GROUP_WORDS, KEYWORD_ALIASES, canonical_keyword, describe_query_finding,
+    nearest_keywords,
+};
 
 mod catalogues;
 mod colors;

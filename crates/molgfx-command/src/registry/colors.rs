@@ -93,5 +93,7 @@ pub fn color_words() -> impl Iterator<Item = &'static str> {
     schemes()
         .into_iter()
         .chain(NAMED_COLORS.iter().map(|(name, _)| *name))
-        .chain(["hydrogen", "carbon", "nitrogen", "oxygen", "sulfur"])
+        .chain([
+            "hydrogen", "carbon", "nitrogen", "oxygen", "sulfur", "bfactor", "bfac",
+        ])
 }

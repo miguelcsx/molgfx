@@ -14,12 +14,15 @@ mod auto_tests;
 mod complete;
 mod explain;
 mod history;
+mod named_snapshot;
+pub use named_snapshot::{NamedSnapshot, SnapshotSymbols};
 #[cfg(test)]
 mod overlay_tests;
 mod plan;
 #[cfg(test)]
 mod pocket_tests;
 mod property;
+mod publication;
 mod resolve;
 mod restyle;
 #[cfg(test)]
