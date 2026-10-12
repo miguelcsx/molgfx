@@ -21,9 +21,9 @@ const MARKER_SELECTED: u32 = 3u;
 // emission flag of 8), so the marker occupies the quotient above it.
 const MARKER_PAYLOAD_STEP: f32 = 16.0;
 
-const SELECTED_TINT: vec3f = vec3f(1.0, 0.58, 0.08);
+const SELECTED_TINT: vec3f = vec3f(0.0, 0.92, 1.0);
 const HOVERED_TINT: vec3f = vec3f(1.0, 0.25, 0.75);
-const FOCUSED_TINT: vec3f = vec3f(0.25, 0.78, 1.0);
+const FOCUSED_TINT: vec3f = vec3f(1.0, 0.72, 0.10);
 
 /// The strongest marker a state word carries: selected over focused over hovered.
 fn marker_of_state(state: u32) -> u32 {

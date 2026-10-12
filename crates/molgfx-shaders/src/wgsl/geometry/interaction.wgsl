@@ -5,6 +5,7 @@
 // fragments only resolve the 2D pattern, optional marker and analytic depth.
 
 //!include "include/camera.wgsl"
+//!include "include/relation_coverage.wgsl"
 //!include "include/material_lighting.wgsl"
 
 const AXIS_EPSILON_SQ: f32 = 1.0e-6;
@@ -256,10 +257,7 @@ fn vs_interaction(
     let radius =
         start_width.w * 0.5;
 
-    let extent =
-        (radius + arrow_size * 0.75 + 1.0) *
-        2.0 *
-        frame.viewport.zw;
+    let extent = relation_ndc_extent(start_width.w, arrow_size);
 
     let ndc =
         mix(

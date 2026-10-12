@@ -13,12 +13,67 @@ fn cross_2d(
         left.y * right.x;
 }
 
+// Shape codes beyond the legacy pentagon/hexagon classes (see the packing in
+// molgfx-render):
+//   7  triangle (SNFG fucose-class deoxyhexose)
+//   8  diamond (SNFG nonulosonates and uronates)
+//   9  five-pointed star (SNFG pentoses); a non-convex union of six convex
+//      pieces, so it is intersected piece by piece by `star_hit_piece`
+// Codes 100..105 are the star's own convex pieces and never arrive from a
+// record: 100 is the inner pentagon and 101..105 are the five tip triangles.
+const POLYGON_TRIANGLE: u32 = 7u;
+const POLYGON_DIAMOND: u32 = 8u;
+const POLYGON_STAR: u32 = 9u;
+const STAR_CORE: u32 = 100u;
+const STAR_PIECES: u32 = 6u;
+
+// Inner vertices of the pentagram, counter-clockwise, at radius
+// 1 / golden_ratio^2 and angles 126, 198, 270, 342 and 54 degrees.
+const STAR_INNER: array<vec2f, 5> = array<vec2f, 5>(
+    vec2f(-0.22451399, 0.30901699),
+    vec2f(-0.36327126, -0.11803399),
+    vec2f(0.0, -0.38196601),
+    vec2f(0.36327126, -0.11803399),
+    vec2f(0.22451399, 0.30901699),
+);
+
+const POLYGON_TRIANGLE_VERTICES: array<vec2f, 3> = array<vec2f, 3>(
+    vec2f(0.0, 1.0),
+    vec2f(-0.86602540, -0.5),
+    vec2f(0.86602540, -0.5),
+);
+
+const POLYGON_DIAMOND_VERTICES: array<vec2f, 4> = array<vec2f, 4>(
+    vec2f(0.0, 1.0),
+    vec2f(-1.0, 0.0),
+    vec2f(0.0, -1.0),
+    vec2f(1.0, 0.0),
+);
+
 fn polygon_sides(shape: u32) -> u32 {
-    if shape == 4u || shape == 5u {
+    if shape == POLYGON_TRIANGLE || shape > STAR_CORE {
+        return 3u;
+    }
+
+    if shape == POLYGON_DIAMOND {
+        return 4u;
+    }
+
+    if shape == 4u || shape == 5u || shape == STAR_CORE {
         return 5u;
     }
 
     return 6u;
+}
+
+/// Vertex of one tip triangle: inner(k), tip(k + 1), inner(k + 1).
+fn star_tip_vertex(piece: u32, index: u32) -> vec2f {
+    let k = piece - STAR_CORE - 1u;
+    if index == 1u {
+        return PENTAGON[(k + 1u) % 5u];
+    }
+
+    return STAR_INNER[(k + index / 2u) % 5u];
 }
 
 /// Returns a precomputed regular polygon vertex.
@@ -28,6 +83,22 @@ fn polygon_vertex(
     shape: u32,
     index: u32,
 ) -> vec2f {
+    if shape == POLYGON_TRIANGLE {
+        return POLYGON_TRIANGLE_VERTICES[index];
+    }
+
+    if shape == POLYGON_DIAMOND {
+        return POLYGON_DIAMOND_VERTICES[index];
+    }
+
+    if shape == STAR_CORE {
+        return STAR_INNER[index];
+    }
+
+    if shape > STAR_CORE {
+        return star_tip_vertex(shape, index);
+    }
+
     if shape == 4u || shape == 5u {
         return PENTAGON[index];
     }
@@ -235,6 +306,28 @@ fn polygon_normal(
     return normal;
 }
 
+/// Nearest entry over the star's convex pieces; `.y` is the winning piece code.
+fn star_hit_piece(
+    origin: vec3f,
+    direction: vec3f,
+    half_size: vec3f,
+) -> vec2f {
+    var best = PRIMITIVE_INFINITY;
+    var piece_code = f32(STAR_CORE);
+    for (var piece = 0u; piece < STAR_PIECES; piece++) {
+        let code = STAR_CORE + piece;
+        let t = nearest_positive_interval(
+            ray_polygon_interval(origin, direction, half_size, code)
+        );
+        if t > 0.0 && t < best {
+            best = t;
+            piece_code = f32(code);
+        }
+    }
+
+    return vec2f(select(-1.0, best, best < PRIMITIVE_INFINITY), piece_code);
+}
+
 fn polygon_hit(
     in: PrimitiveVsOut,
     ray: PrimitiveRay,
@@ -245,15 +338,22 @@ fn polygon_hit(
             ray,
         );
 
-    let t =
-        nearest_positive_interval(
+    var shape = in.metadata.w;
+    var t = -1.0;
+    if shape == POLYGON_STAR {
+        let star = star_hit_piece(local.origin, local.direction, local.half_size);
+        t = star.x;
+        shape = u32(star.y);
+    } else {
+        t = nearest_positive_interval(
             ray_polygon_interval(
                 local.origin,
                 local.direction,
                 local.half_size,
-                in.metadata.w,
+                shape,
             )
         );
+    }
 
     if t <= 0.0 {
         return primitive_miss();
@@ -274,7 +374,7 @@ fn polygon_hit(
             polygon_normal(
                 local_point,
                 local.half_size,
-                in.metadata.w,
+                shape,
             ),
         ),
 

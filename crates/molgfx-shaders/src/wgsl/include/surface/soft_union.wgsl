@@ -26,7 +26,7 @@ fn union_atom_surface_normal(
     let base = source_index * 3u;
     let center = vec3f(coords[base], coords[base + 1u], coords[base + 2u]);
     let radius = max(
-        atom.radius * representation.visual.w + inflation,
+        atom.radius + inflation,
         SURFACE_RAY_EPSILON,
     );
     return (point - center) / radius;

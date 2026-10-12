@@ -9,7 +9,7 @@
 fn surface_node_padding(node: BvhNode) -> f32 {
     if representation.options.x ==
         SURFACE_KIND_GAUSSIAN {
-        return representation.surface.x;
+        return node.max_radius.w * representation.visual.w * representation.surface.x;
     }
 
     // A soft minimum can round a cusp outward by at most a quarter of its

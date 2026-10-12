@@ -130,7 +130,8 @@ fn sphere_geometry(
         radius *= atom_visual_geometry(atom.entity_id).z * 4.0;
     }
     if center.z + radius >= camera_near_z() {
-        let ndc = sphere_corner(vertex);
+        let ndc = near_proxy_ndc(center - vec3f(radius), center + vec3f(radius),
+            sphere_corner(vertex) * 0.5 + vec2f(0.5));
         let projected = frame.inv_proj * vec4f(ndc, 1.0, 1.0);
         let view = projected.xyz / projected.w;
         let ray_xy = select(view.xy / -view.z, view.xy, frame.projection_kind.x > 0.5);

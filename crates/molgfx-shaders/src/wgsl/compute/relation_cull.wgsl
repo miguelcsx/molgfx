@@ -1,6 +1,7 @@
 // Typed visual evaluation, culling and compaction for one relation batch.
 
 //!include "include/camera.wgsl"
+//!include "include/relation_coverage.wgsl"
 //!include "include/visual/program_types.wgsl"
 
 struct DrawArgs {
@@ -20,7 +21,7 @@ struct InteractionGpu {
 }
 
 struct RelationCullConfig {
-    // first row, row count, unused, unused
+    // first row, row count, total rows, scientific input inactive
     counts: vec4u,
 }
 
@@ -66,8 +67,9 @@ fn relation_in_frustum(relation: InteractionGpu) -> bool {
     if start.w <= 0.0 && end.w <= 0.0 {
         return false;
     }
-    if outside_plane(start.x, start.w, end.x, end.w)
-        || outside_plane(start.y, start.w, end.y, end.w)
+    let extent = relation_ndc_extent(relation.start_width.w, relation.style.w);
+    if outside_plane(start.x, start.w * (1.0 + extent.x), end.x, end.w * (1.0 + extent.x))
+        || outside_plane(start.y, start.w * (1.0 + extent.y), end.y, end.w * (1.0 + extent.y))
         || (start.z < 0.0 && end.z < 0.0)
         || (start.z > start.w && end.z > end.w) {
         return false;
@@ -78,6 +80,11 @@ fn relation_in_frustum(relation: InteractionGpu) -> bool {
 fn style_relation(global: u32, logical: u32) -> bool {
     let base = base_relations[global];
     var relation = relations[global];
+    if (relation.metadata.w & 0x80000000u) != 0u {
+        relation.style.x = 0.0;
+        relations[global] = relation;
+        return false;
+    }
     let midpoint = (relation.start_width.xyz + relation.end_period.xyz) * 0.5;
     let to_camera = frame.inv_view[3].xyz - midpoint;
     let distance_squared = dot(to_camera, to_camera);
@@ -145,48 +152,101 @@ fn style_relation(global: u32, logical: u32) -> bool {
     return opacity > 0.0 && color.a > 0.0;
 }
 
-var<workgroup> visible_count: atomic<u32>;
-// The count every invocation reads once all of them have counted. Safari
-// does not yet accept workgroupUniformLoad on an atomic, so one invocation
-// copies the atomic into this plain value and the rest load that.
-var<workgroup> visible_total: u32;
-var<workgroup> output_base: u32;
+// Stable compaction preserves logical order for floating-point transparency blending.
+// Scratch shares one retained buffer: visible rows, local offsets, group offsets.
+const RELATION_LANES: u32 = 64u;
+const RELATION_HIDDEN: u32 = 0xffffffffu;
+var<workgroup> relation_prefix: array<u32, 64>;
+
+fn inclusive_relation_prefix(lane: u32, value: u32) -> u32 {
+    relation_prefix[lane] = value;
+    workgroupBarrier();
+    for (var stride = 1u; stride < RELATION_LANES; stride *= 2u) {
+        var previous = 0u;
+        if lane >= stride { previous = relation_prefix[lane - stride]; }
+        workgroupBarrier();
+        relation_prefix[lane] += previous;
+        workgroupBarrier();
+    }
+    return relation_prefix[lane];
+}
+
+fn relation_linear_row(id: vec3u, groups: vec3u) -> u32 {
+    return id.x + id.y * groups.x * RELATION_LANES;
+}
 
 @compute @workgroup_size(64)
 fn reset_relations(@builtin(global_invocation_id) id: vec3u) {
-    if id.x == 0u {
-        atomicStore(&relation_args.instance_count, 0u);
-    }
+    if id.x == 0u { atomicStore(&relation_args.instance_count, 0u); }
 }
 
 @compute @workgroup_size(64)
 fn cull_relations(
-    @builtin(global_invocation_id) global_id: vec3u,
-    @builtin(local_invocation_id) local_id: vec3u,
+    @builtin(global_invocation_id) id: vec3u,
     @builtin(num_workgroups) groups: vec3u,
 ) {
-    let logical = global_id.x + global_id.y * groups.x * 64u;
-    let in_range = logical < relation_config.counts.y;
-    var global = relation_config.counts.x;
-    var keep = false;
-    if in_range {
-        global += logical;
-        keep = style_relation(global, logical);
+    let logical = relation_linear_row(id, groups);
+    if logical >= relation_config.counts.y { return; }
+    let global = relation_config.counts.x + logical;
+    if relation_config.counts.w != 0u {
+        visible_relations[relation_config.counts.z + global] = 0u;
+        return;
     }
-    var local = 0u;
-    if keep {
-        local = atomicAdd(&visible_count, 1u);
+    visible_relations[relation_config.counts.z + global] =
+        select(0u, 1u, style_relation(global, logical));
+}
+
+@compute @workgroup_size(64)
+fn scan_relation_rows(
+    @builtin(global_invocation_id) id: vec3u,
+    @builtin(local_invocation_id) local: vec3u,
+    @builtin(num_workgroups) groups: vec3u,
+) {
+    let row = relation_linear_row(id, groups);
+    let count = relation_config.counts.z;
+    var keep = 0u;
+    if row < count { keep = visible_relations[count + row]; }
+    let prefix = inclusive_relation_prefix(local.x, keep);
+    if row < count {
+        visible_relations[count + row] = select(RELATION_HIDDEN, prefix - 1u, keep != 0u);
     }
-    workgroupBarrier();
-    if local_id.x == 0u {
-        visible_total = atomicLoad(&visible_count);
+    if local.x == RELATION_LANES - 1u && row / RELATION_LANES <
+        (count + RELATION_LANES - 1u) / RELATION_LANES {
+        visible_relations[count * 2u + row / RELATION_LANES] = prefix;
     }
-    let count = workgroupUniformLoad(&visible_total);
-    if local_id.x == 0u && count != 0u {
-        output_base = atomicAdd(&relation_args.instance_count, count);
+}
+
+@compute @workgroup_size(64)
+fn scan_relation_groups(@builtin(local_invocation_id) local: vec3u) {
+    let count = relation_config.counts.z;
+    let group_count = (count + RELATION_LANES - 1u) / RELATION_LANES;
+    let span = (group_count + RELATION_LANES - 1u) / RELATION_LANES;
+    let begin = min(local.x * span, group_count);
+    let end = min(begin + span, group_count);
+    var total = 0u;
+    for (var group = begin; group < end; group++) {
+        total += visible_relations[count * 2u + group];
     }
-    let base = workgroupUniformLoad(&output_base);
-    if keep {
-        visible_relations[base + local] = global;
+    let prefix = inclusive_relation_prefix(local.x, total);
+    var offset = prefix - total;
+    for (var group = begin; group < end; group++) {
+        let size = visible_relations[count * 2u + group];
+        visible_relations[count * 2u + group] = offset;
+        offset += size;
     }
+    if local.x == RELATION_LANES - 1u { atomicStore(&relation_args.instance_count, prefix); }
+}
+
+@compute @workgroup_size(64)
+fn scatter_relation_rows(
+    @builtin(global_invocation_id) id: vec3u,
+    @builtin(num_workgroups) groups: vec3u,
+) {
+    let row = relation_linear_row(id, groups);
+    let count = relation_config.counts.z;
+    if row >= count { return; }
+    let local = visible_relations[count + row];
+    if local == RELATION_HIDDEN { return; }
+    let offset = visible_relations[count * 2u + row / RELATION_LANES];
+    visible_relations[offset + local] = row;
 }

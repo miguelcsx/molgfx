@@ -109,7 +109,7 @@ fn surface_nearest_atom(point: vec3f) -> u32 {
                 coords[base + 2u],
             );
             let distance = length(point - center)
-                - atom.radius * representation.visual.w;
+                - atom.radius;
 
             if distance < best_distance {
                 best_distance = distance;
@@ -156,7 +156,7 @@ fn union_atom_hit_t(
         );
 
     let radius =
-        atom.radius * representation.visual.w + inflation;
+        atom.radius + inflation;
 
     if radius <= SURFACE_RAY_EPSILON {
         return SURFACE_INFINITY;

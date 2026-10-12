@@ -32,8 +32,8 @@ struct CullCounts {
     visual_enabled: u32,
     atom_bvh_nodes: u32,
     atom_bvh_indices: u32,
-    bond_bvh_nodes: u32,
-    bond_bvh_indices: u32,
+    quality_bvh_nodes: u32,
+    quality_bvh_indices: u32,
 }
 
 struct AtomProjection {

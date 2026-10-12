@@ -17,6 +17,7 @@
 
 //!include "include/camera.wgsl"
 //!include "include/atom.wgsl"
+//!include "include/point_solvent.wgsl"
 //!include "include/quad.wgsl"
 //!include "include/material_lighting.wgsl"
 //!include "include/oit_input.wgsl"
@@ -77,6 +78,7 @@ struct PointOpaqueVsOut {
     @location(3) @interpolate(flat, either) entity_id: u32,
     // Palette indices for the colour scheme, resolved per fragment.
     @location(4) @interpolate(flat, either) semantic: u32,
+    @location(6) @interpolate(flat, either) local_point: vec3f,
 }
 
 struct PointTransparentVsOut {
@@ -90,6 +92,7 @@ struct PointTransparentVsOut {
     @location(4) @interpolate(flat, either) entity_id: u32,
     // Palette indices for the colour scheme, resolved per fragment.
     @location(5) @interpolate(flat, either) semantic: u32,
+    @location(6) @interpolate(flat, either) local_point: vec3f,
 }
 
 struct PointFsOut {
@@ -193,6 +196,7 @@ fn vs_point(
 
     out.semantic =
         0u;
+    out.local_point = (model.world_to_model * vec4f(world_position, 1.0)).xyz;
 
     if POINT_CLIPPING_ENABLED &&
         !representation_visible(world_position) {
@@ -233,6 +237,10 @@ fn fs_point(
         discard;
     }
 
+    if representation.visual.w < -1.5 {
+        let source = atoms[source_to_compact[in.entity_id & ATOM_SOURCE_MASK]];
+        if !point_solvent_visible(source, in.local_point) { discard; }
+    }
     let world_position = atom_position(in.entity_id);
     let visual = visual_fragment(
         in.entity_id,
@@ -327,6 +335,7 @@ fn vs_point_transparent(
 
     out.semantic =
         0u;
+    out.local_point = (model.world_to_model * vec4f(world_position, 1.0)).xyz;
 
     if POINT_CLIPPING_ENABLED &&
         !representation_visible(world_position) {
@@ -367,6 +376,10 @@ fn fs_point_transparent(
         discard;
     }
 
+    if representation.visual.w < -1.5 {
+        let source = atoms[source_to_compact[in.entity_id & ATOM_SOURCE_MASK]];
+        if !point_solvent_visible(source, in.local_point) { discard; }
+    }
     let world_position = atom_position(in.entity_id);
     let visual = visual_fragment(
         in.entity_id,

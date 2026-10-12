@@ -1,7 +1,7 @@
 // Progressive molecular cavity occlusion and area-light shadows.
 //
 // One deterministic low-discrepancy sample is traced per covered pixel and
-// frame against the same compact atom BVH used by culling and surfaces. The
+// frame against a compact BVH of the drawn analytic atoms and bonds. The
 // HDR temporal pass accumulates the result while the camera is still.
 
 //!include "include/camera.wgsl"
@@ -16,41 +16,41 @@
 
 @group(1) @binding(0) var depth_texture: texture_2d<f32>;
 @group(1) @binding(1) var normal_texture: texture_2d<f32>;
-@group(2) @binding(21) var<storage, read> quality_bond_data: array<u32>;
+@group(2) @binding(21) var<storage, read> quality_geometry_data: array<u32>;
 
-fn quality_bond_node(index: u32) -> BvhNode {
+fn quality_node(index: u32) -> BvhNode {
     let base = index * 8u;
     return BvhNode(
         bitcast<vec4f>(vec4u(
-            quality_bond_data[base],
-            quality_bond_data[base + 1u],
-            quality_bond_data[base + 2u],
-            quality_bond_data[base + 3u],
+            quality_geometry_data[base],
+            quality_geometry_data[base + 1u],
+            quality_geometry_data[base + 2u],
+            quality_geometry_data[base + 3u],
         )),
         bitcast<vec4f>(vec4u(
-            quality_bond_data[base + 4u],
-            quality_bond_data[base + 5u],
-            quality_bond_data[base + 6u],
-            quality_bond_data[base + 7u],
+            quality_geometry_data[base + 4u],
+            quality_geometry_data[base + 5u],
+            quality_geometry_data[base + 6u],
+            quality_geometry_data[base + 7u],
         )),
     );
 }
 
-fn quality_bond_index(index: u32) -> u32 {
-    return quality_bond_data[visual_counts.bond_bvh_nodes * 8u + index];
+fn quality_index(index: u32) -> u32 {
+    return quality_geometry_data[visual_counts.quality_bvh_nodes * 8u + index];
 }
 
 fn quality_bond(index: u32) -> BondRecord {
-    let base = visual_counts.bond_bvh_nodes * 8u
-        + visual_counts.bond_bvh_indices
+    let base = visual_counts.quality_bvh_nodes * 8u
+        + visual_counts.quality_bvh_indices
         + index * 6u;
     return BondRecord(
-        quality_bond_data[base],
-        quality_bond_data[base + 1u],
-        bitcast<f32>(quality_bond_data[base + 2u]),
-        quality_bond_data[base + 3u],
-        quality_bond_data[base + 4u],
-        quality_bond_data[base + 5u],
+        quality_geometry_data[base],
+        quality_geometry_data[base + 1u],
+        bitcast<f32>(quality_geometry_data[base + 2u]),
+        quality_geometry_data[base + 3u],
+        quality_geometry_data[base + 4u],
+        quality_geometry_data[base + 5u],
     );
 }
 
@@ -148,18 +148,30 @@ fn fs_quality_ao(in: FullscreenOut) -> @location(0) vec4f {
     let light_frame = tangent_frame(light_base);
     var ao_hits = 0.0;
     var shadow_hits = 0.0;
-    let ray_count = u32(frame.temporal.y);
+    // A progressive frame with no valid history is the first of a new view:
+    // the camera is moving or the scene just changed, so every frame replaces
+    // the last and extra rays buy nothing the next frame does not overwrite.
+    // One ray per pixel there halves the traversal cost of interactive motion;
+    // a stable view (history valid) and every converged sample keep the full
+    // budget, so settled and converged pixels are unchanged.
+    let moving = frame.temporal.x < 0.5 && frame.temporal.z < 0.5;
+    let ray_count = select(u32(frame.temporal.y), 1u, moving);
+    // The shadow term is scaled by the strength on output, so a zero strength
+    // makes its rays dead work.
+    let trace_shadow = frame.lighting[3].w > 0.0;
     for (var ray_index = 0u; ray_index < ray_count; ray_index += 1u) {
         let stream = ray_index * 0x9e3779b9u;
         let ao_direction = cosine_direction(world_normal,
             random_pair(pixel, 0x51633e2du ^ stream));
         ao_hits += 1.0 - trace_transmittance(origin, ao_direction, AO_DISTANCE);
-        let light_random = random_pair(pixel, 0x94d049bbu ^ stream) * 2.0 - 1.0;
-        let light_direction = normalize(light_base
-            + light_frame[0] * (light_random.x * frame.lighting[5].w)
-            + light_frame[1] * (light_random.y * frame.lighting[5].w));
-        shadow_hits += 1.0
-            - trace_transmittance(origin, light_direction, SHADOW_DISTANCE);
+        if trace_shadow {
+            let light_random = random_pair(pixel, 0x94d049bbu ^ stream) * 2.0 - 1.0;
+            let light_direction = normalize(light_base
+                + light_frame[0] * (light_random.x * frame.lighting[5].w)
+                + light_frame[1] * (light_random.y * frame.lighting[5].w));
+            shadow_hits += 1.0
+                - trace_transmittance(origin, light_direction, SHADOW_DISTANCE);
+        }
     }
     let inverse_rays = 1.0 / f32(ray_count);
     return vec4f(ao_hits * inverse_rays * AO_STRENGTH,

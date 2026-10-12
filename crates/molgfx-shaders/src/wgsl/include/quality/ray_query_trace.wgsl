@@ -26,10 +26,10 @@ fn quality_candidate_distance(
         return -1.0;
     }
     let bond = quality_bond(bond_index);
-    let endpoint_a = atom_position(atoms[bond.atom_a].entity_id);
-    let endpoint_b = atom_position(atoms[bond.atom_b].entity_id);
-    let local_a = (model.world_to_model * vec4f(endpoint_a, 1.0)).xyz;
-    let local_b = (model.world_to_model * vec4f(endpoint_b, 1.0)).xyz;
+    let local_a = atom_local_position(atom_coordinate_base(atoms[bond.atom_a].entity_id))
+        + atom_visual_offset(atoms[bond.atom_a].entity_id);
+    let local_b = atom_local_position(atom_coordinate_base(atoms[bond.atom_b].entity_id))
+        + atom_visual_offset(atoms[bond.atom_b].entity_id);
     return quality_capsule_distance(
         local_origin,
         local_direction,
@@ -61,10 +61,10 @@ fn quality_hit_opacity(
     let bond = quality_bond(primitive_index - visual_counts.atoms);
     let atom_a = atoms[bond.atom_a];
     let atom_b = atoms[bond.atom_b];
-    let endpoint_a = atom_position(atom_a.entity_id);
-    let endpoint_b = atom_position(atom_b.entity_id);
-    let local_a = (model.world_to_model * vec4f(endpoint_a, 1.0)).xyz;
-    let local_b = (model.world_to_model * vec4f(endpoint_b, 1.0)).xyz;
+    let local_a = atom_local_position(atom_coordinate_base(atom_a.entity_id))
+        + atom_visual_offset(atom_a.entity_id);
+    let local_b = atom_local_position(atom_coordinate_base(atom_b.entity_id))
+        + atom_visual_offset(atom_b.entity_id);
     let axis = local_b - local_a;
     let along = clamp(dot(hit - local_a, axis) / max(dot(axis, axis), 1.0e-8), 0.0, 1.0);
     let nearest = local_a + axis * along;

@@ -9,6 +9,7 @@
 // owns its stages under include/bond/ and neither carries the other's work.
 
 //!include "include/camera.wgsl"
+//!include "include/near_proxy.wgsl"
 //!include "include/atom.wgsl"
 //!include "include/intersect.wgsl"
 //!include "include/material_lighting.wgsl"

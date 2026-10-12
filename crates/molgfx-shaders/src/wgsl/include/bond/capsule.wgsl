@@ -93,7 +93,8 @@ fn vs_bond_capsule(
         );
 
     if max(endpoint_a.z, endpoint_b.z) + strand_radius >= camera_near_z() {
-        ndc = bond_quad_uv(vertex_index) * 2.0 - vec2f(1.0);
+        ndc = near_proxy_ndc(min(endpoint_a, endpoint_b) - vec3f(strand_radius),
+            max(endpoint_a, endpoint_b) + vec3f(strand_radius), bond_quad_uv(vertex_index));
     }
 
     out.position =

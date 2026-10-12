@@ -15,11 +15,6 @@ struct DistanceSample {
     compact_index: u32,
 }
 
-// Four standard deviations bound the Gaussian support used by the voxel
-// generator. The compact support keeps each voxel's BVH traversal finite while
-// preserving the visible boundary for the supported positive iso-levels.
-const GAUSSIAN_SUPPORT_SIGMAS: f32 = 4.0;
-
 @group(2) @binding(6) var<storage, read> bvh_nodes: array<BvhNode>;
 @group(2) @binding(7) var<storage, read> bvh_indices: array<u32>;
 @group(2) @binding(8) var<storage, read> source_to_compact: array<u32>;
@@ -59,7 +54,7 @@ fn union_sample(point: vec3f, probe: f32) -> DistanceSample {
                 let base = source_index * 3u;
                 let center = vec3f(coords[base], coords[base + 1u], coords[base + 2u]);
                 let distance = length(point - center)
-                    - atom.radius * representation.visual.w
+                    - atom.radius
                     - probe;
                 if distance < best.distance {
                     best = DistanceSample(distance, compact_index);
@@ -81,7 +76,7 @@ fn union_sample(point: vec3f, probe: f32) -> DistanceSample {
 // The value is a unit-weight sum, so the caller's iso-level remains a direct
 // and reversible density control rather than a distance disguised as one.
 fn gaussian_sample(point: vec3f) -> DistanceSample {
-    let sigma = max(representation.surface.z, 1e-4);
+    let sigma = representation.surface.z;
     var density = 0.0;
     var nearest = EMPTY_COMPACT_INDEX;
     var nearest_distance = 1e20;
@@ -96,7 +91,7 @@ fn gaussian_sample(point: vec3f) -> DistanceSample {
         }
         let node = bvh_nodes[node_index];
         let lower_bound = distance_to_box(point, node.min_left.xyz, node.max_radius.xyz);
-        let support = node.max_radius.w * representation.visual.w * sigma * GAUSSIAN_SUPPORT_SIGMAS;
+        let support = node.max_radius.w * representation.visual.w * sigma * representation.surface.w;
         if lower_bound > support {
             continue;
         }
@@ -113,8 +108,9 @@ fn gaussian_sample(point: vec3f) -> DistanceSample {
                 let base = source_index * 3u;
                 let center = vec3f(coords[base], coords[base + 1u], coords[base + 2u]);
                 let distance = length(point - center);
-                let atom_sigma = max(atoms[compact_index].radius * sigma, 1e-4);
-                if distance > atom_sigma * GAUSSIAN_SUPPORT_SIGMAS {
+                let atom_sigma = atoms[compact_index].radius * sigma;
+                if atom_sigma <= 0.0 { continue; }
+                if distance > atom_sigma * representation.surface.w {
                     continue;
                 }
                 let normalized = distance / atom_sigma;

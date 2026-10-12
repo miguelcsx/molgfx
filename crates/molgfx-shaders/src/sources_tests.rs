@@ -148,9 +148,12 @@ fn relations_compact_visibility_before_the_indirect_draw() {
     let cull = super::RELATION_CULL;
     assert!(cull.contains("@compute @workgroup_size(64)"));
     assert!(cull.contains("fn cull_relations"));
-    assert!(cull.contains("visible_relations[base + local] = global"));
+    assert!(cull.contains("visible_relations[offset + local] = row"));
     assert!(cull.contains("fn style_relation"));
-    assert!(cull.contains("atomicAdd(&relation_args.instance_count, count)"));
+    assert!(cull.contains("fn scan_relation_rows"));
+    assert!(cull.contains("fn scan_relation_groups"));
+    assert!(cull.contains("fn scatter_relation_rows"));
+    assert!(cull.contains("atomicStore(&relation_args.instance_count, prefix)"));
     assert!(super::GEOMETRY_INTERACTION.contains("visible_interactions[instance_index]"));
     for field in [
         "start_width",
@@ -222,12 +225,13 @@ fn animated_ribbons_pull_resident_coordinates_in_beauty_and_shadow_paths() {
 #[test]
 fn quality_ao_traverses_packed_bond_data_without_linear_bond_scans() {
     let source = super::QUALITY_AO;
-    assert!(source.contains("quality_bond_data"));
-    assert!(source.contains("fn quality_bond_node"));
-    assert!(source.contains("fn quality_bond_index"));
+    assert!(source.contains("quality_geometry_data"));
+    assert!(source.contains("fn quality_node"));
+    assert!(source.contains("fn quality_index"));
     assert!(source.contains("fn quality_bond"));
     assert!(source.contains("fn quality_node_interval"));
-    assert!(source.contains("let bond_index = quality_bond_index(first + offset)"));
+    assert!(source.contains("let primitive_index = quality_index(first + offset)"));
+    assert!(source.contains("quality_bond(primitive_index - visual_counts.atoms)"));
     assert!(!source.contains("arrayLength(&quality_bond"));
     assert!(!source.contains("let atom_node_count = arrayLength"));
     assert!(!source.contains("let atom_escape_base = quality_escape_base(arrayLength"));

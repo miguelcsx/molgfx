@@ -119,6 +119,36 @@ fn write_relation(row: u32, start: vec3f, end: vec3f) {
     relation_output[output].end_period = vec4f(end, relation_output[output].end_period.w);
 }
 
+fn write_oriented_relation(row: u32, value: RelationResolverGpu) {
+    write_relation(row, atom_start(value.start), atom_end(value.end));
+    if value.output.z == 0u { return; }
+    let start = source_vec3_start(bitcast<u32>(value.start.w));
+    let end = source_vec3_end(bitcast<u32>(value.end.w));
+    let pivot = source_vec3_start(value.reserved.x);
+    let a = start - pivot;
+    let b = end - pivot;
+    let squared_a = dot(a, a);
+    let squared_b = dot(b, b);
+    let separation = end - start;
+    var accepted = false;
+    if squared_a > 1e-12 && squared_b > 1e-12
+        && dot(separation, separation) <= bitcast<f32>(value.reserved.y)
+        && squared_b <= bitcast<f32>(value.reserved.w) {
+        let left = a * inverseSqrt(squared_a);
+        let right = b * inverseSqrt(squared_b);
+        let cosine = clamp(dot(left, right), -1.0, 1.0);
+        let threshold = bitcast<f32>(value.reserved.z);
+        accepted = cosine <= threshold;
+        // Cosine loses angular resolution near collinearity; atan2 retains it.
+        if threshold < -0.9999 {
+            accepted = atan2(length(cross(left, right)), cosine) >= bitcast<f32>(value.output.w);
+        }
+    }
+    let output = value.output.x;
+    let flags = relation_output[output].metadata.w & 0x7fffffffu;
+    relation_output[output].metadata.w = flags | select(0x80000000u, 0u, accepted);
+}
+
 @compute @workgroup_size(64)
 fn resolve_world_world(@builtin(global_invocation_id) id: vec3u, @builtin(num_workgroups) groups: vec3u) {
     let row = linear_row(id, groups);
@@ -182,7 +212,7 @@ fn resolve_atom_point(@builtin(global_invocation_id) id: vec3u, @builtin(num_wor
 @compute @workgroup_size(64)
 fn resolve_atom_atom(@builtin(global_invocation_id) id: vec3u, @builtin(num_workgroups) groups: vec3u) {
     let row = linear_row(id, groups);
-    if row < arrayLength(&relation_resolvers) { let value = relation_resolvers[row]; write_relation(row, atom_start(value.start), atom_end(value.end)); }
+    if row < arrayLength(&relation_resolvers) { let value = relation_resolvers[row]; write_oriented_relation(row, value); }
 }
 
 @compute @workgroup_size(64)

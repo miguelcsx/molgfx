@@ -61,8 +61,8 @@ struct VisualCullCounts {
     visual_enabled: u32,
     atom_bvh_nodes: u32,
     atom_bvh_indices: u32,
-    bond_bvh_nodes: u32,
-    bond_bvh_indices: u32,
+    quality_bvh_nodes: u32,
+    quality_bvh_indices: u32,
 }
 
 @group(2) @binding(14) var<uniform> visual_counts: VisualCullCounts;

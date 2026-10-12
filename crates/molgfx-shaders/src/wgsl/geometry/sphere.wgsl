@@ -13,6 +13,7 @@
 // they call live beside it under include/sphere/.
 
 //!include "include/camera.wgsl"
+//!include "include/near_proxy.wgsl"
 //!include "include/quad.wgsl"
 //!include "include/atom.wgsl"
 //!include "include/intersect.wgsl"

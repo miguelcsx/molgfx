@@ -96,8 +96,10 @@ fn fs_temporal_resolve(
             0.5 - previous_ndc.y * 0.5,
         );
 
-    // Background has no object-motion vector worth reading.
-    if depth > 0.0 {
+    // A still exposure accumulates the current pose. Its stored trajectory
+    // motion belongs to the preceding presented frame, not to these samples.
+    // Camera reprojection still accounts for subpixel jitter.
+    if depth > 0.0 && frame.temporal.z < 0.5 {
         previous_uv =
             uv +
             textureLoad(
@@ -319,7 +321,7 @@ fn fs_temporal_resolve(
     // ponytail: no disocclusion trail behind fast rigid bodies; that needs a
     // separate depth-independent accumulation buffer.
     let persistence = frame.npr.y;
-    if persistence > 0.0 && depth > 0.0 {
+    if persistence > 0.0 && depth > 0.0 && frame.temporal.z < 0.5 {
         let speed =
             length(
                 textureLoad(motion_vectors, pixel, 0).xy *
