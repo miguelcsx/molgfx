@@ -13,6 +13,7 @@ struct CartoonFsIn {
     @location(4) @interpolate(flat, either) entity_id: u32,
 
     @location(5) clip: vec4f,
+    @location(6) @interpolate(linear) surface_barycentric: vec3f,
 }
 
 struct CartoonFsOut {
@@ -31,6 +32,8 @@ fn cartoon_clipped(
         clip < vec4f(0.0),
     );
 }
+
+//!include "include/ribbon/surface_wire.wgsl"
 
 /// Resolves the representation-specific visual state for one cartoon fragment.
 ///
@@ -68,14 +71,16 @@ fn cartoon_fragment_visual(
 @fragment
 fn fs_cartoon(
     in: CartoonFsIn,
+    @builtin(front_facing) front: bool,
 ) -> CartoonFsOut {
-    if cartoon_clipped(in.clip) {
+    let wire_clipped = ribbon_surface_wire_clipped(in.surface_barycentric);
+    if cartoon_clipped(in.clip) || wire_clipped {
         discard;
     }
 
     let normal =
         normalize(
-            in.normal_curve.xyz,
+            in.normal_curve.xyz * select(-1.0, 1.0, front),
         );
 
     let visual =
@@ -138,14 +143,16 @@ fn fs_cartoon(
 @fragment
 fn fs_cartoon_transparent(
     in: CartoonFsIn,
+    @builtin(front_facing) front: bool,
 ) -> OitOutput {
-    if cartoon_clipped(in.clip) {
+    let wire_clipped = ribbon_surface_wire_clipped(in.surface_barycentric);
+    if cartoon_clipped(in.clip) || wire_clipped {
         discard;
     }
 
     let normal =
         normalize(
-            in.normal_curve.xyz,
+            in.normal_curve.xyz * select(-1.0, 1.0, front),
         );
 
     let visual =

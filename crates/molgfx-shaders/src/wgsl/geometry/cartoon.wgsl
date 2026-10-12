@@ -42,6 +42,8 @@ struct ModelUniforms {
 
 @group(2) @binding(2) var<uniform> model: ModelUniforms;
 
+//!include "include/ribbon/stroke.wgsl"
+
 fn cartoon_pick_local_row(
     entity_id: u32,
 ) -> u32 {
@@ -80,6 +82,7 @@ struct CartoonVsOut {
 
     // Signed distance to each clip plane; an inactive plane stays positive.
     @location(5) clip: vec4f,
+    @location(6) @interpolate(linear) surface_barycentric: vec3f,
 }
 
 
@@ -304,6 +307,15 @@ fn vs_cartoon(
             1.0,
         );
 
+    if ribbon_uniforms.tube.w != 0.0 {
+        out.position = ribbon_stroke_offset(vertex_id, out.position);
+    }
+
+    out.surface_barycentric = vec3f(0.0);
+    if ribbon_uniforms.tube.z != 0.0 {
+        out.surface_barycentric = ribbon_deformations[vertex_id].parameter.xyz;
+    }
+
     out.clip =
         cartoon_clip_distances(
             world_position,
@@ -320,10 +332,7 @@ fn vs_cartoon(
             ),
         );
 
-    out.color =
-        unpack4x8unorm(
-            vertex.color,
-        );
+    out.color = ribbon_ring_color(vertex_id, unpack4x8unorm(vertex.color));
 
     out.view_position =
         view_position;

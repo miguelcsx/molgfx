@@ -192,6 +192,12 @@ fn ribbon_gap_vertex(
     );
 }
 
+//!include "include/ribbon/rings.wgsl"
+//!include "include/ribbon/legacy.wgsl"
+//!include "include/ribbon/twister.wgsl"
+//!include "include/ribbon/schematic.wgsl"
+//!include "include/ribbon/strands.wgsl"
+
 fn ribbon_deform(
     vertex_id: u32,
     base_position: vec3f,
@@ -205,14 +211,55 @@ fn ribbon_deform(
     if deformation.controls.x == 0xffffffffu {
         return DeformedRibbonVertex(vec3f(0.0), vec3f(0.0), 0u);
     }
-    let p0 = ribbon_coordinate(deformation.controls.x, previous);
-    let p1 = ribbon_coordinate(deformation.controls.y, previous);
-    let p2 = ribbon_coordinate(deformation.controls.z, previous);
-    let p3 = ribbon_coordinate(deformation.controls.w, previous);
-    let r0 = ribbon_base_coordinate(deformation.controls.x);
-    let r1 = ribbon_base_coordinate(deformation.controls.y);
-    let r2 = ribbon_base_coordinate(deformation.controls.z);
-    let r3 = ribbon_base_coordinate(deformation.controls.w);
+    if bitcast<u32>(deformation.parameter.w) == RIBBON_EDGE_ANCHOR {
+        return ribbon_edge_vertex(deformation, previous);
+    }
+    if bitcast<u32>(deformation.parameter.w) == 8u {
+        return ribbon_ring_vertex(deformation, previous);
+    }
+    if bitcast<u32>(deformation.parameter.w) == 11u {
+        return twister_vertex(deformation, base_position, base_normal, previous);
+    }
+    if bitcast<u32>(deformation.parameter.w) == 15u {
+        return ribbon_strand_vertex(deformation, previous);
+    }
+    let mode = bitcast<u32>(deformation.parameter.w);
+    let p0 = ribbon_anchor_coordinate(deformation.controls.x, mode, previous, false);
+    let p1 = ribbon_anchor_coordinate(deformation.controls.y, mode, previous, false);
+    let p2 = ribbon_anchor_coordinate(deformation.controls.z, mode, previous, false);
+    let p3 = ribbon_anchor_coordinate(deformation.controls.w, mode, previous, false);
+    let stroke_mode = bitcast<u32>(deformation.parameter.w);
+    if stroke_mode == 12u || stroke_mode == 13u {
+        var position = mix(p1, p2, deformation.parameter.x);
+        if stroke_mode == 13u {
+            position = ribbon_catmull_position(p0, p1, p2, p3, deformation.parameter.x);
+        }
+        return DeformedRibbonVertex(position, vec3f(0.0, 0.0, 1.0), 1u);
+    }
+    let r0 = ribbon_anchor_coordinate(deformation.controls.x, mode, false, true);
+    let r1 = ribbon_anchor_coordinate(deformation.controls.y, mode, false, true);
+    let r2 = ribbon_anchor_coordinate(deformation.controls.z, mode, false, true);
+    let r3 = ribbon_anchor_coordinate(deformation.controls.w, mode, false, true);
+    if bitcast<u32>(deformation.parameter.w) == 10u {
+        let cross_normal = cross(p1 - p0, p2 - p0);
+        if dot(cross_normal, cross_normal) <= 1e-12 {
+            return DeformedRibbonVertex(p0, vec3f(0.0, 0.0, 1.0), 1u);
+        }
+        let corner = u32(deformation.parameter.x);
+        let position = select(select(p0, p1, corner == 1u), p2, corner == 2u);
+        return DeformedRibbonVertex(position, normalize(cross_normal), 1u);
+    }
+    if bitcast<u32>(deformation.parameter.w) == 7u {
+        let cross_normal = cross(p1 - p0, p2 - p0);
+        let limit = deformation.parameter.y * deformation.parameter.y;
+        if dot(p0 - p3, p0 - p3) > limit || dot(p1 - p3, p1 - p3) > limit
+            || dot(p2 - p3, p2 - p3) > limit || dot(cross_normal, cross_normal) <= 1e-12 {
+            return DeformedRibbonVertex(p0, vec3f(0.0, 0.0, 1.0), 1u);
+        }
+        let corner = u32(deformation.parameter.x);
+        let position = select(select(p0, p1, corner == 1u), p2, corner == 2u);
+        return DeformedRibbonVertex(position, normalize(cross_normal), 1u);
+    }
     if bitcast<u32>(deformation.parameter.w) == RIBBON_RESIDUE_ANCHOR {
         let reference_cross = cross(r1 - r0, r2 - r0);
         let current_cross = cross(p1 - p0, p2 - p0);
@@ -256,11 +303,10 @@ fn ribbon_deform(
         let axis = ribbon_fit_vector(current_fit + 4u);
         let reference_origin = ribbon_fit_vector(fit + 16u);
         let reference_axis = ribbon_fit_vector(fit + 20u);
-        let projected = mix(p0, p1, parameter);
-        let reference_projected = mix(r0, r1, parameter);
-        center = origin + axis * dot(projected - origin, axis);
+        let sequence_offset = deformation.parameter.z + parameter;
+        center = origin + axis * sequence_offset;
         derivative = axis;
-        reference_center = reference_origin + reference_axis * dot(reference_projected - reference_origin, reference_axis);
+        reference_center = reference_origin + reference_axis * sequence_offset;
         reference_derivative = reference_axis;
     }
     let length_sq = dot(derivative, derivative);
@@ -272,16 +318,25 @@ fn ribbon_deform(
     );
     let tangent = select(reference_tangent, derivative * inverseSqrt(length_sq), length_sq > 1e-12);
     var rotation = ribbon_rotation_arc(reference_tangent, tangent);
-    if bitcast<u32>(deformation.parameter.w) == RIBBON_PEPTIDE_ANCHOR {
+    if mode == RIBBON_PEPTIDE_ANCHOR || mode == RIBBON_SCHEMATIC_ANCHOR {
         let rows = bitcast<vec2u>(deformation.parameter.yz);
-        let width = ribbon_peptide_width(
-            ribbon_coordinate(rows.x, previous) - p1,
-            ribbon_coordinate(rows.y, previous) - p2, tangent, parameter,
-        );
-        let base_width = ribbon_peptide_width(
-            ribbon_base_coordinate(rows.x) - r1,
-            ribbon_base_coordinate(rows.y) - r2, reference_tangent, parameter,
-        );
+        var left: vec3f;
+        var right: vec3f;
+        var reference_left: vec3f;
+        var reference_right: vec3f;
+        if mode == RIBBON_SCHEMATIC_ANCHOR {
+            left = ribbon_schematic_oxygen(deformation.controls.y, previous, false);
+            right = ribbon_schematic_oxygen(deformation.controls.z, previous, false);
+            reference_left = ribbon_schematic_oxygen(deformation.controls.y, false, true);
+            reference_right = ribbon_schematic_oxygen(deformation.controls.z, false, true);
+        } else {
+            left = ribbon_coordinate(rows.x, previous) - p1;
+            right = ribbon_coordinate(rows.y, previous) - p2;
+            reference_left = ribbon_base_coordinate(rows.x) - r1;
+            reference_right = ribbon_base_coordinate(rows.y) - r2;
+        }
+        let width = ribbon_peptide_width(left, right, tangent, parameter);
+        let base_width = ribbon_peptide_width(reference_left, reference_right, reference_tangent, parameter);
         let transported = ribbon_rotate(rotation, base_width);
         if dot(width, width) > 0.0 && dot(base_width, base_width) > 0.0 {
             let oriented_width = width * select(1.0, -1.0, dot(width, transported) < 0.0);

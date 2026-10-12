@@ -35,6 +35,7 @@ struct ShadowRibbonOut {
     @location(2) world_normal: vec3f,
     @location(3) color: vec4f,
     @location(4) @interpolate(flat, either) entity_id: u32,
+    @location(5) @interpolate(linear) surface_barycentric: vec3f,
 }
 
 @vertex
@@ -56,6 +57,8 @@ fn vs_shadow_ribbon(
         shadow_ribbon_model.world_to_model[1].xyz,
         shadow_ribbon_model.world_to_model[2].xyz,
     );
+    var barycentric = vec3f(0.0);
+    if ribbon_uniforms.tube.z != 0.0 { barycentric = ribbon_deformations[vertex_id].parameter.xyz; }
     return ShadowRibbonOut(
         frame.shadow_view_proj * world,
         position,
@@ -63,11 +66,16 @@ fn vs_shadow_ribbon(
         normalize(transpose(inverse_model) * normal),
         unpack4x8unorm(vertex.color),
         vertex.entity_id,
+        barycentric,
     );
 }
 
+//!include "include/ribbon/surface_wire.wgsl"
+
 @fragment
 fn fs_shadow_ribbon(in: ShadowRibbonOut) {
+    let wire_clipped = ribbon_surface_wire_clipped(in.surface_barycentric);
+    if wire_clipped { discard; }
     if !ribbon_shadow_visible(
         in.entity_id,
         in.color,
