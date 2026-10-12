@@ -109,6 +109,13 @@ impl PyCamera {
 
 #[pymethods]
 impl PyRenderProfile {
+    fn __repr__(&self) -> String {
+        format!(
+            "RenderProfile(target_fps={}, quality={:?})",
+            self.0.target_fps, self.0.quality
+        )
+    }
+
     #[getter]
     const fn target_fps(&self) -> u16 {
         self.0.target_fps

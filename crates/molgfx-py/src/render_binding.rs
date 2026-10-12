@@ -70,11 +70,16 @@ impl PyPickResult {
     }
 }
 
+/// A rendered 8-bit image. `pixels()` returns the RGBA bytes.
 #[pyclass(name = "Image")]
 struct PyImage(molgfx::Image);
 
 #[pymethods]
 impl PyImage {
+    fn __repr__(&self) -> String {
+        format!("Image({}x{})", self.0.width(), self.0.height())
+    }
+
     #[getter]
     fn width(&self) -> u32 {
         self.0.width()
@@ -108,6 +113,10 @@ struct PyHdrImage(molgfx::HdrImage);
 
 #[pymethods]
 impl PyHdrImage {
+    fn __repr__(&self) -> String {
+        format!("HdrImage({}x{})", self.0.width(), self.0.height())
+    }
+
     #[getter]
     fn width(&self) -> u32 {
         self.0.width()
@@ -145,8 +154,9 @@ impl PyHdrImage {
     }
 }
 
+/// A GPU renderer. Create one per process and reuse it across scenes and frames.
 #[pyclass(name = "Renderer")]
-struct PyRenderer(molgfx::Renderer);
+struct PyRenderer(molgfx::Renderer, molgfx::RenderProfile);
 
 #[pymethods]
 impl PyRenderer {
@@ -160,10 +170,19 @@ impl PyRenderer {
         let profile = profile.map_or_else(molgfx::RenderProfile::default, |profile| profile.0);
         let budget = surface_memory_mib.map(|mib| mib.saturating_mul(1024 * 1024));
         py.detach(|| molgfx::Renderer::with_surface_budget(profile, budget))
-            .map(Self)
+            .map(|renderer| Self(renderer, profile))
             .map_err(error)
     }
 
+    fn __repr__(&self) -> String {
+        format!(
+            "Renderer(target_fps={}, quality={:?})",
+            self.1.target_fps, self.1.quality
+        )
+    }
+
+    /// Renders the scene's current state at `size=(width, height)` and returns an
+    /// `Image`. Trajectory frames, parameters and camera are read as they are now.
     #[pyo3(signature = (scene, *, size))]
     fn render_image(
         &mut self,
@@ -203,12 +222,19 @@ impl PyRenderer {
             .map_err(error)
     }
 
+    /// Resolves the semantic object under pixel `(x, y)` of the last rendered
+    /// frame, or `None` for background.
     fn pick(&mut self, py: Python<'_>, x: u32, y: u32) -> PyResult<Option<PyPickResult>> {
         py.detach(|| self.0.pick(x, y))
             .map(|pick| pick.map(PyPickResult))
             .map_err(error)
     }
 
+    /// Renders the scene's *current* state `frames` times at `fps`. It does not
+    /// advance trajectory time or any parameter, so a static scene yields
+    /// identical frames. To animate a trajectory, use
+    /// `molgfx.playback.attach(scene, ...).render(renderer, times=..., size=...)`;
+    /// to animate the camera, use `render_camera_path`.
     #[pyo3(signature = (scene, *, size, fps, frames))]
     fn render_sequence(
         &mut self,
@@ -223,6 +249,7 @@ impl PyRenderer {
             .map_err(error)
     }
 
+    /// Renders one image per frame of a `CameraPath` sampled at `fps`.
     #[pyo3(signature = (scene, path, *, size, fps))]
     fn render_camera_path(
         &mut self,
@@ -237,6 +264,7 @@ impl PyRenderer {
             .map_err(error)
     }
 
+    /// Describes how the renderer would draw the scene (passes, quality and budgets).
     fn explain(&self, scene: &PyScene) -> String {
         self.0.explain(&scene.inner)
     }

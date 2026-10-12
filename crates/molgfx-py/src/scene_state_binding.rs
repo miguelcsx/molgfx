@@ -1,7 +1,7 @@
 //! Python adapters for renderer-independent interaction and view state.
 
 use crate::binding::selection;
-use crate::scene_binding::PyScene;
+use crate::scene_binding::{PyScene, stage_or_apply};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
@@ -42,7 +42,7 @@ impl PyScene {
     }
 
     fn set_parameter(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         representation: &Bound<'_, PyAny>,
         parameter: &Bound<'_, PyAny>,
@@ -53,7 +53,8 @@ impl PyScene {
         if let Ok(parameter) =
             parameter.extract::<PyRef<'_, crate::visual_binding::PyScalarParameter>>()
         {
-            return self.stage_or_apply(
+            return stage_or_apply(
+                slf,
                 py,
                 molgfx::schema::PatchOperation::SetParameter {
                     id,
@@ -66,7 +67,8 @@ impl PyScene {
             parameter.extract::<PyRef<'_, crate::visual_binding::PyVectorParameter>>()
         {
             let value = value.extract::<(f32, f32, f32)>()?;
-            return self.stage_or_apply(
+            return stage_or_apply(
+                slf,
                 py,
                 molgfx::schema::PatchOperation::SetParameter {
                     id,
@@ -79,7 +81,8 @@ impl PyScene {
             parameter.extract::<PyRef<'_, crate::visual_binding::PyColorParameter>>()
         {
             let value = value.extract::<(u8, u8, u8)>()?;
-            return self.stage_or_apply(
+            return stage_or_apply(
+                slf,
                 py,
                 molgfx::schema::PatchOperation::SetParameter {
                     id,
@@ -96,11 +99,12 @@ impl PyScene {
     }
 
     fn set_camera(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         camera: Option<&crate::authoring_binding::PyCamera>,
     ) -> PyResult<()> {
-        self.stage_or_apply(
+        stage_or_apply(
+            slf,
             py,
             molgfx::schema::PatchOperation::SetCamera {
                 camera: camera.map(|value| value.0),
@@ -110,7 +114,7 @@ impl PyScene {
 
     #[pyo3(signature = (*, channel, target=None, name=None))]
     fn set_interaction(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         channel: &str,
         target: Option<&Bound<'_, PyAny>>,
@@ -130,7 +134,8 @@ impl PyScene {
             _ => return Err(PyValueError::new_err("unknown interaction channel")),
         };
         let target = target.map(selection).transpose()?.map(Into::into);
-        self.stage_or_apply(
+        stage_or_apply(
+            slf,
             py,
             molgfx::schema::PatchOperation::SetInteraction {
                 channel,

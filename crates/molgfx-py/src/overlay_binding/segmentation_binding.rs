@@ -2,7 +2,7 @@
 
 use super::{PyDataSource, rgb};
 use crate::binding::error;
-use crate::scene_binding::PyScene;
+use crate::scene_binding::{PyScene, stage_or_apply};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyModule;
@@ -90,12 +90,13 @@ impl PyScene {
 
     /// Replaces styles atomically and publishes the same portable patch.
     fn set_segment_styles(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         identity: &crate::id_binding::PySegmentationId,
         styles: Vec<PyRef<'_, PySegmentStyle>>,
     ) -> PyResult<()> {
-        self.stage_or_apply(
+        stage_or_apply(
+            slf,
             py,
             molgfx::schema::PatchOperation::SetSegmentStyles {
                 id: identity.0,
@@ -105,11 +106,12 @@ impl PyScene {
     }
 
     fn remove_segmentation(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         identity: &crate::id_binding::PySegmentationId,
     ) -> PyResult<()> {
-        self.stage_or_apply(
+        stage_or_apply(
+            slf,
             py,
             molgfx::schema::PatchOperation::RemoveSegmentation { id: identity.0 },
         )

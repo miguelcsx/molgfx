@@ -1,7 +1,7 @@
 //! Ensemble overlays and property-difference views on the Python scene.
 
 use crate::binding::selection;
-use crate::scene_binding::PyScene;
+use crate::scene_binding::{PyScene, deliver};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -21,83 +21,96 @@ impl PyScene {
     /// their weight relative to it, never below `minimum_opacity`.
     #[pyo3(signature = (members, *, dominant_opacity=None, alternate_opacity=None, minimum_opacity=None))]
     fn ensemble(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         members: Vec<Member<'_>>,
         dominant_opacity: Option<f32>,
         alternate_opacity: Option<f32>,
         minimum_opacity: Option<f32>,
     ) -> PyResult<Vec<Py<PyAny>>> {
-        if self.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "an ensemble cannot be added inside a scene transaction",
-            ));
-        }
-        let members = members
-            .into_iter()
-            .map(|(structure, weight, color)| {
-                Ok(molgfx::preset::EnsembleMember {
-                    structure: molgfx::StructureId::new(crate::id_binding::structure_id(
-                        &structure,
-                    )?),
-                    weight,
-                    color: rgb(color),
+        let (ids, patch) = {
+            let mut this = slf.borrow_mut();
+            if this.pending.is_some() {
+                return Err(PyValueError::new_err(
+                    "an ensemble cannot be added inside a scene transaction",
+                ));
+            }
+            let members = members
+                .into_iter()
+                .map(|(structure, weight, color)| {
+                    Ok(molgfx::preset::EnsembleMember {
+                        structure: molgfx::StructureId::new(crate::id_binding::structure_id(
+                            &structure,
+                        )?),
+                        weight,
+                        color: rgb(color),
+                    })
                 })
-            })
-            .collect::<PyResult<Vec<_>>>()?;
-        let mut style = molgfx::preset::EnsembleStyle::default();
-        if let Some(value) = dominant_opacity {
-            style.dominant_opacity = value;
+                .collect::<PyResult<Vec<_>>>()?;
+            let mut style = molgfx::preset::EnsembleStyle::default();
+            if let Some(value) = dominant_opacity {
+                style.dominant_opacity = value;
+            }
+            if let Some(value) = alternate_opacity {
+                style.alternate_opacity = value;
+            }
+            if let Some(value) = minimum_opacity {
+                style.minimum_opacity = value;
+            }
+            let base_revision = this.inner.revision();
+            let inserted = this
+                .inner
+                .add_ensemble(&members, style)
+                .map_err(crate::binding::error)?;
+            this.describe_added(py, base_revision, inserted, Vec::new())
+        }?;
+        if !patch.operations.is_empty() {
+            deliver(slf, py, &patch)?;
         }
-        if let Some(value) = alternate_opacity {
-            style.alternate_opacity = value;
-        }
-        if let Some(value) = minimum_opacity {
-            style.minimum_opacity = value;
-        }
-        let base_revision = self.inner.revision();
-        let inserted = self
-            .inner
-            .add_ensemble(&members, style)
-            .map_err(crate::binding::error)?;
-        self.publish_added(py, base_revision, inserted, Vec::new())
+        Ok(ids)
     }
 
     /// Draws `target` as a cartoon coloured by a bound property, with small
     /// values faded to context. See `DifferenceStyle` for the mapping.
     #[pyo3(signature = (property, target, *, structure=None, style=None))]
     fn difference(
-        &mut self,
+        slf: &Bound<'_, Self>,
         py: Python<'_>,
         property: &crate::authoring_binding::PyScalarProperty,
         target: &Bound<'_, PyAny>,
         structure: Option<&Bound<'_, PyAny>>,
         style: Option<PyRef<'_, PyDifferenceStyle>>,
     ) -> PyResult<Py<PyAny>> {
-        if self.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "a difference view cannot be added inside a scene transaction",
-            ));
+        let (mut ids, patch) = {
+            let mut this = slf.borrow_mut();
+            if this.pending.is_some() {
+                return Err(PyValueError::new_err(
+                    "a difference view cannot be added inside a scene transaction",
+                ));
+            }
+            let structure = match structure {
+                Some(structure) => crate::id_binding::structure_id(structure)?,
+                None => this.structure_id,
+            };
+            let style = style.map_or_else(molgfx::preset::DifferenceStyle::default, |style| {
+                style.0.clone()
+            });
+            let target = molgfx::Selection::from(selection(target)?);
+            let base_revision = this.inner.revision();
+            let inserted = this
+                .inner
+                .add_difference(
+                    molgfx::StructureId::new(structure),
+                    target,
+                    property.0.clone(),
+                    &style,
+                )
+                .map_err(crate::binding::error)?;
+            this.describe_added(py, base_revision, vec![inserted], Vec::new())
+        }?;
+        if !patch.operations.is_empty() {
+            deliver(slf, py, &patch)?;
         }
-        let structure = match structure {
-            Some(structure) => crate::id_binding::structure_id(structure)?,
-            None => self.structure_id,
-        };
-        let style = style.map_or_else(molgfx::preset::DifferenceStyle::default, |style| {
-            style.0.clone()
-        });
-        let target = molgfx::Selection::from(selection(target)?);
-        let base_revision = self.inner.revision();
-        let inserted = self
-            .inner
-            .add_difference(
-                molgfx::StructureId::new(structure),
-                target,
-                property.0.clone(),
-                &style,
-            )
-            .map_err(crate::binding::error)?;
-        let mut ids = self.publish_added(py, base_revision, vec![inserted], Vec::new())?;
         ids.pop()
             .ok_or_else(|| PyValueError::new_err("the difference view was not added"))
     }

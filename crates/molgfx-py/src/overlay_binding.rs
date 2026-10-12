@@ -6,18 +6,18 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyModule};
 mod segmentation_binding;
 use segmentation_binding::PySegmentation;
+mod volume_binding;
+use volume_binding::{PyVolume, volume};
+mod interaction_binding;
+use interaction_binding::PyInteraction;
 
 #[derive(Clone, Debug)]
 #[pyclass(name = "DataSource", frozen, skip_from_py_object)]
-struct PyDataSource(molgfx::schema::DataSource);
+pub(super) struct PyDataSource(pub(super) molgfx::schema::DataSource);
 
 #[derive(Clone, Debug)]
 #[pyclass(name = "Anchor", frozen, skip_from_py_object)]
 pub(super) struct PyAnchor(molgfx::Anchor);
-
-#[derive(Clone, Debug)]
-#[pyclass(name = "Volume", frozen, skip_from_py_object)]
-struct PyVolume(molgfx::VolumeSpec);
 
 #[derive(Clone, Debug)]
 #[pyclass(name = "Label", frozen, skip_from_py_object)]
@@ -26,10 +26,6 @@ struct PyLabel(molgfx::AnnotationSpec);
 #[derive(Clone, Debug)]
 #[pyclass(name = "Measurement", frozen, skip_from_py_object)]
 struct PyMeasurement(molgfx::MeasurementSpec);
-
-#[derive(Clone, Debug)]
-#[pyclass(name = "Interaction", frozen, skip_from_py_object)]
-struct PyInteraction(molgfx::InteractionSpec);
 
 #[derive(Clone, Debug)]
 #[pyclass(name = "Trajectory", frozen, skip_from_py_object)]
@@ -87,19 +83,6 @@ fn rgb(value: (u8, u8, u8)) -> molgfx::Color {
     molgfx::Color::rgb(value.0, value.1, value.2)
 }
 
-fn interaction_kind(value: &str) -> PyResult<molgfx::InteractionKind> {
-    match value {
-        "hydrogen_bond" => Ok(molgfx::InteractionKind::HydrogenBond),
-        "salt_bridge" => Ok(molgfx::InteractionKind::SaltBridge),
-        "pi_stacking" => Ok(molgfx::InteractionKind::PiStacking),
-        "cation_pi" => Ok(molgfx::InteractionKind::CationPi),
-        "hydrophobic" => Ok(molgfx::InteractionKind::Hydrophobic),
-        "metal_coordination" => Ok(molgfx::InteractionKind::MetalCoordination),
-        "contact" => Ok(molgfx::InteractionKind::Contact),
-        _ => Err(PyTypeError::new_err("unknown overlay interaction kind")),
-    }
-}
-
 #[pyfunction]
 #[pyo3(signature = (content_hash, *, uri=None, format=None))]
 fn source(content_hash: &str, uri: Option<&str>, format: Option<&str>) -> PyDataSource {
@@ -127,136 +110,6 @@ fn selection_anchor(structure: &Bound<'_, PyAny>, target: &Bound<'_, PyAny>) -> 
         structure: molgfx::StructureId::new(crate::id_binding::structure_id(structure)?),
         selection: selection(target)?.into(),
     }))
-}
-
-#[pyfunction]
-#[pyo3(signature = (*, source, dimensions, voxel_to_world=None))]
-fn volume(
-    source: &PyDataSource,
-    dimensions: (u32, u32, u32),
-    voxel_to_world: Option<[f32; 16]>,
-) -> PyVolume {
-    let mut affine = [
-        1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-    ];
-    if let Some(matrix) = voxel_to_world {
-        affine = matrix;
-    }
-    PyVolume(molgfx::VolumeSpec {
-        source: source.0.clone(),
-        dimensions: [dimensions.0, dimensions.1, dimensions.2],
-        voxel_to_world: affine,
-        presentations: Vec::new(),
-        region: None,
-    })
-}
-
-#[pymethods]
-impl PyVolume {
-    #[pyo3(signature = (isovalue, *, color=(49,104,142), opacity=1.0, style="solid", width=0.1))]
-    fn isosurface(
-        &self,
-        isovalue: f32,
-        color: (u8, u8, u8),
-        opacity: f32,
-        style: &str,
-        width: f32,
-    ) -> PyResult<Self> {
-        let style = match style {
-            "solid" => molgfx::IsoStyle::Solid,
-            "mesh" => molgfx::IsoStyle::Mesh {
-                line_width_voxels: width,
-            },
-            "dots" => molgfx::IsoStyle::Dots {
-                dot_radius_voxels: width,
-            },
-            _ => {
-                return Err(PyTypeError::new_err(
-                    "isosurface style must be solid, mesh, or dots",
-                ));
-            }
-        };
-        let mut value = self.clone();
-        value
-            .0
-            .presentations
-            .push(molgfx::VolumePresentation::Isosurface {
-                isovalue,
-                color: rgb(color),
-                opacity,
-                style,
-            });
-        Ok(value)
-    }
-
-    #[pyo3(signature = (transfer, *, opacity_scale=2.0, step_scale=0.65, medium=false))]
-    fn direct(
-        &self,
-        transfer: Vec<(f32, (u8, u8, u8), f32)>,
-        opacity_scale: f32,
-        step_scale: f32,
-        medium: bool,
-    ) -> Self {
-        let transfer = transfer
-            .into_iter()
-            .map(|(value, color, opacity)| molgfx::VolumeTransferPoint {
-                value,
-                color: rgb(color),
-                opacity,
-            })
-            .collect();
-        let presentation = if medium {
-            molgfx::VolumePresentation::Medium {
-                transfer,
-                opacity_scale,
-                step_scale,
-            }
-        } else {
-            molgfx::VolumePresentation::Direct {
-                transfer,
-                opacity_scale,
-                step_scale,
-            }
-        };
-        let mut value = self.clone();
-        value.0.presentations.push(presentation);
-        value
-    }
-
-    #[pyo3(signature = (*, point, normal, ramp="viridis", domain=(0.0,1.0)))]
-    fn slice(&self, point: [f32; 3], normal: [f32; 3], ramp: &str, domain: (f32, f32)) -> Self {
-        let mut value = self.clone();
-        value
-            .0
-            .presentations
-            .push(molgfx::VolumePresentation::Slice {
-                point,
-                normal,
-                ramp: ramp.into(),
-                domain: [domain.0, domain.1],
-            });
-        value
-    }
-
-    #[pyo3(signature = (isovalue, *, color=(49,104,142), opacity=1.0))]
-    fn liquid_surface(&self, isovalue: f32, color: (u8, u8, u8), opacity: f32) -> Self {
-        let mut value = self.clone();
-        value
-            .0
-            .presentations
-            .push(molgfx::VolumePresentation::LiquidSurface {
-                isovalue,
-                color: rgb(color),
-                opacity,
-            });
-        value
-    }
-
-    fn region(&self, minimum: [u32; 3], maximum: [u32; 3]) -> Self {
-        let mut value = self.clone();
-        value.0.region = Some(molgfx::VolumeRegion { minimum, maximum });
-        value
-    }
 }
 
 #[pyfunction]
@@ -299,16 +152,6 @@ fn dihedral(
         third.0.clone(),
         fourth.0.clone(),
     ))
-}
-
-#[pyfunction]
-#[pyo3(signature = (*, kind, first, second))]
-fn explicit(kind: &str, first: &PyAnchor, second: &PyAnchor) -> PyResult<PyInteraction> {
-    Ok(PyInteraction(molgfx::interaction::explicit(
-        interaction_kind(kind)?,
-        first.0.clone(),
-        second.0.clone(),
-    )))
 }
 
 #[pyfunction(name = "bind")]
@@ -473,7 +316,7 @@ pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     measurement.add_function(wrap_pyfunction!(dihedral, &measurement)?)?;
     module.add_submodule(&measurement)?;
     let interaction = namespace(module, "interaction")?;
-    interaction.add_function(wrap_pyfunction!(explicit, &interaction)?)?;
+    interaction_binding::register(&interaction)?;
     module.add_submodule(&interaction)?;
     let ellipsoid = namespace(module, "ellipsoid")?;
     ellipsoid.add_function(wrap_pyfunction!(adp, &ellipsoid)?)?;
