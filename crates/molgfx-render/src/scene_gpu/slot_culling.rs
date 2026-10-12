@@ -73,8 +73,8 @@ impl CullModes {
 }
 
 pub(crate) struct CullDispatch<'a, D: Device> {
-    /// The visibility key this dispatch computes, when the slot has one.
-    pub(crate) key: Option<super::visibility_cache::VisibilityKey>,
+    /// Shared visibility and the indirect destination this dispatch populates.
+    pub(crate) key: Option<(super::visibility_cache::VisibilityKey, u64)>,
     pub(crate) atom_group: &'a D::BindGroup,
     pub(crate) bond_group: &'a D::BindGroup,
     pub(crate) visual_group: &'a D::BindGroup,

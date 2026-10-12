@@ -5,6 +5,22 @@ use crate::error::RenderError;
 use molgfx_gpu::{BufferDesc, BufferUsage, Device};
 
 impl<D: Device> GpuSlot<D> {
+    /// Updates whether immutable scientific data belongs to the displayed sample.
+    pub(in crate::scene_gpu) fn sync_data_current(
+        &mut self,
+        placed: &molgfx_core::PlacedStructure,
+        representation: &molgfx_core::Representation,
+    ) -> Result<bool, RenderError> {
+        let current = if let Some(surface) = &representation.molecular_surface {
+            surface.validate_source(&placed.source)?;
+            surface.validate_pose(placed).is_ok()
+        } else {
+            true
+        };
+        let changed = self.data_current != current;
+        self.data_current = current;
+        Ok(changed)
+    }
     /// Records the counts this slot draws from its shared record set.
     pub(super) const fn adopt_counts(&mut self, atom_count: u32, bond_count: u32) {
         self.atom_count = atom_count;
@@ -37,15 +53,5 @@ impl<D: Device> GpuSlot<D> {
             })?);
         }
         Ok(())
-    }
-
-    /// The level-of-detail mode the cull shader reads for this slot.
-    pub(crate) const fn lod_mode(&self, detail: crate::scene_gpu::detail::TierDetail) -> u32 {
-        crate::scene_gpu::slot_types::lod_mode(
-            self.atom_count,
-            self.bond_count,
-            self.kind,
-            detail.lod_enabled,
-        )
     }
 }

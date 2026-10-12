@@ -309,17 +309,13 @@ impl<D: Device> GpuScene<D> {
             || self.instance_batches.has_translucency()
     }
 
-    /// One cull dispatch per shared visibility key.
-    ///
-    /// Two representations over the same records and the same cull policy read
-    /// exactly the same visible set, so the second dispatch would recompute the
-    /// first one's answer. The groups all belong to the same shared set, so any
-    /// member of a group is equivalent.
+    /// One cull dispatch per shared visibility and indirect destination.
+    /// Different point densities share atoms but need distinct draw counts.
     pub(crate) fn cull_dispatches(&self) -> impl Iterator<Item = CullDispatch<'_, D>> {
         let tile_groups =
             super::super::dispatch::workgroups_2d(u64::from(self.cull_tile_count).div_ceil(64));
         let fast_tile_lod = self.cull_tile_count < 262_143;
-        let mut seen: Vec<super::super::VisibilityKey> = Vec::new();
+        let mut seen: Vec<(super::super::VisibilityKey, u64)> = Vec::new();
         self.slots
             .iter()
             .filter_map(move |slot| slot.cull(tile_groups, fast_tile_lod))

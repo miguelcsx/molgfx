@@ -32,7 +32,7 @@ struct SlotShared<'a, D: Device> {
     surface_fields: &'a crate::scene_gpu::surface_cache::SurfaceFieldCache<D>,
     structures: &'a [GpuStructure<D>],
     records: &'a RecordCache<D>,
-    args: &'a std::collections::BTreeMap<crate::scene_gpu::RecordKey, (u64, u64, u64)>,
+    args: &'a std::collections::BTreeMap<(crate::scene_gpu::VisibilityKey, u32), (u64, u64, u64)>,
     /// The arena the cull groups bind as ranged slices.
     draw_arena: Option<&'a D::Buffer>,
     acceleration: &'a AccelerationCache<D>,
@@ -118,7 +118,6 @@ impl<D: Device> GpuScene<D> {
 
 /// Everything one slot resolves from the shared tables.
 struct Resolved<'a, D: Device> {
-    args: Option<(u64, u64, u64)>,
     records: RecordSetRef<'a, D>,
     record_key: crate::scene_gpu::RecordKey,
     acceleration: Option<&'a SharedAcceleration<D>>,
@@ -178,7 +177,6 @@ fn resolve<'a, D: Device>(
     );
     let records = shared.records.get(record_key)?.as_ref()?;
     Some(Resolved {
-        args: shared.args.get(&record_key).copied(),
         records,
         record_key,
         acceleration: shared.acceleration.get(record_key),
@@ -219,18 +217,24 @@ fn sync_one_slot<D: Device>(
     let Some(representation) = scene.representation(slot.key.representation) else {
         return Ok(false);
     };
+    let data_changed = slot.sync_data_current(placed, representation)?;
+    if !slot.data_current {
+        return Ok(data_changed);
+    }
     let Some(structure_gpu) = shared.structures.get(slot.structure_index) else {
         return Ok(false);
     };
     let Some(resolved) = resolve(slot, structure_gpu, scene, shared) else {
         return Ok(false);
     };
-    let visibility_key = crate::scene_gpu::VisibilityKey {
-        records: resolved.record_key,
-        lod_mode: slot.lod_mode(detail),
-        visual_enabled: representation.visual.is_some(),
-        bond_break_length: placed.bond_break_length().to_bits(),
-    };
+    let policy = super::super::slot_types::CullPolicy::new(
+        resolved.record_key,
+        representation,
+        placed,
+        detail.lod_enabled,
+    );
+    let visibility_key =
+        policy.visibility_key(resolved.records.atom_count, resolved.records.bond_count);
     let Some(visibility) = shared
         .visibility
         .get(visibility_key)
@@ -239,13 +243,19 @@ fn sync_one_slot<D: Device>(
         return Ok(false);
     };
     slot.visibility_key = Some(visibility_key);
-    slot.sync(SlotSync {
+    let changed = slot.sync(SlotSync {
         device,
         queue,
         records: resolved.records,
         surface_fields: shared.surface_fields,
         visibility,
-        args: resolved.args,
+        args: shared
+            .args
+            .get(&(
+                visibility_key,
+                super::super::slot_types::atom_vertex_count(representation),
+            ))
+            .copied(),
         draw_arena: shared.draw_arena,
         acceleration_draw: resolved.acceleration,
         layout: shared.group2_layout,
@@ -291,5 +301,6 @@ fn sync_one_slot<D: Device>(
         visual_time_seconds: scene.presentation_time_seconds(),
         visual_time_revision: scene.presentation_revision(),
         ribbon: ribbon_scratch,
-    })
+    })?;
+    Ok(changed || data_changed)
 }

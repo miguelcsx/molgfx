@@ -20,6 +20,8 @@ pub(super) struct GpuStructure<D: Device> {
     trajectory_bvh_indices: Option<D::Buffer>,
     bvh_indices_upload: Vec<u32>,
     bvh_nodes_capacity: u64,
+    bvh_nodes_size: u64,
+    bvh_indices_size: u64,
     bvh_indices_capacity: u64,
     model_to_world: Option<[f32; 16]>,
     model_needs_settle: bool,
@@ -45,6 +47,8 @@ impl<D: Device> GpuStructure<D> {
             trajectory_bvh_indices: None,
             bvh_indices_upload: Vec::new(),
             bvh_nodes_capacity: 0,
+            bvh_nodes_size: 0,
+            bvh_indices_size: 0,
             bvh_indices_capacity: 0,
             model_to_world: None,
             model_needs_settle: false,
@@ -143,6 +147,8 @@ impl<D: Device> GpuStructure<D> {
             &mut self.trajectory_bvh_indices,
             &mut self.bvh_indices_capacity,
         )?;
+        self.bvh_nodes_size = std::mem::size_of_val(bvh.nodes.as_slice()) as u64;
+        self.bvh_indices_size = std::mem::size_of_val(self.bvh_indices_upload.as_slice()) as u64;
         self.binding_revision = self.binding_revision.wrapping_add(1);
         Ok(())
     }
@@ -195,9 +201,11 @@ impl<D: Device> GpuStructure<D> {
         binding: u32,
     ) -> BindGroupEntry<'a, D> {
         match self.trajectory_bvh_nodes.as_ref() {
-            Some(nodes) => BindGroupEntry::Buffer {
+            Some(nodes) => BindGroupEntry::BufferRange {
                 binding,
                 buffer: nodes,
+                offset: 0,
+                size: self.bvh_nodes_size,
             },
             None => arena.entry(binding, self.asset.bvh_nodes()),
         }
@@ -209,9 +217,11 @@ impl<D: Device> GpuStructure<D> {
         binding: u32,
     ) -> BindGroupEntry<'a, D> {
         match self.trajectory_bvh_indices.as_ref() {
-            Some(indices) => BindGroupEntry::Buffer {
+            Some(indices) => BindGroupEntry::BufferRange {
                 binding,
                 buffer: indices,
+                offset: 0,
+                size: self.bvh_indices_size,
             },
             None => arena.entry(binding, self.asset.bvh_indices()),
         }

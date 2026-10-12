@@ -13,22 +13,7 @@ pub(crate) use super::draw_family::{
     DRAW_FAMILIES, DrawArgs, DrawFamily, DrawSpecializations, QualityDraw, RibbonDraw,
 };
 
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct CullCounts {
-    pub(super) atoms: u32,
-    pub(super) bonds: u32,
-    pub(super) lod_enabled: u32,
-    pub(super) padding: u32,
-    /// Model-space length past which a stretched bond is culled; zero disables.
-    pub(super) bond_break_length: f32,
-    /// One when a typed visual result table should affect culling/shading.
-    pub(super) visual_enabled: u32,
-    pub(super) atom_bvh_nodes: u32,
-    pub(super) atom_bvh_indices: u32,
-    pub(super) bond_bvh_nodes: u32,
-    pub(super) bond_bvh_indices: u32,
-}
+pub(super) use super::buffers::CullCounts;
 
 /// Which specialized pipeline one slot's draw needs.
 ///
@@ -141,12 +126,14 @@ pub(crate) struct SelectionKey {
 pub(crate) enum SelectionIdentity {
     /// A query, named by the fingerprint of its normalized expression.
     Query(u64),
-    /// A hand-built row mask, named by the handle that owns it.
-    Mask(SelectionHandle),
+    /// A hand-built row mask. Handles are local to their owning scene.
+    Mask { scene: u64, handle: SelectionHandle },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct SlotSynced {
+    pub(super) arguments: Option<(u64, u64, u64)>,
+    pub(super) visibility: super::VisibilityKey,
     pub(super) quality: bool,
     pub(super) detail: super::detail::TierDetail,
     /// Which shared record set this slot's draws resolve against.
@@ -213,6 +200,7 @@ pub(crate) struct RecordState {
     kind: u8,
     radius_scale: u32,
     bond_radius: u32,
+    distance_cutoff: u32,
     surface: [u32; 4],
 }
 
@@ -223,6 +211,7 @@ impl RecordState {
             kind: kind_id(representation.kind),
             radius_scale: representation.params.radius_scale.to_bits(),
             bond_radius: representation.params.bond_radius.to_bits(),
+            distance_cutoff: representation.params.distance_cutoff.to_bits(),
             surface: [
                 representation.params.probe_radius.to_bits(),
                 representation.params.isolevel.to_bits(),
@@ -249,6 +238,10 @@ impl RecordState {
         self.radius_scale
     }
 
+    pub(super) const fn distance_cutoff(&self) -> u32 {
+        self.distance_cutoff
+    }
+
     pub(super) const fn bond_radius(&self) -> u32 {
         self.bond_radius
     }
@@ -260,10 +253,15 @@ impl RecordState {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct RibbonState {
+    surface_geometry: u64,
+    surface_wire: bool,
+    cutoff: u32,
+    max_ring_size: u8,
     target: RepresentationTarget,
     kind: u8,
     width: u32,
     aspect_ratio: u32,
+    helix_radius: u32,
     arrow_factor: u32,
     direction_wedges: bool,
     gaps: molgfx_core::GapStyle,
@@ -279,10 +277,19 @@ impl RibbonState {
     pub(super) fn new(representation: &Representation, steps: u8) -> Self {
         Self {
             steps,
+            surface_geometry: representation
+                .molecular_surface
+                .as_ref()
+                .map_or(0, molgfx_core::MolecularSurfaceGeometry::cache_identity),
+            surface_wire: representation.kind == RepresentationKind::MolecularSurface
+                && representation.params.surface_style == molgfx_core::SurfaceStyle::Mesh,
             target: representation.target,
             kind: kind_id(representation.kind),
+            cutoff: representation.params.distance_cutoff.to_bits(),
+            max_ring_size: representation.params.max_ring_size,
             width: representation.params.ribbon_width.to_bits(),
             aspect_ratio: representation.params.cartoon_aspect_ratio.to_bits(),
+            helix_radius: representation.params.cartoon_helix_radius.to_bits(),
             arrow_factor: representation.params.cartoon_arrow_factor.to_bits(),
             direction_wedges: representation.params.cartoon_direction_wedges,
             gaps: representation.params.gaps,
@@ -311,6 +318,49 @@ pub(crate) struct CullPolicy {
     pub(crate) lod_enabled: bool,
     /// Model-space length past which a stretched bond is culled.
     pub(crate) bond_break_length: f32,
+    /// Vertices per atom in this draw, independent of the packed records.
+    pub(crate) atom_vertices: u32,
+}
+
+impl CullPolicy {
+    pub(crate) fn new(
+        records: super::RecordKey,
+        representation: &Representation,
+        placed: &PlacedStructure,
+        lod_enabled: bool,
+    ) -> Self {
+        Self {
+            records,
+            kind: representation.kind,
+            visual_enabled: representation.visual.is_some(),
+            lod_enabled,
+            atom_vertices: atom_vertex_count(representation),
+            bond_break_length: if representation.kind == RepresentationKind::DynamicBonds {
+                representation.params.distance_cutoff
+            } else {
+                placed.bond_break_length()
+            },
+        }
+    }
+    pub(crate) fn visibility_key(self, atoms: u32, bonds: u32) -> super::VisibilityKey {
+        super::VisibilityKey {
+            records: self.records,
+            lod_mode: lod_mode(atoms, bonds, self.kind, self.lod_enabled),
+            visual_enabled: self.visual_enabled,
+            bond_break_length: self.bond_break_length.to_bits(),
+        }
+    }
+}
+
+pub(crate) fn atom_vertex_count(representation: &Representation) -> u32 {
+    if matches!(
+        representation.kind,
+        RepresentationKind::Dots | RepresentationKind::Solvent
+    ) {
+        6 * u32::from(representation.params.point_samples.clamp(1, 4096))
+    } else {
+        6
+    }
 }
 
 /// The level-of-detail mode the cull shader reads for one packed record set.
@@ -345,17 +395,19 @@ pub(crate) const fn lod_mode(
     }
 }
 
-/// Fixed sphere sampling budget; vertices are generated procedurally per atom.
-pub(super) const DOT_SAMPLE_COUNT: u32 = 64;
-
 fn kind_id(kind: RepresentationKind) -> u8 {
     match kind {
         RepresentationKind::Spacefill => 0,
         RepresentationKind::BallAndStick => 1,
         RepresentationKind::Licorice => 2,
         RepresentationKind::Bonds => 18,
+        RepresentationKind::DynamicBonds => 21,
+        RepresentationKind::NewRibbons => 19,
+        RepresentationKind::Ribbons => 23,
+        RepresentationKind::Polyhedra => 20,
         RepresentationKind::Cartoon => 3,
         RepresentationKind::Surface => 4,
+        RepresentationKind::MolecularSurface => 24,
         RepresentationKind::Volume => 5,
         RepresentationKind::Points => 6,
         RepresentationKind::Lines => 7,
@@ -367,6 +419,7 @@ fn kind_id(kind: RepresentationKind) -> u8 {
         RepresentationKind::Twister => 13,
         RepresentationKind::PaperChain => 14,
         RepresentationKind::Dots => 15,
+        RepresentationKind::Solvent => 22,
         RepresentationKind::Bases => 16,
         RepresentationKind::BasePairs => 17,
     }

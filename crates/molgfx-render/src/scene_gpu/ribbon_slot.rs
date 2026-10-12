@@ -8,6 +8,7 @@ use super::structure::GpuStructure;
 use super::uniforms::ClipUniforms;
 use super::visual::VisualCullEntries;
 mod helix;
+mod molecular_surface;
 use crate::error::RenderError;
 use molgfx_core::{
     AtomSelection, ColorScheme, PlacedStructure, Representation, RepresentationKind,
@@ -208,41 +209,63 @@ impl<D: Device> RibbonSlot<D> {
 }
 
 fn prepare_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Result<(), RenderError> {
-    let structure = input
-        .placed
-        .source
-        .molframe()
-        .ok_or(RenderError::SourceCapabilityMissing {
-            capability: "ribbon topology",
-        })?;
     let params = spline_params(input.representation, input.ribbon_steps);
-    if matches!(
-        input.representation.kind,
-        RepresentationKind::PaperChain | RepresentationKind::Bases | RepresentationKind::BasePairs
-    ) {
-        input.mesh.clear();
-    } else if input.representation.kind == RepresentationKind::Twister {
-        input
-            .mesh
-            .generate_glycan(structure, input.selection, params)?;
+    if input.representation.kind == RepresentationKind::MolecularSurface {
+        molecular_surface::prepare(input, params.color)?;
+    } else if input.representation.kind == RepresentationKind::Polyhedra {
+        input.mesh.generate_polyhedra(
+            input.placed,
+            input.selection,
+            input.representation.params.distance_cutoff,
+            params.color,
+        )?;
     } else {
-        input.mesh.generate_structure(
-            structure,
-            input.selection,
-            input.placed.secondary_structure.values(),
-            molgfx_geometry::CARTOON_GAP_CUTOFF,
-            params,
-        )?;
+        let structure =
+            input
+                .placed
+                .source
+                .molframe()
+                .ok_or(RenderError::SourceCapabilityMissing {
+                    capability: "ribbon topology",
+                })?;
+        if matches!(
+            input.representation.kind,
+            RepresentationKind::PaperChain
+                | RepresentationKind::Bases
+                | RepresentationKind::BasePairs
+        ) {
+            input.mesh.clear();
+        } else if input.representation.kind == RepresentationKind::Ribbons {
+            input.mesh.generate_legacy_ribbons(
+                structure,
+                input.selection,
+                molgfx_geometry::CARTOON_GAP_CUTOFF,
+                params,
+                input.representation.params.bond_radius,
+            )?;
+        } else if input.representation.kind == RepresentationKind::Twister {
+            input
+                .mesh
+                .generate_glycan(structure, input.selection, params)?;
+        } else {
+            input.mesh.generate_structure(
+                structure,
+                input.selection,
+                input.placed.secondary_structure.values(),
+                molgfx_geometry::CARTOON_GAP_CUTOFF,
+                params,
+            )?;
+        }
+        if input.representation.params.gaps == molgfx_core::GapStyle::Dashed {
+            input.mesh.append_polymer_gaps(
+                structure,
+                input.selection,
+                input.placed.trajectory(),
+                params,
+            )?;
+        }
+        append_nucleotide_geometry(input)?;
     }
-    if input.representation.params.gaps == molgfx_core::GapStyle::Dashed {
-        input.mesh.append_polymer_gaps(
-            structure,
-            input.selection,
-            input.placed.trajectory(),
-            params,
-        )?;
-    }
-    append_nucleotide_geometry(input)?;
     if !matches!(
         input.representation.kind,
         RepresentationKind::Twister | RepresentationKind::PaperChain
@@ -292,13 +315,12 @@ fn append_nucleotide_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Resul
             &mut input.mesh.indices,
         )?;
     } else if input.representation.kind == RepresentationKind::PaperChain {
-        molgfx_geometry::append_paper_chain(
+        input.mesh.generate_ring_bipyramids(
             structure,
             input.selection,
-            PAPER_CHAIN_HEIGHT,
+            input.representation.params.ribbon_width,
+            input.representation.params.max_ring_size,
             u8::MAX,
-            &mut input.mesh.vertices,
-            &mut input.mesh.indices,
         )?;
     } else if matches!(
         input.representation.kind,
@@ -329,31 +351,18 @@ fn append_nucleotide_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Resul
             &mut input.mesh.indices,
         )?;
     }
-    input.mesh.anchor_nucleotide_vertices(structure, start);
+    if input.representation.kind != RepresentationKind::PaperChain {
+        input.mesh.anchor_nucleotide_vertices(structure, start);
+    }
     Ok(())
 }
 
 /// Full depth of a nucleotide base slab, Ångström.
 const BASE_SLAB_THICKNESS: f32 = 0.5;
 const BASE_OUTLINE_RADIUS: f32 = 0.08;
-/// Half-depth of a ring plate, Ångström.
-///
-/// A sugar ring is roughly 2.9 A across, so the former 1.0 A half-height drew a
-/// 2 A tall double pyramid: a gem, not a sheet. The representation is named for
-/// paper because the ring is meant to read as one, with the pucker as the bend
-/// in it, so the plate is thick enough only to give its rim a lit edge.
-const PAPER_CHAIN_HEIGHT: f32 = 0.09;
-
-/// Twister ribbon width as a multiple of the configured ribbon width.
-///
-/// A pyranose ring is about 2.9 A across and consecutive ring centres sit near
-/// 5.5 A apart, so the face has to be on that order to be a face at all. At the
-/// former 0.3 A the ribbon drew as a thread: no visible plane, and therefore no
-/// readable twist, which is the entire content of the representation.
+/// Ring connector width relative to the authored ribbon width.
 const TWISTER_WIDTH_SCALE: f32 = 1.25;
-/// Twister ribbon thickness as a multiple of the configured ribbon width.
-///
-/// The VMD reference default is 0.05 A for a 1.2 A base ribbon width.
+/// Ring connector thickness relative to the authored ribbon width.
 const TWISTER_THICKNESS_SCALE: f32 = 0.2;
 /// Sampling ceiling for the twisting profile.
 const TWISTER_MAX_STEPS: u8 = 32;
@@ -396,8 +405,22 @@ pub(super) fn spline_params(representation: &Representation, steps: u8) -> Ribbo
             color,
             ..RibbonParams::default()
         },
-        RepresentationKind::Rocket => RibbonParams {
+        RepresentationKind::NewRibbons => RibbonParams {
             width: representation.params.ribbon_width,
+            thickness: representation.params.ribbon_width
+                / representation.params.cartoon_aspect_ratio,
+            profile: SplineProfile::NewRibbons,
+            helix_profile: representation.params.cartoon_helix_profile,
+            arrow_factor: 0.0,
+            max_steps: steps,
+            color,
+            ..RibbonParams::default()
+        },
+        RepresentationKind::Rocket => RibbonParams {
+            helix_radius: representation.params.cartoon_helix_radius,
+            width: representation.params.ribbon_width,
+            thickness: representation.params.ribbon_width
+                / representation.params.cartoon_aspect_ratio,
             profile: SplineProfile::Rocket,
             aspect_ratio: representation.params.cartoon_aspect_ratio,
             arrow_factor: representation.params.cartoon_arrow_factor,
@@ -434,3 +457,7 @@ pub(super) struct RibbonSync<'a, D: Device> {
     /// The columns the colour scheme, its overlay and its appearance read.
     pub(super) color: molgfx_geometry::ColorContext<'a>,
 }
+
+#[cfg(test)]
+#[path = "ribbon_slot/params_tests.rs"]
+mod params_tests;

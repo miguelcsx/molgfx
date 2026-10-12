@@ -158,7 +158,7 @@ pub(crate) struct GpuScene<D: Device> {
     acceleration: super::acceleration_cache::AccelerationCache<D>,
     indirect: super::indirect_arena::IndirectArgsArena<D>,
     /// Argument-slot offsets per record key, resolved in the record pass.
-    argument_offsets: BTreeMap<super::RecordKey, (u64, u64, u64)>,
+    argument_offsets: BTreeMap<(super::VisibilityKey, u32), (u64, u64, u64)>,
     visual_properties: VisualPropertyTable<D>,
     visual_programs: VisualProgramTable<D>,
     visual_parameters: VisualParameterTable<D>,
@@ -297,10 +297,7 @@ impl<D: Device> GpuScene<D> {
             let retired = atlas.poll(device, queue)?;
             changed |= retired.uploads_published != 0 || retired.evictions_completed != 0;
         }
-        let requires_bvh = quality
-            || scene.representations().any(|(_, representation)| {
-                representation.kind == molgfx_core::RepresentationKind::Surface
-            });
+        let requires_bvh = requires_spatial_hierarchy(scene, quality);
         changed |= self.reconcile_structures(device, queue, scene)?;
         changed |= self.picking_pages.sync(scene)?;
         for structure in &mut self.structures {
@@ -428,4 +425,14 @@ impl<D: Device> GpuScene<D> {
         }
         Ok(())
     }
+}
+
+fn requires_spatial_hierarchy(scene: &molgfx_core::Scene, quality: bool) -> bool {
+    quality
+        || scene.representations().any(|(_, representation)| {
+            matches!(
+                representation.kind,
+                molgfx_core::RepresentationKind::Surface | molgfx_core::RepresentationKind::Solvent
+            )
+        })
 }

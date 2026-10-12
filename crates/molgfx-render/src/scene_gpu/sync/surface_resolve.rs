@@ -107,8 +107,18 @@ impl<D: Device> GpuScene<D> {
             // programs sample, so a property or category scheme, an overlay
             // and an appearance mapping add no second upload path.
             slot.adopt_color_columns(self.visual_properties.color_columns(representation));
-            slot.surface
-                .resolve_key(&uniforms, representation, record_key.geometry(), atom_count);
+            let coordinate_source = if placed.trajectory().is_some() {
+                [scene.cache_identity(), placed.trajectory_pair_revision()]
+            } else {
+                [0, 0]
+            };
+            slot.surface.resolve_key(
+                &uniforms,
+                representation,
+                record_key.geometry(),
+                atom_count,
+                coordinate_source,
+            );
             let Some(key) = slot.surface.key() else {
                 continue;
             };
@@ -120,6 +130,7 @@ impl<D: Device> GpuScene<D> {
                 erosion_layout: &self.surface_field_erosion_layout,
                 component_layout: &self.surface_component_layout,
                 key,
+                coordinate_revision: placed.trajectory_revision(),
                 policy: representation.params.surface_components,
                 dimensions: [
                     uniforms.grid_size[0],

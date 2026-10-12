@@ -3,15 +3,15 @@
 //! Byte-identical to the shader's frame uniforms; uploading it is the only
 //! per-frame write a camera-only change performs.
 
-use molgfx_core::{ClipSet, MAX_CLIP_PLANES, Material, Representation, ScalarVolume, SurfaceKind};
+use molgfx_core::{ClipSet, MAX_CLIP_PLANES, Material, Representation, ScalarVolume};
 use molgfx_gpu::{Device, Queue};
-use molgfx_math::{Aabb, Camera, Mat4, Projection, Vec3};
+use molgfx_math::{Aabb, Camera, Mat4, Projection};
 
-use super::grid_fit::fit_grid;
 use super::probe_offsets::PROBE_SAMPLE_COUNT;
 use overlay::overlay_uniforms;
 
 mod overlay;
+mod surface;
 
 /// Bounded hybrid traversal budget for a persistent grid.
 ///
@@ -269,44 +269,32 @@ impl RepresentationUniforms {
         overlay_volume: Option<&ScalarVolume>,
         limits: super::detail::GridLimits,
     ) -> Self {
-        let gaussian = representation.params.surface_kind == SurfaceKind::Gaussian;
-        let sigma = representation.params.gaussian_sigma.max(0.05);
-        let isolevel = if gaussian {
-            if representation.params.isolevel > 0.0 {
-                representation.params.isolevel.max(0.001)
-            } else {
-                0.5
-            }
-        } else {
-            representation.params.isolevel
-        };
-        let probe = if representation.params.surface_kind == SurfaceKind::VanDerWaals {
-            0.0
-        } else if gaussian {
-            sigma * 4.0
-        } else {
-            representation.params.probe_radius.max(0.0)
-        };
-        let minimum = bounds.min - Vec3::splat(probe);
-        let maximum = bounds.max + Vec3::splat(probe);
-        let extent = maximum - minimum;
+        let surface::SurfaceSampling {
+            surface,
+            minimum,
+            fit,
+        } = surface::sampling(representation, bounds, limits);
         let super::grid_fit::GridFit {
             cell,
             dimensions,
             memory_limited,
-        } = fit_grid(extent, limits);
+        } = fit;
         let max_dimension = limits.max_dimension;
         let total = dimensions.iter().copied().fold(1u32, u32::saturating_mul);
         let overlay = overlay_uniforms(representation, overlay_volume);
         Self {
-            surface: [probe, isolevel, if gaussian { sigma } else { 0.02 }, 0.02],
+            surface,
             grid_min: [minimum.x, minimum.y, minimum.z, 0.0],
             grid_cell: [cell, cell, cell, f32::from(u8::from(memory_limited))],
             options: [
                 representation.params.surface_kind as u32,
                 march_steps(dimensions, max_dimension),
-                if representation.kind == molgfx_core::RepresentationKind::Dots {
-                    super::slot_types::DOT_SAMPLE_COUNT
+                if matches!(
+                    representation.kind,
+                    molgfx_core::RepresentationKind::Dots
+                        | molgfx_core::RepresentationKind::Solvent
+                ) {
+                    u32::from(representation.params.point_samples.clamp(1, 4096))
                 } else {
                     u32::from(PROBE_SAMPLE_COUNT)
                 },
@@ -315,12 +303,18 @@ impl RepresentationUniforms {
             grid_size: [dimensions[0], dimensions[1], dimensions[2], total],
             visual: [
                 representation.params.point_size_pixels.max(1.0),
-                representation.params.surface_pattern_spacing.max(0.05),
+                if representation.kind == molgfx_core::RepresentationKind::Solvent {
+                    representation.params.radius_scale.max(0.0)
+                } else {
+                    representation.params.surface_pattern_spacing.max(0.05)
+                },
                 representation.params.surface_pattern_width_pixels.max(0.25),
                 if representation.kind == molgfx_core::RepresentationKind::Surface {
                     representation.params.radius_scale.max(0.0)
                 } else if representation.kind == molgfx_core::RepresentationKind::Lines {
                     representation.params.line_width_pixels.max(0.5)
+                } else if representation.kind == molgfx_core::RepresentationKind::Solvent {
+                    -2.0
                 } else if representation.kind == molgfx_core::RepresentationKind::Dots {
                     -1.0
                 } else {
@@ -394,8 +388,14 @@ impl ClipUniforms {
             tube_mapping: [0.0; 4],
             tube: [
                 representation.params.tube_radius.abs().max(1.0e-6),
-                0.0,
-                0.0,
+                representation.params.line_width_pixels,
+                if representation.kind == molgfx_core::RepresentationKind::MolecularSurface
+                    && representation.params.surface_style == molgfx_core::SurfaceStyle::Mesh
+                {
+                    1.0
+                } else {
+                    0.0
+                },
                 // Generated ribbons own deformation recipes; static meshes do not.
                 1.0,
             ],

@@ -1,6 +1,7 @@
 use super::*;
 use crate::scene_gpu::detail::FINEST_SURFACE_SPACING as SURFACE_GRID_TARGET_SPACING;
 use crate::scene_gpu::detail::GridLimits;
+use molgfx_math::Vec3;
 
 fn limits(spacing: f32, max_dimension: u32) -> GridLimits {
     GridLimits {
@@ -272,7 +273,7 @@ fn gaussian_surface_uniforms_encode_bounded_support_and_sigma() {
 }
 
 #[test]
-fn gaussian_surface_uniforms_keep_the_level_inside_compact_support() {
+fn gaussian_surface_uniforms_preserve_authored_positive_density_levels() {
     use molgfx_core::{AtomSelection, Representation, RepresentationKind, Scene, SurfaceKind};
 
     let mut scene = Scene::new();
@@ -288,7 +289,7 @@ fn gaussian_surface_uniforms_keep_the_level_inside_compact_support() {
 
     representation.params.isolevel = f32::MIN_POSITIVE;
     let bounded = RepresentationUniforms::new(&representation, bounds, None);
-    assert_eq!(bounded.surface[1].to_bits(), 0.001f32.to_bits());
+    assert_eq!(bounded.surface[1].to_bits(), f32::MIN_POSITIVE.to_bits());
 }
 
 #[test]

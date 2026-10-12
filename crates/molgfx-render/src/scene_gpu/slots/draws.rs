@@ -183,7 +183,10 @@ impl<D: Device> GpuSlot<D> {
             && self.atom_count > 0
             && matches!(
                 self.kind,
-                RepresentationKind::Points | RepresentationKind::Dots | RepresentationKind::Lines
+                RepresentationKind::Points
+                    | RepresentationKind::Dots
+                    | RepresentationKind::Solvent
+                    | RepresentationKind::Lines
             )
             && self.translucent == translucent)
             .then_some((self.group2.as_ref()?, self.atom_args?, self.shading))
@@ -194,6 +197,7 @@ impl<D: Device> GpuSlot<D> {
         translucent: bool,
     ) -> Option<RibbonDraw<'_, D>> {
         (self.visible
+            && self.data_current
             && matches!(
                 self.kind,
                 RepresentationKind::Cartoon
@@ -201,6 +205,10 @@ impl<D: Device> GpuSlot<D> {
                     | RepresentationKind::Tube
                     | RepresentationKind::Rocket
                     | RepresentationKind::Twister
+                    | RepresentationKind::MolecularSurface
+                    | RepresentationKind::Polyhedra
+                    | RepresentationKind::NewRibbons
+                    | RepresentationKind::Ribbons
                     | RepresentationKind::PaperChain
                     | RepresentationKind::Bases
                     | RepresentationKind::BasePairs
@@ -272,7 +280,7 @@ impl<D: Device> GpuSlot<D> {
             return None;
         }
         Some(CullDispatch {
-            key: self.visibility_key,
+            key: self.visibility_key.zip(self.atom_args),
             atom_group: self.atom_cull_group.as_ref()?,
             bond_group: self.bond_cull_group.as_ref()?,
             visual_group: self.visual_cull_group.as_ref()?,
@@ -339,6 +347,10 @@ const fn is_spline_kind(kind: RepresentationKind) -> bool {
             | RepresentationKind::Tube
             | RepresentationKind::Rocket
             | RepresentationKind::Twister
+            | RepresentationKind::MolecularSurface
+            | RepresentationKind::Polyhedra
+            | RepresentationKind::NewRibbons
+            | RepresentationKind::Ribbons
             | RepresentationKind::PaperChain
             | RepresentationKind::Bases
             | RepresentationKind::BasePairs

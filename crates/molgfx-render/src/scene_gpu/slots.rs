@@ -32,6 +32,8 @@ pub(super) struct GpuSlot<D: Device> {
     pub(super) structure_index: usize,
     pub(super) draw_order: usize,
     pub(super) visible: bool,
+    /// Prepared scientific geometry is drawable only at its captured molecular sample.
+    pub(super) data_current: bool,
     atom_args: Option<u64>,
     bond_args: Option<u64>,
     surface_args: Option<u64>,
@@ -71,6 +73,7 @@ impl<D: Device> GpuSlot<D> {
             structure_index: plan.structure_index,
             draw_order: plan.draw_order,
             visible: plan.visible,
+            data_current: true,
             atom_args: None,
             bond_args: None,
             surface_args: None,
@@ -207,8 +210,10 @@ impl<D: Device> GpuSlot<D> {
             self.bind_representation(input);
             false
         } else if self.group2.is_none()
+            || records_changed
             || self.synced.is_none_or(|old| {
-                old.structure_binding != current.structure_binding
+                old.visibility != current.visibility
+                    || old.structure_binding != current.structure_binding
                     || old.overlay_binding != current.overlay_binding
                     || old.visual_program_binding != current.visual_program_binding
                     || old.visual_parameter_binding != current.visual_parameter_binding
@@ -345,7 +350,10 @@ impl<D: Device> GpuSlot<D> {
             || self.bond_cull_group.is_none()
             || self.visual_cull_group.is_none()
             || self.synced.is_some_and(|old| {
-                old.structure_binding != current.structure_binding
+                old.arguments != current.arguments
+                    || old.visibility != current.visibility
+                    || old.cull_binding != current.cull_binding
+                    || old.structure_binding != current.structure_binding
                     || old.visual_program_binding != current.visual_program_binding
                     || old.visual_parameter_binding != current.visual_parameter_binding
                     || old.visual_property_binding != current.visual_property_binding
@@ -367,8 +375,11 @@ impl<D: Device> GpuSlot<D> {
             });
         let _ = selection_bounds;
         let geometry_changed = self.synced.is_none_or(|old| {
-            (input.representation.params.gaps == molgfx_core::GapStyle::Dashed
-                && old.spatial_bounds != current.spatial_bounds)
+            (matches!(
+                input.representation.kind,
+                RepresentationKind::Polyhedra | RepresentationKind::MolecularSurface
+            ) || input.representation.params.gaps == molgfx_core::GapStyle::Dashed)
+                && old.spatial_bounds != current.spatial_bounds
                 || old.ribbon != current.ribbon
                 || old.properties != current.properties
                 || old.color_overlay != current.color_overlay

@@ -41,13 +41,12 @@ fn pack_slot_policies<D: Device>(
             property_revisions,
         );
         let _ = needed.entry(key).or_insert(slot_index);
-        policies.push(crate::scene_gpu::slot_types::CullPolicy {
-            records: key,
-            kind: representation.kind,
-            visual_enabled: representation.visual.is_some(),
-            lod_enabled: detail.lod_enabled,
-            bond_break_length: placed.bond_break_length(),
-        });
+        policies.push(crate::scene_gpu::slot_types::CullPolicy::new(
+            key,
+            representation,
+            placed,
+            detail.lod_enabled,
+        ));
     }
 }
 
@@ -157,32 +156,18 @@ impl<D: Device> GpuScene<D> {
     ) -> Result<(), RenderError> {
         let mut visibility_needed = std::mem::take(&mut self.sync_scratch.visibility_needed);
         visibility_needed.clear();
-        for &crate::scene_gpu::slot_types::CullPolicy {
-            records: record_key,
-            kind,
-            visual_enabled,
-            lod_enabled,
-            bond_break_length,
-        } in policies
-        {
+        for &policy in policies {
+            let record_key = policy.records;
+            let bond_break_length = policy.bond_break_length;
+            let visual_enabled = policy.visual_enabled;
             let Some(set) = self.records.get(record_key) else {
                 continue;
             };
-            let bond_hierarchy = self.acceleration.get(record_key).map_or(
+            let quality_hierarchy = self.acceleration.get(record_key).map_or(
                 crate::scene_gpu::quality_acceleration::HierarchyCounts::default(),
                 |shared| shared.hierarchy().counts(),
             );
-            let key = crate::scene_gpu::VisibilityKey {
-                records: record_key,
-                lod_mode: crate::scene_gpu::slot_types::lod_mode(
-                    set.atom_count,
-                    set.bond_count,
-                    kind,
-                    lod_enabled,
-                ),
-                visual_enabled,
-                bond_break_length: bond_break_length.to_bits(),
-            };
+            let key = policy.visibility_key(set.atom_count, set.bond_count);
             let atom_hierarchy = match scene
                 .structure(record_key.selection.structure)
                 .and_then(|placed| placed.render_bvh().ok())
@@ -201,8 +186,8 @@ impl<D: Device> GpuScene<D> {
                 visual_enabled,
                 atom_bvh_nodes: atom_hierarchy.nodes,
                 atom_bvh_indices: atom_hierarchy.indices,
-                bond_bvh_nodes: bond_hierarchy.nodes,
-                bond_bvh_indices: bond_hierarchy.indices,
+                quality_bvh_nodes: quality_hierarchy.nodes,
+                quality_bvh_indices: quality_hierarchy.indices,
             };
             let _ =
                 visibility_needed
@@ -243,13 +228,12 @@ impl<D: Device> GpuScene<D> {
         let additional = policies
             .iter()
             .filter_map(|policy| {
-                let visibility = self
-                    .visibility
-                    .keys()
-                    .find(|key| key.records == policy.records)?;
+                let records = self.records.get(policy.records)?;
+                let visibility = policy.visibility_key(records.atom_count, records.bond_count);
+                self.visibility.get(visibility)?;
                 Some(
                     [
-                        crate::scene_gpu::IndirectSlotKey::Atom(visibility),
+                        crate::scene_gpu::IndirectSlotKey::Atom(visibility, policy.atom_vertices),
                         crate::scene_gpu::IndirectSlotKey::Bond(visibility),
                         crate::scene_gpu::IndirectSlotKey::Surface(policy.records),
                     ]
@@ -266,24 +250,21 @@ impl<D: Device> GpuScene<D> {
         let mut live = std::mem::take(&mut self.sync_scratch.live_argument_slots);
         live.clear();
         for policy in policies {
-            if self.argument_offsets.contains_key(&policy.records) {
-                continue;
-            }
-            let Some(visibility) = self
-                .visibility
-                .keys()
-                .find(|key| key.records == policy.records)
-            else {
+            let Some(records) = self.records.get(policy.records) else {
                 continue;
             };
+            let visibility = policy.visibility_key(records.atom_count, records.bond_count);
+            if self
+                .argument_offsets
+                .contains_key(&(visibility, policy.atom_vertices))
+                || self.visibility.get(visibility).is_none()
+            {
+                continue;
+            }
             let atom = self.indirect.write(
                 queue,
-                crate::scene_gpu::IndirectSlotKey::Atom(visibility),
-                if policy.kind == molgfx_core::RepresentationKind::Dots {
-                    6 * super::super::slot_types::DOT_SAMPLE_COUNT
-                } else {
-                    6
-                },
+                crate::scene_gpu::IndirectSlotKey::Atom(visibility, policy.atom_vertices),
+                policy.atom_vertices,
                 0,
             )?;
             let bond = self.indirect.write(
@@ -301,12 +282,15 @@ impl<D: Device> GpuScene<D> {
                     molgfx_core::RepresentationKind::Surface
                 )),
             )?;
-            live.push(crate::scene_gpu::IndirectSlotKey::Atom(visibility));
+            live.push(crate::scene_gpu::IndirectSlotKey::Atom(
+                visibility,
+                policy.atom_vertices,
+            ));
             live.push(crate::scene_gpu::IndirectSlotKey::Bond(visibility));
             live.push(crate::scene_gpu::IndirectSlotKey::Surface(policy.records));
             let _ = self
                 .argument_offsets
-                .insert(policy.records, (atom, bond, surface));
+                .insert((visibility, policy.atom_vertices), (atom, bond, surface));
         }
         self.indirect.retain(&live);
         self.sync_scratch.live_argument_slots = live;
@@ -314,7 +298,7 @@ impl<D: Device> GpuScene<D> {
         // first key that needed it so the ledger can see it at all.
         if let Some((key, _)) = self.argument_offsets.iter().next() {
             let _ = derived_cache.retain(
-                *key,
+                key.0.records,
                 crate::DerivedCacheClass::RecordSet,
                 crate::DerivedFootprint {
                     cpu_bytes: 0,

@@ -8,18 +8,27 @@ use molgfx_gpu::Device;
 
 pub(super) fn synced_state<D: Device>(input: &SlotSync<'_, D>) -> SlotSynced {
     let table = &input.placed.atoms;
+    let record_key = crate::scene_gpu::record_cache::RecordCache::<D>::key(
+        input.scene,
+        input.placed,
+        input.structure_gpu.handle,
+        input.representation,
+        input.selection_handle,
+        input.asset_identity,
+        input.property_revisions,
+    );
     SlotSynced {
+        arguments: input.args,
+        visibility: crate::scene_gpu::slot_types::CullPolicy::new(
+            record_key,
+            input.representation,
+            input.placed,
+            input.detail.lod_enabled,
+        )
+        .visibility_key(input.records.atom_count, input.records.bond_count),
         quality: input.quality,
         detail: input.detail,
-        record_key: crate::scene_gpu::record_cache::RecordCache::<D>::key(
-            input.scene,
-            input.placed,
-            input.structure_gpu.handle,
-            input.representation,
-            input.selection_handle,
-            input.asset_identity,
-            input.property_revisions,
-        ),
+        record_key,
         representation: input.representation_revision,
         presentation: PresentationState::new(input.representation),
         records: RecordState::new(input.representation),
@@ -123,6 +132,10 @@ pub(super) const fn is_spline(kind: RepresentationKind) -> bool {
             | RepresentationKind::Tube
             | RepresentationKind::Rocket
             | RepresentationKind::Twister
+            | RepresentationKind::MolecularSurface
+            | RepresentationKind::Polyhedra
+            | RepresentationKind::NewRibbons
+            | RepresentationKind::Ribbons
             | RepresentationKind::PaperChain
             | RepresentationKind::Bases
             | RepresentationKind::BasePairs
