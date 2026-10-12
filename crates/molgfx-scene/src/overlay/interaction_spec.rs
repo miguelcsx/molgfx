@@ -47,7 +47,12 @@ impl InteractionKind {
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum InteractionSpec {
+    /// Bulk chemically classified hydrogen bonds supplied by `MolFrame`.
+    HydrogenBonds(super::HydrogenBonds),
     /// Caller-provided interaction endpoints.
+    /// Selection anchors are evaluated against immutable molecular coordinates.
+    /// Their static glyphs hide while either owning placement samples a trajectory.
+    /// World anchors retain their explicit locations independently of playback.
     Explicit {
         /// Overlay interaction class.
         kind: InteractionKind,
