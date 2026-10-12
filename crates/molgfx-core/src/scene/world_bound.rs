@@ -18,6 +18,9 @@ impl Scene {
             aabb = aabb.union(&volume.value.world_aabb());
         }
         for (_, interaction) in self.interactions.iter() {
+            if !interaction.visible() || !interaction.coordinates_match(self) {
+                continue;
+            }
             aabb.extend(interaction.start().position());
             aabb.extend(interaction.end().position());
         }

@@ -195,3 +195,48 @@ fn file_and_inferred_bond_counts_are_deterministic_across_the_shared_fixtures() 
         .count();
     assert_eq!(stated, 1, "one file edge, not a duplicate inference");
 }
+
+const COORDINATION: &str = r"data_coordination
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_seq_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+HETATM 1 Fe FE LIG A 1 0 0 0
+HETATM 2 C C1 LIG A 1 2 0 0
+loop_
+_struct_conn.id
+_struct_conn.conn_type_id
+_struct_conn.ptnr1_label_asym_id
+_struct_conn.ptnr1_label_seq_id
+_struct_conn.ptnr1_label_comp_id
+_struct_conn.ptnr1_label_atom_id
+_struct_conn.ptnr2_label_asym_id
+_struct_conn.ptnr2_label_seq_id
+_struct_conn.ptnr2_label_comp_id
+_struct_conn.ptnr2_label_atom_id
+_struct_conn.pdbx_value_order
+1 CONNECTION_CLASS A 1 LIG FE A 1 LIG C1 SING
+";
+
+#[test]
+fn source_bonds_use_deposited_coordination_instead_of_metal_element_heuristics() {
+    for (class, coordinated) in [("covale", false), ("metalc", true)] {
+        let bytes = COORDINATION.replace("CONNECTION_CLASS", class).into_bytes();
+        let (structure, _) = molframe::read_bytes(
+            bytes,
+            Some("coordination.cif"),
+            &molframe::ReadOptions::new(),
+        )
+        .expect("connectivity fixture");
+        let source = MolecularSource::from_molframe(&structure);
+        assert_eq!(source.topology().bonds.len(), 1);
+        assert_eq!(source.topology().bonds[0].metal, coordinated);
+    }
+}

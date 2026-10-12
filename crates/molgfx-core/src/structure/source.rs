@@ -12,6 +12,8 @@ pub struct SourceAtom {
     pub element: u8,
     /// Owning residue row.
     pub residue: u32,
+    /// Source alternate-conformation label; blank means present in all conformations.
+    pub alt_id: molframe::AltId,
 }
 
 /// Compact covalent-bond metadata used by renderer packing.
@@ -261,6 +263,10 @@ fn topology(structure: &molframe::Structure) -> SourceTopology {
         .map(|atom| SourceAtom {
             element: atom.element().map_or(0, molframe::Element::atomic_number),
             residue: atom.residue().map_or(0, |residue| residue.index().get()),
+            alt_id: match atom.alt_id() {
+                Some(label) => label,
+                None => molframe::AltId::BLANK,
+            },
         })
         .collect::<Vec<_>>();
     let residue_atom_start = offsets(
@@ -279,17 +285,7 @@ fn topology(structure: &molframe::Structure) -> SourceTopology {
         .bonds()
         .iter()
         .map(|bond| {
-            let metal = structure
-                .engine()
-                .atom(bond.atom_a)
-                .and_then(molframe::AtomRef::element)
-                .zip(
-                    structure
-                        .engine()
-                        .atom(bond.atom_b)
-                        .and_then(molframe::AtomRef::element),
-                )
-                .is_some_and(|(left, right)| is_metal(left) || is_metal(right));
+            let metal = bond.is_metal_coordination(&data.dictionary);
             SourceBond {
                 atoms: [bond.atom_a.get(), bond.atom_b.get()],
                 order: bond.order,
@@ -323,39 +319,6 @@ fn anisotropy(structure: &molframe::Structure) -> Vec<(u32, [f32; 6])> {
         .iter()
         .map(|ellipsoid| (ellipsoid.atom.get(), ellipsoid.u))
         .collect()
-}
-
-fn is_metal(element: molframe::Element) -> bool {
-    is_metal_atomic_number(element.atomic_number())
-}
-
-/// Returns whether an atomic number is rendered as a metal-coordination endpoint.
-#[must_use]
-pub const fn is_metal_atomic_number(atomic_number: u8) -> bool {
-    matches!(
-        atomic_number,
-        3   // Li
-            | 11 // Na
-            | 19 // K
-            | 12 // Mg
-            | 20 // Ca
-            | 25 // Mn
-            | 26 // Fe
-            | 27 // Co
-            | 28 // Ni
-            | 29 // Cu
-            | 30 // Zn
-            | 42 // Mo
-            | 47 // Ag
-            | 48 // Cd
-            | 80 // Hg
-            | 79 // Au
-            | 13 // Al
-            | 14 // Si
-            | 24 // Cr
-            | 23 // V
-            | 74 // W
-    )
 }
 
 fn offsets<I, R>(rows: I) -> Vec<u32>

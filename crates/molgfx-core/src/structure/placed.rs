@@ -9,7 +9,7 @@ use crate::hierarchy::Hierarchy;
 use crate::{
     BondTopologySegment, Column, DatasetId, SecondaryStructure, StructureAsset, TrajectorySegment,
 };
-use molgfx_math::{Aabb, Bvh, BvhBuildScratch, BvhSource, Mat4, SweptSphereBounds};
+use molgfx_math::{Aabb, Bvh, BvhBuildScratch, BvhSource, Mat4, SweptSphereBounds, Vec3};
 use std::sync::Arc;
 
 /// One structure in the scene, with its transform and derived tables.
@@ -119,6 +119,23 @@ impl PlacedStructure {
     #[must_use]
     pub const fn trajectory(&self) -> Option<&TrajectorySegment> {
         self.trajectory.as_ref()
+    }
+
+    /// One borrowed molecular coordinate sampled at the current presentation time.
+    /// Returns `None` for an atom outside this placement's topology.
+    #[must_use]
+    pub fn sampled_position(&self, row: u32) -> Option<Vec3> {
+        let row = row as usize;
+        match &self.trajectory {
+            Some(segment) => {
+                let t = segment.interpolation();
+                Some(
+                    Vec3::from(*segment.start().positions().get(row)?) * (1.0 - t)
+                        + Vec3::from(*segment.end().positions().get(row)?) * t,
+                )
+            }
+            None => self.source.coordinates().get(row).copied().map(Vec3::from),
+        }
     }
 
     /// Revision of the active trajectory pair or sample time.

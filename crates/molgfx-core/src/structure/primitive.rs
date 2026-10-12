@@ -171,6 +171,22 @@ pub enum CarbohydrateShape {
     Xyl,
     /// N-acetylneuraminic acid.
     Neu5Ac,
+    /// SNFG circle: hexoses, drawn as a sphere.
+    Sphere,
+    /// SNFG square: N-acetyl and amino hexoses, drawn as a cube.
+    Cube,
+    /// SNFG diamond: uronic acids and nonulosonates.
+    Diamond,
+    /// SNFG triangle: deoxyhexoses such as fucose.
+    Triangle,
+    /// SNFG star: pentoses.
+    Star,
+    /// SNFG flat rectangle: dideoxyhexoses.
+    Bar,
+    /// SNFG hexagon: unclassified monosaccharides.
+    Hexagon,
+    /// SNFG pentagon: ketoses and apiose.
+    Pentagon,
 }
 
 impl CarbohydrateShape {
@@ -185,7 +201,38 @@ impl CarbohydrateShape {
             Self::Fuc => "fuc",
             Self::Xyl => "xyl",
             Self::Neu5Ac => "neu5ac",
+            Self::Sphere => "sphere",
+            Self::Cube => "cube",
+            Self::Diamond => "diamond",
+            Self::Triangle => "triangle",
+            Self::Star => "star",
+            Self::Bar => "bar",
+            Self::Hexagon => "hexagon",
+            Self::Pentagon => "pentagon",
         }
+    }
+
+    /// Inverse of [`Self::stable_name`].
+    #[must_use]
+    pub fn from_stable_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "unknown" => Self::Unknown,
+            "glc" => Self::Glc,
+            "gal" => Self::Gal,
+            "man" => Self::Man,
+            "fuc" => Self::Fuc,
+            "xyl" => Self::Xyl,
+            "neu5ac" => Self::Neu5Ac,
+            "sphere" => Self::Sphere,
+            "cube" => Self::Cube,
+            "diamond" => Self::Diamond,
+            "triangle" => Self::Triangle,
+            "star" => Self::Star,
+            "bar" => Self::Bar,
+            "hexagon" => Self::Hexagon,
+            "pentagon" => Self::Pentagon,
+            _ => return None,
+        })
     }
 
     /// Stable numeric code used by the GPU glyph lookup table.
@@ -199,6 +246,14 @@ impl CarbohydrateShape {
             Self::Fuc => 4,
             Self::Xyl => 5,
             Self::Neu5Ac => 6,
+            Self::Sphere => 7,
+            Self::Cube => 8,
+            Self::Diamond => 9,
+            Self::Triangle => 10,
+            Self::Star => 11,
+            Self::Bar => 12,
+            Self::Hexagon => 13,
+            Self::Pentagon => 14,
         }
     }
 }

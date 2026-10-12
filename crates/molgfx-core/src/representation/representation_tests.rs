@@ -66,6 +66,32 @@ fn gaussian_surface_parameters_keep_width_and_iso_level_independent() {
 }
 
 #[test]
+fn finite_gaussian_controls_cannot_overflow_or_erase_their_effective_support() {
+    for (radius_scale, gaussian_sigma, gaussian_cutoff) in [
+        (f32::MAX, 2.0, 4.0),
+        (1.0, f32::MAX, 2.0),
+        (f32::MIN_POSITIVE, f32::MIN_POSITIVE, 4.0),
+        (1.0, f32::from_bits(1), 0.25),
+    ] {
+        let params = RepresentationParams {
+            surface_kind: SurfaceKind::Gaussian,
+            radius_scale,
+            gaussian_sigma,
+            gaussian_cutoff,
+            ..RepresentationParams::default()
+        };
+        assert!(params.validate_surface().is_err());
+    }
+    let params = RepresentationParams {
+        surface_kind: SurfaceKind::Gaussian,
+        gaussian_sigma: 0.03,
+        gaussian_cutoff: 6.0,
+        ..RepresentationParams::default()
+    };
+    assert!(params.validate_surface().is_ok());
+}
+
+#[test]
 fn molecular_surface_defaults_use_a_broad_restrained_highlight() {
     let mut scene = crate::Scene::new();
     let selection = scene.add_selection(crate::AtomSelection::All);

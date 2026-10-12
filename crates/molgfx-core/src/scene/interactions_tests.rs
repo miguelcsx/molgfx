@@ -70,3 +70,60 @@ fn interaction_endpoints_extend_the_scene_world_bound() {
         .unwrap_or_else(|error| panic!("{error}"));
     assert!(scene.world_aabb().max.x >= 9.0);
 }
+
+#[test]
+fn static_contact_inputs_cover_both_placements_and_survive_cold_reopening_without_losing_their_scope()
+ {
+    let structure = fixture::structure();
+    let mut scene = Scene::from_structure(&structure).expect("scene");
+    let first = edge_owner(&scene);
+    let second = scene
+        .add_source(scene.structure(first).expect("first").source.clone())
+        .expect("second");
+    let edge = interaction(&scene)
+        .with_static_coordinates([Some(first), Some(second)], &scene)
+        .expect("scope");
+    assert!(edge.coordinates_match(&scene));
+    let edge = scene.add_interaction(edge).expect("edge");
+    scene.structure_mut(second).expect("second").model_to_world =
+        molgfx_math::Mat4::from_translation(Vec3::X);
+    assert!(
+        !scene
+            .interaction(edge)
+            .expect("edge")
+            .coordinates_match(&scene)
+    );
+    let description = scene.describe();
+    let encoded = serde_json::to_string(&description).expect("encode");
+    let description = serde_json::from_str(&encoded).expect("decode");
+    let mut reopened = Scene::from_description(
+        &description,
+        crate::SceneDescriptionSources {
+            structures: &[structure.clone(), structure.clone()],
+            volumes: &[],
+            segmentations: &[],
+            atom_properties: &[],
+            meshes: &[],
+        },
+    )
+    .expect("reopen");
+    let (edge, value) = reopened.interactions().next().expect("edge");
+    assert!(!value.coordinates_match(&reopened));
+    reopened
+        .structure_mut(second)
+        .expect("second")
+        .model_to_world = molgfx_math::Mat4::IDENTITY;
+    assert!(
+        reopened
+            .interaction(edge)
+            .expect("edge")
+            .coordinates_match(&reopened)
+    );
+    let original = Scene::from_structure(&fixture::structure()).expect("independent source");
+    let independent = interaction(&original)
+        .with_static_coordinates([Some(first), None], &original)
+        .expect("scope");
+    let revision = scene.interaction_revision();
+    assert!(scene.add_interaction(independent).is_err());
+    assert_eq!(scene.interaction_revision(), revision);
+}

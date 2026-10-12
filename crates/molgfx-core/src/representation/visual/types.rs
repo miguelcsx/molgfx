@@ -167,10 +167,13 @@ impl VisualCompatibility {
     #[must_use]
     pub const fn for_representation(kind: RepresentationKind) -> Self {
         match kind {
-            RepresentationKind::Surface => Self::APPEARANCE,
+            RepresentationKind::Surface
+            | RepresentationKind::MolecularSurface
+            | RepresentationKind::Solvent => Self::APPEARANCE,
             RepresentationKind::Spacefill
             | RepresentationKind::BallAndStick
             | RepresentationKind::Licorice
+            | RepresentationKind::DynamicBonds
             | RepresentationKind::Bonds
             | RepresentationKind::Lines
             | RepresentationKind::Beads
@@ -181,6 +184,9 @@ impl VisualCompatibility {
             | RepresentationKind::Tube
             | RepresentationKind::Rocket
             | RepresentationKind::Twister
+            | RepresentationKind::Polyhedra
+            | RepresentationKind::NewRibbons
+            | RepresentationKind::Ribbons
             | RepresentationKind::PaperChain
             | RepresentationKind::Bases
             | RepresentationKind::BasePairs => Self::RIBBON,

@@ -88,6 +88,9 @@ impl Scene {
         &mut self,
         batch: RelationBatch,
     ) -> Result<RelationBatchHandle, CoreError> {
+        if let Some(coordinates) = batch.molecular_coordinates() {
+            coordinates.validate_source(self)?;
+        }
         for dependency in batch.dependencies().iter() {
             let rows = self
                 .row_count(dependency.domain)

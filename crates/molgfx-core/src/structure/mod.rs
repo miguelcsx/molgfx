@@ -9,6 +9,7 @@ mod ensemble;
 mod ensemble_policy;
 mod grid_affine;
 pub(crate) mod hierarchy;
+mod molecular_pose;
 pub(crate) mod occupancy;
 pub(crate) mod particle;
 pub(crate) mod placed;
@@ -35,6 +36,7 @@ pub use density::ScalarVolume;
 pub use ensemble::Ensemble;
 pub use ensemble_policy::{EnsembleOpacity, dominant_index, ensemble_opacities};
 pub use hierarchy::Hierarchy;
+pub use molecular_pose::MolecularPose;
 pub use occupancy::OccupancyStream;
 pub use particle::{Particle, ParticleBoundary, ParticleMotion, ParticleShape};
 pub use placed::PlacedStructure;
@@ -49,10 +51,7 @@ pub use secondary::SecondaryStructure;
 pub use segmentation::{
     SegmentStyle, SegmentStyleTable, SegmentationPresentation, SegmentationStyle, SegmentedVolume,
 };
-pub use source::{
-    MolecularProvider, MolecularSource, SourceAtom, SourceBond, SourceTopology,
-    is_metal_atomic_number,
-};
+pub use source::{MolecularProvider, MolecularSource, SourceAtom, SourceBond, SourceTopology};
 pub use topology::{ActiveTopologyBond, BondTopologyFrame, BondTopologySegment, TopologyBond};
 pub use trajectory::{TrajectoryFrame, TrajectorySegment};
 pub use validation::{ValidationKind, ValidationMarker};

@@ -17,6 +17,33 @@ impl Scene {
         target: impl Into<RepresentationInput>,
         representation: impl Into<RepresentationConfig>,
     ) -> Result<RepresentationHandle, CoreError> {
+        let representation = representation.into();
+        let kind = representation.kind;
+        if matches!(kind, RepresentationKind::Dots | RepresentationKind::Solvent)
+            && !(1..=4096).contains(&representation.params.point_samples)
+        {
+            return Err(CoreError::InvalidSceneDescription {
+                summary: "dotted boundaries require one through 4096 samples per atom".to_owned(),
+            });
+        }
+        if kind == RepresentationKind::PaperChain
+            && !(3..=12).contains(&representation.params.max_ring_size)
+        {
+            return Err(CoreError::InvalidSceneDescription {
+                summary: "ring bipyramids require a maximum ring size between three and twelve"
+                    .to_owned(),
+            });
+        }
+        if kind == RepresentationKind::Surface {
+            representation.params.validate_surface()?;
+        }
+        if kind == RepresentationKind::MolecularSurface
+            && representation.molecular_surface.is_none()
+        {
+            return Err(CoreError::InvalidMesh {
+                reason: "analytical molecular surface requires a geometry binding",
+            });
+        }
         let target = match target.into() {
             RepresentationInput::Stored(handle) => RepresentationTarget::Selection(handle),
             RepresentationInput::Query(query) => {
@@ -30,11 +57,6 @@ impl Scene {
                 RepresentationTarget::SegmentedVolume(handle)
             }
         };
-        let representation = representation.into();
-        let kind = representation.kind;
-        if kind == RepresentationKind::Surface {
-            representation.params.validate_surface()?;
-        }
         self.validate_representation_target(target, kind)?;
         if let Some(visual) = representation.visual_style() {
             visual

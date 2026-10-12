@@ -16,9 +16,16 @@ impl Scene {
         &mut self,
         interaction: InteractionEdge,
     ) -> Result<InteractionHandle, CoreError> {
-        if self.structure(interaction.owner()).is_none() {
+        if self.structure(interaction.owner()).is_none()
+            || interaction
+                .static_coordinates()
+                .iter()
+                .flatten()
+                .any(|(owner, _)| self.structure(*owner).is_none())
+        {
             return Err(CoreError::StaleHandle);
         }
+        interaction.validate_coordinate_sources(self)?;
         self.interaction_revision = self.interaction_revision.wrapping_add(1);
         Ok(InteractionHandle(self.interactions.insert(interaction)))
     }
