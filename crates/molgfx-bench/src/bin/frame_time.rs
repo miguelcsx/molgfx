@@ -7,12 +7,14 @@
 //! frame_time --case L<n> --cache DIR [options] ladder scene (see ladder.rs)
 //! frame_time --manifest gallery.json --case ID --cache DIR [options] gallery commands
 //! options: --recipe interactive|converged  --orbit DEG  --warmup-frames N
-//!          --frames N  --size WxH
+//!          --frames N  --size WxH  --zoom FACTOR
 //! ```
 //! Defaults: 120 warmup outputs, 1200 measured outputs, 1280x720 for files and
 //! 1920x1080 for ladder scenes. `interactive` renders one single-sample frame
 //! per output with the camera yawing `--orbit` degrees per output (0.5 by
 //! default); `converged` renders the full converged exposure on a still camera.
+//! `--zoom` divides the fitted eye distance; factors above one move inside the
+//! structure with a small near plane for close-up impostor measurements.
 
 use molgfx::command::Session;
 use molgfx::profile::MeasuredOutput;
@@ -26,11 +28,15 @@ use std::io;
 use std::path::PathBuf;
 use std::time::Instant;
 
+#[cfg(test)]
+#[path = "frame_time_tests.rs"]
+mod tests;
+
 #[global_allocator]
 static ALLOCATOR: &stats_alloc::StatsAlloc<std::alloc::System> = &stats_alloc::INSTRUMENTED_SYSTEM;
 
 const USAGE: &str = "usage: frame_time (STRUCTURE [FORM] | --case ID --cache DIR [--manifest FILE]) \
-[--recipe interactive|converged] [--orbit DEG] [--warmup-frames N] [--frames N] [--size WxH]";
+[--recipe interactive|converged] [--orbit DEG] [--warmup-frames N] [--frames N] [--size WxH] [--zoom FACTOR]";
 const SECOND_NS: f64 = 1.0e9;
 
 struct Options {
@@ -40,6 +46,7 @@ struct Options {
     warmup: usize,
     frames: usize,
     size: (u32, u32),
+    zoom: f32,
 }
 
 enum Source {
@@ -74,6 +81,7 @@ fn parse() -> Result<Options, Box<dyn Error>> {
     let mut output = MeasuredOutput::Converged;
     let mut orbit = None;
     let (mut warmup, mut frames, mut size) = (120_usize, 1200_usize, None);
+    let mut zoom = 1.0_f32;
     while let Some(flag) = arguments.next() {
         let value = arguments
             .next()
@@ -92,6 +100,7 @@ fn parse() -> Result<Options, Box<dyn Error>> {
             "--orbit" => orbit = Some(value.parse::<f32>()?),
             "--warmup-frames" => warmup = value.parse()?,
             "--frames" => frames = value.parse()?,
+            "--zoom" => zoom = value.parse()?,
             "--size" => {
                 let (width, height) = value
                     .split_once('x')
@@ -135,8 +144,14 @@ fn parse() -> Result<Options, Box<dyn Error>> {
     let size = fallback(size, default_size);
     let interactive = output == MeasuredOutput::Interactive;
     let orbit_degrees = fallback(orbit, if interactive { 0.5 } else { 0.0 });
-    if frames == 0 || size.0 == 0 || size.1 == 0 || !orbit_degrees.is_finite() {
-        return Err(io::Error::other("frames, physical size and orbit must be valid").into());
+    if frames == 0
+        || size.0 == 0
+        || size.1 == 0
+        || !orbit_degrees.is_finite()
+        || !zoom.is_finite()
+        || zoom <= 0.0
+    {
+        return Err(io::Error::other("frames, physical size, orbit and zoom must be valid").into());
     }
     Ok(Options {
         source,
@@ -145,6 +160,7 @@ fn parse() -> Result<Options, Box<dyn Error>> {
         warmup,
         frames,
         size,
+        zoom,
     })
 }
 
@@ -232,7 +248,7 @@ impl Options {
     }
 
     fn camera(&self, scene: &Scene) -> Result<molgfx::Camera, Box<dyn Error>> {
-        let camera = if let Source::Gallery { fixture, .. } = &self.source {
+        let mut camera = if let Source::Gallery { fixture, .. } = &self.source {
             let fitted = fixture
                 .script
                 .as_ref()
@@ -246,6 +262,18 @@ impl Options {
         } else {
             scene.framing_camera(aspect(self.size)?)
         };
+        if self.zoom.to_bits() != 1.0_f32.to_bits() {
+            let eye = camera.target + (camera.eye - camera.target) / self.zoom;
+            camera = molgfx::camera::perspective(
+                eye.to_array(),
+                camera.target.to_array(),
+                camera.up.to_array(),
+                45_f32.to_radians(),
+                aspect(self.size)?,
+                0.001,
+                camera.focus_distance() * 10.0,
+            )?;
+        }
         Ok(camera)
     }
 }
@@ -277,7 +305,9 @@ fn run(options: &Options) -> Result<(), Box<dyn Error>> {
     let (scene, atoms, form) = build_scene(&options.source)?;
     let scene_ns = started.elapsed().as_nanos();
     let (quality, budget_fps, profile) = options.policy()?;
+    let t_init = Instant::now();
     let mut renderer = Renderer::with_profile(profile)?;
+    eprintln!("TRACE_INIT renderer {}", t_init.elapsed().as_micros());
     let base = options.camera(&scene)?;
     // Exact in f32 for the first 16M outputs, far beyond any run here.
     let mut outputs_rendered = 0.0_f32;
@@ -347,7 +377,7 @@ fn run(options: &Options) -> Result<(), Box<dyn Error>> {
         serde_json::json!({
             "kind": "summary", "recipe": recipe, "case": case, "path": path,
             "atoms": atoms, "form": form, "size": [size.0, size.1],
-            "orbit_degrees_per_output": orbit_degrees,
+            "orbit_degrees_per_output": orbit_degrees, "zoom": options.zoom,
             "scene_ns": scene_ns, "cold_completed_ns": cold.frame_ns,
             "cold_heap": cold_heap, "cold_quality": cold.quality,
             "cold_gpu_ns": cold.gpu_timing.nanoseconds(), "cold_gpu_timing_reason": cold.gpu_timing.unavailable_reason(),

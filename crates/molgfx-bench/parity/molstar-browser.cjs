@@ -64,11 +64,25 @@ async function parseStructure(plugin, data) {
 // Each entry is literal Mol* input; an unknown kind is an error, never skipped.
 async function applyScript(plugin, object, entries) {
     let last;
+    const components = new Map();
+    const selections = [];
     for (const entry of entries) {
         switch (entry.kind) {
-            case 'representation':
-                last = await plugin.builders.structure.representation.addRepresentation(object, entry.params);
+            case 'representation': {
+                let target = object;
+                if (entry.component) {
+                    if (!components.has(entry.component)) {
+                        const component = await plugin.builders.structure.tryCreateComponentStatic(object, entry.component);
+                        if (!component) throw new Error(`Mol* component ${entry.component} is empty`);
+                        components.set(entry.component, component);
+                    }
+                    target = components.get(entry.component);
+                }
+                selections.push({ component: entry.component || 'all', atoms: target.data.elementCount,
+                    type: entry.params.type });
+                last = await plugin.builders.structure.representation.addRepresentation(target, entry.params);
                 break;
+            }
             case 'volume':
                 last = await plugin.build().to(object).apply(StateTransforms.Representation.VolumeRepresentation3D,
                     createVolumeRepresentationParams(plugin, object.data, entry.params)).commit();
@@ -91,7 +105,7 @@ async function applyScript(plugin, object, entries) {
                 throw new Error(`unknown Mol* script entry kind ${entry.kind}`);
         }
     }
-    return last;
+    return { representation: last, selections };
 }
 
 async function execute(request, bytes) {
@@ -210,7 +224,9 @@ async function execute(request, bytes) {
         if (categoricalMaps) {
             representation = await segmentation.representations(plugin, categoricalMaps);
         } else if (fixture.script) {
-            representation = await applyScript(plugin, object, fixture.script.molstar);
+            const scripted = await applyScript(plugin, object, fixture.script.molstar);
+            representation = scripted.representation;
+            metadata.rendered_components = scripted.selections;
         } else if (fixture.format === 'mrc') {
             if (fixture.form === 'iso_dots' || fixture.form === 'region') {
                 throw new Error('Mol* adapter does not implement exact voxel dots or crop');
