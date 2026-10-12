@@ -1,6 +1,41 @@
 use super::*;
 use crate::{Scene, rep};
 
+#[test]
+fn zero_radius_curve_specs_lower_and_round_trip_without_an_epsilon_cylinder() {
+    for spec in [
+        RepresentationSpec::from(rep::trace("all").radius(0.0)),
+        RepresentationSpec::from(rep::tube("all").radius(0.0)),
+    ] {
+        let spec = spec.structure(crate::StructureId::new(0));
+        spec.validate().expect("pixel stroke");
+        let (native, _) = spec
+            .native(crate::spec::lowering::Lowering {
+                surfaces: None,
+                properties: &std::collections::BTreeMap::new(),
+                channels: &[],
+            })
+            .expect("lower");
+        let text = serde_json::to_string(&spec).expect("serialize");
+        assert_eq!(
+            serde_json::from_str::<RepresentationSpec>(&text).expect("restore"),
+            spec
+        );
+        let mut scene = molgfx_core::Scene::from_structure(&structure()).expect("scene");
+        let selection = scene.add_selection(molgfx_core::AtomSelection::All);
+        let id = scene.represent(selection, native).expect("native curve");
+        assert_eq!(
+            scene
+                .representation(id)
+                .expect("curve")
+                .params
+                .tube_radius
+                .to_bits(),
+            0.0f32.to_bits()
+        );
+    }
+}
+
 fn structure() -> molframe::Structure {
     const PDB: &str =
         "ATOM      1  N   ALA A   1      11.104   6.134  -6.504  1.00  0.00           N\nEND\n";
@@ -19,6 +54,13 @@ fn structure() -> molframe::Structure {
 fn every_representation_form_round_trips_through_its_tagged_shape() {
     let specifications = vec![
         rep::cartoon("all").into(),
+        rep::ribbons("all").edge_radius(0.0).into(),
+        rep::new_ribbons("all").into(),
+        rep::bonds("all").into(),
+        rep::dynamic_bonds("all").into(),
+        rep::polyhedra("all").into(),
+        rep::solvent("all").into(),
+        rep::paper_chain("all").into(),
         rep::backbone("all").into(),
         rep::trace("all").into(),
         rep::tube("all").into(),
@@ -30,6 +72,7 @@ fn every_representation_form_round_trips_through_its_tagged_shape() {
         rep::points("all").into(),
         rep::dots("all").into(),
         rep::surface("all").into(),
+        rep::quick_surf("all").into(),
         rep::nucleic_acid("all").into(),
         rep::bases("all").into(),
         rep::base_pairs("all").into(),
@@ -123,7 +166,7 @@ fn a_form_control_only_reaches_its_own_form() {
 
 #[test]
 fn cartoon_shape_is_validated_and_retained_by_portable_specifications() {
-    let specification: RepresentationSpec = rep::cartoon("all")
+    let specification: RepresentationSpec = rep::new_cartoon("all")
         .aspect_ratio(3.0)
         .arrow_factor(2.0)
         .direction_wedges(true)
@@ -165,5 +208,82 @@ fn unsupported_soft_union_fields_are_rejected_instead_of_ignoring_the_style() {
             .blob_spread(5.0)
             .into();
         assert!(specification.validate_values().is_ok());
+    }
+}
+
+#[test]
+fn cartoon_controls_refuse_profiles_and_radii_that_the_chosen_geometry_cannot_use() {
+    for specification in [
+        RepresentationSpec::from(rep::cartoon("all").helix_profile(rep::CartoonProfile::Rounded)),
+        RepresentationSpec::from(
+            rep::cartoon("all").nucleic_profile(rep::CartoonProfile::Elliptical),
+        ),
+        RepresentationSpec::from(rep::new_cartoon("all").helix_radius(3.0)),
+    ] {
+        assert!(specification.validate_values().is_err());
+    }
+    assert!(
+        RepresentationSpec::from(rep::cartoon("all").helix_radius(3.0))
+            .validate_values()
+            .is_ok()
+    );
+    assert!(
+        RepresentationSpec::from(
+            rep::cartoon("all")
+                .style(rep::CartoonStyle::Ribbon)
+                .helix_profile(rep::CartoonProfile::Rounded)
+        )
+        .validate_values()
+        .is_ok()
+    );
+}
+
+#[test]
+fn gaussian_density_controls_lower_without_unit_changes_or_silent_clamps() {
+    let specification: RepresentationSpec = rep::quick_surf("all")
+        .structure(crate::StructureId::new(0))
+        .radius(1.7)
+        .sigma(0.03)
+        .isolevel(0.00001)
+        .grid_spacing(0.2)
+        .cutoff(6.0)
+        .into();
+    specification.validate().expect("density recipe");
+    let properties = std::collections::BTreeMap::new();
+    let (config, _) = specification
+        .native(crate::spec::lowering::Lowering {
+            surfaces: None,
+            properties: &properties,
+            channels: &[],
+        })
+        .expect("density lowering");
+    let mut scene = molgfx_core::Scene::new();
+    let selection = scene.add_selection(molgfx_core::AtomSelection::All);
+    let handle = scene.represent(selection, config).expect("native density");
+    let native = scene.representation(handle).expect("density");
+    assert_eq!(native.kind, molgfx_core::RepresentationKind::Surface);
+    assert_eq!(
+        native.params.surface_kind,
+        molgfx_core::SurfaceKind::Gaussian
+    );
+    assert_eq!(native.params.radius_scale.to_bits(), 1.7f32.to_bits());
+    assert_eq!(native.params.gaussian_sigma.to_bits(), 0.03f32.to_bits());
+    assert_eq!(native.params.isolevel.to_bits(), 0.00001f32.to_bits());
+    assert_eq!(
+        native.params.surface_spacing.map(f32::to_bits),
+        Some(0.2f32.to_bits())
+    );
+    assert_eq!(native.params.gaussian_cutoff.to_bits(), 6.0f32.to_bits());
+    for invalid in [0.0, -1.0, f32::NAN, f32::INFINITY] {
+        for specification in [
+            rep::quick_surf("all").radius(invalid),
+            rep::quick_surf("all").sigma(invalid),
+            rep::quick_surf("all").isolevel(invalid),
+            rep::quick_surf("all").grid_spacing(invalid),
+            rep::quick_surf("all").cutoff(invalid),
+        ] {
+            let specification: RepresentationSpec = specification.into();
+            assert!(specification.validate().is_err());
+        }
     }
 }
