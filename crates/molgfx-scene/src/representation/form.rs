@@ -31,12 +31,29 @@ pub(crate) enum RepresentationFormSpec {
         #[serde(default)]
         gaps: GapStyle,
         width: f32,
+        helix_radius: f32,
         style: CartoonStyle,
         aspect_ratio: f32,
         arrow_factor: f32,
         direction_wedges: bool,
         helix_profile: CartoonProfile,
         nucleic_profile: CartoonProfile,
+    },
+    Polyhedra {
+        cutoff: f32,
+    },
+    Ribbons {
+        width: f32,
+        edge_radius: f32,
+        #[serde(default)]
+        gaps: GapStyle,
+    },
+    NewRibbons {
+        width: f32,
+        aspect_ratio: f32,
+        profile: CartoonProfile,
+        #[serde(default)]
+        gaps: GapStyle,
     },
     Backbone {
         #[serde(default)]
@@ -72,11 +89,16 @@ pub(crate) enum RepresentationFormSpec {
         radius: f32,
         bond_radius: f32,
     },
+    DynamicBonds {
+        cutoff: f32,
+        bond_radius: f32,
+    },
     Bonds {
         bond_radius: f32,
     },
     PaperChain {
-        width: f32,
+        height: f32,
+        max_ring_size: u8,
     },
     Lines {
         width: f32,
@@ -86,6 +108,26 @@ pub(crate) enum RepresentationFormSpec {
     },
     Dots {
         size: f32,
+        samples: u16,
+    },
+    Solvent {
+        probe_radius: f32,
+        size: f32,
+        samples: u16,
+    },
+    QuickSurf {
+        radius: f32,
+        sigma: f32,
+        isolevel: f32,
+        grid_spacing: f32,
+        cutoff: f32,
+    },
+    MolecularSurface {
+        source: crate::DataSource,
+        method: super::MolecularSurfaceMethod,
+        controls: super::MolecularSurfaceControls,
+        wire: bool,
+        width: f32,
     },
     Surface {
         surface: SurfaceKind,
@@ -178,11 +220,63 @@ impl RepresentationSpec {
         crate::spec::stable_json_hash(&self.form)
     }
 
+    /// Compares geometric controls, identifying scientific inputs by their content.
+    /// Source locations and format hints do not change the represented geometry.
+    #[must_use]
+    pub fn same_geometry(&self, other: &Self) -> bool {
+        match (&self.form, &other.form) {
+            (
+                RepresentationFormSpec::MolecularSurface { source, .. },
+                RepresentationFormSpec::MolecularSurface {
+                    source: other_source,
+                    ..
+                },
+            ) => {
+                if source.content_hash != other_source.content_hash {
+                    return false;
+                }
+                let mut form = other.form.clone();
+                if let RepresentationFormSpec::MolecularSurface {
+                    source: normalized, ..
+                } = &mut form
+                {
+                    normalized.clone_from(source);
+                }
+                self.form == form
+            }
+            _ => self.form == other.form,
+        }
+    }
+
+    /// Actual scientific input identity and controls of an analytical surface recipe.
+    /// Display controls such as wire width and color do not change the scientific asset.
+    #[must_use]
+    pub fn molecular_surface_recipe(
+        &self,
+    ) -> Option<(
+        &crate::DataSource,
+        super::MolecularSurfaceMethod,
+        super::MolecularSurfaceControls,
+    )> {
+        match &self.form {
+            RepresentationFormSpec::MolecularSurface {
+                source,
+                method,
+                controls,
+                ..
+            } => Some((source, *method, *controls)),
+            _ => None,
+        }
+    }
+
     /// Form name, as the wire format spells it.
     #[must_use]
     pub const fn form_name(&self) -> &'static str {
         match &self.form {
             RepresentationFormSpec::Cartoon { .. } => "cartoon",
+            RepresentationFormSpec::Polyhedra { .. } => "polyhedra",
+            RepresentationFormSpec::NewRibbons { .. } => "new_ribbons",
+            RepresentationFormSpec::Ribbons { .. } => "ribbons",
             RepresentationFormSpec::Backbone { .. } => "backbone",
             RepresentationFormSpec::Trace { .. } => "trace",
             RepresentationFormSpec::Tube { .. } => "tube",
@@ -192,10 +286,17 @@ impl RepresentationSpec {
             RepresentationFormSpec::Licorice { .. } => "licorice",
             RepresentationFormSpec::Lines { .. } => "lines",
             RepresentationFormSpec::Bonds { .. } => "bonds",
+            RepresentationFormSpec::DynamicBonds { .. } => "dynamic_bonds",
             RepresentationFormSpec::PaperChain { .. } => "paper_chain",
             RepresentationFormSpec::Points { .. } => "points",
             RepresentationFormSpec::Dots { .. } => "dots",
+            RepresentationFormSpec::Solvent { .. } => "solvent",
+            RepresentationFormSpec::QuickSurf { .. } => "quick_surf",
             RepresentationFormSpec::Surface { .. } => "surface",
+            RepresentationFormSpec::MolecularSurface { method, .. } => match method {
+                super::MolecularSurfaceMethod::Surf => "surf",
+                super::MolecularSurfaceMethod::Msms => "msms",
+            },
             RepresentationFormSpec::NucleicAcid { .. } => "nucleic_acid",
             RepresentationFormSpec::Bases { .. } => "bases",
             RepresentationFormSpec::BasePairs { .. } => "base_pairs",
@@ -259,147 +360,6 @@ impl RepresentationSpec {
                 "opacity must be finite and between zero and one".to_owned(),
             ));
         }
-        match &self.form {
-            RepresentationFormSpec::Cartoon {
-                width,
-                aspect_ratio,
-                arrow_factor,
-                direction_wedges,
-                style,
-                gaps,
-                ..
-            } => validate_cartoon(
-                *width,
-                *aspect_ratio,
-                *arrow_factor,
-                *direction_wedges,
-                *style,
-                *gaps,
-            )?,
-            RepresentationFormSpec::Backbone { width, .. }
-            | RepresentationFormSpec::PaperChain { width }
-            | RepresentationFormSpec::Lines { width }
-            | RepresentationFormSpec::NucleicAcid { width }
-            | RepresentationFormSpec::Glycan { width } => positive("width", *width)?,
-            RepresentationFormSpec::Bonds { bond_radius } => positive("bond radius", *bond_radius)?,
-            RepresentationFormSpec::Points { size } | RepresentationFormSpec::Dots { size } => {
-                positive("point size", *size)?;
-            }
-            RepresentationFormSpec::Trace { radius, .. }
-            | RepresentationFormSpec::Tube { radius, .. } => {
-                positive("tube radius", *radius)?;
-            }
-            RepresentationFormSpec::Putty {
-                domain_min,
-                domain_max,
-                radius_min,
-                radius_max,
-                ..
-            } => {
-                for (name, value) in [
-                    ("putty domain minimum", *domain_min),
-                    ("putty domain maximum", *domain_max),
-                ] {
-                    if !value.is_finite() {
-                        return Err(crate::Error::InvalidSpec(format!("{name} must be finite")));
-                    }
-                }
-                if *domain_max <= *domain_min {
-                    return Err(crate::Error::InvalidSpec(
-                        "putty domain must be strictly increasing".to_owned(),
-                    ));
-                }
-                positive("putty minimum radius", *radius_min)?;
-                positive("putty maximum radius", *radius_max)?;
-            }
-            RepresentationFormSpec::Spacefill { radius }
-            | RepresentationFormSpec::Bases { radius }
-            | RepresentationFormSpec::Beads { radius } => positive("radius", *radius)?,
-            RepresentationFormSpec::BallAndStick {
-                radius,
-                bond_radius,
-            }
-            | RepresentationFormSpec::Licorice {
-                radius,
-                bond_radius,
-            }
-            | RepresentationFormSpec::BasePairs {
-                radius,
-                bond_radius,
-            } => {
-                positive("radius", *radius)?;
-                positive("bond radius", *bond_radius)?;
-            }
-            RepresentationFormSpec::Surface {
-                probe_radius,
-                isolevel,
-                blob_spread,
-                surface,
-                style,
-            } => {
-                validate_surface(*surface, *style, *probe_radius, *isolevel, *blob_spread)?;
-            }
-        }
-        Ok(())
+        self.form.validate_geometry()
     }
-}
-
-fn positive(name: &str, value: f32) -> Result<(), crate::Error> {
-    if value.is_finite() && value > 0.0 {
-        return Ok(());
-    }
-    Err(crate::Error::InvalidSpec(format!(
-        "{name} must be finite and positive"
-    )))
-}
-
-fn validate_cartoon(
-    width: f32,
-    aspect_ratio: f32,
-    arrow_factor: f32,
-    direction_wedges: bool,
-    style: CartoonStyle,
-    gaps: GapStyle,
-) -> Result<(), crate::Error> {
-    if (direction_wedges || gaps == GapStyle::Dashed) && style == CartoonStyle::Glycan {
-        return Err(crate::Error::InvalidSpec(
-            "direction wedges and dashed gaps require a polymer backbone".to_owned(),
-        ));
-    }
-    positive("width", width)?;
-    positive("aspect ratio", aspect_ratio)?;
-    if !arrow_factor.is_finite() || arrow_factor < 0.0 {
-        return Err(crate::Error::InvalidSpec(
-            "arrow factor must be finite and non-negative".to_owned(),
-        ));
-    }
-    Ok(())
-}
-
-fn validate_surface(
-    surface: SurfaceKind,
-    style: SurfaceStyle,
-    probe_radius: f32,
-    isolevel: f32,
-    blob_spread: f32,
-) -> Result<(), crate::Error> {
-    if !style.native().supports(surface.native()) {
-        return Err(crate::Error::InvalidSpec(
-            "soft union requires a van der Waals or solvent-accessible boundary".to_owned(),
-        ));
-    }
-    positive("probe radius", probe_radius)?;
-    if !isolevel.is_finite() {
-        return Err(crate::Error::InvalidSpec(
-            "isolevel must be finite".to_owned(),
-        ));
-    }
-    // A blob spread is a distance; it may be zero to request the
-    // exact union, but never negative or non-finite.
-    if !blob_spread.is_finite() || blob_spread < 0.0 {
-        return Err(crate::Error::InvalidSpec(
-            "blob spread must be finite and non-negative".to_owned(),
-        ));
-    }
-    Ok(())
 }

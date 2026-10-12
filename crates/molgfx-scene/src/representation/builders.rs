@@ -146,9 +146,11 @@ representation! {
         /// Selects connectors across real polymer gaps.
         gaps => gaps: GapStyle = GapStyle::Hidden,
         /// Sets ribbon width in ångström.
-        width => width: f32 = 1.2,
+        width => width: f32 = 2.0,
+        /// Sets the fitted circular helix radius independently of sheet width.
+        helix_radius => helix_radius: f32 = molgfx_core::RepresentationParams::default().cartoon_helix_radius,
         /// Selects a cartoon recipe without changing its semantic target.
-        style => style: CartoonStyle = CartoonStyle::Ribbon,
+        style => style: CartoonStyle = CartoonStyle::Rocket,
         /// Sets width divided by thickness for helix and sheet cross-sections.
         aspect_ratio => aspect_ratio: f32 = 5.0,
         /// Sets the strand arrow shoulder relative to body width; zero disables arrows.
@@ -173,7 +175,7 @@ representation! {
 }
 
 representation! {
-    /// Typed smooth polymer trace specification.
+    /// Straight segments between polymer guide atoms.
     Trace => Trace {
         /// Selects connectors across real polymer gaps.
         gaps => gaps: GapStyle = GapStyle::Hidden,
@@ -257,6 +259,8 @@ representation! {
     Dots => Dots {
         /// Sets point diameter in physical pixels.
         size => size: f32 = 3.0,
+        /// Sets samples per atomic sphere, between one and 4096.
+        samples => samples: u16 = 64,
     }
 }
 
@@ -324,7 +328,7 @@ pub fn beads(target: impl Into<Selection>) -> Beads {
     Beads::new(target)
 }
 
-/// Protein or polymer cartoon.
+/// Schematic protein cartoon with fitted circular helix columns and discrete beta cells.
 #[must_use]
 pub fn cartoon(target: impl Into<Selection>) -> Cartoon {
     Cartoon::new(target)
@@ -421,4 +425,8 @@ pub fn glycan(target: impl Into<Selection>) -> Glycan {
 }
 
 mod extended;
-pub use extended::{Bonds, PaperChain, bonds, paper_chain};
+pub use extended::{
+    Bonds, DynamicBonds, MolecularSurface, NewRibbons, PaperChain, Polyhedra, QuickSurf, Ribbons,
+    Solvent, bonds, dynamic_bonds, msms, new_cartoon, new_ribbons, paper_chain, polyhedra,
+    quick_surf, ribbons, solvent, surf,
+};
