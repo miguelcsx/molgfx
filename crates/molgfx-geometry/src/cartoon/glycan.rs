@@ -1,17 +1,7 @@
-//! Glycosidic traces: the ribbon path through a branched sugar tree.
-//!
-//! A protein backbone is a line, so its trace is one sweep down the residue
-//! order. A glycan is a tree: one sugar can carry two or three others, and the
-//! order residues appear in the file says nothing about which is bonded to
-//! which. So the path has to be walked over the connectivity instead, and each
-//! root-to-branch run becomes its own trace — which is exactly how a reader
-//! follows a glycan by eye.
-//!
-//! Ring centres are used as guide points rather than any single atom: a sugar's
-//! ring is its body, and its centre moves smoothly from one residue to the next
-//! where an arbitrary ring atom would jitter.
+//! Ring-oriented ribbons over upstream chemically classified glycosidic links.
 
 use super::traces::{PolymerTraces, TraceRange};
+use crate::PackingError;
 use molgfx_core::AtomSelection;
 use molgfx_math::Vec3;
 
@@ -19,316 +9,164 @@ use molgfx_math::Vec3;
 #[path = "glycan_tests.rs"]
 mod tests;
 
-/// Pyranose and furanose ring atoms. A sugar ring is carbons plus its ring
-/// oxygen, which distinguishes it from a nucleotide base — those carry ring
-/// nitrogens — without consulting a component dictionary.
-const PYRANOSE_RING: [&str; 6] = ["O5", "C1", "C2", "C3", "C4", "C5"];
-const FURANOSE_RING: [&str; 5] = ["O4", "C1", "C2", "C3", "C4"];
-/// Fewest ring atoms that still locate a sugar centre.
-const MIN_RING_ATOMS: usize = 4;
-/// Largest centre-to-centre distance treated as a glycosidic link, Ångström.
-/// Two linked pyranose centres sit near 5.5 Å; beyond this they are separate
-/// molecules that merely pack close.
-const MAX_LINK_DISTANCE: f32 = 7.5;
-
-/// One sugar reduced to the point a ribbon passes through and the plane it
-/// lies in.
 struct Sugar {
-    chain: u32,
     centre: Vec3,
-    /// Unit normal of the ring's best-fit plane.
     normal: Vec3,
     entity: u32,
-    atoms: Vec<u32>,
 }
 
-/// Normal of the best-fit plane through a closed ring of points.
+/// Extracts maximal unbranched runs through an upstream saccharide inventory.
 ///
-/// Newell's method sums the cross-products of successive edges, so every ring
-/// atom contributes and a pucker — which every real pyranose has — averages out
-/// instead of tilting the answer the way picking three atoms would. The result
-/// is unnormalized twice the signed area, so its length also reports how
-/// planar the ring is; a collapsed ring returns nothing rather than a direction
-/// made of rounding error.
-fn ring_normal(ring: &[Vec3]) -> Option<Vec3> {
-    let mut normal = Vec3::ZERO;
-    for (index, current) in ring.iter().enumerate() {
-        let next = ring.get((index + 1) % ring.len())?;
-        normal += current.cross(*next);
-    }
-    normal.try_normalize()
-}
-
-/// Extracts one trace per linear run through the glycosidic tree.
+/// Complete selected rings supply their chemically ordered plane. Only links
+/// classified by molecular chemistry connect them; centre proximity never
+/// creates a glycosidic bond. Each edge appears once, including branch arms
+/// and closed cycles. Incomplete rings produce no fabricated geometry.
 ///
-/// Residues without a sugar ring are skipped rather than approximated, and a
-/// tree with no links yields nothing rather than a ribbon through unrelated
-/// residues.
+/// # Errors
+/// Returns a topology error when molecular chemistry cannot resolve the source.
 pub fn extract_glycosidic_traces(
     structure: &molframe::Structure,
     selection: &AtomSelection,
     output: &mut PolymerTraces,
-) {
-    let sugars = collect_sugars(structure, selection);
-    if sugars.len() < 2 {
-        output.rebuild_from(Vec::new(), Vec::new(), Vec::new(), Vec::new());
-        return;
-    }
-    let links = link_graph(structure, &sugars);
+) -> Result<(), PackingError> {
+    let _ = extract_with_rings(structure, selection, output)?;
+    Ok(())
+}
 
-    let mut points = Vec::new();
-    let mut entities = Vec::new();
-    let mut normals = Vec::new();
-    let mut ranges = Vec::new();
-    let mut visited = vec![false; sugars.len()];
-
-    // Walk from every sugar that is an end or a branch point: those are where a
-    // run the eye can follow begins.
-    for start in 0..sugars.len() {
-        let degree = links.get(start).map_or(0, Vec::len);
-        if degree == 2 {
+pub(super) fn extract_with_rings(
+    structure: &molframe::Structure,
+    selection: &AtomSelection,
+    output: &mut PolymerTraces,
+) -> Result<Vec<[u32; 7]>, PackingError> {
+    let report = molframe::chemistry::carbohydrates(
+        structure.engine(),
+        None,
+        molframe::chemistry::CarbohydrateOptions::default(),
+    )
+    .map_err(|_| PackingError::Topology {
+        operation: "saccharide ring and linkage inventory",
+    })?;
+    let sugars = report
+        .monosaccharides
+        .iter()
+        .map(|sugar| {
+            if !sugar
+                .ring_atoms
+                .iter()
+                .all(|atom| selection.contains(atom.get()))
+            {
+                return None;
+            }
+            let geometry = sugar.geometry?;
+            Some(Sugar {
+                centre: Vec3::from(geometry.center),
+                normal: Vec3::from(geometry.normal),
+                entity: sugar.ring_atoms.first()?.get(),
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut links = vec![Vec::new(); sugars.len()];
+    let mut edges = Vec::with_capacity(report.links.len());
+    for link in &report.links {
+        let Some(acceptor) = link.acceptor else {
+            continue;
+        };
+        if !selection.contains(link.donor_atom.get())
+            || !selection.contains(link.acceptor_atom.get())
+            || sugars.get(link.donor).is_none_or(Option::is_none)
+            || sugars.get(acceptor).is_none_or(Option::is_none)
+            || link.donor == acceptor
+        {
             continue;
         }
-        for &neighbour in links.get(start).into_iter().flatten() {
-            if seen(&visited, neighbour) && degree != 1 {
+        edges.push((link.donor.min(acceptor), link.donor.max(acceptor)));
+    }
+    edges.sort_unstable();
+    edges.dedup();
+    for (edge, &(first, second)) in edges.iter().enumerate() {
+        links[first].push((second, edge));
+        links[second].push((first, edge));
+    }
+    build_runs(&sugars, &links, edges.len(), output);
+    let mut rings = Vec::with_capacity(sugars.len());
+    for (sugar, selected) in report.monosaccharides.iter().zip(&sugars) {
+        if selected.is_none() {
+            continue;
+        }
+        let mut rows = [u32::MAX; 7];
+        rows[0] =
+            u32::try_from(sugar.ring_atoms.len()).map_err(|_| PackingError::IndexOverflow {
+                resource: "saccharide ring size",
+                index: sugar.ring_atoms.len() as u64,
+            })?;
+        for (row, atom) in rows[1..].iter_mut().zip(&sugar.ring_atoms) {
+            *row = atom.get();
+        }
+        rings.push(rows);
+    }
+    Ok(rings)
+}
+
+fn build_runs(
+    sugars: &[Option<Sugar>],
+    links: &[Vec<(usize, usize)>],
+    edge_count: usize,
+    output: &mut PolymerTraces,
+) {
+    let mut points = Vec::with_capacity(edge_count * 2);
+    let mut entities = Vec::with_capacity(edge_count * 2);
+    let mut normals = Vec::with_capacity(edge_count * 2);
+    let mut ranges = Vec::new();
+    let mut visited = vec![false; edge_count];
+    // Branches and endpoints delimit runs; remaining edges belong to cycles.
+    for cycles in [false, true] {
+        for (start, neighbours) in links.iter().enumerate() {
+            if !cycles && neighbours.len() == 2 {
                 continue;
             }
-            let begin = points.len();
-            let mut current = start;
-            let mut next = Some(neighbour);
-            push_sugar(
-                &sugars,
-                current,
-                &mut points,
-                &mut entities,
-                &mut normals,
-                &mut visited,
-            );
-            while let Some(index) = next {
-                if seen(&visited, index) {
-                    break;
+            for &(next, edge) in neighbours {
+                if visited[edge] {
+                    continue;
                 }
-                push_sugar(
-                    &sugars,
-                    index,
-                    &mut points,
-                    &mut entities,
-                    &mut normals,
-                    &mut visited,
-                );
-                // Continue only while the run stays unbranched.
-                next = links
-                    .get(index)
-                    .filter(|neighbours| neighbours.len() == 2)
-                    .and_then(|neighbours| {
-                        neighbours
-                            .iter()
-                            .copied()
-                            .find(|candidate| *candidate != current && !seen(&visited, *candidate))
-                    });
-                current = index;
-            }
-            if points.len() - begin >= 2 {
+                let begin = points.len();
+                push_sugar(sugars, start, &mut points, &mut entities, &mut normals);
+                let mut current = next;
+                let mut entering = edge;
+                loop {
+                    visited[entering] = true;
+                    push_sugar(sugars, current, &mut points, &mut entities, &mut normals);
+                    let neighbours = &links[current];
+                    if neighbours.len() != 2 {
+                        break;
+                    }
+                    let Some(&(next, edge)) = neighbours.iter().find(|(_, edge)| !visited[*edge])
+                    else {
+                        break;
+                    };
+                    current = next;
+                    entering = edge;
+                }
                 ranges.push(TraceRange {
                     chain: 0,
                     points: begin..points.len(),
                 });
-            } else {
-                points.truncate(begin);
-                entities.truncate(begin);
-                normals.truncate(begin);
             }
         }
     }
     output.rebuild_from(points, entities, normals, ranges);
 }
 
-/// Whether a sugar has already been drawn. An index past the end counts as
-/// visited, so a bad index ends the run rather than extending it.
-fn seen(visited: &[bool], index: usize) -> bool {
-    visited.get(index).is_none_or(|drawn| *drawn)
-}
-
-/// Appends one chemically oriented sugar to the run being walked.
-///
-/// The ordered ring names fix which face the normal points toward. Preserving
-/// that sign is essential: an alternating 180° ring orientation is structural
-/// information that Twister exists to reveal.
 fn push_sugar(
-    sugars: &[Sugar],
+    sugars: &[Option<Sugar>],
     index: usize,
     points: &mut Vec<Vec3>,
     entities: &mut Vec<u32>,
     normals: &mut Vec<Vec3>,
-    visited: &mut [bool],
 ) {
-    let Some(sugar) = sugars.get(index) else {
+    let Some(Some(sugar)) = sugars.get(index) else {
         return;
     };
     points.push(sugar.centre);
     entities.push(sugar.entity);
     normals.push(sugar.normal);
-    if let Some(slot) = visited.get_mut(index) {
-        *slot = true;
-    }
-}
-
-/// Neighbour lists by centre proximity. Explicit glycosidic bonds are the
-/// stronger signal, but many deposited entries omit them for branched glycans,
-/// and a distance short enough to be a link is unambiguous at sugar scale.
-fn link_graph(structure: &molframe::Structure, sugars: &[Sugar]) -> Vec<Vec<usize>> {
-    let mut links = if structure.bonds().is_available() {
-        topology_links(structure, sugars)
-    } else {
-        vec![Vec::new(); sugars.len()]
-    };
-    complete_by_proximity(sugars, &mut links);
-    links
-}
-
-fn topology_links(structure: &molframe::Structure, sugars: &[Sugar]) -> Vec<Vec<usize>> {
-    let Ok(atom_count) = usize::try_from(structure.atom_count()) else {
-        return vec![Vec::new(); sugars.len()];
-    };
-    let mut owner = vec![usize::MAX; atom_count];
-    for (sugar, value) in sugars.iter().enumerate() {
-        for atom in &value.atoms {
-            if let Some(slot) = usize::try_from(*atom)
-                .ok()
-                .and_then(|index| owner.get_mut(index))
-            {
-                *slot = sugar;
-            }
-        }
-    }
-    let mut links = vec![Vec::new(); sugars.len()];
-    for bond in structure.bonds().iter() {
-        let first = match owner.get(bond.atom_a.as_usize()) {
-            Some(value) => *value,
-            None => usize::MAX,
-        };
-        let second = match owner.get(bond.atom_b.as_usize()) {
-            Some(value) => *value,
-            None => usize::MAX,
-        };
-        if first == usize::MAX || second == usize::MAX || first == second {
-            continue;
-        }
-        connect(&mut links, first, second);
-    }
-    links
-}
-
-fn complete_by_proximity(sugars: &[Sugar], links: &mut [Vec<usize>]) {
-    let mut parents = (0..sugars.len()).collect::<Vec<_>>();
-    for (first, neighbours) in links.iter().enumerate() {
-        for second in neighbours {
-            union(&mut parents, first, *second);
-        }
-    }
-    let mut candidates = Vec::new();
-    for (first, left) in sugars.iter().enumerate() {
-        for (second, right) in sugars.iter().enumerate().skip(first + 1) {
-            if left.chain != right.chain {
-                continue;
-            }
-            let distance = left.centre.distance(right.centre);
-            if distance <= MAX_LINK_DISTANCE {
-                candidates.push((distance, first, second));
-            }
-        }
-    }
-    candidates.sort_by(|left, right| left.0.total_cmp(&right.0));
-    for (_, first, second) in candidates {
-        if root(&mut parents, first) == root(&mut parents, second) {
-            continue;
-        }
-        connect(links, first, second);
-        union(&mut parents, first, second);
-    }
-}
-
-fn root(parents: &mut [usize], mut index: usize) -> usize {
-    while parents.get(index).is_some_and(|parent| *parent != index) {
-        index = parents[index];
-    }
-    index
-}
-
-fn union(parents: &mut [usize], first: usize, second: usize) {
-    let first = root(parents, first);
-    let second = root(parents, second);
-    if first != second
-        && let Some(parent) = parents.get_mut(second)
-    {
-        *parent = first;
-    }
-}
-
-fn connect(links: &mut [Vec<usize>], first: usize, second: usize) {
-    if let Some(slot) = links.get_mut(first)
-        && !slot.contains(&second)
-    {
-        slot.push(second);
-    }
-    if let Some(slot) = links.get_mut(second)
-        && !slot.contains(&first)
-    {
-        slot.push(first);
-    }
-}
-
-fn collect_sugars(structure: &molframe::Structure, selection: &AtomSelection) -> Vec<Sugar> {
-    let mut sugars = Vec::new();
-    for chain in structure.chains() {
-        let chain_id = chain.index().get();
-        for residue in chain.residues() {
-            let names = if residue.atom("O5").is_some() {
-                &PYRANOSE_RING[..]
-            } else {
-                &FURANOSE_RING[..]
-            };
-            let mut ring = Vec::with_capacity(names.len());
-            let mut entity = None;
-            for name in names {
-                let Some(atom) = residue.atom(name) else {
-                    continue;
-                };
-                if !selection.contains(atom.index().get()) {
-                    continue;
-                }
-                if let Some(position) = atom.position() {
-                    ring.push(Vec3::from(position));
-                    entity.get_or_insert(atom.index().get());
-                }
-            }
-            // A ring oxygen is what separates a sugar from an open chain of
-            // carbons that happens to share the naming.
-            let closed = residue.atom("O5").is_some() || residue.atom("O4").is_some();
-            if ring.len() < MIN_RING_ATOMS || !closed {
-                continue;
-            }
-            let (sum, count) = ring.iter().fold((Vec3::ZERO, 0.0f32), |(sum, n), point| {
-                (sum + *point, n + 1.0)
-            });
-            let Some(entity) = entity else {
-                continue;
-            };
-            let atoms = residue.atoms().map(|atom| atom.index().get()).collect();
-            // A ring too collapsed to define a plane still has a centre, so it
-            // keeps its place on the trace and only gives up its orientation.
-            let normal = match ring_normal(&ring) {
-                Some(value) => value,
-                None => Vec3::ZERO,
-            };
-            sugars.push(Sugar {
-                chain: chain_id,
-                centre: sum / count.max(1.0),
-                normal,
-                entity,
-                atoms,
-            });
-        }
-    }
-    sugars
 }
