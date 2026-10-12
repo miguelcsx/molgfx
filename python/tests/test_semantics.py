@@ -78,11 +78,11 @@ _pdbx_struct_assembly_gen.asym_id_list
 class SceneSemanticsTests(unittest.TestCase):
     """What the scene hands back, and what it refuses."""
 
-    def test_cartoon_shape_controls_survive_scene_serialization(self) -> None:
+    def test_new_cartoon_shape_controls_survive_scene_serialization(self) -> None:
         """The shared scene contract retains authored cross-section controls."""
         scene = molgfx.Scene(_structure())
         scene.add(
-            molgfx.rep.cartoon(
+            molgfx.rep.new_cartoon(
                 target="all",
                 aspect_ratio=3.0,
                 arrow_factor=2.0,
@@ -101,7 +101,21 @@ class SceneSemanticsTests(unittest.TestCase):
         self.assertIn('"nucleic_profile":"square"', text)
         for aspect, arrow in ((0.0, 1.0), (5.0, -1.0), (float("nan"), 1.0)):
             with self.assertRaises(molgfx.SpecError):
-                scene.add(molgfx.rep.cartoon(target="all", aspect_ratio=aspect, arrow_factor=arrow))
+                scene.add(
+                    molgfx.rep.new_cartoon(target="all", aspect_ratio=aspect, arrow_factor=arrow)
+                )
+
+    def test_classic_cartoon_refuses_inapplicable_profiles_without_changing_the_scene(self) -> None:
+        """Circular fitted helices cannot silently accept ribbon cross sections."""
+        scene = molgfx.Scene(_structure())
+        before = scene.to_json()
+        for representation in (
+            molgfx.rep.cartoon(target="all", helix_profile="rounded"),
+            molgfx.rep.cartoon(target="all", nucleic_profile="rounded"),
+        ):
+            with self.assertRaisesRegex(molgfx.SpecError, "profile controls require NewCartoon"):
+                scene.add(representation)
+            self.assertEqual(scene.to_json(), before)
 
     def test_an_unoriented_guide_reports_a_render_error_and_the_renderer_recovers(self) -> None:
         """Incomplete backbone data cannot turn an authored wedge into silent background."""

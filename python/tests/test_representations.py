@@ -29,10 +29,19 @@ class RepresentationControlTests(unittest.TestCase):
     def test_each_form_accepts_its_own_controls(self) -> None:
         cases: list[tuple[Callable[..., Any], dict[str, Any]]] = [
             (molgfx.rep.cartoon, {"width": 2.0, "style": "rocket"}),
+            (molgfx.rep.new_cartoon, {"width": 1.4, "aspect_ratio": 3.0}),
             (molgfx.rep.ball_and_stick, {"radius": 0.3, "bond_radius": 0.2}),
             (molgfx.rep.spacefill, {"radius": 1.2}),
             (molgfx.rep.licorice, {"radius": 0.9, "bond_radius": 0.2}),
             (molgfx.rep.lines, {"width": 2.0}),
+            (molgfx.rep.trace, {"radius": 0.0}),
+            (molgfx.rep.tube, {"radius": 0.0}),
+            (molgfx.rep.ribbons, {"width": 1.7, "edge_radius": 0.0}),
+            (molgfx.rep.new_ribbons, {"width": 1.7, "aspect_ratio": 8.0}),
+            (
+                molgfx.rep.quick_surf,
+                {"radius": 1.2, "sigma": 0.8, "isolevel": 0.3, "grid_spacing": 0.4, "cutoff": 5.0},
+            ),
             (molgfx.rep.points, {"size": 4.0}),
             (
                 molgfx.rep.surface,

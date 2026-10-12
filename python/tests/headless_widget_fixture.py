@@ -15,6 +15,21 @@ def _state(viewer: Viewer) -> dict[str, object]:
     result["structure_payloads"] = [
         base64.b64encode(payload).decode() for payload in viewer.structure_payloads
     ]
+    result["volume_bindings"] = [
+        (identity, base64.b64encode(values).decode()) for identity, values in viewer.volume_bindings
+    ]
+    result["hydrogen_bond_bindings"] = [
+        (identity, base64.b64encode(rows).decode(), distance, pose)
+        for identity, rows, distance, pose in viewer.hydrogen_bond_bindings
+    ]
+    result["molecular_surface_bindings"] = [
+        (identity, metadata, *(base64.b64encode(column).decode() for column in columns))
+        for identity, metadata, *columns in viewer.molecular_surface_bindings
+    ]
+    result["coordinate_frames"] = [
+        (identity, index, seconds, base64.b64encode(positions).decode())
+        for identity, index, seconds, positions in viewer.coordinate_frames
+    ]
     return result
 
 
