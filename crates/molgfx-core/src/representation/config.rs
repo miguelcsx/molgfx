@@ -1,5 +1,8 @@
 //! Target-independent representation recipes for one-call scene authoring.
 
+mod polymer;
+mod surface;
+
 use super::{ColorScheme, Material, Representation, RepresentationKind, RepresentationParams};
 use crate::{
     ClipSet, CoreError, PropertyAppearance, RepresentationTarget, SegmentationStyle,
@@ -23,12 +26,25 @@ pub struct RepresentationConfig {
     volume: VolumeStyle,
     segmentation: SegmentationStyle,
     surface_scalar: Option<SurfaceScalarOverlay>,
+    pub(crate) molecular_surface: Option<crate::MolecularSurfaceGeometry>,
     visible: bool,
     order: u16,
     visual: Option<VisualStyle>,
 }
 
 impl RepresentationConfig {
+    /// Sets samples per atomic sphere for dotted boundaries.
+    #[must_use]
+    pub const fn point_samples(mut self, samples: u16) -> Self {
+        self.params.point_samples = samples;
+        self
+    }
+    /// Sets the largest rendered ring; geometry accepts sizes three through twelve.
+    #[must_use]
+    pub const fn max_ring_size(mut self, size: u8) -> Self {
+        self.params.max_ring_size = size;
+        self
+    }
     /// Starts a recipe with the tuned defaults for `kind`.
     #[must_use]
     pub fn new(kind: RepresentationKind) -> Self {
@@ -43,6 +59,7 @@ impl RepresentationConfig {
             volume: VolumeStyle::default(),
             segmentation: SegmentationStyle::default(),
             surface_scalar: None,
+            molecular_surface: None,
             visible: true,
             order: 0,
             visual: None,
@@ -97,60 +114,10 @@ impl RepresentationConfig {
         self
     }
 
-    /// Sets cartoon ribbon width in ångström.
+    /// Sets the distance cutoff for geometric atom pairs or central-atom neighbors.
     #[must_use]
-    pub const fn ribbon_width(mut self, width: f32) -> Self {
-        self.params.ribbon_width = width;
-        self
-    }
-
-    /// Sets secondary-structure cross-section proportions and arrow shoulders.
-    ///
-    /// # Errors
-    /// The aspect ratio must be finite and positive; the arrow factor must be
-    /// finite and non-negative. Zero retains the unmodified strand body.
-    pub fn cartoon_shape(
-        mut self,
-        aspect_ratio: f32,
-        arrow_factor: f32,
-    ) -> Result<Self, CoreError> {
-        if !aspect_ratio.is_finite()
-            || aspect_ratio <= 0.0
-            || !arrow_factor.is_finite()
-            || arrow_factor < 0.0
-        {
-            return Err(CoreError::InvalidProperty {
-                reason: "cartoon aspect ratio must be positive and arrow factor non-negative, both finite",
-            });
-        }
-        self.params.cartoon_aspect_ratio = aspect_ratio;
-        self.params.cartoon_arrow_factor = arrow_factor;
-        Ok(self)
-    }
-
-    /// Selects connectors across real polymer gaps.
-    #[must_use]
-    pub const fn gaps(mut self, style: crate::GapStyle) -> Self {
-        self.params.gaps = style;
-        self
-    }
-
-    /// Enables source-anchored polymer direction wedges.
-    #[must_use]
-    pub const fn direction_wedges(mut self, enabled: bool) -> Self {
-        self.params.cartoon_direction_wedges = enabled;
-        self
-    }
-
-    /// Selects the protein helix and nucleic backbone cross-sections.
-    #[must_use]
-    pub const fn cartoon_profiles(
-        mut self,
-        helix: crate::CartoonProfile,
-        nucleic: crate::CartoonProfile,
-    ) -> Self {
-        self.params.cartoon_helix_profile = helix;
-        self.params.cartoon_nucleic_profile = nucleic;
+    pub const fn distance_cutoff(mut self, cutoff: f32) -> Self {
+        self.params.distance_cutoff = cutoff;
         self
     }
 
@@ -179,14 +146,15 @@ impl RepresentationConfig {
     ///
     /// # Errors
     ///
-    /// The radius must be finite and strictly positive, and this operation is
+    /// The radius must be finite and nonnegative. Zero draws a pixel-width
+    /// stroke rather than a cylinder. This operation is
     /// only meaningful for [`RepresentationKind::Trace`] and
     /// [`RepresentationKind::Tube`].
     pub fn tube_radius(mut self, radius: f32) -> Result<Self, CoreError> {
         self.validate_tube_kind()?;
-        if !radius.is_finite() || radius <= 0.0 {
+        if !radius.is_finite() || radius < 0.0 {
             return Err(CoreError::InvalidProperty {
-                reason: "tube radius must be finite and strictly positive",
+                reason: "tube radius must be finite and nonnegative",
             });
         }
         self.params.tube_radius = radius;
@@ -320,6 +288,13 @@ impl RepresentationConfig {
         self
     }
 
+    /// Retains validated analytical provider triangles without copying their owner.
+    #[must_use]
+    pub fn molecular_surface(mut self, geometry: crate::MolecularSurfaceGeometry) -> Self {
+        self.molecular_surface = Some(geometry);
+        self
+    }
+
     /// Sets stable draw ordering for overlapping views.
     #[must_use]
     pub const fn order(mut self, order: u16) -> Self {
@@ -349,6 +324,7 @@ impl RepresentationConfig {
         representation.volume = self.volume;
         representation.segmentation = self.segmentation;
         representation.surface_scalar = self.surface_scalar;
+        representation.molecular_surface = self.molecular_surface;
         representation.visible = self.visible;
         representation.order = self.order;
         representation.visual = self.visual;
