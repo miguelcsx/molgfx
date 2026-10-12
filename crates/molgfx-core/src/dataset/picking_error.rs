@@ -19,8 +19,18 @@ pub enum PickingError {
     #[error("every pick readback is already in flight")]
     InFlightExhausted,
     /// Every slot belongs to the current resident working set.
-    #[error("picking resolver working set is full")]
+    #[error("picking resolver working set is full (raise EngineConfig::picking_page_capacity or reduce resident chunks)")]
     WorkingSetFull,
+    /// The scene needs more resident pick pages than the engine can ever hold.
+    #[error(
+        "the scene needs more than {limit} resident picking pages (one per placed structure \
+         and entity kind, per resident chunk, and per generic batch): place fewer structures or \
+         merge them into instance batches"
+    )]
+    PageLimit {
+        /// Hard ceiling on resident pick pages.
+        limit: u32,
+    },
     /// The same dataset, chunk and namespace already owns a page.
     #[error("picking page is already requested or resident")]
     DuplicatePage,

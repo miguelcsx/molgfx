@@ -248,3 +248,46 @@ fn exhausted_page_generations_never_wrap() {
         Err(PickingError::GenerationExhausted)
     );
 }
+
+#[test]
+fn growing_the_table_keeps_pages_and_stale_tickets_distinct() {
+    let mut resolver = resolver(1);
+    let first = PickPageDescriptor::new(
+        DatasetId::new(1),
+        ChunkId::new(0),
+        span(0, 4),
+        EntityKind::Atom,
+    );
+    let ticket = request_ready(&mut resolver, first);
+    let second = PickPageDescriptor::new(
+        DatasetId::new(2),
+        ChunkId::new(0),
+        span(0, 4),
+        EntityKind::Atom,
+    );
+    assert_eq!(resolver.request(second), Err(PickingError::WorkingSetFull));
+
+    resolver.grow(8).unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(resolver.capacity(), 8);
+    let grown = request_ready(&mut resolver, second);
+    assert_ne!(grown.page(), ticket.page());
+    assert_eq!(resolver.resident_len(), 2);
+    assert_eq!(resolver.request(second), Err(PickingError::DuplicatePage));
+    let token = resolver
+        .token(ticket, LocalRow::new(1))
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert!(resolver
+        .resolve(PickReadback::new(token, ticket.generation()))
+        .is_ok());
+
+    resolver.release(ticket).unwrap_or_else(|error| panic!("{error}"));
+    let reused = request_ready(&mut resolver, first);
+    assert_eq!(reused.page(), ticket.page());
+    assert_ne!(reused.generation(), ticket.generation());
+    assert_eq!(
+        resolver.grow(super::MAX_PICK_PAGES + 1),
+        Err(PickingError::PageLimit {
+            limit: super::MAX_PICK_PAGES
+        })
+    );
+}

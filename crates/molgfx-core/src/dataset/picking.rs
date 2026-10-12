@@ -242,9 +242,16 @@ impl Default for PageSlot {
 /// Fixed-capacity page table whose memory is proportional to the working set.
 #[derive(Debug)]
 pub struct PagedPickResolver {
-    slots: Box<[PageSlot]>,
+    slots: Vec<PageSlot>,
     resident: u32,
+    /// Namespaces that currently own a pending or resident slot.
+    live: hashbrown::HashSet<(DatasetId, ChunkId, EntityKind)>,
+    /// No slot below this index is vacant.
+    first_vacant: usize,
 }
+
+/// Largest number of simultaneously resident pick pages any resolver may hold.
+pub const MAX_PICK_PAGES: u32 = 1 << 20;
 
 impl PagedPickResolver {
     /// Allocates the complete resolver once; later transitions do not allocate.
@@ -266,12 +273,41 @@ impl PagedPickResolver {
             .map_err(|_| PickingError::AllocationFailed)?;
         slots.resize(capacity, PageSlot::default());
         Ok(Self {
-            slots: slots.into_boxed_slice(),
+            slots,
             resident: 0,
+            live: hashbrown::HashSet::new(),
+            first_vacant: 0,
         })
     }
 
-    /// Maximum number of requested and resident pages.
+    /// Enlarges the table to hold at least `capacity` pages.
+    ///
+    /// Existing slots, their generations and every outstanding ticket stay
+    /// valid; only vacant slots are appended. A request for fewer pages than
+    /// the current capacity is a no-op.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PickingError::PageLimit`] beyond [`MAX_PICK_PAGES`], or an
+    /// allocation error.
+    pub fn grow(&mut self, capacity: u32) -> Result<(), PickingError> {
+        if capacity > MAX_PICK_PAGES {
+            return Err(PickingError::PageLimit {
+                limit: MAX_PICK_PAGES,
+            });
+        }
+        let capacity = usize::try_from(capacity).map_err(|_| PickingError::CapacityTooLarge)?;
+        if capacity <= self.slots.len() {
+            return Ok(());
+        }
+        self.slots
+            .try_reserve_exact(capacity - self.slots.len())
+            .map_err(|_| PickingError::AllocationFailed)?;
+        self.slots.resize(capacity, PageSlot::default());
+        Ok(())
+    }
+
+    /// Number of requested and resident pages the table holds before it grows.
     #[must_use]
     pub fn capacity(&self) -> usize {
         self.slots.len()
@@ -292,28 +328,29 @@ impl PagedPickResolver {
         &mut self,
         descriptor: PickPageDescriptor,
     ) -> Result<PickPageTicket, PickingError> {
-        if self.slots.iter().any(|slot| match slot.state {
-            PageState::Pending(value) | PageState::Resident(value) => {
-                same_namespace(value, descriptor)
-            }
-            PageState::Vacant => false,
-        }) {
+        let namespace = (descriptor.dataset(), descriptor.chunk(), descriptor.kind());
+        if self.live.contains(&namespace) {
             return Err(PickingError::DuplicatePage);
         }
-        let Some((index, slot)) = self
+        let start = self.first_vacant;
+        let Some(offset) = self
             .slots
-            .iter_mut()
-            .enumerate()
-            .find(|(_, slot)| slot.state == PageState::Vacant)
+            .get(start..)
+            .and_then(|tail| tail.iter().position(|slot| slot.state == PageState::Vacant))
         else {
             return Err(PickingError::WorkingSetFull);
         };
+        let index = start + offset;
+        let slot = &mut self.slots[index];
         let Some(generation) = slot.generation.0.checked_add(1) else {
             return Err(PickingError::GenerationExhausted);
         };
         let page = u32::try_from(index).map_err(|_| PickingError::CapacityTooLarge)?;
         slot.generation = PickGeneration(generation);
         slot.state = PageState::Pending(descriptor);
+        self.first_vacant = index + 1;
+        self.live.try_reserve(1).map_err(|_| PickingError::AllocationFailed)?;
+        self.live.insert(namespace);
         Ok(PickPageTicket {
             page: ResidentPage(page),
             generation: slot.generation,
@@ -344,12 +381,22 @@ impl PagedPickResolver {
     ///
     /// Rejects tickets for another page generation.
     pub fn release(&mut self, ticket: PickPageTicket) -> Result<(), PickingError> {
-        let was_resident = {
+        let index = ticket.page.get() as usize;
+        let (was_resident, released) = {
             let slot = self.slot_mut(ticket)?;
             let was_resident = matches!(slot.state, PageState::Resident(_));
+            let released = match slot.state {
+                PageState::Pending(value) | PageState::Resident(value) => Some(value),
+                PageState::Vacant => None,
+            };
             slot.state = PageState::Vacant;
-            was_resident
+            (was_resident, released)
         };
+        if let Some(value) = released {
+            self.live
+                .remove(&(value.dataset(), value.chunk(), value.kind()));
+        }
+        self.first_vacant = self.first_vacant.min(index);
         if was_resident {
             self.resident = self
                 .resident
@@ -451,12 +498,6 @@ fn local_error(page: ResidentPage, row: LocalRow, span: ChunkSpan) -> PickingErr
 
 fn page_error(page: ResidentPage) -> PickingError {
     PickingError::PageOutOfRange { page: page.get() }
-}
-
-fn same_namespace(left: PickPageDescriptor, right: PickPageDescriptor) -> bool {
-    left.dataset() == right.dataset()
-        && left.chunk() == right.chunk()
-        && left.kind() == right.kind()
 }
 
 #[cfg(test)]
