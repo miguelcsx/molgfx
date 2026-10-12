@@ -4,7 +4,7 @@ use super::{
     BTreeMap, BindGroupDesc, BindGroupEntry, Device, GpuInstanceBatches, GpuInteractions,
     InteractionGpu, PagedRelationVisualState, PagedVisualSync, PickPages, RESOLVER_ALIGNMENT_ROWS,
     RelationResolverGpu, RelationStream, RelationVisualPlan, RelationVisualSource, RenderError,
-    count, row_limit, workgroups_2d, write_draw_args,
+    count, row_limit, stable_relation_scratch_bytes, workgroups_2d, write_draw_args,
 };
 use crate::engine::chunk_draw_plan::{ResidentRelationChunkPlacement, ResidentSpatialAnchor};
 use molgfx_core::{EntityKind, PagedSpatialAnchor};
@@ -183,7 +183,7 @@ impl<D: Device> GpuInteractions<D> {
         let visible_rebound = self.visible.reserve(
             device,
             "visible relation rows",
-            u64::from(row_count).saturating_mul(4),
+            stable_relation_scratch_bytes(row_count),
         )?;
         self.resolvers.upload(
             device,
@@ -316,6 +316,7 @@ impl<D: Device> GpuInteractions<D> {
         let count = count(self.scratch.len()).saturating_sub(first);
         if count != 0 {
             self.visual_plans.push(RelationVisualPlan {
+                inactive: false,
                 source: plan
                     .visual
                     .as_ref()

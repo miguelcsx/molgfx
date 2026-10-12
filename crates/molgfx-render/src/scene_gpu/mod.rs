@@ -41,6 +41,7 @@ mod point_batch_table;
 mod primitive_draw;
 mod primitive_packing;
 mod primitive_table;
+mod snfg_class;
 mod probe_offsets;
 mod quality_acceleration;
 mod quality_hardware;

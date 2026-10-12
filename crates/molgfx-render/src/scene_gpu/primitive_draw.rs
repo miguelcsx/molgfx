@@ -150,6 +150,11 @@ const fn draw_shape(family: u32, shape: u32) -> u32 {
             }
         }
         FAMILY_POLYGON if shape == 4 || shape == 5 => POLYGON_PENTAGON,
+        // SNFG triangle, diamond and star: classes distinct from the pentagon
+        // and hexagon so a draw run holds one shape; they cast no shadow yet.
+        FAMILY_POLYGON if shape == 7 => 3,
+        FAMILY_POLYGON if shape == 8 => 4,
+        FAMILY_POLYGON if shape == 9 => 7,
         FAMILY_POLYGON => POLYGON_HEXAGON,
         _ => 0,
     }

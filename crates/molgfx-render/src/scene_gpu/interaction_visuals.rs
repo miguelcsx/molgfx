@@ -87,6 +87,8 @@ impl<D: Device> GpuInteractions<D> {
             if reusable {
                 continue;
             }
+            let inactive = u32::from(plan.inactive);
+            let counts = [plan.first, plan.count, count(self.scratch.len()), inactive];
             let config = device.create_buffer(&BufferDesc {
                 label: "relation cull range",
                 size: std::mem::size_of::<RelationCullConfig>() as u64,
@@ -96,7 +98,7 @@ impl<D: Device> GpuInteractions<D> {
                 &config,
                 0,
                 bytemuck::bytes_of(&RelationCullConfig {
-                    counts: [plan.first, plan.count, 0, 0],
+                    counts,
                 }),
             );
             let visual = self.visual_entries(plan.source, resources, paged_properties);
@@ -119,7 +121,8 @@ impl<D: Device> GpuInteractions<D> {
             let stream = RelationCullStream {
                 source: plan.source,
                 groups: workgroups_2d(u64::from(plan.count).div_ceil(64)),
-                _config: config,
+                config,
+                counts,
                 group,
                 bindings,
             };

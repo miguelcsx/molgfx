@@ -14,6 +14,7 @@ pub(super) fn resolve_dispatches(
 pub(super) fn cull_dispatches(&self) -> impl Iterator<Item = RelationCullDispatch<'_, D>> {
     self.cull_streams.iter().map(|stream| RelationCullDispatch {
         groups: stream.groups,
+        compaction_groups: workgroups_2d(u64::from(self.count).div_ceil(64)),
         group: &stream.group,
     })
 }

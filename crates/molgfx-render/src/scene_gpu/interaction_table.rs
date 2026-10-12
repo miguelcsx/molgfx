@@ -1,9 +1,12 @@
 //! One revision-diffed glyph table plus branch-free dynamic relation streams.
 
+#[path = "relations/coordinates.rs"]
+mod coordinates;
 #[path = "relations/paged.rs"]
 mod paged;
 #[path = "relations/visual.rs"]
 mod paged_visual;
+use coordinates::RelationCullConfig;
 pub(in crate::scene_gpu) use paged::PagedRelationSync;
 
 use super::asset_arena::AssetArena;
@@ -26,6 +29,7 @@ use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device,
 use molgfx_math::Mat4;
 use paged_visual::{PagedRelationVisualArenas, PagedRelationVisualState, PagedVisualSync};
 use std::collections::BTreeMap;
+mod legacy;
 
 const RESOLVER_ALIGNMENT_ROWS: usize = 4;
 
@@ -36,12 +40,6 @@ struct RelationResolverGpu {
     end: [f32; 4],
     output: [u32; 4],
     reserved: [u32; 4],
-}
-
-#[repr(C, align(16))]
-#[derive(Clone, Copy, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
-struct RelationCullConfig {
-    counts: [u32; 4],
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -65,6 +63,7 @@ struct RelationVisualPlan {
     count: u32,
     color: molgfx_math::Rgba8,
     opacity: f32,
+    inactive: bool,
 }
 
 #[derive(Debug)]
@@ -97,6 +96,7 @@ pub(crate) struct RelationResolveDispatch<'a, D: Device> {
 #[derive(Clone, Copy)]
 pub(crate) struct RelationCullDispatch<'a, D: Device> {
     pub(crate) groups: [u32; 2],
+    pub(crate) compaction_groups: [u32; 2],
     pub(crate) group: &'a D::BindGroup,
 }
 
@@ -104,7 +104,8 @@ pub(crate) struct RelationCullDispatch<'a, D: Device> {
 struct RelationCullStream<D: Device> {
     source: RelationVisualSource,
     groups: [u32; 2],
-    _config: D::Buffer,
+    config: D::Buffer,
+    counts: [u32; 4],
     group: D::BindGroup,
     bindings: [u64; 4],
 }
@@ -132,6 +133,7 @@ pub(super) struct GpuInteractions<D: Device> {
     paged_visual_synced: Option<(u64, u64, u64)>,
     paged_timeline_synced: u64,
     dynamic_state_revision: Option<(u64, u64)>,
+    coordinate_scopes: legacy::CoordinateScopes,
     scene_count: usize,
     scene_visual_count: usize,
     scene_resolver_count: usize,
@@ -195,6 +197,7 @@ impl<D: Device> GpuInteractions<D> {
             paged_visual_synced: None,
             paged_timeline_synced: 0,
             dynamic_state_revision: None,
+            coordinate_scopes: legacy::CoordinateScopes::new(),
             scene_count: 0,
             scene_visual_count: 0,
             scene_resolver_count: 0,
@@ -224,7 +227,7 @@ impl<D: Device> GpuInteractions<D> {
             scene.generic_batch_revision(),
             picking.scene_table_revision(),
             sources.asset_arena.revision(),
-            source_binding_revision(sources.structures),
+            source_binding_revision(sources.structures) ^ self.coordinate_scopes.revision(scene),
         );
         let visual_bindings = visual.binding_revision();
         let visual_revision = (
@@ -241,6 +244,9 @@ impl<D: Device> GpuInteractions<D> {
         let data_changed = self.synced != Some(revision);
         let visual_changed = self.visual_synced != Some(visual_revision);
         if !data_changed && !visual_changed {
+            if state_changed || dynamic_sources_changed {
+                self.sync_coordinate_validity(queue, scene);
+            }
             if (state_changed || dynamic_sources_changed)
                 && self.streams.iter().any(|stream| stream.tracks_coordinates)
             {
@@ -250,6 +256,7 @@ impl<D: Device> GpuInteractions<D> {
         }
         let row_count = self.sync_geometry(input, data_changed)?;
         self.sync_visuals(device, queue, cull_layout, scene, visual)?;
+        self.sync_coordinate_validity(queue, scene);
         self.count = row_count;
         self.dynamic_dirty |= (data_changed && !self.streams.is_empty())
             || (state_changed && self.streams.iter().any(|stream| stream.tracks_coordinates));
@@ -278,6 +285,7 @@ impl<D: Device> GpuInteractions<D> {
                     count: legacy_count,
                     color: molgfx_math::Rgba8::WHITE,
                     opacity: 1.0,
+                    inactive: false,
                 });
             }
             plans = self.pack_relations(input.scene, input.picking)?;
@@ -298,7 +306,7 @@ impl<D: Device> GpuInteractions<D> {
         let visible_rebound = self.visible.reserve(
             input.device,
             "visible relation rows",
-            u64::from(row_count).saturating_mul(4),
+            stable_relation_scratch_bytes(row_count),
         )?;
         if data_changed || output_rebound || visible_rebound {
             self.cull_streams.clear();
@@ -349,42 +357,6 @@ impl<D: Device> GpuInteractions<D> {
         self.paged_timeline_synced = 0;
     }
 
-    fn pack_legacy(
-        &mut self,
-        scene: &Scene,
-        structures: &[GpuStructure<D>],
-    ) -> Result<(), RenderError> {
-        for (handle, edge) in scene.interactions().filter(|(_, edge)| edge.visible()) {
-            let Some(page) = structures
-                .iter()
-                .find(|structure| structure.handle == edge.owner())
-                .map(|structure| structure.pick_page(EntityKind::Edge))
-            else {
-                continue;
-            };
-            self.scratch.push(InteractionGpu::new(
-                edge,
-                u64::from(Scene::interaction_row(handle)),
-                page,
-            )?);
-        }
-        for (handle, guide) in scene.guides().filter(|(_, guide)| guide.visible()) {
-            let Some(page) = structures
-                .iter()
-                .find(|structure| structure.handle == guide.owner())
-                .map(|structure| structure.pick_page(EntityKind::Guide))
-            else {
-                continue;
-            };
-            self.scratch.push(InteractionGpu::from_guide(
-                guide,
-                u64::from(Scene::guide_row(handle)),
-                page,
-            )?);
-        }
-        Ok(())
-    }
-
     fn pack_relations(
         &mut self,
         scene: &Scene,
@@ -430,12 +402,9 @@ impl<D: Device> GpuInteractions<D> {
                 streams
                     .entry(stream_key(relation))
                     .or_default()
-                    .push(RelationResolverGpu {
-                        start: anchor_payload(scene, relation.start)?,
-                        end: anchor_payload(scene, relation.end)?,
-                        output: [output_row, logical, 0, 0],
-                        reserved: [0; 4],
-                    });
+                    .push(relation_resolver(
+                        scene, relation, batch, logical, output_row,
+                    )?);
             }
             let end = u32::try_from(self.scratch.len()).map_err(|_| row_limit())?;
             if end != first {
@@ -445,6 +414,7 @@ impl<D: Device> GpuInteractions<D> {
                     count: end - first,
                     color: batch.style().color,
                     opacity: batch.style().opacity,
+                    inactive: false,
                 });
             }
         }
