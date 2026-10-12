@@ -8,7 +8,8 @@ pub mod camera;
 /// Camera controllers and the abstract input events that drive them.
 pub mod controls {
     pub use molgfx_core::{
-        ArcballController, Button, FlyController, InputEvent, Key, OrbitController,
+        ArcballController, Button, FlyController, InputEvent, Key, OrbitCamera, OrbitController,
+        ScaleController,
     };
 }
 pub mod color;
@@ -44,10 +45,11 @@ pub use molgfx_core::SegmentationPresentation;
 pub use molgfx_wgpu::{AdapterReport, SystemInfo, system_info};
 pub use overlay::{
     Anchor, AnnotationSpec, AssemblySpec, DataSource, EllipsoidSpec, FieldLines, FitResult,
-    InteractionKind, InteractionSpec, IsoStyle, MeasurementSpec, OverlayHandles, OverlayId,
-    PlaneSpec, SegmentStyle, SegmentationBinding, SegmentationSpec, TrajectoryBinding,
-    TrajectoryFrame, TrajectorySpec, UnitCellSpec, ValidationFinding, VolumeBinding,
-    VolumePresentation, VolumeRegion, VolumeSpec, VolumeTransferPoint,
+    HydrogenBondBinding, HydrogenBondGeometry, HydrogenBonds, InteractionKind, InteractionSpec,
+    IsoStyle, MeasurementSpec, OverlayHandles, OverlayId, PlaneSpec, SegmentStyle,
+    SegmentationBinding, SegmentationSpec, TrajectoryBinding, TrajectoryFrame, TrajectorySpec,
+    UnitCellSpec, ValidationFinding, VolumeBinding, VolumePresentation, VolumeRegion, VolumeSpec,
+    VolumeTransferPoint,
 };
 pub use patch::{PatchOperation, ScenePatch};
 pub use profile::{AntiAliasing, DepthCue, Effect, EffectKind, EffectSet, Quality, RenderProfile};
@@ -75,14 +77,18 @@ pub mod host {
         unmet_requirements, wgpu,
     };
 }
-pub use representation::RepresentationSpec;
+pub use representation::{
+    MolecularSurfaceBinding, MolecularSurfaceControls, MolecularSurfaceData,
+    MolecularSurfaceGeometry, MolecularSurfaceMethod, MolecularSurfaceSource, RepresentationSpec,
+};
 pub use representation::{SceneItem, Selection};
 pub use scene::domains::AssemblyChoice;
 pub use scene::hashing::structure_hash;
 pub use scene::transaction::SceneTransaction;
 pub use scene::{
-    AssemblyCopy, ResidueMetadata, ResolvedAtomPick, ResolvedBondPick, ResolvedLabelPick,
-    ResolvedMeasurementPick, ResolvedPick, ResolvedVolumeSegmentPick, Scene, chain_selection,
+    AssemblyCopy, PlaybackBinding, ResidueMetadata, ResolvedAtomPick, ResolvedBondPick,
+    ResolvedLabelPick, ResolvedMeasurementPick, ResolvedPick, ResolvedVolumeSegmentPick,
+    RuntimeBindings, Scene, chain_selection,
 };
 pub use spec::{InteractionChannel, SceneSpec, StructureSource};
 pub use visual::{
@@ -94,11 +100,13 @@ pub mod rep {
     //! Typed representation constructors.
     pub use crate::representation::{
         Backbone, BallAndStick, BasePairs, Bases, Beads, Bonds, Cartoon, CartoonProfile,
-        CartoonStyle, Dots, GapStyle, Glycan, Licorice, Lines, NucleicAcid, PaperChain,
-        PointRepresentation, Putty, RepresentationApplicability, RepresentationRequirement,
-        Spacefill, Surface, SurfaceKind, SurfaceStyle, Trace, Tube, backbone, ball_and_stick,
-        base_pairs, bases, beads, bonds, cartoon, dots, glycan, licorice, lines, nucleic_acid,
-        paper_chain, points, putty, spacefill, surface, trace, tube,
+        CartoonStyle, Dots, DynamicBonds, GapStyle, Glycan, Licorice, Lines, MolecularSurface,
+        NewRibbons, NucleicAcid, PaperChain, PointRepresentation, Polyhedra, Putty, QuickSurf,
+        RepresentationApplicability, RepresentationRequirement, RepresentationReview, Ribbons,
+        Solvent, Spacefill, Surface, SurfaceKind, SurfaceStyle, Trace, Tube, backbone,
+        ball_and_stick, base_pairs, bases, beads, bonds, cartoon, dots, dynamic_bonds, glycan,
+        licorice, lines, msms, new_cartoon, new_ribbons, nucleic_acid, paper_chain, points,
+        polyhedra, putty, quick_surf, ribbons, solvent, spacefill, surf, surface, trace, tube,
     };
 }
 

@@ -13,11 +13,13 @@ mod atom_pick;
 pub(crate) mod domains;
 mod framing;
 pub(crate) mod hashing;
+mod hydrogen_bonds;
 mod insertion;
 mod inspect;
 pub(crate) mod interaction;
 #[cfg(test)]
 mod interaction_tests;
+mod molecular_surface;
 mod operations;
 mod overlay;
 mod overlay_pick;
@@ -30,6 +32,8 @@ mod runtime_tests;
 pub(crate) mod selection_rows;
 mod structures;
 pub(crate) mod transaction;
+#[cfg(test)]
+mod volume_binding_tests;
 
 #[cfg(test)]
 mod inspect_tests;
@@ -39,10 +43,26 @@ mod placement_tests;
 mod tests;
 
 mod accessors;
+mod binding_retention;
+mod bulk_bindings;
+mod playback_binding;
+mod playback_resolution;
+pub use playback_binding::PlaybackBinding;
+mod runtime_bindings;
+#[cfg(test)]
+mod runtime_bindings_tests;
+mod runtime_capture;
+mod selection_scope;
+pub use runtime_bindings::RuntimeBindings;
 mod construction;
 mod derived_bindings;
 mod editing;
+mod ensemble;
+#[cfg(test)]
+mod ensemble_tests;
 mod items;
+#[cfg(test)]
+mod molecular_surface_tests;
 mod restyle;
 #[cfg(test)]
 mod restyle_tests;

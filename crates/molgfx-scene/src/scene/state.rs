@@ -32,6 +32,9 @@ pub struct Scene {
     /// The frame pair each structure is being played from, re-applied whenever
     /// the scene is resolved again so a layer edit never stops an animation.
     pub(super) playback: BTreeMap<StructureId, super::overlay::PlaybackPair>,
+    /// The one structure whose atoms may carry the selected bit, when a caller asked for
+    /// that (the selection is a query over every structure; this keeps it to one).
+    pub(super) selected_scope: Option<StructureId>,
 }
 
 pub(crate) struct Resolution {

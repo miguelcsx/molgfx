@@ -13,14 +13,47 @@ impl Scene {
         &mut self,
         volume: crate::VolumeSpec,
     ) -> Result<crate::VolumeId, Error> {
+        self.insert_volume_with_bindings(volume, None)
+    }
+
+    /// Inserts a scalar-grid presentation and its borrowed bulk source atomically.
+    ///
+    /// # Errors
+    /// Rejects conflicting identities, malformed grids or invalid presentations
+    /// without changing the scene or consuming the next volume identity.
+    pub fn add_volume_with_binding(
+        &mut self,
+        volume: impl Into<crate::VolumeSpec>,
+        binding: crate::VolumeBinding,
+    ) -> Result<crate::VolumeId, Error> {
+        let volume = volume.into();
+        if binding.content_hash() != volume.source.content_hash.as_ref() {
+            return Err(Error::InvalidSpec(
+                "volume binding must identify the inserted scalar source".to_owned(),
+            ));
+        }
+        binding.matches(&volume)?;
+        let mut bindings = self.overlay_bindings.clone();
+        bindings.insert(binding)?;
+        self.insert_volume_with_bindings(volume, Some(bindings))
+    }
+
+    fn insert_volume_with_bindings(
+        &mut self,
+        volume: crate::VolumeSpec,
+        bindings: Option<crate::overlay::OverlayBindings>,
+    ) -> Result<crate::VolumeId, Error> {
         let id = crate::VolumeId(next_id_for(
             self.spec.volumes.last_key_value().map(|(id, _)| id.get()),
             "volume",
         )?);
-        self.apply(&ScenePatch {
-            base_revision: self.revision(),
-            operations: vec![PatchOperation::AddVolume { id, volume }],
-        })?;
+        self.apply_with_overlay_bindings(
+            &ScenePatch {
+                base_revision: self.revision(),
+                operations: vec![PatchOperation::AddVolume { id, volume }],
+            },
+            bindings,
+        )?;
         Ok(id)
     }
 

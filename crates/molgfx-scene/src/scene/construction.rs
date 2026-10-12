@@ -30,15 +30,21 @@ impl Scene {
             next_representation: 1,
             snapshot_bindings: super::snapshot::SnapshotBindings::default(),
             playback: BTreeMap::new(),
+            selected_scope: None,
         }
     }
     /// Builds a scene over a shared immutable `MolFrame` snapshot.
     ///
+    /// A multi-model structure draws its first model; use
+    /// [`Self::from_structure_model`] for another. The structure is bound as
+    /// `StructureId(1)` (see [`Self::from_structure_with_id`]).
+    ///
     /// # Errors
     ///
-    /// Returns a validation error if the molecular source cannot be adapted.
+    /// Returns a validation error if the molecular source cannot be adapted
+    /// or if the structure has no atoms.
     pub fn from_structure(structure: &molframe::Structure) -> Result<Self, Error> {
-        Self::from_source(molgfx_core::MolecularSource::from_molframe(structure))
+        Self::from_structure_model(structure, 0)
     }
 
     /// Builds a scene over a provider-neutral immutable molecular source.
@@ -79,6 +85,7 @@ impl Scene {
             next_representation: 1,
             snapshot_bindings: super::snapshot::SnapshotBindings::default(),
             playback: BTreeMap::new(),
+            selected_scope: None,
         })
     }
 
@@ -95,6 +102,16 @@ impl Scene {
         spec: SceneSpec,
         structures: BTreeMap<StructureId, molframe::Structure>,
     ) -> Result<Self, Error> {
+        if let Some(identity) = structures
+            .iter()
+            .find_map(|(id, structure)| structure.is_ragged_ensemble().then_some(id))
+        {
+            return Err(Error::InvalidSpec(format!(
+                "structure {} is a ragged multi-model ensemble with no atoms of its own; \
+                 bind one model from Scene::model_structure",
+                identity.get()
+            )));
+        }
         Self::from_spec_with_properties(
             spec,
             structures
@@ -117,6 +134,25 @@ impl Scene {
         spec: SceneSpec,
         structures: BTreeMap<StructureId, molgfx_core::MolecularSource>,
         property_bindings: BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
+    ) -> Result<Self, Error> {
+        Self::from_spec_with_bindings(
+            spec,
+            structures,
+            property_bindings,
+            super::RuntimeBindings::default(),
+        )
+    }
+
+    /// Restores an authored scene and its shared runtime assets in one resolution.
+    /// No binding increments the restored document's semantic revision.
+    ///
+    /// # Errors
+    /// Rejects inconsistent molecular, property or scientific asset bindings.
+    pub fn from_spec_with_bindings(
+        spec: SceneSpec,
+        structures: BTreeMap<StructureId, molgfx_core::MolecularSource>,
+        property_bindings: BTreeMap<Box<str>, crate::ScalarPropertyBinding>,
+        mut bindings: super::RuntimeBindings,
     ) -> Result<Self, Error> {
         spec.validate_camera()?;
         if spec.structures.len() != structures.len()
@@ -144,7 +180,8 @@ impl Scene {
         }
         spec.validate_selections()?;
         let property_bindings = with_derived_bindings(&spec, &structures, property_bindings)?;
-        let overlay_bindings = crate::overlay::OverlayBindings::default();
+        let playback = std::mem::take(&mut bindings.playback);
+        let overlay_bindings = bindings.into_overlay(&spec, &structures)?;
         let rows = crate::scene::selection_rows::SelectionRows::default();
         let resolution = resolve(
             &spec,
@@ -157,7 +194,7 @@ impl Scene {
         let next_representation = next_representation_id(&spec)?;
         let structure_assets =
             crate::scene::runtime::StructureAssets::capture(&structures, &resolution.scene);
-        Ok(Self {
+        let mut scene = Self {
             spec,
             resolved: resolution.scene,
             structures,
@@ -175,6 +212,22 @@ impl Scene {
             next_representation,
             snapshot_bindings: super::snapshot::SnapshotBindings::default(),
             playback: BTreeMap::new(),
-        })
+            selected_scope: None,
+        };
+        let mut restored = std::collections::BTreeSet::new();
+        for binding in playback {
+            if !restored.insert(binding.structure) {
+                return Err(Error::InvalidSpec(
+                    "duplicate molecular playback binding".to_owned(),
+                ));
+            }
+            scene.set_trajectory_pair(
+                binding.structure,
+                binding.start,
+                binding.end,
+                binding.sample_seconds,
+            )?;
+        }
+        Ok(scene)
     }
 }

@@ -13,6 +13,49 @@ pub(super) struct SnapshotBindings {
 }
 
 impl Scene {
+    pub(super) fn snapshot_property_binding(
+        &self,
+        name: &str,
+        descriptor: &crate::PropertySpec,
+    ) -> Option<ScalarPropertyBinding> {
+        self.property_bindings
+            .get(name)
+            .and_then(|binding| binding.for_descriptor(descriptor))
+            .or_else(|| {
+                self.snapshot_bindings
+                    .properties
+                    .get(name)
+                    .and_then(|bindings| bindings.get(descriptor.source.content_hash.as_ref()))
+                    .and_then(|binding| binding.for_descriptor(descriptor))
+            })
+    }
+
+    pub(super) fn retain_snapshot_property(
+        &mut self,
+        binding: ScalarPropertyBinding,
+    ) -> Result<(), Error> {
+        let name = binding.name().to_owned().into_boxed_str();
+        let source = binding.spec().source.content_hash.clone();
+        let entries = self.snapshot_bindings.properties.entry(name).or_default();
+        if let Some(existing) = entries.get(&source) {
+            if existing.spec().structure != binding.spec().structure
+                || existing.values().len() != binding.values().len()
+                || !existing
+                    .values()
+                    .iter()
+                    .zip(binding.values().iter())
+                    .all(|(a, b)| a.to_bits() == b.to_bits())
+            {
+                return Err(Error::InvalidSpec(
+                    "retained scalar input contradicts its content identity".to_owned(),
+                ));
+            }
+        } else {
+            entries.insert(source, binding);
+        }
+        Ok(())
+    }
+
     /// Captures complete authored state without copying molecular coordinates.
     #[must_use]
     pub fn snapshot(&self) -> SceneSnapshot {
@@ -61,6 +104,7 @@ impl Scene {
             &self.rows,
             Some(&self.structure_assets),
         )?;
+        let resolution = self.prepare_resolution_playback(resolution, &structures)?;
 
         // Retain handles, not bulk data copies. Undo can reattach sources that
         // this restore removes, while the active binding maps remain exact.
@@ -181,19 +225,9 @@ impl Scene {
     ) -> Result<BTreeMap<Box<str>, ScalarPropertyBinding>, Error> {
         let mut bindings = BTreeMap::new();
         for (name, descriptor) in &spec.properties {
-            let binding = self
-                .property_bindings
-                .get(name)
-                .filter(|binding| binding.spec() == descriptor)
-                .or_else(|| {
-                    self.snapshot_bindings
-                        .properties
-                        .get(name)
-                        .and_then(|bindings| bindings.get(descriptor.source.content_hash.as_ref()))
-                        .filter(|binding| binding.spec() == descriptor)
-                });
+            let binding = self.snapshot_property_binding(name, descriptor);
             if let Some(binding) = binding {
-                let _ = bindings.insert(name.clone(), binding.clone());
+                let _ = bindings.insert(name.clone(), binding);
             }
         }
         let bindings = with_derived_bindings(spec, structures, bindings)?;

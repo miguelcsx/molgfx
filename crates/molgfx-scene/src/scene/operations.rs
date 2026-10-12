@@ -14,6 +14,14 @@ impl Scene {
     ///
     /// Returns a revision conflict, missing-ID, validation, or renderer error.
     pub fn apply(&mut self, patch: &ScenePatch) -> Result<(), Error> {
+        self.apply_with_overlay_bindings(patch, None)
+    }
+
+    pub(super) fn apply_with_overlay_bindings(
+        &mut self,
+        patch: &ScenePatch,
+        bindings: Option<crate::overlay::OverlayBindings>,
+    ) -> Result<(), Error> {
         if patch.base_revision != self.spec.revision {
             return Err(PatchError::RevisionConflict {
                 expected: patch.base_revision,
@@ -26,9 +34,20 @@ impl Scene {
             .iter()
             .any(|operation| matches!(operation, crate::PatchOperation::RestoreSnapshot(_)))
         {
-            return self.apply_restoring(patch);
+            if bindings.is_some() {
+                return Err(Error::InvalidSpec(
+                    "a snapshot restore cannot introduce an analytical surface binding".to_owned(),
+                ));
+            }
+            return self
+                .apply_restoring(patch)
+                .and_then(|()| self.enforce_selection_scope());
         }
         self.ensure_derived(patch)?;
+        let overlay_bindings = match &bindings {
+            Some(value) => value,
+            None => &self.overlay_bindings,
+        };
         let plan = PatchPlan::prepare(
             PatchInputs {
                 spec: &self.spec,
@@ -38,7 +57,7 @@ impl Scene {
                 properties: &self.properties,
                 structures: &self.structures,
                 property_bindings: &self.property_bindings,
-                overlay_bindings: &self.overlay_bindings,
+                overlay_bindings,
                 overlay: &self.overlay,
                 structure_assets: &self.structure_assets,
                 rows: &self.rows,
@@ -47,12 +66,14 @@ impl Scene {
         )?;
         match plan {
             PatchPlan::Structural { spec, resolution } => {
+                let next_representation = next_representation_id(&spec)?;
+                let resolution = self.prepare_resolution_playback(*resolution, &self.structures)?;
                 self.spec = *spec;
                 // Install through the one path that also records the resolved
                 // structure assets, so the next structural patch can reuse
                 // them instead of re-materialising every atom table.
-                self.install_resolution(*resolution);
-                self.next_representation = next_representation_id(&self.spec)?;
+                self.install_resolution(resolution);
+                self.next_representation = next_representation;
             }
             PatchPlan::Local(plan) => {
                 plan.commit(CommitTarget {
@@ -65,7 +86,10 @@ impl Scene {
                 })?;
             }
         }
-        Ok(())
+        if let Some(bindings) = bindings {
+            self.overlay_bindings = bindings;
+        }
+        self.enforce_selection_scope()
     }
 
     /// Collects several semantic changes into one revision and patch.

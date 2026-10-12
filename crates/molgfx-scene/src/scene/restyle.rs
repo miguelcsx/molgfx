@@ -15,17 +15,36 @@ impl Scene {
         representation: impl Into<RepresentationSpec>,
     ) -> Result<RepresentationApplicability, Error> {
         let representation = representation.into();
-        let source = if let Some(structure) = representation.structure_id() {
-            self.structures.get(&structure)
+        let structure = if let Some(structure) = representation.structure_id() {
+            Some(structure)
         } else if self.structures.len() == 1 {
-            self.structures.first_key_value().map(|(_, source)| source)
+            self.structures.first_key_value().map(|(id, _)| *id)
         } else {
             None
         }
         .ok_or_else(|| {
             Error::InvalidSpec("representation requires an unambiguous bound structure".to_owned())
         })?;
-        representation.applicability(source)
+        self.representation_review(structure)?
+            .applicability(&representation)
+    }
+
+    /// Captures shared molecular data and the current pose for a worker review.
+    /// This retains handles without scanning or copying coordinate columns.
+    ///
+    /// # Errors
+    /// Rejects an unbound molecular structure.
+    pub fn representation_review(
+        &self,
+        structure: crate::StructureId,
+    ) -> Result<crate::rep::RepresentationReview, Error> {
+        let placed = self
+            .structures
+            .keys()
+            .zip(self.resolved.structures())
+            .find_map(|(id, (_, placed))| (*id == structure).then_some(placed))
+            .ok_or(Error::MissingId)?;
+        Ok(crate::rep::RepresentationReview::new(placed))
     }
 
     /// Prepares a replacement form over the layer's existing target.
