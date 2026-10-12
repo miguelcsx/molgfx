@@ -82,6 +82,12 @@ pub(super) fn structure_id(value: &Bound<'_, PyAny>) -> PyResult<u64> {
     Ok(value.extract::<PyRef<'_, PyStructureId>>().map(|id| id.0)?)
 }
 
+pub(super) fn interaction_id(value: &Bound<'_, PyAny>) -> PyResult<u64> {
+    Ok(value
+        .extract::<PyRef<'_, PyInteractionId>>()
+        .map(|id| id.0)?)
+}
+
 impl PySceneId {
     pub(super) fn into_python(self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         match self {

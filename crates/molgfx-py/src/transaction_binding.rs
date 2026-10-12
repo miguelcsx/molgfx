@@ -45,7 +45,8 @@ impl PySceneTransaction {
             operations,
         };
         scene.inner.apply(&patch).map_err(error)?;
-        scene.publish(py, &patch)?;
+        drop(scene);
+        crate::scene_binding::deliver(self.scene.bind(py), py, &patch)?;
         Ok(false)
     }
 }

@@ -2,8 +2,9 @@
 
 use molgfx::source::{
     AtomSelection, CoreError, MolecularProvider, SourceAtom, SourceBond, SourceTopology, Structure,
-    is_metal_atomic_number, topology_identity,
+    topology_identity,
 };
+use numpy::PyReadonlyArray1;
 use pyo3::exceptions::{PyAttributeError, PyValueError};
 use pyo3::prelude::*;
 use std::sync::{Arc, OnceLock};
@@ -45,12 +46,21 @@ impl NativeProvider {
             .map(decode_secondary_structure)
             .collect::<PyResult<Vec<_>>>()?;
         let mut atoms = Vec::with_capacity(native.atoms.len());
-        for atom in native.atoms {
+        let altloc_array = object.call_method0("_molframe_altlocs")?;
+        let altlocs = altloc_array.extract::<PyReadonlyArray1<'_, u32>>()?;
+        let altlocs = altlocs.as_slice()?;
+        if altlocs.len() != native.atoms.len() {
+            return Err(PyValueError::new_err(
+                "alternate-conformation and atom columns differ",
+            ));
+        }
+        for (atom, &altloc) in native.atoms.into_iter().zip(altlocs) {
             let element = u8::try_from(atom.element)
                 .map_err(|_| PyValueError::new_err("atomic number exceeds the renderer format"))?;
             atoms.push(SourceAtom {
                 element,
                 residue: atom.residue,
+                alt_id: molgfx::molframe::AltId::from_raw(altloc),
             });
         }
         let bonds = native
@@ -60,11 +70,7 @@ impl NativeProvider {
                 atoms: [bond.first, bond.second],
                 order: decode_bond_order(bond.order, bond.aromatic != 0),
                 aromatic: bond.aromatic != 0,
-                metal: [bond.first, bond.second]
-                    .into_iter()
-                    .filter_map(|index| usize::try_from(index).ok())
-                    .filter_map(|index| atoms.get(index))
-                    .any(|atom| is_metal_atomic_number(atom.element)),
+                metal: bond.metal_coordination != 0,
             })
             .collect::<Vec<_>>();
         let topology = SourceTopology {
