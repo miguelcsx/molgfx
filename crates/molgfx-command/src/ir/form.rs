@@ -11,7 +11,6 @@
 use super::value::{Finite, NonNegative, Positive};
 use molgfx_scene::RepresentationSpec;
 use molgfx_scene::rep::{CartoonProfile, CartoonStyle, GapStyle, SurfaceKind, SurfaceStyle};
-use serde::{Deserialize, Serialize};
 
 /// How one control's value is written and checked.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -22,6 +21,10 @@ pub enum OptionKind {
     NonNegative,
     /// Any finite number.
     Finite,
+    /// A whole nonnegative number.
+    Integer,
+    /// A SHA-256 content identity written as 64 hexadecimal digits.
+    ContentHash,
     /// One of a fixed set of words.
     Choice(&'static [&'static str]),
 }
@@ -61,6 +64,36 @@ impl ControlValue for bool {
         self
     }
 
+    fn word(self) -> String {
+        self.to_string()
+    }
+}
+
+impl ControlValue for u8 {
+    const KIND: OptionKind = OptionKind::Integer;
+    type Native = u8;
+    fn parse(text: &str) -> Result<Self, String> {
+        text.parse()
+            .map_err(|_| format!("'{text}' is not an integer between zero and 255"))
+    }
+    fn native(self) -> u8 {
+        self
+    }
+    fn word(self) -> String {
+        self.to_string()
+    }
+}
+
+impl ControlValue for u16 {
+    const KIND: OptionKind = OptionKind::Integer;
+    type Native = u16;
+    fn parse(text: &str) -> Result<Self, String> {
+        text.parse()
+            .map_err(|_| format!("'{text}' is not an integer between zero and 65535"))
+    }
+    fn native(self) -> u16 {
+        self
+    }
     fn word(self) -> String {
         self.to_string()
     }
@@ -195,14 +228,16 @@ pub(crate) struct Look {
 }
 
 /// Why a control could not be set.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, thiserror::Error)]
 pub enum OptionError {
     /// The form has no control of this name.
+    #[error("unknown form control")]
     Unknown {
         /// Controls the form does have.
         known: &'static [OptionInfo],
     },
     /// The value is not valid for the control.
+    #[error("{0}")]
     Value(String),
 }
 
@@ -210,7 +245,7 @@ macro_rules! forms {
     (
         $(
             $(#[$doc:meta])*
-            $variant:ident = $word:literal via $builder:ident {
+            $variant:ident = $word:literal via $builder:ident $(($($argument:expr),*))? {
                 $( $option:ident : $type:ty => $summary:literal ),* $(,)?
             }
         )*
@@ -349,7 +384,7 @@ macro_rules! forms {
                 match *self {
                     $(
                         Self::$variant { $($option),* } => {
-                            let mut builder = molgfx_scene::rep::$builder(target)
+                            let mut builder = molgfx_scene::rep::$builder(target $(, $($argument),*)?)
                                 .structure(look.structure);
                             $(
                                 if let Some(value) = $option {
@@ -371,105 +406,11 @@ macro_rules! forms {
     };
 }
 
-forms! {
-    /// Secondary-structure ribbon along the polymer backbone.
-    Cartoon = "cartoon" via cartoon {
-        gaps: GapStyle => "presentation of real polymer gaps",
-        width: Positive => "ribbon width in ångström",
-        style: CartoonStyle => "ribbon recipe",
-        aspect_ratio: Positive => "helix and sheet width divided by thickness",
-        arrow_factor: NonNegative => "strand arrow shoulder scale; zero disables arrows",
-        direction_wedges: bool => "source-anchored polymer direction wedges",
-        helix_profile: CartoonProfile => "protein helix cross-section",
-        nucleic_profile: CartoonProfile => "nucleic backbone cross-section",
-    }
-    /// Backbone trace through polymer guide atoms.
-    Backbone = "backbone" via backbone {
-        gaps: GapStyle => "presentation of real polymer gaps",
-        width: Positive => "trace radius in ångström",
-    }
-    /// Thin smooth polymer trace.
-    Trace = "trace" via trace {
-        gaps: GapStyle => "presentation of real polymer gaps",
-        radius: Positive => "trace radius in ångström",
-    }
-    /// Round smooth polymer tube.
-    Tube = "tube" via tube {
-        gaps: GapStyle => "presentation of real polymer gaps",
-        radius: Positive => "tube radius in ångström",
-    }
-    /// B-factor-driven variable-radius tube.
-    Putty = "putty" via putty {
-        gaps: GapStyle => "presentation of real polymer gaps",
-        domain_min: Finite => "lower B-factor domain",
-        domain_max: Finite => "upper B-factor domain",
-        radius_min: Positive => "radius at the lower domain bound",
-        radius_max: Positive => "radius at the upper domain bound",
-    }
-    /// Small atom spheres joined by bond capsules.
-    BallAndStick = "ball_and_stick" via ball_and_stick {
-        radius: Positive => "atom sphere scale relative to the van der Waals radius",
-        bond_radius: Positive => "bond radius in ångström",
-    }
-    /// Van der Waals spheres.
-    Spacefill = "spacefill" via spacefill {
-        radius: Positive => "sphere scale relative to the van der Waals radius",
-    }
-    /// Uniform-radius sticks.
-    Licorice = "licorice" via licorice {
-        radius: Positive => "atom junction scale",
-        bond_radius: Positive => "stick radius in ångström",
-    }
-    /// Bond capsules without atom spheres.
-    Bonds = "bonds" via bonds {
-        bond_radius: Positive => "bond radius in ångström",
-    }
-    /// Pucker-coloured ring bipyramids.
-    PaperChain = "paper_chain" via paper_chain {
-        width: Positive => "ring pyramid thickness in ångström",
-    }
-    /// Pixel-stable bond wires.
-    Lines = "lines" via lines {
-        width: Positive => "line width in pixels",
-    }
-    /// One point per atom.
-    Points = "points" via points {
-        size: Positive => "point diameter in pixels",
-    }
-    /// Analytic point/dot markers.
-    Dots = "dots" via dots {
-        size: Positive => "dot diameter in pixels",
-    }
-    /// A molecular surface.
-    Surface = "surface" via surface {
-        kind: SurfaceKind => "which molecular boundary",
-        style: SurfaceStyle => "how the boundary is drawn",
-        probe_radius: Positive => "solvent probe radius in ångström",
-        isolevel: Finite => "level-set threshold",
-        blob_spread: NonNegative => "soft-union blend span in ångström",
-    }
-    /// Nucleic-acid backbone ribbon.
-    NucleicAcid = "nucleic_acid" via nucleic_acid {
-        width: Positive => "ribbon width in ångström",
-    }
-    /// Nucleic-acid bases.
-    Bases = "bases" via bases {
-        radius: Positive => "atom sphere scale",
-    }
-    /// Base-pair slabs.
-    BasePairs = "base_pairs" via base_pairs {
-        radius: Positive => "atom sphere scale",
-        bond_radius: Positive => "bond radius in ångström",
-    }
-    /// Glycan tree ribbon.
-    Glycan = "glycan" via glycan {
-        width: Positive => "ribbon width in ångström",
-    }
-    /// One sphere per residue.
-    Beads = "beads" via beads {
-        radius: Positive => "enclosing-sphere scale",
-    }
-}
+mod content_hash;
+pub use content_hash::ContentHash;
+
+mod catalog;
+pub use catalog::{Form, FormKind};
 
 #[cfg(test)]
 #[path = "form_tests.rs"]

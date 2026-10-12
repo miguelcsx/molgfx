@@ -48,6 +48,12 @@ impl fmt::Display for Name {
     }
 }
 
+impl std::borrow::Borrow<str> for Name {
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
 impl fmt::Debug for Name {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{:?}", self.0)

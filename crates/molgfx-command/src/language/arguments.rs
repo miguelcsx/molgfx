@@ -86,7 +86,10 @@ pub(super) fn query_error(diagnostics: &[molframe::Diagnostic], query: Span) -> 
         let end = clamp(span.end).max(start);
         Span::new(query.start + start, query.start + end)
     });
-    let mut error = CommandError::new(ErrorKind::Query, first.message().to_owned()).at(span);
+    let (message, suggestion) = registry::describe_query_finding(first);
+    let mut error = CommandError::new(ErrorKind::Query, message)
+        .at(span)
+        .suggest(suggestion);
     error.code = Some(first.code().to_string());
     error
 }

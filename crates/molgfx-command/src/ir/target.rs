@@ -22,11 +22,35 @@ impl QueryText {
 
     /// Compiles `source` with `MolFrame`.
     ///
+    /// A word `MolFrame` does not define but the command language accepts as
+    /// an alias (`ligands`, `resi`, `b_factor`; see
+    /// [`registry::KEYWORD_ALIASES`](crate::registry::KEYWORD_ALIASES)) is
+    /// rewritten to its canonical spelling before compiling. The query keeps
+    /// the canonical text, so its fingerprint does not depend on the alias.
+    ///
     /// # Errors
     ///
-    /// Returns `MolFrame`'s diagnostics, located within `source`.
+    /// Returns `MolFrame`'s diagnostics, located within `source` as written.
     pub fn compile(source: &str) -> Result<Self, Vec<molframe::Diagnostic>> {
-        molframe::Query::compile(source).map(Self::new)
+        let original = match molframe::Query::compile(source) {
+            Ok(query) => return Ok(Self::new(query)),
+            Err(findings) => findings,
+        };
+        let mut rewritten = source.to_owned();
+        let mut failure = original.clone();
+        // Each pass fixes one alias, so a query with several needs several; the
+        // bound keeps a pathological input from looping.
+        for _ in 0..32 {
+            let Some(next) = rewrite_alias(&rewritten, &failure) else {
+                break;
+            };
+            rewritten = next;
+            match molframe::Query::compile(&rewritten) {
+                Ok(query) => return Ok(Self::new(query)),
+                Err(next_failure) => failure = next_failure,
+            }
+        }
+        Err(original)
     }
 
     /// The query's canonical text.
@@ -52,6 +76,32 @@ impl QueryText {
     pub fn references(&self) -> Vec<&str> {
         self.0.references()
     }
+}
+
+/// `source` with the unknown word the first finding names replaced by its
+/// canonical spelling, when that word is a known alias.
+fn rewrite_alias(source: &str, findings: &[molframe::Diagnostic]) -> Option<String> {
+    let first = findings.first()?;
+    let item = first
+        .context()
+        .iter()
+        .find(|item| matches!(item.label(), "keyword" | "property" | "same key"))?;
+    let canonical = crate::registry::canonical_keyword(item.value())?;
+    let span = first.span()?;
+    let start = usize::try_from(span.start.byte_offset).ok()?;
+    let end = usize::try_from(span.end).ok()?;
+    let found = source.get(start..end)?;
+    // The span may cover the word and what follows it; replace the word only.
+    let offset = found
+        .to_ascii_lowercase()
+        .find(&item.value().to_ascii_lowercase())?;
+    let from = start + offset;
+    let to = from + item.value().len();
+    let mut next = String::with_capacity(source.len() + canonical.len());
+    next.push_str(source.get(..from)?);
+    next.push_str(canonical);
+    next.push_str(source.get(to..)?);
+    Some(next)
 }
 
 impl PartialEq for QueryText {

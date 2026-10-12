@@ -18,7 +18,10 @@ mod session;
 
 pub use error::{CommandError, CommandErrors, ErrorKind, Span};
 pub use ir::{
-    ColorValue, Command, Finite, Form, FormKind, InvalidName, MeasureKind, Name, Opacity,
-    OptionError, OptionInfo, OptionKind, Positive, Program, QueryText, Show, Statement, Target,
+    ColorValue, Command, ContentHash, Finite, Form, FormKind, InvalidName, MeasureKind, Name,
+    Opacity, OptionError, OptionInfo, OptionKind, Positive, Program, QueryText, Show, Statement,
+    Target,
 };
-pub use session::{Completion, LayerSpec, Outcome, RuleSpec, Session, SessionSpec};
+pub use session::{
+    Completion, LayerSpec, NamedSnapshot, Outcome, RuleSpec, Session, SessionSpec, SnapshotSymbols,
+};

@@ -108,7 +108,8 @@ impl ColorValue {
                 carbon_only: false,
             });
         }
-        if let Some(metric) = AtomMetric::from_name(word) {
+        let word = word.strip_prefix("metric:").unwrap_or(word);
+        if let Some(metric) = AtomMetric::from_name(word).or_else(|| metric_alias(word)) {
             return Some(Self::Metric {
                 metric,
                 ramp: None,
@@ -148,6 +149,18 @@ impl ColorValue {
             Self::Property { .. } => return None,
         })
     }
+}
+
+/// Spellings of a metric that people carry over from other tools, such as
+/// `bfactor` or `bfac`; the scene's own aliases are checked first.
+fn metric_alias(word: &str) -> Option<AtomMetric> {
+    Some(match word.to_ascii_lowercase().as_str() {
+        "bfactor" | "bfac" | "tempfactor" | "temp_factor" | "temperature_factor" => {
+            AtomMetric::BFactor
+        }
+        "plddt" | "alphafold" => AtomMetric::Plddt,
+        _ => return None,
+    })
 }
 
 impl fmt::Display for ColorValue {
