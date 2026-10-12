@@ -6,7 +6,7 @@ import { mountInteractions } from "../interaction/interactions.js";
 import { RenderLoop } from "../render/render-loop.js";
 import { cameraState, pickCoordinates } from "../render/camera.js";
 import { assertWebGPUAvailable, loadRuntime, sourceBytes } from "./runtime.js";
-import { applyScenePatch, buildScene, patchChangesCamera } from "./scene.js";
+import { applyPlayback, applyScenePatch, buildScene, patchChangesCamera } from "./scene.js";
 import type {
   ViewerHost,
   InteractionEvent,
@@ -174,6 +174,16 @@ export class ViewerCore {
         this.#cleanup.add(
           this.#host.source.onPatch((encoded) => this.#applyRemote(encoded)),
         );
+        if (this.#host.source.onTrajectorySample) {
+          this.#cleanup.add(this.#host.source.onTrajectorySample((structure, seconds) => {
+            this.#applyRuntime(scene => scene.setTrajectoryTime(structure, seconds));
+          }));
+        }
+        if (this.#host.source.onTrajectoryPair) {
+          this.#cleanup.add(this.#host.source.onTrajectoryPair(update => {
+            this.#applyRuntime(scene => applyPlayback(scene, update));
+          }));
+        }
         if (this.#scene.revision !== this.#host.source.revision())
           this.#replaceRemote();
       }
@@ -187,6 +197,17 @@ export class ViewerCore {
       this.reportError(error);
       await this.dispose();
       throw error;
+    }
+  }
+
+  #applyRuntime(change: (scene: WasmScene) => void): void {
+    if (this.#disposed || !this.#scene) return;
+    try {
+      change(this.#scene);
+      this.#sceneEdited(false);
+    } catch (error) {
+      this.reportError(error);
+      this.#host?.source.requestResync();
     }
   }
   async load(input: StructureInput, options: LoadOptions = {}): Promise<void> {

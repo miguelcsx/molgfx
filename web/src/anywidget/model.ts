@@ -11,6 +11,14 @@ export interface WidgetTraits {
   structure_names: Array<string | null | undefined>;
   structure_payloads: BinaryState[];
   structure_sources?: Array<number | string | bigint>;
+  volume_bindings?: Array<[string, BinaryState]>;
+  hydrogen_bond_bindings?: Array<[string, BinaryState, number | null, string]>;
+  molecular_surface_bindings?: Array<[string, string, BinaryState, BinaryState, BinaryState, BinaryState]>;
+  coordinate_frames?: Array<[string, string, number, BinaryState]>;
+  trajectory_bindings?: Array<[string, string, string, number]>;
+  trajectory_sample?: [string, number];
+  playback_bindings?: Array<[string, string, string, number]>;
+  playback_pair?: [string, string, string, number];
   sync_request: number;
   error: string;
   camera: Camera;

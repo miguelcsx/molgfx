@@ -4,6 +4,7 @@ import type {
   SceneSnapshot,
   SceneSource,
   ViewerSink,
+  PlaybackUpdate,
 } from "../core/contracts.js";
 import type { Camera, Cleanup } from "../core/transport.js";
 import { observeModel } from "./model.js";
@@ -37,6 +38,14 @@ export class AnywidgetAdapter
     );
     return {
       spec: model.get("scene_spec"),
+      bindings: {
+        coordinateFrames: (model.get("coordinate_frames") ?? []).map(([id, index, seconds, positions]) => ({ id: BigInt(id), index: BigInt(index), seconds, positions })),
+        trajectories: (model.get("trajectory_bindings") ?? []).map(([id, start, end, seconds]) => ({ id: BigInt(id), start: BigInt(start), end: BigInt(end), seconds })),
+        playback: (model.get("playback_bindings") ?? []).map(([id, start, end, seconds]) => ({ structure: BigInt(id), start: BigInt(start), end: BigInt(end), seconds })),
+        volumes: (model.get("volume_bindings") ?? []).map(([id, values]) => ({ id: BigInt(id), values })),
+        hydrogenBonds: (model.get("hydrogen_bond_bindings") ?? []).map(([id, endpoints, candidateDistance, pose]) => ({ id: BigInt(id), endpoints, pose, ...(candidateDistance === null ? {} : { candidateDistance }) })),
+        molecularSurfaces: (model.get("molecular_surface_bindings") ?? []).map(([id, metadata, vertices, normals, faces, atoms]) => ({ id: BigInt(id), metadata, vertices, normals, faces, atoms })),
+      },
       structures: ids.map((id, index) => {
         const source = sources[index];
         const payload =
@@ -63,6 +72,26 @@ export class AnywidgetAdapter
     return observeModel(this.#model, "change:patch_sequence", () =>
       callback(this.#model.get("scene_patch")),
     );
+  }
+
+  onTrajectorySample(callback: (structure: bigint, seconds: number) => void): Cleanup {
+    return observeModel(this.#model, "change:trajectory_sample", () => {
+      const sample = this.#model.get("trajectory_sample");
+      if (sample?.[0]) callback(BigInt(sample[0]), sample[1]);
+    });
+  }
+
+  onTrajectoryPair(callback: (update: PlaybackUpdate) => void): Cleanup {
+    return observeModel(this.#model, "change:playback_pair", () => {
+      const interval = this.#model.get("playback_pair");
+      if (!interval?.[0]) return;
+      const frame = (identity: string) => {
+        const row = this.#model.get("coordinate_frames")?.find(([id]) => id === identity);
+        if (!row) throw new Error("runtime playback requires its coordinate frame column");
+        return { id: BigInt(row[0]), index: BigInt(row[1]), seconds: row[2], positions: row[3] };
+      };
+      callback({ structure: BigInt(interval[0]), start: frame(interval[1]), end: frame(interval[2]), seconds: interval[3] });
+    });
   }
 
   requestResync(): void {
