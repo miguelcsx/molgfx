@@ -76,6 +76,7 @@ impl MeasurementSpec {
 impl InteractionSpec {
     pub(crate) fn validate(&self, scene: &crate::SceneSpec) -> Result<(), Error> {
         match self {
+            Self::HydrogenBonds(spec) => spec.validate(scene),
             Self::Explicit { endpoints, .. } => endpoints
                 .iter()
                 .try_for_each(|anchor| anchor.validate(scene)),

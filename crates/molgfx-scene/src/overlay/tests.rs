@@ -307,6 +307,17 @@ fn advancing_trajectory_time_samples_the_resident_pair() {
         outside.is_err(),
         "a time outside the resident interval is refused"
     );
+    scene
+        .add(crate::rep::spacefill("all"))
+        .expect("edit the scene");
+    assert_eq!(
+        first_placed(&scene)
+            .trajectory()
+            .expect("bound interval after an edit")
+            .sample_seconds()
+            .to_bits(),
+        0.5f32.to_bits()
+    );
 }
 
 #[test]
@@ -387,6 +398,7 @@ fn a_frame_pair_plays_without_a_declared_trajectory_and_shares_the_caller_arrays
     let segment = first_placed(&scene)
         .trajectory()
         .unwrap_or_else(|| panic!("the pair is resident"));
+    assert!(scene.has_trajectory_pair(StructureId::new(1)));
     assert_eq!(segment.start().positions(), [[12.0, 6.0, -6.0]]);
     assert!((segment.interpolation() - 0.5).abs() < 1e-6);
     assert!(
@@ -413,6 +425,7 @@ fn sliding_the_pair_forward_replaces_it_and_clearing_returns_the_structure_to_it
     assert_eq!(segment.start().index(), 1);
     assert_eq!(segment.end().index(), 2);
     scene.clear_trajectory_pair(StructureId::new(1));
+    assert!(!scene.has_trajectory_pair(StructureId::new(1)));
     assert!(first_placed(&scene).trajectory().is_none());
 }
 
@@ -442,11 +455,24 @@ fn an_edit_that_resolves_the_scene_again_does_not_stop_the_animation() {
             0.5,
         )
         .unwrap_or_else(|error| panic!("{error}"));
+    scene
+        .set_trajectory_time(StructureId::new(1), 0.75)
+        .expect("advance the resident interval");
+    assert!(scene.set_trajectory_time(StructureId::new(1), 2.0).is_err());
     let _ = scene
         .add(rep::spacefill(sel::all()))
         .unwrap_or_else(|error| panic!("{error}"));
     assert!(
         first_placed(&scene).trajectory().is_some(),
         "adding a representation must keep the pair"
+    );
+    assert_eq!(
+        first_placed(&scene)
+            .trajectory()
+            .expect("retained interval")
+            .sample_seconds()
+            .to_bits(),
+        0.75f32.to_bits(),
+        "an edit must preserve the latest valid time"
     );
 }

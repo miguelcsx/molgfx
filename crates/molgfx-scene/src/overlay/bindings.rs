@@ -1,5 +1,6 @@
 //! Runtime bulk data for overlay descriptors, and renderer-handle inspection.
 
+use super::TrajectoryBinding;
 use crate::{DataSource, Error, VolumeSpec};
 use molgfx_math::Mat4;
 use num_traits::ToPrimitive as _;
@@ -19,6 +20,16 @@ pub struct VolumeBinding {
 }
 
 impl VolumeBinding {
+    /// Portable content identity of this immutable scalar column.
+    #[must_use]
+    pub const fn source(&self) -> &DataSource {
+        &self.source
+    }
+    /// Borrows the immutable scalar column for bulk transport or persistence.
+    #[must_use]
+    pub fn values(&self) -> &[f32] {
+        &self.values
+    }
     /// Declares one shared density grid without copying its values.
     #[must_use]
     pub fn new(source: DataSource, dimensions: [u32; 3], values: Arc<[f32]>) -> Self {
@@ -166,176 +177,133 @@ impl VolumeBinding {
     }
 }
 
-/// One topology-aligned coordinate frame supplied outside [`crate::SceneSpec`].
-///
-/// A frame is bulk data, so it travels as a runtime binding rather than in the
-/// specification: the descriptor declares how many frames a source holds, and
-/// the binding hands over the two the renderer samples between.
-#[derive(Clone, PartialEq, Debug)]
-pub struct TrajectoryFrame {
-    index: u64,
-    time_seconds: f32,
-    positions: Arc<[[f32; 3]]>,
-}
-
-impl TrajectoryFrame {
-    /// Declares one frame without copying its coordinates.
-    ///
-    /// `index` is the frame's stable identity in its source, which is what lets
-    /// the renderer skip an upload when only the sample time moved.
-    #[must_use]
-    pub fn new(index: u64, time_seconds: f32, positions: Arc<[[f32; 3]]>) -> Self {
-        Self {
-            index,
-            time_seconds,
-            positions,
-        }
-    }
-
-    /// This frame's stable identity in its source.
-    #[must_use]
-    pub const fn index(&self) -> u64 {
-        self.index
-    }
-
-    /// Presentation time this frame was recorded at, in seconds.
-    #[must_use]
-    pub const fn time_seconds(&self) -> f32 {
-        self.time_seconds
-    }
-
-    /// The frame's coordinates, one per atom.
-    #[must_use]
-    pub fn positions(&self) -> &[[f32; 3]] {
-        &self.positions
-    }
-
-    /// Retains this frame as core's own frame type.
-    pub(crate) fn native(&self) -> Result<molgfx_core::TrajectoryFrame, Error> {
-        Ok(molgfx_core::TrajectoryFrame::new(
-            self.index,
-            self.time_seconds,
-            Arc::clone(&self.positions),
-            "molgfx:trajectory",
-        )?)
-    }
-}
-
-/// Two resident frames a trajectory descriptor samples between.
-///
-/// The renderer holds exactly one interpolation interval per structure, so the
-/// bound data is the pair currently presented plus the sample time read from it.
-/// A different pair replaces the resident one; advancing within the interval is
-/// [`Scene::set_trajectory_time`](crate::Scene::set_trajectory_time).
-#[derive(Clone, Debug)]
-pub struct TrajectoryBinding {
-    source: DataSource,
-    start: TrajectoryFrame,
-    end: TrajectoryFrame,
-    sample_seconds: f32,
-}
-
-impl TrajectoryBinding {
-    /// Declares the ordered pair the renderer should hold.
-    #[must_use]
-    pub fn new(source: DataSource, start: TrajectoryFrame, end: TrajectoryFrame) -> Self {
-        Self {
-            source,
-            start,
-            end,
-            sample_seconds: 0.0,
-        }
-    }
-
-    /// Sets the presentation time the pair is sampled at.
-    #[must_use]
-    pub fn sample_seconds(mut self, sample_seconds: f32) -> Self {
-        self.sample_seconds = sample_seconds;
-        self
-    }
-
-    pub(crate) fn content_hash(&self) -> &str {
-        &self.source.content_hash
-    }
-
-    /// Confirms the pair agrees with the portable descriptor it satisfies.
-    pub(crate) fn matches(&self, spec: &crate::TrajectorySpec) -> Result<(), Error> {
-        // The descriptor declares a frame count; the binding supplies a pair of
-        // it. A pair reaching outside the declared range would present a frame
-        // the specification does not claim exists.
-        let highest = self.start.index.max(self.end.index);
-        if self.start.index >= self.end.index
-            || highest >= spec.frame_count
-            || !self.sample_seconds.is_finite()
-        {
-            return Err(Error::InvalidSpec(format!(
-                "trajectory source '{}' does not match its descriptor",
-                self.content_hash()
-            )));
-        }
-        Ok(())
-    }
-
-    pub(crate) fn validate(&self) -> Result<(), Error> {
-        if self.content_hash().trim().is_empty()
-            || self.start.positions.is_empty()
-            || self.start.positions.len() != self.end.positions.len()
-            || self
-                .start
-                .positions
-                .iter()
-                .chain(self.end.positions.iter())
-                .flatten()
-                .any(|value| !value.is_finite())
-            || !self.start.time_seconds.is_finite()
-            || !self.end.time_seconds.is_finite()
-            || self.start.time_seconds >= self.end.time_seconds
-            || self.start.index >= self.end.index
-            || !self.sample_seconds.is_finite()
-        {
-            return Err(Error::InvalidSpec(
-                "trajectory binding requires a content hash, two equal-length finite frames with \
-                 increasing indices and times, and a finite sample time"
-                    .to_owned(),
-            ));
-        }
-        Ok(())
-    }
-
-    /// The resident interval, validated against one structure's atom count.
-    ///
-    /// # Errors
-    ///
-    /// Returns an invalid-specification error when the frames do not match the
-    /// structure's topology.
-    pub(crate) fn native(
-        &self,
-        atom_count: usize,
-    ) -> Result<molgfx_core::TrajectorySegment, Error> {
-        if self.start.positions.len() != atom_count {
-            return Err(Error::InvalidSpec(format!(
-                "trajectory source '{}' holds {} atoms but its structure has {atom_count}",
-                self.content_hash(),
-                self.start.positions.len()
-            )));
-        }
-        Ok(molgfx_core::TrajectorySegment::new(
-            self.start.native()?,
-            self.end.native()?,
-            self.sample_seconds,
-        )?)
-    }
-}
-
 /// Runtime bulk data a resolved scene's overlay descriptors can reach.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct OverlayBindings {
     volumes: BTreeMap<Box<str>, VolumeBinding>,
+    molecular_surfaces: BTreeMap<
+        crate::StructureId,
+        BTreeMap<Box<str>, crate::representation::MolecularSurfaceBinding>,
+    >,
+    hydrogen_bonds: BTreeMap<Box<str>, super::HydrogenBondBinding>,
     segmentations: BTreeMap<Box<str>, super::SegmentationBinding>,
     trajectories: BTreeMap<Box<str>, TrajectoryBinding>,
 }
 
 impl OverlayBindings {
+    pub(crate) fn absorb(&mut self, retained: Self) -> Result<(), Error> {
+        for (key, binding) in retained.volumes {
+            if let Some(existing) = self.volumes.get(&key) {
+                if existing.dimensions != binding.dimensions
+                    || !same_bits(existing.voxel_to_world, binding.voxel_to_world)
+                    || existing.values.len() != binding.values.len()
+                    || !existing
+                        .values
+                        .iter()
+                        .zip(binding.values.iter())
+                        .all(|(a, b)| a.to_bits() == b.to_bits())
+                {
+                    return Err(conflicting_archive());
+                }
+            } else {
+                self.volumes.insert(key, binding);
+            }
+        }
+        for (key, binding) in retained.segmentations {
+            if let Some(existing) = self.segmentations.get(&key) {
+                if !existing.same_input(&binding) {
+                    return Err(conflicting_archive());
+                }
+            } else {
+                self.segmentations.insert(key, binding);
+            }
+        }
+        for (key, binding) in retained.trajectories {
+            if let Some(existing) = self.trajectories.get(&key) {
+                if !existing.same_input(&binding) {
+                    return Err(conflicting_archive());
+                }
+            } else {
+                self.trajectories.insert(key, binding);
+            }
+        }
+        for binding in retained.hydrogen_bonds.into_values() {
+            self.insert_hydrogen_bonds(binding)?;
+        }
+        for scoped in retained.molecular_surfaces.into_values() {
+            for binding in scoped.into_values() {
+                self.insert_molecular_surface(binding)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn retain_sources(&mut self, sources: &std::collections::BTreeSet<Box<str>>) {
+        self.volumes.retain(|key, _| sources.contains(key.as_ref()));
+        self.segmentations
+            .retain(|key, _| sources.contains(key.as_ref()));
+        self.trajectories
+            .retain(|key, _| sources.contains(key.as_ref()));
+        self.hydrogen_bonds
+            .retain(|key, _| sources.contains(key.as_ref()));
+        self.molecular_surfaces.retain(|_, scoped| {
+            scoped.retain(|key, _| sources.contains(key.as_ref()));
+            !scoped.is_empty()
+        });
+    }
+
+    pub(crate) fn insert_molecular_surface(
+        &mut self,
+        binding: crate::representation::MolecularSurfaceBinding,
+    ) -> Result<(), Error> {
+        let key = binding.source.content_hash.clone();
+        let scoped = self
+            .molecular_surfaces
+            .entry(binding.structure)
+            .or_default();
+        if let Some(existing) = scoped.get(&key) {
+            if existing.same_computation(&binding) {
+                if existing.molecular_key != binding.molecular_key {
+                    let _ = scoped.insert(key, binding);
+                }
+                return Ok(());
+            }
+            return Err(Error::InvalidSpec(format!(
+                "analytical surface source '{key}' contradicts an existing computation"
+            )));
+        }
+        let _ = scoped.insert(key, binding);
+        Ok(())
+    }
+    pub(crate) fn molecular_surface(
+        &self,
+        hash: &str,
+        structure: crate::StructureId,
+    ) -> Option<&crate::representation::MolecularSurfaceBinding> {
+        self.molecular_surfaces.get(&structure)?.get(hash)
+    }
+
+    pub(crate) fn insert_hydrogen_bonds(
+        &mut self,
+        binding: super::HydrogenBondBinding,
+    ) -> Result<(), Error> {
+        binding.validate()?;
+        let key: Box<str> = binding.content_hash().into();
+        if let Some(existing) = self.hydrogen_bonds.get(&key) {
+            if existing.same_input(&binding) {
+                return Ok(());
+            }
+            return Err(Error::InvalidSpec(format!(
+                "hydrogen-bond source '{key}' contradicts an existing calculation input"
+            )));
+        }
+        let _ = self.hydrogen_bonds.insert(key, binding);
+        Ok(())
+    }
+    pub(crate) fn hydrogen_bonds(&self, hash: &str) -> Option<&super::HydrogenBondBinding> {
+        self.hydrogen_bonds.get(hash)
+    }
+
     pub(crate) fn insert_segmentation(
         &mut self,
         binding: super::SegmentationBinding,
@@ -398,6 +366,12 @@ impl OverlayBindings {
     pub(crate) fn trajectory(&self, content_hash: &str) -> Option<&TrajectoryBinding> {
         self.trajectories.get(content_hash)
     }
+
+    pub(crate) fn retain_trajectory_time(&mut self, segment: &molgfx_core::TrajectorySegment) {
+        for binding in self.trajectories.values_mut() {
+            binding.retain_sample_time(segment);
+        }
+    }
 }
 
 /// Renderer-side handle counts for each exposed overlay capability.
@@ -433,4 +407,8 @@ pub struct OverlayHandles {
 /// different so a signed origin cannot pass unnoticed.
 fn same_bits(left: [f32; 16], right: [f32; 16]) -> bool {
     left.map(f32::to_bits) == right.map(f32::to_bits)
+}
+
+fn conflicting_archive() -> Error {
+    Error::InvalidSpec("retained archive contradicts an existing scientific asset".to_owned())
 }

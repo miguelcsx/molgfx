@@ -46,6 +46,17 @@ impl SegmentationBinding {
         self.grid.labels()
     }
 
+    pub(crate) fn same_input(&self, other: &Self) -> bool {
+        self.grid.dimensions() == other.grid.dimensions()
+            && self.grid.voxel_to_world().to_cols_array().map(f32::to_bits)
+                == other
+                    .grid
+                    .voxel_to_world()
+                    .to_cols_array()
+                    .map(f32::to_bits)
+            && self.labels() == other.labels()
+    }
+
     pub(crate) fn matches(&self, spec: &SegmentationSpec) -> Result<(), Error> {
         if self.grid.dimensions() != spec.dimensions
             || self.grid.voxel_to_world().to_cols_array().map(f32::to_bits)

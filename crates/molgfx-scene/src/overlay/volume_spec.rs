@@ -30,7 +30,11 @@ pub struct VolumeRegion {
 }
 
 impl VolumeSpec {
-    pub(crate) fn validate(&self) -> Result<(), Error> {
+    /// Validates the descriptor and every presentation without uploading its grid.
+    ///
+    /// # Errors
+    /// Rejects invalid dimensions, affine, crop, scalar domains or appearance controls.
+    pub fn validate(&self) -> Result<(), Error> {
         self.source.validate()?;
         validate_affine(self.voxel_to_world)?;
         if self.dimensions.iter().any(|dimension| *dimension < 2)
@@ -135,6 +139,12 @@ pub(crate) fn cell_affine(
 /// Immutable density-volume builder. Add presentations explicitly.
 #[derive(Clone, PartialEq, Debug)]
 pub struct Volume(pub(super) VolumeSpec);
+
+impl From<Volume> for VolumeSpec {
+    fn from(volume: Volume) -> Self {
+        volume.0
+    }
+}
 
 impl Volume {
     /// Sets the column-major voxel-to-world mapping.

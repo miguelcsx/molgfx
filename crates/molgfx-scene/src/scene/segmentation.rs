@@ -68,6 +68,7 @@ impl Scene {
             &self.rows,
             Some(&self.structure_assets),
         )?;
+        let resolution = self.prepare_resolution_playback(resolution, &self.structures)?;
         self.spec = spec;
         self.overlay_bindings = bindings;
         self.install_resolution(resolution);

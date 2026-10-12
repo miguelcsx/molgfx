@@ -1,6 +1,6 @@
 //! Runtime overlay bindings and renderer-handle inspection.
 
-use super::{Resolution, Scene};
+use super::Scene;
 use crate::error::Error;
 use crate::id::StructureId;
 use crate::overlay::{OverlayHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding};
@@ -46,20 +46,87 @@ impl Scene {
                     })
                     .map(|id| crate::OverlayId::Trajectory(*id)),
             )
+            .chain(
+                self.spec
+                    .interactions
+                    .iter()
+                    .filter_map(|(id, interaction)| {
+                        let crate::InteractionSpec::HydrogenBonds(spec) = interaction else {
+                            return None;
+                        };
+                        self.overlay_bindings
+                            .hydrogen_bonds(&spec.source.content_hash)
+                            .is_none()
+                            .then_some(crate::OverlayId::Interaction(*id))
+                    }),
+            )
             .collect()
     }
-    /// Binds one immutable density grid for every volume descriptor naming it.
-    ///
-    /// The descriptor stays portable: a volume whose source has no matching
-    /// binding resolves to no handle, which is the intended contract rather
-    /// than an error, because the same specification may be resolved on a host
-    /// that holds different bulk data.
+    /// Representations waiting for analytical provider geometry.
+    #[must_use]
+    pub fn unresolved_representations(&self) -> Vec<crate::RepresentationId> {
+        self.spec
+            .representations
+            .iter()
+            .filter_map(|(id, spec)| {
+                let crate::representation::form::RepresentationFormSpec::MolecularSurface {
+                    source,
+                    ..
+                } = &spec.form
+                else {
+                    return None;
+                };
+                spec.structure_id()
+                    .and_then(|structure| {
+                        self.overlay_bindings
+                            .molecular_surface(&source.content_hash, structure)
+                    })
+                    .is_none()
+                    .then_some(*id)
+            })
+            .collect()
+    }
+
+    /// Binds a shared analytical surface after checking molecule, pose and controls.
     ///
     /// # Errors
+    /// Rejects conflicting sources or mismatched descriptors atomically.
+    pub fn bind_molecular_surface(
+        &mut self,
+        binding: crate::representation::MolecularSurfaceBinding,
+    ) -> Result<(), Error> {
+        let molecule = self
+            .structures
+            .get(&binding.structure)
+            .ok_or(Error::MissingId)?;
+        binding.validate_molecule(molecule)?;
+        self.validate_surface_pose(&binding)?;
+        let mut bindings = self.overlay_bindings.clone();
+        bindings.insert_molecular_surface(binding)?;
+        self.rebind_overlay(bindings)
+    }
+
+    /// Binds chemically classified hydrogen bonds to live atom endpoints.
+    /// Captures the current input when no pose is supplied. Background results
+    /// must retain their calculation input with [`crate::HydrogenBondBinding::at_pose`].
     ///
-    /// Returns an invalid-specification error for a malformed grid, a content
-    /// hash that is already bound, or a grid that contradicts a descriptor it
-    /// would satisfy.
+    /// # Errors
+    /// Rejects malformed geometry, conflicting source identities and atom rows
+    /// outside a descriptor's structure without changing the previous scene.
+    pub fn bind_hydrogen_bonds(
+        &mut self,
+        binding: crate::HydrogenBondBinding,
+    ) -> Result<(), Error> {
+        let binding = self.validate_hydrogen_bond_input(binding, &self.spec)?;
+        let mut bindings = self.overlay_bindings.clone();
+        bindings.insert_hydrogen_bonds(binding)?;
+        self.rebind_overlay(bindings)
+    }
+
+    /// Binds a shared scalar grid after validating every affected descriptor.
+    ///
+    /// # Errors
+    /// Returns an error for invalid or conflicting grid data.
     pub fn bind_volume(&mut self, binding: VolumeBinding) -> Result<(), Error> {
         let mut bindings = self.overlay_bindings.clone();
         bindings.insert(binding)?;
@@ -110,6 +177,15 @@ impl Scene {
                 Error::InvalidSpec("trajectory time targets an unbound structure".to_owned())
             })?;
         self.resolved.set_trajectory_time(handle, sample_seconds)?;
+        if let Some(pair) = self.playback.get_mut(&structure) {
+            pair.sample_seconds = sample_seconds;
+        } else if let Some(segment) = self
+            .resolved
+            .structure(handle)
+            .and_then(molgfx_core::PlacedStructure::trajectory)
+        {
+            self.overlay_bindings.retain_trajectory_time(segment);
+        }
         Ok(())
     }
 
@@ -119,8 +195,9 @@ impl Scene {
     /// Unlike [`bind_trajectory`](Self::bind_trajectory) this needs no declared
     /// trajectory and does not re-resolve the scene: it swaps the resident pair
     /// (sharing both coordinate arrays with the caller) and refits the
-    /// structure's hierarchy, which is what streaming playback needs once per
-    /// frame. Moving only the sample time inside the same pair is
+    /// structure's hierarchy once per interval. Supplying the same retained
+    /// pair only updates time, without scanning coordinates or refitting bounds.
+    /// Moving only the sample time inside the same pair is
     /// [`set_trajectory_time`](Self::set_trajectory_time). The pair is kept, so
     /// an edit that resolves the scene again does not stop the animation.
     ///
@@ -136,10 +213,24 @@ impl Scene {
         end: TrajectoryFrame,
         sample_seconds: f32,
     ) -> Result<(), Error> {
+        if self
+            .playback
+            .get(&structure)
+            .is_some_and(|pair| pair.start.same_frame(&start) && pair.end.same_frame(&end))
+        {
+            return self.set_trajectory_time(structure, sample_seconds);
+        }
         let pair = PlaybackPair {
             start,
             end,
             sample_seconds,
+            source: self
+                .structures
+                .get(&structure)
+                .map(|source| (source.identity(), source.coordinate_revision()))
+                .ok_or_else(|| {
+                    Error::InvalidSpec("trajectory pair targets an unbound structure".to_owned())
+                })?,
         };
         self.apply_playback(structure, &pair)?;
         let _ = self.playback.insert(structure, pair);
@@ -155,7 +246,37 @@ impl Scene {
         }
     }
 
-    fn structure_handle(&self, structure: StructureId) -> Option<molgfx_core::StructureHandle> {
+    /// Whether this molecular instance is sampling a resident trajectory pair.
+    #[must_use]
+    pub fn has_trajectory_pair(&self, structure: StructureId) -> bool {
+        self.structure_handle(structure)
+            .and_then(|handle| self.resolved.structure(handle))
+            .is_some_and(|placed| placed.trajectory().is_some())
+    }
+
+    /// Process-local cache identity of the resident frames and displayed time.
+    /// Retained coordinate storage is hashed by address; this key is not portable.
+    #[must_use]
+    pub fn trajectory_pose_key(&self, structure: StructureId) -> Option<u64> {
+        use std::hash::{Hash as _, Hasher as _};
+        let segment = self
+            .structure_handle(structure)
+            .and_then(|handle| self.resolved.structure(handle))?
+            .trajectory()?;
+        let mut hash = std::collections::hash_map::DefaultHasher::new();
+        for frame in [segment.start(), segment.end()] {
+            frame.index().hash(&mut hash);
+            frame.time_seconds().to_bits().hash(&mut hash);
+            frame.positions().as_ptr().hash(&mut hash);
+        }
+        segment.sample_seconds().to_bits().hash(&mut hash);
+        Some(hash.finish())
+    }
+
+    pub(super) fn structure_handle(
+        &self,
+        structure: StructureId,
+    ) -> Option<molgfx_core::StructureHandle> {
         self.structures
             .keys()
             .copied()
@@ -191,6 +312,7 @@ impl Scene {
             &self.rows,
             Some(&self.structure_assets),
         )?;
+        let resolution = self.prepare_resolution_playback(resolution, &self.structures)?;
         self.overlay_bindings = bindings;
         self.spec.revision = revision;
         self.install_resolution(resolution);
@@ -207,7 +329,11 @@ impl Scene {
     }
 
     /// Replaces every resolved view of the core scene at once.
-    pub(super) fn install_resolution(&mut self, resolution: Resolution) {
+    pub(super) fn install_resolution(
+        &mut self,
+        prepared: super::playback_resolution::PreparedResolution,
+    ) {
+        let resolution = prepared.resolution;
         self.structure_assets =
             crate::scene::runtime::StructureAssets::capture(&self.structures, &resolution.scene);
         self.resolved = resolution.scene;
@@ -217,20 +343,15 @@ impl Scene {
         self.properties = resolution.properties;
         self.overlay = resolution.overlay;
         self.appearance = resolution.appearance;
-        // A new resolution starts from the structures' own coordinates; put the
-        // frames being played back.
-        let playing = std::mem::take(&mut self.playback);
-        for (structure, pair) in &playing {
-            let _ = self.apply_playback(*structure, pair);
-        }
-        self.playback = playing;
+        self.playback = prepared.playback;
     }
 }
 
 /// The two frames a structure is being played from.
 #[derive(Clone, Debug)]
 pub(super) struct PlaybackPair {
-    start: TrajectoryFrame,
-    end: TrajectoryFrame,
-    sample_seconds: f32,
+    pub(super) source: (u64, u64),
+    pub(super) start: TrajectoryFrame,
+    pub(super) end: TrajectoryFrame,
+    pub(super) sample_seconds: f32,
 }

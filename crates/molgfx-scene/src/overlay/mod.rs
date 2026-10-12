@@ -6,6 +6,8 @@ mod surfaces_tests;
 mod tests;
 
 pub(crate) mod bindings;
+mod trajectory_binding;
+pub use trajectory_binding::{TrajectoryBinding, TrajectoryFrame};
 mod builders;
 pub(crate) mod lower;
 mod lower_guides;
@@ -15,9 +17,7 @@ mod planes;
 mod surfaces;
 mod validation;
 pub(crate) use bindings::OverlayBindings;
-pub use bindings::{
-    OverlayHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding, VolumeStatistics,
-};
+pub use bindings::{OverlayHandles, VolumeBinding, VolumeStatistics};
 pub use builders::{annotation, density, ellipsoid, interaction, measurement, trajectory};
 pub use planes::PlaneSpec;
 pub use surfaces::{AssemblyInstance, AssemblySpec, FitResult, UnitCellSpec, ValidationFinding};
@@ -56,3 +56,11 @@ mod segmentation_binding;
 pub(crate) mod segmentation_spec;
 pub use segmentation_binding::SegmentationBinding;
 pub use segmentation_spec::{SegmentStyle, SegmentationSpec};
+
+mod hydrogen_bonds;
+pub use hydrogen_bonds::{HydrogenBondBinding, HydrogenBondGeometry, HydrogenBonds};
+
+#[cfg(test)]
+mod hydrogen_bonds_tests;
+
+mod lower_interactions;

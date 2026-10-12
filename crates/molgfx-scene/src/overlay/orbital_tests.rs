@@ -41,6 +41,11 @@ fn orbital_lobes_share_one_amplitude_grid_and_keep_opposite_levels() {
         representations[0].volume.transfer,
         representations[1].volume.transfer
     );
+    for representation in &representations {
+        let points = representation.volume.transfer.points();
+        assert!(points[0].value <= representation.params.isolevel);
+        assert!(points[points.len() - 1].value >= representation.params.isolevel);
+    }
 }
 
 #[test]

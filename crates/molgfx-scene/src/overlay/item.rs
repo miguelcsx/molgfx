@@ -75,3 +75,13 @@ impl SceneItem for TrajectorySpec {
         scene.insert_trajectory(self)
     }
 }
+
+impl Sealed for super::HydrogenBonds {}
+
+impl SceneItem for super::HydrogenBonds {
+    type Id = InteractionId;
+
+    fn add_to(self, scene: &mut Scene) -> Result<Self::Id, Error> {
+        scene.insert_interaction(self.interaction())
+    }
+}

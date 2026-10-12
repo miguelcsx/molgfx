@@ -11,13 +11,12 @@ use crate::id::{
     AnnotationId, EllipsoidId, InteractionId, MeasurementId, PlaneId, StructureId, TrajectoryId,
     VolumeId,
 };
-use crate::overlay::{Anchor, InteractionSpec, MeasurementSpec, OverlayBindings};
+use crate::overlay::{Anchor, MeasurementSpec, OverlayBindings};
 use crate::representation::Selection;
 use molgfx_core::{
     AnisotropicEllipsoid, Annotation, AnnotationAnchor, AnnotationHandle, GuideHandle,
-    InteractionAnchor, InteractionEdge, InteractionGeometry, InteractionHandle, Measurement,
-    MeasurementHandle, MolecularSource, Primitive, PrimitiveHandle, Scene, SelectionHandle,
-    StructureHandle, VolumeHandle,
+    InteractionHandle, Measurement, MeasurementHandle, MolecularSource, Primitive, PrimitiveHandle,
+    Scene, SelectionHandle, StructureHandle, VolumeHandle,
 };
 use molgfx_math::Vec3;
 use std::collections::BTreeMap;
@@ -30,6 +29,7 @@ pub(crate) struct LoweredOverlay {
     pub(crate) labels: Vec<(AnnotationId, AnnotationHandle)>,
     pub(crate) measurements: Vec<(MeasurementId, MeasurementHandle)>,
     pub(crate) interactions: Vec<(InteractionId, InteractionHandle)>,
+    pub(crate) interaction_batches: Vec<(InteractionId, molgfx_core::RelationBatchHandle)>,
     pub(crate) trajectories: Vec<(TrajectoryId, StructureHandle)>,
     /// One entry per overlay, holding the primitives it emitted.
     pub(crate) ellipsoids: Vec<(EllipsoidId, Vec<PrimitiveHandle>)>,
@@ -45,7 +45,7 @@ impl LoweredOverlay {
             segmentations: self.segmentations.len(),
             labels: self.labels.len(),
             measurements: self.measurements.len(),
-            interactions: self.interactions.len(),
+            interactions: self.interactions.len() + self.interaction_batches.len(),
             trajectories: self.trajectories.len(),
             ellipsoids: self.ellipsoids.iter().map(|(_, rows)| rows.len()).sum(),
             plane_guides: self.planes.iter().map(|(_, rows)| rows.len()).sum(),
@@ -131,34 +131,7 @@ pub(crate) fn lower(
             .push((*id, lowering.scene.add_measurement(native)?));
     }
 
-    for (id, interaction) in &spec.interactions {
-        let InteractionSpec::Explicit { kind, endpoints } = interaction;
-        let points = positions(
-            lowering.scene,
-            lowering.structures,
-            lowering.handles,
-            lowering.selections,
-            endpoints,
-        )?;
-        let owner = owner_of(lowering.scene, lowering.handles, endpoints)?;
-        let distance = (points[1] - points[0]).length();
-        if !distance.is_finite() || distance <= 0.0 {
-            return Err(Error::InvalidSpec(
-                "interaction endpoints must resolve to distinct finite positions".to_owned(),
-            ));
-        }
-        let edge = InteractionEdge::new(
-            owner,
-            InteractionAnchor::world(points[0])?,
-            InteractionAnchor::world(points[1])?,
-            kind.core_kind(),
-            InteractionGeometry::new(distance, None)?,
-            "molgfx:explicit",
-        )?;
-        lowered
-            .interactions
-            .push((*id, lowering.scene.add_interaction(edge)?));
-    }
+    super::lower_interactions::lower_interactions(spec, lowering, &mut lowered)?;
 
     for (id, trajectory) in &spec.trajectories {
         if let Some(handle) = lower_trajectory(lowering, trajectory)? {
@@ -350,7 +323,7 @@ fn lower_measurement(
 /// Owning structure of an overlay item: the first selection anchor's
 /// structure, or the scene's first bound structure for world-only anchors,
 /// because core ownership drives lifecycle and picking.
-fn owner_of(
+pub(super) fn owner_of(
     scene: &Scene,
     handles: &BTreeMap<StructureId, StructureHandle>,
     anchors: &[Anchor],
@@ -369,7 +342,7 @@ fn owner_of(
         .ok_or_else(|| Error::InvalidSpec("an overlay item requires a bound structure".to_owned()))
 }
 
-fn positions(
+pub(super) fn positions(
     scene: &mut Scene,
     structures: &BTreeMap<StructureId, MolecularSource>,
     handles: &BTreeMap<StructureId, StructureHandle>,

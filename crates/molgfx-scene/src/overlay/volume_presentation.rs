@@ -277,8 +277,8 @@ fn boundary(
         ));
     }
     let transfer = VolumeTransferFunction::new(&[
-        molgfx_core::VolumeTransferPoint::new(0.0, color.native(), 1.0),
-        molgfx_core::VolumeTransferPoint::new(1.0, color.native(), 1.0),
+        molgfx_core::VolumeTransferPoint::new(level.min(0.0), color.native(), 1.0),
+        molgfx_core::VolumeTransferPoint::new(level.max(1.0), color.native(), 1.0),
     ])?;
     Ok(config
         .isolevel(level)
