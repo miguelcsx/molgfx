@@ -6,10 +6,12 @@ fn topology(order: molframe::BondOrder, metal: bool) -> SourceTopology {
             SourceAtom {
                 element: 6,
                 residue: 0,
+                alt_id: molframe::AltId::BLANK,
             },
             SourceAtom {
                 element: 8,
                 residue: 0,
+                alt_id: molframe::AltId::BLANK,
             },
         ]
         .into(),
@@ -69,4 +71,12 @@ fn every_exact_secondary_state_has_a_distinct_topology_identity() {
         value.secondary_structure = vec![state].into();
         assert!(identities.insert(topology_identity(&value)));
     }
+}
+
+#[test]
+fn alternate_conformation_metadata_changes_the_shared_topology_identity() {
+    let blank = topology(molframe::BondOrder::Single, false);
+    let mut labelled = blank.clone();
+    std::sync::Arc::make_mut(&mut labelled.atoms)[0].alt_id = molframe::AltId::from_raw(1);
+    assert_ne!(topology_identity(&blank), topology_identity(&labelled));
 }

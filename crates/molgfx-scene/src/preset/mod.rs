@@ -23,3 +23,9 @@ pub use ensemble::{
 };
 pub use pocket::{PocketStyle, pocket_representations};
 pub use size::StructureSize;
+
+mod atomic;
+pub use atomic::{AtomicTargets, atomic_targets};
+
+#[cfg(test)]
+mod atomic_tests;

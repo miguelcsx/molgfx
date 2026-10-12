@@ -21,6 +21,18 @@ pub struct Renderer {
 }
 
 impl Renderer {
+    /// Releases the transient render targets while nothing is being drawn; the
+    /// next frame builds them again. Picking returns nothing until then.
+    pub fn release_transients(&mut self) {
+        self.inner.release_transients();
+    }
+
+    /// Whether the transient render targets exist.
+    #[must_use]
+    pub fn has_transients(&self) -> bool {
+        self.inner.has_transients()
+    }
+
     /// Opens the preferred device with the adaptive interactive profile.
     ///
     /// # Errors
@@ -400,3 +412,7 @@ impl Renderer {
         self.inner.last_pass_timings()
     }
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "renderer_tests.rs"]
+mod tests;

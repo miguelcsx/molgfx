@@ -65,6 +65,7 @@ impl LocalPatchPlan {
                 .ok_or(Error::MissingId)?;
             let lowering = crate::spec::lowering::Lowering {
                 properties: inputs.properties,
+                surfaces: Some((inputs.overlay_bindings, inputs.structures)),
                 channels: &channels,
             };
             if self.visual_replacements.contains(id) {

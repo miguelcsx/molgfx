@@ -19,6 +19,7 @@ mod tests;
 mod lookup;
 mod named_ramp;
 
+pub use confidence::{ConfidenceBand, PLDDT_BANDS};
 pub(crate) use lookup::default_colors;
 pub use lookup::{base_name, lookup, names};
 pub use named_ramp::{NamedRamp, RampKind};

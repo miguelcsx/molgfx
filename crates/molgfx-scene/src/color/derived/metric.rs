@@ -153,6 +153,13 @@ impl AtomMetric {
                 self.name()
             ))
         })?;
+        Ok(self.column_of(structure))
+    }
+
+    /// Computes the column straight from a MolFrame structure, one value per
+    /// atom in atom-index order; an atom without the value reads as NaN.
+    #[must_use]
+    pub fn column_of(self, structure: &molframe::Structure) -> Vec<f32> {
         let mut values = vec![f32::NAN; structure.atom_count() as usize];
         match self {
             Self::Occupancy => fill_atoms(structure, &mut values, atom_occupancy),
@@ -170,7 +177,29 @@ impl AtomMetric {
             }
             Self::Sasa => fill_sasa(structure, &mut values),
         }
-        Ok(values)
+        values
+    }
+
+    /// The range this metric spans in `structure` itself, widened outward to
+    /// whole numbers so a well-ordered structure is not painted one flat colour
+    /// against the fixed default domain; a constant column spans one unit.
+    /// `None` when no atom carries a finite value.
+    #[must_use]
+    pub fn observed_domain(self, structure: &molframe::Structure) -> Option<[f32; 2]> {
+        let mut finite = self
+            .column_of(structure)
+            .into_iter()
+            .filter(|value| value.is_finite());
+        let first = finite.next()?;
+        let [low, high] = finite.fold([first, first], |[low, high], value| {
+            [low.min(value), high.max(value)]
+        });
+        let (low, high) = (low.floor(), high.ceil());
+        Some(if high > low {
+            [low, high]
+        } else {
+            [low, low + 1.0]
+        })
     }
 }
 

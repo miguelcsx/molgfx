@@ -24,3 +24,19 @@ pub struct Legend {
     /// Color for missing values.
     pub missing: Color,
 }
+
+impl Legend {
+    /// The colour the legend gives `value`: the stops read as the piecewise
+    /// linear ramp the renderer paints with, clamped beyond the ends. A value
+    /// that is not finite, or stops that cannot form a ramp, give `missing`.
+    #[must_use]
+    pub fn color_at(&self, value: f32) -> Color {
+        let values: Vec<f32> = self.stops.iter().map(|stop| stop.value).collect();
+        let colors: Vec<_> = self.stops.iter().map(|stop| stop.color.native()).collect();
+        let Ok(ramp) = molgfx_core::ScalarRamp::new(&values, &colors) else {
+            return self.missing;
+        };
+        let sampled = ramp.sample(value, self.missing.native());
+        Color([sampled.r, sampled.g, sampled.b, sampled.a])
+    }
+}

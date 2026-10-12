@@ -1,4 +1,4 @@
-use crate::color::{Color, property};
+use crate::color::{AtomMetric, Color, PLDDT_BANDS, metric, property};
 use crate::{DataSource, ScalarPropertyBinding, StructureId};
 use std::sync::Arc;
 
@@ -83,5 +83,46 @@ fn every_named_ramp_resolves() {
         if let Err(error) = spec.validate() {
             panic!("{name} must resolve: {error}")
         }
+    }
+}
+
+#[test]
+fn a_legend_colors_a_value_the_way_its_ramp_does_and_clamps_beyond_the_ends() {
+    let spec = metric(AtomMetric::BFactor).with_domain([10.0, 30.0]);
+    let Some(legend) = spec.legend() else {
+        panic!("a metric color must generate a legend")
+    };
+    let (first, last) = (
+        legend.stops[0].color,
+        legend.stops[legend.stops.len() - 1].color,
+    );
+    assert_eq!(legend.color_at(10.0), first);
+    assert_eq!(legend.color_at(-100.0), first);
+    assert_eq!(legend.color_at(30.0), last);
+    assert_eq!(legend.color_at(1.0e6), last);
+    assert_eq!(legend.color_at(f32::NAN), legend.missing);
+    let middle = &legend.stops[legend.stops.len() / 2];
+    assert_eq!(legend.color_at(middle.value), middle.color);
+}
+
+#[test]
+fn the_plddt_bands_are_the_anchors_of_the_plddt_ramp() {
+    let Some(legend) = metric(AtomMetric::Plddt).legend() else {
+        panic!("a metric color must generate a legend")
+    };
+    for band in PLDDT_BANDS {
+        // Score ten points inside a band is the band's own colour.
+        let inside = if band.lower == 0 {
+            0.0
+        } else {
+            f32::from(band.lower) + 10.0
+        };
+        let [r, g, b] = band.rgb;
+        assert_eq!(
+            legend.color_at(inside.min(100.0)),
+            Color::rgb(r, g, b),
+            "{}",
+            band.label
+        );
     }
 }

@@ -11,8 +11,8 @@
 //! structure use [`crate::Scene::from_structure`] instead.
 
 pub use molgfx_core::{
-    AtomSelection, CoreError, MolecularProvider, MolecularSource, SecondaryStructure, SourceAtom,
-    SourceBond, SourceTopology, is_metal_atomic_number,
+    AtomSelection, CoreError, MolecularPose, MolecularProvider, MolecularSource,
+    SecondaryStructure, SourceAtom, SourceBond, SourceTopology,
 };
 
 /// A content-derived identity for a provider's molecular topology.
@@ -31,6 +31,7 @@ pub fn topology_identity(topology: &SourceTopology) -> u64 {
     for atom in topology.atoms.iter() {
         atom.element.hash(&mut hasher);
         atom.residue.hash(&mut hasher);
+        atom.alt_id.hash(&mut hasher);
     }
     topology.residue_atom_start.hash(&mut hasher);
     topology.chain_residue_start.hash(&mut hasher);
@@ -63,3 +64,5 @@ fn bond_order_tag(order: molframe::BondOrder) -> u8 {
 #[cfg(test)]
 #[path = "source_tests.rs"]
 mod tests;
+
+pub use molgfx_core::MolecularSurfaceDescription;

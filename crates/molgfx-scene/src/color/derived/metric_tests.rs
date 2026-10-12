@@ -176,3 +176,36 @@ fn aliases_name_the_same_metric_without_adding_one() {
             .all(|alias| AtomMetric::ALL.iter().all(|metric| metric.name() != *alias))
     );
 }
+
+#[test]
+fn the_observed_domain_widens_the_structures_own_spread_to_whole_numbers() {
+    let structure = structure();
+    assert_eq!(
+        AtomMetric::BFactor.observed_domain(&structure),
+        Some([12.0, 50.0])
+    );
+    assert_eq!(
+        AtomMetric::Hydrophobicity.observed_domain(&structure),
+        Some([-5.0, 5.0])
+    );
+    assert_eq!(
+        AtomMetric::Occupancy.observed_domain(&structure),
+        Some([0.0, 1.0])
+    );
+}
+
+#[test]
+fn a_constant_column_spans_one_unit_so_it_is_never_a_flat_domain() {
+    let Ok((one, _)) = molframe::read_bytes(
+        b"ATOM      1  N   ALA A   1       0.000   0.000   0.000  1.00 20.50           N\nEND\n"
+            .to_vec(),
+        Some("one.pdb"),
+        &molframe::ReadOptions::new(),
+    ) else {
+        panic!("fixture must parse")
+    };
+    assert_eq!(
+        AtomMetric::BFactor.observed_domain(&one),
+        Some([20.0, 21.0])
+    );
+}

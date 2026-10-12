@@ -13,6 +13,17 @@ pub struct ScalarPropertyBinding {
 }
 
 impl ScalarPropertyBinding {
+    /// Reuses one scientific column under a snapshot's display metadata in O(1).
+    pub(crate) fn for_descriptor(&self, descriptor: &PropertySpec) -> Option<Self> {
+        (self.spec.structure == descriptor.structure
+            && self.spec.source.content_hash == descriptor.source.content_hash)
+            .then(|| Self {
+                name: self.name.clone(),
+                spec: descriptor.clone(),
+                values: self.values.clone(),
+            })
+    }
+
     /// Declares one atom-row scalar column without copying its values.
     #[must_use]
     pub fn new(

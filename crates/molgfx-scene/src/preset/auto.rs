@@ -7,13 +7,13 @@ use molgfx_core::MolecularSource;
 
 /// Chooses default representations for `structure`.
 ///
-/// - **Small** structures (no real polymer) draw every atom at atomic detail.
+/// - **Small** structures (no real polymer) draw non-solvent atoms at atomic detail.
 /// - **Medium** structures draw polymers as cartoons and everything that is
-///   neither polymer nor solvent as ball-and-stick.
+///   neither polymer, solvent nor ions as ball-and-stick.
 /// - **Large** structures draw only the polymer cartoons.
 /// - **Huge** structures draw the polymer as one Gaussian surface.
 ///
-/// Solvent is never drawn by default. A nucleic polymer uses the nucleic-acid
+/// Ions and isolated atoms use van der Waals spheres; solvent is never drawn by default. A nucleic polymer uses the nucleic-acid
 /// form so bases stay visible.
 ///
 /// # Errors
@@ -30,17 +30,13 @@ pub fn auto_representations(
     match size {
         StructureSize::Small => {
             let target = (!sel::water() & !sel::ions()).into();
-            if count(source, &target)? > 0 {
-                forms.push(atomic(target, atoms, structure));
-            }
+            atomic_forms(source, &target, atoms, structure, &mut forms)?;
             ion_form(source, structure, &mut forms)?;
         }
         StructureSize::Medium => {
             polymer_forms(source, structure, &mut forms)?;
             let target = non_polymer_non_solvent();
-            if count(source, &target)? > 0 {
-                forms.push(atomic(target, atoms, structure));
-            }
+            atomic_forms(source, &target, atoms, structure, &mut forms)?;
             ion_form(source, structure, &mut forms)?;
         }
         StructureSize::Large => polymer_forms(source, structure, &mut forms)?,
@@ -140,6 +136,23 @@ fn ion_form(
 ) -> Result<(), Error> {
     let target: Selection = sel::ions().into();
     if count(source, &target)? > 0 {
+        forms.push(rep::spacefill(target).structure(structure).into());
+    }
+    Ok(())
+}
+
+fn atomic_forms(
+    source: &MolecularSource,
+    target: &Selection,
+    atoms: u64,
+    structure: StructureId,
+    forms: &mut Vec<RepresentationSpec>,
+) -> Result<(), Error> {
+    let targets = super::atomic_targets(source, target)?;
+    if let Some(target) = targets.connected {
+        forms.push(atomic(target, atoms, structure));
+    }
+    if let Some(target) = targets.isolated {
         forms.push(rep::spacefill(target).structure(structure).into());
     }
     Ok(())

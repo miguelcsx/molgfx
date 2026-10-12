@@ -119,7 +119,7 @@ fn peptide_pdb(residues: u32, ligand_y: f64) -> String {
 }
 
 #[test]
-fn a_protein_with_a_ligand_gets_a_cartoon_and_atomic_detail_for_the_rest() {
+fn a_protein_with_an_isolated_nonpolymer_atom_gets_a_cartoon_and_a_sphere() {
     let source = peptide_with_ligand(12);
     let Ok(forms) = auto_representations(&source, StructureId(1)) else {
         panic!("the peptide selects");
@@ -130,7 +130,7 @@ fn a_protein_with_a_ligand_gets_a_cartoon_and_atomic_detail_for_the_rest() {
         .collect();
     assert_eq!(forms.len(), 2, "{kinds:?}");
     assert!(kinds[0].contains("cartoon"), "{kinds:?}");
-    assert!(kinds[1].contains("ball"), "{kinds:?}");
+    assert!(kinds[1].contains("spacefill"), "{kinds:?}");
 }
 
 fn selected_atoms(source: &MolecularSource, form: &crate::RepresentationSpec) -> Vec<u32> {
