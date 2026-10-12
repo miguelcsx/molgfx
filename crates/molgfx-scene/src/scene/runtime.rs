@@ -155,8 +155,18 @@ pub(crate) fn resolve_reusing(
             let _ = selections.insert(selection_key, selection);
             selection
         };
+        if let crate::representation::form::RepresentationFormSpec::MolecularSurface {
+            source, ..
+        } = &representation.form
+            && overlay_bindings
+                .molecular_surface(&source.content_hash, structure)
+                .is_none()
+        {
+            continue;
+        }
         let (native, visual) = representation.native(crate::spec::lowering::Lowering {
             properties: &properties,
+            surfaces: Some((overlay_bindings, structures)),
             channels: &channels,
         })?;
         let overlay = installed.overlays.get(&structure).copied().flatten();

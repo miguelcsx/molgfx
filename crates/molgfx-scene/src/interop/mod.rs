@@ -4,10 +4,12 @@
 mod tests;
 
 mod import;
+mod runtime_archive;
 mod schema;
 #[cfg(test)]
 mod schema_tests;
 mod snapshot;
+pub use runtime_archive::{RuntimeCapture, SceneArchive};
 
 mod codec;
 mod diagnostic;
