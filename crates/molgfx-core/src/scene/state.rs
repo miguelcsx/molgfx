@@ -14,7 +14,7 @@ use crate::handle::{RepresentationHandle, SlotMap, StructureHandle, VolumeHandle
 use crate::placed::PlacedStructure;
 use crate::representation::Representation;
 use crate::scene::StoredSelection;
-use crate::{Column, DatasetId, StructureAsset};
+use crate::{DatasetId, StructureAsset};
 #[path = "identity.rs"]
 mod identity;
 #[path = "representation_state.rs"]
@@ -38,7 +38,8 @@ mod tests;
 pub struct Scene {
     identity: SceneIdentity,
     pub(crate) structures: SlotMap<PlacedStructure>,
-    pub(crate) interaction_states: std::collections::BTreeMap<StructureHandle, Column<u32>>,
+    pub(crate) interaction_states:
+        std::collections::BTreeMap<StructureHandle, super::interaction_column::InteractionColumn>,
     pub(crate) selections: SlotMap<StoredSelection>,
     pub(crate) representations: SlotMap<StoredRepresentation>,
     pub(crate) volumes: SlotMap<StoredVolume>,
@@ -68,6 +69,8 @@ pub struct Scene {
     structure_revision: u64,
     /// Bumped when one or more semantic interaction channels change.
     pub(crate) interaction_state_revision: u64,
+    /// Where pointer hover was last written, when that is still known.
+    pub(crate) hover_memory: super::pointer_hover::HoverMemory,
     /// Bumped whenever the representation list or its parameters change;
     /// keys content synchronization.
     pub(crate) representation_revision: u64,
@@ -288,9 +291,10 @@ impl Scene {
         let atom_count = placed.atoms.len() as usize;
         self.structure_revision = self.structure_revision.wrapping_add(1);
         let handle = StructureHandle(self.structures.insert(placed));
-        let _ = self
-            .interaction_states
-            .insert(handle, Column::new(vec![0; atom_count]));
+        let _ = self.interaction_states.insert(
+            handle,
+            super::interaction_column::InteractionColumn::new(vec![0; atom_count]),
+        );
         handle
     }
 
@@ -300,6 +304,7 @@ impl Scene {
         let removed = self.structures.remove(handle.0);
         if removed.is_some() {
             let _ = self.interaction_states.remove(&handle);
+            self.hover_memory = super::pointer_hover::HoverMemory::default();
             self.structure_revision = self.structure_revision.wrapping_add(1);
             self.interaction_state_revision = self.interaction_state_revision.wrapping_add(1);
         }

@@ -6,8 +6,12 @@ mod domain_visuals;
 mod ensembles;
 mod generic_batches;
 mod generic_timeline;
+mod interaction_column;
 mod interaction_state;
 mod pointer_hover;
+#[cfg(test)]
+#[path = "pointer_hover_tests.rs"]
+mod pointer_hover_tests;
 pub use difference::{AtomCorrespondence, DifferenceScene, DifferenceStyle, DifferenceView};
 pub use generic_timeline::{InstanceFramePair, PointFramePair};
 pub use interaction_state::InteractionState;

@@ -1,5 +1,6 @@
 //! Dense semantic interaction state shared by every representation.
 
+use super::interaction_column::RowSpan;
 use crate::{AtomSelection, Column, CoreError, Scene, StructureHandle};
 
 /// One bit in the per-atom semantic interaction word.
@@ -44,13 +45,28 @@ impl Scene {
     /// Dense per-atom state words for one structure.
     #[must_use]
     pub fn interaction_state(&self, structure: StructureHandle) -> Option<&Column<u32>> {
-        self.interaction_states.get(&structure)
+        self.interaction_states
+            .get(&structure)
+            .map(super::interaction_column::InteractionColumn::column)
     }
 
     /// Revision shared by all semantic interaction-state columns.
     #[must_use]
     pub const fn interaction_state_revision(&self) -> u64 {
         self.interaction_state_revision
+    }
+
+    /// Rows of one structure's state words edited after revision `since`.
+    ///
+    /// `None` means the history cannot prove which rows changed, so the
+    /// consumer must treat every row as dirty.
+    #[must_use]
+    pub fn interaction_state_dirty(
+        &self,
+        structure: StructureHandle,
+        since: u64,
+    ) -> Option<std::ops::Range<u32>> {
+        self.interaction_states.get(&structure)?.dirty_since(since)
     }
 
     /// Applies one channel's new bit set, retiring the one already stored.
@@ -81,33 +97,44 @@ impl Scene {
             .interaction_states
             .get_mut(&handle)
             .ok_or(CoreError::StaleHandle)?;
-        let words = column.values_mut();
-        if words.len() != atom_count as usize {
+        if column.column().len() != atom_count as usize {
             return Err(CoreError::InvalidSelection {
                 reason: "interaction-state row count does not match its structure",
             });
         }
+        let words = column.words_mut();
         let mut changed = false;
         let mut cursor = 0;
+        let mut span = RowSpan::default();
         if let Some(rows) = rows {
             rows.for_each(atom_count, |row| {
                 let row = row as usize;
                 if row < cursor {
                     return;
                 }
-                for word in &mut words[cursor..row] {
-                    changed |= *word & mask != 0;
-                    *word &= !mask;
+                for (index, word) in (cursor..row).zip(&mut words[cursor..row]) {
+                    if *word & mask != 0 {
+                        *word &= !mask;
+                        span.add(crate::column::saturating_u32(index));
+                    }
                 }
-                changed |= words[row] & mask != mask;
-                words[row] |= mask;
+                if words[row] & mask != mask {
+                    words[row] |= mask;
+                    span.add(crate::column::saturating_u32(row));
+                }
                 cursor = row + 1;
             });
         }
-        for word in &mut words[cursor..] {
-            changed |= *word & mask != 0;
-            *word &= !mask;
+        for (index, word) in (cursor..).zip(&mut words[cursor..]) {
+            if *word & mask != 0 {
+                *word &= !mask;
+                span.add(crate::column::saturating_u32(index));
+            }
         }
+        let rows = span.rows();
+        changed |= !rows.is_empty();
+        column.record(rows);
+        self.hover_memory.forget();
         if changed {
             self.interaction_state_revision = self.interaction_state_revision.wrapping_add(1);
         }
@@ -137,11 +164,21 @@ impl Scene {
                 .interaction_states
                 .get_mut(&structure)
                 .ok_or(CoreError::StaleHandle)?;
-            if column.values() != values {
-                column.values_mut().copy_from_slice(&values);
-                changed = true;
-            }
+            let words = column.column().values();
+            let Some(first) = words.iter().zip(&values).position(|(a, b)| a != b) else {
+                continue;
+            };
+            let last = match words.iter().zip(&values).rposition(|(a, b)| a != b) {
+                Some(last) => last,
+                None => first,
+            };
+            column.words_mut().copy_from_slice(&values);
+            column.record(
+                crate::column::saturating_u32(first)..crate::column::saturating_u32(last + 1),
+            );
+            changed = true;
         }
+        self.hover_memory.forget();
         if changed {
             self.interaction_state_revision = self.interaction_state_revision.wrapping_add(1);
         }
