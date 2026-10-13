@@ -108,6 +108,12 @@ pub fn pack_bonds(
     }
     let coordinates = placed.source.coordinates();
     let bonds = &placed.source.topology().bonds;
+    // Built once and only when a multiple bond needs a plane, so the per-bond
+    // neighbour lookup is O(degree) rather than a scan of every bond.
+    let neighbours = bonds
+        .iter()
+        .any(|bond| bond.gpu_order() > 1)
+        .then(|| BondNeighbours::build(bonds));
     for (source_index, bond) in bonds.iter().enumerate() {
         let (Some(&atom_a), Some(&atom_b)) = (
             compaction.get(bond.atoms[0] as usize),
@@ -122,9 +128,10 @@ pub fn pack_bonds(
         let entity = bond_entity(EntityKind::Bond, source_index)?;
         // Only a multiple bond separates its strands, so the plane is computed
         // once for those and reused by every strand.
-        let plane = (order > 1)
-            .then(|| bond_plane_turns(coordinates, bonds, bond.atoms[0], bond.atoms[1]))
-            .flatten();
+        let plane = neighbours
+            .as_ref()
+            .filter(|_| order > 1)
+            .and_then(|index| bond_plane_turns(coordinates, index, bond.atoms[0], bond.atoms[1]));
         for variant in 0..order {
             let style = plane.map_or_else(
                 || BondStyle::new(order, bond.aromatic, bond.metal, variant),
@@ -190,13 +197,13 @@ fn pack_dynamic(
 /// neighbour: a genuinely terminal bond has no plane to honour.
 fn bond_plane_turns(
     coordinates: &[[f32; 3]],
-    bonds: &[molgfx_core::SourceBond],
+    neighbours: &BondNeighbours,
     atom_a: u32,
     atom_b: u32,
 ) -> Option<u16> {
     let axis = axis_between(coordinates, atom_a, atom_b)?;
     for endpoint in [atom_a, atom_b] {
-        let neighbour = first_other_neighbour(bonds, endpoint, [atom_a, atom_b])?;
+        let neighbour = neighbours.first_other(endpoint, [atom_a, atom_b])?;
         let offset = neighbour_offset(coordinates, endpoint, neighbour)?;
         if let Some(turns) = plane_turn_of(axis, offset) {
             return Some(turns);
@@ -222,23 +229,55 @@ fn axis_between(coordinates: &[[f32; 3]], a: u32, b: u32) -> Option<[f32; 3]> {
     Some([delta[0] / length, delta[1] / length, delta[2] / length])
 }
 
-/// The first bonded neighbour of `atom` that is neither endpoint of the bond
-/// under consideration.
-fn first_other_neighbour(
-    bonds: &[molgfx_core::SourceBond],
-    atom: u32,
-    excluded: [u32; 2],
-) -> Option<u32> {
-    bonds.iter().find_map(|bond| {
-        let [first, second] = bond.atoms;
-        if first == atom && !excluded.contains(&second) {
-            Some(second)
-        } else if second == atom && !excluded.contains(&first) {
-            Some(first)
-        } else {
-            None
+/// Bonded neighbours of every atom in bond order, as one flat table.
+#[derive(Debug)]
+struct BondNeighbours {
+    offsets: Vec<usize>,
+    neighbours: Vec<u32>,
+}
+
+impl BondNeighbours {
+    fn build(bonds: &[molgfx_core::SourceBond]) -> Self {
+        let atoms = bonds
+            .iter()
+            .flat_map(|bond| bond.atoms)
+            .max()
+            .map_or(0, |highest| highest as usize + 1);
+        let mut offsets = vec![0usize; atoms + 1];
+        for bond in bonds {
+            for atom in bond.atoms {
+                offsets[atom as usize + 1] += 1;
+            }
         }
-    })
+        for index in 0..atoms {
+            offsets[index + 1] += offsets[index];
+        }
+        let mut cursor = offsets.clone();
+        let mut neighbours = vec![0u32; offsets[atoms]];
+        for bond in bonds {
+            let [first, second] = bond.atoms;
+            neighbours[cursor[first as usize]] = second;
+            cursor[first as usize] += 1;
+            neighbours[cursor[second as usize]] = first;
+            cursor[second as usize] += 1;
+        }
+        Self {
+            offsets,
+            neighbours,
+        }
+    }
+
+    /// The first bonded neighbour of `atom` that is neither endpoint of the
+    /// bond under consideration.
+    fn first_other(&self, atom: u32, excluded: [u32; 2]) -> Option<u32> {
+        let atom = atom as usize;
+        let range = *self.offsets.get(atom)?..*self.offsets.get(atom + 1)?;
+        self.neighbours
+            .get(range)?
+            .iter()
+            .copied()
+            .find(|neighbour| !excluded.contains(neighbour))
+    }
 }
 
 /// The vector from `atom` to `neighbour`, or `None` on missing coordinates or

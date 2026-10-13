@@ -314,3 +314,35 @@ fn bond_identity_rejects_rows_above_the_chunk_local_limit() {
         assert!(matches!(error, PackingError::IndexOverflow { .. }));
     }
 }
+
+#[test]
+fn neighbour_index_matches_a_scan_of_every_bond() {
+    use molgfx_core::SourceBond;
+    let bonds: Vec<SourceBond> = [[0, 1], [1, 2], [2, 3], [1, 3], [4, 1], [3, 0]]
+        .into_iter()
+        .map(|atoms| SourceBond {
+            atoms,
+            ..SourceBond::default()
+        })
+        .collect();
+    let index = BondNeighbours::build(&bonds);
+    for atom in 0..6u32 {
+        for excluded in [[0, 1], [1, 2], [1, 3], [9, 9]] {
+            let scan = bonds.iter().find_map(|bond| {
+                let [first, second] = bond.atoms;
+                if first == atom && !excluded.contains(&second) {
+                    Some(second)
+                } else if second == atom && !excluded.contains(&first) {
+                    Some(first)
+                } else {
+                    None
+                }
+            });
+            assert_eq!(
+                index.first_other(atom, excluded),
+                scan,
+                "{atom} {excluded:?}"
+            );
+        }
+    }
+}
