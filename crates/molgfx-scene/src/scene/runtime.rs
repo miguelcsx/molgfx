@@ -51,6 +51,40 @@ impl StructureAssets {
         }
     }
 
+    /// Whether the record describes exactly this structure set, ending at `last`.
+    pub(crate) fn covers(&self, count: usize, last: Option<StructureId>) -> bool {
+        self.key.len() == count && self.key.last().map(|entry| entry.0) == last
+    }
+
+    /// The asset recorded for one structure.
+    pub(crate) fn asset(&self, id: StructureId) -> Option<&molgfx_core::StructureAsset> {
+        let index = self.key.binary_search_by_key(&id, |entry| entry.0).ok()?;
+        self.assets.get(index)
+    }
+
+    /// The record without structure `id`, so the next resolution over the
+    /// remaining set still reuses every other asset.
+    pub(crate) fn without(&self, id: StructureId) -> Self {
+        let mut next = self.clone();
+        if let Ok(index) = next.key.binary_search_by_key(&id, |entry| entry.0) {
+            let _ = next.key.remove(index);
+            let _ = next.assets.remove(index);
+        }
+        next
+    }
+
+    /// Appends the asset of a structure whose id follows every recorded one.
+    pub(crate) fn push(
+        &mut self,
+        id: StructureId,
+        source: &molgfx_core::MolecularSource,
+        asset: molgfx_core::StructureAsset,
+    ) {
+        self.key
+            .push((id, source.identity(), source.coordinate_revision()));
+        self.assets.push(asset);
+    }
+
     /// The assets to reuse, when they were built from this structure set.
     fn matches(
         &self,
@@ -115,53 +149,57 @@ pub(crate) fn resolve_reusing(
         &structure_handles,
         &mut scene,
     )?;
-    let prepared = crate::scene::appearance::prepare(
-        &spec.appearance,
-        &crate::scene::appearance::ruled_structures(spec),
+    let mut appearance = BTreeMap::new();
+    let installed = install_appearance(
+        spec,
         structures,
         &structure_handles,
         &properties,
         rows,
+        &mut scene,
+        &mut appearance,
     )?;
-    let mut appearance = BTreeMap::new();
-    let installed = crate::scene::appearance::install(&mut scene, &mut appearance, prepared)?;
     let mut handles = BTreeMap::new();
     let mut selections = BTreeMap::new();
     let mut visuals = BTreeMap::new();
+    let mut snfg = Vec::new();
     for (id, representation) in &spec.representations {
-        let structure = representation.common.structure.ok_or_else(|| {
-            Error::InvalidSpec("representation has no structure target".to_owned())
-        })?;
-        let core_structure = structure_handles.get(&structure).copied().ok_or_else(|| {
-            Error::InvalidSpec("representation structure is not bound".to_owned())
-        })?;
-        let selection_key = format!(
-            "{}:{}",
-            structure.get(),
-            representation.common.target.stable_hash()?
-        );
+        let (structure, core_structure) =
+            representation_target(representation, &structure_handles)?;
+        if let crate::representation::form::RepresentationFormSpec::Snfg { scale } =
+            &representation.form
+        {
+            // Symbols are instance records for the analytic primitive
+            // pipelines: no selection, no native representation. The set is
+            // built once per structure revision and only copied here.
+            representation.validate_values()?;
+            let emitted = emit_snfg(
+                &mut scene,
+                structures,
+                rows,
+                representation,
+                core_structure,
+                *scale,
+            )?;
+            snfg.push((*id, emitted));
+            continue;
+        }
+        let selection_key = selection_key(representation, structure)?;
         let selection = if let Some(selection) = selections.get(&selection_key).copied() {
             selection
         } else {
-            // Only this representation's structure is evaluated, and an
-            // unchanged query over an unchanged molecule comes from the cache.
-            let source = structures.get(&structure).ok_or_else(|| {
-                Error::InvalidSpec("representation structure is not bound".to_owned())
-            })?;
-            let (rows, fingerprint) =
-                rows.rows(structure, source, &representation.common.target)?;
-            let selection =
-                scene.add_query_selection(core_structure, (*rows).clone(), fingerprint)?;
+            let selection = add_selection(
+                &mut scene,
+                structures,
+                rows,
+                representation,
+                structure,
+                core_structure,
+            )?;
             let _ = selections.insert(selection_key, selection);
             selection
         };
-        if let crate::representation::form::RepresentationFormSpec::MolecularSurface {
-            source, ..
-        } = &representation.form
-            && overlay_bindings
-                .molecular_surface(&source.content_hash, structure)
-                .is_none()
-        {
+        if surface_unbound(representation, overlay_bindings, structure) {
             continue;
         }
         let (native, visual) = representation.native(crate::spec::lowering::Lowering {
@@ -187,7 +225,8 @@ pub(crate) fn resolve_reusing(
         selections: &mut selections,
         bindings: overlay_bindings,
     };
-    let overlay = crate::overlay::lower::lower(spec, &mut overlay_lowering)?;
+    let mut overlay = crate::overlay::lower::lower(spec, &mut overlay_lowering)?;
+    overlay.snfg = snfg;
     crate::scene::interaction::write_states(&mut scene, spec)?;
     Ok(Resolution {
         scene,
@@ -275,4 +314,115 @@ pub(crate) fn canonical_selection_count(spec: &SceneSpec) -> usize {
         .map(|representation| (representation.structure_id(), representation.selection()))
         .collect::<std::collections::BTreeSet<_>>()
         .len()
+}
+
+/// Emits one SNFG representation's symbols as primitives; hidden ones emit none.
+fn emit_snfg(
+    scene: &mut molgfx_core::Scene,
+    structures: &BTreeMap<StructureId, molgfx_core::MolecularSource>,
+    rows: &crate::scene::selection_rows::SelectionRows,
+    representation: &crate::representation::RepresentationSpec,
+    core_structure: molgfx_core::StructureHandle,
+    scale: f32,
+) -> Result<Vec<molgfx_core::PrimitiveHandle>, Error> {
+    if !representation.common.visible {
+        return Ok(Vec::new());
+    }
+    let structure = representation
+        .common
+        .structure
+        .ok_or_else(|| Error::InvalidSpec("representation has no structure target".to_owned()))?;
+    let source = structures
+        .get(&structure)
+        .ok_or_else(|| Error::InvalidSpec("representation structure is not bound".to_owned()))?;
+    let (selected, _) = rows.rows(structure, source, &representation.common.target)?;
+    let symbols = crate::scene::snfg_symbols::symbols_of(source)?;
+    let primitives = symbols
+        .subset(&selected)
+        .to_primitives(core_structure, scale);
+    if primitives.is_empty() {
+        return Ok(Vec::new());
+    }
+    Ok(scene.add_primitives(&primitives)?)
+}
+
+/// Evaluates one representation's query against its own structure only; an
+/// unchanged query over an unchanged molecule comes from the cache.
+fn add_selection(
+    scene: &mut molgfx_core::Scene,
+    structures: &BTreeMap<StructureId, molgfx_core::MolecularSource>,
+    rows: &crate::scene::selection_rows::SelectionRows,
+    representation: &crate::representation::RepresentationSpec,
+    structure: StructureId,
+    core_structure: molgfx_core::StructureHandle,
+) -> Result<molgfx_core::SelectionHandle, Error> {
+    let source = structures
+        .get(&structure)
+        .ok_or_else(|| Error::InvalidSpec("representation structure is not bound".to_owned()))?;
+    let (rows, fingerprint) = rows.rows(structure, source, &representation.common.target)?;
+    Ok(scene.add_query_selection(core_structure, (*rows).clone(), fingerprint)?)
+}
+
+/// Prepares every ruled structure's class columns and installs them.
+fn install_appearance(
+    spec: &SceneSpec,
+    structures: &BTreeMap<StructureId, molgfx_core::MolecularSource>,
+    handles: &BTreeMap<StructureId, molgfx_core::StructureHandle>,
+    properties: &BTreeMap<Box<str>, molgfx_core::AtomPropertyHandle>,
+    rows: &crate::scene::selection_rows::SelectionRows,
+    scene: &mut molgfx_core::Scene,
+    columns: &mut crate::scene::appearance::AppearanceColumns,
+) -> Result<crate::scene::appearance::Installed, Error> {
+    let prepared = crate::scene::appearance::prepare(
+        &spec.appearance,
+        &crate::scene::appearance::ruled_structures(spec),
+        structures,
+        handles,
+        properties,
+        rows,
+    )?;
+    crate::scene::appearance::install(scene, columns, prepared)
+}
+
+/// The structure a representation targets, as an identity and a scene handle.
+fn representation_target(
+    representation: &crate::representation::RepresentationSpec,
+    handles: &BTreeMap<StructureId, molgfx_core::StructureHandle>,
+) -> Result<(StructureId, molgfx_core::StructureHandle), Error> {
+    let structure = representation
+        .common
+        .structure
+        .ok_or_else(|| Error::InvalidSpec("representation has no structure target".to_owned()))?;
+    let core_structure = handles
+        .get(&structure)
+        .copied()
+        .ok_or_else(|| Error::InvalidSpec("representation structure is not bound".to_owned()))?;
+    Ok((structure, core_structure))
+}
+
+/// The key under which equal queries over one structure share a selection.
+fn selection_key(
+    representation: &crate::representation::RepresentationSpec,
+    structure: StructureId,
+) -> Result<String, Error> {
+    Ok(format!(
+        "{}:{}",
+        structure.get(),
+        representation.common.target.stable_hash()?
+    ))
+}
+
+/// Whether a molecular-surface representation has no built surface to draw.
+fn surface_unbound(
+    representation: &crate::representation::RepresentationSpec,
+    overlay_bindings: &crate::overlay::OverlayBindings,
+    structure: StructureId,
+) -> bool {
+    matches!(
+        &representation.form,
+        crate::representation::form::RepresentationFormSpec::MolecularSurface { source, .. }
+            if overlay_bindings
+                .molecular_surface(&source.content_hash, structure)
+                .is_none()
+    )
 }

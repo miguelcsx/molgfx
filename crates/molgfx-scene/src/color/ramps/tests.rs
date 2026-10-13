@@ -86,7 +86,7 @@ fn the_plddt_ramp_is_flat_inside_a_band_and_blends_at_each_band_edge() {
         let (a, b) = (channels(SHIPPED_PLDDT[low]), channels(SHIPPED_PLDDT[high]));
         let got = at(score);
         for channel in 0..3 {
-            let mean = (i16::from(a[channel]) + i16::from(b[channel])) / 2;
+            let mean = i16::midpoint(i16::from(a[channel]), i16::from(b[channel]));
             assert!(
                 (i16::from(got[channel]) - mean).abs() <= 1,
                 "score {score} channel {channel}: {} vs {mean}",

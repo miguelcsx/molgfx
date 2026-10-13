@@ -37,3 +37,26 @@ pub(super) fn is_structural(operation: &PatchOperation) -> bool {
             | PatchOperation::RestoreSnapshot(_)
     )
 }
+
+/// Whether the operation edits an SNFG representation.
+///
+/// Symbols are primitives re-emitted whenever the scene resolves, not a
+/// physical representation a local patch could rewrite in place, so any edit
+/// to one resolves afresh.
+pub(super) fn edits_snfg(spec: &crate::SceneSpec, operation: &PatchOperation) -> bool {
+    let (PatchOperation::SetVisibility { id, .. }
+    | PatchOperation::SetOpacity { id, .. }
+    | PatchOperation::SetColor { id, .. }
+    | PatchOperation::SetRepresentationTarget { id, .. }
+    | PatchOperation::SetVisual { id, .. }
+    | PatchOperation::SetParameter { id, .. }) = operation
+    else {
+        return false;
+    };
+    spec.representations.get(id).is_some_and(|representation| {
+        matches!(
+            representation.form,
+            crate::representation::form::RepresentationFormSpec::Snfg { .. }
+        )
+    })
+}

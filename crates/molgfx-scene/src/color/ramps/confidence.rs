@@ -19,10 +19,11 @@ pub struct ConfidenceBand {
 }
 
 const fn rgb(packed: u32) -> [u8; 3] {
-    [(packed >> 16) as u8, (packed >> 8) as u8, packed as u8]
+    let [_, red, green, blue] = packed.to_be_bytes();
+    [red, green, blue]
 }
 
-/// The four AlphaFold confidence bands, very high first. The `plddt` ramp is
+/// The four `AlphaFold` confidence bands, very high first. The `plddt` ramp is
 /// anchored on the same colours, so a legend of bands and a blended colouring
 /// cannot disagree.
 pub const PLDDT_BANDS: [ConfidenceBand; 4] = [

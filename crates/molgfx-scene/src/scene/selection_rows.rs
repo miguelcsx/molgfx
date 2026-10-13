@@ -20,9 +20,10 @@ use molgfx_core::{AtomSelection, MolecularSource};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
-/// Identity of one evaluation: structure, source identity, coordinate
-/// revision and query fingerprint.
-type RowKey = (StructureId, u64, u64, u64);
+/// Identity of one evaluation: source identity, coordinate revision and query
+/// fingerprint. Rows depend on the molecule alone, so every placed copy of one
+/// source shares the evaluation instead of repeating it.
+type RowKey = (u64, u64, u64);
 
 /// Remembered rows for recently evaluated queries.
 #[derive(Debug, Default)]
@@ -42,18 +43,13 @@ impl SelectionRows {
     /// Returns an error when the query does not compile or evaluate.
     pub(crate) fn rows(
         &self,
-        structure: StructureId,
+        _structure: StructureId,
         source: &MolecularSource,
         selection: &Selection,
     ) -> Result<(Arc<AtomSelection>, u64), Error> {
         let query = selection.compiled()?;
         let fingerprint = query.fingerprint().get();
-        let key = (
-            structure,
-            source.identity(),
-            source.coordinate_revision(),
-            fingerprint,
-        );
+        let key = (source.identity(), source.coordinate_revision(), fingerprint);
         if let Ok(mut entries) = self.entries.lock()
             && let Some(index) = entries.iter().position(|(known, _)| *known == key)
             && let Some(entry) = entries.remove(index)
@@ -71,6 +67,14 @@ impl SelectionRows {
             entries.push_back((key, Arc::clone(&rows)));
         }
         Ok((rows, fingerprint))
+    }
+
+    /// Forgets every evaluation over the source `identity`, for a molecule no
+    /// structure of the scene is bound to any more.
+    pub(crate) fn forget(&self, identity: u64) {
+        if let Ok(mut entries) = self.entries.lock() {
+            entries.retain(|(key, _)| key.0 != identity);
+        }
     }
 
     /// Number of remembered evaluations.

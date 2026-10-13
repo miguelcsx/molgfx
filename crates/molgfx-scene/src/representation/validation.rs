@@ -69,6 +69,7 @@ impl RepresentationFormSpec {
             } => {
                 validate_putty(*domain_min, *domain_max, *radius_min, *radius_max)?;
             }
+            RepresentationFormSpec::Snfg { scale } => positive("symbol scale", *scale)?,
             RepresentationFormSpec::Spacefill { radius }
             | RepresentationFormSpec::Bases { radius }
             | RepresentationFormSpec::Beads { radius } => positive("radius", *radius)?,

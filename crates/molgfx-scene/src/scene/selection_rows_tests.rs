@@ -54,3 +54,18 @@ fn a_malformed_query_is_an_error_and_not_cached() {
     );
     assert_eq!(cache.len(), 0);
 }
+
+#[test]
+fn placed_copies_of_one_source_share_one_evaluation() {
+    let cache = SelectionRows::default();
+    let source = source();
+    let selection = Selection::from("all");
+    let (Ok((first, _)), Ok((second, _))) = (
+        cache.rows(StructureId(1), &source, &selection),
+        cache.rows(StructureId(7), &source.clone(), &selection),
+    ) else {
+        panic!("the query evaluates")
+    };
+    assert!(Arc::ptr_eq(&first, &second));
+    assert_eq!(cache.len(), 1);
+}

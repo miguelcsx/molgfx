@@ -395,6 +395,8 @@ pub struct OverlayHandles {
     /// Per-atom anisotropic-displacement ellipsoid overlays, with their
     /// Number of analytic anisotropic ellipsoid primitives emitted.
     pub ellipsoids: usize,
+    /// SNFG symbol primitives emitted by SNFG representations.
+    pub snfg_symbols: usize,
     /// Analytic guide segments emitted for caller-authored planes.
     pub plane_guides: usize,
     /// Analytic guide segments emitted for crystallographic unit cells.

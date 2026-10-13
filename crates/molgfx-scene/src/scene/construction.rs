@@ -31,6 +31,7 @@ impl Scene {
             snapshot_bindings: super::snapshot::SnapshotBindings::default(),
             playback: BTreeMap::new(),
             selected_scope: None,
+            content_hashes: std::collections::HashMap::new(),
         }
     }
     /// Builds a scene over a shared immutable `MolFrame` snapshot.
@@ -86,6 +87,7 @@ impl Scene {
             snapshot_bindings: super::snapshot::SnapshotBindings::default(),
             playback: BTreeMap::new(),
             selected_scope: None,
+            content_hashes: std::collections::HashMap::new(),
         })
     }
 
@@ -213,6 +215,7 @@ impl Scene {
             snapshot_bindings: super::snapshot::SnapshotBindings::default(),
             playback: BTreeMap::new(),
             selected_scope: None,
+            content_hashes: std::collections::HashMap::new(),
         };
         let mut restored = std::collections::BTreeSet::new();
         for binding in playback {

@@ -21,10 +21,10 @@ pub use crate::selection::Selection;
 pub use builders::{
     Backbone, BallAndStick, BasePairs, Bases, Beads, Bonds, Cartoon, Dots, DynamicBonds, Glycan,
     Licorice, Lines, MolecularSurface, NewRibbons, NucleicAcid, PaperChain, PointRepresentation,
-    Polyhedra, Putty, QuickSurf, Ribbons, Solvent, Spacefill, Surface, Trace, Tube, backbone,
+    Polyhedra, Putty, QuickSurf, Ribbons, Snfg, Solvent, Spacefill, Surface, Trace, Tube, backbone,
     ball_and_stick, base_pairs, bases, beads, bonds, cartoon, dots, dynamic_bonds, glycan,
     licorice, lines, msms, new_cartoon, new_ribbons, nucleic_acid, paper_chain, points, polyhedra,
-    putty, quick_surf, ribbons, solvent, spacefill, surf, surface, trace, tube,
+    putty, quick_surf, ribbons, snfg, solvent, spacefill, surf, surface, trace, tube,
 };
 pub use form::RepresentationSpec;
 pub use item::SceneItem;

@@ -94,16 +94,23 @@ impl Scene {
                 None => groups.push((instance.transform, vec![label])),
             }
         }
-        let mut copies = Vec::with_capacity(groups.len());
-        for (transform, chains) in groups {
-            let placed = self.place(of, column_major(&transform)?)?;
-            let selection = chain_selection(&chains);
-            copies.push(AssemblyCopy {
-                structure: placed,
-                chains,
-                selection,
-            });
-        }
+        let matrices = groups
+            .iter()
+            .map(|(transform, _)| column_major(transform))
+            .collect::<Result<Vec<_>, Error>>()?;
+        let placed = self.place_many(of, &matrices)?;
+        let copies = placed
+            .into_iter()
+            .zip(groups)
+            .map(|(structure, (_, chains))| {
+                let selection = chain_selection(&chains);
+                AssemblyCopy {
+                    structure,
+                    chains,
+                    selection,
+                }
+            })
+            .collect();
         Ok(copies)
     }
 }

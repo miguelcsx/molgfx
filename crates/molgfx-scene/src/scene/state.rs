@@ -35,6 +35,9 @@ pub struct Scene {
     /// The one structure whose atoms may carry the selected bit, when a caller asked for
     /// that (the selection is a query over every structure; this keeps it to one).
     pub(super) selected_scope: Option<StructureId>,
+    /// Content hash of each source already hashed, by identity and coordinate
+    /// revision, so placing many copies of one molecule hashes it once.
+    pub(super) content_hashes: std::collections::HashMap<(u64, u64), Box<str>>,
 }
 
 pub(crate) struct Resolution {

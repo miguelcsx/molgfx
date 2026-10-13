@@ -149,6 +149,9 @@ pub(crate) enum RepresentationFormSpec {
     Glycan {
         width: f32,
     },
+    Snfg {
+        scale: f32,
+    },
     Beads {
         radius: f32,
     },
@@ -301,6 +304,7 @@ impl RepresentationSpec {
             RepresentationFormSpec::Bases { .. } => "bases",
             RepresentationFormSpec::BasePairs { .. } => "base_pairs",
             RepresentationFormSpec::Glycan { .. } => "glycan",
+            RepresentationFormSpec::Snfg { .. } => "snfg",
             RepresentationFormSpec::Beads { .. } => "beads",
         }
     }

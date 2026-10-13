@@ -156,8 +156,8 @@ impl AtomMetric {
         Ok(self.column_of(structure))
     }
 
-    /// Computes the column straight from a MolFrame structure, one value per
-    /// atom in atom-index order; an atom without the value reads as NaN.
+    /// Computes the column straight from a `MolFrame` structure, one value per
+    /// atom in atom-index order; an atom without the value reads as `NaN`.
     #[must_use]
     pub fn column_of(self, structure: &molframe::Structure) -> Vec<f32> {
         let mut values = vec![f32::NAN; structure.atom_count() as usize];

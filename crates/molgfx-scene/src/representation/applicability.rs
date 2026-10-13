@@ -22,6 +22,8 @@ pub enum RepresentationRequirement {
     PolymerTrace,
     /// Connected selected carbohydrate rings.
     GlycosidicTrace,
+    /// Complete selected monosaccharide rings with a known SNFG symbol.
+    Monosaccharides,
     /// Complete selected molecular rings.
     Rings,
     /// Complete selected nucleotide pairs supported by upstream geometry.
@@ -125,6 +127,16 @@ impl RepresentationSpec {
             })
         {
             return Ok(None);
+        }
+        if matches!(self.form, Form::Snfg { .. }) {
+            if source.molframe().is_none() {
+                return Ok(Some(Need::MolecularTopology));
+            }
+            let symbols = crate::scene::snfg_symbols::symbols_of(source)?;
+            return Ok(symbols
+                .subset(selection)
+                .is_empty()
+                .then_some(Need::Monosaccharides));
         }
         if matches!(self.form, Form::Bonds { .. }) {
             return Ok((!source.topology().bonds.iter().any(|bond| {

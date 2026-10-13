@@ -33,6 +33,8 @@ pub(crate) struct LoweredOverlay {
     pub(crate) trajectories: Vec<(TrajectoryId, StructureHandle)>,
     /// One entry per overlay, holding the primitives it emitted.
     pub(crate) ellipsoids: Vec<(EllipsoidId, Vec<PrimitiveHandle>)>,
+    /// SNFG symbol primitives emitted by each SNFG representation.
+    pub(crate) snfg: Vec<(crate::RepresentationId, Vec<PrimitiveHandle>)>,
     pub(crate) planes: Vec<(PlaneId, Vec<GuideHandle>)>,
     pub(crate) unit_cells: Vec<(StructureId, Vec<GuideHandle>)>,
 }
@@ -48,6 +50,7 @@ impl LoweredOverlay {
             interactions: self.interactions.len() + self.interaction_batches.len(),
             trajectories: self.trajectories.len(),
             ellipsoids: self.ellipsoids.iter().map(|(_, rows)| rows.len()).sum(),
+            snfg_symbols: self.snfg.iter().map(|(_, rows)| rows.len()).sum(),
             plane_guides: self.planes.iter().map(|(_, rows)| rows.len()).sum(),
             unit_cell_guides: self.unit_cells.iter().map(|(_, rows)| rows.len()).sum(),
         }

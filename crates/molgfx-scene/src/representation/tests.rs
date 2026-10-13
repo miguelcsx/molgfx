@@ -77,6 +77,7 @@ fn every_representation_form_round_trips_through_its_tagged_shape() {
         rep::bases("all").into(),
         rep::base_pairs("all").into(),
         rep::glycan("all").into(),
+        rep::snfg("all").into(),
     ];
     for specification in specifications {
         let json = serde_json::to_string(&specification)

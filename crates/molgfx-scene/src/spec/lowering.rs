@@ -181,7 +181,11 @@ fn native_kind(spec: &RepresentationSpec) -> molgfx_core::RepresentationKind {
         RepresentationFormSpec::BallAndStick { .. } => Native::BallAndStick,
         RepresentationFormSpec::Bases { .. } => Native::Bases,
         RepresentationFormSpec::BasePairs { .. } => Native::BasePairs,
-        RepresentationFormSpec::Spacefill { .. } => Native::Spacefill,
+        // Symbols are analytic primitives, not a native representation; the
+        // scene resolver emits them directly and never asks for their kind.
+        RepresentationFormSpec::Spacefill { .. } | RepresentationFormSpec::Snfg { .. } => {
+            Native::Spacefill
+        }
         RepresentationFormSpec::Licorice { .. } => Native::Licorice,
         RepresentationFormSpec::Lines { .. } => Native::Lines,
         RepresentationFormSpec::Bonds { .. } => Native::Bonds,

@@ -30,6 +30,7 @@ pub(crate) mod runtime;
 #[cfg(test)]
 mod runtime_tests;
 pub(crate) mod selection_rows;
+pub(crate) mod snfg_symbols;
 mod structures;
 pub(crate) mod transaction;
 #[cfg(test)]
@@ -69,6 +70,8 @@ mod restyle_tests;
 mod snapshot;
 #[cfg(test)]
 mod snapshot_tests;
+#[cfg(test)]
+mod snfg_tests;
 mod state;
 
 use derived_bindings::with_derived_bindings;

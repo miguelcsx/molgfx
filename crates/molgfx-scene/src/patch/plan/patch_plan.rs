@@ -17,7 +17,12 @@ pub(crate) enum PatchPlan {
 
 impl PatchPlan {
     pub(crate) fn prepare(inputs: PatchInputs<'_>, patch: &ScenePatch) -> Result<Self, Error> {
-        if patch.operations.iter().any(is_structural) {
+        if patch.operations.iter().any(is_structural)
+            || patch
+                .operations
+                .iter()
+                .any(|operation| routing::edits_snfg(inputs.spec, operation))
+        {
             let candidate = candidate_spec(inputs.spec, patch)?;
             // A structural patch in this planner only ever adds, removes or
             // replaces representations and overlay items; the molecules are

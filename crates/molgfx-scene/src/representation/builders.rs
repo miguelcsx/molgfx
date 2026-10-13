@@ -322,6 +322,20 @@ representation! {
     }
 }
 
+representation! {
+    /// Typed SNFG symbol representation: one standard glyph per monosaccharide.
+    Snfg => Snfg {
+        /// Scales the symbol size; one is the standard SNFG size.
+        scale => scale: f32 = 1.0,
+    }
+}
+
+/// One SNFG symbol (circle, square, diamond, triangle...) per monosaccharide ring.
+#[must_use]
+pub fn snfg(target: impl Into<Selection>) -> Snfg {
+    Snfg::new(target)
+}
+
 /// One sphere per residue, enclosing that residue's atoms.
 #[must_use]
 pub fn beads(target: impl Into<Selection>) -> Beads {

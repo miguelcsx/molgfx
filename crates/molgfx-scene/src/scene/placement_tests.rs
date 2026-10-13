@@ -150,3 +150,136 @@ fn an_assembly_becomes_one_placed_copy_per_transform_with_its_own_chains() {
     assert!(scene.add_assembly(StructureId(1), &structure, "9").is_err());
     assert!(scene.add_assembly(StructureId(7), &structure, "1").is_err());
 }
+
+fn shifted(x: f32) -> [f32; 16] {
+    let mut matrix = SHIFT_X;
+    matrix[12] = x;
+    matrix
+}
+
+fn world_x(scene: &Scene) -> Vec<f32> {
+    scene
+        .resolved()
+        .structures()
+        .map(|(_, placed)| placed.model_to_world.w_axis.x)
+        .collect()
+}
+
+#[test]
+fn place_many_is_one_revision_and_matches_placing_one_by_one() {
+    let matrices: Vec<[f32; 16]> = (0..6_u8)
+        .map(|i| shifted(10.0 * f32::from(i) + 1.0))
+        .collect();
+    let mut one_by_one = scene();
+    one_by_one
+        .add(rep::spacefill(sel::all()))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let mut batched = scene();
+    batched
+        .add(rep::spacefill(sel::all()))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let revision = batched.revision();
+    let singles: Vec<_> = matrices
+        .iter()
+        .map(|matrix| {
+            one_by_one
+                .place(StructureId(1), *matrix)
+                .unwrap_or_else(|error| panic!("{error}"))
+        })
+        .collect();
+    let many = batched
+        .place_many(StructureId(1), &matrices)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(many, singles);
+    assert_eq!(batched.revision(), revision + 1);
+    assert_eq!(one_by_one.revision(), revision + 6);
+    assert_eq!(batched.spec().structures, one_by_one.spec().structures);
+    assert_eq!(world_x(&batched), world_x(&one_by_one));
+    // The copies stay usable: represent one and read its selection.
+    batched
+        .add(rep::spacefill(sel::all()).structure(many[5]))
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(batched.resolved().structures().count(), 7);
+}
+
+#[test]
+fn a_failed_batch_changes_nothing() {
+    let mut scene = scene();
+    let before = scene.to_spec();
+    let mut bad = SHIFT_X;
+    bad[0] = 0.0;
+    assert!(scene.place_many(StructureId(1), &[SHIFT_X, bad]).is_err());
+    assert_eq!(scene.to_spec(), before);
+    assert_eq!(scene.resolved().structures().count(), 1);
+    let id = scene
+        .place(StructureId(1), SHIFT_X)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(id, StructureId(2));
+}
+
+#[test]
+fn copies_added_after_a_focus_still_resolve_the_whole_scene() {
+    let mut scene = scene();
+    scene
+        .add(rep::spacefill(sel::all()))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let _ = scene
+        .place(StructureId(1), SHIFT_X)
+        .unwrap_or_else(|error| panic!("{error}"));
+    scene
+        .focus(sel::all())
+        .unwrap_or_else(|error| panic!("{error}"));
+    let slow = scene
+        .place_many(StructureId(1), &[shifted(40.0), shifted(60.0)])
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(slow, vec![StructureId(3), StructureId(4)]);
+    assert_eq!(world_x(&scene), vec![0.0, 25.0, 40.0, 60.0]);
+}
+
+#[test]
+fn the_content_hash_is_computed_once_per_source() {
+    let mut scene = scene();
+    let _ = scene
+        .place_many(StructureId(1), &[SHIFT_X, shifted(3.0)])
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(scene.content_hashes.len(), 1);
+    let hash = scene.spec().structures[&StructureId(1)]
+        .content_hash
+        .clone();
+    assert_eq!(scene.spec().structures[&StructureId(3)].content_hash, hash);
+}
+
+#[test]
+fn removing_a_structure_unbinds_it_and_keeps_the_others_drawable() {
+    let mut scene = scene();
+    let original = StructureId(1);
+    let copy = scene
+        .place(original, SHIFT_X)
+        .unwrap_or_else(|error| panic!("{error}"));
+    scene
+        .add(rep::spacefill(sel::all()).structure(copy))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let before = scene.revision();
+    scene
+        .remove_structure(original)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert!(scene.revision() > before);
+    assert!(!scene.spec().structures.contains_key(&original));
+    assert!(scene.spec().structures.contains_key(&copy));
+    assert_eq!(scene.resolved().structures().count(), 1);
+    assert!(scene.remove_structure(original).is_err(), "already gone");
+}
+
+#[test]
+fn a_structure_still_drawn_cannot_be_removed_and_the_scene_is_unchanged() {
+    let mut scene = scene();
+    let original = StructureId(1);
+    scene
+        .add(rep::spacefill(sel::all()).structure(original))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let before = scene.revision();
+    assert!(scene.remove_structure(original).is_err());
+    assert_eq!(scene.revision(), before);
+    assert!(scene.spec().structures.contains_key(&original));
+    assert_eq!(scene.resolved().structures().count(), 1);
+}
