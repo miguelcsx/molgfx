@@ -308,3 +308,80 @@ fn uniform_visual_parameter_updates_only_the_resolved_config_without_rebinding()
         "a uniform program has no per-entity or fragment parameter upload"
     );
 }
+
+fn state_writes(
+    engine: &crate::Engine<crate::testing::MockDevice>,
+    from: usize,
+    hovered: u32,
+) -> Vec<(u64, usize, Vec<u8>)> {
+    let writes = engine
+        .device
+        .log
+        .writes
+        .lock()
+        .unwrap_or_else(|error| panic!("{error}"));
+    let payloads = engine
+        .device
+        .log
+        .write_payloads
+        .lock()
+        .unwrap_or_else(|error| panic!("{error}"));
+    writes
+        .iter()
+        .zip(payloads.iter())
+        .skip(from)
+        .filter(|(_, payload)| {
+            payload.len() % 4 == 0
+                && (0..payload.len() / 4)
+                    .any(|word| payload[word * 4..word * 4 + 4] == hovered.to_le_bytes())
+        })
+        .map(|((_, offset, bytes, _), payload)| (*offset, *bytes, payload.clone()))
+        .collect()
+}
+
+#[test]
+fn hover_uploads_only_the_changed_state_words() {
+    let hovered = molgfx_core::InteractionState::HOVERED.bits();
+    let source = structure();
+    let mut scene = Scene::from_structure(&source).unwrap_or_else(|error| panic!("{error}"));
+    let Some((owner, _)) = scene.structures().next() else {
+        panic!("fixture structure exists")
+    };
+    let selected = scene.add_selection(AtomSelection::All);
+    scene
+        .represent(selected, RepresentationKind::Spacefill)
+        .unwrap_or_else(|error| panic!("{error}"));
+    let mut engine = engine();
+    engine
+        .render(&scene, &camera())
+        .unwrap_or_else(|error| panic!("{error}"));
+    let log_len = |engine: &crate::Engine<crate::testing::MockDevice>| {
+        engine
+            .device
+            .log
+            .writes
+            .lock()
+            .map_or_else(|error| panic!("{error}"), |writes| writes.len())
+    };
+
+    let mark = log_len(&engine);
+    assert!(scene.update_pointer_hover(Some(owner), &[1]).is_ok());
+    engine
+        .render(&scene, &camera())
+        .unwrap_or_else(|error| panic!("{error}"));
+    let first = state_writes(&engine, mark, hovered);
+    assert_eq!(first.len(), 1, "one ranged write: {first:?}");
+    assert_eq!(first[0].1, 4, "a single word, not the whole column");
+    let column_start = first[0].0 - 4;
+
+    let mark = log_len(&engine);
+    assert!(scene.update_pointer_hover(Some(owner), &[2]).is_ok());
+    engine
+        .render(&scene, &camera())
+        .unwrap_or_else(|error| panic!("{error}"));
+    let moved = state_writes(&engine, mark, hovered);
+    assert_eq!(moved.len(), 1, "{moved:?}");
+    assert_eq!(moved[0].0, column_start + 4);
+    assert_eq!(moved[0].1, 8, "the cleared and the set word only");
+    assert_eq!(moved[0].2[..4], [0; 4]);
+}

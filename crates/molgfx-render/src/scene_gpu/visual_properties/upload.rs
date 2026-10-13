@@ -94,22 +94,57 @@ impl<D: Device> VisualPropertyTable<D> {
             column.revision = revision;
             uploaded = true;
         }
-        for column in &mut self.states {
-            let Some(state) = scene.interaction_state(column.structure) else {
-                continue;
-            };
-            let revision = state.revision().get();
-            if !force_upload && revision == column.revision {
-                continue;
-            }
-            queue.write_buffer(buffer, u64::from(column.offset) * 4, state.as_bytes());
-            column.revision = revision;
-            uploaded = true;
-        }
+        uploaded |= upload_states::<D>(&mut self.states, queue, buffer, scene, force_upload);
         if plan_changed || rebound {
             self.bind_timelines(device, queue, timeline_layout)?;
         }
         Ok(uploaded)
+    }
+}
+
+fn upload_states<D: Device>(
+    states: &mut [super::StateColumn],
+    queue: &D::Queue,
+    buffer: &D::Buffer,
+    scene: &Scene,
+    force_upload: bool,
+) -> bool {
+    let mut uploaded = false;
+    for column in states {
+        let Some(state) = scene.interaction_state(column.structure) else {
+            continue;
+        };
+        let revision = state.revision().get();
+        if !force_upload && revision == column.revision {
+            continue;
+        }
+        let dirty = if force_upload {
+            None
+        } else {
+            scene.interaction_state_dirty(column.structure, column.revision)
+        };
+        match dirty {
+            Some(rows) => upload_state_rows::<D>(queue, buffer, column.offset, state, rows),
+            None => queue.write_buffer(buffer, u64::from(column.offset) * 4, state.as_bytes()),
+        }
+        column.revision = revision;
+        uploaded = true;
+    }
+    uploaded
+}
+
+/// Writes only the edited state words, at their offset in the table.
+fn upload_state_rows<D: Device>(
+    queue: &D::Queue,
+    buffer: &D::Buffer,
+    offset: u32,
+    state: &molgfx_core::Column<u32>,
+    rows: std::ops::Range<u32>,
+) {
+    let changed = state.values().get(rows.start as usize..rows.end as usize);
+    if let Some(changed) = changed.filter(|changed| !changed.is_empty()) {
+        let byte_offset = u64::from(offset.saturating_add(rows.start)) * 4;
+        queue.write_buffer(buffer, byte_offset, bytemuck::cast_slice(changed));
     }
 }
 
