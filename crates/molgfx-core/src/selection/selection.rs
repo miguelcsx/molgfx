@@ -102,6 +102,19 @@ impl AtomSelection {
         }
     }
 
+    /// Approximate resident size in bytes, for memory-bounded caches.
+    #[must_use]
+    pub fn resident_bytes(&self) -> usize {
+        let inline = std::mem::size_of::<Self>();
+        inline
+            + match self {
+                Self::Empty | Self::All | Self::Range(_) => 0,
+                Self::Ranges(runs) => runs.len() * std::mem::size_of::<Range<u32>>(),
+                Self::Sparse(rows) => rows.len() * std::mem::size_of::<u32>(),
+                Self::Roaring(map) => map.serialized_size(),
+            }
+    }
+
     /// Normalizes to a compressed bitmap, the common currency of
     /// composition. `O(selected)`.
     #[must_use]
