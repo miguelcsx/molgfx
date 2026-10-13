@@ -13,6 +13,7 @@ class _QueryLike(Protocol):
 
 type _Target = str | _QueryLike
 type _FramePositions = Sequence[Sequence[float]] | _FrameArray
+type _FrameStack = Sequence[_FramePositions] | _FrameArray
 type _Rgb = tuple[int, int, int]
 type _CartoonProfile = Literal["elliptical", "rounded", "square"]
 type _CartoonStyle = Literal["ribbon", "rocket", "nucleic_acid", "glycan"]
@@ -1518,7 +1519,7 @@ class Playback:
     @property
     def structure(self) -> StructureId: ...
     @property
-    def positions(self) -> _FramePositions: ...
+    def positions(self) -> _FrameStack: ...
     @property
     def times(self) -> tuple[float, ...]: ...
     def seek(self, time: float) -> None: ...
@@ -1530,7 +1531,7 @@ class _PlaybackModule(Protocol):
     def attach(
         self,
         scene: Scene,
-        positions: _FramePositions,
+        positions: _FrameStack,
         times: Iterable[float],
         *,
         structure: StructureId | None = None,
