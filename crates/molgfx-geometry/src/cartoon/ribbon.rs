@@ -25,11 +25,11 @@ mod twister;
 pub use sugar::has_selected_sugar_faces;
 
 #[cfg(test)]
-#[path = "ribbon_rendering_tests.rs"]
-mod rendering_tests;
-#[cfg(test)]
 #[path = "ribbon/hetero_tests.rs"]
 mod hetero_tests;
+#[cfg(test)]
+#[path = "ribbon_rendering_tests.rs"]
+mod rendering_tests;
 #[cfg(test)]
 #[path = "ribbon/selection_tests.rs"]
 mod selection_tests;

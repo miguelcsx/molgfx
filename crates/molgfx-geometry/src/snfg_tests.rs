@@ -1,5 +1,3 @@
-#![allow(clippy::unreadable_literal, clippy::cast_precision_loss)]
-
 use super::*;
 use molgfx_core::Scene;
 use std::fmt::Write as _;
@@ -14,9 +12,10 @@ fn rings(components: &[&str]) -> molframe::Structure {
     let mut id = 1;
     for (residue, component) in components.iter().enumerate() {
         let seq = residue + 1;
-        let x = residue as f32 * 6.0;
+        let x = f32::from(u16::try_from(residue).expect("few residues")) * 6.0;
         for (corner, name) in names.iter().enumerate() {
-            let angle = corner as f32 * std::f32::consts::TAU / 6.0;
+            let angle =
+                f32::from(u8::try_from(corner).expect("six corners")) * std::f32::consts::TAU / 6.0;
             let element = if name.starts_with('O') { "O" } else { "C" };
             writeln!(
                 cif,
@@ -64,13 +63,13 @@ fn spec_colours_and_shapes_follow_the_snfg_table() {
     let set = SnfgSymbolSet::build(&structure, &AtomSelection::All).expect("build");
     assert_eq!(set.len(), ids.len());
     let expected = [
-        (CarbohydrateShape::Cube, 0x0090BC),
-        (CarbohydrateShape::Sphere, 0x00A651),
-        (CarbohydrateShape::Sphere, 0x00A651),
-        (CarbohydrateShape::Sphere, 0xFFD400),
-        (CarbohydrateShape::Cube, 0xFFD400),
-        (CarbohydrateShape::Triangle, 0xED1C24),
-        (CarbohydrateShape::Diamond, 0xA54399),
+        (CarbohydrateShape::Cube, 0x00_90BC),
+        (CarbohydrateShape::Sphere, 0x00_A651),
+        (CarbohydrateShape::Sphere, 0x00_A651),
+        (CarbohydrateShape::Sphere, 0xFF_D400),
+        (CarbohydrateShape::Cube, 0xFF_D400),
+        (CarbohydrateShape::Triangle, 0xED_1C24),
+        (CarbohydrateShape::Diamond, 0xA5_4399),
     ];
     for (index, (shape, color)) in expected.into_iter().enumerate() {
         assert_eq!(set.shapes[index], shape, "{}", ids[index]);
@@ -138,4 +137,21 @@ fn every_upstream_shape_lowers_to_a_glyph_with_positive_size() {
         let size = glyph_size(glyph);
         assert!(size.min_element() > 0.0);
     }
+}
+
+#[test]
+fn subset_keeps_only_fully_selected_rings() {
+    let structure = rings(&["NAG", "MAN", "FUC"]);
+    let all = SnfgSymbolSet::build(&structure, &AtomSelection::All).expect("build");
+    assert_eq!(all.len(), 3);
+    assert_eq!(all.subset(&AtomSelection::All), all);
+    assert!(all.subset(&AtomSelection::Empty).is_empty());
+    // Each ring has six atoms, so rows 6..12 are exactly the second residue.
+    let middle = all.subset(&AtomSelection::Range(6..12));
+    assert_eq!(middle.len(), 1);
+    assert_eq!(middle.shapes[0], all.shapes[1]);
+    assert_eq!(middle.centers[0], all.centers[1]);
+    let direct = SnfgSymbolSet::build(&structure, &AtomSelection::Range(6..12)).expect("build");
+    assert_eq!(middle, direct);
+    assert!(all.subset(&AtomSelection::Range(6..11)).is_empty());
 }

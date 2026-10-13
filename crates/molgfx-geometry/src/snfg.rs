@@ -19,7 +19,9 @@
 
 use crate::PackingError;
 use molframe::chemistry::SnfgShape;
-use molgfx_core::{AtomSelection, CarbohydrateShape, CarbohydrateSymbol, Primitive, StructureHandle};
+use molgfx_core::{
+    AtomSelection, CarbohydrateShape, CarbohydrateSymbol, Primitive, StructureHandle,
+};
 use molgfx_math::{Mat3, Quat, Rgba8, Vec3};
 
 #[cfg(test)]
@@ -50,10 +52,6 @@ pub const fn glyph(shape: SnfgShape) -> CarbohydrateShape {
         SnfgShape::FlatHexagon | SnfgShape::HexagonalPrism | SnfgShape::HeptagonalPrism => {
             CarbohydrateShape::Hexagon
         }
-        // The upstream enum is exhaustive today; a future symbol draws as the
-        // unclassified hexagon rather than failing the whole glycan.
-        #[allow(unreachable_patterns)]
-        _ => CarbohydrateShape::Hexagon,
     }
 }
 
@@ -115,6 +113,10 @@ pub struct SnfgSymbolSet {
     pub secondary: Vec<Option<Rgba8>>,
     /// Source residue ordinal of each symbol.
     pub residues: Vec<u32>,
+    /// Start of each symbol's ring atoms in `ring_atoms`, plus a final end.
+    ring_offsets: Vec<u32>,
+    /// Ring atom rows of every symbol, concatenated.
+    ring_atoms: Vec<u32>,
 }
 
 impl SnfgSymbolSet {
@@ -139,6 +141,7 @@ impl SnfgSymbolSet {
             operation: "saccharide symbol inventory",
         })?;
         let mut set = Self::default();
+        set.ring_offsets.push(0);
         let count = report.monosaccharides.len();
         set.centers.reserve(count);
         set.orientations.reserve(count);
@@ -171,8 +174,38 @@ impl SnfgSymbolSet {
             set.secondary
                 .push(sugar.symbol.secondary_color.map(pack_rgb));
             set.residues.push(sugar.residue.get());
+            set.ring_atoms
+                .extend(sugar.ring_atoms.iter().map(|atom| atom.get()));
+            set.ring_offsets.push(offset_of(set.ring_atoms.len()));
         }
         Ok(set)
+    }
+
+    /// The symbols whose ring atoms are all selected, in the same order.
+    ///
+    /// Linear in the ring atoms of the set and free of any chemistry, so a set
+    /// built once for a structure serves every selection over it.
+    #[must_use]
+    pub fn subset(&self, selection: &AtomSelection) -> Self {
+        let mut out = Self::default();
+        out.ring_offsets.push(0);
+        for index in 0..self.len() {
+            let start = self.ring_offsets[index] as usize;
+            let end = self.ring_offsets[index + 1] as usize;
+            let ring = &self.ring_atoms[start..end];
+            if !ring.iter().all(|atom| selection.contains(*atom)) {
+                continue;
+            }
+            out.centers.push(self.centers[index]);
+            out.orientations.push(self.orientations[index]);
+            out.shapes.push(self.shapes[index]);
+            out.colors.push(self.colors[index]);
+            out.secondary.push(self.secondary[index]);
+            out.residues.push(self.residues[index]);
+            out.ring_atoms.extend_from_slice(ring);
+            out.ring_offsets.push(offset_of(out.ring_atoms.len()));
+        }
+        out
     }
 
     /// Number of symbols.
@@ -209,4 +242,12 @@ impl SnfgSymbolSet {
         }
         primitives
     }
+}
+
+/// A ring-atom offset as the packed `u32`, saturating past the addressable range.
+fn offset_of(len: usize) -> u32 {
+    let Ok(offset) = u32::try_from(len) else {
+        return u32::MAX;
+    };
+    offset
 }
