@@ -6,6 +6,7 @@ pub(crate) mod registry;
 mod tests;
 
 mod binding;
+mod derived;
 mod property_spec;
 mod scalar_property;
 

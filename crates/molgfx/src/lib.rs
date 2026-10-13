@@ -36,6 +36,13 @@ pub use molgfx_scene::{FrameTiming, GpuTiming};
 pub use molgfx_scene::{HdrImage, Image, StereoImages, StereoLayout};
 pub use molgfx_scene::{PointCloud, Renderer};
 
+pub mod placement;
+#[cfg(test)]
+mod placement_tests;
+pub mod playback;
+#[cfg(test)]
+mod playback_tests;
+
 #[cfg(feature = "host")]
 pub use molgfx_scene::host;
 

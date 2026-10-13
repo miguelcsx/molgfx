@@ -5,9 +5,6 @@ from typing import TYPE_CHECKING
 
 from molframe import sel as sel
 
-from . import place as place
-from . import playback as playback
-from . import properties as properties
 from ._engine import (
     Anchor,
     AnnotationId,
@@ -73,7 +70,10 @@ from ._engine import (
     ellipsoid,
     interaction,
     measurement,
+    place,
+    playback,
     profile,
+    properties,
     rep,
     segmentation,
     system_info,
@@ -81,8 +81,9 @@ from ._engine import (
     visual,
     vocabulary,
 )
-from .properties import bind as bind_array
-from .properties import by_array as by_array
+
+bind_array = properties.bind
+by_array = properties.by_array
 
 if TYPE_CHECKING:
     from .viewer import Viewer

@@ -46,7 +46,7 @@ pub(super) struct PyTrajectoryFrame(pub(super) molgfx::TrajectoryFrame);
 impl PyTrajectoryFrame {
     #[new]
     #[pyo3(signature = (index, time, positions))]
-    fn new(index: u64, time: f32, positions: &Bound<'_, PyAny>) -> PyResult<Self> {
+    pub(super) fn new(index: u64, time: f32, positions: &Bound<'_, PyAny>) -> PyResult<Self> {
         Ok(Self(molgfx::TrajectoryFrame::new(
             index,
             time,

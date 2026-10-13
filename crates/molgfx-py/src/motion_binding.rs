@@ -97,7 +97,7 @@ impl PyScene {
     /// different frame pairs, so it is the imperative way to step through a
     /// trajectory of any length. `sample_time` interpolates between `start` and `end`.
     #[pyo3(signature = (*, structure, start, end, sample_time))]
-    fn set_trajectory_pair(
+    pub(super) fn set_trajectory_pair(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
         structure: &Bound<'_, PyAny>,

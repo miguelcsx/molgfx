@@ -1470,6 +1470,78 @@ class _Snfg(Protocol):
     def glyph(self, component: str) -> tuple[str, str, str] | None: ...
 
 snfg: _Snfg
+
+class _Superposition(Protocol):
+    @property
+    def rotation(self) -> Iterable[Iterable[float]]: ...
+    @property
+    def translation(self) -> Iterable[float]: ...
+
+class _Place(Protocol):
+    def from_rotation_translation(
+        self, rotation: Iterable[Iterable[float]], translation: Iterable[float]
+    ) -> list[float]:
+        """Column-major 16 floats for ``x' = rotation @ x + translation``."""
+    def from_superposition(self, superposition: _Superposition) -> list[float]: ...
+    def apply(
+        self,
+        scene: Scene,
+        superposition: _Superposition | tuple[Iterable[Iterable[float]], Iterable[float]],
+        *,
+        structure: StructureId | None = None,
+    ) -> StructureId: ...
+
+class _Properties(Protocol):
+    def bind(
+        self,
+        scene: Scene,
+        values: Iterable[float],
+        *,
+        name: str | None = None,
+        domain: tuple[float, float] | None = None,
+        structure: StructureId | None = None,
+    ) -> ScalarProperty: ...
+    def by_array(
+        self,
+        scene: Scene,
+        values: Iterable[float],
+        *,
+        ramp: str = "viridis",
+        domain: tuple[float, float] | None = None,
+        name: str | None = None,
+    ) -> ColorSpec: ...
+
+@final
+class Playback:
+    @property
+    def scene(self) -> Scene: ...
+    @property
+    def structure(self) -> StructureId: ...
+    @property
+    def positions(self) -> _FramePositions: ...
+    @property
+    def times(self) -> tuple[float, ...]: ...
+    def seek(self, time: float) -> None: ...
+    def render(
+        self, renderer: Renderer, *, times: Iterable[float], size: tuple[int, int]
+    ) -> list[Image]: ...
+
+class _PlaybackModule(Protocol):
+    def attach(
+        self,
+        scene: Scene,
+        positions: _FramePositions,
+        times: Iterable[float],
+        *,
+        structure: StructureId | None = None,
+    ) -> Playback: ...
+    def attach_trajectory(
+        self, scene: Scene, source: object, *, structure: StructureId | None = None
+    ) -> Playback: ...
+
+place: _Place
+properties: _Properties
+playback: _PlaybackModule
 color: _Color
 profile: _Profile
 effect: _Effect
@@ -1551,7 +1623,10 @@ __all__ = [
     "ellipsoid",
     "interaction",
     "measurement",
+    "place",
+    "playback",
     "profile",
+    "properties",
     "rep",
     "segmentation",
     "snfg",

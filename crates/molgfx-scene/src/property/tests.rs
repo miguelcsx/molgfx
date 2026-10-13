@@ -71,3 +71,27 @@ fn invalid_property_rows_leave_the_scene_unchanged() {
     assert!(result.is_err());
     assert_eq!(scene.spec(), &before);
 }
+
+#[test]
+fn derived_bindings_name_and_hash_follow_the_values() {
+    let derive = |values: &[f32]| {
+        ScalarPropertyBinding::derived(StructureId::new(1), None, Arc::from(values))
+            .unwrap_or_else(|error| panic!("{error}"))
+    };
+    let first = derive(&[1.0, 3.0]);
+    let [low, high] = first.display_domain();
+    assert!((low - 1.0).abs() < f32::EPSILON && (high - 3.0).abs() < f32::EPSILON);
+    assert_eq!(first.name(), derive(&[1.0, 3.0]).name());
+    assert_ne!(first.name(), derive(&[1.0, 2.0]).name());
+    assert!(first.name().starts_with("values-"));
+    assert_eq!(first.name().len(), "values-".len() + 12);
+    let named = ScalarPropertyBinding::derived(StructureId::new(1), Some("b"), Arc::from([1.0]))
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(named.name(), "b");
+}
+
+#[test]
+fn derived_bindings_reject_an_empty_column() {
+    let empty: Arc<[f32]> = Arc::from([]);
+    assert!(ScalarPropertyBinding::derived(StructureId::new(1), None, empty).is_err());
+}

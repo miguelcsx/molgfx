@@ -116,10 +116,6 @@ class SeekTests(unittest.TestCase):
         self.assertEqual(renderer.render_image(scene, size=SIZE).pixels(), first)
         self.assertFalse(hasattr(play, "_rows"))
 
-    def test_frame_handles_are_cached(self) -> None:
-        play = molgfx.playback.attach(_scene(), self._frames("f32"), self.TIMES)
-        self.assertIs(play._frame(1), play._frame(1))
-
     def test_bad_frame_shape_is_rejected(self) -> None:
         with self.assertRaises((ValueError, TypeError)):
             molgfx.trajectory.frame(0, 0.0, np.zeros((2, 2), dtype=np.float32))

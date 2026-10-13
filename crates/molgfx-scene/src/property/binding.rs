@@ -7,9 +7,9 @@ use std::sync::Arc;
 /// Immutable shared scalar column supplied outside [`crate::SceneSpec`].
 #[derive(Clone, Debug)]
 pub struct ScalarPropertyBinding {
-    name: Box<str>,
-    spec: PropertySpec,
-    values: Arc<[f32]>,
+    pub(super) name: Box<str>,
+    pub(super) spec: PropertySpec,
+    pub(super) values: Arc<[f32]>,
 }
 
 impl ScalarPropertyBinding {

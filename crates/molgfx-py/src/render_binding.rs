@@ -72,7 +72,7 @@ impl PyPickResult {
 
 /// A rendered 8-bit image. `pixels()` returns the RGBA bytes.
 #[pyclass(name = "Image")]
-struct PyImage(molgfx::Image);
+pub(super) struct PyImage(molgfx::Image);
 
 #[pymethods]
 impl PyImage {
@@ -172,7 +172,7 @@ impl PyHdrImage {
 
 /// A GPU renderer. Create one per process and reuse it across scenes and frames.
 #[pyclass(name = "Renderer")]
-struct PyRenderer(molgfx::Renderer, molgfx::RenderProfile);
+pub(super) struct PyRenderer(molgfx::Renderer, molgfx::RenderProfile);
 
 #[pymethods]
 impl PyRenderer {
@@ -200,7 +200,7 @@ impl PyRenderer {
     /// Renders the scene's current state at `size=(width, height)` and returns an
     /// `Image`. Trajectory frames, parameters and camera are read as they are now.
     #[pyo3(signature = (scene, *, size))]
-    fn render_image(
+    pub(super) fn render_image(
         &mut self,
         py: Python<'_>,
         scene: &PyScene,

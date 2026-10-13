@@ -288,7 +288,7 @@ impl PyScene {
     /// a whole superposition. For many copies use `place_many`, which is one
     /// revision and one patch.
     #[pyo3(signature = (matrix=None, *, rotation=None, translation=None, structure=None))]
-    fn place(
+    pub(super) fn place(
         slf: &Bound<'_, Self>,
         py: Python<'_>,
         matrix: Option<Vec<f32>>,
@@ -344,15 +344,7 @@ fn placement_matrix(
                 (None, Some(translation)) => (IDENTITY, translation),
                 (None, None) => (IDENTITY, [0.0; 3]),
             };
-            let mut out = [0.0_f32; 16];
-            for column in 0..3 {
-                for row in 0..3 {
-                    out[column * 4 + row] = rotation[row][column];
-                }
-            }
-            out[12..15].copy_from_slice(&translation);
-            out[15] = 1.0;
-            Ok(out)
+            Ok(molgfx::placement::rigid(rotation, translation))
         }
         (None, None, None) => Err(PyValueError::new_err(
             "place needs a 16-value matrix, or rotation= (3x3) and translation= (3)",
