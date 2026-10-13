@@ -263,13 +263,9 @@ impl<D: Device> SpecializedPipelines<D> {
         program: &VisualProgram,
         build: impl FnOnce() -> Result<D::Pipeline, RenderError>,
     ) {
-        // Eligibility is decided from the program itself, before any compile:
-        // a program the emitter cannot lower must not reach the backend at all.
-        let (eligibility, reason) = visual_pipeline(program);
-        if eligibility.is_interpreter() {
-            let _ = self.failed.entry(key).or_insert((eligibility, reason));
-            return;
-        }
+        // A settled key is answered from the cache. Eligibility is only worked
+        // out for a key seen for the first time: it builds a reason string, and
+        // doing that for every styled slot every frame is a steady allocation.
         self.clock += 1;
         if let Some(entry) = self.entries.get_mut(&key) {
             entry.last_use = self.clock;
@@ -278,6 +274,13 @@ impl<D: Device> SpecializedPipelines<D> {
         // A failed key keeps the interpreter permanently, so the backend is
         // never asked twice for the same style.
         if self.failed.contains_key(&key) {
+            return;
+        }
+        // Eligibility is decided from the program itself, before any compile:
+        // a program the emitter cannot lower must not reach the backend at all.
+        let (eligibility, reason) = visual_pipeline(program);
+        if eligibility.is_interpreter() {
+            let _ = self.failed.insert(key, (eligibility, reason));
             return;
         }
         match build() {
