@@ -36,6 +36,8 @@ mod snapshot;
 mod snapshot_tests;
 mod state;
 #[cfg(test)]
+mod state_tests;
+#[cfg(test)]
 mod tests;
 
 pub use complete::Completion;

@@ -100,8 +100,9 @@ impl State {
         let spec = &mut self.spec;
         spec.structures
             .retain(|_, id| scene.structures.contains_key(id));
+        let mut named: std::collections::HashSet<_> = spec.structures.values().copied().collect();
         for id in scene.structures.keys() {
-            if spec.structures.values().any(|known| known == id) {
+            if !named.insert(*id) {
                 continue;
             }
             let mut ordinal = id.get();
