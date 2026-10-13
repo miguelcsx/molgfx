@@ -8,6 +8,12 @@ affine matrix. The copy is a structure of its own: it has its own identity, its 
 representations, and its own picks, and the source it copies is not modified.
 
 ```python
+import molframe
+import molgfx
+
+structure = molframe.read("4hhb.cif").infer_bonds()
+scene = molgfx.Scene(structure)
+
 shift = [1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  25.0, 0, 0, 1]
 copy = scene.place(shift)
 scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()).on(copy))
@@ -16,13 +22,42 @@ scene.add(molgfx.rep.spacefill(target=molgfx.sel.all()).on(copy))
 A matrix that is not finite, not affine (bottom row `0 0 0 1`), or not invertible is
 rejected when it is placed rather than when it is drawn.
 
+## Superposition and the matrix convention
+
+`Scene.place` reads its 16 floats **column-major**, while NumPy and MolFrame matrices are row-major. A row-major `M` must be passed as `M.T.reshape(-1).tolist()`. `molgfx.place` does that conversion, so a MolFrame `superpose` result (`x' = R @ x + t`) places a copy directly:
+
+```python
+import numpy as np
+
+rotation = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])  # 90 degrees about z
+translation = np.array([10.0, 0.0, 0.0])
+moved = scene.place(rotation=rotation, translation=translation)  # no transposing by hand
+scene.add(molgfx.rep.cartoon(target="protein").on(moved))
+same = scene.place(molgfx.place.from_rotation_translation(rotation, translation))  # the same, as a matrix
+
+# With a MolFrame fit: fit = molframe.geometry.superpose(mobile, reference)
+#   molgfx.place.apply(scene, fit)   # or molgfx.place.from_superposition(fit)
+```
+
+## Many copies
+
+`Scene.place_many` takes any number of matrices and adds them as one revision and one
+patch. Its cost is linear in the number of copies and independent of the atom count: the
+coordinates and atom tables are shared, and the content hash of the source is computed
+once. Prefer it to a loop of `place` calls for a lattice or an ensemble.
+
+```python
+row = [[1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  40.0 * i, 0, 0, 1] for i in range(1, 5)]
+copies = scene.place_many(row)
+```
+
 ## Biological assemblies
 
 `Scene.assembly` places one copy per assembly instance. Each instance carries a
 `matrix` and the `chains` it applies to, which is what `molframe.crystal.assembly`
-returns:
+returns. This needs an entry that deposits assembly data, so the snippet is not run in the docs tests:
 
-```python
+```python no-run
 instances = molframe.crystal.assembly(structure, "1")
 for copy in scene.assembly(instances):
     scene.add(molgfx.rep.cartoon(target=copy.selection).on(copy.structure))

@@ -10,6 +10,12 @@ MolGFX exposes scene items beyond molecular representations. Use them when the i
 Anchors can be in world coordinates or target a selection. Labels and measurements are scene items:
 
 ```python
+import molframe
+import molgfx
+
+structure = molframe.read("4hhb.cif").infer_bonds()
+scene = molgfx.Scene(structure)
+
 first = molgfx.annotation.world((0.0, 0.0, 0.0))
 second = molgfx.annotation.world((4.2, 0.0, 0.0))
 
@@ -39,6 +45,29 @@ The public interaction kinds are `hydrogen_bond`, `salt_bridge`, `pi_stacking`, 
 
 
 For scalar coloring, bind values to a structure with `scene.bind_property(...)`, then pass the returned property to `molgfx.color.property(...)`. Trajectory declarations use `molgfx.trajectory.bind(...)`; their frames must match the declared structure topology and source identity before a renderer can resolve them.
+
+## Playing a trajectory
+
+A scene holds one resident pair of frames plus a sample time, so showing an N-frame trajectory means moving that pair as time advances. `molgfx.playback.attach` does this with `Scene.set_trajectory_pair`, which needs no `trajectory.bind` descriptor and no rebinding:
+
+```python
+positions = [
+    [[0.0, 0.0, 0.0], [4.0, 0.0, 0.0]],
+    [[0.0, 3.0, 0.0], [4.0, -3.0, 0.0]],
+    [[0.0, 0.0, 0.0], [4.0, 5.0, 0.0]],
+]
+subject = molgfx.Scene(molframe.read("two-atoms.pdb"))
+subject.add(molgfx.rep.spacefill(target="all"))
+subject.set_camera(subject.frame("all"))
+play = molgfx.playback.attach(subject, positions, times=[0.0, 1.0, 2.0])
+images = play.render(molgfx.Renderer(), times=[0.0, 0.5, 1.0, 1.5, 2.0], size=(320, 240))
+```
+
+`positions` is `(frames, atoms, 3)` in the structure's atom order; for a molframe trajectory use `molgfx.playback.attach_trajectory(scene, trajectory)`. `play.seek(t)` moves the scene to time `t` (clamped to the first and last frame). `Renderer.render_sequence` renders the scene's *current* state repeatedly and never advances time, so it returns identical frames for a trajectory; use `play.render` or call `seek` between renders.
+
+Frames reach the scene as `(atoms, 3)` arrays: a float32 NumPy array is copied once with no per-atom Python work (float64 is narrowed the same way). The pair's frame handles are cached, so a `seek` inside one segment converts nothing, and a `seek` to the time already shown does nothing.
+
+The declarative path is `trajectory.bind(...)` added to the scene, then `scene.bind_trajectory(source_hash=..., start=..., end=...)` once per source hash, then `scene.set_trajectory_time(...)`. Calling `set_trajectory_time` before a pair is resident raises `MolgfxError: ... no active trajectory segment`.
 
 <Callout type="info" title="Keep raw data outside the scene document">
 Use stable source hashes and let the application or binding provide the payload. This keeps scene JSON portable and makes failure to resolve a overlay source explicit instead of silently visualizing a different dataset.

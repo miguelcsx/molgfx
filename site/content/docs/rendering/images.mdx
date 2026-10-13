@@ -6,6 +6,12 @@ description: Create deterministic off-screen PNG output from a semantic scene.
 `Renderer` opens a compatible native graphics device and renders a scene to an `Image`. Use `converged()` when a saved image matters more than interactive adaptation.
 
 ```python
+import molframe
+import molgfx
+
+structure = molframe.read("4hhb.cif").infer_bonds()
+scene = molgfx.Scene(structure)
+
 renderer = molgfx.Renderer(profile=molgfx.profile.converged())
 image = renderer.render_image(scene, size=(1920, 1080))
 image.save("figure.png")
@@ -19,7 +25,7 @@ image.save("figure.png")
 
 Converged images and the default camera sequence complete all 64 temporal samples for each output. Explicit progressive sequences submit one sample and must not be counted as converged outputs. Rust `Image::quality()` reports physical extent, selected detail, submitted samples and completion observed after readback; `EffectiveQuality::complete()` derives completion from those observations. Indirect illumination currently reports zero transport bounces.
 
-Python `json.loads(image.quality_json())` exposes the same canonical fields and
+Python `image.quality` (a `dict`; `image.quality_json()` is the same as a string) exposes the same canonical fields and
 derived `complete` value without copying pixels. Rust HDR images also retain
 their exposure quality. Browser `renderer.frameReportJSON()` is absent before
 the first render, then returns the latest report as JSON; read `last_completed`

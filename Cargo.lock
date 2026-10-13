@@ -2076,6 +2076,7 @@ dependencies = [
  "molframe-cif",
  "molframe-core",
  "num-traits",
+ "rayon",
 ]
 
 [[package]]

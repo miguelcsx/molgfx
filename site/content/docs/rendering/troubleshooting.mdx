@@ -12,6 +12,8 @@ Use current Chrome or Edge. Safari and Firefox require WebGPU to be enabled. The
 Infer bonds after reading an mmCIF when you need ball-and-stick, licorice, or lines:
 
 ```python
+import molframe
+
 structure = molframe.read("structure.cif").infer_bonds()
 ```
 

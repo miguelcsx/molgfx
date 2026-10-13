@@ -24,9 +24,15 @@ Every representation is created in `molgfx.rep` and targets a MolFrame selection
 | `points` | dense atom clouds | `size` |
 | `surface` | molecular envelope | `kind`, `style`, `probe_radius`, `isolevel` |
 
-All forms accept `target`, `opacity`, and `color`. `nucleic_acid`, `bases`, `base_pairs`, and `glycan` are also available for their respective molecular targets.
+All forms accept `target`, `opacity`, and `color`. `target` defaults to `"all"` for the forms that do not take a source, so `molgfx.rep.spacefill()` depicts every atom. Surface forms built from a source still require an explicit target. `nucleic_acid`, `bases`, `base_pairs`, and `glycan` are also available for their respective molecular targets.
 
 ```python
+import molframe
+import molgfx
+
+structure = molframe.read("4hhb.cif").infer_bonds()
+scene = molgfx.Scene(structure)
+
 scene.add(molgfx.rep.cartoon(target="protein", color=molgfx.color.secondary_structure()))
 scene.add(molgfx.rep.licorice(target="resname HEM", bond_radius=0.15))
 ```
@@ -55,7 +61,7 @@ exact boundary. Use it for a schematic molecular envelope, and `solid` or `mesh`
 when the exact solvent-accessible or solvent-excluded boundary matters.
 
 ```python
-scene.add(molgfx.rep.surface(target="protein", style="soft_union", probe_radius=1.6))
+scene.add(molgfx.rep.surface(target="protein", kind="van_der_waals", style="soft_union", probe_radius=1.6))
 ```
 
 ## Automatic defaults
@@ -88,6 +94,7 @@ sparse context; everything farther is a demoted tube. Water beyond the shell is
 never drawn, and the subject is focused so the camera frames it.
 
 ```python
+# Assumes the entry has a ligand named LIG; an empty focus raises SpecError.
 scene.pocket("resname LIG")
 
 style = molgfx.PocketStyle(near=5.0, mid=12.0).with_opacity(pocket=0.5)
@@ -114,6 +121,7 @@ choose, with the heaviest member most opaque. Add each structure with
 `Scene.add_structure`, then give every member a weight and a colour:
 
 ```python
+other_model = molframe.read("other.cif").infer_bonds()
 second = scene.add_structure(other_model)
 scene.ensemble([
     (scene.structure_id, 3.0, (200, 40, 40)),
@@ -135,6 +143,7 @@ bound, with small values faded to context. The property is your own difference,
 score or uncertainty column:
 
 ```python
+values = [0.1 * index for index in range(len(structure.select("all")))]  # one per atom
 delta = scene.bind_property(
     structure=scene.structure_id, name="delta",
     source_hash="delta-sha256", values=values,

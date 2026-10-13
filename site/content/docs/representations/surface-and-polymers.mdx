@@ -8,6 +8,12 @@ description: Use specialized representations where molecular context needs a dif
 `surface` has a molecular surface kind and a presentation style. The current public values are `van_der_waals`, `solvent_accessible`, `solvent_excluded`, and `gaussian`; styles are `solid`, `contour`, `dots`, `filled_contour`, and `mesh`.
 
 ```python
+import molframe
+import molgfx
+
+structure = molframe.read("4hhb.cif").infer_bonds()
+scene = molgfx.Scene(structure)
+
 scene.add(molgfx.rep.surface(
     target="chain A",
     kind="solvent_accessible",
@@ -22,10 +28,13 @@ Use a focused selection rather than an entire large assembly when the overlay qu
 
 ## Nucleic acids and glycans
 
-```python
+```python no-run
+# Each target selects nothing on a protein-only entry such as 4HHB and raises
+# SpecError; use an entry with nucleic acid and glycans. `nucleicbase` also needs
+# the chemical-component annotations that the deposited file carries.
 scene.add(molgfx.rep.nucleic_acid(target="nucleic", width=1.4))
-scene.add(molgfx.rep.bases(target="nucleic_base", radius=0.3))
-scene.add(molgfx.rep.glycan(target="glycans", width=1.5))
+scene.add(molgfx.rep.bases(target="nucleicbase", radius=0.3))
+scene.add(molgfx.rep.glycan(target="saccharide", width=1.5))
 ```
 
 `base_pairs` adds paired base context; `glycan` uses the glycosidic-tree representation. These targets are MolFrame queries; see [Writing queries and commands](/docs/commands/queries).

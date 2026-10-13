@@ -6,6 +6,12 @@ description: Target biology with MolFrame queries and make it legible with color
 MolGFX consumes MolFrame selections. The simplest target is a query string:
 
 ```python
+import molframe
+import molgfx
+
+structure = molframe.read("4hhb.cif").infer_bonds()
+scene = molgfx.Scene(structure)
+
 heme = "resname HEM"
 pocket = "byres (within 5 of resname HEM) and protein"
 scene.add(molgfx.rep.spacefill(target=heme))
@@ -13,6 +19,22 @@ scene.add(molgfx.rep.ball_and_stick(target=pocket, radius=0.25))
 ```
 
 To learn the query language, start with [Writing queries and commands](/docs/commands/queries); every keyword is in the [MolFrame query reference](https://miguelcsx.github.io/molframe/docs/query-language/). For the command workflow that turns a query into visual layers, see [Query-driven visualization](/docs/commands/visual-selections). MolGFX preserves the MolFrame language rather than translating it.
+
+## Naming traps
+
+- `chain C`, `resid` and `resname` use the author's names; `label_chain`, `label_resid` and `label_resname` use the mmCIF label ids. `chain label:X` is not syntax: it is read as a chain literally named `label:X` and matches nothing.
+- `molframe.sel.residue("GLY")` takes a residue *name*. A number is not a residue index: `sel.residue("5")` means `resname "5"`.
+- A representation whose target selects no atoms is rejected with `SpecError`, the same way `scene.pocket` rejects an empty focus. Pass `allow_empty=True` to `scene.add` when an empty target is intentional.
+- Ligand, nucleic acid and glycan selections are empty on a protein-only entry such as 4HHB, which only carries the heme.
+
+```python
+try:
+    scene.add(molgfx.rep.licorice(target="chain label:X"))
+except molgfx.SpecError as error:
+    print(error)  # names the query and explains author versus label names
+
+scene.add(molgfx.rep.licorice(target="chain label:X"), allow_empty=True)
+```
 
 ## Color mappings
 
@@ -53,6 +75,17 @@ scene.add(molgfx.rep.cartoon(target="protein", color=molgfx.color.metric("plddt"
 A continuous colour is set on a representation, not on a query rule: in command text write `show cartoon as main, protein` and then `color rainbow, @main`.
 
 A uniform colour in Python is an RGB triple or a `ColorSpec`: `color=(178, 34, 34)`. In command text, a colour may also be a named colour or a hex triple: `color firebrick, protein` and `color #b22222, protein` are the same rule. The named set covers the conventional element and presentation names; any other colour is written as hex.
+
+## Colouring from your own array
+
+`scene.bind_property` binds one value per atom and `molgfx.color.property` maps it through a ramp. `molgfx.by_array` does both and derives the source hash from the data, so no hash is invented:
+
+```python
+bfactors = [0.1 * index for index in range(len(structure.select("all")))]
+scene.add(molgfx.rep.spacefill(target="all", color=molgfx.by_array(scene, bfactors, ramp="viridis")))
+```
+
+`domain` defaults to the data's minimum and maximum, and `name` to `values-<hash>` (property names are unique per scene). `molgfx.bind_array` binds without colouring. The declarative pair `bind_property` plus `color.property` remains the core and is what a stored scene contains.
 
 ## Opacity and visual state
 

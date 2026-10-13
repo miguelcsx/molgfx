@@ -6,6 +6,12 @@ description: The smallest useful Scene, representation, and Renderer workflow.
 A `Scene` attaches semantic items to a MolFrame structure. `scene.add()` returns a stable representation ID, which you can later use to adjust visibility, opacity, or a visual style.
 
 ```python
+import molframe
+import molgfx
+
+structure = molframe.read("4hhb.cif").infer_bonds()
+scene = molgfx.Scene(structure)
+
 scene = molgfx.Scene(structure)
 cartoon = scene.add(molgfx.rep.cartoon(target="protein"))
 scene.set_opacity(cartoon, 0.85)

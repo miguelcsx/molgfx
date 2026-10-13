@@ -6,6 +6,12 @@ description: Direct attention to a molecular region and recover semantic picks.
 `Scene.focus()` records a target of interest. It is useful for a pocket, ligand, or chain when a viewer or renderer frames the scene.
 
 ```python
+import molframe
+import molgfx
+
+structure = molframe.read("4hhb.cif").infer_bonds()
+scene = molgfx.Scene(structure)
+
 scene.focus("resname HEM")
 ```
 

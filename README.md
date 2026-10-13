@@ -77,6 +77,8 @@ and display layouts; the embedding host owns window-specific stereo presentation
 Presentation effects are explicit values on a render profile:
 
 ```python
+import molgfx
+
 profile = molgfx.profile.converged().with_effect(molgfx.effect.bloom(intensity=0.8))
 renderer = molgfx.Renderer(profile=profile)
 ```
@@ -149,6 +151,10 @@ Named snapshots capture the complete authored scene (camera, styles, interaction
 state, assemblies and overlays), not coordinates, pixels or renderer buffers:
 
 ```python
+import molframe
+import molgfx
+
+session = molgfx.Session(molframe.read("structure.cif").infer_bonds())
 session.snapshot_save("overview")
 session.execute("color orange, protein")
 session.snapshot_restore("overview")
@@ -172,7 +178,10 @@ command and undo/redo authority. Python notebooks use this same frontend through
 AnyWidget, a normal package dependency.
 
 ```python
-session = molgfx.Session(structure)
+import molframe
+import molgfx
+
+session = molgfx.Session(molframe.read("structure.cif").infer_bonds())
 session.execute("show cartoon, protein")
 viewer = molgfx.Viewer(session)
 viewer  # Display in Jupyter.

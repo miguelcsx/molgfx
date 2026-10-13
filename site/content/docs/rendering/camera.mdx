@@ -10,6 +10,13 @@ MolGFX renders a camera's view; it draws no panel, caption or control of its own
 `Scene.frame` returns the camera that fits a selection, atoms as van der Waals spheres rather than points, on a target of a given aspect, and leaves the scene as it is:
 
 ```python
+import molframe
+import molgfx
+
+structure = molframe.read("4hhb.cif").infer_bonds()
+scene = molgfx.Scene(structure)
+renderer = molgfx.Renderer()
+
 camera = scene.frame("resname HEM", aspect=1920 / 1080)
 scene.set_camera(camera)
 image = renderer.render_image(scene, size=(1920, 1080))
@@ -22,6 +29,8 @@ image = renderer.render_image(scene, size=(1920, 1080))
 A controller keeps only drag state; the camera is a value, so each call returns the camera the event leads to and your code decides when to show it. `ArcballController` tumbles about the target in any direction, `OrbitController` keeps the horizon level and `FlyController` turns the view and moves the eye.
 
 ```python
+x, y = 960.0, 540.0
+camera = scene.frame("all", aspect=1920 / 1080)
 controller = molgfx.ArcballController()
 camera = controller.pointer_button("left", True, x, y, camera)
 camera = controller.pointer_move(x + 40, y, camera)

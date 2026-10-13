@@ -6,6 +6,11 @@ description: Author repeatable scene edits with the command language.
 A `Session` owns named selections, layer names, color rules, and history for one live scene. A text program is validated as one atomic edit: if a statement fails, the scene does not change.
 
 ```python
+import molframe
+import molgfx
+
+structure = molframe.read("4hhb.cif").infer_bonds()
+
 session = molgfx.Session(structure)
 session.execute("""
 select heme, resname HEM
@@ -30,6 +35,7 @@ color orange, $pocket
 ## History, errors, and completion
 
 ```python
+session.execute("color red, protein")  # An edit to undo and redo.
 session.undo()
 session.redo()
 items = session.completions("show cartoon, $po")

@@ -8,6 +8,12 @@ MolGFX does not define a second selection language. Every representation target 
 Use a raw query for a one-off representation. Use a named selection when several visual operations should follow the same molecular region.
 
 ```python
+import molframe
+import molgfx
+
+structure = molframe.read("4hhb.cif").infer_bonds()
+scene = molgfx.Scene(structure)
+
 scene.add(molgfx.rep.cartoon(target="protein"))
 scene.add(molgfx.rep.spacefill(target="resname HEM"))
 ```
