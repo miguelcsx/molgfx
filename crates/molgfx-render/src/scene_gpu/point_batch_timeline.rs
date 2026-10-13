@@ -35,6 +35,13 @@ impl<D: Device> GpuPointBatches<D> {
                 cpu_bytes: 0,
                 gpu_bytes: u64::from(batch.source_rows().len()).saturating_mul(12),
             };
+            if !super::grow_buffer::fits_one_binding(
+                footprint.gpu_bytes,
+                context.device.capabilities().max_storage_buffer_bytes,
+            ) {
+                context.derived_cache.release(key);
+                continue;
+            }
             let _plan = context.derived_cache.plan(key, footprint, 2, context.frame);
         }
         let _evicted_count = context.derived_cache.take_evictions().count();

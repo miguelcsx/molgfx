@@ -153,6 +153,16 @@ pub(super) fn grow_capacity(
     Ok(grown.max(MINIMUM_BYTES).min(limit))
 }
 
+/// Whether `bytes` of per-row output fit one storage binding of `limit` bytes.
+///
+/// A materialised timeline is a cache of what the shader can interpolate from
+/// the start and end frames. It is planned only when its single output buffer
+/// fits the binding, so a batch past the limit keeps interpolating on the fly
+/// instead of failing the whole frame on a cache it does not need.
+pub(super) const fn fits_one_binding(bytes: u64, limit: u64) -> bool {
+    bytes <= limit
+}
+
 #[cfg(test)]
 #[path = "grow_buffer_tests.rs"]
 mod tests;

@@ -1,4 +1,4 @@
-use super::grow_capacity;
+use super::{fits_one_binding, grow_capacity};
 
 #[test]
 fn a_requirement_rounds_up_to_an_eighth_of_its_octave() {
@@ -86,4 +86,12 @@ fn native_indices_use_index_usage_and_reuse_their_resident_allocation() {
             .expect("replacement topology")
     );
     assert_eq!(buffer.get().expect("index buffer persists").id, id);
+}
+
+#[test]
+fn ten_million_instance_rows_exceed_one_default_binding() {
+    let default_binding = 128 << 20;
+    assert!(fits_one_binding(4_000_000 * 32, default_binding));
+    assert!(!fits_one_binding(10_000_000 * 32, default_binding));
+    assert!(fits_one_binding(default_binding, default_binding));
 }
