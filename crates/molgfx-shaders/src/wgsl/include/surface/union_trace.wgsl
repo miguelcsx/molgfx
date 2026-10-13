@@ -66,8 +66,18 @@ fn bvh_escape_index(node: u32) -> u32 {
 /// field and changed candidates at voxel faces. One stackless BVH query at the
 /// final hit removes both full-resolution provenance textures and makes colour
 /// ownership independent of the grid.
-fn surface_nearest_atom(point: vec3f) -> u32 {
-    var best_distance = SURFACE_INFINITY;
+///
+/// The traversal visits nodes in a fixed order, so with no incumbent it cannot
+/// discard a subtree until the first leaf has been reached, and every pixel
+/// walked most of a 58 000-atom tree (about 200 ms a frame on 1AON). A hit on
+/// a solvent-excluded surface lies within about one probe radius of the
+/// nearest atom surface, so the query starts with that as its incumbent
+/// distance and prunes from the first node. When no atom lies inside the bound
+/// the query repeats unbounded, so the winner is always the one the unbounded
+/// walk would choose (the incumbent is only ever replaced by a strictly nearer
+/// atom, in the same visiting order).
+fn surface_nearest_atom_within(point: vec3f, bound: f32) -> u32 {
+    var best_distance = bound;
     var best_index = EMPTY_COMPACT_INDEX;
     var node_index = 0u;
 
@@ -121,6 +131,18 @@ fn surface_nearest_atom(point: vec3f) -> u32 {
     }
 
     return best_index;
+}
+
+fn surface_nearest_atom(point: vec3f) -> u32 {
+    let cell = representation.grid_cell.xyz;
+    let bound = representation.surface.x + 2.0 * max(cell.x, max(cell.y, cell.z)) + 0.25;
+    let near = surface_nearest_atom_within(point, bound);
+
+    if near != EMPTY_COMPACT_INDEX {
+        return near;
+    }
+
+    return surface_nearest_atom_within(point, SURFACE_INFINITY);
 }
 
 /// Returns the nearest valid intersection with one inflated atom.

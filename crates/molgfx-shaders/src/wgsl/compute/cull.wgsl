@@ -77,6 +77,7 @@ var<workgroup> visible_count: atomic<u32>;
 // copies the atomic into this plain value and the rest load that.
 var<workgroup> visible_total: u32;
 var<workgroup> output_base: u32;
+//!include "include/cull_occlusion.wgsl"
 
 /// Resolves the streamed position for an atom.
 fn resolved_position(entity_id: u32) -> vec3f {
@@ -298,6 +299,10 @@ fn reset_tiles(
     let index = id.x + id.y * groups.x * 64u;
     let tile_count = u32(ceil(frame.viewport.x / f32(TILE_SIZE)))
         * u32(ceil(frame.viewport.y / f32(TILE_SIZE)));
+    if counts.lod_enabled == 3u {
+        occlusion_reset(index, groups.x * groups.y * 64u);
+        return;
+    }
     if index < tile_count {
         atomicStore(&tile_depth[index], 0u);
     }
@@ -322,6 +327,10 @@ fn bin_atoms(
         index = select(linear_index, sampled, sampled < counts.atoms);
     }
     if index >= counts.atoms {
+        return;
+    }
+    if counts.lod_enabled == 3u {
+        occlusion_record(index);
         return;
     }
     let projected = project_atom(index);
@@ -387,6 +396,9 @@ fn cull_atoms(
                 output_atoms[counts.atoms + index] = select(0u, 1u, keep);
             }
             keep = keep && (input_atoms[index].element_flags & HIDE_MARKER_FLAG) == 0u;
+        } else if counts.lod_enabled == 3u {
+            keep = occlusion_keep(index);
+            output_atoms[counts.atoms + index] = select(0u, 1u, keep);
         } else {
             let cached = output_atoms[counts.atoms + index];
             keep = cached != 0u;
