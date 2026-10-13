@@ -68,7 +68,10 @@ impl InteractionColumn {
                 });
             }
         }
-        Some(hull.unwrap_or(0..0))
+        Some(match hull {
+            Some(hull) => hull,
+            None => 0..0,
+        })
     }
 }
 
