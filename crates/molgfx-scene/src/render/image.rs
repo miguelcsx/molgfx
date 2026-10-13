@@ -1,6 +1,7 @@
 //! A rendered image and its encodings.
 
 use super::EffectiveQuality;
+#[cfg(feature = "png")]
 use crate::Error;
 
 /// Encoded image returned by off-screen rendering.
@@ -27,6 +28,7 @@ impl Image {
     /// # Errors
     ///
     /// Returns an image encoding error if the pixels cannot be encoded.
+    #[cfg(feature = "png")]
     pub fn png_bytes(&self) -> Result<Vec<u8>, Error> {
         self.0.png_bytes().map_err(Error::from)
     }
@@ -36,6 +38,7 @@ impl Image {
     /// # Errors
     ///
     /// Returns an encoding or filesystem error.
+    #[cfg(feature = "png")]
     pub fn save(&self, path: impl AsRef<std::path::Path>) -> Result<(), Error> {
         let file = std::fs::File::create(path)?;
         self.0

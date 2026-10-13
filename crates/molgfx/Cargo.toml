@@ -12,6 +12,9 @@ categories.workspace = true
 [features]
 # Host interop: render into a texture owned by an embedding application.
 host = ["molgfx-scene/host"]
+default = ["png", "mvsx"]
+png = ["molgfx-scene/png", "molgfx-command/png"]
+mvsx = ["molgfx-scene/mvsx", "molgfx-command/mvsx"]
 
 [dependencies]
 molgfx-scene.workspace = true
@@ -28,6 +31,10 @@ required-features = ["host"]
 [[example]]
 name = "host_embed"
 required-features = ["host"]
+
+[[example]]
+name = "stereo_image"
+required-features = ["png"]
 
 [lints]
 workspace = true

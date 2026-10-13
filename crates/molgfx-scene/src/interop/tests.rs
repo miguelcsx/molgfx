@@ -1,4 +1,4 @@
-use crate::{Scene, from_mvsj, from_mvsx, rep, to_mvsj, to_mvsx};
+use crate::{Scene, from_mvsj, rep, to_mvsj};
 
 fn structure() -> molframe::Structure {
     const PDB: &str =
@@ -15,7 +15,7 @@ fn structure() -> molframe::Structure {
 }
 
 #[test]
-fn mvsj_and_mvsx_preserve_the_compatible_scene_subset() {
+fn mvsj_preserves_the_compatible_scene_subset() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let _ = scene
         .add(rep::spacefill("all").opacity(0.5))
@@ -24,9 +24,17 @@ fn mvsj_and_mvsx_preserve_the_compatible_scene_subset() {
     let json_import = from_mvsj(&json).unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(json_import.scene.representations.len(), 1);
     assert!(json_import.diagnostics.is_empty());
+}
 
-    let archive = to_mvsx(scene.spec()).unwrap_or_else(|error| panic!("{error}"));
-    let archive_import = from_mvsx(&archive).unwrap_or_else(|error| panic!("{error}"));
+#[cfg(feature = "mvsx")]
+#[test]
+fn mvsx_archive_preserves_the_compatible_scene_subset() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    let _ = scene
+        .add(rep::spacefill("all").opacity(0.5))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let archive = crate::to_mvsx(scene.spec()).unwrap_or_else(|error| panic!("{error}"));
+    let archive_import = crate::from_mvsx(&archive).unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(archive_import.scene.representations.len(), 1);
 }
 

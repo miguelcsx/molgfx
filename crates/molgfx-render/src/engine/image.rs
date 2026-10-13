@@ -76,6 +76,7 @@ impl Image {
     ///
     /// Returns [`RenderError::ImageEncoding`] if the pixel buffer is malformed
     /// or the PNG encoder rejects the stream.
+    #[cfg(feature = "png")]
     pub fn png_bytes(&self) -> Result<Vec<u8>, RenderError> {
         let mut bytes = Vec::new();
         self.write_png(&mut bytes)?;
@@ -88,6 +89,7 @@ impl Image {
     ///
     /// Returns [`RenderError::ImageEncoding`] for malformed pixels or an
     /// encoder/writer failure.
+    #[cfg(feature = "png")]
     pub fn write_png(&self, output: impl std::io::Write) -> Result<(), RenderError> {
         self.validate_pixels()?;
         let mut encoder = png::Encoder::new(output, self.width, self.height);
@@ -108,6 +110,7 @@ impl Image {
         })
     }
 
+    #[cfg(feature = "png")]
     fn validate_pixels(&self) -> Result<(), RenderError> {
         let expected = usize::try_from(self.width)
             .ok()

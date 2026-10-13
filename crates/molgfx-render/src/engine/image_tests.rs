@@ -46,6 +46,7 @@ fn completion_requires_a_fence_and_requested_detail() {
     assert!(!quality.complete());
 }
 
+#[cfg(feature = "png")]
 #[test]
 fn converged_png_round_trips_rgba_pixels() {
     let image = Image {
@@ -74,6 +75,7 @@ fn converged_png_round_trips_rgba_pixels() {
     assert_eq!(&pixels[..output.buffer_size()], image.pixels.as_slice());
 }
 
+#[cfg(feature = "png")]
 #[test]
 fn malformed_converged_image_is_rejected_before_encoding() {
     let image = Image {

@@ -2,6 +2,7 @@
 
 use super::{MvsDocument, MvsImport, export_document, import};
 use crate::SceneSpec;
+#[cfg(feature = "mvsx")]
 use std::io::{Cursor, Read, Write};
 
 /// Exports the compatible semantic subset as deterministic `.mvsj` JSON.
@@ -28,6 +29,7 @@ pub fn from_mvsj(source: &str) -> Result<MvsImport, crate::Error> {
 /// # Errors
 ///
 /// Returns an encoding or archive error if the container cannot be written.
+#[cfg(feature = "mvsx")]
 pub fn to_mvsx(scene: &SceneSpec) -> Result<Vec<u8>, crate::Error> {
     let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
     archive
@@ -47,6 +49,7 @@ pub fn to_mvsx(scene: &SceneSpec) -> Result<Vec<u8>, crate::Error> {
 /// # Errors
 ///
 /// Returns an error for an invalid archive, missing index, or malformed JSON.
+#[cfg(feature = "mvsx")]
 pub fn from_mvsx(bytes: &[u8]) -> Result<MvsImport, crate::Error> {
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes))
         .map_err(|error| crate::Error::InvalidSpec(error.to_string()))?;

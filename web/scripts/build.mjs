@@ -9,6 +9,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -26,12 +27,17 @@ for (const argument of args) {
     throw new Error("Unknown build argument: " + argument);
 }
 if (!args.includes("--no-wasm")) {
+  const dev = args.includes("--dev");
+  // The shipped artifact is the size-tuned `wasm-release` profile (see the
+  // workspace manifest), then binaryen. wasm-pack's own wasm-opt step is off:
+  // it ignores custom profiles and runs a speed preset without the feature
+  // flags rustc's output needs.
   execFileSync(
     "wasm-pack",
     [
       "build",
       join(repo, "crates/molgfx-wasm"),
-      args.includes("--dev") ? "--dev" : "--release",
+      ...(dev ? ["--dev"] : ["--profile", "wasm-release"]),
       "--target",
       "web",
       "--out-dir",
@@ -39,9 +45,26 @@ if (!args.includes("--no-wasm")) {
       "--out-name",
       "molgfx_wasm",
       "--no-pack",
+      "--no-opt",
     ],
     { stdio: "inherit" },
   );
+  if (!dev) {
+    const wasm = join(generated, "molgfx_wasm_bg.wasm");
+    const optimised = wasm + ".opt";
+    try {
+      execFileSync(
+        "wasm-opt",
+        ["-Oz", "--all-features", wasm, "-o", optimised],
+        { stdio: "inherit" },
+      );
+    } catch (error) {
+      throw new Error(
+        "wasm-opt (binaryen) is required for a release build: " + error.message,
+      );
+    }
+    renameSync(optimised, wasm);
+  }
 }
 const runtime = ["molgfx_wasm.js", "molgfx_wasm_bg.wasm"];
 for (const name of runtime)

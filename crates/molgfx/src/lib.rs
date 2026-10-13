@@ -173,9 +173,10 @@ pub mod streaming {
 /// Portable scene interchange.
 pub mod interop {
     pub use molgfx_scene::interop::{
-        Diagnostic, MvsDocument, MvsImport, RuntimeCapture, SceneArchive, from_mvsj, from_mvsx,
-        to_mvsj, to_mvsx,
+        Diagnostic, MvsDocument, MvsImport, RuntimeCapture, SceneArchive, from_mvsj, to_mvsj,
     };
+    #[cfg(feature = "mvsx")]
+    pub use molgfx_scene::interop::{from_mvsx, to_mvsx};
 }
 
 /// The authoring command language: typed commands, their text form, and the

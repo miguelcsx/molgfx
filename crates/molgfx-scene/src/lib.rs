@@ -39,7 +39,9 @@ pub use id::{
     AnnotationId, AppearanceRuleId, EllipsoidId, InteractionId, MeasurementId, PlaneId,
     RepresentationId, SegmentationId, StructureId, TrajectoryId, VolumeId,
 };
-pub use interop::{Diagnostic, MvsDocument, MvsImport, from_mvsj, from_mvsx, to_mvsj, to_mvsx};
+pub use interop::{Diagnostic, MvsDocument, MvsImport, from_mvsj, to_mvsj};
+#[cfg(feature = "mvsx")]
+pub use interop::{from_mvsx, to_mvsx};
 pub use molgfx_core::SegmentationPresentation;
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_wgpu::{AdapterReport, SystemInfo, system_info};

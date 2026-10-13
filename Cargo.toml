@@ -57,17 +57,17 @@ categories = ["science", "rendering", "visualization"]
 
 [workspace.dependencies]
 # Internal crates (layered; a crate depends only on lower layers).
-molgfx = { version = "0.5.3", path = "crates/molgfx" }
+molgfx = { version = "0.5.3", path = "crates/molgfx", default-features = false }
 molgfx-math = { version = "0.5.3", path = "crates/molgfx-math" }
 molgfx-core = { version = "0.5.3", path = "crates/molgfx-core" }
 molgfx-gpu = { version = "0.5.3", path = "crates/molgfx-gpu" }
 molgfx-wgpu = { version = "0.5.3", path = "crates/molgfx-wgpu" }
 molgfx-shaders = { version = "0.5.3", path = "crates/molgfx-shaders" }
 molgfx-geometry = { version = "0.5.3", path = "crates/molgfx-geometry" }
-molgfx-render = { version = "0.5.3", path = "crates/molgfx-render" }
+molgfx-render = { version = "0.5.3", path = "crates/molgfx-render", default-features = false }
 molgfx-semantic = { version = "0.5.3", path = "crates/molgfx-semantic" }
-molgfx-scene = { version = "0.5.3", path = "crates/molgfx-scene" }
-molgfx-command = { version = "0.5.3", path = "crates/molgfx-command" }
+molgfx-scene = { version = "0.5.3", path = "crates/molgfx-scene", default-features = false }
+molgfx-command = { version = "0.5.3", path = "crates/molgfx-command", default-features = false }
 
 # The structural model and every detection the engine consumes. The local
 # patch below keeps the engine and its companion parser on one source tree while
@@ -132,6 +132,18 @@ pedantic = { level = "warn", priority = -1 }
 [profile.release]
 lto = "fat"
 codegen-units = 1
+
+# The browser build. Native consumers keep `release` untouched: size, not
+# inlining depth, is what a download pays for, and an abort cannot unwind
+# through the JS boundary anyway. `wasm-pack build --profile wasm-release`
+# selects it, and `web/scripts/build.mjs` then runs `wasm-opt -Oz` over it.
+[profile.wasm-release]
+inherits = "release"
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
 
 [profile.bench]
 # Thin LTO, not none: the math types are thin wrappers over glam that only

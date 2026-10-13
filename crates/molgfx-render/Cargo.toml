@@ -9,6 +9,12 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = ["png"]
+# PNG encoding of a rendered image. The browser hands pixels to a canvas and
+# never encodes, so its build leaves this off.
+png = ["dep:png"]
+
 [dependencies]
 molgfx-math.workspace = true
 molgfx-core.workspace = true
@@ -20,7 +26,7 @@ molframe.workspace = true
 smallvec.workspace = true
 bytemuck.workspace = true
 thiserror.workspace = true
-png.workspace = true
+png = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 hashbrown.workspace = true

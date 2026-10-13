@@ -16,7 +16,9 @@ mod diagnostic;
 mod document;
 mod export;
 
-pub use codec::{from_mvsj, from_mvsx, to_mvsj, to_mvsx};
+pub use codec::{from_mvsj, to_mvsj};
+#[cfg(feature = "mvsx")]
+pub use codec::{from_mvsx, to_mvsx};
 pub use diagnostic::Diagnostic;
 pub use document::{MvsDocument, MvsImport, MvsNode};
 use export::export_document;

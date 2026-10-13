@@ -9,6 +9,11 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = ["png", "mvsx"]
+png = ["molgfx-scene/png"]
+mvsx = ["molgfx-scene/mvsx"]
+
 [dependencies]
 molgfx-scene.workspace = true
 molframe = { workspace = true, features = ["query", "surface"] }

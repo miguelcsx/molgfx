@@ -12,6 +12,11 @@ categories.workspace = true
 [features]
 # Host interop: render into a texture owned by an embedding application.
 host = ["molgfx-wgpu/host"]
+default = ["png", "mvsx"]
+# PNG encoding of rendered images and the `.mvsx` ZIP container. Neither is
+# needed in the browser, whose build turns them off to ship less code.
+png = ["molgfx-render/png"]
+mvsx = ["dep:zip"]
 
 [dependencies]
 molgfx-core.workspace = true
@@ -26,7 +31,7 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
-zip.workspace = true
+zip = { workspace = true, optional = true }
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 web-sys.workspace = true

@@ -59,6 +59,7 @@
 
                 # Browser runtime
                 pkgs.wasm-pack
+                pkgs.binaryen
                 pkgs.nodejs_22
 
                 # Repository utilities
