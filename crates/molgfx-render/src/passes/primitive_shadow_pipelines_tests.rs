@@ -23,6 +23,18 @@ fn opaque_analytic_classes_route_to_their_exact_shadow_kinds() {
             group(FAMILY_POLYGON, POLYGON_HEXAGON, false),
             KIND_POLYGON_HEXAGON,
         ),
+        (
+            group(FAMILY_POLYGON, POLYGON_TRIANGLE, false),
+            KIND_POLYGON_TRIANGLE,
+        ),
+        (
+            group(FAMILY_POLYGON, POLYGON_DIAMOND, false),
+            KIND_POLYGON_DIAMOND,
+        ),
+        (
+            group(FAMILY_POLYGON, POLYGON_STAR, false),
+            KIND_POLYGON_STAR,
+        ),
         (group(FAMILY_PARTICLE, PARTICLE_SPHERE, false), KIND_SPHERE),
         (
             group(FAMILY_PARTICLE, PARTICLE_CYLINDER, false),
@@ -60,7 +72,7 @@ fn gaussian_and_every_translucent_group_are_excluded_from_shadows() {
 
 #[test]
 fn unmapped_shapes_never_fall_back_to_an_incorrect_intersection() {
-    assert_eq!(shadow_kind(&group(FAMILY_POLYGON, 4, false)), None);
+    assert_eq!(shadow_kind(&group(FAMILY_POLYGON, 99, false)), None);
     assert_eq!(shadow_kind(&group(FAMILY_PARTICLE, 99, false)), None);
     assert_eq!(shadow_kind(&group(99, 0, false)), None);
 }

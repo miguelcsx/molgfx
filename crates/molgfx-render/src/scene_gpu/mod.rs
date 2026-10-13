@@ -86,8 +86,8 @@ pub(crate) use ligand_pose_types::{
     LigandPoseDrawGroup, POSE_CAPSULE, POSE_SPHERE, PoseTableStats,
 };
 pub(crate) use primitive_draw::{
-    FAMILY_BOX, FAMILY_ELLIPSOID, FAMILY_PARTICLE, FAMILY_POLYGON, POLYGON_HEXAGON,
-    POLYGON_PENTAGON, PrimitiveDrawGroup,
+    FAMILY_BOX, FAMILY_ELLIPSOID, FAMILY_PARTICLE, FAMILY_POLYGON, POLYGON_DIAMOND,
+    POLYGON_HEXAGON, POLYGON_PENTAGON, POLYGON_STAR, POLYGON_TRIANGLE, PrimitiveDrawGroup,
 };
 pub(crate) use record_cache::RecordKey;
 pub(crate) use segmentation_slot::SegmentationPipelineKey;

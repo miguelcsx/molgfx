@@ -95,10 +95,7 @@ fn vs_shadow_primitive(
                     .orientation;
         }
 
-        if SHADOW_PRIMITIVE_KIND ==
-            SHADOW_KIND_POLYGON_PENTAGON ||
-            SHADOW_PRIMITIVE_KIND ==
-            SHADOW_KIND_POLYGON_HEXAGON {
+        if shadow_kind_is_polygon() {
             out.shape =
                 shadow_primitives[instance]
                     .metadata.w;
@@ -418,15 +415,11 @@ fn shadow_primitive_t(
             );
         }
 
-        case SHADOW_KIND_POLYGON_PENTAGON: {
-            return shadow_polygon_t(
-                in,
-                origin,
-                direction,
-            );
-        }
-
-        case SHADOW_KIND_POLYGON_HEXAGON: {
+        case SHADOW_KIND_POLYGON_PENTAGON,
+            SHADOW_KIND_POLYGON_HEXAGON,
+            SHADOW_KIND_POLYGON_TRIANGLE,
+            SHADOW_KIND_POLYGON_DIAMOND,
+            SHADOW_KIND_POLYGON_STAR: {
             return shadow_polygon_t(
                 in,
                 origin,

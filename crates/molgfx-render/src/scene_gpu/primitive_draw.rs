@@ -26,6 +26,9 @@ pub(crate) const FAMILY_BOX: u32 = 2;
 pub(crate) const FAMILY_PARTICLE: u32 = 3;
 pub(crate) const POLYGON_PENTAGON: u32 = 5;
 pub(crate) const POLYGON_HEXAGON: u32 = 6;
+pub(crate) const POLYGON_TRIANGLE: u32 = 3;
+pub(crate) const POLYGON_DIAMOND: u32 = 4;
+pub(crate) const POLYGON_STAR: u32 = 7;
 
 /// Distinct particle shapes, so a caller can size a per-shape pipeline table.
 pub(crate) const PARTICLE_SHAPES: u32 = 8;
@@ -151,10 +154,10 @@ const fn draw_shape(family: u32, shape: u32) -> u32 {
         }
         FAMILY_POLYGON if shape == 4 || shape == 5 => POLYGON_PENTAGON,
         // SNFG triangle, diamond and star: classes distinct from the pentagon
-        // and hexagon so a draw run holds one shape; they cast no shadow yet.
-        FAMILY_POLYGON if shape == 7 => 3,
-        FAMILY_POLYGON if shape == 8 => 4,
-        FAMILY_POLYGON if shape == 9 => 7,
+        // and hexagon so a draw run holds one shape and one shadow kind.
+        FAMILY_POLYGON if shape == 7 => POLYGON_TRIANGLE,
+        FAMILY_POLYGON if shape == 8 => POLYGON_DIAMOND,
+        FAMILY_POLYGON if shape == 9 => POLYGON_STAR,
         FAMILY_POLYGON => POLYGON_HEXAGON,
         _ => 0,
     }

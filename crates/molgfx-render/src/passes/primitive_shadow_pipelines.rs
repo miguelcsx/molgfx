@@ -2,8 +2,8 @@
 
 use crate::error::RenderError;
 use crate::scene_gpu::{
-    FAMILY_BOX, FAMILY_ELLIPSOID, FAMILY_PARTICLE, FAMILY_POLYGON, POLYGON_HEXAGON,
-    POLYGON_PENTAGON, PrimitiveDrawGroup,
+    FAMILY_BOX, FAMILY_ELLIPSOID, FAMILY_PARTICLE, FAMILY_POLYGON, POLYGON_DIAMOND,
+    POLYGON_HEXAGON, POLYGON_PENTAGON, POLYGON_STAR, POLYGON_TRIANGLE, PrimitiveDrawGroup,
 };
 use molgfx_gpu::{DepthState, Device, PrimitiveTopology, RenderPipelineDesc, ShaderModuleDesc};
 
@@ -27,8 +27,11 @@ const KIND_POLYGON_HEXAGON: u32 = 6;
 const KIND_CIRCLE: u32 = 7;
 const KIND_SQUARE: u32 = 8;
 const KIND_SUPERQUADRIC: u32 = 9;
+const KIND_POLYGON_TRIANGLE: u32 = 10;
+const KIND_POLYGON_DIAMOND: u32 = 11;
+const KIND_POLYGON_STAR: u32 = 12;
 
-const VARIANTS: [(u32, &str); 10] = [
+const VARIANTS: [(u32, &str); 13] = [
     (KIND_ELLIPSOID, "ellipsoid primitive shadows"),
     (KIND_BOX, "box primitive shadows"),
     (KIND_SPHERE, "sphere primitive shadows"),
@@ -39,6 +42,9 @@ const VARIANTS: [(u32, &str); 10] = [
     (KIND_CIRCLE, "circle primitive shadows"),
     (KIND_SQUARE, "square primitive shadows"),
     (KIND_SUPERQUADRIC, "superquadric primitive shadows"),
+    (KIND_POLYGON_TRIANGLE, "triangle primitive shadows"),
+    (KIND_POLYGON_DIAMOND, "diamond primitive shadows"),
+    (KIND_POLYGON_STAR, "star primitive shadows"),
 ];
 
 #[derive(Debug)]
@@ -90,6 +96,9 @@ fn shadow_kind(group: &PrimitiveDrawGroup) -> Option<u32> {
         FAMILY_POLYGON => match group.shape {
             POLYGON_PENTAGON => Some(KIND_POLYGON_PENTAGON),
             POLYGON_HEXAGON => Some(KIND_POLYGON_HEXAGON),
+            POLYGON_TRIANGLE => Some(KIND_POLYGON_TRIANGLE),
+            POLYGON_DIAMOND => Some(KIND_POLYGON_DIAMOND),
+            POLYGON_STAR => Some(KIND_POLYGON_STAR),
             _ => None,
         },
         FAMILY_PARTICLE => match group.shape {
