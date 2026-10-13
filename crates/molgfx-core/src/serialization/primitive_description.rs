@@ -35,6 +35,9 @@ pub struct PrimitiveDescription {
     pub visible: bool,
     /// Display colour including source alpha.
     pub color: [u8; 4],
+    /// Second colour of a crossed or divided carbohydrate symbol.
+    #[serde(default)]
+    pub secondary_color: Option<[u8; 4]>,
     /// Additional scalar opacity for ellipsoids and planes.
     pub opacity: f32,
     /// Model-space center.

@@ -8,6 +8,7 @@
 
 use super::primitive_draw::{FAMILY_BOX, FAMILY_PARTICLE, FAMILY_POLYGON};
 use molgfx_core::CarbohydrateShape;
+use molgfx_math::Rgba8;
 
 /// Polygon shape codes the shader intersects beyond the legacy classes.
 pub(crate) const POLYGON_REGULAR_HEXAGON: u32 = 1;
@@ -33,6 +34,32 @@ pub(crate) const fn carbohydrate_class(shape: CarbohydrateShape) -> (u32, u32) {
         CarbohydrateShape::Hexagon => (FAMILY_POLYGON, POLYGON_REGULAR_HEXAGON),
         CarbohydrateShape::Pentagon => (FAMILY_POLYGON, POLYGON_REGULAR_PENTAGON),
         other => (FAMILY_POLYGON, other.stable_code()),
+    }
+}
+
+/// Split modes the primitive shader fills with the secondary colour.
+const SPLIT_DIAGONAL: f32 = 1.0;
+const SPLIT_HORIZONTAL: f32 = 2.0;
+const SPLIT_VERTICAL: f32 = 3.0;
+
+/// The secondary colour and split mode of a symbol, `[r, g, b, mode]`.
+///
+/// SNFG crosses a hexosamine square along its diagonal, divides a uronic
+/// acid diamond along its horizontal axis and an N-acetyl deoxyhexosamine
+/// triangle along its vertical axis; any other shape stays one colour.
+pub(crate) fn secondary_split(shape: CarbohydrateShape, secondary: Option<Rgba8>) -> [f32; 4] {
+    let mode = match shape {
+        CarbohydrateShape::Cube => SPLIT_DIAGONAL,
+        CarbohydrateShape::Diamond => SPLIT_HORIZONTAL,
+        CarbohydrateShape::Triangle => SPLIT_VERTICAL,
+        _ => return [0.0; 4],
+    };
+    match secondary {
+        Some(color) => {
+            let [red, green, blue, _] = color.to_f32();
+            [red, green, blue, mode]
+        }
+        None => [0.0; 4],
     }
 }
 

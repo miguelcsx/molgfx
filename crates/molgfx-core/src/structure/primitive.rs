@@ -273,11 +273,20 @@ pub struct CarbohydrateSymbol {
     pub shape: CarbohydrateShape,
     /// Display colour selected by the caller.
     pub color: molgfx_math::Rgba8,
+    /// Second colour of a crossed or divided symbol, drawn on one half.
+    pub secondary: Option<molgfx_math::Rgba8>,
     /// Whether a future symbol pass should include this record.
     pub visible: bool,
 }
 
 impl CarbohydrateSymbol {
+    /// Sets the second colour of a crossed or divided symbol.
+    #[must_use]
+    pub const fn with_secondary(mut self, secondary: Option<molgfx_math::Rgba8>) -> Self {
+        self.secondary = secondary;
+        self
+    }
+
     /// Validates one symbol record without deriving residue chemistry.
     ///
     /// # Errors
@@ -309,6 +318,7 @@ impl CarbohydrateSymbol {
             size,
             shape,
             color,
+            secondary: None,
             visible: true,
         })
     }

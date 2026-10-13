@@ -50,6 +50,7 @@ pub(crate) fn rehydrate_primitives(
                     rgba(description.color),
                 )?;
                 value.visible = description.visible;
+                value.secondary = description.secondary_color.map(rgba);
                 Primitive::Carbohydrate(value)
             }
             "planar" => {

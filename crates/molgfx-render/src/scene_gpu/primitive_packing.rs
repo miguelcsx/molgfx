@@ -36,6 +36,7 @@ pub(super) fn pack_primitive(
                     primitive: family,
                     shape: draw_shape,
                     parameters: [0.0; 2],
+                    secondary: super::snfg_class::secondary_split(value.shape, value.secondary),
                 },
                 entity_id,
                 pick_page,
@@ -63,6 +64,7 @@ pub(super) fn pack_primitive(
                     primitive: 2,
                     shape: 0,
                     parameters: [0.0; 2],
+                    secondary: [0.0; 4],
                 },
                 entity_id,
                 pick_page,
@@ -102,6 +104,7 @@ fn pack_particle(
             },
             shape: value.shape as u32,
             parameters: value.shape_parameters,
+            secondary: [0.0; 4],
         },
         entity_id,
         pick_page,
@@ -149,6 +152,9 @@ struct OrientedPrimitive {
     primitive: u32,
     shape: u32,
     parameters: [f32; 2],
+    /// Linear secondary colour and split mode, `[r, g, b, mode]`; mode zero
+    /// leaves the symbol one colour.
+    secondary: [f32; 4],
 }
 
 fn pack_ellipsoid(
@@ -214,8 +220,18 @@ fn pack_oriented(
         ],
         orientation: world_orientation.to_array(),
         size_opacity: [world_size.x, world_size.y, world_size.z, 1.0],
-        inverse_primary: [primitive.parameters[0], primitive.parameters[1], 0.0, 0.0],
-        inverse_cross: [0.0; 4],
+        inverse_primary: [
+            primitive.parameters[0],
+            primitive.parameters[1],
+            primitive.secondary[3],
+            0.0,
+        ],
+        inverse_cross: [
+            primitive.secondary[0],
+            primitive.secondary[1],
+            primitive.secondary[2],
+            0.0,
+        ],
         color: primitive.color,
         metadata: [entity_id, pick_page, primitive.primitive, primitive.shape],
     })

@@ -1,5 +1,5 @@
 use super::*;
-use molgfx_core::Scene;
+use molgfx_core::{Primitive, Scene};
 use std::fmt::Write as _;
 
 /// One complete six-atom ring per residue, laid out along x, with the given
@@ -154,4 +154,21 @@ fn subset_keeps_only_fully_selected_rings() {
     let direct = SnfgSymbolSet::build(&structure, &AtomSelection::Range(6..12)).expect("build");
     assert_eq!(middle, direct);
     assert!(all.subset(&AtomSelection::Range(6..11)).is_empty());
+}
+
+#[test]
+fn divided_symbols_carry_their_secondary_colour_into_the_primitives() {
+    let structure = rings(&["GCS", "NAG"]);
+    let owner = handle_of(&structure);
+    let set = SnfgSymbolSet::build(&structure, &AtomSelection::All).expect("build");
+    let primitives = set.to_primitives(owner, 1.0);
+    assert_eq!(primitives.len(), set.len());
+    assert!(set.secondary[0].is_some(), "glucosamine is crossed");
+    assert!(set.secondary[1].is_none(), "GlcNAc is a plain square");
+    for (index, primitive) in primitives.iter().enumerate() {
+        let Primitive::Carbohydrate(symbol) = primitive else {
+            panic!("a carbohydrate symbol");
+        };
+        assert_eq!(symbol.secondary, set.secondary[index]);
+    }
 }

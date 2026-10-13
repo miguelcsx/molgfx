@@ -16,6 +16,10 @@ pub(crate) fn primitive_description(raw: RawHandle, value: &Primitive) -> Primit
         kind: fields.kind.to_owned(),
         visible: fields.visible,
         color: rgba(fields.color),
+        secondary_color: match value {
+            Primitive::Carbohydrate(symbol) => symbol.secondary.map(rgba),
+            _ => None,
+        },
         opacity: fields.opacity,
         center: fields.center,
         orientation: fields.orientation,

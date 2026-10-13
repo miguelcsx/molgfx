@@ -14,8 +14,8 @@
 //! 25:1323): circles for hexoses, squares for N-acetylhexosamines, diamonds
 //! for acidic sugars, triangles for deoxyhexoses and stars for pentoses.
 //! Crossed and divided symbols (hexosamines, uronic acids, N-acetyl
-//! deoxyhexosamines) carry their secondary colour in the set but draw in the
-//! primary colour only.
+//! deoxyhexosamines) carry their secondary colour to the shader, which fills
+//! one half of the glyph with it.
 
 use crate::PackingError;
 use molframe::chemistry::SnfgShape;
@@ -237,6 +237,7 @@ impl SnfgSymbolSet {
                 self.colors[index],
             );
             if let Ok(record) = record {
+                let record = record.with_secondary(self.secondary[index]);
                 primitives.push(Primitive::Carbohydrate(record));
             }
         }

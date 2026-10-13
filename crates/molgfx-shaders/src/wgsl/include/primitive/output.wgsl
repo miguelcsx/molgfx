@@ -5,6 +5,35 @@
 // separate functions: neither pays for the attachments or the coverage
 // weighting the other needs.
 
+/// Surface colour of a hit: the primary colour, or the secondary colour on
+/// the half of a crossed or divided SNFG symbol the split mode selects.
+///
+/// Only box and polygon records carry a split mode; the lane is a tensor term
+/// for ellipsoids, so the family gate is not optional.
+fn primitive_albedo(
+    in: PrimitiveVsOut,
+    world_position: vec3f,
+) -> vec3f {
+    let mode = in.inverse_primary.z;
+    let carries_split = in.metadata.z == 1u || in.metadata.z == 2u;
+    if !carries_split || mode < 0.5 {
+        return in.color.rgb;
+    }
+    let local = rotate_vector(
+        vec4f(-in.orientation.xyz, in.orientation.w),
+        world_position - in.world_center,
+    );
+    var secondary = false;
+    if mode < 1.5 {
+        secondary = local.y > local.x;
+    } else if mode < 2.5 {
+        secondary = local.y > 0.0;
+    } else {
+        secondary = local.x < 0.0;
+    }
+    return select(in.color.rgb, in.inverse_cross.rgb, secondary);
+}
+
 /// Resolves one valid opaque hit into the shared gbuffer.
 fn primitive_opaque_output(
     in: PrimitiveVsOut,
@@ -40,7 +69,7 @@ fn primitive_opaque_output(
 
     out.albedo_material =
         vec4f(
-            in.color.rgb,
+            primitive_albedo(in, world_position),
             PRIMITIVE_MATERIAL,
         );
 
@@ -121,7 +150,7 @@ fn primitive_transparent_output(
 
     let lit =
         shade_molecule(
-            in.color.rgb,
+            primitive_albedo(in, world_position),
             view_normal,
             PRIMITIVE_ROUGHNESS,
             PRIMITIVE_MATERIAL,
