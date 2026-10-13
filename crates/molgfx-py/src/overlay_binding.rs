@@ -1,7 +1,7 @@
 //! Immutable Python authoring values for overlay scene items.
 
 use crate::binding::{error, selection};
-use pyo3::exceptions::PyTypeError;
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyModule};
 mod segmentation_binding;
@@ -46,12 +46,12 @@ pub(super) struct PyTrajectoryFrame(pub(super) molgfx::TrajectoryFrame);
 impl PyTrajectoryFrame {
     #[new]
     #[pyo3(signature = (index, time, positions))]
-    fn new(index: u64, time: f32, positions: Vec<[f32; 3]>) -> Self {
-        Self(molgfx::TrajectoryFrame::new(
+    fn new(index: u64, time: f32, positions: &Bound<'_, PyAny>) -> PyResult<Self> {
+        Ok(Self(molgfx::TrajectoryFrame::new(
             index,
             time,
-            std::sync::Arc::from(positions),
-        ))
+            frame_positions(positions)?,
+        )))
     }
 
     /// This frame's stable identity in its source.
@@ -75,8 +75,44 @@ impl PyTrajectoryFrame {
 
 #[pyfunction(name = "frame")]
 #[pyo3(signature = (index, time, positions))]
-fn trajectory_frame(index: u64, time: f32, positions: Vec<[f32; 3]>) -> PyTrajectoryFrame {
+fn trajectory_frame(
+    index: u64,
+    time: f32,
+    positions: &Bound<'_, PyAny>,
+) -> PyResult<PyTrajectoryFrame> {
     PyTrajectoryFrame::new(index, time, positions)
+}
+
+/// One frame's coordinates from an `(atoms, 3)` array or a nested sequence.
+///
+/// A float32 `NumPy` array (or anything exposing one) is read straight from its
+/// buffer in a single copy; float64 arrays are narrowed the same way. Only a
+/// plain list of lists takes the per-element path.
+fn frame_positions(positions: &Bound<'_, PyAny>) -> PyResult<std::sync::Arc<[[f32; 3]]>> {
+    use numpy::{PyReadonlyArray2, PyUntypedArrayMethods as _};
+    if let Ok(array) = positions.extract::<PyReadonlyArray2<'_, f32>>() {
+        if array.shape()[1] != 3 {
+            return Err(PyValueError::new_err(
+                "frame positions must have shape (atoms, 3)",
+            ));
+        }
+        let view = array.as_array();
+        return Ok(match view.as_slice() {
+            Some(flat) => flat.as_chunks::<3>().0.iter().copied().collect(),
+            None => view
+                .rows()
+                .into_iter()
+                .map(|row| [row[0], row[1], row[2]])
+                .collect(),
+        });
+    }
+    if positions.extract::<PyReadonlyArray2<'_, f64>>().is_ok() {
+        // The renderer stores single precision: NumPy narrows, and the
+        // float32 path above reads the result.
+        return frame_positions(&positions.call_method1("astype", ("float32",))?);
+    }
+    let rows: Vec<[f32; 3]> = positions.extract()?;
+    Ok(std::sync::Arc::from(rows))
 }
 
 fn rgb(value: (u8, u8, u8)) -> molgfx::Color {
@@ -110,6 +146,131 @@ fn selection_anchor(structure: &Bound<'_, PyAny>, target: &Bound<'_, PyAny>) -> 
         structure: molgfx::StructureId::new(crate::id_binding::structure_id(structure)?),
         selection: selection(target)?.into(),
     }))
+}
+
+fn anchor_repr(anchor: &molgfx::Anchor) -> String {
+    match anchor {
+        molgfx::Anchor::World { position } => format!(
+            "annotation.world(({}, {}, {}))",
+            position[0], position[1], position[2]
+        ),
+        molgfx::Anchor::Selection {
+            structure,
+            selection,
+        } => format!(
+            "annotation.selection(structure={}, target={:?})",
+            structure.get(),
+            selection.source()
+        ),
+    }
+}
+
+#[pymethods]
+impl PyAnchor {
+    /// `"world"` for a fixed point or `"selection"` for a query centroid.
+    #[getter]
+    fn kind(&self) -> &'static str {
+        match self.0 {
+            molgfx::Anchor::World { .. } => "world",
+            molgfx::Anchor::Selection { .. } => "selection",
+        }
+    }
+
+    /// The world position of a `world` anchor, else `None`.
+    #[getter]
+    fn position(&self) -> Option<(f32, f32, f32)> {
+        match &self.0 {
+            molgfx::Anchor::World { position } => Some((position[0], position[1], position[2])),
+            molgfx::Anchor::Selection { .. } => None,
+        }
+    }
+
+    /// The structure id of a `selection` anchor, else `None`.
+    #[getter]
+    fn structure(&self) -> Option<u64> {
+        match &self.0 {
+            molgfx::Anchor::World { .. } => None,
+            molgfx::Anchor::Selection { structure, .. } => Some(structure.get()),
+        }
+    }
+
+    /// The query of a `selection` anchor, else `None`.
+    #[getter]
+    fn target(&self) -> Option<String> {
+        match &self.0 {
+            molgfx::Anchor::World { .. } => None,
+            molgfx::Anchor::Selection { selection, .. } => Some(selection.source().to_owned()),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("Anchor({})", anchor_repr(&self.0))
+    }
+}
+
+#[pymethods]
+impl PyLabel {
+    /// The anchor the label is attached to.
+    #[getter]
+    fn anchor(&self) -> PyAnchor {
+        PyAnchor(self.0.anchor.clone())
+    }
+
+    /// The display text.
+    #[getter]
+    fn text(&self) -> String {
+        self.0.text.to_string()
+    }
+
+    /// The label color as `(r, g, b)`.
+    #[getter]
+    fn color(&self) -> (u8, u8, u8) {
+        let [red, green, blue, _] = self.0.color.0;
+        (red, green, blue)
+    }
+
+    fn __repr__(&self) -> String {
+        let [red, green, blue, _] = self.0.color.0;
+        format!(
+            "Label(text={:?}, anchor={}, color=({red}, {green}, {blue}))",
+            self.0.text,
+            anchor_repr(&self.0.anchor)
+        )
+    }
+}
+
+#[pymethods]
+impl PyMeasurement {
+    /// `"distance"`, `"angle"` or `"dihedral"`.
+    #[getter]
+    fn kind(&self) -> &'static str {
+        match self.0 {
+            molgfx::MeasurementSpec::Distance { .. } => "distance",
+            molgfx::MeasurementSpec::Angle { .. } => "angle",
+            molgfx::MeasurementSpec::Dihedral { .. } => "dihedral",
+        }
+    }
+
+    /// The ordered anchors the measurement reads.
+    #[getter]
+    fn anchors(&self) -> Vec<PyAnchor> {
+        let anchors: &[molgfx::Anchor] = match &self.0 {
+            molgfx::MeasurementSpec::Distance { anchors } => anchors,
+            molgfx::MeasurementSpec::Angle { anchors } => anchors,
+            molgfx::MeasurementSpec::Dihedral { anchors } => anchors,
+        };
+        anchors.iter().cloned().map(PyAnchor).collect()
+    }
+
+    fn __repr__(&self) -> String {
+        let anchors = self
+            .anchors()
+            .iter()
+            .map(|anchor| anchor_repr(&anchor.0))
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("Measurement({}, anchors=[{anchors}])", self.kind())
+    }
 }
 
 #[pyfunction]

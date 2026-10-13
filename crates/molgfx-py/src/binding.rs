@@ -235,36 +235,58 @@ named_control!(molgfx::rep::SurfaceStyle, "surface style", [
 /// exists in one language exists in the other and neither can drift into
 /// offering a parameter the renderer has no place to put.
 macro_rules! representation {
-    ($name:ident $(($source:ident: $source_type:ty))? $(, $control:ident : $type:ty)* $(,)?) => {
+    ($name:ident ($source:ident: $source_type:ty) $(, $control:ident : $type:ty)* $(,)?) => {
         #[pyfunction]
-        #[pyo3(signature = (target $(, $source)?, **options))]
+        #[pyo3(signature = (target, $source, **options))]
         fn $name(
             target: &Bound<'_, PyAny>,
-            $($source: $source_type,)?
+            $source: $source_type,
             options: Option<&Bound<'_, pyo3::types::PyDict>>,
         ) -> PyResult<PyRepresentation> {
-            // One Rust parameter per Python keyword would exceed the
-            // crate's argument budget as forms grow, so every optional
-            // control arrives in one keyword map and is read by name.
-            reject_unknown_options(stringify!($name), options)?;
-            let mut value = molgfx::rep::$name(selection(target)? $(, $source.0.clone())?).opacity(match options {
-                Some(dict) => keyword(dict, "opacity")?.map_or(Ok(1.0), |raw| raw.extract())?,
-                None => 1.0,
-            });
-            $(
-                if let Some(raw) = options.map(|dict| keyword(dict, stringify!($control))).transpose()?.flatten() {
-                    let control: $type = raw.extract()?;
-                    value = value.$control(Control::control(control)?);
-                }
-            )*
-            if let Some(raw) = options.map(|dict| keyword(dict, "color")).transpose()?.flatten() {
-                if let Some(color) = color_spec(Some(&raw))? {
-                    value = value.color(color);
-                }
-            }
-            Ok(PyRepresentation::from_item(value))
+            let query = selection(target)?;
+            build_representation!($name, query, options, [$source.0.clone()], $($control: $type),*)
         }
     };
+    // A form that needs nothing but atoms draws every atom when no target is given.
+    ($name:ident $(, $control:ident : $type:ty)* $(,)?) => {
+        #[pyfunction]
+        #[pyo3(signature = (target=None, **options))]
+        fn $name(
+            target: Option<&Bound<'_, PyAny>>,
+            options: Option<&Bound<'_, pyo3::types::PyDict>>,
+        ) -> PyResult<PyRepresentation> {
+            let query = match target {
+                Some(target) => selection(target)?,
+                None => "all".to_owned(),
+            };
+            build_representation!($name, query, options, [], $($control: $type),*)
+        }
+    };
+}
+
+macro_rules! build_representation {
+    ($name:ident, $query:ident, $options:ident, [$($extra:expr),*], $($control:ident : $type:ty),*) => {{
+        // One Rust parameter per Python keyword would exceed the
+        // crate's argument budget as forms grow, so every optional
+        // control arrives in one keyword map and is read by name.
+        reject_unknown_options(stringify!($name), $options)?;
+        let mut value = molgfx::rep::$name($query $(, $extra)*).opacity(match $options {
+            Some(dict) => keyword(dict, "opacity")?.map_or(Ok(1.0), |raw| raw.extract())?,
+            None => 1.0,
+        });
+        $(
+            if let Some(raw) = $options.map(|dict| keyword(dict, stringify!($control))).transpose()?.flatten() {
+                let control: $type = raw.extract()?;
+                value = value.$control(Control::control(control)?);
+            }
+        )*
+        if let Some(raw) = $options.map(|dict| keyword(dict, "color")).transpose()?.flatten() {
+            if let Some(color) = color_spec(Some(&raw))? {
+                value = value.color(color);
+            }
+        }
+        Ok(PyRepresentation::from_item(value))
+    }};
 }
 
 /// One optional keyword from a constructor's keyword map.
@@ -339,6 +361,7 @@ representation!(nucleic_acid, width: f32);
 representation!(bases, radius: f32);
 representation!(base_pairs, radius: f32, bond_radius: f32);
 representation!(glycan, width: f32);
+representation!(snfg, scale: f32);
 representation!(beads, radius: f32);
 representation!(dots, size: f32, samples: u16);
 representation!(backbone, gaps: String, width: f32);
@@ -406,6 +429,7 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     rep.add_function(wrap_pyfunction!(bases, &rep)?)?;
     rep.add_function(wrap_pyfunction!(base_pairs, &rep)?)?;
     rep.add_function(wrap_pyfunction!(glycan, &rep)?)?;
+    rep.add_function(wrap_pyfunction!(snfg, &rep)?)?;
     rep.add_function(wrap_pyfunction!(beads, &rep)?)?;
     rep.add_function(wrap_pyfunction!(dots, &rep)?)?;
     rep.add_function(wrap_pyfunction!(backbone, &rep)?)?;

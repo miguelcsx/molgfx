@@ -88,9 +88,17 @@ impl PyImage {
     fn height(&self) -> u32 {
         self.0.height()
     }
+    /// The quality report as a JSON string; `quality` is the same as a `dict`.
     fn quality_json(&self) -> PyResult<String> {
         serde_json::to_string(self.0.quality())
             .map_err(|cause| crate::binding::MolgfxError::new_err(cause.to_string()))
+    }
+
+    /// The quality report as a `dict`, the parsed form of `quality_json()`.
+    #[getter]
+    fn quality<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        py.import("json")?
+            .call_method1("loads", (self.quality_json()?,))
     }
 
     fn pixels<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
@@ -127,9 +135,17 @@ impl PyHdrImage {
         self.0.height()
     }
 
+    /// The quality report as a JSON string; `quality` is the same as a `dict`.
     fn quality_json(&self) -> PyResult<String> {
         serde_json::to_string(self.0.quality())
             .map_err(|cause| crate::binding::MolgfxError::new_err(cause.to_string()))
+    }
+
+    /// The quality report as a `dict`, the parsed form of `quality_json()`.
+    #[getter]
+    fn quality<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        py.import("json")?
+            .call_method1("loads", (self.quality_json()?,))
     }
 
     fn rgba16f<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {

@@ -153,6 +153,12 @@ impl MolecularProvider for NativeProvider {
     }
 
     fn select(&self, source: &str) -> Result<AtomSelection, CoreError> {
+        // The capsule evaluates a query twice (count, then fill), at several
+        // microseconds an atom, so the two queries whose answer is known from
+        // the text alone never cross it.
+        if let Some(constant) = constant_query(source, self.coordinates().len()) {
+            return Ok(constant);
+        }
         let rows = self
             .source
             .select(source)
@@ -180,6 +186,32 @@ impl MolecularProvider for NativeProvider {
     }
 }
 
+/// The selection of a query that is `all` or `none`, however it is spelled.
+///
+/// `MolFrame` parses a lone `all`/`none` (case-insensitive, optionally
+/// parenthesised) to the whole universe or the empty set before looking at any
+/// atom, so the result is the same as evaluating it, in O(1).
+fn constant_query(source: &str, atom_count: usize) -> Option<AtomSelection> {
+    let mut text = source.trim();
+    while let Some(inner) = text
+        .strip_prefix('(')
+        .and_then(|rest| rest.strip_suffix(')'))
+    {
+        text = inner.trim();
+    }
+    if text.eq_ignore_ascii_case("all") {
+        Some(if atom_count == 0 {
+            AtomSelection::Empty
+        } else {
+            AtomSelection::All
+        })
+    } else if text.eq_ignore_ascii_case("none") {
+        Some(AtomSelection::Empty)
+    } else {
+        None
+    }
+}
+
 /// Folds a provider row vector into the compactest selection shape.
 fn compact(rows: Vec<u32>, atom_count: usize) -> AtomSelection {
     if rows.is_empty() {
@@ -196,3 +228,28 @@ pub(super) fn source(provider: &NativeProvider) -> molgfx::source::MolecularSour
 }
 
 pub(super) type SharedNativeProvider = Arc<NativeProvider>;
+
+#[cfg(test)]
+mod constant_query_tests {
+    use super::*;
+
+    #[test]
+    fn lone_all_and_none_are_constants() {
+        assert!(matches!(constant_query("all", 5), Some(AtomSelection::All)));
+        assert!(matches!(
+            constant_query(" ( ALL ) ", 5),
+            Some(AtomSelection::All)
+        ));
+        assert!(matches!(
+            constant_query("all", 0),
+            Some(AtomSelection::Empty)
+        ));
+        assert!(matches!(
+            constant_query("none", 5),
+            Some(AtomSelection::Empty)
+        ));
+        assert!(constant_query("all and chain A", 5).is_none());
+        assert!(constant_query("(all) or (none)", 5).is_none());
+        assert!(constant_query("not all", 5).is_none());
+    }
+}
