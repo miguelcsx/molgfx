@@ -292,6 +292,15 @@ fn print_outputs(
     }
 }
 
+/// The recipe label a measured output kind reports under.
+fn recipe_name(output: MeasuredOutput) -> &'static str {
+    if output == MeasuredOutput::Interactive {
+        "interactive"
+    } else {
+        "converged"
+    }
+}
+
 fn run(options: &Options) -> Result<(), Box<dyn Error>> {
     let Options {
         output,
@@ -356,11 +365,7 @@ fn run(options: &Options) -> Result<(), Box<dyn Error>> {
     }
     let serial_elapsed = serial_start.elapsed();
     let summary = summarize(&samples, &mut scratch)?;
-    let recipe = if output == MeasuredOutput::Interactive {
-        "interactive"
-    } else {
-        "converged"
-    };
+    let recipe = recipe_name(output);
     print_outputs(recipe, &samples, &timings, &pass_snapshots);
     let outputs_per_second = frames
         .to_f64()
