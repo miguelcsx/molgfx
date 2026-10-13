@@ -70,3 +70,7 @@ path = "src/bin/frame_time.rs"
 [[bin]]
 name = "parity"
 path = "src/bin/parity.rs"
+
+[[bench]]
+name = "interaction_scaling"
+harness = false
