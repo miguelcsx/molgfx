@@ -56,6 +56,7 @@ class RepresentationControlTests(unittest.TestCase):
             (molgfx.rep.bases, {"radius": 0.3}),
             (molgfx.rep.base_pairs, {"radius": 0.3, "bond_radius": 0.2}),
             (molgfx.rep.glycan, {"width": 1.5}),
+            (molgfx.rep.snfg, {"scale": 1.5}),
         ]
         for constructor, controls in cases:
             with self.subTest(constructor.__name__):

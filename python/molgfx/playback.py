@@ -11,12 +11,13 @@ descriptor and no rebinding::
 """
 
 from bisect import bisect_right
-from collections.abc import Iterable
+from collections import OrderedDict
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from itertools import pairwise
 from typing import Protocol
 
-from ._engine import Image, Renderer, Scene, StructureId, trajectory
+from ._engine import Image, Renderer, Scene, StructureId, TrajectoryFrame, trajectory
 
 __all__ = ["Playback", "attach", "attach_trajectory"]
 
@@ -27,8 +28,8 @@ class _Frames(Protocol):
     def __len__(self) -> int:
         """Return the number of frames."""
 
-    def __getitem__(self, index: int, /) -> Iterable[Iterable[float]]:
-        """Return one frame as atoms of three coordinates."""
+    def __getitem__(self, index: int, /) -> Sequence[Sequence[float]]:
+        """Return one frame: an `(atoms, 3)` array (best) or atoms of three coordinates."""
 
 
 class _Trajectory(Protocol):
@@ -46,6 +47,9 @@ class _Trajectory(Protocol):
 _MIN_FRAMES = 2
 
 
+_FRAME_CACHE = 4
+
+
 @dataclass(slots=True)
 class Playback:
     """A scene bound to explicit frames; `seek` moves the resident pair."""
@@ -55,23 +59,52 @@ class Playback:
     positions: _Frames
     times: tuple[float, ...]
     _segment: int = field(default=-1, init=False, repr=False)
+    _at: float | None = field(default=None, init=False, repr=False)
+    _pair: tuple[TrajectoryFrame, TrajectoryFrame] | None = field(
+        default=None, init=False, repr=False
+    )
+    _frames: OrderedDict[int, TrajectoryFrame] = field(
+        default_factory=OrderedDict, init=False, repr=False
+    )
+
+    def _frame(self, index: int) -> TrajectoryFrame:
+        """Return the frame handle for `index`, converting it at most once.
+
+        A handle owns one copy of the frame's coordinates; the few most recent
+        are kept, so stepping through a trajectory converts each frame once and
+        a seek inside one segment converts none.
+        """
+        frame = self._frames.get(index)
+        if frame is None:
+            frame = trajectory.frame(index, float(self.times[index]), self.positions[index])
+            self._frames[index] = frame
+            while len(self._frames) > _FRAME_CACHE:
+                self._frames.popitem(last=False)
+        else:
+            self._frames.move_to_end(index)
+        return frame
 
     def seek(self, time: float) -> None:
         """Make the scene show the interpolated state at `time`.
 
-        `time` is clamped to the first and last frame time.
+        `time` is clamped to the first and last frame time. Frames are handed
+        to the scene as `(atoms, 3)` arrays without a Python-level conversion;
+        seeking to the time already shown does nothing, and seeking within the
+        current segment reuses its frame handles.
         """
         last = len(self.times) - 1
         clamped = min(max(float(time), float(self.times[0])), float(self.times[last]))
+        if clamped == self._at and self._pair is not None:
+            return
         index = min(max(bisect_right(self.times, clamped) - 1, 0), last - 1)
-        start = trajectory.frame(index, float(self.times[index]), _rows(self.positions[index]))
-        end = trajectory.frame(
-            index + 1, float(self.times[index + 1]), _rows(self.positions[index + 1])
-        )
+        if index != self._segment or self._pair is None:
+            self._pair = (self._frame(index), self._frame(index + 1))
+        start, end = self._pair
         self.scene.set_trajectory_pair(
             structure=self.structure, start=start, end=end, sample_time=clamped
         )
         self._segment = index
+        self._at = clamped
 
     def render(
         self, renderer: Renderer, *, times: Iterable[float], size: tuple[int, int]
@@ -82,10 +115,6 @@ class Playback:
             self.seek(time)
             images.append(renderer.render_image(self.scene, size=size))
         return images
-
-
-def _rows(frame: Iterable[Iterable[float]]) -> list[list[float]]:
-    return [[float(axis) for axis in atom] for atom in frame]
 
 
 def attach(

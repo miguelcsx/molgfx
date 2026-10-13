@@ -1,6 +1,6 @@
 """Native declarative MolGFX bindings."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from os import PathLike
 from types import TracebackType
 from typing import Literal, Protocol, Self, final, overload
@@ -12,6 +12,7 @@ class _QueryLike(Protocol):
     def source(self) -> str: ...
 
 type _Target = str | _QueryLike
+type _FramePositions = Sequence[Sequence[float]] | _FrameArray
 type _Rgb = tuple[int, int, int]
 type _CartoonProfile = Literal["elliptical", "rounded", "square"]
 type _CartoonStyle = Literal["ribbon", "rocket", "nucleic_acid", "glycan"]
@@ -85,7 +86,15 @@ class EllipsoidId:
 class DataSource: ...
 
 @final
-class Anchor: ...
+class Anchor:
+    @property
+    def kind(self) -> Literal["world", "selection"]: ...
+    @property
+    def position(self) -> tuple[float, float, float] | None: ...
+    @property
+    def structure(self) -> int | None: ...
+    @property
+    def target(self) -> str | None: ...
 
 @final
 class Volume:
@@ -153,10 +162,20 @@ class Segmentation:
 class SegmentStyle: ...
 
 @final
-class Label: ...
+class Label:
+    @property
+    def anchor(self) -> Anchor: ...
+    @property
+    def text(self) -> str: ...
+    @property
+    def color(self) -> tuple[int, int, int]: ...
 
 @final
-class Measurement: ...
+class Measurement:
+    @property
+    def kind(self) -> Literal["distance", "angle", "dihedral"]: ...
+    @property
+    def anchors(self) -> list[Anchor]: ...
 
 @final
 class Interaction: ...
@@ -380,13 +399,23 @@ class Scene:
         style: DifferenceStyle | None = None,
     ) -> RepresentationId: ...
     def place(
-        self, matrix: Sequence[float], *, structure: StructureId | None = None
+        self,
+        matrix: Sequence[float] | None = None,
+        *,
+        rotation: Sequence[Sequence[float]] | None = None,
+        translation: Sequence[float] | None = None,
+        structure: StructureId | None = None,
     ) -> StructureId:
         """Copy a structure at a column-major 4x4 matrix (16 floats).
 
-        A row-major NumPy ``M`` must be passed as ``M.T.reshape(-1).tolist()``;
-        ``molgfx.place.from_rotation_translation`` does that for ``R @ x + t``.
+        Or pass ``rotation=`` (3x3, row-major) and ``translation=`` (3) for
+        ``x' = R @ x + t``, as molframe's ``superpose`` returns them. A
+        row-major NumPy ``M`` passed as ``matrix`` must be ``M.T.reshape(-1).tolist()``.
         """
+    def place_many(
+        self, matrices: Iterable[Sequence[float]], *, structure: StructureId | None = None
+    ) -> list[StructureId]:
+        """Copy a structure once per column-major matrix: one revision, one patch."""
     def assembly(
         self, instances: Sequence[object], *, of: StructureId | None = None
     ) -> list[AssemblyCopy]: ...
@@ -560,6 +589,7 @@ type _Form = Literal[
     "bases",
     "base_pairs",
     "glycan",
+    "snfg",
     "beads",
     "dots",
     "backbone",
@@ -669,6 +699,8 @@ class Image:
     @property
     def height(self) -> int: ...
     def quality_json(self) -> str: ...
+    @property
+    def quality(self) -> dict[str, object]: ...
     def pixels(self) -> bytes: ...
     def png_bytes(self) -> bytes: ...
     def save(self, path: str | PathLike[str]) -> None: ...
@@ -682,6 +714,8 @@ class HdrImage:
     @property
     def height(self) -> int: ...
     def quality_json(self) -> str: ...
+    @property
+    def quality(self) -> dict[str, object]: ...
     def rgba16f(self) -> bytes:
         """Return row-major RGBA as little-endian IEEE binary16 words."""
     def exr_bytes(self) -> bytes:
@@ -948,11 +982,19 @@ class Renderer:
     def pick(self, x: int, y: int) -> PickResult | None: ...
     def explain(self, scene: Scene) -> str: ...
 
+class _FrameArray(Protocol):
+    """A NumPy ``(atoms, 3)`` array."""
+
+    @property
+    def shape(self) -> tuple[int, ...]: ...
+    @property
+    def dtype(self) -> object: ...
+
 class _Rep:
     def cartoon(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         gaps: Literal["hidden", "dashed"] | None = None,
         width: float | None = None,
         helix_radius: float | None = None,
@@ -968,7 +1010,7 @@ class _Rep:
     def new_cartoon(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         gaps: Literal["hidden", "dashed"] | None = None,
         width: float | None = None,
         aspect_ratio: float | None = None,
@@ -982,7 +1024,7 @@ class _Rep:
     def ball_and_stick(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         radius: float | None = None,
         bond_radius: float | None = None,
         opacity: float = 1.0,
@@ -991,7 +1033,7 @@ class _Rep:
     def spacefill(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         radius: float | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
@@ -999,7 +1041,7 @@ class _Rep:
     def licorice(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         radius: float | None = None,
         bond_radius: float | None = None,
         opacity: float = 1.0,
@@ -1008,7 +1050,7 @@ class _Rep:
     def dynamic_bonds(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         cutoff: float | None = None,
         bond_radius: float | None = None,
         opacity: float = 1.0,
@@ -1017,7 +1059,7 @@ class _Rep:
     def bonds(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         bond_radius: float | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
@@ -1025,7 +1067,7 @@ class _Rep:
     def ribbons(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         width: float | None = None,
         edge_radius: float | None = None,
         gaps: Literal["hidden", "dashed"] | None = None,
@@ -1059,7 +1101,7 @@ class _Rep:
     def quick_surf(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         radius: float | None = None,
         sigma: float | None = None,
         isolevel: float | None = None,
@@ -1071,7 +1113,7 @@ class _Rep:
     def new_ribbons(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         width: float | None = None,
         aspect_ratio: float | None = None,
         profile: Literal["elliptical", "rounded", "square"] | None = None,
@@ -1082,7 +1124,7 @@ class _Rep:
     def solvent(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         probe_radius: float | None = None,
         size: float | None = None,
         samples: int | None = None,
@@ -1092,7 +1134,7 @@ class _Rep:
     def polyhedra(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         cutoff: float | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
@@ -1100,7 +1142,7 @@ class _Rep:
     def paper_chain(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         height: float | None = None,
         max_ring_size: int | None = None,
         opacity: float = 1.0,
@@ -1109,7 +1151,7 @@ class _Rep:
     def lines(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         width: float | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
@@ -1117,7 +1159,7 @@ class _Rep:
     def points(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         size: float | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
@@ -1125,7 +1167,7 @@ class _Rep:
     def surface(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         kind: _SurfaceKind | None = None,
         style: _SurfaceStyle | None = None,
         probe_radius: float | None = None,
@@ -1137,7 +1179,7 @@ class _Rep:
     def nucleic_acid(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         width: float | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
@@ -1145,7 +1187,7 @@ class _Rep:
     def bases(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         radius: float | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
@@ -1153,7 +1195,7 @@ class _Rep:
     def base_pairs(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         radius: float | None = None,
         bond_radius: float | None = None,
         opacity: float = 1.0,
@@ -1162,15 +1204,23 @@ class _Rep:
     def glycan(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         width: float | None = None,
+        opacity: float = 1.0,
+        color: _ColorLike | None = None,
+    ) -> Representation: ...
+    def snfg(
+        self,
+        *,
+        target: _Target = "all",
+        scale: float | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
     ) -> Representation: ...
     def beads(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         radius: float | None = None,
         opacity: float = 1.0,
         color: _ColorLike | None = None,
@@ -1178,7 +1228,7 @@ class _Rep:
     def dots(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         size: float | None = None,
         samples: int | None = None,
         opacity: float = 1.0,
@@ -1187,7 +1237,7 @@ class _Rep:
     def backbone(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         gaps: Literal["hidden", "dashed"] | None = None,
         width: float | None = None,
         opacity: float = 1.0,
@@ -1196,7 +1246,7 @@ class _Rep:
     def trace(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         gaps: Literal["hidden", "dashed"] | None = None,
         radius: float | None = None,
         opacity: float = 1.0,
@@ -1205,7 +1255,7 @@ class _Rep:
     def tube(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         gaps: Literal["hidden", "dashed"] | None = None,
         radius: float | None = None,
         opacity: float = 1.0,
@@ -1214,7 +1264,7 @@ class _Rep:
     def putty(
         self,
         *,
-        target: _Target,
+        target: _Target = "all",
         gaps: Literal["hidden", "dashed"] | None = None,
         domain_min: float | None = None,
         domain_max: float | None = None,
@@ -1382,7 +1432,7 @@ class _Interaction:
 
 @final
 class TrajectoryFrame:
-    def __new__(cls, index: int, time: float, positions: Sequence[Sequence[float]]) -> Self: ...
+    def __new__(cls, index: int, time: float, positions: _FramePositions) -> Self: ...
     @property
     def index(self) -> int: ...
     @property
@@ -1400,9 +1450,8 @@ class _Trajectory:
         time_step: float | None = None,
         time_unit: str | None = None,
     ) -> Trajectory: ...
-    def frame(
-        self, index: int, time: float, positions: Sequence[Sequence[float]]
-    ) -> TrajectoryFrame: ...
+    def frame(self, index: int, time: float, positions: _FramePositions) -> TrajectoryFrame:
+        """Build a frame from an ``(atoms, 3)`` float32/float64 NumPy array (one copy) or lists."""
 
 class _Ellipsoid:
     def adp(
@@ -1504,8 +1553,8 @@ __all__ = [
     "measurement",
     "profile",
     "rep",
-    "snfg",
     "segmentation",
+    "snfg",
     "system_info",
     "trajectory",
     "visual",
