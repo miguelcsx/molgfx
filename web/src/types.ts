@@ -1,3 +1,6 @@
+import type { DeviceLostEvent } from "./render/device-loss.js";
+
+export type { DeviceLostEvent };
 export type StructureBytes = ArrayBuffer | ArrayBufferView;
 export type StructureInput = File | StructureBytes;
 export type Vec3 = [number, number, number];
@@ -40,6 +43,8 @@ export interface ViewerEvents {
   selectionchange: SelectionChangeEvent;
   error: Error;
   camera: CameraState;
+  /** The GPU device was lost; `recreated` says whether drawing has resumed. */
+  devicelost: DeviceLostEvent;
 }
 export interface ViewerOptions {
   structure?: StructureInput;

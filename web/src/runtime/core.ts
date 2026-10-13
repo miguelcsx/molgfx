@@ -4,6 +4,7 @@ import { ViewerEmitter } from "../core/events.js";
 import { SceneGeneration } from "../core/interaction.js";
 import { mountInteractions } from "../interaction/interactions.js";
 import { RenderLoop } from "../render/render-loop.js";
+import { readDeviceLoss, recoverRenderer } from "../render/device-loss.js";
 import { cameraState, pickCoordinates } from "../render/camera.js";
 import { assertWebGPUAvailable, loadRuntime, sourceBytes } from "./runtime.js";
 import { applyPlayback, applyScenePatch, buildScene, patchChangesCamera } from "./scene.js";
@@ -73,6 +74,7 @@ export class ViewerCore {
   #interactions: ViewerInteractions | undefined;
   #disposed = false;
   #closing: Promise<void> | undefined;
+  #recovering = false;
   #loadSequence = 0;
   #loading = false;
   #eventSequence = 0;
@@ -119,7 +121,7 @@ export class ViewerCore {
       }
       this.#renderer = renderer;
       this.#loop = new RenderLoop(this.#canvas, renderer, this.#scene, {
-        onError: (error) => this.reportError(error),
+        onError: (error) => this.#renderFailed(error),
         onSuccess: () => {
           this.#failure.hidden = true;
         },
@@ -381,6 +383,34 @@ export class ViewerCore {
         return;
       }
     }
+  }
+  /** A frame failed: a lost device is typed and recreated, anything else is reported. */
+  #renderFailed(error: unknown): void {
+    const renderer = this.#renderer;
+    const loss = renderer ? readDeviceLoss(renderer) : undefined;
+    if (!renderer || !loss || this.#recovering) {
+      this.reportError(error);
+      return;
+    }
+    this.#recovering = true;
+    const runtime = this.#runtime;
+    void recoverRenderer({
+      loss,
+      current: renderer,
+      loop: this.#loop as RenderLoop,
+      create: () => (runtime as RuntimeModule).Renderer.create(this.#canvas),
+      isDisposed: () => this.#disposed,
+    })
+      .then(({ renderer: active, recreated }) => {
+        if (this.#disposed) return;
+        this.#renderer = active;
+        this.events.emit("devicelost", { ...loss, recreated });
+        if (!recreated) this.reportError(error);
+      })
+      .catch((failure) => this.reportError(failure))
+      .finally(() => {
+        this.#recovering = false;
+      });
   }
   reportError(error: unknown): void {
     if (this.#disposed) return;

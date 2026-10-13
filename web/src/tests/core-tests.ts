@@ -1,5 +1,6 @@
 import { CleanupBag } from "../core/lifecycle.js";
 import { SceneGeneration } from "../core/interaction.js";
+import { readDeviceLoss, recoverRenderer } from "../render/device-loss.js";
 import { RenderLoop } from "../render/render-loop.js";
 import { applyScenePatch, buildScene, patchChangesCamera } from "../runtime/scene.js";
 import { AnywidgetAdapter } from "../anywidget/adapter.js";
@@ -71,6 +72,29 @@ test("Anywidget preserves exact pick identity and unsubscribes its transport", (
   const stop = adapter.onPatch(() => {}); stop(); check(watching.size === 0, "trait subscription leak");
   adapter.publishInteraction({ kind: 'pick', result: '{"pick":"atom","structure":2,"dataset":8,"atom_index":7}', eventId: '1', modifiers: { shift:false, control:false, meta:false, alt:false }, sceneGeneration: 1 });
   check(values.pick?.structure === 2 && values.pick.atom_index === 7 && values.scene_spec === '{}', "pick flattened or implicitly selected");
+});
+const lostJSON = '{"reason":"destroyed","recoverable":true,"message":"gone"}';
+function lossy(json: string | undefined) { let freed = 0; return { renderer: { deviceLossJSON: () => json, free: () => { freed++; } } as unknown as WasmRenderer, freed: () => freed }; }
+test("Device loss JSON is parsed into a typed state and healthy renderers report none", () => {
+  const loss = readDeviceLoss(lossy(lostJSON).renderer);
+  check(loss?.reason === "destroyed" && loss.recoverable && loss.message === "gone", "loss not typed");
+  check(readDeviceLoss(lossy(undefined).renderer) === undefined, "healthy renderer reported loss");
+});
+test("Recoverable loss swaps in a fresh renderer and frees the lost one after settling", async () => {
+  const old = lossy(lostJSON), next = lossy(undefined); const order: string[] = [];
+  const loop = { replaceRenderer: () => { order.push("swap"); }, settled: async () => { order.push("settled"); } };
+  const loss = readDeviceLoss(old.renderer)!;
+  const result = await recoverRenderer({ loss, current: old.renderer, loop, create: async () => next.renderer, isDisposed: () => false });
+  check(result.recreated && result.renderer === next.renderer && old.freed() === 1 && next.freed() === 0 && order.join() === "swap,settled", "recreate path wrong");
+});
+test("Unrecoverable loss or disposal never leaks or swaps renderers", async () => {
+  const old = lossy(lostJSON), next = lossy(undefined); let swaps = 0;
+  const loop = { replaceRenderer: () => { swaps++; }, settled: async () => {} };
+  const base = { current: old.renderer, loop, create: async () => next.renderer };
+  const fatal = await recoverRenderer({ ...base, loss: { reason: "unknown", recoverable: false, message: "" }, isDisposed: () => false });
+  check(!fatal.recreated && fatal.renderer === old.renderer && old.freed() === 0, "fatal loss swapped");
+  const gone = await recoverRenderer({ ...base, loss: readDeviceLoss(old.renderer)!, isDisposed: () => true });
+  check(!gone.recreated && next.freed() === 1 && swaps === 0 && old.freed() === 0, "disposed recovery leaked");
 });
 for (const [name, run] of tests) { await run(); console.log("PASS " + name); }
 console.log(tests.length + " lifecycle/revision tests passed");

@@ -22,7 +22,7 @@ interface PendingHover {
 /** One demand scheduler and one detached readback queue per canvas. */
 export class RenderLoop {
   readonly #canvas: HTMLCanvasElement;
-  readonly #renderer: WasmRenderer;
+  #renderer: WasmRenderer;
   readonly #callbacks: RenderCallbacks;
   readonly #position = new Float32Array(3);
   readonly #target = new Float32Array(3);
@@ -75,6 +75,15 @@ export class RenderLoop {
     const previous = this.#camera;
     this.#camera = next;
     previous?.free();
+    this.#cameraDirty = true;
+    this.invalidatePicks();
+    this.requestFrame();
+  }
+  /** Adopts a replacement renderer after a device loss; the caller frees the old one. */
+  replaceRenderer(next: WasmRenderer): void {
+    if (this.#disposed) return;
+    this.#renderer = next;
+    this.#sizeDirty = true;
     this.#cameraDirty = true;
     this.invalidatePicks();
     this.requestFrame();
