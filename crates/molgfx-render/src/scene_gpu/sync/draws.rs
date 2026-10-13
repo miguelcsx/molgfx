@@ -359,6 +359,56 @@ impl<D: Device> GpuScene<D> {
         pass.record(encoder, group, count);
     }
 
+    /// Marks the occlusion cull of the last recorded view as stale.
+    pub(crate) fn invalidate_cull_view(&self) {
+        use std::sync::atomic::Ordering::Relaxed;
+        self.cull_view.valid.store(false, Relaxed);
+        self.cull_view.reuse.store(false, Relaxed);
+    }
+
+    /// Lets the frame about to record reuse the occlusion cull of the last
+    /// recorded view when `same_view`, which the caller derives from the camera
+    /// and scene being unchanged apart from sub-pixel jitter.
+    pub(crate) fn set_cull_view_reuse(&self, same_view: bool) {
+        use std::sync::atomic::Ordering::Relaxed;
+        self.cull_view
+            .reuse
+            .store(same_view && self.cull_view.valid.load(Relaxed), Relaxed);
+    }
+
+    /// A realtime frame was prepared with the camera and scene of the last one;
+    /// otherwise the standing cull is stale.
+    pub(crate) fn stage_cull_view(&self, same_view: bool) {
+        use std::sync::atomic::Ordering::Relaxed;
+        if !same_view {
+            self.cull_view.valid.store(false, Relaxed);
+        }
+        self.cull_view.staged.store(same_view, Relaxed);
+    }
+
+    /// Resolves the staged decision once the frame's coordinates are known.
+    pub(crate) fn apply_staged_cull_view(&self, coordinates_changed: bool) {
+        let staged = self
+            .cull_view
+            .staged
+            .swap(false, std::sync::atomic::Ordering::Relaxed);
+        self.set_cull_view_reuse(staged && !coordinates_changed);
+    }
+
+    /// Whether the occlusion cull recorded for this view still stands.
+    pub(crate) fn reuses_cull_view(&self) -> bool {
+        self.cull_view
+            .reuse
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Records that a full occlusion cull ran for the current view.
+    pub(crate) fn mark_cull_view_recorded(&self) {
+        self.cull_view
+            .valid
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
     pub(crate) fn has_translucency(&self) -> bool {
         self.labels.has_visible()
             || self.interactions.has_visible()

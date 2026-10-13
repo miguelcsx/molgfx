@@ -140,6 +140,11 @@ impl<D: Device> CullPass<D> {
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
         let scene = ctx.scene;
         let cull = &ctx.passes.cull;
+        // An empty compute pass leaves its timestamps unresolved, which voids
+        // the frame's GPU timing, so a sample with nothing to cull has no pass.
+        if ctx.timestamps.is_none() && reuses_whole_cull(scene) {
+            return;
+        }
         let mut pass = ctx.encoder.begin_compute_pass(&ComputePassDesc {
             label: "visibility culling",
             timestamps: ctx.timestamps,
@@ -150,6 +155,19 @@ impl<D: Device> CullPass<D> {
         record_relations(&mut pass, scene, cull);
         record_paged(&mut pass, scene, cull);
     }
+}
+
+/// Whether this sample's culling is entirely the standing occlusion cull.
+fn reuses_whole_cull<D: Device>(scene: &crate::scene_gpu::GpuScene<D>) -> bool {
+    scene.reuses_cull_view()
+        && scene
+            .cull_dispatches()
+            .all(|dispatch| dispatch.modes.view_reusable())
+        && scene.generic_point_dispatches().next().is_none()
+        && scene.generic_instance_dispatches().next().is_none()
+        && scene.relation_cull_dispatches().next().is_none()
+        && scene.paged_chunk_cull().is_none()
+        && scene.paged_bond_cull().is_none()
 }
 
 include!("cull_timeline.rs");
@@ -338,7 +356,16 @@ fn record_structures<D: Device, P: ComputePassEncoder<D>>(
     scene: &crate::scene_gpu::GpuScene<D>,
     cull: &CullPass<D>,
 ) {
+    let reuse = scene.reuses_cull_view();
     for dispatch in scene.cull_dispatches() {
+        if dispatch.modes.view_reusable() {
+            // Samples of one converged view differ by under a pixel, which the
+            // cull already pads, so the visible list of the first one stands.
+            if reuse {
+                continue;
+            }
+            scene.mark_cull_view_recorded();
+        }
         if dispatch.modes.cull_visual() && dispatch.visual_groups[0] > 0 {
             pass.set_bind_group(0, dispatch.visual_group, &[]);
             pass.set_pipeline(&cull.visual_cull);
@@ -350,7 +377,14 @@ fn record_structures<D: Device, P: ComputePassEncoder<D>>(
         if dispatch.atom_groups[0] > 0 {
             if dispatch.modes.lod() {
                 pass.set_pipeline(&cull.reset_tiles);
-                pass.dispatch(dispatch.tile_groups[0], dispatch.tile_groups[1], 1);
+                // The depth planes hold millions of words, so the clear is
+                // spread over as many groups as there are atoms to bin.
+                let clear = if dispatch.modes.occlusion() {
+                    dispatch.atom_groups
+                } else {
+                    dispatch.tile_groups
+                };
+                pass.dispatch(clear[0], clear[1], 1);
                 pass.set_pipeline(&cull.bin_atoms);
                 let groups = if dispatch.modes.fast_points() {
                     dispatch.bin_groups

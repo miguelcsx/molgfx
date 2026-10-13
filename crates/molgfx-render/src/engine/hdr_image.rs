@@ -168,6 +168,7 @@ impl<D: Device> Engine<D> {
             if sample == 0 {
                 self.record_scene_compute(&mut encoder, quality, None);
             }
+            self.scene_gpu.set_cull_view_reuse(sample > 0);
             let source = self.scene_linear_resource();
             let Some(pool) = &self.pool else {
                 return Err(molgfx_gpu::GpuError::DeviceLost.into());

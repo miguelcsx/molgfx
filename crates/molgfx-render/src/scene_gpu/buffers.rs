@@ -1,6 +1,7 @@
 //! Grow-only buffer helpers shared by scene slots.
 
 use crate::error::RenderError;
+use crate::graph::SHADOW_MAP_EXTENT;
 use molgfx_core::DrawIndirectArgs;
 use molgfx_gpu::{BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
 
@@ -18,6 +19,27 @@ pub(super) fn create_cull_tiles<D: Device>(
         usage: BufferUsage::STORAGE,
     })?;
     Ok((buffer, bytes))
+}
+
+/// Bytes of the screen-depth buffer the cull passes share.
+///
+/// Tile LOD needs one word per 8x8 tile. Occlusion culling adds a depth plane
+/// of one word per camera pixel and one per shadow texel; it is sized only for
+/// scenes big enough to use it, and capped at the storage binding every
+/// backend guarantees. A buffer under the cap is too small for the shader's own
+/// check, which then draws every atom rather than cull on a partial plane.
+pub(super) fn cull_tiles_bytes(extent: [u32; 2], tiles: u32, occlusion: bool) -> u64 {
+    const WORD: u64 = std::mem::size_of::<u32>() as u64;
+    const BINDING_CAP: u64 = 128 << 20;
+    let tile_bytes = u64::from(tiles) * WORD;
+    let bytes = if occlusion {
+        let shadow = u64::from(SHADOW_MAP_EXTENT) * u64::from(SHADOW_MAP_EXTENT);
+        let camera = u64::from(extent[0]) * u64::from(extent[1]);
+        tile_bytes.max((camera + shadow) * WORD).min(BINDING_CAP)
+    } else {
+        tile_bytes
+    };
+    bytes.max(256)
 }
 
 pub(super) fn upload_grow<D: Device, T: bytemuck::Pod>(

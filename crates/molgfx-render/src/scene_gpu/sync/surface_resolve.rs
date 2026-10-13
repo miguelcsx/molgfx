@@ -12,6 +12,7 @@
 
 use super::super::record_cache::{RecordCache, RecordSet};
 use super::super::scalar_overlay;
+use super::super::slot_types::OCCLUSION_CULL_MODE;
 use super::super::slots::GpuSlot;
 use super::super::surface_field::FieldSync;
 use super::super::uniforms::RepresentationUniforms;
@@ -31,13 +32,16 @@ impl<D: Device> GpuScene<D> {
         self.surface_fields.memory_limited()
     }
 
-    /// Largest active cull mode; zero means analytic geometry is not replaced.
+    /// Largest active cull mode that replaces analytic geometry; zero means it
+    /// is not. Mode 3 only drops atoms an opaque nearer atom hides, so the
+    /// image is unchanged and it does not count.
     pub(crate) fn lod_mode_max(&self) -> u32 {
         self.slots
             .iter()
             .filter(|slot| slot.visible)
             .filter_map(|slot| slot.visibility_key)
             .map(|key| key.lod_mode)
+            .filter(|mode| *mode != OCCLUSION_CULL_MODE)
             .fold(0, u32::max)
     }
 

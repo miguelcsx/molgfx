@@ -361,6 +361,7 @@ impl<D: Device> Engine<D> {
             if sample == 0 {
                 self.record_scene_compute(&mut encoder, quality, None);
             }
+            self.scene_gpu.set_cull_view_reuse(sample > 0);
             self.record_image(&mut encoder, target, None, quality, false)?;
         }
         profiler.passes.detach(&mut encoder)?;

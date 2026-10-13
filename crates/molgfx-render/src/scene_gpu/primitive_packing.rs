@@ -28,19 +28,19 @@ pub(super) fn pack_primitive(
         Primitive::Carbohydrate(value) => {
             let (family, draw_shape) = super::snfg_class::carbohydrate_class(value.shape);
             pack_oriented(
-            OrientedPrimitive {
-                center: value.center,
-                orientation: value.orientation,
-                size: value.size,
-                color: value.color.to_f32(),
-                primitive: family,
-                shape: draw_shape,
-                parameters: [0.0; 2],
-            },
-            entity_id,
-            pick_page,
-            model,
-        )
+                OrientedPrimitive {
+                    center: value.center,
+                    orientation: value.orientation,
+                    size: value.size,
+                    color: value.color.to_f32(),
+                    primitive: family,
+                    shape: draw_shape,
+                    parameters: [0.0; 2],
+                },
+                entity_id,
+                pick_page,
+                model,
+            )
             .map(|record| (record, ParticleMotionGpu::default()))
         }
         Primitive::Planar {

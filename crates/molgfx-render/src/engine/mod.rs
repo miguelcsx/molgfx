@@ -104,6 +104,10 @@ pub(crate) use temporal::{TemporalOptions, TemporalState};
 pub(crate) mod tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "offscreen_tests.rs"]
+mod offscreen_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "exposure_tests.rs"]
 mod exposure_tests;
 

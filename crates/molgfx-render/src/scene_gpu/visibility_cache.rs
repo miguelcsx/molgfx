@@ -21,7 +21,7 @@ mod tests;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(crate) struct VisibilityKey {
     pub(crate) records: RecordKey,
-    /// `CullCounts.lod_enabled`: 0, 1, or 2.
+    /// `CullCounts.lod_enabled`: 0, 1, 2, or 3.
     pub(crate) lod_mode: u32,
     /// Whether a typed visual result table affects culling.
     pub(crate) visual_enabled: bool,

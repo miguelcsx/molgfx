@@ -256,6 +256,7 @@ impl<D: Device> Engine<D> {
             if sample == 0 {
                 self.record_scene_compute(&mut encoder, traced, None);
             }
+            self.scene_gpu.set_cull_view_reuse(sample > 0);
             self.record_image(&mut encoder, view, None, traced, false)?;
             if let Some(copy) = copy
                 && sample + 1 == samples

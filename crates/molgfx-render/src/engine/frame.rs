@@ -182,6 +182,12 @@ impl<D: Device> Engine<D> {
             self.shadow_bound
                 .fit(scene, camera, self.resolved_plan.lighting(), scene_changed);
 
+        // Only the sub-pixel jitter differs from the last frame, so the
+        // occlusion cull of that frame, padded for the jitter, still holds.
+        let same_view = !scene_changed
+            && !pool_rebuilt
+            && !scene_reset
+            && !self.temporal.camera_changed(camera);
         let uniforms = self.temporal.prepare(
             camera,
             &TemporalOptions {
@@ -206,6 +212,7 @@ impl<D: Device> Engine<D> {
             },
         );
 
+        self.scene_gpu.stage_cull_view(same_view);
         self.scene_gpu.write_frame_uniforms(&self.queue, &uniforms)
     }
 
@@ -227,7 +234,8 @@ impl<D: Device> Engine<D> {
 
         let traced = self.temporal.occlusion_rays() > 0;
 
-        self.record_scene_compute(encoder, traced, None);
+        let coordinates_changed = self.record_scene_compute(encoder, traced, None);
+        self.scene_gpu.apply_staged_cull_view(coordinates_changed);
 
         let Some(pool) = &self.pool else {
             return Ok(false);
@@ -361,6 +369,9 @@ impl<D: Device> Engine<D> {
         traced: bool,
         timestamps: Option<molgfx_gpu::TimestampWrites<'_, D>>,
     ) -> bool {
+        // Every full frame and every first sample cull afresh; callers that
+        // may reuse the view say so after this returns.
+        self.scene_gpu.set_cull_view_reuse(false);
         self.passes
             .cull
             .record_attribute_timelines(&self.scene_gpu, encoder);

@@ -88,7 +88,7 @@ impl<D: Device> GpuScene<D> {
             properties: &self.visual_properties,
             fallback: self.visual_fallback.entries(),
             parameter_slot_base: self.slots.len(),
-            time_seconds: self.paged_visual_time_seconds,
+            time_seconds: self.paged_visual_time.seconds,
         };
         let instance_binding_revision = self.instance_batches.paged_binding_revision();
         self.interactions.sync_paged(PagedRelationSync {
@@ -109,7 +109,7 @@ impl<D: Device> GpuScene<D> {
             instance_binding_revision,
             instance_timeline_revision,
             attribute_timeline_revision,
-            visual_revision: self.paged_visual_time_revision,
+            visual_revision: self.paged_visual_time.revision,
             resolve,
             resolve_attribute,
         })?;

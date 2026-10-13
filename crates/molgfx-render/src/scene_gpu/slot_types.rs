@@ -305,6 +305,9 @@ impl RibbonState {
 /// Elements above which the cull shader switches to its wide index path.
 pub(crate) const LOD_ATOM_THRESHOLD: u32 = 131_072;
 
+/// The cull mode that drops only atoms an opaque nearer atom hides.
+pub(crate) const OCCLUSION_CULL_MODE: u32 = 3;
+
 /// Largest instance count the fast point-index path can address.
 pub(crate) const FAST_POINT_INDEX_LIMIT: u32 = 1 << 24;
 
@@ -316,6 +319,7 @@ pub(crate) struct CullPolicy {
     pub(crate) kind: RepresentationKind,
     pub(crate) visual_enabled: bool,
     pub(crate) lod_enabled: bool,
+    pub(crate) opaque: bool,
     /// Model-space length past which a stretched bond is culled.
     pub(crate) bond_break_length: f32,
     /// Vertices per atom in this draw, independent of the packed records.
@@ -334,6 +338,7 @@ impl CullPolicy {
             kind: representation.kind,
             visual_enabled: representation.visual.is_some(),
             lod_enabled,
+            opaque: !representation.is_translucent(),
             atom_vertices: atom_vertex_count(representation),
             bond_break_length: if representation.kind == RepresentationKind::DynamicBonds {
                 representation.params.distance_cutoff
@@ -345,7 +350,7 @@ impl CullPolicy {
     pub(crate) fn visibility_key(self, atoms: u32, bonds: u32) -> super::VisibilityKey {
         super::VisibilityKey {
             records: self.records,
-            lod_mode: lod_mode(atoms, bonds, self.kind, self.lod_enabled),
+            lod_mode: lod_mode(atoms, bonds, self.kind, self.lod_enabled, self.opaque),
             visual_enabled: self.visual_enabled,
             bond_break_length: self.bond_break_length.to_bits(),
         }
@@ -363,27 +368,28 @@ pub(crate) fn atom_vertex_count(representation: &Representation) -> u32 {
     }
 }
 
-/// The level-of-detail mode the cull shader reads for one packed record set.
-///
-/// Two representations sharing records share this, because it depends only on
-/// the counts and the drawn form.
+/// The cull mode the shader reads for one packed record set, shared by
+/// representations whose counts and drawn form agree. Modes 1 and 2 are
+/// approximate; mode 3 only drops atoms an opaque nearer atom hides.
 #[must_use]
 pub(crate) const fn lod_mode(
     atoms: u32,
     bonds: u32,
     kind: RepresentationKind,
     enabled: bool,
+    opaque: bool,
 ) -> u32 {
-    // Tile-depth LOD keeps one nearest atom per screen tile. A ribbon or a
-    // surface is built from neighbouring atoms, so culling atoms individually
-    // erases it: above the threshold a cartoon drew nothing at all.
-    if !enabled
-        || atoms < LOD_ATOM_THRESHOLD
-        || matches!(
-            kind,
-            RepresentationKind::Cartoon | RepresentationKind::Surface
-        )
-    {
+    if atoms < LOD_ATOM_THRESHOLD {
+        return 0;
+    }
+    if !enabled {
+        let lone_spheres = opaque && bonds == 0 && matches!(kind, RepresentationKind::Spacefill);
+        return if lone_spheres { OCCLUSION_CULL_MODE } else { 0 };
+    }
+    if matches!(
+        kind,
+        RepresentationKind::Cartoon | RepresentationKind::Surface
+    ) {
         0
     } else if matches!(kind, RepresentationKind::Points)
         && bonds == 0

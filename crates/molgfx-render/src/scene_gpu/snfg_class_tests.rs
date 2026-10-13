@@ -7,7 +7,11 @@ fn every_snfg_shape_lowers_to_an_analytic_family() {
         (CarbohydrateShape::Cube, FAMILY_BOX, 0),
         (CarbohydrateShape::Bar, FAMILY_BOX, 0),
         (CarbohydrateShape::Diamond, FAMILY_POLYGON, POLYGON_DIAMOND),
-        (CarbohydrateShape::Triangle, FAMILY_POLYGON, POLYGON_TRIANGLE),
+        (
+            CarbohydrateShape::Triangle,
+            FAMILY_POLYGON,
+            POLYGON_TRIANGLE,
+        ),
         (CarbohydrateShape::Star, FAMILY_POLYGON, POLYGON_STAR),
         (CarbohydrateShape::Hexagon, FAMILY_POLYGON, 1),
         (CarbohydrateShape::Pentagon, FAMILY_POLYGON, 5),

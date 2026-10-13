@@ -10,6 +10,10 @@
 use crate::graph::node::{PassNode, ResourceDesc, ResourceId, SizeClass};
 use molgfx_gpu::{Device, GpuError, TextureDesc};
 
+/// Side of the square shadow map. The occlusion cull shader keeps a depth
+/// plane of the same size (`SHADOW_TEXELS` in `cull_occlusion.wgsl`).
+pub(crate) const SHADOW_MAP_EXTENT: u32 = 2048;
+
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "pool_tests.rs"]
 mod tests;
@@ -147,7 +151,7 @@ impl<D: Device> TransientPool<D> {
             let (w, h) = match desc.size {
                 SizeClass::Full => (width, height),
                 SizeClass::Tiles16 => (width.div_ceil(16), height.div_ceil(16)),
-                SizeClass::Shadow => (2048, 2048),
+                SizeClass::Shadow => (SHADOW_MAP_EXTENT, SHADOW_MAP_EXTENT),
                 SizeClass::Quarter => (width.div_ceil(4).max(1), height.div_ceil(4).max(1)),
             };
             let texture = device.create_texture(&TextureDesc {

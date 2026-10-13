@@ -151,6 +151,8 @@ impl<D: Device> Engine<D> {
         exposure: &Exposure,
         encoder: D::CommandEncoder,
     ) -> Result<FenceValue, RenderError> {
+        // An exposure's cull belongs to its own samples alone.
+        self.scene_gpu.invalidate_cull_view();
         self.scene_gpu.submit_exposure_uniforms(
             &self.queue,
             exposure.bank,

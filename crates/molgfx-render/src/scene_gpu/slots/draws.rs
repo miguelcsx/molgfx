@@ -3,7 +3,8 @@
 use super::{FAST_POINT_INDEX_LIMIT, GpuSlot};
 use crate::engine::pipeline_cache::SpecializationKey;
 use crate::scene_gpu::slot_types::{
-    CullDispatch, CullModes, DrawFamily, DrawSpecializations, RibbonDraw, SlotShading,
+    CullDispatch, CullModes, DrawFamily, DrawSpecializations, OCCLUSION_CULL_MODE, RibbonDraw,
+    SlotShading,
 };
 use molgfx_core::RepresentationKind;
 use molgfx_gpu::Device;
@@ -279,6 +280,7 @@ impl<D: Device> GpuSlot<D> {
         {
             return None;
         }
+        let mode = self.visibility_key.map(|key| key.lod_mode);
         Some(CullDispatch {
             key: self.visibility_key.zip(self.atom_args),
             atom_group: self.atom_cull_group.as_ref()?,
@@ -298,7 +300,8 @@ impl<D: Device> GpuSlot<D> {
             ),
             tile_groups,
             modes: CullModes::default()
-                .with_lod(self.atom_count >= REALTIME_SHADOW_INSTANCES)
+                .with_lod(self.atom_count >= REALTIME_SHADOW_INSTANCES && mode != Some(0))
+                .with_occlusion(mode == Some(OCCLUSION_CULL_MODE))
                 .with_fast_points(
                     self.kind == RepresentationKind::Points
                         && self.bond_count == 0

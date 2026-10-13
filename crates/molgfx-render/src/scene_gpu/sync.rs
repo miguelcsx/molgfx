@@ -29,7 +29,7 @@ mod volume_reconcile;
 mod volumes;
 use super::asset::GpuAsset;
 use super::asset_arena::AssetArena;
-use super::buffers::create_cull_tiles;
+use super::buffers::{create_cull_tiles, cull_tiles_bytes};
 use super::instance_batch_table::GpuInstanceBatches;
 use super::interaction_table::GpuInteractions;
 use super::label_table::GpuLabels;
@@ -41,7 +41,7 @@ use super::picking_pages::PickPages;
 use super::point_batch_table::GpuPointBatches;
 use super::primitive_table::GpuPrimitives;
 use super::segmentation_slot::{GpuSegmentationResource, GpuSegmentationSlot};
-use super::slot_types::SlotPlan;
+use super::slot_types::{LOD_ATOM_THRESHOLD, SlotPlan};
 use super::slots::GpuSlot;
 use super::structure::GpuStructure;
 use super::uniforms::FrameUniforms;
@@ -80,6 +80,26 @@ pub(crate) struct SceneSync<'a, D: Device> {
     pub(crate) derived_frame: u64,
 }
 
+/// Whether the occlusion cull computed for the current view can stand in for
+/// the next samples of the same view. Atomics keep it readable through `&self`
+/// from the record passes.
+#[derive(Debug, Default)]
+pub(crate) struct CullViewState {
+    /// A full cull was recorded and nothing it read has changed since.
+    valid: std::sync::atomic::AtomicBool,
+    /// The frame being recorded only moved the sub-pixel jitter.
+    reuse: std::sync::atomic::AtomicBool,
+    /// The realtime frame being prepared kept its camera and scene.
+    staged: std::sync::atomic::AtomicBool,
+}
+
+/// The presentation clock the paged visual programs last read.
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct PagedVisualTime {
+    seconds: f32,
+    revision: u64,
+}
+
 /// GPU-resident scene state with stable structure and representation slots.
 #[derive(Debug)]
 pub(crate) struct GpuScene<D: Device> {
@@ -104,6 +124,9 @@ pub(crate) struct GpuScene<D: Device> {
     cull_tiles_capacity: u64,
     cull_binding_revision: u64,
     cull_tile_count: u32,
+    /// Whether the occlusion cull of the last recorded view still stands, and
+    /// whether the frame being recorded may reuse it (see `view_reuse`).
+    cull_view: CullViewState,
     pub interaction_layout: D::BindGroupLayout,
     pub relation_cull_layout: D::BindGroupLayout,
     pub relation_resolve_layout: D::BindGroupLayout,
@@ -168,8 +191,7 @@ pub(crate) struct GpuScene<D: Device> {
     /// Settled once per frame before any pass records, then read through a
     /// shared borrow while draws are recorded.
     pub(super) specialized: crate::engine::pipeline_cache::SpecializedPipelines<D>,
-    paged_visual_time_seconds: f32,
-    paged_visual_time_revision: u64,
+    paged_visual_time: PagedVisualTime,
     scene_identity: Option<u64>,
     structure_revision: Option<u64>,
     slot_structure_revision: Option<u64>,
@@ -279,9 +301,9 @@ impl<D: Device> GpuScene<D> {
             derived_cache,
             derived_frame,
         } = input;
-        self.ensure_cull_tiles(device, extent)?;
-        self.paged_visual_time_seconds = scene.presentation_time_seconds();
-        self.paged_visual_time_revision = scene.presentation_revision();
+        self.ensure_cull_tiles(device, extent, scene.atom_count())?;
+        self.paged_visual_time.seconds = scene.presentation_time_seconds();
+        self.paged_visual_time.revision = scene.presentation_revision();
         let scene_changed = self.begin_scene(scene.cache_identity())?;
         let mut changed = scene_changed
             || self.structure_revision != Some(scene.structure_revision())
@@ -414,11 +436,15 @@ impl<D: Device> GpuScene<D> {
         self.indirect.buffer()
     }
 
-    fn ensure_cull_tiles(&mut self, device: &D, extent: [u32; 2]) -> Result<(), RenderError> {
+    fn ensure_cull_tiles(
+        &mut self,
+        device: &D,
+        extent: [u32; 2],
+        atoms: u64,
+    ) -> Result<(), RenderError> {
+        let occlusion = atoms >= u64::from(LOD_ATOM_THRESHOLD);
         self.cull_tile_count = extent[0].div_ceil(8).saturating_mul(extent[1].div_ceil(8));
-        let bytes = u64::from(self.cull_tile_count)
-            .saturating_mul(std::mem::size_of::<u32>() as u64)
-            .max(256);
+        let bytes = cull_tiles_bytes(extent, self.cull_tile_count, occlusion);
         if bytes > self.cull_tiles_capacity {
             (self.cull_tiles, self.cull_tiles_capacity) = create_cull_tiles(device, bytes)?;
             self.cull_binding_revision = self.cull_binding_revision.wrapping_add(1);

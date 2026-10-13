@@ -58,7 +58,7 @@ impl<D: Device> GpuScene<D> {
             properties: &self.visual_properties,
             fallback: self.visual_fallback.entries(),
             parameter_slot_base: self.slots.len(),
-            time_seconds: self.paged_visual_time_seconds,
+            time_seconds: self.paged_visual_time.seconds,
         };
         self.instance_batches.sync_paged(PagedInstanceSync {
             device,
