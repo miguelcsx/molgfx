@@ -5,7 +5,7 @@ use crate::overlay_binding::PyTrajectoryFrame;
 use crate::render_binding::{PyImage, PyRenderer};
 use crate::scene_binding::PyScene;
 use molgfx::playback::{FrameCache, Timeline};
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyModule, PyTuple};
 
@@ -24,7 +24,10 @@ struct PyPlayback {
 
 impl PyPlayback {
     fn frame(&mut self, py: Python<'_>, index: usize) -> PyResult<PyTrajectoryFrame> {
-        let time = self.timeline.time(index).unwrap_or_default();
+        let time = self
+            .timeline
+            .time(index)
+            .ok_or_else(|| PyIndexError::new_err(format!("no frame {index}")))?;
         let positions = &self.positions;
         self.cache
             .get_or_convert(index, || {
@@ -132,9 +135,13 @@ fn attach(
         .try_iter()?
         .map(|time| time?.extract::<f32>())
         .collect::<PyResult<Vec<_>>>()?;
-    let first = stamps.first().copied().unwrap_or_default();
     let timeline = Timeline::new(positions.len()?, stamps)
         .map_err(|failure| PyValueError::new_err(failure.to_string()))?;
+    let &[first, ..] = timeline.times() else {
+        return Err(PyValueError::new_err(
+            "a playback needs at least two frames",
+        ));
+    };
     let structure = match structure {
         Some(structure) => structure.clone().unbind(),
         None => Py::new(py, PyStructureId(scene.borrow().structure_id))?.into_any(),
