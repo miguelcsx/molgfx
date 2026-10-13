@@ -44,7 +44,7 @@ pub(crate) fn install(scene: &mut Scene, states: States) -> Result<(), Error> {
 ///
 /// Returns an error if a channel query fails to compile or evaluate.
 pub(crate) fn resolve_states(
-    scene: &mut Scene,
+    scene: &Scene,
     channels: &[(StateChannel, Selection)],
 ) -> Result<States, Error> {
     let structures: Vec<(StructureHandle, usize)> = scene
@@ -113,15 +113,27 @@ pub(crate) fn channels(spec: &SceneSpec) -> Vec<(StateChannel, Selection)> {
     resolved
 }
 
+/// Rows of one structure in a transient evaluation ordered by handle.
+fn rows_of(
+    scoped: &[(StructureHandle, AtomSelection)],
+    structure: StructureHandle,
+) -> Option<&AtomSelection> {
+    scoped
+        .binary_search_by_key(&structure, |(handle, _)| *handle)
+        .ok()
+        .and_then(|index| scoped.get(index))
+        .map(|(_, rows)| rows)
+}
+
 fn apply(
-    scene: &mut Scene,
+    scene: &Scene,
     states: &mut [(StructureHandle, Vec<u32>)],
     selection: &Selection,
     mask: u32,
 ) -> Result<(), Error> {
-    let handle = scene.select_str(selection.source())?;
+    let (scoped, _) = scene.evaluate_str(selection.source())?;
     for (structure, words) in states.iter_mut() {
-        let Some(rows) = scene.selection_for(handle, *structure) else {
+        let Some(rows) = rows_of(&scoped, *structure) else {
             continue;
         };
         let Ok(length) = u32::try_from(words.len()) else {
@@ -153,15 +165,16 @@ pub(crate) fn update_channel(
     selection: Option<&Selection>,
 ) -> Result<(), Error> {
     let mask = channel.mask()?;
-    let handle = match selection {
-        Some(selection) => Some(scene.select_str(selection.source())?),
+    let scoped = match selection {
+        Some(selection) => Some(scene.evaluate_str(selection.source())?.0),
         None => None,
     };
     let targets: Vec<(StructureHandle, Option<AtomSelection>)> = scene
         .structures()
         .map(|(structure, _)| {
-            let rows = handle
-                .and_then(|handle| scene.selection_for(handle, structure))
+            let rows = scoped
+                .as_deref()
+                .and_then(|scoped| rows_of(scoped, structure))
                 .cloned();
             (structure, rows)
         })

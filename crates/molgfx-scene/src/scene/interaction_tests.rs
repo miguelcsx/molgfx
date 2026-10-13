@@ -334,3 +334,26 @@ fn a_hover_moving_between_atoms_moves_exactly_its_bit() {
         "rows that left the channel lose the bit and rows that joined it gain it"
     );
 }
+
+#[test]
+fn repeated_channel_edits_leave_no_stored_selections_behind() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    let queries = ["all", "name CA", "all", "not name CA", "name CA"];
+    let before = scene.resolved().selection_count();
+    for round in 0..40 {
+        let query = queries[round % queries.len()];
+        let channel = if round % 2 == 0 {
+            crate::InteractionChannel::Selected
+        } else {
+            crate::InteractionChannel::Focused
+        };
+        if let Err(error) = scene.set_interaction(channel, Some(query.into())) {
+            panic!("channel edit must apply: {error}")
+        }
+    }
+    assert_eq!(
+        scene.resolved().selection_count(),
+        before,
+        "an interaction channel owns no stored selection"
+    );
+}
