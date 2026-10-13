@@ -12,6 +12,7 @@
 mod capabilities;
 mod descriptors;
 mod device;
+mod device_loss;
 mod encoder;
 mod error;
 mod host;
@@ -37,6 +38,7 @@ pub use device::{
     Device, DeviceDesc, Opened, PowerPreference, RayQueryDevice, ResourceMemory, WindowSource,
     WindowTarget,
 };
+pub use device_loss::{DeviceLoss, DeviceLossReason};
 pub use encoder::{CommandEncoder, ComputePassEncoder, RayQueryCommandEncoder, RenderPassEncoder};
 pub use error::GpuError;
 pub use host::{HostDevice, HostDeviceDesc, ImportedTarget};

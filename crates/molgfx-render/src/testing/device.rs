@@ -154,6 +154,14 @@ impl molgfx_gpu::Device for MockDevice {
         &self.capabilities
     }
 
+    fn device_loss(&self) -> Option<molgfx_gpu::DeviceLoss> {
+        self.log
+            .device_loss
+            .lock()
+            .ok()
+            .and_then(|loss| loss.clone())
+    }
+
     fn ray_query_limits(&self) -> Result<molgfx_gpu::RayQueryLimits, GpuError> {
         if !self.capabilities.ray_query() {
             return Err(GpuError::Capability { name: "ray query" });

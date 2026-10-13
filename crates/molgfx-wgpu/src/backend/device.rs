@@ -441,6 +441,10 @@ impl molgfx_gpu::Device for WgpuDevice {
         &self.capabilities
     }
 
+    fn device_loss(&self) -> Option<molgfx_gpu::DeviceLoss> {
+        self.errors.loss()
+    }
+
     fn check_errors(&self) -> Result<(), GpuError> {
         self.errors.check()
     }

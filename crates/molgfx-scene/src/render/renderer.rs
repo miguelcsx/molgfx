@@ -96,6 +96,16 @@ impl Renderer {
         })
     }
 
+    /// The recorded cause once the device has been lost, `None` while healthy.
+    ///
+    /// A lost renderer cannot draw again. When the loss is recoverable, open a
+    /// new renderer and present the same scene: every GPU resource is rebuilt
+    /// from it on the first frame.
+    #[must_use]
+    pub fn device_loss(&self) -> Option<super::DeviceLossReport> {
+        self.inner.device_loss().as_ref().map(Into::into)
+    }
+
     /// Resizes the current presentation target.
     pub fn resize(&mut self, size: (u32, u32)) {
         self.inner.resize(size.0.max(1), size.1.max(1));

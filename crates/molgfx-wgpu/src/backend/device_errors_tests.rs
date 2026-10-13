@@ -1,5 +1,5 @@
 use super::{DEVICE_LOST, DeviceErrors};
-use molgfx_gpu::GpuError;
+use molgfx_gpu::{DeviceLoss, DeviceLossReason, GpuError};
 use std::sync::atomic::Ordering;
 
 #[test]
@@ -23,6 +23,27 @@ fn device_loss_remains_sticky_after_the_originating_validation_error_is_reported
     for _ in 0..3 {
         assert!(matches!(errors.check(), Err(GpuError::DeviceLost)));
     }
+}
+
+#[test]
+fn a_recorded_loss_carries_its_reason_and_keeps_the_first() {
+    let errors = DeviceErrors::default();
+    assert_eq!(errors.loss(), None);
+    errors.record_loss(DeviceLoss {
+        reason: DeviceLossReason::Unknown,
+        message: "gpu hung".to_owned(),
+    });
+    errors.record_loss(DeviceLoss {
+        reason: DeviceLossReason::Destroyed,
+        message: "later".to_owned(),
+    });
+    let Some(loss) = errors.loss() else {
+        panic!("the loss was recorded")
+    };
+    assert_eq!(loss.reason, DeviceLossReason::Unknown);
+    assert_eq!(loss.message, "gpu hung");
+    assert!(loss.recoverable());
+    assert!(matches!(errors.check(), Err(GpuError::DeviceLost)));
 }
 
 #[cfg(not(target_arch = "wasm32"))]

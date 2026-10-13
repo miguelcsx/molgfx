@@ -34,7 +34,7 @@ pub use molgfx_scene::{
 pub use molgfx_scene::{FrameTiming, GpuTiming};
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_scene::{HdrImage, Image, StereoImages, StereoLayout};
-pub use molgfx_scene::{PointCloud, Renderer};
+pub use molgfx_scene::{DeviceLossReport, PointCloud, Renderer};
 
 pub mod placement;
 #[cfg(test)]

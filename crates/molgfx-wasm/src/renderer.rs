@@ -28,6 +28,23 @@ impl WebRenderer {
             .transpose()
     }
 
+    /// The typed cause once the GPU device has been lost, as JSON with
+    /// `reason` (`destroyed` or `unknown`), `recoverable` and `message`.
+    ///
+    /// `undefined` while the device is healthy. After a loss this renderer
+    /// cannot draw: when `recoverable` is true, call [`Self::create`] again and
+    /// render the same scene, which rebuilds every GPU resource.
+    ///
+    /// # Errors
+    /// Returns a JavaScript error if the report cannot be encoded.
+    #[wasm_bindgen(js_name = deviceLossJSON)]
+    pub fn device_loss_json(&self) -> Result<Option<String>, JsError> {
+        self.inner
+            .device_loss()
+            .map(|loss| serde_json::to_string(&loss).map_err(javascript_error))
+            .transpose()
+    }
+
     /// Opens WebGPU with optional quality and refresh-rate policy.
     ///
     /// # Errors

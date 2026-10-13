@@ -1,7 +1,7 @@
 //! Bounded asynchronous diagnostics, checked without locking on healthy frames.
 
 use super::device::WgpuDevice;
-use molgfx_gpu::GpuError;
+use molgfx_gpu::{DeviceLoss, DeviceLossReason, GpuError};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -12,6 +12,7 @@ const DEVICE_LOST: u8 = 2;
 pub(super) struct DeviceErrors {
     status: AtomicU8,
     first: Mutex<Option<String>>,
+    loss: Mutex<Option<DeviceLoss>>,
 }
 
 impl DeviceErrors {
@@ -22,10 +23,29 @@ impl DeviceErrors {
             runtime.record(error.to_string());
         }));
         let lost = Arc::clone(&errors);
-        device.set_device_lost_callback(move |_, _| {
-            lost.status.fetch_or(DEVICE_LOST, Ordering::Release);
+        device.set_device_lost_callback(move |reason, message| {
+            let reason = match reason {
+                wgpu::DeviceLostReason::Destroyed => DeviceLossReason::Destroyed,
+                wgpu::DeviceLostReason::Unknown => DeviceLossReason::Unknown,
+            };
+            lost.record_loss(DeviceLoss { reason, message });
         });
         errors
+    }
+
+    /// Keeps the first loss and marks the device lost for every later check.
+    pub(super) fn record_loss(&self, loss: DeviceLoss) {
+        if let Ok(mut recorded) = self.loss.lock() {
+            recorded.get_or_insert(loss);
+        }
+        self.status.fetch_or(DEVICE_LOST, Ordering::Release);
+    }
+
+    pub(super) fn loss(&self) -> Option<DeviceLoss> {
+        if self.status.load(Ordering::Acquire) & DEVICE_LOST == 0 {
+            return None;
+        }
+        self.loss.lock().ok().and_then(|loss| loss.clone())
     }
 
     fn record(&self, detail: String) {

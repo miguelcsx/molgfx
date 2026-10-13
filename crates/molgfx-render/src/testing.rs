@@ -80,6 +80,8 @@ pub(crate) struct MockLog {
     pub acceleration_allocations: AtomicU32,
     /// Makes the next acceleration operation fail as device loss.
     pub fail_ray_query: std::sync::atomic::AtomicBool,
+    /// The loss a test injected, reported by [`molgfx_gpu::Device::device_loss`].
+    pub device_loss: Mutex<Option<molgfx_gpu::DeviceLoss>>,
 }
 impl Default for MockLog {
     fn default() -> Self {
@@ -114,6 +116,7 @@ impl Default for MockLog {
             tlas_builds: AtomicU32::new(0),
             acceleration_allocations: AtomicU32::new(0),
             fail_ray_query: std::sync::atomic::AtomicBool::new(false),
+            device_loss: Mutex::new(None),
         }
     }
 }
@@ -215,6 +218,12 @@ impl MockDevice {
 
     pub(crate) fn fail_next_ray_query(&self) {
         self.log.fail_ray_query.store(true, Ordering::Release);
+    }
+
+    pub(crate) fn lose(&self, loss: molgfx_gpu::DeviceLoss) {
+        if let Ok(mut recorded) = self.log.device_loss.lock() {
+            *recorded = Some(loss);
+        }
     }
 
     pub(crate) fn complete_submissions(&self) {

@@ -236,6 +236,12 @@ pub trait Device: Sized + 'static {
     /// The opened device's capability report.
     fn capabilities(&self) -> &Capabilities;
 
+    /// The recorded cause once the backend has reported the device lost, and
+    /// `None` while it is healthy or when the backend cannot tell.
+    fn device_loss(&self) -> Option<crate::DeviceLoss> {
+        None
+    }
+
     /// Reports asynchronous backend failures observed since the last check.
     ///
     /// # Errors

@@ -5,6 +5,8 @@ pub use molgfx_render::{
     MeasuredOutput, PassTiming, PassTimingCoverage, QualityTier, SurfaceLimit,
 };
 
+mod device_loss;
+pub use device_loss::DeviceLossReport;
 mod engine_config;
 #[cfg(feature = "host")]
 mod host;

@@ -61,10 +61,10 @@ pub use render::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming,
     MeasuredOutput, PassTiming, PassTimingCoverage, QualityTier, SurfaceLimit,
 };
+pub use render::{DeviceLossReport, PointCloud, Renderer};
 #[cfg(not(target_arch = "wasm32"))]
 pub use render::{HdrImage, Image, StereoImages, StereoLayout};
 pub use render::{PickKind, PickResult};
-pub use render::{PointCloud, Renderer};
 
 /// Host interop: render into textures owned by an embedding application.
 ///

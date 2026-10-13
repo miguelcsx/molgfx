@@ -191,6 +191,10 @@ mod putty_tests;
 mod async_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "device_loss_tests.rs"]
+mod device_loss_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "picking_tests.rs"]
 mod picking_tests;
 

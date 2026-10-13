@@ -31,6 +31,15 @@ impl<D: Device> Engine<D> {
         self.device.capabilities()
     }
 
+    /// The recorded cause once the device has been lost, `None` while healthy.
+    ///
+    /// A lost engine cannot draw again. Open a new one and render the same
+    /// scene: every GPU resource is rebuilt from it on the first frame.
+    #[must_use]
+    pub fn device_loss(&self) -> Option<molgfx_gpu::DeviceLoss> {
+        self.device.device_loss()
+    }
+
     /// Changes rendering strategy without rebuilding the scene or device.
     pub fn set_render_mode(&mut self, mode: RenderMode) {
         if self.mode != mode {
