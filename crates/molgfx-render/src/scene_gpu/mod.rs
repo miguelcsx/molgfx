@@ -7,6 +7,7 @@ mod bead_recipes;
 pub(crate) mod brick_atlas;
 mod buffers;
 pub(crate) mod color_uniforms;
+mod cull_scratch;
 pub(crate) mod detail;
 mod dispatch;
 mod draw_family;

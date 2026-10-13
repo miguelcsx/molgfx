@@ -161,9 +161,13 @@ impl<D: Device> GpuScene<D> {
         derived_cache: &mut crate::DerivedCache,
         derived_frame: u64,
     ) {
-        let live: Vec<_> = self.slots.iter().filter_map(GpuSlot::surface_key).collect();
+        let mut live = std::mem::take(&mut self.cull_view.scratch.surface_keys);
+        live.clear();
+        live.extend(self.slots.iter().filter_map(GpuSlot::surface_key));
         self.surface_fields.retain(&live);
-        let Some(first) = live.first().copied() else {
+        let first = live.first().copied();
+        self.cull_view.scratch.surface_keys = live;
+        let Some(first) = first else {
             return;
         };
         let _ = derived_cache.retain(

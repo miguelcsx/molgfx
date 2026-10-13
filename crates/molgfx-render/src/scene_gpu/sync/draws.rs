@@ -315,19 +315,25 @@ impl<D: Device> GpuScene<D> {
         let tile_groups =
             super::super::dispatch::workgroups_2d(u64::from(self.cull_tile_count).div_ceil(64));
         let fast_tile_lod = self.cull_tile_count < 262_143;
-        let mut seen: Vec<(super::super::VisibilityKey, u64)> = Vec::new();
+        // A poisoned lock only means an earlier frame panicked mid-mark; the
+        // marks are rebuilt below, so the guard is still sound to use. The
+        // guard lives as long as the iterator, so two of them must not be
+        // alive at once.
+        let mut scratch = match self.cull_view.scratch.cull.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        scratch.mark(
+            self.slots
+                .iter()
+                .map(|slot| slot.cull(tile_groups, fast_tile_lod).and_then(|d| d.key)),
+        );
         self.slots
             .iter()
-            .filter_map(move |slot| slot.cull(tile_groups, fast_tile_lod))
-            .filter(move |dispatch| match dispatch.key {
-                Some(key) => {
-                    if seen.contains(&key) {
-                        return false;
-                    }
-                    seen.push(key);
-                    true
-                }
-                None => true,
+            .enumerate()
+            .filter_map(move |(index, slot)| {
+                slot.cull(tile_groups, fast_tile_lod)
+                    .filter(|_| scratch.owns(index))
             })
     }
 
@@ -339,13 +345,16 @@ impl<D: Device> GpuScene<D> {
     ) {
         // The debt lives on the shared field, so a field four surfaces agree
         // on is generated once, by whichever surface reaches it first.
-        let keys: Vec<_> = self.slots.iter().filter_map(GpuSlot::surface_key).collect();
-        for key in keys {
+        let mut keys = std::mem::take(&mut self.cull_view.scratch.surface_keys);
+        keys.clear();
+        keys.extend(self.slots.iter().filter_map(GpuSlot::surface_key));
+        for key in keys.iter().copied() {
             let Some(field) = self.surface_fields.get_mut(key) else {
                 continue;
             };
             crate::scene_gpu::surface_slot::record_generation(encoder, pass, components, field);
         }
+        self.cull_view.scratch.surface_keys = keys;
     }
 
     pub(crate) fn record_particle_motion(

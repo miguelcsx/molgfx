@@ -91,6 +91,8 @@ pub(crate) struct CullViewState {
     reuse: std::sync::atomic::AtomicBool,
     /// The realtime frame being prepared kept its camera and scene.
     staged: std::sync::atomic::AtomicBool,
+    /// Scratch the record passes retain between frames.
+    scratch: super::cull_scratch::DrawScratch,
 }
 
 /// The presentation clock the paged visual programs last read.
