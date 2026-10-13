@@ -25,9 +25,9 @@ fn primitive_albedo(
     );
     var secondary = false;
     if mode < 1.5 {
-        secondary = local.y > local.x;
+        secondary = local.x + local.y < 0.0;
     } else if mode < 2.5 {
-        secondary = local.y > 0.0;
+        secondary = local.y < 0.0;
     } else {
         secondary = local.x < 0.0;
     }

@@ -172,3 +172,17 @@ fn divided_symbols_carry_their_secondary_colour_into_the_primitives() {
         assert_eq!(symbol.secondary, set.secondary[index]);
     }
 }
+
+#[test]
+fn iduronic_acid_colours_the_opposite_diamond_half_to_glucuronic_acid() {
+    let structure = rings(&["GCU", "IDR", "BDP"]);
+    let set = SnfgSymbolSet::build(&structure, &AtomSelection::All).expect("build");
+    assert_eq!(set.len(), 3);
+    let up = |index: usize| set.orientations[index] * Vec3::Y;
+    assert!(up(0).dot(up(2)) > 0.99, "glucuronic acids share a pose");
+    assert!(up(0).dot(up(1)) < -0.99, "iduronic acid is turned half way");
+    assert!(
+        (set.orientations[1] * Vec3::Z).dot(set.orientations[0] * Vec3::Z) > 0.99,
+        "the half turn keeps the ring normal"
+    );
+}

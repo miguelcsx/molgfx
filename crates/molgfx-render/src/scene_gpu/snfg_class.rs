@@ -44,9 +44,12 @@ const SPLIT_VERTICAL: f32 = 3.0;
 
 /// The secondary colour and split mode of a symbol, `[r, g, b, mode]`.
 ///
-/// SNFG crosses a hexosamine square along its diagonal, divides a uronic
-/// acid diamond along its horizontal axis and an N-acetyl deoxyhexosamine
-/// triangle along its vertical axis; any other shape stays one colour.
+/// In the symbol frame (y toward the anomeric carbon) SNFG colours the upper
+/// right half of a hexosamine square, divided along the diagonal from its
+/// upper left to its lower right corner; the upper half of a uronic acid
+/// diamond; and the right half of an N-acetyl deoxyhexosamine triangle. The
+/// secondary colour fills the opposite half. Any other shape stays one
+/// colour.
 pub(crate) fn secondary_split(shape: CarbohydrateShape, secondary: Option<Rgba8>) -> [f32; 4] {
     let mode = match shape {
         CarbohydrateShape::Cube => SPLIT_DIAGONAL,

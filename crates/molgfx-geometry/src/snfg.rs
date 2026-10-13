@@ -15,7 +15,10 @@
 //! for acidic sugars, triangles for deoxyhexoses and stars for pentoses.
 //! Crossed and divided symbols (hexosamines, uronic acids, N-acetyl
 //! deoxyhexosamines) carry their secondary colour to the shader, which fills
-//! one half of the glyph with it.
+//! one half of the glyph with it: the upper right half of a hexosamine square,
+//! the upper half of a uronic acid diamond (the lower half for iduronic and
+//! altruronic acid) and the right half of a divided triangle, where up is the
+//! direction toward the anomeric carbon.
 
 use crate::PackingError;
 use molframe::chemistry::SnfgShape;
@@ -90,6 +93,15 @@ fn pose(normal: [f32; 3], anomeric: Option<[f32; 3]>) -> Option<Quat> {
     quat.is_finite().then_some(quat)
 }
 
+/// Whether the standard colours the lower half of a divided diamond.
+///
+/// SNFG colours the upper half of a uronic acid diamond, except for the two
+/// C5 epimers iduronic and altruronic acid, which colour the lower half. The
+/// diamond is point symmetric, so a half turn about the normal draws it.
+fn colours_lower_half(abbreviation: &str) -> bool {
+    matches!(abbreviation, "IdoA" | "AltA")
+}
+
 /// Glyph, primary colour (0xRRGGBB) and community abbreviation of a CCD
 /// component, or `None` when it is not a curated monosaccharide.
 #[must_use]
@@ -162,6 +174,11 @@ impl SnfgSymbolSet {
             };
             let Some(orientation) = pose(geometry.normal, geometry.anomeric_direction) else {
                 continue;
+            };
+            let orientation = if colours_lower_half(sugar.symbol.abbreviation) {
+                orientation * Quat::from_rotation_z(std::f32::consts::PI)
+            } else {
+                orientation
             };
             let center = Vec3::from(geometry.center);
             if !center.is_finite() {
