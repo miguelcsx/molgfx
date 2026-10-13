@@ -108,7 +108,10 @@ impl ColorValue {
                 carbon_only: false,
             });
         }
-        let word = word.strip_prefix("metric:").unwrap_or(word);
+        let word = match word.strip_prefix("metric:") {
+            Some(bare) => bare,
+            None => word,
+        };
         if let Some(metric) = AtomMetric::from_name(word).or_else(|| metric_alias(word)) {
             return Some(Self::Metric {
                 metric,

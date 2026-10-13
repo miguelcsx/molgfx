@@ -150,7 +150,10 @@ pub fn nearest_keywords(word: &str) -> Vec<&'static str> {
         .map(|(alias, _)| *alias)
         .filter(|alias| !alias.is_empty());
     for near in suggest_many(word, canonical.chain(aliases), 6) {
-        let canonical = canonical_keyword(near).unwrap_or(near);
+        let canonical = match canonical_keyword(near) {
+            Some(canonical) => canonical,
+            None => near,
+        };
         if !found.contains(&canonical) {
             found.push(canonical);
         }

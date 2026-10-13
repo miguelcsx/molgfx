@@ -165,6 +165,10 @@ forms! {
     Glycan = "glycan" via glycan {
         width: Positive => "ribbon width in ångström",
     }
+    /// One SNFG symbol per monosaccharide.
+    Snfg = "snfg" via snfg {
+        scale: Positive => "symbol size scale; one is the standard SNFG size",
+    }
     /// One sphere per residue.
     Beads = "beads" via beads {
         radius: Positive => "enclosing-sphere scale",
