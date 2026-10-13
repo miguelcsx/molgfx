@@ -7,6 +7,12 @@ that first.
 
 ## Unreleased
 
+- Surface the real MolFrame error when a structure's BCIF encoding fails:
+  `Scene(structure)` and `Scene.add_structure` raise the matching
+  `molframe.errors` exception with its `code` and message instead of a
+  generic `ValueError` or a silently missing structure. A structure from a
+  MolFrame that predates the failure channel raises a generic
+  `MolframeValueError`.
 - Correct Trace segments, nucleotide phosphate guides, Dotted surface samples,
   residue Beads, Lines endpoint picking, Licorice scaling and Gaussian widths.
 - Orient Cartoon ribbons from peptide planes; render distinct base-ring polygons

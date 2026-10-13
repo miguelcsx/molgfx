@@ -7,7 +7,7 @@ use molgfx::source::{
 use numpy::PyReadonlyArray1;
 use pyo3::exceptions::{PyAttributeError, PyValueError};
 use pyo3::prelude::*;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub(super) struct NativeProvider {
@@ -20,9 +20,10 @@ pub(super) struct NativeProvider {
     /// molecule, so the producer must digest the same structure the consumer
     /// builds. The capsule deliberately carries no Rust values across the
     /// extension boundary, so the only view both sides share is the payload
-    /// itself; decoding it here — once, lazily — is what keeps the published
-    /// descriptor verifiable by its own consumer.
-    decoded: Arc<OnceLock<Option<Structure>>>,
+    /// itself; decoding it here — once, at import — is what keeps the published
+    /// descriptor verifiable by its own consumer. An encoding or decoding
+    /// failure is raised by the import with its real cause, never hidden.
+    decoded: Arc<Structure>,
 }
 
 impl NativeProvider {
@@ -85,17 +86,36 @@ impl NativeProvider {
             secondary_structure: secondary_structure.into(),
         };
         let identity = topology_identity(&topology);
+        let decoded = decode_payload(&source)?;
         Ok(Self {
             source,
             topology,
             identity,
-            decoded: Arc::new(OnceLock::new()),
+            decoded: Arc::new(decoded),
         })
     }
 
     pub(super) fn browser_bytes(&self) -> PyResult<Vec<u8>> {
         self.source.encode_bcif()
     }
+}
+
+/// Encodes the producer's payload and decodes it back to the structure both
+/// sides digest.
+///
+/// # Errors
+///
+/// Raises the producer's own exception, with its `MolFrame` code and message,
+/// when the payload cannot be encoded, and a value error when the bytes the
+/// producer wrote are not a structure.
+fn decode_payload(source: &molframe_py::NativeStructureSource) -> PyResult<Structure> {
+    payload_structure(&source.encode_bcif()?)
+}
+
+fn payload_structure(bytes: &[u8]) -> PyResult<Structure> {
+    molgfx::source::structure_from_payload(bytes, "structure.bcif").ok_or_else(|| {
+        PyValueError::new_err("the MolFrame BCIF payload is not a readable structure")
+    })
 }
 
 fn decode_bond_order(code: u8, aromatic: bool) -> molgfx::molframe::BondOrder {
@@ -172,17 +192,11 @@ impl MolecularProvider for NativeProvider {
     ///
     /// The capsule carries no Rust values across the extension boundary, so the
     /// consumer re-parses the transferred bytes while the producer cannot see
-    /// its own structure directly. Decoding the payload here — once, lazily —
+    /// its own structure directly. Decoding the payload at import
     /// gives both sides the same molecule to digest, which is what makes the
     /// published content identity verifiable by its own consumer.
     fn molframe(&self) -> Option<&Structure> {
-        self.decoded
-            .get_or_init(|| {
-                self.browser_bytes().ok().and_then(|bytes| {
-                    molgfx::source::structure_from_payload(&bytes, "structure.bcif")
-                })
-            })
-            .as_ref()
+        Some(&self.decoded)
     }
 }
 
