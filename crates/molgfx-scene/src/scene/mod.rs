@@ -64,6 +64,8 @@ mod ensemble_tests;
 mod items;
 #[cfg(test)]
 mod molecular_surface_tests;
+#[cfg(test)]
+mod representation_edit_tests;
 mod restyle;
 #[cfg(test)]
 mod restyle_tests;

@@ -1,6 +1,6 @@
 //! The two ways a patch is prepared: re-resolve, or apply in place.
 
-use super::{LocalPatchPlan, PatchInputs, routing};
+use super::{LocalPatchPlan, PatchInputs, RepresentationEdit, routing};
 use crate::error::Error;
 use crate::scene::Resolution;
 use crate::scene::apply::candidate_spec;
@@ -12,6 +12,8 @@ pub(crate) enum PatchPlan {
         spec: Box<SceneSpec>,
         resolution: Box<Resolution>,
     },
+    /// Only the named representations are lowered and installed in place.
+    Representations(Box<RepresentationEdit>),
     Local(Box<LocalPatchPlan>),
 }
 
@@ -23,6 +25,9 @@ impl PatchPlan {
                 .iter()
                 .any(|operation| routing::edits_snfg(inputs.spec, operation))
         {
+            if let Some(edit) = RepresentationEdit::prepare(inputs, patch)? {
+                return Ok(Self::Representations(Box::new(edit)));
+            }
             let candidate = candidate_spec(inputs.spec, patch)?;
             // A structural patch in this planner only ever adds, removes or
             // replaces representations and overlay items; the molecules are

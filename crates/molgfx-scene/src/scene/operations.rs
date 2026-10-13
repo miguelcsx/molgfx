@@ -4,7 +4,7 @@ use super::Scene;
 use crate::ScenePatch;
 use crate::SceneTransaction;
 use crate::error::{Error, PatchError};
-use crate::patch::plan::{CommitTarget, PatchInputs, PatchPlan};
+use crate::patch::plan::{CommitTarget, EditTarget, PatchInputs, PatchPlan};
 use crate::scene::runtime::{canonical_selection_count, next_representation_id};
 
 impl Scene {
@@ -73,6 +73,17 @@ impl Scene {
                 // structure assets, so the next structural patch can reuse
                 // them instead of re-materialising every atom table.
                 self.install_resolution(resolution);
+                self.next_representation = next_representation;
+            }
+            PatchPlan::Representations(edit) => {
+                let next_representation = next_representation_id(edit.spec())?;
+                edit.commit(EditTarget {
+                    spec: &mut self.spec,
+                    scene: &mut self.resolved,
+                    handles: &mut self.representations,
+                    selections: &mut self.selections,
+                    visuals: &mut self.visuals,
+                })?;
                 self.next_representation = next_representation;
             }
             PatchPlan::Local(plan) => {

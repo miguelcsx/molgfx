@@ -23,9 +23,11 @@ mod inputs;
 mod local_plan;
 mod overlay_domains;
 mod patch_plan;
+mod representation_edit;
 
 use change::{Change, assign};
 pub(crate) use inputs::PatchInputs;
 pub(crate) use local_plan::LocalPatchPlan;
 use overlay_domains::OverlayDomains;
 pub(crate) use patch_plan::PatchPlan;
+pub(crate) use representation_edit::{EditTarget, RepresentationEdit};
