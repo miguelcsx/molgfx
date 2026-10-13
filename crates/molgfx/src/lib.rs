@@ -100,10 +100,11 @@ pub mod rep {
         CartoonStyle, Dots, DynamicBonds, GapStyle, Glycan, Licorice, Lines, MolecularSurface,
         NewRibbons, NucleicAcid, PaperChain, PointRepresentation, Polyhedra, Putty, QuickSurf,
         RepresentationApplicability, RepresentationRequirement, RepresentationReview, Ribbons,
-        Solvent, Spacefill, Surface, SurfaceKind, SurfaceStyle, Trace, Tube, backbone,
+        Snfg, Solvent, Spacefill, Surface, SurfaceKind, SurfaceStyle, Trace, Tube, backbone,
         ball_and_stick, base_pairs, bases, beads, bonds, cartoon, dots, dynamic_bonds, glycan,
         licorice, lines, msms, new_cartoon, new_ribbons, nucleic_acid, paper_chain, points,
-        polyhedra, putty, quick_surf, ribbons, solvent, spacefill, surf, surface, trace, tube,
+        polyhedra, putty, quick_surf, ribbons, snfg, solvent, spacefill, surf, surface, trace,
+        tube,
     };
 }
 
