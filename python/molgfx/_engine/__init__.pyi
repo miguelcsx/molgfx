@@ -1587,6 +1587,7 @@ __all__ = [
     "MolgfxError",
     "OrbitController",
     "PickResult",
+    "Playback",
     "PocketStyle",
     "PointCloud",
     "RenderProfile",

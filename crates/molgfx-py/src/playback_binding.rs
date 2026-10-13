@@ -178,6 +178,7 @@ fn attach_trajectory(
 
 pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     let playback = PyModule::new(module.py(), "playback")?;
+    module.add_class::<PyPlayback>()?;
     playback.add_class::<PyPlayback>()?;
     playback.add_function(wrap_pyfunction!(attach, &playback)?)?;
     playback.add_function(wrap_pyfunction!(attach_trajectory, &playback)?)?;
