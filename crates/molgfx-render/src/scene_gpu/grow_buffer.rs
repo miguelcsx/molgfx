@@ -131,7 +131,11 @@ impl<D: Device> GrowBuffer<D> {
 /// A power of two wastes up to half of a large table, which is resident device
 /// memory; an eighth of an octave wastes at most an eighth and still lets a
 /// table that grows steadily reuse its allocation for many appends.
-fn grow_capacity(needed: u64, limit: u64, label: &'static str) -> Result<u64, RenderError> {
+pub(super) fn grow_capacity(
+    needed: u64,
+    limit: u64,
+    label: &'static str,
+) -> Result<u64, RenderError> {
     if needed > limit || limit == 0 {
         return Err(molgfx_gpu::GpuError::LimitExceeded {
             resource: label,

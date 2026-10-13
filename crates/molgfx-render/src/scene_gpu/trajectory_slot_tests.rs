@@ -92,3 +92,15 @@ fn reactivating_a_resident_pair_starts_without_motion_from_the_old_activation() 
         bytemuck::pod_read_unaligned::<TrajectoryUniforms>(payloads.last().expect("uniform write"));
     assert_eq!(uniforms.previous_alpha.to_bits(), 1.0_f32.to_bits());
 }
+
+#[test]
+fn trajectory_capacity_stays_within_an_eighth_and_under_the_device_limit() {
+    use super::trajectory_capacity;
+    let limit = 128 << 20;
+    let needed = 100_000_000;
+    let capacity = trajectory_capacity(needed, limit).expect("fits");
+    assert!(capacity >= needed && capacity - needed <= needed / 8);
+    let exact = trajectory_capacity(limit - 12, limit).expect("fits");
+    assert!(exact <= limit, "never rounds past the limit");
+    assert!(trajectory_capacity(limit + 1, limit).is_err());
+}

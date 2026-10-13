@@ -1,6 +1,7 @@
 //! Persistent two-frame coordinate storage for one placed structure.
 
 use super::buffers::buffer_entry;
+use super::grow_buffer::grow_capacity;
 use crate::error::RenderError;
 use molgfx_core::TrajectorySegment;
 use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, ComputePassEncoder, Device, Queue};
@@ -18,6 +19,14 @@ struct TrajectoryUniforms {
 pub(super) struct TrajectorySync {
     pub(super) changed: bool,
     pub(super) coordinate_binding_changed: bool,
+}
+
+/// Four equal buffers are held per trajectory, so the rounding waste is paid
+/// four times: grow by an eighth of an octave and never past the device limit
+/// rather than to the next power of two, which doubles a 10M-atom frame and
+/// can exceed the limit for a frame that fits.
+fn trajectory_capacity(byte_len: u64, limit: u64) -> Result<u64, RenderError> {
+    grow_capacity(byte_len, limit, "trajectory frame")
 }
 
 #[derive(Debug)]
@@ -150,7 +159,8 @@ impl<D: Device> GpuTrajectory<D> {
     fn ensure_buffers(&mut self, device: &D, byte_len: u64) -> Result<bool, RenderError> {
         let mut output_reallocated = false;
         if self.start.is_none() || byte_len > self.capacity {
-            let capacity = byte_len.next_power_of_two().max(256);
+            let capacity =
+                trajectory_capacity(byte_len, device.capabilities().max_storage_buffer_bytes)?;
             let input = |label| BufferDesc {
                 label,
                 size: capacity,
