@@ -43,6 +43,25 @@ impl Scene {
     /// Returns [`CoreError::InvalidSelection`] for malformed syntax, unknown
     /// keywords or invalid spatial distances.
     pub fn select_str(&mut self, source: &str) -> Result<SelectionHandle, CoreError> {
+        let (scoped, fingerprint) = self.evaluate_str(source)?;
+        Ok(self.add_scoped_selection_with_fingerprint(scoped, Some(fingerprint)))
+    }
+
+    /// Evaluates the string front-end without storing a selection.
+    ///
+    /// The rows are returned per structure, ordered by handle. Nothing is
+    /// registered in the scene, so there is no handle to release: use this
+    /// for a query whose rows are consumed once, such as an interaction
+    /// channel, and [`Scene::select_str`] only for one a representation draws.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::InvalidSelection`] for malformed syntax, unknown
+    /// keywords or invalid spatial distances.
+    pub fn evaluate_str(
+        &self,
+        source: &str,
+    ) -> Result<(Vec<(StructureHandle, AtomSelection)>, u64), CoreError> {
         let query = molframe::Query::compile(source).map_err(|_| CoreError::InvalidSelection {
             reason: "MolFrame query evaluation failed",
         })?;
@@ -51,7 +70,7 @@ impl Scene {
         for (raw, placed) in self.structures.iter() {
             scoped.push((StructureHandle(raw), placed.source.select_compiled(&query)?));
         }
-        Ok(self.add_scoped_selection_with_fingerprint(scoped, Some(fingerprint)))
+        Ok((scoped, fingerprint))
     }
 }
 

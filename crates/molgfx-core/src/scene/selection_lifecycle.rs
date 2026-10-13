@@ -30,6 +30,12 @@ impl Scene {
         ))
     }
 
+    /// Number of stored selections, for lifetime accounting.
+    #[must_use]
+    pub fn selection_count(&self) -> usize {
+        self.selections.len()
+    }
+
     /// Releases a selection that no representation targets.
     ///
     /// Runtime is linear in the number of representations, which are checked

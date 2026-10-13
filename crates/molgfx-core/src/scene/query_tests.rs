@@ -209,3 +209,28 @@ fn helix_and_exact_state_queries_preserve_the_full_secondary_alphabet() {
         }
     }
 }
+
+#[test]
+fn a_transient_string_evaluation_matches_a_stored_one_and_stores_nothing() {
+    let mut scene = scene();
+    let before = scene.selection_count();
+    let Ok((rows, fingerprint)) = scene.evaluate_str("protein or ligand") else {
+        panic!("transient query evaluates")
+    };
+    assert_eq!(scene.selection_count(), before);
+    let Ok(handle) = scene.select_str("protein or ligand") else {
+        panic!("stored query evaluates")
+    };
+    assert_eq!(scene.selection_count(), before + 1);
+    assert_eq!(scene.selection_fingerprint(handle), Some(fingerprint));
+    for (structure, transient) in &rows {
+        let Some(stored) = scene.selection_for(handle, *structure) else {
+            panic!("stored rows exist")
+        };
+        let count = scene.structure(*structure).map_or(0, |p| p.atoms.len());
+        let (mut a, mut b) = (Vec::new(), Vec::new());
+        transient.for_each(count, |row| a.push(row));
+        stored.for_each(count, |row| b.push(row));
+        assert_eq!(a, b);
+    }
+}
