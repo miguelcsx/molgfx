@@ -1,5 +1,7 @@
 //! Typed failures for bounded paged picking.
 
+use super::picking::ResidentPage;
+use crate::{ChunkSpan, LocalRow};
 use thiserror::Error;
 
 /// Typed failures from the bounded picking resolver.
@@ -19,7 +21,9 @@ pub enum PickingError {
     #[error("every pick readback is already in flight")]
     InFlightExhausted,
     /// Every slot belongs to the current resident working set.
-    #[error("picking resolver working set is full (raise EngineConfig::picking_page_capacity or reduce resident chunks)")]
+    #[error(
+        "picking resolver working set is full (raise EngineConfig::picking_page_capacity or reduce resident chunks)"
+    )]
     WorkingSetFull,
     /// The scene needs more resident pick pages than the engine can ever hold.
     #[error(
@@ -65,4 +69,28 @@ pub enum PickingError {
     /// A slot cannot be reused without wrapping its generation.
     #[error("resident picking page generation is exhausted")]
     GenerationExhausted,
+}
+
+/// Rejects a local row that lies past the end of its page.
+pub(super) fn validate_local(
+    page: ResidentPage,
+    row: LocalRow,
+    span: ChunkSpan,
+) -> Result<(), PickingError> {
+    if row.get() >= span.row_count() {
+        return Err(local_error(page, row, span));
+    }
+    Ok(())
+}
+
+pub(super) fn local_error(page: ResidentPage, row: LocalRow, span: ChunkSpan) -> PickingError {
+    PickingError::LocalRowOutsidePage {
+        page: page.get(),
+        row: row.get(),
+        row_count: span.row_count(),
+    }
+}
+
+pub(super) fn page_error(page: ResidentPage) -> PickingError {
+    PickingError::PageOutOfRange { page: page.get() }
 }

@@ -69,11 +69,18 @@ impl ScaleController {
             return 1.0;
         }
         let wanted = (budget / cost).sqrt();
-        STEPS
-            .iter()
-            .copied()
-            .find(|s| *s <= wanted)
-            .unwrap_or(STEPS[STEPS.len() - 1])
+        match STEPS.iter().copied().find(|s| *s <= wanted) {
+            Some(step) => step,
+            None => STEPS[STEPS.len() - 1],
+        }
+    }
+
+    /// The display budget when one was set, otherwise `fallback`.
+    fn budget_or(&self, fallback: f32) -> f32 {
+        let Some(budget) = self.budget_ms else {
+            return fallback;
+        };
+        budget
     }
 
     /// Whether the GPU has fallen so far behind while turning that the resolution
@@ -99,7 +106,8 @@ impl ScaleController {
         let Some(cost) = self.cost_ms else {
             return false;
         };
-        let ratio = cost / self.budget_ms.unwrap_or(HEAVY_FLOOR_MS).max(HEAVY_FLOOR_MS);
+        let budget = self.budget_or(HEAVY_FLOOR_MS);
+        let ratio = cost / budget.max(HEAVY_FLOOR_MS);
         if ratio > 3.0 {
             !zoom_only || moving_ms >= GESTURE_MS
         } else if ratio > 1.5 {
@@ -115,9 +123,10 @@ impl ScaleController {
     /// frame that cheap is not worth simplifying).
     #[must_use]
     pub fn wants_crowd_aside(&self, moving_ms: u32) -> bool {
-        let (Some(cost), budget) = (self.cost_ms, self.budget_ms.unwrap_or(16.7)) else {
+        let Some(cost) = self.cost_ms else {
             return false;
         };
+        let budget = self.budget_or(16.7);
         moving_ms >= GESTURE_MS && cost > budget.max(8.0)
     }
 

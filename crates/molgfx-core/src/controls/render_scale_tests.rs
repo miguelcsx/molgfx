@@ -1,12 +1,20 @@
 use super::ScaleController;
 
+/// Scale steps are discrete constants, so any drift beyond rounding is a bug.
+fn assert_scale(actual: f32, expected: f32, context: &str) {
+    assert!(
+        (actual - expected).abs() <= f32::EPSILON,
+        "scale {actual} should be {expected}: {context}"
+    );
+}
+
 #[test]
 fn a_gpu_that_keeps_up_never_loses_resolution() {
     let mut c = ScaleController::new();
     for _ in 0..1000 {
         c.observe(false);
     }
-    assert_eq!(c.scale(), 1.0);
+    assert_scale(c.scale(), 1.0, "");
 }
 
 #[test]
@@ -15,11 +23,11 @@ fn repeated_skips_step_the_scale_down_one_notch_at_a_time() {
     for _ in 0..3 {
         c.observe(true);
     }
-    assert_eq!(c.scale(), 0.75);
+    assert_scale(c.scale(), 0.75, "");
     for _ in 0..3 {
         c.observe(true);
     }
-    assert_eq!(c.scale(), 0.5);
+    assert_scale(c.scale(), 0.5, "");
 }
 
 #[test]
@@ -28,7 +36,7 @@ fn an_occasional_skip_does_not_lower_quality() {
     for i in 0..200 {
         c.observe(i % 10 == 0);
     }
-    assert_eq!(c.scale(), 1.0);
+    assert_scale(c.scale(), 1.0, "");
 }
 
 #[test]
@@ -37,7 +45,7 @@ fn the_scale_never_goes_below_the_floor() {
     for _ in 0..1000 {
         c.observe(true);
     }
-    assert_eq!(c.scale(), 0.35);
+    assert_scale(c.scale(), 0.35, "");
 }
 
 #[test]
@@ -46,15 +54,15 @@ fn a_long_clean_run_earns_the_resolution_back() {
     for _ in 0..6 {
         c.observe(true);
     }
-    assert_eq!(c.scale(), 0.5);
+    assert_scale(c.scale(), 0.5, "");
     for _ in 0..40 {
         c.observe(false);
     }
-    assert_eq!(c.scale(), 0.75);
+    assert_scale(c.scale(), 0.75, "");
     for _ in 0..40 {
         c.observe(false);
     }
-    assert_eq!(c.scale(), 1.0);
+    assert_scale(c.scale(), 1.0, "");
 }
 
 #[test]
@@ -64,11 +72,11 @@ fn full_quality_can_be_locked() {
         c.observe(true);
     }
     c.lock_full(true);
-    assert_eq!(c.scale(), 1.0);
+    assert_scale(c.scale(), 1.0, "");
     for _ in 0..100 {
         c.observe(true);
     }
-    assert_eq!(c.scale(), 1.0);
+    assert_scale(c.scale(), 1.0, "");
 }
 
 #[test]
@@ -76,9 +84,9 @@ fn a_frame_that_fits_the_budget_stays_at_full_resolution() {
     let mut c = ScaleController::new();
     c.set_budget(Some(8.0));
     c.set_cost(Some(7.5));
-    assert_eq!(c.scale(), 1.0);
+    assert_scale(c.scale(), 1.0, "");
     c.set_cost(None);
-    assert_eq!(c.scale(), 1.0, "unknown cost means full resolution");
+    assert_scale(c.scale(), 1.0, "unknown cost means full resolution");
 }
 
 #[test]
@@ -86,11 +94,11 @@ fn a_frame_over_budget_is_drawn_smaller_in_proportion_to_the_overrun() {
     let mut c = ScaleController::new();
     c.set_budget(Some(8.0));
     c.set_cost(Some(12.0)); // 1.5x: wanted scale 0.82, the next step down is 0.75
-    assert_eq!(c.scale(), 0.75);
+    assert_scale(c.scale(), 0.75, "");
     c.set_cost(Some(24.0)); // 3x: wanted 0.58 -> 0.5
-    assert_eq!(c.scale(), 0.5);
+    assert_scale(c.scale(), 0.5, "");
     c.set_cost(Some(200.0)); // far over: the floor
-    assert_eq!(c.scale(), 0.35);
+    assert_scale(c.scale(), 0.35, "");
 }
 
 #[test]
@@ -101,14 +109,14 @@ fn the_plan_and_the_skips_both_apply_and_the_cheaper_wins() {
     for _ in 0..3 {
         c.observe(true);
     }
-    assert_eq!(c.scale(), 0.75, "skips said 0.75 as well");
+    assert_scale(c.scale(), 0.75, "skips said 0.75 as well");
     for _ in 0..3 {
         c.observe(true);
     }
-    assert_eq!(
+    assert_scale(
         c.scale(),
         0.5,
-        "the GPU is still behind: lower than planned"
+        "the GPU is still behind: lower than planned",
     );
 }
 
@@ -118,7 +126,7 @@ fn a_pinned_scale_ignores_the_plan() {
     c.set_budget(Some(8.0));
     c.set_cost(Some(100.0));
     c.pin(Some(0.9));
-    assert_eq!(c.scale(), 0.9);
+    assert_scale(c.scale(), 0.9, "");
 }
 
 #[test]
@@ -126,7 +134,7 @@ fn nonsense_costs_and_budgets_are_ignored() {
     let mut c = ScaleController::new();
     c.set_budget(Some(f32::NAN));
     c.set_cost(Some(-3.0));
-    assert_eq!(c.scale(), 1.0);
+    assert_scale(c.scale(), 1.0, "");
 }
 
 #[test]
@@ -134,15 +142,15 @@ fn the_plan_is_ignored_while_the_measured_picture_is_not_the_one_drawn() {
     let mut c = ScaleController::new();
     c.set_budget(Some(8.0));
     c.set_cost(Some(200.0));
-    assert_eq!(c.scale(), 0.35);
+    assert_scale(c.scale(), 0.35, "");
     c.set_plan_off(true);
-    assert_eq!(
+    assert_scale(
         c.scale(),
         1.0,
-        "its surfaces are set aside: it is cheaper than measured"
+        "its surfaces are set aside: it is cheaper than measured",
     );
     c.set_plan_off(false);
-    assert_eq!(c.scale(), 0.35);
+    assert_scale(c.scale(), 0.35, "");
 }
 
 #[test]

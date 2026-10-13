@@ -160,7 +160,7 @@ const ELEMENT_COLORS: [(u8, u8, u8); 110] = [
 /// Van der Waals radius in Ångström for an atomic number.
 ///
 /// An element the table stops before, or one with no agreed radius, reads as
-/// [`DEFAULT_RADIUS`] rather than as a zero-radius point.
+/// `DEFAULT_RADIUS` rather than as a zero-radius point.
 #[must_use]
 pub fn vdw_radius(atomic_number: u8) -> f32 {
     match VDW_RADII.get(usize::from(atomic_number)) {

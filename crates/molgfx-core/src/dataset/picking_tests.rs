@@ -276,11 +276,15 @@ fn growing_the_table_keeps_pages_and_stale_tickets_distinct() {
     let token = resolver
         .token(ticket, LocalRow::new(1))
         .unwrap_or_else(|error| panic!("{error}"));
-    assert!(resolver
-        .resolve(PickReadback::new(token, ticket.generation()))
-        .is_ok());
+    assert!(
+        resolver
+            .resolve(PickReadback::new(token, ticket.generation()))
+            .is_ok()
+    );
 
-    resolver.release(ticket).unwrap_or_else(|error| panic!("{error}"));
+    resolver
+        .release(ticket)
+        .unwrap_or_else(|error| panic!("{error}"));
     let reused = request_ready(&mut resolver, first);
     assert_eq!(reused.page(), ticket.page());
     assert_ne!(reused.generation(), ticket.generation());

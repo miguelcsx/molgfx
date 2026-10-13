@@ -1,5 +1,6 @@
 //! Fixed-capacity translation from compact GPU picks to global dataset rows.
 
+use super::picking_error::{local_error, page_error, validate_local};
 use crate::{ChunkId, ChunkSpan, DatasetId, EntityKind, LocalRow, LogicalRow, PickingError};
 
 /// Global, collision-free provenance of one picked entity.
@@ -349,7 +350,9 @@ impl PagedPickResolver {
         slot.generation = PickGeneration(generation);
         slot.state = PageState::Pending(descriptor);
         self.first_vacant = index + 1;
-        self.live.try_reserve(1).map_err(|_| PickingError::AllocationFailed)?;
+        self.live
+            .try_reserve(1)
+            .map_err(|_| PickingError::AllocationFailed)?;
         self.live.insert(namespace);
         Ok(PickPageTicket {
             page: ResidentPage(page),
@@ -479,25 +482,6 @@ impl PagedPickResolver {
         }
         Ok(slot)
     }
-}
-
-fn validate_local(page: ResidentPage, row: LocalRow, span: ChunkSpan) -> Result<(), PickingError> {
-    if row.get() >= span.row_count() {
-        return Err(local_error(page, row, span));
-    }
-    Ok(())
-}
-
-fn local_error(page: ResidentPage, row: LocalRow, span: ChunkSpan) -> PickingError {
-    PickingError::LocalRowOutsidePage {
-        page: page.get(),
-        row: row.get(),
-        row_count: span.row_count(),
-    }
-}
-
-fn page_error(page: ResidentPage) -> PickingError {
-    PickingError::PageOutOfRange { page: page.get() }
 }
 
 #[cfg(test)]

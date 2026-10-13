@@ -40,8 +40,8 @@ pub use payload_rows::{
     TrajectoryChunkPayload, TrajectoryFramesPayload,
 };
 pub use picking::{
-    GlobalPickIdentity, GpuPickToken, MAX_PICK_PAGES, PagedPickResolver, PickGeneration, PickPageDescriptor,
-    PickPageTicket, PickReadback, ResidentPage,
+    GlobalPickIdentity, GpuPickToken, MAX_PICK_PAGES, PagedPickResolver, PickGeneration,
+    PickPageDescriptor, PickPageTicket, PickReadback, ResidentPage,
 };
 pub use picking_error::PickingError;
 pub use provider_bridge::{ProviderBridgeError, ProviderDatasetBridge};
