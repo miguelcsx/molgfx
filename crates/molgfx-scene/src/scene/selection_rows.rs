@@ -9,15 +9,21 @@
 //! that triple is the key. An unchanged query over an unchanged molecule is
 //! evaluated once.
 //!
-//! The cache is bounded. It holds at most [`SelectionRows::CAPACITY`] entries
-//! and evicts the least recently used, deterministically. Lookups take a lock
-//! so that preparing a patch can stay a read-only operation on the scene.
+//! The cache is bounded by memory, not by entry count. Entries are charged
+//! their resident row bytes plus a fixed overhead, and the least recently used
+//! are evicted until the total fits [`SelectionRows::BUDGET`]. A scene with
+//! thousands of small selections therefore stays fully cached, where a count
+//! cap smaller than the working set would evict every entry just before its
+//! next use. Recency is an ordered index of use stamps beside a hash map, so a
+//! lookup, an insertion and an eviction are each O(log n), never a scan.
+//! Lookups take a lock so that preparing a patch can stay a read-only
+//! operation on the scene.
 
 use crate::error::Error;
 use crate::id::StructureId;
 use crate::selection::Selection;
 use molgfx_core::{AtomSelection, MolecularSource};
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
 
 /// Identity of one evaluation: source identity, coordinate revision and query
@@ -25,16 +31,87 @@ use std::sync::{Arc, Mutex};
 /// source shares the evaluation instead of repeating it.
 type RowKey = (u64, u64, u64);
 
-/// Remembered rows for recently evaluated queries.
+/// Bytes charged to every entry on top of its rows: map slot, order slot and
+/// the shared pointer.
+const ENTRY_OVERHEAD: usize = 96;
+
+#[derive(Debug)]
+struct Entry {
+    rows: Arc<AtomSelection>,
+    stamp: u64,
+    cost: usize,
+}
+
 #[derive(Debug, Default)]
+struct Store {
+    entries: HashMap<RowKey, Entry>,
+    /// Use stamp to key; the first element is the least recently used.
+    order: BTreeMap<u64, RowKey>,
+    clock: u64,
+    bytes: usize,
+}
+
+impl Store {
+    fn touch(&mut self, key: RowKey) -> Option<Arc<AtomSelection>> {
+        let entry = self.entries.get_mut(&key)?;
+        let _ = self.order.remove(&entry.stamp);
+        self.clock += 1;
+        entry.stamp = self.clock;
+        let _ = self.order.insert(self.clock, key);
+        Some(Arc::clone(&entry.rows))
+    }
+
+    fn insert(&mut self, key: RowKey, rows: Arc<AtomSelection>, budget: usize) {
+        let cost = rows.resident_bytes() + ENTRY_OVERHEAD;
+        if cost > budget || self.entries.contains_key(&key) {
+            return;
+        }
+        while self.bytes + cost > budget {
+            let Some((_, oldest)) = self.order.pop_first() else {
+                break;
+            };
+            if let Some(evicted) = self.entries.remove(&oldest) {
+                self.bytes -= evicted.cost;
+            }
+        }
+        self.clock += 1;
+        let _ = self.order.insert(self.clock, key);
+        let _ = self.entries.insert(
+            key,
+            Entry {
+                rows,
+                stamp: self.clock,
+                cost,
+            },
+        );
+        self.bytes += cost;
+    }
+}
+
+/// Remembered rows for recently evaluated queries.
+#[derive(Debug)]
 pub(crate) struct SelectionRows {
-    /// Most recently used last.
-    entries: Mutex<VecDeque<(RowKey, Arc<AtomSelection>)>>,
+    store: Mutex<Store>,
+    budget: usize,
+}
+
+impl Default for SelectionRows {
+    fn default() -> Self {
+        Self::with_budget(Self::BUDGET)
+    }
 }
 
 impl SelectionRows {
-    /// Distinct evaluations remembered at once.
-    pub(crate) const CAPACITY: usize = 256;
+    /// Resident bytes of remembered rows allowed at once.
+    pub(crate) const BUDGET: usize = 64 * 1024 * 1024;
+
+    /// A cache that keeps at most `budget` bytes.
+    pub(crate) fn with_budget(budget: usize) -> Self {
+        Self {
+            store: Mutex::new(Store::default()),
+            budget,
+        }
+    }
 
     /// The rows `selection` selects in `source`, and the query's fingerprint.
     ///
@@ -50,21 +127,15 @@ impl SelectionRows {
         let query = selection.compiled()?;
         let fingerprint = query.fingerprint().get();
         let key = (source.identity(), source.coordinate_revision(), fingerprint);
-        if let Ok(mut entries) = self.entries.lock()
-            && let Some(index) = entries.iter().position(|(known, _)| *known == key)
-            && let Some(entry) = entries.remove(index)
+        if let Ok(mut store) = self.store.lock()
+            && let Some(rows) = store.touch(key)
         {
-            let rows = Arc::clone(&entry.1);
-            entries.push_back(entry);
             return Ok((rows, fingerprint));
         }
         let rows = Arc::new(source.select_compiled(&query)?);
         // A poisoned lock only loses reuse; the evaluated rows are still right.
-        if let Ok(mut entries) = self.entries.lock() {
-            if entries.len() >= Self::CAPACITY {
-                let _ = entries.pop_front();
-            }
-            entries.push_back((key, Arc::clone(&rows)));
+        if let Ok(mut store) = self.store.lock() {
+            store.insert(key, Arc::clone(&rows), self.budget);
         }
         Ok((rows, fingerprint))
     }
@@ -72,16 +143,36 @@ impl SelectionRows {
     /// Forgets every evaluation over the source `identity`, for a molecule no
     /// structure of the scene is bound to any more.
     pub(crate) fn forget(&self, identity: u64) {
-        if let Ok(mut entries) = self.entries.lock() {
-            entries.retain(|(key, _)| key.0 != identity);
+        if let Ok(mut store) = self.store.lock() {
+            let doomed: Vec<RowKey> = store
+                .entries
+                .keys()
+                .filter(|key| key.0 == identity)
+                .copied()
+                .collect();
+            for key in doomed {
+                if let Some(entry) = store.entries.remove(&key) {
+                    let _ = store.order.remove(&entry.stamp);
+                    store.bytes -= entry.cost;
+                }
+            }
+        }
+    }
+
+    /// Bytes currently charged.
+    #[cfg(test)]
+    pub(crate) fn bytes(&self) -> usize {
+        match self.store.lock() {
+            Ok(store) => store.bytes,
+            Err(_) => 0,
         }
     }
 
     /// Number of remembered evaluations.
     #[cfg(test)]
     pub(crate) fn len(&self) -> usize {
-        match self.entries.lock() {
-            Ok(entries) => entries.len(),
+        match self.store.lock() {
+            Ok(store) => store.entries.len(),
             Err(_) => 0,
         }
     }

@@ -71,5 +71,56 @@ fn channel_edit_scaling(criterion: &mut Criterion) {
     group.finish();
 }
 
-criterion::criterion_group!(interaction, hover_scaling, channel_edit_scaling);
+/// Representation counts for the structural-patch groups.
+const REPRESENTATIONS: [usize; 4] = [64, 256, 1_024, 4_096];
+
+/// A scene with `count` cartoons, each over its own residue, added in one patch.
+fn crowded_scene(count: usize) -> molgfx::Scene {
+    let structure = synthetic::structure(count + 16);
+    let mut scene = match molgfx::Scene::from_structure(&structure) {
+        Ok(scene) => scene,
+        Err(error) => panic!("synthetic scene must resolve: {error}"),
+    };
+    let staged = scene.transaction(|transaction| {
+        for residue in 1..=count {
+            let _ = transaction.add(molgfx::rep::cartoon(format!("resid {residue}").as_str()))?;
+        }
+        Ok(())
+    });
+    if let Err(error) = staged {
+        panic!("crowded scene must stage: {error}")
+    }
+    scene
+}
+
+/// Adding then removing one representation among many distinct selections.
+///
+/// Each edit is a structural patch. A patch that re-resolves every
+/// representation grows with the count; one that touches only the changed
+/// representation stays flat, and so does the selection cache beyond its
+/// former 256-entry bound.
+fn structural_patch_scaling(criterion: &mut Criterion) {
+    let mut group = criterion.benchmark_group("patch/add_remove_representation");
+    for count in REPRESENTATIONS {
+        let mut scene = crowded_scene(count);
+        group.throughput(Throughput::Elements(count as u64));
+        let _ = group.bench_function(BenchmarkId::from_parameter(count), |bencher| {
+            bencher.iter(|| {
+                let added = scene.add(molgfx::rep::cartoon("resid 5"));
+                if let Ok(id) = added {
+                    let removed = scene.transaction(|transaction| transaction.remove(id));
+                    black_box(removed.is_ok());
+                }
+            });
+        });
+    }
+    group.finish();
+}
+
+criterion::criterion_group!(
+    interaction,
+    hover_scaling,
+    channel_edit_scaling,
+    structural_patch_scaling
+);
 criterion::criterion_main!(interaction);
