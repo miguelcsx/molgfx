@@ -85,8 +85,8 @@ pub use representation::{
 pub use scene::{
     AtomCorrespondence, DifferenceScene, DifferenceStyle, DifferenceView, InstanceFramePair,
     InteractionState, PlaybackMode, PointFramePair, RepresentationInput, RowDomain, RowEntityRef,
-    Scene, SourceNamespace, SourceRows, TemplatePartPick, TimeWarp, Timeline, TrajectoryBranch,
-    TrajectoryStateGraph,
+    Scene, SourceNamespace, SourceRows, TemplatePartPick, TimeWarp, Timeline, TrackReading,
+    TrajectoryBranch, TrajectoryStateGraph,
 };
 pub use selection::{
     AtomSelection, ClipCap, ClipPlane, ClipSet, EntitySelection, EntitySelectionRows,

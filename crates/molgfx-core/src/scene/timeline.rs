@@ -1,120 +1,29 @@
 //! Allocation-free synchronization of caller-decoded temporal streams.
 //!
-//! The timeline maps one global clock onto independently scaled local clocks.
-//! It retains only the active two rows of a scalar stream and delegates decoded
-//! coordinate residency to each structure's two-frame trajectory segment. A
-//! tick costs `O(tracks + temporal property atoms)` and allocates nothing after
-//! track setup.
+//! The timeline maps one playback clock onto independently scaled physical
+//! clocks. Each track's [`TimeWarp`] converts playback seconds into its own
+//! interval, so a femtosecond vibration and a millisecond domain motion can
+//! run side by side. The timeline retains only the active two rows of a scalar
+//! stream and delegates decoded coordinate residency to each structure's
+//! two-frame trajectory segment. A tick costs `O(tracks + temporal property
+//! atoms)` and allocates nothing after track setup.
 
 use super::presentation::validate_presentation_time;
 use crate::handle::SlotMap;
+use crate::time::narrow_to_f32;
 use crate::{
-    AtomPropertyHandle, AttributeHandle, AttributeValues, CoreError, InstanceBatchHandle,
+    AtomPropertyHandle, AttributeHandle, CoreError, InstanceBatchHandle, PlaybackTime,
     PointBatchHandle, Scene, StructureHandle, TimelineTrackHandle,
 };
 use std::sync::Arc;
 
-#[cfg(test)]
-#[path = "timeline_tests.rs"]
-mod tests;
+mod generic_tracks;
+mod morph;
+mod readout;
+mod time_warp;
 
-/// How a local clock behaves after reaching its declared interval boundary.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub enum PlaybackMode {
-    /// Hold the first or last sample outside the interval.
-    #[default]
-    Clamp,
-    /// Wrap from the end back to the beginning.
-    Loop,
-    /// Alternate forward and backward traversal without a discontinuity.
-    PingPong,
-}
-
-/// Constant-rate mapping from the shared clock to one local interval.
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub struct TimeWarp {
-    global_origin: f64,
-    local_origin: f64,
-    rate: f64,
-    range: [f64; 2],
-    playback: PlaybackMode,
-}
-
-impl TimeWarp {
-    /// Builds a finite affine clock mapping with an increasing local interval.
-    ///
-    /// A rate of zero freezes the track. Negative rates play it backwards.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::InvalidTimeline`] for non-finite parameters, an
-    /// empty interval or a local origin outside that interval.
-    pub fn new(
-        global_origin: f64,
-        local_origin: f64,
-        rate: f64,
-        range: [f64; 2],
-        playback: PlaybackMode,
-    ) -> Result<Self, CoreError> {
-        if !global_origin.is_finite()
-            || !local_origin.is_finite()
-            || !rate.is_finite()
-            || !range.into_iter().all(f64::is_finite)
-            || range[0] >= range[1]
-            || !(range[0]..=range[1]).contains(&local_origin)
-        {
-            return Err(invalid(
-                "time warp values must be finite over an increasing interval",
-            ));
-        }
-        Ok(Self {
-            global_origin,
-            local_origin,
-            rate,
-            range,
-            playback,
-        })
-    }
-
-    /// Maps one finite global timestamp to local time in constant time.
-    #[must_use]
-    pub fn sample(self, global_seconds: f64) -> Option<f64> {
-        if !global_seconds.is_finite() {
-            return None;
-        }
-        let raw = self.local_origin + (global_seconds - self.global_origin) * self.rate;
-        if !raw.is_finite() {
-            return None;
-        }
-        let [start, end] = self.range;
-        let duration = end - start;
-        Some(match self.playback {
-            PlaybackMode::Clamp => raw.clamp(start, end),
-            PlaybackMode::Loop => start + (raw - start).rem_euclid(duration),
-            PlaybackMode::PingPong => {
-                let phase = (raw - start).rem_euclid(duration * 2.0);
-                if phase <= duration {
-                    start + phase
-                } else {
-                    end - (phase - duration)
-                }
-            }
-        })
-    }
-
-    /// Normalized local phase after applying the playback boundary policy.
-    #[must_use]
-    pub fn phase(self, global_seconds: f64) -> Option<f32> {
-        let sample = self.sample(global_seconds)?;
-        num_traits::cast((sample - self.range[0]) / (self.range[1] - self.range[0]))
-    }
-
-    /// Closed local interval addressed by this mapping.
-    #[must_use]
-    pub const fn range(self) -> [f64; 2] {
-        self.range
-    }
-}
+pub use readout::TrackReading;
+pub use time_warp::{PlaybackMode, TimeWarp};
 
 #[derive(Clone, Debug)]
 enum TimelineTrack {
@@ -147,6 +56,17 @@ enum TimelineTrack {
 }
 
 impl TimelineTrack {
+    const fn warp(&self) -> TimeWarp {
+        match self {
+            Self::Trajectory { warp, .. }
+            | Self::BondTopology { warp, .. }
+            | Self::AtomProperty { warp, .. }
+            | Self::Instances { warp, .. }
+            | Self::Points { warp, .. }
+            | Self::Attribute { warp, .. } => *warp,
+        }
+    }
+
     fn targets_trajectory(&self, candidate: StructureHandle) -> bool {
         matches!(self, Self::Trajectory { structure, .. } if *structure == candidate)
     }
@@ -172,7 +92,7 @@ impl TimelineTrack {
     }
 }
 
-/// Independent temporal tracks driven by one caller-owned timestamp.
+/// Independent temporal tracks driven by one caller-owned playback clock.
 #[derive(Clone, Debug, Default)]
 pub struct Timeline {
     tracks: SlotMap<TimelineTrack>,
@@ -317,32 +237,43 @@ impl Timeline {
         ))
     }
 
-    /// Applies one global time atomically after validating every target.
+    /// Applies one playback time atomically after validating every target.
     ///
     /// No scene state changes if any track is stale or cannot sample the given
-    /// timestamp. Setup has already reserved temporal property memory, so a
-    /// successful tick performs no heap allocation.
+    /// time. Each track maps the playback time into its own physical interval in
+    /// `f64`; only the blend fractions handed to the GPU or the CPU blends are
+    /// narrowed to `f32`. Setup has already reserved temporal property memory,
+    /// so a successful tick performs no heap allocation.
     ///
     /// # Errors
     ///
     /// Returns a typed error without changing the scene when time is invalid,
     /// a target is stale or an active resident interval no longer matches.
-    pub fn apply(&mut self, scene: &mut Scene, global_seconds: f64) -> Result<(), CoreError> {
-        if !global_seconds.is_finite() {
+    pub fn apply(
+        &mut self,
+        scene: &mut Scene,
+        playback: impl Into<PlaybackTime>,
+    ) -> Result<(), CoreError> {
+        let playback_seconds = playback.into().seconds();
+        if !playback_seconds.is_finite() {
             return Err(invalid("global timeline time must be finite"));
         }
-        let presentation_time = validate_presentation_time(global_seconds)?;
+        let presentation_time = validate_presentation_time(playback_seconds)?;
         for (_, track) in self.tracks.iter() {
-            validate_track(scene, track, global_seconds)?;
+            validate_track(scene, track, playback_seconds)?;
         }
         for (_, track) in self.tracks.iter() {
             match track {
                 TimelineTrack::Trajectory { structure, warp } => {
-                    let local = trajectory_sample(*warp, global_seconds)?;
+                    let local = physical_sample(*warp, playback_seconds)?;
                     scene.set_trajectory_time(*structure, local)?;
+                    let clock = warp
+                        .track_clock(playback_seconds)
+                        .ok_or_else(|| invalid("timeline sample overflowed"))?;
+                    scene.set_structure_track_clock(*structure, clock)?;
                 }
                 TimelineTrack::BondTopology { structure, warp } => {
-                    let local = trajectory_sample(*warp, global_seconds)?;
+                    let local = physical_sample(*warp, playback_seconds)?;
                     scene.set_bond_topology_time(*structure, local)?;
                 }
                 TimelineTrack::AtomProperty {
@@ -351,38 +282,30 @@ impl Timeline {
                     end,
                     warp,
                 } => {
-                    let alpha = warp
-                        .phase(global_seconds)
-                        .ok_or_else(|| invalid("timeline sample overflowed"))?;
+                    let alpha = blend_fraction(*warp, playback_seconds)?;
                     scene.interpolate_atom_property(*property, start, end, alpha)?;
                 }
                 TimelineTrack::Instances { batch, warp } => {
-                    let alpha = warp
-                        .phase(global_seconds)
-                        .ok_or_else(|| invalid("timeline sample overflowed"))?;
+                    let alpha = blend_fraction(*warp, playback_seconds)?;
                     scene.sample_instance_frames(*batch, alpha)?;
                 }
                 TimelineTrack::Points { batch, warp } => {
-                    let alpha = warp
-                        .phase(global_seconds)
-                        .ok_or_else(|| invalid("timeline sample overflowed"))?;
+                    let alpha = blend_fraction(*warp, playback_seconds)?;
                     scene.sample_point_frames(*batch, alpha)?;
                 }
                 TimelineTrack::Attribute { attribute, warp } => {
-                    let alpha = warp
-                        .phase(global_seconds)
-                        .ok_or_else(|| invalid("timeline sample overflowed"))?;
+                    let alpha = blend_fraction(*warp, playback_seconds)?;
                     scene.sample_attribute_frames(*attribute, alpha)?;
                 }
             }
         }
         scene.apply_presentation_time(presentation_time);
-        self.time_seconds = global_seconds;
+        self.time_seconds = playback_seconds;
         self.revision = self.revision.wrapping_add(1);
         Ok(())
     }
 
-    /// Most recently applied global timestamp.
+    /// Most recently applied playback time, in seconds.
     #[must_use]
     pub const fn time_seconds(&self) -> f64 {
         self.time_seconds
@@ -407,10 +330,10 @@ impl Timeline {
     }
 }
 
-fn validate_track(scene: &Scene, track: &TimelineTrack, global: f64) -> Result<(), CoreError> {
+fn validate_track(scene: &Scene, track: &TimelineTrack, playback: f64) -> Result<(), CoreError> {
     match track {
         TimelineTrack::Trajectory { structure, warp } => {
-            let sample = trajectory_sample(*warp, global)?;
+            let sample = physical_sample(*warp, playback)?;
             let placed = scene.structure(*structure).ok_or(CoreError::StaleHandle)?;
             let segment = placed
                 .trajectory()
@@ -420,7 +343,7 @@ fn validate_track(scene: &Scene, track: &TimelineTrack, global: f64) -> Result<(
             }
         }
         TimelineTrack::BondTopology { structure, warp } => {
-            let sample = trajectory_sample(*warp, global)?;
+            let sample = physical_sample(*warp, playback)?;
             let placed = scene.structure(*structure).ok_or(CoreError::StaleHandle)?;
             let segment = placed
                 .bond_topology()
@@ -443,39 +366,41 @@ fn validate_track(scene: &Scene, track: &TimelineTrack, global: f64) -> Result<(
             if value.values().len() != start.len() || start.len() != end.len() {
                 return Err(invalid("temporal property topology changed"));
             }
-            warp.phase(global)
-                .ok_or_else(|| invalid("timeline sample overflowed"))?;
+            blend_fraction(*warp, playback)?;
         }
         TimelineTrack::Instances { batch, warp } => {
             scene
                 .instance_frames(*batch)
                 .ok_or(CoreError::StaleHandle)?;
-            warp.phase(global)
-                .ok_or_else(|| invalid("timeline sample overflowed"))?;
+            blend_fraction(*warp, playback)?;
         }
         TimelineTrack::Points { batch, warp } => {
             scene.point_frames(*batch).ok_or(CoreError::StaleHandle)?;
-            warp.phase(global)
-                .ok_or_else(|| invalid("timeline sample overflowed"))?;
+            blend_fraction(*warp, playback)?;
         }
         TimelineTrack::Attribute { attribute, warp } => {
             scene
                 .attribute_frames(*attribute)
                 .ok_or(CoreError::StaleHandle)?;
-            warp.phase(global)
-                .ok_or_else(|| invalid("timeline sample overflowed"))?;
+            blend_fraction(*warp, playback)?;
         }
     }
     Ok(())
 }
 
-fn trajectory_sample(warp: TimeWarp, global: f64) -> Result<f64, CoreError> {
-    warp.sample(global)
+/// The track's physical time in seconds, kept in `f64` for resident-interval checks.
+fn physical_sample(warp: TimeWarp, playback: f64) -> Result<f64, CoreError> {
+    warp.sample(playback)
+        .ok_or_else(|| invalid("timeline sample overflowed"))
+}
+
+/// The track's normalized phase, narrowed to the `f32` a CPU or GPU blend consumes.
+fn blend_fraction(warp: TimeWarp, playback: f64) -> Result<f32, CoreError> {
+    warp.phase(playback)
+        .and_then(narrow_to_f32)
         .ok_or_else(|| invalid("timeline sample overflowed"))
 }
 
 const fn invalid(reason: &'static str) -> CoreError {
     CoreError::InvalidTimeline { reason }
 }
-
-include!("timeline_generic_tracks.rs");

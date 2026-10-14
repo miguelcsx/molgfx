@@ -35,6 +35,7 @@ pub struct PlacedStructure {
     bond_topology_revision: u64,
     bond_topology_pair_revision: u64,
     bond_break_length: f32,
+    track_clock: crate::TrackClock,
 }
 
 impl PlacedStructure {
@@ -69,6 +70,7 @@ impl PlacedStructure {
             bond_topology_revision: 0,
             bond_topology_pair_revision: 0,
             bond_break_length: 0.0,
+            track_clock: crate::TrackClock::default(),
         }
     }
 
@@ -82,6 +84,20 @@ impl PlacedStructure {
     #[must_use]
     pub fn dataset_id(&self) -> DatasetId {
         self.asset.dataset_id()
+    }
+
+    /// Where this structure's timeline track stands, for visual programs.
+    #[must_use]
+    pub const fn track_clock(&self) -> crate::TrackClock {
+        self.track_clock
+    }
+
+    /// Stores the track clock, returning whether it changed.
+    pub(crate) fn set_track_clock(&mut self, clock: crate::TrackClock) -> bool {
+        let changed = self.track_clock.phase.to_bits() != clock.phase.to_bits()
+            || self.track_clock.display_time.to_bits() != clock.display_time.to_bits();
+        self.track_clock = clock;
+        changed
     }
 
     /// Maximum drawn length, in model units, before a bond is hidden as broken.

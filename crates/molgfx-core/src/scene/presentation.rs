@@ -34,6 +34,22 @@ impl Scene {
         self.presentation_revision
     }
 
+    /// Records where a timeline track stands for the structure it drives.
+    ///
+    /// The presentation revision moves only when the value changes, so a
+    /// repeated tick leaves cached visual uniforms alone.
+    pub(crate) fn set_structure_track_clock(
+        &mut self,
+        handle: crate::StructureHandle,
+        clock: crate::TrackClock,
+    ) -> Result<(), CoreError> {
+        let placed = self.structure_mut(handle).ok_or(CoreError::StaleHandle)?;
+        if placed.set_track_clock(clock) {
+            self.presentation_revision = self.presentation_revision.wrapping_add(1);
+        }
+        Ok(())
+    }
+
     pub(crate) fn apply_presentation_time(&mut self, seconds: f32) {
         if self.presentation_time_seconds.to_bits() == seconds.to_bits() {
             return;

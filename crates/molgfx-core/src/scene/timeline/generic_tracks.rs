@@ -1,3 +1,9 @@
+use super::{TimeWarp, Timeline, TimelineTrack, invalid};
+use crate::{
+    AttributeHandle, AttributeValues, CoreError, InstanceBatchHandle, Scene, TimelineTrackHandle,
+};
+use std::sync::Arc;
+
 impl Timeline {
     /// Binds two source-aligned point frames for GPU interpolation.
     ///

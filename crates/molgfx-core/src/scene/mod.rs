@@ -56,5 +56,5 @@ pub(crate) use state::{
     BoundOccupancy, StoredAtomProperty, StoredAttribute, StoredRepresentation, StoredSegmentation,
     StoredVolume, TemporalAttribute, TemporalInstances, TemporalPoints,
 };
-pub use timeline::{PlaybackMode, TimeWarp, Timeline};
+pub use timeline::{PlaybackMode, TimeWarp, Timeline, TrackReading};
 mod branch_graph;
