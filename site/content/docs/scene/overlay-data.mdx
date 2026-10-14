@@ -59,11 +59,11 @@ positions = [
 subject = molgfx.Scene(molframe.read("two-atoms.pdb"))
 subject.add(molgfx.rep.spacefill(target="all"))
 subject.set_camera(subject.frame("all"))
-play = molgfx.playback.attach(subject, positions, times=[0.0, 1.0, 2.0])
+play = molgfx.playback.attach(subject, positions, times=[0.0, 1.0, 2.0], unit=molgfx.time.TimeUnit.SECOND)
 images = play.render(molgfx.Renderer(), times=[0.0, 0.5, 1.0, 1.5, 2.0], size=(320, 240))
 ```
 
-`positions` is `(frames, atoms, 3)` in the structure's atom order; for a molframe trajectory use `molgfx.playback.attach_trajectory(scene, trajectory)`. `play.seek(t)` moves the scene to time `t` (clamped to the first and last frame). `Renderer.render_sequence` renders the scene's *current* state repeatedly and never advances time, so it returns identical frames for a trajectory; use `play.render` or call `seek` between renders.
+`positions` is `(frames, atoms, 3)` in the structure's atom order and `unit` is the `molgfx.time.TimeUnit` of `times`; for a molframe trajectory use `molgfx.playback.attach_trajectory(scene, trajectory)`, which reads its picosecond times and refuses a frame whose time is NaN or infinite. `molgfx.Timeline(scene)` then drives resident pairs on one playback clock: `fit_track` plays a physical interval across a number of playback seconds, `dilate_track` plays it at a fixed physical time per second, `apply(seconds)` moves every track and `readings()` returns each track's `(value, unit)`, such as `(12.4, TimeUnit.NANOSECOND)`. `play.seek(t)` moves the scene to time `t` (clamped to the first and last frame). `Renderer.render_sequence` renders the scene's *current* state repeatedly and never advances time, so it returns identical frames for a trajectory; use `play.render` or call `seek` between renders.
 
 Frames reach the scene as `(atoms, 3)` arrays: a float32 NumPy array is copied once with no per-atom Python work (float64 is narrowed the same way). The pair's frame handles are cached, so a `seek` inside one segment converts nothing, and a `seek` to the time already shown does nothing.
 
