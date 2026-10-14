@@ -6,13 +6,13 @@ use crate::id::{
     AnnotationId, AppearanceRuleId, EllipsoidId, InteractionId, MeasurementId, PlaneId,
     RepresentationId, StructureId, TrajectoryId, VolumeId,
 };
-use crate::interop::SceneSnapshot;
 use crate::overlay::{
     AnnotationSpec, AssemblySpec, EllipsoidSpec, FitResult, InteractionSpec, MeasurementSpec,
     PlaneSpec, TrajectorySpec, ValidationFinding, VolumeSpec,
 };
 use crate::representation::Selection;
 use crate::representation::form::RepresentationSpec;
+use crate::snapshot::SceneSnapshot;
 use crate::spec::{InteractionChannel, StructureSource};
 use crate::{ParameterValue, VisualStyle};
 use serde::{Deserialize, Serialize};

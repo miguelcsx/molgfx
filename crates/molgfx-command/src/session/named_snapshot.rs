@@ -2,7 +2,7 @@
 use super::{LayerSpec, RuleSpec, SessionSpec};
 use crate::ir::Look;
 use crate::{Name, QueryText};
-use molgfx_scene::{AppearanceRuleId, StructureId, interop::SceneSnapshot};
+use molgfx_scene::{AppearanceRuleId, StructureId, snapshot::SceneSnapshot};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

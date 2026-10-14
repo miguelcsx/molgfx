@@ -15,7 +15,7 @@ impl Session {
     /// Borrows named captures, including previous definitions reachable through history.
     pub fn retained_snapshots(
         &self,
-    ) -> impl Iterator<Item = &molgfx_scene::interop::SceneSnapshot> {
+    ) -> impl Iterator<Item = &molgfx_scene::snapshot::SceneSnapshot> {
         self.state
             .spec
             .snapshots

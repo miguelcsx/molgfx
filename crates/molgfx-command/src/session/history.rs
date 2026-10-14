@@ -74,7 +74,7 @@ impl History {
             .flat_map(|entry| entry.forward.iter().chain(&entry.inverse))
     }
 
-    pub(crate) fn snapshots(&self) -> impl Iterator<Item = &molgfx_scene::interop::SceneSnapshot> {
+    pub(crate) fn snapshots(&self) -> impl Iterator<Item = &molgfx_scene::snapshot::SceneSnapshot> {
         self.done.iter().chain(&self.undone).flat_map(|entry| {
             entry
                 .before

@@ -1,15 +1,17 @@
 //! `MolViewSpec` v1 adapter around the stable [`crate::SceneSpec`] contract.
+//!
+//! The one place that names the `MolViewSpec` standard. It reads and writes the
+//! compatible subset and reports everything else as a [`Diagnostic`], so a node
+//! the standard adds later is a diagnostic, not a failure, and nothing else in the
+//! engine depends on this module.
 
 #[cfg(test)]
 mod tests;
 
 mod import;
-mod runtime_archive;
 mod schema;
 #[cfg(test)]
 mod schema_tests;
-mod snapshot;
-pub use runtime_archive::{RuntimeCapture, SceneArchive};
 
 mod codec;
 mod diagnostic;
@@ -22,4 +24,3 @@ pub use codec::{from_mvsx, to_mvsx};
 pub use diagnostic::Diagnostic;
 pub use document::{MvsDocument, MvsImport, MvsNode};
 use export::export_document;
-pub use snapshot::SceneSnapshot;

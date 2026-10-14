@@ -26,7 +26,7 @@ pub mod timeline {
 pub mod color;
 mod error;
 mod id;
-pub mod interop;
+pub mod mvs;
 pub mod overlay;
 mod patch;
 pub mod preset;
@@ -36,6 +36,7 @@ mod render;
 mod representation;
 mod scene;
 mod selection;
+pub mod snapshot;
 pub mod source;
 mod spec;
 pub mod streaming;
@@ -50,12 +51,12 @@ pub use id::{
     AnnotationId, AppearanceRuleId, EllipsoidId, InteractionId, MeasurementId, PlaneId,
     RepresentationId, SegmentationId, StructureId, TrajectoryId, VolumeId,
 };
-pub use interop::{Diagnostic, MvsDocument, MvsImport, from_mvsj, to_mvsj};
-#[cfg(feature = "mvsx")]
-pub use interop::{from_mvsx, to_mvsx};
 pub use molgfx_core::SegmentationPresentation;
 #[cfg(not(target_arch = "wasm32"))]
 pub use molgfx_wgpu::{AdapterReport, SystemInfo, system_info};
+pub use mvs::{Diagnostic, MvsDocument, MvsImport, from_mvsj, to_mvsj};
+#[cfg(feature = "mvsx")]
+pub use mvs::{from_mvsx, to_mvsx};
 pub use overlay::{
     Anchor, AnnotationSpec, AssemblySpec, DataSource, EllipsoidSpec, FieldLines, FitResult,
     HydrogenBondBinding, HydrogenBondGeometry, HydrogenBonds, InteractionKind, InteractionSpec,

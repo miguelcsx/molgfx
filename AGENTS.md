@@ -86,7 +86,7 @@ something inward is a missing curated namespace, not a reason to add a
 dependency.
 
 `molgfx-scene` is organized one directory per domain concept — `scene/`, `patch/`,
-`visual/`, `spec/`, `representation/`, `overlay/`, `render/`, `interop/` — with
+`visual/`, `spec/`, `representation/`, `overlay/`, `render/`, `mvs/`, `snapshot/` — with
 tests beside the code they cover. Do not add a flat module at its root, and do
 not use `#[path]` or `include!` to keep one module's text in several files: a
 file that has outgrown the cap has outgrown its responsibility, so split the

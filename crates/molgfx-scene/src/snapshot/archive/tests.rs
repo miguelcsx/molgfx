@@ -408,7 +408,7 @@ fn oriented_candidates_reopen_sharing_playback_frames_and_keep_original_atom_add
 #[test]
 fn named_captures_retain_removed_scientific_assets_without_repeating_meshes_or_frame_columns() {
     let (mut scene, surface) = moving_surface();
-    let snapshot = crate::interop::SceneSnapshot::capture(scene.spec());
+    let snapshot = crate::snapshot::SceneSnapshot::capture(scene.spec());
     scene
         .apply(&crate::ScenePatch {
             base_revision: scene.revision(),

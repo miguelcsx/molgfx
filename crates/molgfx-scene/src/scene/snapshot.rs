@@ -1,7 +1,7 @@
 //! Snapshot restoration prepares a complete resolution before changing live state.
 
 use super::{Scene, with_derived_bindings};
-use crate::interop::SceneSnapshot;
+use crate::snapshot::SceneSnapshot;
 use crate::{Error, PatchOperation, ScalarPropertyBinding, ScenePatch, SceneSpec, StructureId};
 use std::collections::BTreeMap;
 

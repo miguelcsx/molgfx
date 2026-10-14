@@ -1,6 +1,6 @@
 use super::Scene;
 use super::tests::structure;
-use crate::interop::SceneSnapshot;
+use crate::snapshot::SceneSnapshot;
 use crate::{
     Error, PatchOperation, PlaneId, PlaneSpec, ScenePatch, SceneSpec, StructureId, rep, sel,
 };

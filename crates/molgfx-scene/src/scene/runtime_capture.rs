@@ -4,7 +4,7 @@ impl Scene {
     /// Captures immutable scientific owners and authored metadata for an off-thread archive.
     /// Runtime capture costs O(descriptors), independent of atom and vertex counts.
     #[must_use]
-    pub fn capture_runtime(&self) -> crate::interop::RuntimeCapture {
+    pub fn capture_runtime(&self) -> crate::snapshot::RuntimeCapture {
         let mut capture = self.capture_runtime_spec(&self.spec);
         capture.bindings.playback = self.playback_bindings().collect();
         capture
@@ -15,8 +15,8 @@ impl Scene {
     #[must_use]
     pub fn capture_runtime_with_snapshots<'a>(
         &self,
-        snapshots: impl IntoIterator<Item = &'a crate::interop::SceneSnapshot>,
-    ) -> crate::interop::RuntimeCapture {
+        snapshots: impl IntoIterator<Item = &'a crate::snapshot::SceneSnapshot>,
+    ) -> crate::snapshot::RuntimeCapture {
         let mut capture = self.capture_runtime();
         capture.retained = snapshots
             .into_iter()
@@ -25,8 +25,8 @@ impl Scene {
         capture
     }
 
-    pub(crate) fn capture_runtime_spec(&self, spec: &SceneSpec) -> crate::interop::RuntimeCapture {
-        crate::interop::RuntimeCapture {
+    pub(crate) fn capture_runtime_spec(&self, spec: &SceneSpec) -> crate::snapshot::RuntimeCapture {
+        crate::snapshot::RuntimeCapture {
             scene: spec.clone(),
             properties: spec
                 .properties

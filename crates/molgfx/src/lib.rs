@@ -184,13 +184,17 @@ pub mod streaming {
     };
 }
 
-/// Portable scene interchange.
-pub mod interop {
-    pub use molgfx_scene::interop::{
-        Diagnostic, MvsDocument, MvsImport, RuntimeCapture, SceneArchive, from_mvsj, to_mvsj,
-    };
+/// `MolViewSpec` import and export: an adapter at the edge of the engine.
+pub mod mvs {
+    pub use molgfx_scene::mvs::{Diagnostic, MvsDocument, MvsImport, from_mvsj, to_mvsj};
     #[cfg(feature = "mvsx")]
-    pub use molgfx_scene::interop::{from_mvsx, to_mvsx};
+    pub use molgfx_scene::mvs::{from_mvsx, to_mvsx};
+}
+
+/// Scene capture and restoration: the portable snapshot and the runtime
+/// archive that carries its scientific assets.
+pub mod snapshot {
+    pub use molgfx_scene::snapshot::{RuntimeCapture, SceneArchive, SceneSnapshot};
 }
 
 /// The authoring command language: typed commands, their text form, and the

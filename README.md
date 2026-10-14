@@ -167,7 +167,7 @@ captures round-trip in `Session.to_json()` and `Session.from_json(scene, json)`.
 Restoration requires local bindings with matching content identities; missing or
 mismatched assets leave the live scene unchanged. Revisions advance on restore
 and undo rather than returning to the captured revision. Rust uses the canonical
-`interop::SceneSnapshot`, `Scene::snapshot`, `Scene::restore_snapshot` and
+`snapshot::SceneSnapshot`, `Scene::snapshot`, `Scene::restore_snapshot` and
 `PatchOperation::RestoreSnapshot`. Frame export remains `render_sequence` or
 `render_camera_path`; no retained movie request is an export implementation.
 

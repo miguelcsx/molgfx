@@ -32,7 +32,7 @@ pub(super) fn inverse_operations(operation: &PatchOperation, base: &SceneSpec) -
     };
     Ok(match operation {
         PatchOperation::RestoreSnapshot(_) => one(PatchOperation::RestoreSnapshot(Box::new(
-            crate::interop::SceneSnapshot::capture(base),
+            crate::snapshot::SceneSnapshot::capture(base),
         ))),
         PatchOperation::AddStructure { id, .. } => structure(*id, base)?,
         PatchOperation::SetFocus { .. } => one(PatchOperation::SetFocus {
