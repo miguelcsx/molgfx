@@ -2030,6 +2030,7 @@ dependencies = [
  "molframe-query",
  "molframe-spatial",
  "molframe-surface",
+ "molframe-traj",
  "molframe-xtal",
  "serde",
  "serde_json",
