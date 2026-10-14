@@ -354,7 +354,8 @@ fn sampled_provider_scene(
         },
         SurfaceCoordinateSample {
             end_positions: pose.end_positions().expect("end"),
-            weight: pose.interpolation().expect("weight"),
+            weight: molgfx_core::narrow_to_f32(pose.interpolation().expect("weight"))
+                .expect("weight is representable as f32"),
         },
         NativeSurfaceOptions::default(),
         context,

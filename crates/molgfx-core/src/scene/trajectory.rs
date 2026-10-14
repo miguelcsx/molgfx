@@ -43,11 +43,11 @@ impl Scene {
     pub fn set_trajectory_time(
         &mut self,
         handle: StructureHandle,
-        sample_seconds: f32,
+        sample: impl Into<crate::SimTime>,
     ) -> Result<(), CoreError> {
         self.structure_mut(handle)
             .ok_or(CoreError::StaleHandle)?
-            .set_trajectory_time(sample_seconds)
+            .set_trajectory_time(sample)
     }
 
     /// Emits per-atom displacement arrows ("porcupine plot") from the resident
@@ -98,7 +98,11 @@ impl Scene {
         })?;
         let start = segment.start().positions();
         let end = segment.end().positions();
-        let alpha = segment.interpolation();
+        let alpha = crate::time::narrow_to_f32(segment.interpolation()).ok_or(
+            CoreError::InvalidTrajectory {
+                reason: "trajectory interpolation must be representable as f32",
+            },
+        )?;
         let mut arrows = Vec::with_capacity(atoms.len());
         for &index in atoms {
             let i = index as usize;

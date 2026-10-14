@@ -104,7 +104,7 @@ fn trajectory(
         let time = f64::from(index) / steps * span;
         let interval = fallback(time.floor().to_usize(), 0).min(last - 1);
         let sample = time
-            .to_f32()
+            .to_f64()
             .ok_or_else(|| io::Error::other("trajectory time is not representable"))?;
         let stale = resident.as_ref().is_none_or(|(held, ..)| *held != interval);
         if stale {
@@ -118,7 +118,7 @@ fn trajectory(
             ))?;
             let frame = |model: usize| -> Result<TrajectoryFrame> {
                 let time = model
-                    .to_f32()
+                    .to_f64()
                     .ok_or_else(|| io::Error::other("model index is not representable"))?;
                 Ok(TrajectoryFrame::new(
                     fallback(model.to_u64(), 0),

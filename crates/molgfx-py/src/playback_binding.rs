@@ -32,7 +32,7 @@ impl PyPlayback {
         self.cache
             .get_or_convert(index, || {
                 let atoms = positions.bind(py).get_item(index)?;
-                PyTrajectoryFrame::new(index as u64, time, &atoms).map(|frame| frame.0)
+                PyTrajectoryFrame::new(index as u64, f64::from(time), &atoms).map(|frame| frame.0)
             })
             .map(PyTrajectoryFrame)
     }
@@ -54,7 +54,7 @@ impl PyPlayback {
                 self.structure.bind(py),
                 start,
                 end,
-                position.time,
+                f64::from(position.time),
             )?;
         }
         self.segment = Some(position.segment);

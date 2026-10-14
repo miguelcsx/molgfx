@@ -13,5 +13,5 @@ pub struct PlaybackBinding {
     /// Second retained coordinate column.
     pub end: TrajectoryFrame,
     /// Presentation sample within the closed interval.
-    pub sample_seconds: f32,
+    pub sample_seconds: f64,
 }

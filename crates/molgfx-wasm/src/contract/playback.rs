@@ -28,7 +28,7 @@ impl WebScene {
         let index = reference.index.parse().map_err(javascript_error)?;
         if let Some(frame) = self.coordinate_frames.get(&identity) {
             if frame.index() != index
-                || frame.time_seconds().to_bits() != reference.seconds.to_bits()
+                || frame.time_seconds().to_bits() != f64::from(reference.seconds).to_bits()
                 || (!positions.is_empty()
                     && (positions.len() != frame.positions().len() * 3
                         || positions
@@ -55,7 +55,7 @@ impl WebScene {
             identity,
             molgfx::TrajectoryFrame::new(
                 index,
-                reference.seconds,
+                f64::from(reference.seconds),
                 Arc::from(positions.as_chunks::<3>().0),
             ),
         ))
@@ -95,7 +95,12 @@ impl WebScene {
         self.resolved
             .as_mut()
             .ok_or_else(|| JsError::new("resolve the scene before runtime playback"))?
-            .set_trajectory_pair(structure, start.clone(), end.clone(), metadata.seconds)
+            .set_trajectory_pair(
+                structure,
+                start.clone(),
+                end.clone(),
+                f64::from(metadata.seconds),
+            )
             .map_err(javascript_error)?;
         let _ = self.coordinate_frames.insert(start_id, start.clone());
         let _ = self.coordinate_frames.insert(end_id, end.clone());
@@ -105,7 +110,7 @@ impl WebScene {
                 structure,
                 start,
                 end,
-                sample_seconds: metadata.seconds,
+                sample_seconds: f64::from(metadata.seconds),
             },
         );
         self.prune_coordinate_frames();
@@ -146,7 +151,7 @@ impl WebScene {
                 structure,
                 start: start.clone(),
                 end: end.clone(),
-                sample_seconds: seconds,
+                sample_seconds: f64::from(seconds),
             },
         );
         Ok(())

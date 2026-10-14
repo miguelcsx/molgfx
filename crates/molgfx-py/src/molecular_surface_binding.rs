@@ -9,7 +9,7 @@ pub(super) struct PyMolecularPose(pub(super) molgfx::source::MolecularPose);
 impl PyMolecularPose {
     /// Cartesian interpolation fraction of the captured resident interval, if any.
     #[getter]
-    fn interpolation(&self) -> Option<f32> {
+    fn interpolation(&self) -> Option<f64> {
         self.0.interpolation()
     }
 }

@@ -4,7 +4,8 @@
 //! row. Building an interval is `O(start + end)`; sampling is `O(union)` and
 //! reuses the merged allocation. Parsing and bond inference remain upstream.
 
-use crate::{CoreError, EntityId};
+use crate::time::narrow_to_f32;
+use crate::{CoreError, EntityId, SimTime};
 use std::sync::Arc;
 
 #[cfg(test)]
@@ -55,7 +56,7 @@ impl TopologyBond {
 #[derive(Clone, PartialEq, Debug)]
 pub struct BondTopologyFrame {
     index: u64,
-    time_seconds: f32,
+    time: SimTime,
     atom_count: u32,
     bonds: Arc<[TopologyBond]>,
     provenance: Arc<str>,
@@ -73,12 +74,13 @@ impl BondTopologyFrame {
     /// duplicates, excessive rows or empty provenance.
     pub fn new(
         index: u64,
-        time_seconds: f32,
+        time: impl Into<SimTime>,
         atom_count: u32,
         bonds: Arc<[TopologyBond]>,
         provenance: impl Into<Arc<str>>,
     ) -> Result<Self, CoreError> {
-        if !time_seconds.is_finite() || atom_count == 0 {
+        let time = time.into();
+        if !time.seconds().is_finite() || atom_count == 0 {
             return Err(invalid("topology frame time and atom count must be valid"));
         }
         if bonds.len() > EntityId::MAX_INDEX as usize {
@@ -104,7 +106,7 @@ impl BondTopologyFrame {
         }
         Ok(Self {
             index,
-            time_seconds,
+            time,
             atom_count,
             bonds,
             provenance,
@@ -117,10 +119,10 @@ impl BondTopologyFrame {
         self.index
     }
 
-    /// Physical or logical frame time.
+    /// Physical or logical frame time, in canonical seconds.
     #[must_use]
-    pub const fn time_seconds(&self) -> f32 {
-        self.time_seconds
+    pub const fn time_seconds(&self) -> f64 {
+        self.time.seconds()
     }
 
     /// Fixed topology atom count.
@@ -175,8 +177,8 @@ struct TransitionBond {
 pub struct BondTopologySegment {
     start: BondTopologyFrame,
     end: BondTopologyFrame,
-    sample_seconds: f32,
-    interpolation: f32,
+    sample_seconds: f64,
+    interpolation: f64,
     merged: Vec<TransitionBond>,
 }
 
@@ -190,12 +192,12 @@ impl BondTopologySegment {
     pub fn new(
         start: BondTopologyFrame,
         end: BondTopologyFrame,
-        sample_seconds: f32,
+        sample: impl Into<SimTime>,
     ) -> Result<Self, CoreError> {
         if start.atom_count != end.atom_count {
             return Err(invalid("topology frames must use one fixed atom table"));
         }
-        if start.index >= end.index || start.time_seconds >= end.time_seconds {
+        if start.index >= end.index || !start.time.is_before(end.time) {
             return Err(invalid("topology frame indices and times must increase"));
         }
         let merged = merge_frames(start.bonds(), end.bonds())?;
@@ -206,7 +208,7 @@ impl BondTopologySegment {
             interpolation: 0.0,
             merged,
         };
-        segment.set_sample_time(sample_seconds)?;
+        segment.set_sample_time(sample)?;
         Ok(segment)
     }
 
@@ -215,22 +217,26 @@ impl BondTopologySegment {
     /// # Errors
     ///
     /// Returns a typed error outside the resident interval.
-    pub fn set_sample_time(&mut self, sample_seconds: f32) -> Result<(), CoreError> {
+    pub fn set_sample_time(&mut self, sample: impl Into<SimTime>) -> Result<(), CoreError> {
+        let sample_seconds = sample.into().seconds();
+        let start_seconds = self.start.time_seconds();
+        let end_seconds = self.end.time_seconds();
         if !sample_seconds.is_finite()
-            || sample_seconds < self.start.time_seconds
-            || sample_seconds > self.end.time_seconds
+            || sample_seconds < start_seconds
+            || sample_seconds > end_seconds
         {
             return Err(invalid(
                 "topology sample must lie within its resident interval",
             ));
         }
-        let duration = self.end.time_seconds - self.start.time_seconds;
-        let alpha = (sample_seconds - self.start.time_seconds) / duration;
+        let alpha = (sample_seconds - start_seconds) / (end_seconds - start_seconds);
+        let blend = narrow_to_f32(alpha)
+            .ok_or_else(|| invalid("topology interpolation must be representable as f32"))?;
         for transition in &mut self.merged {
             let weight = match (transition.start, transition.end) {
                 (Some(_), Some(_)) => 1.0,
-                (Some(_), None) => 1.0 - alpha,
-                (None, Some(_)) => alpha,
+                (Some(_), None) => 1.0 - blend,
+                (None, Some(_)) => blend,
                 (None, None) => 0.0,
             };
             let bond = match (transition.start, transition.end) {
@@ -260,13 +266,13 @@ impl BondTopologySegment {
 
     /// Current sample time.
     #[must_use]
-    pub const fn sample_seconds(&self) -> f32 {
+    pub const fn sample_seconds(&self) -> f64 {
         self.sample_seconds
     }
 
     /// Current interpolation fraction.
     #[must_use]
-    pub const fn interpolation(&self) -> f32 {
+    pub const fn interpolation(&self) -> f64 {
         self.interpolation
     }
 

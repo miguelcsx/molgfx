@@ -76,7 +76,7 @@ fn imperative_intervals_restore_shared_owners_without_authoring_a_trajectory() {
             .expect("pair")
             .sample_seconds
             .to_bits(),
-        7.75f32.to_bits()
+        7.75f64.to_bits()
     );
     restored
         .apply(&ScenePatch {

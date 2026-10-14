@@ -94,7 +94,7 @@ fn stale_or_empty_selection_focus_is_a_typed_error() {
     ));
 }
 
-fn frame<const N: usize>(index: u64, time: f32, positions: [[f32; 3]; N]) -> TrajectoryFrame {
+fn frame<const N: usize>(index: u64, time: f64, positions: [[f32; 3]; N]) -> TrajectoryFrame {
     match TrajectoryFrame::new(index, time, Arc::from(positions), "focus-test") {
         Ok(frame) => frame,
         Err(error) => panic!("frame is valid: {error}"),

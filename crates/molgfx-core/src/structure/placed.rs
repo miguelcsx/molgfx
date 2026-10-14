@@ -128,7 +128,7 @@ impl PlacedStructure {
         let row = row as usize;
         match &self.trajectory {
             Some(segment) => {
-                let t = segment.interpolation();
+                let t = crate::time::narrow_to_f32(segment.interpolation())?;
                 Some(
                     Vec3::from(*segment.start().positions().get(row)?) * (1.0 - t)
                         + Vec3::from(*segment.end().positions().get(row)?) * t,
@@ -239,7 +239,7 @@ impl PlacedStructure {
 
     pub(crate) fn set_trajectory_time(
         &mut self,
-        sample_seconds: f32,
+        sample: impl Into<crate::SimTime>,
     ) -> Result<(), crate::CoreError> {
         let trajectory = self
             .trajectory
@@ -248,7 +248,7 @@ impl PlacedStructure {
                 reason: "structure has no active trajectory segment",
             })?;
         let previous = trajectory.sample_seconds();
-        trajectory.set_sample_time(sample_seconds)?;
+        trajectory.set_sample_time(sample)?;
         if trajectory.sample_seconds().to_bits() != previous.to_bits() {
             self.trajectory_revision = self.trajectory_revision.wrapping_add(1);
         }
@@ -273,7 +273,7 @@ impl PlacedStructure {
 
     pub(crate) fn set_bond_topology_time(
         &mut self,
-        sample_seconds: f32,
+        sample: impl Into<crate::SimTime>,
     ) -> Result<(), crate::CoreError> {
         let topology = self
             .bond_topology
@@ -282,7 +282,7 @@ impl PlacedStructure {
                 reason: "structure has no active dynamic topology segment",
             })?;
         let previous = topology.sample_seconds();
-        topology.set_sample_time(sample_seconds)?;
+        topology.set_sample_time(sample)?;
         if topology.sample_seconds().to_bits() != previous.to_bits() {
             self.bond_topology_revision = self.bond_topology_revision.wrapping_add(1);
         }

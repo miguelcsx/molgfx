@@ -112,24 +112,29 @@ impl<D: Device> GpuTrajectory<D> {
             }
             self.pair = Some(pair);
         }
-        let alpha = segment.interpolation().to_bits();
+        let alpha_value = molgfx_core::narrow_to_f32(segment.interpolation()).ok_or(
+            molgfx_core::CoreError::InvalidTrajectory {
+                reason: "trajectory interpolation must be representable as f32",
+            },
+        )?;
+        let alpha = alpha_value.to_bits();
         let had_prior_sample = self.alpha.is_some();
         let sample_changed = self.alpha != Some(alpha) || self.count != count;
         let settle = !pair_changed && !sample_changed && self.needs_settle;
         if pair_changed || sample_changed || settle {
             let previous_alpha = if pair_changed || self.alpha.is_none() {
-                segment.interpolation()
+                alpha_value
             } else if sample_changed {
                 f32::from_bits(crate::fallback(self.alpha, alpha))
             } else {
-                segment.interpolation()
+                alpha_value
             };
             if let Some(uniforms) = &self.uniforms {
                 queue.write_buffer(
                     uniforms,
                     0,
                     bytemuck::bytes_of(&TrajectoryUniforms {
-                        alpha: segment.interpolation(),
+                        alpha: alpha_value,
                         previous_alpha,
                         count,
                         padding: 0,

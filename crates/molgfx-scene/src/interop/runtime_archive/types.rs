@@ -21,7 +21,7 @@ pub struct SceneArchive {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct Frame {
     pub(crate) index: u64,
-    pub(crate) time: f32,
+    pub(crate) time: f64,
     pub(crate) positions: Vec<[f32; 3]>,
 }
 
@@ -29,7 +29,7 @@ pub(crate) struct Frame {
 pub(crate) struct Interval {
     pub(crate) start: usize,
     pub(crate) end: usize,
-    pub(crate) sample: f32,
+    pub(crate) sample: f64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

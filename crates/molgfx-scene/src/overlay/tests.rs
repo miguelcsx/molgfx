@@ -316,7 +316,7 @@ fn advancing_trajectory_time_samples_the_resident_pair() {
             .expect("bound interval after an edit")
             .sample_seconds()
             .to_bits(),
-        0.5f32.to_bits()
+        0.5f64.to_bits()
     );
 }
 
@@ -411,7 +411,7 @@ fn a_frame_pair_plays_without_a_declared_trajectory_and_shares_the_caller_arrays
 fn sliding_the_pair_forward_replaces_it_and_clearing_returns_the_structure_to_itself() {
     let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
     let frame = |i: u8, x: f32| {
-        TrajectoryFrame::new(u64::from(i), f32::from(i), Arc::new([[x, 6.0, -6.0]]))
+        TrajectoryFrame::new(u64::from(i), f64::from(i), Arc::new([[x, 6.0, -6.0]]))
     };
     scene
         .set_trajectory_pair(StructureId::new(1), frame(0, 1.0), frame(1, 2.0), 0.0)
@@ -472,7 +472,7 @@ fn an_edit_that_resolves_the_scene_again_does_not_stop_the_animation() {
             .expect("retained interval")
             .sample_seconds()
             .to_bits(),
-        0.75f32.to_bits(),
+        0.75f64.to_bits(),
         "an edit must preserve the latest valid time"
     );
 }

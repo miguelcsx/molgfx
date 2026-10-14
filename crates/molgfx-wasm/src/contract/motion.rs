@@ -96,7 +96,7 @@ impl WebScene {
             .ok_or_else(|| JsError::new("resident interval has no end frame"))?;
         Ok(
             molgfx::TrajectoryBinding::new(source, start.clone(), end.clone())
-                .sample_seconds(seconds),
+                .sample_seconds(f64::from(seconds)),
         )
     }
 }
@@ -128,8 +128,11 @@ impl WebScene {
         if self.coordinate_frames.contains_key(&identity) {
             return Err(JsError::new("coordinate frame is already restored"));
         }
-        let frame =
-            molgfx::TrajectoryFrame::new(index, seconds, Arc::from(positions.as_chunks::<3>().0));
+        let frame = molgfx::TrajectoryFrame::new(
+            index,
+            f64::from(seconds),
+            Arc::from(positions.as_chunks::<3>().0),
+        );
         let _ = self.coordinate_frames.insert(identity, frame);
         Ok(())
     }
@@ -176,7 +179,10 @@ impl WebScene {
             .as_mut()
             .ok_or_else(|| JsError::new("scene must be resolved before trajectory updates"))?;
         scene
-            .set_trajectory_time(molgfx::StructureId::new(structure), sample_seconds)
+            .set_trajectory_time(
+                molgfx::StructureId::new(structure),
+                f64::from(sample_seconds),
+            )
             .map_err(javascript_error)?;
         for binding in scene.playback_bindings() {
             let _ = self.playback_bindings.insert(binding.structure, binding);

@@ -15,7 +15,7 @@ mod tests;
 #[derive(Clone, Debug)]
 pub struct TrajectoryFrame {
     index: u64,
-    time_seconds: f32,
+    time_seconds: f64,
     positions: Arc<[[f32; 3]]>,
     native: Arc<OnceLock<molgfx_core::TrajectoryFrame>>,
 }
@@ -34,7 +34,7 @@ impl TrajectoryFrame {
     /// `index` is the frame's stable identity in its source, which is what lets
     /// the renderer skip an upload when only the sample time moved.
     #[must_use]
-    pub fn new(index: u64, time_seconds: f32, positions: Arc<[[f32; 3]]>) -> Self {
+    pub fn new(index: u64, time_seconds: f64, positions: Arc<[[f32; 3]]>) -> Self {
         Self {
             index,
             time_seconds,
@@ -51,7 +51,7 @@ impl TrajectoryFrame {
 
     /// Presentation time this frame was recorded at, in seconds.
     #[must_use]
-    pub const fn time_seconds(&self) -> f32 {
+    pub const fn time_seconds(&self) -> f64 {
         self.time_seconds
     }
 
@@ -100,7 +100,7 @@ pub struct TrajectoryBinding {
     source: DataSource,
     start: TrajectoryFrame,
     end: TrajectoryFrame,
-    sample_seconds: f32,
+    sample_seconds: f64,
 }
 
 impl TrajectoryBinding {
@@ -124,7 +124,7 @@ impl TrajectoryBinding {
 
     /// Current presentation time, in seconds.
     #[must_use]
-    pub const fn sample_time(&self) -> f32 {
+    pub const fn sample_time(&self) -> f64 {
         self.sample_seconds
     }
 
@@ -155,7 +155,7 @@ impl TrajectoryBinding {
 
     /// Sets the presentation time the pair is sampled at.
     #[must_use]
-    pub fn sample_seconds(mut self, sample_seconds: f32) -> Self {
+    pub fn sample_seconds(mut self, sample_seconds: f64) -> Self {
         self.sample_seconds = sample_seconds;
         self
     }

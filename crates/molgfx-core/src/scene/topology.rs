@@ -36,11 +36,11 @@ impl Scene {
     pub fn set_bond_topology_time(
         &mut self,
         handle: StructureHandle,
-        sample_seconds: f32,
+        sample: impl Into<crate::SimTime>,
     ) -> Result<(), CoreError> {
         self.structure_mut(handle)
             .ok_or(CoreError::StaleHandle)?
-            .set_bond_topology_time(sample_seconds)
+            .set_bond_topology_time(sample)
     }
 
     /// Removes dynamic connectivity and restores the immutable source bonds.

@@ -219,11 +219,11 @@ fn relation_payload(handle: crate::RelationBatchHandle, batch: &RelationBatch) -
         if let Some(segment) = pose.trajectory() {
             for frame in [segment.start(), segment.end()] {
                 hash.u64(frame.index());
-                hash.u32(frame.time_seconds().to_bits());
+                hash.u64(frame.time_seconds().to_bits());
                 hash.bytes(bytemuck::cast_slice(frame.positions()));
             }
             if !coordinates.covers_interval() {
-                hash.u32(segment.sample_seconds().to_bits());
+                hash.u64(segment.sample_seconds().to_bits());
             }
         }
     }

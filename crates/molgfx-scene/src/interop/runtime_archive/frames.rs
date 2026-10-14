@@ -7,7 +7,7 @@ use std::{
 
 pub(super) struct Frames {
     pub(super) data: Vec<Frame>,
-    seen: BTreeMap<(u64, u32, usize), usize>,
+    seen: BTreeMap<(u64, u64, usize), usize>,
     cancellation: molframe::CancellationToken,
     assets: BTreeSet<(u8, u64, Box<str>, Box<str>)>,
 }
@@ -34,7 +34,7 @@ impl Frames {
     fn insert(
         &mut self,
         index: u64,
-        time: f32,
+        time: f64,
         positions: &[[f32; 3]],
     ) -> Result<usize, crate::Error> {
         let key = (index, time.to_bits(), positions.as_ptr() as usize);
@@ -77,7 +77,7 @@ impl Frames {
         &mut self,
         start: &TrajectoryFrame,
         end: &TrajectoryFrame,
-        sample: f32,
+        sample: f64,
     ) -> Result<Interval, crate::Error> {
         Ok(Interval {
             start: self.insert(start.index(), start.time_seconds(), start.positions())?,

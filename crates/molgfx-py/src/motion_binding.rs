@@ -7,15 +7,15 @@ use crate::{
 use pyo3::{exceptions::PyValueError, prelude::*};
 use std::collections::{BTreeMap, BTreeSet};
 
-type FrameKey = (usize, usize, u64, u32);
-type FrameColumn = (u64, u64, f32, Column);
-pub(super) type Interval = (u64, u64, f32);
-pub(super) type MotionBindings = (Vec<FrameColumn>, Vec<(u64, u64, u64, f32)>);
+type FrameKey = (usize, usize, u64, u64);
+type FrameColumn = (u64, u64, f64, Column);
+pub(super) type Interval = (u64, u64, f64);
+pub(super) type MotionBindings = (Vec<FrameColumn>, Vec<(u64, u64, u64, f64)>);
 
 struct Frame {
     identity: u64,
     index: u64,
-    seconds: f32,
+    seconds: f64,
     _owner: molgfx::source::MolecularPose,
     column: Column,
 }
@@ -57,7 +57,7 @@ impl FrameCache {
         py: Python<'_>,
         owner: &molgfx::source::MolecularPose,
         index: u64,
-        seconds: f32,
+        seconds: f64,
         positions: &[[f32; 3]],
     ) -> PyResult<u64> {
         let key = (
@@ -103,7 +103,7 @@ impl PyScene {
         structure: &Bound<'_, PyAny>,
         start: &crate::overlay_binding::PyTrajectoryFrame,
         end: &crate::overlay_binding::PyTrajectoryFrame,
-        sample_time: f32,
+        sample_time: f64,
     ) -> PyResult<()> {
         let identity = crate::id_binding::structure_id(structure)?;
         let identity = molgfx::StructureId::new(identity);
@@ -144,7 +144,7 @@ impl PyScene {
     pub(super) fn browser_playback_bindings(
         &mut self,
         py: Python<'_>,
-    ) -> PyResult<Vec<(u64, u64, u64, f32)>> {
+    ) -> PyResult<Vec<(u64, u64, u64, f64)>> {
         let mut intervals = Vec::new();
         for binding in self.inner.playback_bindings() {
             let pose = self
@@ -171,7 +171,7 @@ impl PyScene {
         source_hash: &str,
         start: &crate::overlay_binding::PyTrajectoryFrame,
         end: &crate::overlay_binding::PyTrajectoryFrame,
-        sample_time: Option<f32>,
+        sample_time: Option<f64>,
     ) -> PyResult<()> {
         let binding = molgfx::TrajectoryBinding::new(
             molgfx::schema::DataSource::new(source_hash),
@@ -199,7 +199,7 @@ impl PyScene {
         slf: &Bound<'_, Self>,
         py: Python<'_>,
         structure: &Bound<'_, PyAny>,
-        seconds: f32,
+        seconds: f64,
     ) -> PyResult<()> {
         let identity = crate::id_binding::structure_id(structure)?;
         {

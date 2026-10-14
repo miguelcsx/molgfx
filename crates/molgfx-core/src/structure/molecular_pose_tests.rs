@@ -42,7 +42,7 @@ fn captured_samples_borrow_frames_and_reject_changed_time_or_independently_owned
     assert_eq!(pose.end_positions().expect("end").as_ptr(), end.as_ptr());
     assert_eq!(
         pose.interpolation().expect("weight").to_bits(),
-        0.25_f32.to_bits()
+        0.25_f64.to_bits()
     );
     assert!(pose.matches(&placed));
     placed.set_trajectory_time(0.5).expect("advance");
@@ -83,7 +83,7 @@ fn reconstructed_samples_share_validated_frames_and_reject_a_different_topology_
             .expect("interval")
             .sample_seconds()
             .to_bits(),
-        0.25_f32.to_bits()
+        0.25_f64.to_bits()
     );
     let wrong = segment(Arc::from([[0.0; 3]; 2]), Arc::from([[2.0, 0.0, 0.0]; 2]));
     assert!(MolecularPose::new(placed.source.clone(), Some(wrong)).is_err());

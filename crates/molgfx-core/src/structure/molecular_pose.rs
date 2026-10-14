@@ -1,6 +1,6 @@
 //! Immutable borrowed molecular samples. Capture and comparison cost O(1).
 
-use crate::{MolecularSource, PlacedStructure, TrajectorySegment};
+use crate::{MolecularSource, PlacedStructure, TrajectoryFrame, TrajectorySegment};
 
 #[cfg(test)]
 #[path = "molecular_pose_tests.rs"]
@@ -74,7 +74,7 @@ impl MolecularPose {
 
     /// Exact Cartesian interpolation weight for the two resident frames.
     #[must_use]
-    pub fn interpolation(&self) -> Option<f32> {
+    pub fn interpolation(&self) -> Option<f64> {
         self.trajectory
             .as_ref()
             .map(TrajectorySegment::interpolation)
@@ -126,17 +126,32 @@ fn same_sample(a: Option<&TrajectorySegment>, b: Option<&TrajectorySegment>) -> 
         }
 }
 
+fn same_frame(a: Option<&TrajectoryFrame>, b: Option<&TrajectoryFrame>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => same_resident(a, b),
+        _ => false,
+    }
+}
+
+fn same_resident(a: &TrajectoryFrame, b: &TrajectoryFrame) -> bool {
+    a.index() == b.index()
+        && a.time_seconds().to_bits() == b.time_seconds().to_bits()
+        && std::ptr::eq(a.positions(), b.positions())
+}
+
 fn same_interval(a: Option<&TrajectorySegment>, b: Option<&TrajectorySegment>) -> bool {
     match (a, b) {
         (None, None) => true,
-        (Some(a), Some(b)) => [a.start(), a.end()]
-            .into_iter()
-            .zip([b.start(), b.end()])
-            .all(|(a, b)| {
-                a.index() == b.index()
-                    && a.time_seconds().to_bits() == b.time_seconds().to_bits()
-                    && std::ptr::eq(a.positions(), b.positions())
-            }),
+        (Some(a), Some(b)) => {
+            a.interpolation_kind() == b.interpolation_kind()
+                && same_frame(a.before(), b.before())
+                && same_frame(a.after(), b.after())
+                && [a.start(), a.end()]
+                    .into_iter()
+                    .zip([b.start(), b.end()])
+                    .all(|(a, b)| same_resident(a, b))
+        }
         _ => false,
     }
 }

@@ -4,7 +4,7 @@ fn bond(a: u32, b: u32) -> TopologyBond {
     TopologyBond::new(a, b, false).unwrap_or_else(|error| panic!("{error}"))
 }
 
-fn frame(index: u64, time: f32, bonds: Vec<TopologyBond>) -> BondTopologyFrame {
+fn frame(index: u64, time: f64, bonds: Vec<TopologyBond>) -> BondTopologyFrame {
     BondTopologyFrame::new(index, time, 4, bonds.into(), format!("frame-{index}"))
         .unwrap_or_else(|error| panic!("{error}"))
 }

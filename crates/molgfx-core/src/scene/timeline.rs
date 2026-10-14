@@ -211,9 +211,7 @@ impl Timeline {
             .trajectory()
             .ok_or_else(|| invalid("trajectory track requires an active two-frame segment"))?;
         let [start, end] = warp.range();
-        if start < f64::from(segment.start().time_seconds())
-            || end > f64::from(segment.end().time_seconds())
-        {
+        if start < segment.start().time_seconds() || end > segment.end().time_seconds() {
             return Err(invalid("trajectory time warp escapes its resident segment"));
         }
         Ok(TimelineTrackHandle(
@@ -308,9 +306,7 @@ impl Timeline {
             invalid("dynamic topology track requires an active two-frame segment")
         })?;
         let [start, end] = warp.range();
-        if start < f64::from(segment.start().time_seconds())
-            || end > f64::from(segment.end().time_seconds())
-        {
+        if start < segment.start().time_seconds() || end > segment.end().time_seconds() {
             return Err(invalid(
                 "dynamic topology time warp escapes its resident segment",
             ));
@@ -473,11 +469,9 @@ fn validate_track(scene: &Scene, track: &TimelineTrack, global: f64) -> Result<(
     Ok(())
 }
 
-fn trajectory_sample(warp: TimeWarp, global: f64) -> Result<f32, CoreError> {
-    let sample = warp
-        .sample(global)
-        .ok_or_else(|| invalid("timeline sample overflowed"))?;
-    num_traits::cast(sample).ok_or_else(|| invalid("trajectory time exceeds finite f32 range"))
+fn trajectory_sample(warp: TimeWarp, global: f64) -> Result<f64, CoreError> {
+    warp.sample(global)
+        .ok_or_else(|| invalid("timeline sample overflowed"))
 }
 
 const fn invalid(reason: &'static str) -> CoreError {

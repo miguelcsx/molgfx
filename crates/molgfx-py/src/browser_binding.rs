@@ -18,7 +18,7 @@ use std::{
 };
 
 type Column = Py<PyBytes>;
-type Interval = (String, String, String, f32);
+type Interval = (String, String, String, f64);
 
 /// Folds the identity of a cached column (its address) into a fingerprint.
 fn fold(state: &mut DefaultHasher, column: &Column) {
@@ -46,7 +46,7 @@ pub(super) struct PyBrowserTransport {
     /// Identity, metadata, vertices, normals, faces and atom rows.
     surfaces: Vec<(String, String, Column, Column, Column, Column)>,
     /// Frame identity, frame index, seconds and little-endian positions.
-    frames: Vec<(String, String, f32, Column)>,
+    frames: Vec<(String, String, f64, Column)>,
     /// Bound trajectory intervals: identity, start, end and sample seconds.
     trajectories: Vec<Interval>,
     /// Imperative playback intervals: identity, start, end and sample seconds.
@@ -106,7 +106,7 @@ impl PyScene {
         }
 
         let identity = |id: u64| id.to_string();
-        let intervals = |rows: Vec<(u64, u64, u64, f32)>| -> Vec<Interval> {
+        let intervals = |rows: Vec<(u64, u64, u64, f64)>| -> Vec<Interval> {
             rows.into_iter()
                 .map(|(id, start, end, seconds)| {
                     (identity(id), identity(start), identity(end), seconds)

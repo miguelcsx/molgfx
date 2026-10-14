@@ -398,9 +398,9 @@ fn oriented_candidates_reopen_sharing_playback_frames_and_keep_original_atom_add
             .expect("original time")
             .sample_seconds()
             .to_bits(),
-        0.25f32.to_bits()
+        0.25f64.to_bits()
     );
-    assert_eq!(playback.sample_seconds.to_bits(), 0.75f32.to_bits());
+    assert_eq!(playback.sample_seconds.to_bits(), 0.75f64.to_bits());
     restored.set_trajectory_time(id, 0.25).expect("reverse");
     assert_eq!(restored.spec(), scene.spec());
 }

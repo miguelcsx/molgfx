@@ -164,7 +164,7 @@ impl Scene {
     pub fn set_trajectory_time(
         &mut self,
         structure: StructureId,
-        sample_seconds: f32,
+        sample_seconds: f64,
     ) -> Result<(), Error> {
         let handle = self
             .structures
@@ -211,7 +211,7 @@ impl Scene {
         structure: StructureId,
         start: TrajectoryFrame,
         end: TrajectoryFrame,
-        sample_seconds: f32,
+        sample_seconds: f64,
     ) -> Result<(), Error> {
         if self
             .playback
@@ -353,5 +353,5 @@ pub(super) struct PlaybackPair {
     pub(super) source: (u64, u64),
     pub(super) start: TrajectoryFrame,
     pub(super) end: TrajectoryFrame,
-    pub(super) sample_seconds: f32,
+    pub(super) sample_seconds: f64,
 }

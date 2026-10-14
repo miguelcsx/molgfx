@@ -9,6 +9,7 @@ mod ensemble;
 mod ensemble_policy;
 mod grid_affine;
 pub(crate) mod hierarchy;
+mod interpolation;
 mod molecular_pose;
 pub(crate) mod occupancy;
 pub(crate) mod particle;

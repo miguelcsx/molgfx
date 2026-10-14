@@ -46,7 +46,7 @@ pub(super) struct PyTrajectoryFrame(pub(super) molgfx::TrajectoryFrame);
 impl PyTrajectoryFrame {
     #[new]
     #[pyo3(signature = (index, time, positions))]
-    pub(super) fn new(index: u64, time: f32, positions: &Bound<'_, PyAny>) -> PyResult<Self> {
+    pub(super) fn new(index: u64, time: f64, positions: &Bound<'_, PyAny>) -> PyResult<Self> {
         Ok(Self(molgfx::TrajectoryFrame::new(
             index,
             time,
@@ -62,7 +62,7 @@ impl PyTrajectoryFrame {
 
     /// Presentation time this frame was recorded at, in seconds.
     #[getter]
-    fn time(&self) -> f32 {
+    fn time(&self) -> f64 {
         self.0.time_seconds()
     }
 
@@ -77,7 +77,7 @@ impl PyTrajectoryFrame {
 #[pyo3(signature = (index, time, positions))]
 fn trajectory_frame(
     index: u64,
-    time: f32,
+    time: f64,
     positions: &Bound<'_, PyAny>,
 ) -> PyResult<PyTrajectoryFrame> {
     PyTrajectoryFrame::new(index, time, positions)

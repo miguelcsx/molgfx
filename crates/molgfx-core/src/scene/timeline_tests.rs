@@ -80,7 +80,7 @@ fn one_tick_updates_trajectory_and_scalar_tracks_at_their_own_rates() {
         .structure(owner)
         .and_then(|value| value.trajectory())
         .map(TrajectorySegment::sample_seconds);
-    assert_eq!(trajectory_time.map(f32::to_bits), Some(0.5f32.to_bits()));
+    assert_eq!(trajectory_time.map(f64::to_bits), Some(0.5f64.to_bits()));
     let property_value = scene
         .atom_property(property)
         .and_then(|value| value.values().first())
@@ -141,7 +141,7 @@ fn a_stale_track_prevents_every_update_in_the_tick() {
         .structure(owner)
         .and_then(|value| value.trajectory())
         .map(TrajectorySegment::sample_seconds);
-    assert_eq!(time.map(f32::to_bits), Some(0.0f32.to_bits()));
+    assert_eq!(time.map(f64::to_bits), Some(0.0f64.to_bits()));
     assert_eq!(
         scene.presentation_time_seconds().to_bits(),
         0.0f32.to_bits()

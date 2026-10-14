@@ -89,9 +89,14 @@ impl FocusTracker {
                 Some(slot) => *slot = entry,
                 None => self.structures.push(entry),
             }
-            let alpha = placed
-                .trajectory()
-                .map_or(0.0, molgfx_core::TrajectorySegment::interpolation);
+            let alpha = match placed.trajectory() {
+                Some(segment) => molgfx_core::narrow_to_f32(segment.interpolation()).ok_or(
+                    molgfx_core::CoreError::InvalidTrajectory {
+                        reason: "trajectory interpolation must be representable as f32",
+                    },
+                )?,
+                None => 0.0,
+            };
             let current = entry.start.lerp(entry.end, alpha);
             let combined = total.saturating_add(u64::from(entry.count));
             let weight = integer_as_f32(u64::from(entry.count)) / integer_as_f32(combined);
