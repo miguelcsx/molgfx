@@ -75,3 +75,64 @@ fn native_validation_callback_returns_the_original_error_without_panicking() {
     );
     assert!(opened.device.check_errors().is_ok());
 }
+
+/// Opens a native device, or reports that this machine has no adapter so the
+/// caller can skip. Any other failure is a real defect and fails the test.
+#[cfg(not(target_arch = "wasm32"))]
+fn open_or_skip() -> Option<molgfx_gpu::Opened<crate::backend::device::WgpuDevice>> {
+    use crate::backend::device::WgpuDevice;
+    use molgfx_gpu::{Device as _, DeviceDesc};
+
+    match WgpuDevice::open_blocking(&DeviceDesc::default(), None) {
+        Ok(opened) => Some(opened),
+        Err(GpuError::NoAdapter { detail }) => {
+            eprintln!("skipping: no native GPU adapter ({detail})");
+            None
+        }
+        Err(other) => panic!("adapter probe failed for a reason other than absence: {other}"),
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn a_destroyed_real_device_reports_a_typed_loss_and_a_fresh_device_replaces_it() {
+    use molgfx_gpu::Device as _;
+
+    let Some(lost) = open_or_skip() else { return };
+    assert_eq!(lost.device.device_loss(), None);
+    assert!(lost.device.check_errors().is_ok());
+
+    // wgpu completes a destroy on the first poll that finds the queue empty.
+    lost.device.device.destroy();
+    lost.queue.queue.submit([]);
+    for _ in 0..50 {
+        lost.device
+            .device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .expect("a destroyed device still drains its queue");
+        if lost.device.device_loss().is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+
+    let Some(recorded) = lost.device.device_loss() else {
+        panic!("destroying the device must record a typed loss")
+    };
+    assert_eq!(recorded.reason, DeviceLossReason::Destroyed);
+    assert!(!recorded.recoverable());
+    for _ in 0..2 {
+        assert!(matches!(
+            lost.device.check_errors(),
+            Err(GpuError::DeviceLost)
+        ));
+    }
+
+    let Some(fresh) = open_or_skip() else { return };
+    assert_eq!(fresh.device.device_loss(), None);
+    assert!(fresh.device.check_errors().is_ok());
+    assert_eq!(
+        lost.device.device_loss().map(|cause| cause.reason),
+        Some(DeviceLossReason::Destroyed)
+    );
+}
