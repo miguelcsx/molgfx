@@ -26,6 +26,14 @@ pub use stereo::{StereoImages, StereoLayout};
 mod pick_result;
 mod point_cloud;
 mod renderer;
+mod timeline_sequence;
+pub use timeline_sequence::{FrameSchedule, SequenceManifest};
+#[cfg(test)]
+mod timeline_fixture_tests;
+#[cfg(not(target_arch = "wasm32"))]
+mod timeline_render;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod timeline_render_tests;
 pub use point_cloud::PointCloud;
 
 #[cfg(not(target_arch = "wasm32"))]

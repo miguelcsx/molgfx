@@ -73,6 +73,7 @@ pub use render::{
     MeasuredOutput, PassTiming, PassTimingCoverage, QualityTier, SurfaceLimit,
 };
 pub use render::{DeviceLossReport, PointCloud, Renderer};
+pub use render::{FrameSchedule, SequenceManifest};
 #[cfg(not(target_arch = "wasm32"))]
 pub use render::{HdrImage, Image, StereoImages, StereoLayout};
 pub use render::{PickKind, PickResult};
