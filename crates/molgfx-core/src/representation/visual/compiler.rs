@@ -56,7 +56,7 @@ impl VisualProgramBuilder {
     pub(super) fn input(&mut self, kind: ValueKind, input: u8) -> Result<Expr, VisualError> {
         let stage = match input {
             0 | 1 | 8 => VisualStage::Entity,
-            2 | 9 | 10 | 11 => VisualStage::Uniform,
+            2 | 9..=13 => VisualStage::Uniform,
             _ => VisualStage::Fragment,
         };
         self.emit_at(

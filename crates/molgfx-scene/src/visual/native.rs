@@ -215,6 +215,8 @@ impl<'a> Compiler<'a> {
     fn scalar_input(&mut self, name: &str) -> Result<NativeScalar, Error> {
         let value = match ScalarInput::parse(name)? {
             ScalarInput::Time => self.builder.time(),
+            ScalarInput::TrackPhase => self.builder.track_phase(),
+            ScalarInput::TrackTime => self.builder.track_time(),
             ScalarInput::CameraDistance => self.builder.camera_distance(),
             ScalarInput::EntityIndex => self.builder.entity_index(),
             ScalarInput::BaseOpacity => self.builder.base_opacity(),

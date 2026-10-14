@@ -12,6 +12,10 @@ pub struct VisualInputs {
     pub base_opacity: f32,
     /// Current presentation time in seconds.
     pub time_seconds: f32,
+    /// Fraction of the structure's timeline track already played, in `[0, 1]`.
+    pub track_phase: f32,
+    /// The structure's timeline track time in that track's display unit.
+    pub track_time: f32,
     /// Shaded local-space position.
     pub local_position: [f32; 3],
     /// Shaded world-space position.
@@ -45,6 +49,8 @@ impl Default for VisualInputs {
             base_color: [1.0; 4],
             base_opacity: 1.0,
             time_seconds: 0.0,
+            track_phase: 0.0,
+            track_time: 0.0,
             local_position: [0.0; 3],
             world_position: [0.0; 3],
             normal: [0.0, 0.0, 1.0],
@@ -277,6 +283,8 @@ fn input_value(input: u8, values: VisualInputs) -> [f32; 4] {
         9 => [values.roughness, 0.0, 0.0, 0.0],
         10 => [values.specular, 0.0, 0.0, 0.0],
         11 => [values.material_strength, 0.0, 0.0, 0.0],
+        12 => [values.track_phase, 0.0, 0.0, 0.0],
+        13 => [values.track_time, 0.0, 0.0, 0.0],
         _ => [0.0; 4],
     }
 }

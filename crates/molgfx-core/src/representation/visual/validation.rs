@@ -126,7 +126,7 @@ fn input_contract(value: f32) -> Option<(ValueKind, VisualStage)> {
     match exact_index(value)? {
         0 => Some((ValueKind::Color, VisualStage::Entity)),
         1 | 8 => Some((ValueKind::Scalar, VisualStage::Entity)),
-        2 | 9 | 10 | 11 => Some((ValueKind::Scalar, VisualStage::Uniform)),
+        2 | 9..=13 => Some((ValueKind::Scalar, VisualStage::Uniform)),
         3..=6 => Some((ValueKind::Vector, VisualStage::Fragment)),
         7 => Some((ValueKind::Scalar, VisualStage::Fragment)),
         _ => None,

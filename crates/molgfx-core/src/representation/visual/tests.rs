@@ -430,3 +430,29 @@ fn typed_attributes_share_four_slots_and_preserve_value_kinds() {
         [0.2, 0.4, 0.6, 1.0].map(f32::to_bits)
     );
 }
+
+#[test]
+fn track_inputs_evaluate_to_the_structures_phase_and_display_time() {
+    let mut builder = VisualProgramBuilder::new();
+    let phase = builder
+        .track_phase()
+        .unwrap_or_else(|error| panic!("{error}"));
+    let time = builder
+        .track_time()
+        .unwrap_or_else(|error| panic!("{error}"));
+    let sum = builder
+        .add(phase, time)
+        .unwrap_or_else(|error| panic!("{error}"));
+    builder
+        .set_opacity(sum)
+        .unwrap_or_else(|error| panic!("{error}"));
+    let program = builder.finish().unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(program.fragment_instruction_count(), 0);
+    let output = program.evaluate(VisualInputs {
+        track_phase: 0.25,
+        track_time: 2.0,
+        time_seconds: 100.0,
+        ..VisualInputs::default()
+    });
+    assert_eq!(output.opacity.to_bits(), 1.0f32.to_bits());
+}

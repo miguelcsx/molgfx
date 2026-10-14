@@ -14,6 +14,10 @@ use crate::Error;
 pub(crate) enum ScalarInput {
     /// Seconds since the scene began animating.
     Time,
+    /// Fraction of its own simulation interval the structure's timeline track has played.
+    TrackPhase,
+    /// The structure's timeline track time, in that track's display unit.
+    TrackTime,
     /// Distance from the camera to the entity.
     CameraDistance,
     /// Index of the entity within its representation.
@@ -82,6 +86,8 @@ macro_rules! named_inputs {
 
 named_inputs!(ScalarInput, "scalar input", [
     "time" => Time,
+    "track_phase" => TrackPhase,
+    "track_time" => TrackTime,
     "camera_distance" => CameraDistance,
     "entity_index" => EntityIndex,
     "base_opacity" => BaseOpacity,

@@ -55,6 +55,26 @@ impl VisualProgramBuilder {
         self.input(ValueKind::Scalar, 2).map(ScalarExpr)
     }
 
+    /// How far the structure's timeline track has played across its own
+    /// simulation interval, from zero to one.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VisualError`] when the program has no instruction slot left.
+    pub fn track_phase(&mut self) -> Result<ScalarExpr, VisualError> {
+        self.input(ValueKind::Scalar, 12).map(ScalarExpr)
+    }
+
+    /// The structure's timeline track time in that track's display unit
+    /// (nanoseconds, picoseconds and so on), which keeps it exact in `f32`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VisualError`] when the program has no instruction slot left.
+    pub fn track_time(&mut self) -> Result<ScalarExpr, VisualError> {
+        self.input(ValueKind::Scalar, 13).map(ScalarExpr)
+    }
+
     /// Drawable-local position.
     ///
     /// # Errors
