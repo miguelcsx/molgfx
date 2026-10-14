@@ -57,3 +57,4 @@ pub use scene_gpu::brick_atlas::types::{
     BrickAtlasUpload,
 };
 pub use scene_gpu::brick_atlas::upload::GpuBrickAtlas;
+pub use scene_gpu::trajectory_slot::{GpuTrajectory, TrajectorySync};

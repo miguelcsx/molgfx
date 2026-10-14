@@ -37,6 +37,7 @@ pub use density::ScalarVolume;
 pub use ensemble::Ensemble;
 pub use ensemble_policy::{EnsembleOpacity, dominant_index, ensemble_opacities};
 pub use hierarchy::Hierarchy;
+pub use interpolation::InterpolationKind;
 pub use molecular_pose::MolecularPose;
 pub use occupancy::OccupancyStream;
 pub use particle::{Particle, ParticleBoundary, ParticleMotion, ParticleShape};

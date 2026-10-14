@@ -1,9 +1,10 @@
-//! Persistent two-frame coordinate storage for one placed structure.
+//! Persistent coordinate storage for one placed structure: two frames, plus the
+//! neighbouring `before`/`after` frames only while cubic Hermite is selected.
 
 use super::buffers::buffer_entry;
 use super::grow_buffer::grow_capacity;
 use crate::error::RenderError;
-use molgfx_core::TrajectorySegment;
+use molgfx_core::{InterpolationKind, TrajectoryFrame, TrajectorySegment};
 use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, ComputePassEncoder, Device, Queue};
 
 #[repr(C)]
@@ -12,11 +13,17 @@ struct TrajectoryUniforms {
     alpha: f32,
     previous_alpha: f32,
     count: u32,
-    padding: u32,
+    /// 0 = linear, 1 = cubic Hermite.
+    mode: u32,
+    /// Blend weights over `[before, start, end, after]` at the current sample.
+    weights: [f32; 4],
+    /// The same weights at the previous sample, so motion vectors follow the spline.
+    previous_weights: [f32; 4],
 }
 
+/// What a sync changed, so the caller can re-record or rebind.
 #[derive(Clone, Copy, Debug, Default)]
-pub(super) struct TrajectorySync {
+pub struct TrajectorySync {
     pub(super) changed: bool,
     pub(super) coordinate_binding_changed: bool,
 }
@@ -29,10 +36,15 @@ fn trajectory_capacity(byte_len: u64, limit: u64) -> Result<u64, RenderError> {
     grow_capacity(byte_len, limit, "trajectory frame")
 }
 
+/// Resident frames and interpolated outputs for one placed trajectory.
 #[derive(Debug)]
-pub(super) struct GpuTrajectory<D: Device> {
+pub struct GpuTrajectory<D: Device> {
     start: Option<D::Buffer>,
     end: Option<D::Buffer>,
+    /// Allocated only while a Hermite segment has a frame before its start.
+    before: Option<D::Buffer>,
+    /// Allocated only while a Hermite segment has a frame after its end.
+    after: Option<D::Buffer>,
     output: Option<D::Buffer>,
     previous_output: Option<D::Buffer>,
     uniforms: Option<D::Buffer>,
@@ -52,13 +64,50 @@ struct FramePair {
     start_storage: usize,
     end_index: u64,
     end_storage: usize,
+    hermite: bool,
+    before: Option<(u64, usize)>,
+    after: Option<(u64, usize)>,
+}
+
+fn resident(frame: Option<&TrajectoryFrame>) -> Option<(u64, usize)> {
+    frame.map(|frame| (frame.index(), frame.positions().as_ptr() as usize))
+}
+
+fn or_alias<'a, B>(slot: Option<&'a B>, alias: &'a B) -> &'a B {
+    match slot {
+        Some(buffer) => buffer,
+        None => alias,
+    }
+}
+
+/// Narrows `f64` blend weights to the `f32` the GPU consumes.
+fn narrow_weights(weights: [f64; 4]) -> Result<[f32; 4], RenderError> {
+    let mut narrowed = [0.0_f32; 4];
+    for (slot, weight) in narrowed.iter_mut().zip(weights) {
+        *slot = molgfx_core::narrow_to_f32(weight).ok_or(
+            molgfx_core::CoreError::InvalidTrajectory {
+                reason: "trajectory blend weights must be representable as f32",
+            },
+        )?;
+    }
+    Ok(narrowed)
+}
+
+impl<D: Device> Default for GpuTrajectory<D> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<D: Device> GpuTrajectory<D> {
-    pub(super) const fn new() -> Self {
+    /// An inactive slot that holds no buffers yet.
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             start: None,
             end: None,
+            before: None,
+            after: None,
             output: None,
             previous_output: None,
             uniforms: None,
@@ -73,7 +122,12 @@ impl<D: Device> GpuTrajectory<D> {
         }
     }
 
-    pub(super) fn sync(
+    /// Uploads whatever the segment changed and prepares the dispatch.
+    ///
+    /// # Errors
+    ///
+    /// Fails when a buffer cannot be allocated or a blend weight is not an `f32`.
+    pub fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -97,12 +151,22 @@ impl<D: Device> GpuTrajectory<D> {
         self.active = true;
         let count = crate::fallback(u32::try_from(segment.atom_count()), u32::MAX);
         let byte_len = (segment.atom_count() as u64).saturating_mul(12);
-        let output_reallocated = self.ensure_buffers(device, byte_len)?;
+        let hermite = segment.interpolation_kind() == InterpolationKind::CubicHermite;
+        let (before, after) = if hermite {
+            (segment.before(), segment.after())
+        } else {
+            (None, None)
+        };
+        let output_reallocated =
+            self.ensure_buffers(device, byte_len, before.is_some(), after.is_some())?;
         let pair = FramePair {
             start_index: segment.start().index(),
             start_storage: segment.start().positions().as_ptr() as usize,
             end_index: segment.end().index(),
             end_storage: segment.end().positions().as_ptr() as usize,
+            hermite,
+            before: resident(before),
+            after: resident(after),
         };
         let pair_changed = self.pair != Some(pair);
         if pair_changed {
@@ -110,8 +174,14 @@ impl<D: Device> GpuTrajectory<D> {
                 queue.write_buffer(start, 0, bytemuck::cast_slice(segment.start().positions()));
                 queue.write_buffer(end, 0, bytemuck::cast_slice(segment.end().positions()));
             }
+            for (buffer, frame) in [(&self.before, before), (&self.after, after)] {
+                if let (Some(buffer), Some(frame)) = (buffer, frame) {
+                    queue.write_buffer(buffer, 0, bytemuck::cast_slice(frame.positions()));
+                }
+            }
             self.pair = Some(pair);
         }
+        // The GPU consumes f32 blend weights; narrow once and cache the f32 bits.
         let alpha_value = molgfx_core::narrow_to_f32(segment.interpolation()).ok_or(
             molgfx_core::CoreError::InvalidTrajectory {
                 reason: "trajectory interpolation must be representable as f32",
@@ -129,6 +199,14 @@ impl<D: Device> GpuTrajectory<D> {
             } else {
                 alpha_value
             };
+            let (weights, previous_weights) = if hermite {
+                (
+                    narrow_weights(segment.blend_weights(segment.interpolation()))?,
+                    narrow_weights(segment.blend_weights(f64::from(previous_alpha)))?,
+                )
+            } else {
+                ([0.0; 4], [0.0; 4])
+            };
             if let Some(uniforms) = &self.uniforms {
                 queue.write_buffer(
                     uniforms,
@@ -137,7 +215,9 @@ impl<D: Device> GpuTrajectory<D> {
                         alpha: alpha_value,
                         previous_alpha,
                         count,
-                        padding: 0,
+                        mode: u32::from(hermite),
+                        weights,
+                        previous_weights,
                     }),
                 );
             }
@@ -161,7 +241,13 @@ impl<D: Device> GpuTrajectory<D> {
         })
     }
 
-    fn ensure_buffers(&mut self, device: &D, byte_len: u64) -> Result<bool, RenderError> {
+    fn ensure_buffers(
+        &mut self,
+        device: &D,
+        byte_len: u64,
+        want_before: bool,
+        want_after: bool,
+    ) -> Result<bool, RenderError> {
         let mut output_reallocated = false;
         if self.start.is_none() || byte_len > self.capacity {
             let capacity =
@@ -176,17 +262,42 @@ impl<D: Device> GpuTrajectory<D> {
             self.output = Some(device.create_buffer(&BufferDesc {
                 label: "interpolated trajectory coordinates",
                 size: capacity,
-                usage: BufferUsage::STORAGE,
+                usage: OUTPUT_USAGE,
             })?);
             self.previous_output = Some(device.create_buffer(&BufferDesc {
                 label: "previous interpolated trajectory coordinates",
                 size: capacity,
-                usage: BufferUsage::STORAGE,
+                usage: OUTPUT_USAGE,
             })?);
             self.capacity = capacity;
+            self.before = None;
+            self.after = None;
             self.pair = None;
             self.group = None;
             output_reallocated = true;
+        }
+        let capacity = self.capacity;
+        let neighbour = |label| BufferDesc {
+            label,
+            size: capacity,
+            usage: BufferUsage::STORAGE.union(BufferUsage::COPY_DST),
+        };
+        let changed = Self::fit_neighbour(
+            device,
+            &mut self.before,
+            want_before,
+            &neighbour("trajectory frame before"),
+        )?;
+        let changed = Self::fit_neighbour(
+            device,
+            &mut self.after,
+            want_after,
+            &neighbour("trajectory frame after"),
+        )? || changed;
+        if changed {
+            // The binding set or its contents changed: rebind and re-upload.
+            self.group = None;
+            self.pair = None;
         }
         if self.uniforms.is_none() {
             self.uniforms = Some(device.create_buffer(&BufferDesc {
@@ -197,6 +308,26 @@ impl<D: Device> GpuTrajectory<D> {
             self.group = None;
         }
         Ok(output_reallocated)
+    }
+
+    /// Allocates or releases one neighbour buffer; true when it changed.
+    fn fit_neighbour(
+        device: &D,
+        slot: &mut Option<D::Buffer>,
+        wanted: bool,
+        desc: &BufferDesc,
+    ) -> Result<bool, RenderError> {
+        match (slot.is_some(), wanted) {
+            (false, true) => {
+                *slot = Some(device.create_buffer(desc)?);
+                Ok(true)
+            }
+            (true, false) => {
+                *slot = None;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 
     fn bind(&mut self, device: &D, layout: &D::BindGroupLayout) {
@@ -218,11 +349,15 @@ impl<D: Device> GpuTrajectory<D> {
                 buffer_entry(2, output),
                 buffer_entry(3, previous_output),
                 buffer_entry(4, uniforms),
+                // An absent neighbour aliases a resident frame: its weight is zero.
+                buffer_entry(5, or_alias(self.before.as_ref(), start)),
+                buffer_entry(6, or_alias(self.after.as_ref(), end)),
             ],
         }));
     }
 
-    pub(super) fn output(&self) -> Option<&D::Buffer> {
+    /// The interpolated coordinates at the current sample, while active.
+    pub fn output(&self) -> Option<&D::Buffer> {
         if self.active {
             self.output.as_ref()
         } else {
@@ -230,7 +365,8 @@ impl<D: Device> GpuTrajectory<D> {
         }
     }
 
-    pub(super) fn previous_output(&self) -> Option<&D::Buffer> {
+    /// The interpolated coordinates at the previous sample, while active.
+    pub fn previous_output(&self) -> Option<&D::Buffer> {
         if self.active {
             self.previous_output.as_ref()
         } else {
@@ -242,11 +378,8 @@ impl<D: Device> GpuTrajectory<D> {
         self.active && self.dirty
     }
 
-    pub(super) fn record<P: ComputePassEncoder<D>>(
-        &mut self,
-        pass: &mut P,
-        pipeline: &D::Pipeline,
-    ) {
+    /// Records the interpolation dispatch when the slot is dirty.
+    pub fn record<P: ComputePassEncoder<D>>(&mut self, pass: &mut P, pipeline: &D::Pipeline) {
         if !self.dirty() {
             return;
         }
@@ -260,6 +393,9 @@ impl<D: Device> GpuTrajectory<D> {
         self.dirty = false;
     }
 }
+
+/// Outputs are storage; the copy source lets a test read them back.
+const OUTPUT_USAGE: BufferUsage = BufferUsage::STORAGE.union(BufferUsage::COPY_SRC);
 
 fn trajectory_dispatch_groups(atom_count: u32) -> [u32; 2] {
     let coordinates = u64::from(atom_count) * 3;

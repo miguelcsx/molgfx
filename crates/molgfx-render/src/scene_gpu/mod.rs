@@ -67,7 +67,7 @@ mod surface_slot;
 mod sync;
 pub(crate) use sync::{PagedInstancesSync, PagedRelationsSync, SceneSync};
 mod grid_fit;
-mod trajectory_slot;
+pub(crate) mod trajectory_slot;
 mod uniforms;
 mod visibility_cache;
 mod visual;

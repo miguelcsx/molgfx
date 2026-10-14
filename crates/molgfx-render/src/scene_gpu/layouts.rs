@@ -439,6 +439,8 @@ pub(super) fn trajectory_layout<D: Device>(device: &D) -> D::BindGroupLayout {
             writable_storage(2),
             writable_storage(3),
             compute_uniform(4),
+            storage(5),
+            storage(6),
         ],
     })
 }

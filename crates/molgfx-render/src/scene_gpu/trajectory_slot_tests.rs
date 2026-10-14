@@ -104,3 +104,84 @@ fn trajectory_capacity_stays_within_an_eighth_and_under_the_device_limit() {
     assert!(exact <= limit, "never rounds past the limit");
     assert!(trajectory_capacity(limit + 1, limit).is_err());
 }
+
+fn scalar_frame(index: u64, time: f64, x: f32) -> molgfx_core::TrajectoryFrame {
+    molgfx_core::TrajectoryFrame::new(index, time, std::sync::Arc::from([[x, 0.0, 0.0]]), "frame")
+        .expect("frame validates")
+}
+
+fn buffer_count(device: &crate::testing::MockDevice) -> usize {
+    device.log.buffers.lock().expect("buffers").len()
+}
+
+#[test]
+fn linear_residency_is_unchanged_and_hermite_adds_only_the_neighbours_it_has() {
+    use super::{GpuTrajectory, TrajectoryUniforms};
+    use crate::testing::MockDevice;
+    use molgfx_core::TrajectorySegment;
+
+    let device = MockDevice::default();
+    let queue = device.queue();
+    let layout = crate::scene_gpu::layouts::trajectory_layout(&device);
+    let mut trajectory = GpuTrajectory::new();
+    let linear = TrajectorySegment::new(scalar_frame(1, 1.0, 0.0), scalar_frame(2, 2.0, 2.0), 1.5)
+        .expect("segment validates");
+    trajectory
+        .sync(&device, &queue, &layout, Some(&linear))
+        .expect("linear");
+    // Two frames, two outputs and the uniforms: the pre-existing five buffers.
+    assert_eq!(buffer_count(&device), 5);
+    let payloads = device.log.write_payloads.lock().expect("payloads");
+    let uniforms =
+        bytemuck::pod_read_unaligned::<TrajectoryUniforms>(payloads.last().expect("uniform"));
+    assert_eq!(uniforms.mode, 0);
+    drop(payloads);
+
+    let hermite = linear
+        .clone()
+        .with_cubic_hermite(
+            Some(scalar_frame(0, 0.0, -1.0)),
+            Some(scalar_frame(3, 3.0, 1.0)),
+        )
+        .expect("neighbours validate");
+    trajectory
+        .sync(&device, &queue, &layout, Some(&hermite))
+        .expect("hermite");
+    assert_eq!(buffer_count(&device), 7, "before and after are allocated");
+    let payloads = device.log.write_payloads.lock().expect("payloads");
+    let uniforms =
+        bytemuck::pod_read_unaligned::<TrajectoryUniforms>(payloads.last().expect("uniform"));
+    assert_eq!(uniforms.mode, 1);
+    let sum: f32 = uniforms.weights.iter().sum();
+    assert!((sum - 1.0).abs() < 1.0e-6);
+    drop(payloads);
+
+    trajectory
+        .sync(&device, &queue, &layout, Some(&linear))
+        .expect("back to linear");
+    assert!(trajectory.before.is_none() && trajectory.after.is_none());
+    assert_eq!(
+        buffer_count(&device),
+        7,
+        "returning to linear allocates nothing"
+    );
+}
+
+#[test]
+fn a_hermite_track_at_the_first_frame_holds_only_the_neighbour_it_has() {
+    use super::GpuTrajectory;
+    use crate::testing::MockDevice;
+    use molgfx_core::TrajectorySegment;
+
+    let device = MockDevice::default();
+    let queue = device.queue();
+    let layout = crate::scene_gpu::layouts::trajectory_layout(&device);
+    let mut trajectory = GpuTrajectory::new();
+    let segment = TrajectorySegment::new(scalar_frame(0, 0.0, 0.0), scalar_frame(1, 1.0, 2.0), 0.5)
+        .and_then(|segment| segment.with_cubic_hermite(None, Some(scalar_frame(2, 2.0, 1.0))))
+        .expect("segment validates");
+    trajectory
+        .sync(&device, &queue, &layout, Some(&segment))
+        .expect("hermite");
+    assert!(trajectory.before.is_none() && trajectory.after.is_some());
+}
