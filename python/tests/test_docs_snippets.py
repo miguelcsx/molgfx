@@ -14,7 +14,7 @@ import runpy
 import tempfile
 import unittest
 import urllib.request
-from collections.abc import Iterator
+from collections.abc import Generator
 from pathlib import Path
 from unittest import mock
 
@@ -87,7 +87,7 @@ def _entry() -> bytes:
         ("C1", "NAG", "F", 6, 1, "D", 1, (0.0, 60.0, 0.0)),
         ("C2", "NAG", "F", 6, 1, "D", 1, (1.5, 60.0, 0.0)),
     ]
-    lines = []
+    lines: list[str] = []
     for serial, (atom, residue, asym, entity, seq, auth, number, xyz) in enumerate(rows, start=1):
         group = "ATOM" if entity in {1, 2, 5} else "HETATM"
         element = "FE" if atom == "FE" else atom[0]
@@ -107,7 +107,7 @@ TWO_ATOMS = (
 
 
 @contextlib.contextmanager
-def _offline() -> Iterator[None]:
+def _offline() -> Generator[None]:
     real = molframe.read
 
     def read(source: object, **_: object) -> molframe.Structure:

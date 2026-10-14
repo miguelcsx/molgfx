@@ -95,7 +95,7 @@ class SeekTests(unittest.TestCase):
 
     def test_numpy_and_list_frames_render_the_same(self) -> None:
         renderer = molgfx.Renderer()
-        seen = []
+        seen: list[list[molgfx.Image]] = []
         for kind in ("f32", "f64", "list"):
             scene = _scene()
             play = molgfx.playback.attach(scene, self._frames(kind), self.TIMES)

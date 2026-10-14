@@ -2,6 +2,8 @@
 
 import base64
 import json
+from operator import methodcaller
+from typing import cast
 
 from test_commands import _structure
 
@@ -9,7 +11,8 @@ from molgfx import Viewer
 
 
 def _state(viewer: Viewer) -> dict[str, object]:
-    result: dict[str, object] = viewer.get_state()
+    # ipywidgets leaves get_state untyped, so it is called by name.
+    result = cast("dict[str, object]", methodcaller("get_state")(viewer))
     result.pop("layout", None)
     result["_runtime_wasm"] = base64.b64encode(viewer._runtime_wasm).decode()
     result["structure_payloads"] = [

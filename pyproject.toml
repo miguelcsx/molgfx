@@ -128,3 +128,23 @@ known-first-party = ["molgfx"]
 python_version = "3.12"
 strict = true
 files = ["python"]
+
+# Pyright is a second strict checker over the same surface as mypy: the two
+# disagree on enough inference corners that passing both is the honest bar.
+[tool.pyright]
+include = ["python"]
+exclude = ["**/__pycache__", "**/*.dSYM"]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
+
+# The suite is run by path, so its modules import each other by bare name, and
+# it reaches private members on purpose (see the ruff SLF001 entry above).
+[[tool.pyright.executionEnvironments]]
+root = "python/tests"
+extraPaths = ["python/tests", "python"]
+reportPrivateUsage = false
+
+[[tool.pyright.executionEnvironments]]
+root = "python"

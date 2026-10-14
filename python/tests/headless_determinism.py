@@ -44,7 +44,7 @@ def _pocket(scene: molgfx.Scene) -> None:
     scene.pocket("resname LIG", style=molgfx.PocketStyle(near=5.0, mid=9.0))
 
 
-failures = []
+failures: list[str] = []
 for name, build in (("spacefill", _spacefill), ("pocket", _pocket)):
     first, second = _render(build), _render(build)
     if first != second:

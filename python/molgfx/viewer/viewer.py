@@ -166,9 +166,17 @@ class Viewer(anywidget.AnyWidget):
         """Apply the Session's color command to a target."""
         return self.execute(Command.color(color, target, structure=structure))
 
-    def focus(self, target: str | Query) -> CommandResult:
-        """Focus a target with the Session's camera and context policy."""
-        return self.execute(Command.focus(target))
+    def focus(self, target: str | Query | None = None) -> None:
+        """Focus a target with the Session's camera and context policy.
+
+        Without a target this is the widget's own keyboard-focus request, which
+        the base class defines with no arguments. The base signature returns
+        nothing; run ``Command.focus`` through ``execute`` for the result.
+        """
+        if target is None:
+            super().focus()
+        else:
+            self.execute(Command.focus(target))
 
     def select(self, target: str | Query | None) -> CommandResult:
         """Set or clear the selected overlay as one undoable Session command."""
@@ -256,9 +264,10 @@ class Viewer(anywidget.AnyWidget):
         if not self._closed:
             event: object = json.loads(event_json)
             if isinstance(event, dict):
+                pair = cast("dict[str, object]", event)
                 transport = self.scene.browser_transport()
                 self._motion_fingerprint = transport.motion_fingerprint
-                interval = transport.playback_for(str(event["structure"]))
+                interval = transport.playback_for(str(pair["structure"]))
                 with self.hold_sync():
                     self.coordinate_frames = transport.frames
                     self.trajectory_bindings = transport.trajectories

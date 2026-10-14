@@ -39,6 +39,7 @@ wasm-pack build crates/molgfx-wasm --target web --release --out-dir pkg   # the 
 ruff format .                              # every Python file in the repository
 ruff check                                 # the shipped surface, every rule enabled
 mypy                                       # the shipped surface, strict mode
+pyright                                    # the same surface, strict mode
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --all
 ```
@@ -155,6 +156,7 @@ cargo clippy -p molgfx-wasm --target wasm32-unknown-unknown --all-targets -- -D 
 ruff format --check .
 ruff check
 mypy
+pyright
 python -m unittest discover -s python/tests
 python -m mypy.stubtest molgfx._engine
 grep -rnE '#\[(allow|expect)\b' crates/ --include='*.rs'  # must be empty

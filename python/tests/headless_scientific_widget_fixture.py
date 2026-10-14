@@ -101,8 +101,7 @@ def main() -> None:
     sampled = method.startswith("sampled_")
     playback = "playback" in method
     moving = sampled or playback or method in {"trajectory", "candidate_hydrogen_bonds"}
-    if moving:
-        start, end = _bind_motion(scene, playback=playback)
+    start, end = _bind_motion(scene, playback=playback) if moving else (None, None)
     if method in {"trajectory", "playback"}:
         scene.add(molgfx.rep.spacefill(target="all"))
         scene.set_camera(scene.frame("all"))
@@ -145,6 +144,8 @@ def main() -> None:
         samples: dict[str, object] = {}
         if moving:
             if playback:
+                assert start is not None
+                assert end is not None
                 scene.set_trajectory_pair(
                     structure=scene.structure_id,
                     start=end,
@@ -157,6 +158,8 @@ def main() -> None:
             viewer.sync_request += 1
             samples["stale_resync"] = _state(viewer)
             if playback:
+                assert start is not None
+                assert end is not None
                 scene.set_trajectory_pair(
                     structure=scene.structure_id, start=start, end=end, sample_time=0.25
                 )
