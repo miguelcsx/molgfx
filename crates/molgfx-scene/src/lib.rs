@@ -12,6 +12,17 @@ pub mod controls {
         ScaleController,
     };
 }
+/// Physical time: typed simulation instants and the units they are read in.
+pub mod time {
+    pub use molgfx_core::{PlaybackTime, SimTime, TimeUnit};
+}
+
+/// The multi-track clock: warps that map presentation seconds onto each track's
+/// physical time, the timeline that applies them, and its authored form.
+pub mod timeline {
+    pub use crate::spec::{TimelineSpec, TrackPace, TrackSpec};
+    pub use molgfx_core::{PlaybackMode, TimeWarp, Timeline, TimelineTrackHandle, TrackReading};
+}
 pub mod color;
 mod error;
 mod id;

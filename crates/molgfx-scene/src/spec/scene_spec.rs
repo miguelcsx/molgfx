@@ -43,6 +43,9 @@ pub struct SceneSpec {
     /// Trajectory bindings in stable ID order.
     #[serde(default)]
     pub trajectories: BTreeMap<crate::TrajectoryId, TrajectorySpec>,
+    /// Authored time: independently paced tracks over declared trajectories.
+    #[serde(default)]
+    pub timeline: super::TimelineSpec,
     /// Per-atom anisotropic-displacement ellipsoid overlays in stable ID order.
     #[serde(default)]
     pub ellipsoids: BTreeMap<crate::EllipsoidId, crate::overlay::EllipsoidSpec>,
@@ -90,6 +93,7 @@ impl SceneSpec {
             measurements: BTreeMap::new(),
             interactions: BTreeMap::new(),
             trajectories: BTreeMap::new(),
+            timeline: super::TimelineSpec::default(),
             ellipsoids: BTreeMap::new(),
             planes: BTreeMap::new(),
             assembly: None,
@@ -123,6 +127,7 @@ impl SceneSpec {
         let value: Self = serde_json::from_str(source)?;
         value.validate_selections()?;
         value.validate_overlay()?;
+        value.timeline.validate(&value.trajectories)?;
         value.validate_camera()?;
         Ok(value)
     }
