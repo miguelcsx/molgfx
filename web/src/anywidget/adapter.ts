@@ -5,9 +5,13 @@ import type {
   SceneSource,
   ViewerSink,
   PlaybackUpdate,
+  ChunkRequest,
+  TrajectoryChunk,
+  TransportPort,
 } from "../core/contracts.js";
 import type { Camera, Cleanup } from "../core/transport.js";
 import { observeModel } from "./model.js";
+import { bindTransport } from "./transport-bridge.js";
 import type { WidgetModel } from "./model.js";
 
 /** Adapts one anywidget `WidgetModel` to every port the viewer core needs. */
@@ -92,6 +96,30 @@ export class AnywidgetAdapter
       };
       callback({ structure: BigInt(interval[0]), start: frame(interval[1]), end: frame(interval[2]), seconds: interval[3] });
     });
+  }
+
+  onTrajectoryChunk(callback: (chunk: TrajectoryChunk) => void): Cleanup {
+    return observeModel(this.#model, "change:trajectory_chunk", () => {
+      const reply = this.#model.get("trajectory_chunk");
+      if (!reply?.[1]) return;
+      callback({
+        structure: BigInt(reply[1]),
+        frames: reply[2].map(([id, index, seconds, positions]) => ({ id: BigInt(id), index: BigInt(index), seconds, positions })),
+      });
+    });
+  }
+
+  requestTrajectoryChunk(request: ChunkRequest): void {
+    this.#model.send({
+      type: "chunk_request",
+      structure: request.structure.toString(),
+      from_seconds: request.fromSeconds,
+      count: request.count,
+    });
+  }
+
+  bindTransport(transport: TransportPort): Cleanup {
+    return bindTransport(this.#model, transport, (error) => this.reportError(error));
   }
 
   requestResync(): void {

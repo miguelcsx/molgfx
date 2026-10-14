@@ -92,10 +92,19 @@ export function buildScene(
   }
 }
 
-export function applyPlayback(scene: WasmScene, update: PlaybackUpdate): void {
+export function applyPlayback(scene: WasmScene, update: PlaybackUpdate, runtime?: RuntimeModule): void {
   const reference = (frame: PlaybackUpdate["start"]) => ({ identity: frame.id.toString(), index: frame.index.toString(), seconds: frame.seconds });
   const payload = (frame: PlaybackUpdate["start"]) => scene.hasCoordinateFrame(frame.id) ? new Float32Array(0) : words(frame.positions, Float32Array);
-  scene.setTrajectoryPair(update.structure, JSON.stringify({ start: reference(update.start), end: reference(update.end), seconds: update.seconds }), payload(update.start), payload(update.end));
+  const metadata = JSON.stringify({ start: reference(update.start), end: reference(update.end), seconds: update.seconds });
+  const start = payload(update.start), end = payload(update.end);
+  if (runtime && (start.length > PAGE_ELEMENTS || end.length > PAGE_ELEMENTS)) {
+    // Large pairs cross the boundary in bounded pages, the same path as every other column.
+    pagedTransfer(start, (n) => new runtime.FloatPages(n), (first) =>
+      pagedTransfer(end, (n) => new runtime.FloatPages(n), (second) =>
+        scene.setTrajectoryPairPaged(update.structure, metadata, first as InstanceType<RuntimeModule["FloatPages"]>, second as InstanceType<RuntimeModule["FloatPages"]>)));
+    return;
+  }
+  scene.setTrajectoryPair(update.structure, metadata, start, end);
 }
 
 /** Whether a committed patch moved the camera, so a cached view must be dropped. */

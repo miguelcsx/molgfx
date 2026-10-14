@@ -77,7 +77,7 @@ test("Large columns cross the wasm boundary in bounded pages and free their accu
 test("Anywidget preserves exact pick identity and unsubscribes its transport", () => {
   const values: Partial<WidgetTraits> = { scene_spec: '{}', revision: 4, structure_ids: [1, 2], structure_names: ['a','b'], structure_payloads: [new Uint8Array([9]), new Uint8Array()], structure_sources: [1, 1] };
   const watching = new Map<ModelChangeEvent, () => void>();
-  const model = { get: (key: keyof WidgetTraits) => values[key], set: (key: keyof WidgetTraits, value: unknown) => { Object.assign(values, { [key]: value }); }, save_changes() {}, on: (key: ModelChangeEvent, fn: () => void) => watching.set(key, fn), off: (key: ModelChangeEvent) => watching.delete(key) } as WidgetModel;
+  const model = { get: (key: keyof WidgetTraits) => values[key], set: (key: keyof WidgetTraits, value: unknown) => { Object.assign(values, { [key]: value }); }, save_changes() {}, send() {}, on: (key: ModelChangeEvent, fn: () => void) => watching.set(key, fn), off: (key: ModelChangeEvent) => watching.delete(key) } as unknown as WidgetModel;
   const adapter = new AnywidgetAdapter(model), snapshot = adapter.snapshot();
   check(snapshot.structures[0]?.payload === snapshot.structures[1]?.payload, "aliased structure bytes copied");
   const stop = adapter.onPatch(() => {}); stop(); check(watching.size === 0, "trait subscription leak");

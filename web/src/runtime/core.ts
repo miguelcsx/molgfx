@@ -7,11 +7,18 @@ import { RenderLoop } from "../render/render-loop.js";
 import { readDeviceLoss, recoverRenderer } from "../render/device-loss.js";
 import { cameraState, pickCoordinates } from "../render/camera.js";
 import { assertWebGPUAvailable, loadRuntime, sourceBytes } from "./runtime.js";
+import { Transport } from "./transport.js";
+import { captureFrameSequence } from "./frame-sequence.js";
+import { TrajectoryStream } from "./trajectory-stream.js";
 import { applyPlayback, applyScenePatch, buildScene, patchChangesCamera } from "./scene.js";
 import type {
   ViewerHost,
   InteractionEvent,
   SceneSnapshot,
+  SequenceManifest,
+  SequenceOptions,
+  TransportSetup,
+  TransportTimeline,
 } from "../core/contracts.js";
 import type {
   RuntimeModule,
@@ -57,6 +64,8 @@ interface Answer {
   rendered?: string;
   errors?: { message: string }[];
 }
+/** Upper bound on accumulation passes per captured frame. */
+const SETTLE_PASSES = 256;
 /** Shared browser host. Local Session edits and remote committed patches are mutually exclusive. */
 export class ViewerCore {
   readonly events = new ViewerEmitter();
@@ -71,6 +80,13 @@ export class ViewerCore {
   #session: WasmSession | undefined;
   #renderer: WasmRenderer | undefined;
   #loop: RenderLoop | undefined;
+  #transport: Transport | undefined;
+  #capturing = false;
+  #captureFailure: unknown;
+  readonly #stream = new TrajectoryStream(
+    (request) => this.#host?.source.requestTrajectoryChunk?.(request),
+    () => this.#runtime,
+  );
   #interactions: ViewerInteractions | undefined;
   #disposed = false;
   #closing: Promise<void> | undefined;
@@ -178,12 +194,17 @@ export class ViewerCore {
         );
         if (this.#host.source.onTrajectorySample) {
           this.#cleanup.add(this.#host.source.onTrajectorySample((structure, seconds) => {
-            this.#applyRuntime(scene => scene.setTrajectoryTime(structure, seconds));
+            this.#applyRuntime(scene => this.#stream.sample(scene, structure, seconds));
+          }));
+        }
+        if (this.#host.source.onTrajectoryChunk) {
+          this.#cleanup.add(this.#host.source.onTrajectoryChunk(chunk => {
+            this.#applyRuntime(scene => this.#stream.receive(scene, chunk));
           }));
         }
         if (this.#host.source.onTrajectoryPair) {
           this.#cleanup.add(this.#host.source.onTrajectoryPair(update => {
-            this.#applyRuntime(scene => applyPlayback(scene, update));
+            this.#applyRuntime(scene => applyPlayback(scene, update, this.#runtime));
           }));
         }
         if (this.#scene.revision !== this.#host.source.revision())
@@ -202,6 +223,90 @@ export class ViewerCore {
     }
   }
 
+  /**
+   * Builds the playback transport over fitted tracks and ties the render loop
+   * to it: the loop redraws every frame only while the transport plays.
+   */
+  attachTransport(setup: TransportSetup): Transport {
+    this.#assertLive();
+    const runtime = this.#runtime, scene = this.#scene, loop = this.#loop;
+    if (!runtime || !scene || !loop) throw new Error("The viewer is not initialized");
+    if (this.#transport) throw new Error("A transport is already attached");
+    const timeline = new runtime.Timeline();
+    try {
+      for (const track of setup.tracks)
+        timeline.addFittedTrack(scene, track.structure, Float64Array.of(track.range[0], track.range[1]), setup.durationSeconds, track.mode ?? setup.loopMode ?? "clamp", track.unit);
+    } catch (error) {
+      timeline.free();
+      throw error;
+    }
+    const driven: TransportTimeline = {
+      trackCount: timeline.trackCount,
+      apply: (_scene, seconds) => {
+        const current = this.#scene;
+        if (!current) return;
+        try {
+          timeline.apply(current, seconds);
+          this.#sceneEdited(false);
+        } catch (error) {
+          if (this.#capturing) this.#captureFailure ??= error;
+          this.#transport?.pause();
+          this.reportError(error);
+        }
+      },
+      readingsInto: (out) => timeline.readingsInto(out),
+    };
+    const transport = new Transport({
+      timeline: driven,
+      layout: { readingStride: runtime.Timeline.readingStride(), unitSymbols: runtime.Timeline.unitSymbols() },
+      scene: undefined as never,
+      clock: { request: (callback) => requestAnimationFrame(callback), cancel: (handle) => cancelAnimationFrame(handle) },
+      durationSeconds: setup.durationSeconds,
+      ...(setup.loopMode === undefined ? {} : { loopMode: setup.loopMode }),
+      ...(setup.rate === undefined ? {} : { rate: setup.rate }),
+    });
+    this.#transport = transport;
+    this.#cleanup.add(transport.on("playingchange", (playing) => loop.setContinuous(playing)));
+    const bound = this.#host?.source.bindTransport?.(transport);
+    if (bound) this.#cleanup.add(bound);
+    this.#cleanup.add(() => {
+      transport.dispose();
+      timeline.free();
+    });
+    return transport;
+  }
+  /**
+   * Steps the attached transport by hand, one converged frame at a time, with
+   * no animation-frame scheduling. The transport is left paused.
+   */
+  async captureSequence(options: SequenceOptions): Promise<SequenceManifest> {
+    this.#assertLive();
+    const transport = this.#transport, loop = this.#loop, canvas = this.#canvas;
+    if (!transport || !loop) throw new Error("Attach a transport before capturing a sequence");
+    if (this.#capturing) throw new Error("A sequence is already being captured");
+    this.#capturing = true;
+    this.#captureFailure = undefined;
+    try {
+      return await captureFrameSequence(transport, {
+        begin: (width, height) => loop.beginCapture(width, height),
+        settle: () => loop.drawConverged(SETTLE_PASSES),
+        takeError: () => {
+          const failure = this.#captureFailure;
+          this.#captureFailure = undefined;
+          return failure;
+        },
+        encode: () => new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob(
+            (blob) => (blob ? resolve(blob) : reject(new Error("The canvas could not be encoded"))),
+            "image/png",
+          );
+        }),
+        end: () => loop.endCapture(),
+      }, options);
+    } finally {
+      this.#capturing = false;
+    }
+  }
   #applyRuntime(change: (scene: WasmScene) => void): void {
     if (this.#disposed || !this.#scene) return;
     try {
@@ -326,6 +431,7 @@ export class ViewerCore {
     }
     this.#generation.advance();
     this.#scene = next;
+    this.#stream.forgetResident();
     this.#session?.free();
     this.#session = undefined;
     void loop.settled().then(() => previous?.free());

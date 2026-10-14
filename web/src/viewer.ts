@@ -1,4 +1,6 @@
 import { ViewerCore } from "./runtime/core.js";
+import type { Transport } from "./runtime/transport.js";
+import type { SequenceManifest, SequenceOptions, TransportSetup } from "./core/contracts.js";
 import type {
   CommandResult,
   LoadOptions,
@@ -67,6 +69,14 @@ export class Viewer {
   }
   pick(x: number, y: number): Promise<Pick | undefined> {
     return this.#core.pick(x, y);
+  }
+  /** Headless playback over fitted tracks; the viewer draws continuously only while it plays. */
+  attachTransport(setup: TransportSetup): Transport {
+    return this.#core.attachTransport(setup);
+  }
+  /** Captures a deterministic frame sequence over the attached transport and returns its manifest. */
+  captureSequence(options: SequenceOptions): Promise<SequenceManifest> {
+    return this.#core.captureSequence(options);
   }
   on<K extends keyof ViewerEvents>(
     type: K,

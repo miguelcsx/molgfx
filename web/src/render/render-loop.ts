@@ -41,6 +41,8 @@ export class RenderLoop {
   #hoverMemo:
     { x: number; y: number; epoch: number; result: PickResult } | undefined;
   #disposed = false;
+  #continuous = false;
+  #capture: readonly [number, number] | undefined;
   constructor(
     canvas: HTMLCanvasElement,
     renderer: WasmRenderer,
@@ -103,14 +105,64 @@ export class RenderLoop {
     this.invalidatePicks();
     this.requestFrame();
   }
+  /** While true the loop redraws every frame (a playing transport); false restores on-demand drawing. */
+  setContinuous(on: boolean): void {
+    if (this.#disposed || this.#continuous === on) return;
+    this.#continuous = on;
+    if (on) this.requestFrame();
+  }
   markSizeDirty = (): void => {
     if (this.#disposed) return;
     this.#sizeDirty = true;
     this.invalidatePicks();
     this.requestFrame();
   };
+  /** Fixes the canvas to `width` by `height` and stops scheduling frames until `endCapture`. */
+  beginCapture(width: number, height: number): void {
+    this.#assertLive();
+    if (this.#frame !== undefined) cancelAnimationFrame(this.#frame);
+    this.#frame = undefined;
+    this.#capture = [width, height];
+    this.#sizeDirty = true;
+  }
+  /** Restores the viewport size and on-demand drawing. */
+  endCapture(): void {
+    this.#capture = undefined;
+    if (this.#disposed) return;
+    this.#sizeDirty = true;
+    this.invalidatePicks();
+    this.requestFrame();
+  }
+  /**
+   * Renders the current scene synchronously until the renderer reports no
+   * further accumulation, bounded by `passes`. It never schedules a frame.
+   * Returns false when the bound was reached while still accumulating.
+   */
+  drawConverged(passes: number): boolean {
+    this.#assertLive();
+    this.#ensureSize();
+    if (!this.hasScene) return true;
+    const camera = this.camera;
+    if (this.#cameraDirty) {
+      this.#position.set(camera.position);
+      this.#target.set(camera.target);
+      this.#up.set(camera.up);
+      this.#cameraDirty = false;
+    }
+    let converged = false;
+    for (let pass = 0; pass < passes && !converged; pass += 1) {
+      converged = !this.#renderer.renderCamera(
+        this.#scene,
+        this.#position,
+        this.#target,
+        this.#up,
+      );
+    }
+    this.#callbacks.onSuccess();
+    return converged;
+  }
   requestFrame = (): void => {
-    if (this.#disposed || this.#frame !== undefined) return;
+    if (this.#disposed || this.#frame !== undefined || this.#capture) return;
     this.#frame = requestAnimationFrame(() => {
       this.#frame = undefined;
       try {
@@ -143,7 +195,7 @@ export class RenderLoop {
       this.#up,
     );
     this.#callbacks.onSuccess();
-    if (again) this.requestFrame();
+    if (again || this.#continuous) this.requestFrame();
   }
   pick(x: number, y: number): Promise<PickResult> {
     if (this.#disposed || !this.hasScene)
@@ -249,7 +301,7 @@ export class RenderLoop {
     if (!this.#sizeDirty && this.#pixelRatio === ratio) return;
     this.#sizeDirty = false;
     this.#pixelRatio = ratio;
-    const [width, height] = dimensions(this.#canvas);
+    const [width, height] = this.#capture ?? dimensions(this.#canvas);
     if (this.#canvas.width !== width || this.#canvas.height !== height) {
       this.#canvas.width = width;
       this.#canvas.height = height;

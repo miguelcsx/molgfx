@@ -19,6 +19,8 @@ export interface WidgetTraits {
   trajectory_sample?: [string, number];
   playback_bindings?: Array<[string, string, string, number]>;
   playback_pair?: [string, string, string, number];
+  /** `[serial, structure, frames]`; the serial makes a repeated reply a change. */
+  trajectory_chunk?: [number, string, Array<[string, string, number, BinaryState]>];
   sync_request: number;
   error: string;
   camera: Camera;
@@ -26,12 +28,17 @@ export interface WidgetTraits {
   interaction_event: Record<string, unknown>;
 }
 export type ModelChangeEvent = `change:${keyof WidgetTraits & string}`;
+/** Custom (non-trait) messages between the kernel and the view. */
+export type MessageEvent = "msg:custom";
 export interface WidgetModel {
   get<K extends keyof WidgetTraits>(key: K): WidgetTraits[K];
   set<K extends keyof WidgetTraits>(key: K, value: WidgetTraits[K]): void;
   save_changes(): void;
+  send(content: unknown): void;
   on(event: ModelChangeEvent, callback: () => void): void;
+  on(event: MessageEvent, callback: (content: unknown) => void): void;
   off(event: ModelChangeEvent, callback: () => void): void;
+  off(event: MessageEvent, callback: (content: unknown) => void): void;
 }
 export interface RenderContext {
   model: WidgetModel;
@@ -44,4 +51,11 @@ export function observeModel(
 ): Cleanup {
   model.on(event, callback);
   return () => model.off(event, callback);
+}
+export function observeMessages(
+  model: WidgetModel,
+  callback: (content: unknown) => void,
+): Cleanup {
+  model.on("msg:custom", callback);
+  return () => model.off("msg:custom", callback);
 }
