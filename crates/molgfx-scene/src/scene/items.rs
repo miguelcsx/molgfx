@@ -45,4 +45,21 @@ impl Scene {
     pub fn add_structure(&mut self, structure: &molframe::Structure) -> Result<StructureId, Error> {
         self.add_source(&molgfx_core::MolecularSource::from_molframe(structure))
     }
+
+    /// Adds `structure` once at `placement`, a column-major 4×4 affine matrix.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the source cannot be adapted, the matrix is invalid,
+    /// or IDs are exhausted.
+    pub fn add_structure_at(
+        &mut self,
+        structure: &molframe::Structure,
+        placement: [f32; 16],
+    ) -> Result<StructureId, Error> {
+        self.add_source_at(
+            &molgfx_core::MolecularSource::from_molframe(structure),
+            placement,
+        )
+    }
 }

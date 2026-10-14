@@ -77,7 +77,7 @@ pub fn perspective(
     })
 }
 
-pub use molgfx_core::{CameraEasing, CameraKeyframe, CameraPath};
+pub use molgfx_core::{CameraBookmark, CameraEasing, CameraKeyframe, CameraPath};
 pub use molgfx_math::{Ray, ScreenPoint};
 
 /// Parallel left/right eye cameras with a shared convergence distance.

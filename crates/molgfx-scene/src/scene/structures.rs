@@ -30,6 +30,28 @@ impl Scene {
         }])?[0])
     }
 
+    /// Adds `source` once, at `placement`, as a structure in its own right.
+    ///
+    /// Unlike [`Scene::place`], which copies a structure already in the scene,
+    /// this adds a different molecule, so two systems can sit side by side.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the source cannot be adapted, the matrix is non-finite,
+    /// non-affine or singular, or the identity space is exhausted; the scene is
+    /// unchanged in every case.
+    pub fn add_source_at(
+        &mut self,
+        source: &molgfx_core::MolecularSource,
+        placement: [f32; 16],
+    ) -> Result<StructureId, Error> {
+        Ok(self.add_structures(vec![Addition {
+            source: source.clone(),
+            of: None,
+            placement: Some(placement),
+        }])?[0])
+    }
+
     /// Adds a copy of `of`'s molecular source at `placement`, sharing its data.
     ///
     /// The copy is a structure in its own right — its own identity, selections,
