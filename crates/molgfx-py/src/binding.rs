@@ -389,6 +389,7 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PySceneSpec>()?;
     module.add_class::<PyScenePatch>()?;
     module.add_class::<crate::scene_binding::PyScene>()?;
+    module.add_class::<crate::browser_binding::PyBrowserTransport>()?;
     module.add_class::<crate::molecular_surface_binding::PyMolecularPose>()?;
     crate::id_binding::register(module)?;
     crate::transaction_binding::register(module)?;

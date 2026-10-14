@@ -327,6 +327,36 @@ class Representation:
     def on(self, structure: StructureId) -> Representation: ...
 
 @final
+class BrowserTransport:
+    """Every column the notebook widget syncs, with fingerprints of its heavy assets."""
+
+    @property
+    def structure_ids(self) -> list[int]: ...
+    @property
+    def structure_names(self) -> list[str]: ...
+    @property
+    def structure_payloads(self) -> list[bytes]: ...
+    @property
+    def structure_sources(self) -> list[int]: ...
+    @property
+    def volumes(self) -> list[tuple[str, bytes]]: ...
+    @property
+    def hydrogen_bonds(self) -> list[tuple[str, bytes, float | None, str]]: ...
+    @property
+    def surfaces(self) -> list[tuple[str, str, bytes, bytes, bytes, bytes]]: ...
+    @property
+    def frames(self) -> list[tuple[str, str, float, bytes]]: ...
+    @property
+    def trajectories(self) -> list[tuple[str, str, str, float]]: ...
+    @property
+    def playback(self) -> list[tuple[str, str, str, float]]: ...
+    @property
+    def binding_fingerprint(self) -> int: ...
+    @property
+    def motion_fingerprint(self) -> int: ...
+    def playback_for(self, structure: str) -> tuple[str, str, str, float]: ...
+
+@final
 class SceneSpec:
     """Canonical JSON scene state, including planes and assembly unit-cell guides."""
 
@@ -543,6 +573,11 @@ class Scene:
         """Return shared binary coordinate frames and the resident trajectory intervals."""
     def browser_playback_bindings(self) -> list[tuple[int, int, int, float]]:
         """Return imperative intervals sharing the scientific coordinate frame identities."""
+    def browser_transport(self) -> BrowserTransport:
+        """Return every synced browser column in one call."""
+    @staticmethod
+    def patch_changes_structures(patch_json: str) -> bool:
+        """Report whether a committed patch adds a structure."""
     def set_trajectory_pair(
         self,
         *,
@@ -1562,6 +1597,7 @@ __all__ = [
     "ArcballController",
     "AssemblyCopy",
     "BoolExpr",
+    "BrowserTransport",
     "Camera",
     "CameraPath",
     "ColorExpr",

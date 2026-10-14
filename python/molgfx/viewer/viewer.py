@@ -109,11 +109,9 @@ class Viewer(anywidget.AnyWidget):
         self._scene = self.session.scene
         if isinstance(source, Structure):
             self.session.execute(Command.auto())
-        self._structures: dict[int, tuple[str, bytes]] = {}
-        self._materialize(self.scene.browser_sources())
-        ids, names, payloads, sources = self._structure_columns()
-        volumes, hydrogen_bonds, surfaces = self._scientific_columns()
-        frames, trajectories, playback = self._motion_columns()
+        transport = self.scene.browser_transport()
+        self._binding_fingerprint = transport.binding_fingerprint
+        self._motion_fingerprint = transport.motion_fingerprint
         super().__init__(
             _esm=(_STATIC / "anywidget.js").read_text(encoding="utf-8"),
             _css=(_STATIC / "viewer.css").read_text(encoding="utf-8"),
@@ -122,16 +120,16 @@ class Viewer(anywidget.AnyWidget):
             _runtime_key=runtime.key,
             scene_spec=self.scene.to_json(),
             revision=self.scene.revision,
-            structure_ids=ids,
-            structure_names=names,
-            structure_payloads=payloads,
-            structure_sources=sources,
-            volume_bindings=volumes,
-            hydrogen_bond_bindings=hydrogen_bonds,
-            molecular_surface_bindings=surfaces,
-            coordinate_frames=frames,
-            trajectory_bindings=trajectories,
-            playback_bindings=playback,
+            structure_ids=transport.structure_ids,
+            structure_names=transport.structure_names,
+            structure_payloads=transport.structure_payloads,
+            structure_sources=transport.structure_sources,
+            volume_bindings=transport.volumes,
+            hydrogen_bond_bindings=transport.hydrogen_bonds,
+            molecular_surface_bindings=transport.surfaces,
+            coordinate_frames=transport.frames,
+            trajectory_bindings=transport.trajectories,
+            playback_bindings=transport.playback,
             **kwargs,
         )
         self._closed = False
@@ -196,7 +194,6 @@ class Viewer(anywidget.AnyWidget):
             self._runtime_subscription = None
         self.unobserve(self._on_sync_request, names="sync_request")
         self.unobserve(self._on_interaction, names="interaction_event")
-        self._structures.clear()
         super().close()
 
     def _on_sync_request(self, _change: Mapping[str, object]) -> None:
@@ -218,44 +215,22 @@ class Viewer(anywidget.AnyWidget):
         self._last_clear_event = identity
         self.select(None)
 
-    def _materialize(self, sources: list[tuple[int, str, bytes]]) -> None:
-        declared = {identity for identity, _, _ in sources}
-        for identity in list(self._structures.keys() - declared):
-            del self._structures[identity]
-        for identity, name, payload in sources:
-            self._structures[identity] = (name, payload)
-
-    def _structure_columns(self) -> tuple[list[int], list[str], list[bytes], list[int]]:
-        ids = list(self._structures)
-        names = [entry[0] for entry in self._structures.values()]
-        owners: dict[bytes, int] = {}
-        payloads: list[bytes] = []
-        sources: list[int] = []
-        for identity in ids:
-            encoded = self._structures[identity][1]
-            owner = owners.setdefault(encoded, identity)
-            sources.append(owner)
-            payloads.append(encoded if owner == identity else b"")
-        return ids, names, payloads, sources
-
     def _resync_structures(self) -> None:
-        self._materialize(self.scene.browser_sources())
+        transport = self.scene.browser_transport()
+        self._binding_fingerprint = transport.binding_fingerprint
+        self._motion_fingerprint = transport.motion_fingerprint
         # All source columns precede the new spec in the same comm update.
         with self.hold_sync():
-            (
-                self.structure_ids,
-                self.structure_names,
-                self.structure_payloads,
-                self.structure_sources,
-            ) = self._structure_columns()
-            (
-                self.volume_bindings,
-                self.hydrogen_bond_bindings,
-                self.molecular_surface_bindings,
-            ) = self._scientific_columns()
-            self.coordinate_frames, self.trajectory_bindings, self.playback_bindings = (
-                self._motion_columns()
-            )
+            self.structure_ids = transport.structure_ids
+            self.structure_names = transport.structure_names
+            self.structure_payloads = transport.structure_payloads
+            self.structure_sources = transport.structure_sources
+            self.volume_bindings = transport.volumes
+            self.hydrogen_bond_bindings = transport.hydrogen_bonds
+            self.molecular_surface_bindings = transport.surfaces
+            self.coordinate_frames = transport.frames
+            self.trajectory_bindings = transport.trajectories
+            self.playback_bindings = transport.playback
             self.revision = self.scene.revision
             self.scene_patch = ""
             self.scene_spec = self.scene.to_json()
@@ -264,19 +239,11 @@ class Viewer(anywidget.AnyWidget):
         if self._closed:
             return
         # The committed scene is authoritative even for empty or replayed patches.
-        patch = cast("dict[str, object]", json.loads(patch_json))
-        operations = cast("list[dict[str, object]]", patch["operations"])
-        previous = self._binding_identity
-        previous_motion = self._motion_identity
-        self._scientific_columns()
-        self._motion_columns()
+        transport = self.scene.browser_transport()
         if (
-            previous != self._binding_identity
-            or previous_motion != self._motion_identity
-            or any(
-                operation["op"] in {"add_structure", "replace_structure", "remove_structure"}
-                for operation in operations
-            )
+            transport.binding_fingerprint != self._binding_fingerprint
+            or transport.motion_fingerprint != self._motion_fingerprint
+            or Scene.patch_changes_structures(patch_json)
         ):
             self._resync_structures()
             return
@@ -285,82 +252,18 @@ class Viewer(anywidget.AnyWidget):
             self.scene_patch = patch_json
             self.patch_sequence += 1
 
-    def _scientific_columns(
-        self,
-    ) -> tuple[
-        list[tuple[str, bytes]],
-        list[tuple[str, bytes, float | None, str]],
-        list[tuple[str, str, bytes, bytes, bytes, bytes]],
-    ]:
-        volumes, hydrogen_bonds, surfaces = self.scene.browser_bindings()
-        # Payload object identities are cached; style edits never compare large buffers.
-        self._binding_identity = (
-            tuple((identity, id(values)) for identity, values in volumes),
-            tuple(
-                (identity, id(rows), distance, metadata)
-                for identity, rows, distance, metadata in hydrogen_bonds
-            ),
-            tuple(
-                (identity, metadata, id(vertices), id(normals), id(faces), id(atoms))
-                for identity, metadata, vertices, normals, faces, atoms in surfaces
-            ),
-        )
-        return (
-            [(str(identity), values) for identity, values in volumes],
-            [
-                (str(identity), rows, distance, metadata)
-                for identity, rows, distance, metadata in hydrogen_bonds
-            ],
-            [
-                (str(identity), metadata, vertices, normals, faces, atoms)
-                for identity, metadata, vertices, normals, faces, atoms in surfaces
-            ],
-        )
-
     def _on_runtime_sample(self, event_json: str) -> None:
         if not self._closed:
             event: object = json.loads(event_json)
             if isinstance(event, dict):
-                identity = str(event["structure"])
-                frames, trajectories, playback = self._motion_columns()
-                interval = next(interval for interval in playback if interval[0] == identity)
+                transport = self.scene.browser_transport()
+                self._motion_fingerprint = transport.motion_fingerprint
+                interval = transport.playback_for(str(event["structure"]))
                 with self.hold_sync():
-                    self.coordinate_frames = frames
-                    self.trajectory_bindings = trajectories
-                    self.playback_bindings = playback
+                    self.coordinate_frames = transport.frames
+                    self.trajectory_bindings = transport.trajectories
+                    self.playback_bindings = transport.playback
                     self.playback_pair = interval
                 return
             identity, seconds = cast("tuple[str, float]", event)
             self.trajectory_sample = (identity, seconds)
-
-    def _motion_columns(
-        self,
-    ) -> tuple[
-        list[tuple[str, str, float, bytes]],
-        list[tuple[str, str, str, float]],
-        list[tuple[str, str, str, float]],
-    ]:
-        frames, intervals = self.scene.browser_motion_bindings()
-        playback = self.scene.browser_playback_bindings()
-        self._motion_identity = (
-            tuple(
-                (identity, index, seconds, id(positions))
-                for identity, index, seconds, positions in frames
-            ),
-            tuple((identity, start, end) for identity, start, end, _ in intervals),
-            tuple((identity, start, end) for identity, start, end, _ in playback),
-        )
-        return (
-            [
-                (str(identity), str(index), seconds, positions)
-                for identity, index, seconds, positions in frames
-            ],
-            [
-                (str(identity), str(start), str(end), seconds)
-                for identity, start, end, seconds in intervals
-            ],
-            [
-                (str(identity), str(start), str(end), seconds)
-                for identity, start, end, seconds in playback
-            ],
-        )

@@ -30,10 +30,23 @@ pub(super) struct BrowserSource {
     pub(super) name: String,
     pub(super) provider: crate::native_adapter::SharedNativeProvider,
     /// Compact `BinaryCIF` encoding, produced on the first browser transfer.
-    pub(super) encoded: Arc<OnceLock<Vec<u8>>>,
+    pub(super) encoded: Arc<OnceLock<Py<PyBytes>>>,
 }
 
 impl PyScene {
+    /// Encodes each provider's browser payload once; copies share the result.
+    pub(super) fn encode_sources(&self, py: Python<'_>) -> PyResult<()> {
+        for source in &self.browser_sources {
+            if source.encoded.get().is_none() {
+                // Encoding is fallible and depends on this binding's provider,
+                // so it is stored once here rather than in a static initializer.
+                let bytes = PyBytes::new(py, &source.provider.browser_bytes()?).unbind();
+                let _ = source.encoded.set(bytes);
+            }
+        }
+        Ok(())
+    }
+
     /// A scene over one Python `molframe` structure.
     pub(super) fn for_structure(structure: &Bound<'_, PyAny>) -> PyResult<Self> {
         Self::new(Some(structure))
@@ -347,14 +360,7 @@ impl PyScene {
         &mut self,
         py: Python<'py>,
     ) -> PyResult<Vec<(u64, &str, Bound<'py, PyBytes>)>> {
-        for source in &mut self.browser_sources {
-            if source.encoded.get().is_none() {
-                // Encoding is fallible and depends on this binding's provider,
-                // so it is stored once here rather than in a static initializer.
-                let bytes = source.provider.browser_bytes()?;
-                let _ = source.encoded.set(bytes);
-            }
-        }
+        self.encode_sources(py)?;
         Ok(self
             .browser_sources
             .iter()
@@ -363,7 +369,7 @@ impl PyScene {
                     (
                         source.identity,
                         source.name.as_str(),
-                        PyBytes::new(py, bytes),
+                        bytes.bind(py).clone(),
                     )
                 })
             })

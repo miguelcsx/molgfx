@@ -4,6 +4,7 @@
 
 mod authoring_binding;
 mod binding;
+mod browser_binding;
 mod bulk_binding;
 mod camera_path_binding;
 mod command_binding;

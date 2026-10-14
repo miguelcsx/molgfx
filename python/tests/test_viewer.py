@@ -48,6 +48,23 @@ class ViewerTests(unittest.TestCase):
         shared = self.make_viewer(session)
         self.assertIs(shared.session, session)
 
+    def test_transport_shares_one_payload_between_identical_structures(self) -> None:
+        scene = Scene(_structure())
+        scene.add_structure(_structure())
+        transport = scene.browser_transport()
+        first, second = transport.structure_ids
+        self.assertEqual(transport.structure_sources, [first, first])
+        self.assertTrue(transport.structure_payloads[0])
+        self.assertEqual(transport.structure_payloads[1], b"")
+        self.assertNotEqual(second, first)
+        self.assertEqual(
+            scene.browser_transport().binding_fingerprint, transport.binding_fingerprint
+        )
+        self.assertTrue(
+            Scene.patch_changes_structures(json.dumps({"base_revision": 0, "operations": []}))
+            is False
+        )
+
     def test_conveniences_commit_through_the_same_session(self) -> None:
         viewer = self.make_viewer(Session(_structure()))
         viewer.show("cartoon", "protein")

@@ -141,7 +141,10 @@ impl PyScene {
     }
 
     /// Returns imperative intervals using the same cached frame identities as scientific assets.
-    fn browser_playback_bindings(&mut self, py: Python<'_>) -> PyResult<Vec<(u64, u64, u64, f32)>> {
+    pub(super) fn browser_playback_bindings(
+        &mut self,
+        py: Python<'_>,
+    ) -> PyResult<Vec<(u64, u64, u64, f32)>> {
         let mut intervals = Vec::new();
         for binding in self.inner.playback_bindings() {
             let pose = self
@@ -230,7 +233,7 @@ impl PyScene {
     }
 
     /// Returns shared coordinate columns and resident interval descriptors without authoring an edit.
-    fn browser_motion_bindings(&mut self, py: Python<'_>) -> PyResult<MotionBindings> {
+    pub(super) fn browser_motion_bindings(&mut self, py: Python<'_>) -> PyResult<MotionBindings> {
         let mut seen = BTreeSet::new();
         for binding in self.inner.playback_bindings() {
             let pose = self

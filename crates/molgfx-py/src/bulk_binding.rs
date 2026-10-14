@@ -41,7 +41,7 @@ impl PyScene {
     /// Returns cached little-endian bulk columns for the canonical browser host.
     /// Surface metadata carries method, controls, discarded face count and the optional original resident-frame interval;
     /// its four columns are vertices, normals, faces and original atom rows.
-    fn browser_bindings(&mut self, py: Python<'_>) -> PyResult<BrowserBindings> {
+    pub(super) fn browser_bindings(&mut self, py: Python<'_>) -> PyResult<BrowserBindings> {
         export(
             py,
             &self.inner,
