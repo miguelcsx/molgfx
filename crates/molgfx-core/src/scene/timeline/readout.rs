@@ -3,6 +3,10 @@
 use super::{TimeWarp, Timeline};
 use crate::{PlaybackTime, SimTime, TimeUnit, TimelineTrackHandle};
 
+#[cfg(test)]
+#[path = "readout_tests.rs"]
+mod tests;
+
 /// Where one track stands: its physical time, the unit to show it in, and its
 /// normalized phase across its interval.
 #[derive(Clone, Copy, PartialEq, Debug)]

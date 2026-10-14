@@ -4,6 +4,10 @@ use super::invalid;
 use crate::{CoreError, PlaybackTime, SimTime, TimeUnit, TrackClock};
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+#[path = "time_warp_tests.rs"]
+mod tests;
+
 /// How a local clock behaves after reaching its declared interval boundary.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

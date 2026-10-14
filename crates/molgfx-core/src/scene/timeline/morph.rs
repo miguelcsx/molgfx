@@ -6,6 +6,10 @@ use crate::{
     TrajectorySegment,
 };
 
+#[cfg(test)]
+#[path = "morph_tests.rs"]
+mod tests;
+
 impl Timeline {
     /// Morphs one structure from `from_frame` to `to_frame` over
     /// `playback_duration` of playback.

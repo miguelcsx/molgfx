@@ -2,8 +2,8 @@ use super::*;
 use crate::{
     AnalyticSphere, AnalyticTemplate, AtomProperty, AtomPropertyMeaning, AttributeColumn,
     AttributeValues, BondTopologyFrame, BondTopologySegment, InstanceBatch, RigidInstance,
-    RowDomain, ScalarFieldSemantics, SourceNamespace, SourceRows, TopologyBond, TrajectoryFrame,
-    TrajectorySegment,
+    RowDomain, ScalarFieldSemantics, SimTime, SourceNamespace, SourceRows, TimeUnit, TopologyBond,
+    TrajectoryFrame, TrajectorySegment,
 };
 use molgfx_math::{Quat, Vec3};
 
@@ -296,4 +296,159 @@ fn deformable_point_frames_remain_twelve_byte_shared_rows() {
     assert_eq!(std::mem::size_of_val(resident_start.as_ref()), 24);
     assert!(timeline.unbind(&mut scene, track));
     assert!(scene.point_frames(points).is_none());
+}
+
+fn femtoseconds(value: f64) -> SimTime {
+    SimTime::from_unit(value, TimeUnit::Femtosecond).expect("finite time")
+}
+
+fn nanoseconds(value: f64) -> SimTime {
+    SimTime::from_unit(value, TimeUnit::Nanosecond).expect("finite time")
+}
+
+fn assert_close(actual: f64, expected: f64) {
+    let scale = expected.abs().max(f64::MIN_POSITIVE);
+    assert!(
+        (actual - expected).abs() <= 1e-12 * scale,
+        "{actual} != {expected}"
+    );
+}
+
+fn assert_close_f32(actual: f32, expected: f32) {
+    assert!((actual - expected).abs() <= 1e-5, "{actual} != {expected}");
+}
+
+struct TwoClockReadout {
+    vibration_seconds: f64,
+    vibration_alpha: f64,
+    drift_seconds: f64,
+    drift_value: f32,
+}
+
+/// Binds a femtosecond vibration trajectory and a nanosecond drift property to
+/// one playback clock, then reads both back after a single tick.
+fn two_clock_readout(mode: PlaybackMode, playback: f64) -> TwoClockReadout {
+    let structure = crate::fixture::structure();
+    let mut scene = Scene::from_structure(&structure).unwrap_or_else(|error| panic!("{error}"));
+    let Some((owner, placed)) = scene.structures().next() else {
+        panic!("owner exists")
+    };
+    let positions: Arc<[[f32; 3]]> = Arc::from(placed.atoms.coords().slice());
+    let count = usize::try_from(placed.atoms.len()).unwrap_or(0);
+    let mut moved = positions.to_vec();
+    for position in &mut moved {
+        position[0] += 1.0;
+    }
+    let start = TrajectoryFrame::new(0, femtoseconds(0.0), Arc::clone(&positions), "start")
+        .unwrap_or_else(|error| panic!("{error}"));
+    let end = TrajectoryFrame::new(1, femtoseconds(100.0), Arc::from(moved), "end")
+        .unwrap_or_else(|error| panic!("{error}"));
+    scene
+        .set_trajectory_segment(
+            owner,
+            TrajectorySegment::new(start, end, femtoseconds(0.0))
+                .unwrap_or_else(|error| panic!("{error}")),
+        )
+        .unwrap_or_else(|error| panic!("{error}"));
+    let property = AtomProperty::new(
+        owner,
+        "drift",
+        Arc::from(vec![0.0; count]),
+        AtomPropertyMeaning::Charge,
+        ScalarFieldSemantics::UncalibratedRank,
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
+    let property = scene
+        .add_atom_property(property)
+        .unwrap_or_else(|error| panic!("{error}"));
+    let fast = TimeWarp::fit([femtoseconds(0.0), femtoseconds(100.0)], 10.0, mode)
+        .unwrap_or_else(|error| panic!("{error}"));
+    let slow = TimeWarp::fit([nanoseconds(0.0), nanoseconds(50.0)], 10.0, mode)
+        .unwrap_or_else(|error| panic!("{error}"));
+    let mut timeline = Timeline::new();
+    timeline
+        .bind_trajectory(&scene, owner, fast)
+        .unwrap_or_else(|error| panic!("{error}"));
+    timeline
+        .bind_atom_property(
+            &mut scene,
+            property,
+            Arc::from(vec![0.0; count]),
+            Arc::from(vec![8.0; count]),
+            slow,
+        )
+        .unwrap_or_else(|error| panic!("{error}"));
+    timeline
+        .apply(&mut scene, playback)
+        .unwrap_or_else(|error| panic!("{error}"));
+    let segment = scene
+        .structure(owner)
+        .and_then(|value| value.trajectory())
+        .unwrap_or_else(|| panic!("trajectory is resident"));
+    let drift_value = scene
+        .atom_property(property)
+        .and_then(|value| value.values().first())
+        .copied()
+        .unwrap_or_else(|| panic!("drift property is resident"));
+    TwoClockReadout {
+        vibration_seconds: segment.sample_seconds(),
+        vibration_alpha: segment.interpolation(),
+        drift_seconds: slow.sample(playback).unwrap_or(f64::NAN),
+        drift_value,
+    }
+}
+
+#[test]
+fn two_tracks_fitted_to_ten_seconds_each_read_their_own_time_and_alpha() {
+    // (playback seconds, expected phase of both tracks)
+    for (playback, phase) in [(0.0, 0.0), (2.5, 0.25), (10.0, 1.0)] {
+        let readout = two_clock_readout(PlaybackMode::Clamp, playback);
+        assert_close_or_zero(readout.vibration_seconds, 100e-15 * phase);
+        assert_close_or_zero(readout.vibration_alpha, phase);
+        assert_close_or_zero(readout.drift_seconds, 50e-9 * phase);
+        assert_close_f32(
+            readout.drift_value,
+            narrow_to_f32(8.0 * phase).unwrap_or(f32::NAN),
+        );
+    }
+}
+
+#[test]
+fn looped_tracks_wrap_and_ping_ponged_tracks_reflect_each_at_its_own_scale() {
+    // (mode, playback seconds, expected phase of both tracks)
+    for (mode, playback, phase) in [
+        (PlaybackMode::Loop, 0.0, 0.0),
+        (PlaybackMode::Loop, 2.5, 0.25),
+        (PlaybackMode::Loop, 12.5, 0.25),
+        (PlaybackMode::PingPong, 0.0, 0.0),
+        (PlaybackMode::PingPong, 2.5, 0.25),
+        (PlaybackMode::PingPong, 10.0, 1.0),
+        (PlaybackMode::PingPong, 12.5, 0.75),
+    ] {
+        let readout = two_clock_readout(mode, playback);
+        assert_close_or_zero(readout.vibration_seconds, 100e-15 * phase);
+        assert_close_or_zero(readout.vibration_alpha, phase);
+        assert_close_or_zero(readout.drift_seconds, 50e-9 * phase);
+        assert_close_f32(
+            readout.drift_value,
+            narrow_to_f32(8.0 * phase).unwrap_or(f32::NAN),
+        );
+    }
+}
+
+fn assert_close_or_zero(actual: f64, expected: f64) {
+    if expected == 0.0 {
+        assert!(actual.abs() < 1e-24, "{actual} is not zero");
+    } else {
+        assert_close(actual, expected);
+    }
+}
+
+#[test]
+fn a_looped_track_at_its_exact_period_sits_on_the_seam() {
+    // The seam is both the last and the first sample, and rounding in the
+    // wrap picks either; both are the same pose for a periodic track.
+    let readout = two_clock_readout(PlaybackMode::Loop, 10.0);
+    let on_seam = readout.vibration_alpha < 1e-9 || readout.vibration_alpha > 1.0 - 1e-9;
+    assert!(on_seam, "{}", readout.vibration_alpha);
 }

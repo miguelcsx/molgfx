@@ -25,6 +25,14 @@ mod time_warp;
 pub use readout::TrackReading;
 pub use time_warp::{PlaybackMode, TimeWarp};
 
+#[cfg(test)]
+#[path = "timeline_tests.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "timeline/track_clock_tests.rs"]
+mod track_clock_tests;
+
 #[derive(Clone, Debug)]
 enum TimelineTrack {
     Trajectory {
