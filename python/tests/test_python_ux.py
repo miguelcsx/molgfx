@@ -7,6 +7,8 @@ import molframe
 
 import molgfx
 
+SECOND = molgfx.time.TimeUnit.SECOND
+
 PDB = (
     b"ATOM      1  CA  GLY A   1       0.000   0.000   0.000  1.00 10.00           C  \n"
     b"ATOM      2  CA  ALA A   2       4.000   0.000   0.000  1.00 10.00           C  \n"
@@ -135,27 +137,47 @@ class PlaybackTests(unittest.TestCase):
 
     def test_n_frame_playback_renders_distinct_frames(self) -> None:
         scene = _scene()
-        play = molgfx.playback.attach(scene, FRAMES, (0.0, 1.0, 2.0))
+        play = molgfx.playback.attach(scene, FRAMES, (0.0, 1.0, 2.0), unit=SECOND)
         images = play.render(molgfx.Renderer(), times=(0.0, 0.5, 1.0, 1.5, 2.0), size=SIZE)
         self.assertEqual(len({image.pixels() for image in images}), 5)
 
     def test_render_sequence_is_static(self) -> None:
         scene = _scene()
-        molgfx.playback.attach(scene, FRAMES, (0.0, 1.0, 2.0))
+        molgfx.playback.attach(scene, FRAMES, (0.0, 1.0, 2.0), unit=SECOND)
         images = molgfx.Renderer().render_sequence(scene, size=SIZE, fps=2, frames=3)
         self.assertEqual(len({image.pixels() for image in images}), 1)
 
     def test_validates_frames_and_times(self) -> None:
         with self.assertRaises(ValueError):
-            molgfx.playback.attach(_scene(), FRAMES[:1], (0.0,))
+            molgfx.playback.attach(_scene(), FRAMES[:1], (0.0,), unit=SECOND)
         with self.assertRaises(ValueError):
-            molgfx.playback.attach(_scene(), FRAMES, (0.0, 2.0, 1.0))
+            molgfx.playback.attach(_scene(), FRAMES, (0.0, 2.0, 1.0), unit=SECOND)
         with self.assertRaises(ValueError):
-            molgfx.playback.attach(_scene(), FRAMES, (0.0, 1.0))
+            molgfx.playback.attach(_scene(), FRAMES, (0.0, 1.0), unit=SECOND)
+
+    def test_a_molframe_trajectory_in_picoseconds_plays_on_a_seconds_clock(self) -> None:
+        class Trajectory:
+            positions = FRAMES
+            times = (0.0, 250.0, 500.0)
+
+        play = molgfx.playback.attach_trajectory(_scene(), Trajectory())
+        self.assertEqual(len(play.times), 3)
+        for stamp, seconds in zip(play.times, (0.0, 2.5e-10, 5.0e-10), strict=True):
+            self.assertAlmostEqual(stamp, seconds, delta=1.0e-22)
+
+    def test_a_frame_without_a_recorded_time_is_refused_at_the_boundary(self) -> None:
+        class Trajectory:
+            positions = FRAMES
+            times = (0.0, float("nan"), 500.0)
+
+        with self.assertRaisesRegex(ValueError, "frame 1"):
+            molgfx.playback.attach_trajectory(_scene(), Trajectory())
+        with self.assertRaisesRegex(ValueError, "finite"):
+            molgfx.playback.attach(_scene(), FRAMES, (0.0, float("nan"), 2.0), unit=SECOND)
 
     def test_time_is_clamped(self) -> None:
         scene = _scene()
-        play = molgfx.playback.attach(scene, FRAMES, (0.0, 1.0, 2.0))
+        play = molgfx.playback.attach(scene, FRAMES, (0.0, 1.0, 2.0), unit=SECOND)
         renderer = molgfx.Renderer()
         play.seek(9.0)
         late = renderer.render_image(scene, size=SIZE).pixels()

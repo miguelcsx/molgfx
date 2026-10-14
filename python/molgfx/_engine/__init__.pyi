@@ -7,6 +7,8 @@ from typing import Literal, Protocol, Self, final, overload
 
 from molframe.surface import MolecularSurface as _MolecularSurface
 
+from molgfx.time import PlaybackMode, TimeUnit
+
 class _QueryLike(Protocol):
     @property
     def source(self) -> str: ...
@@ -1484,7 +1486,7 @@ class _Trajectory:
         source: DataSource,
         frame_count: int,
         time_step: float | None = None,
-        time_unit: str | None = None,
+        time_unit: TimeUnit | None = None,
     ) -> Trajectory: ...
     def frame(self, index: int, time: float, positions: _FramePositions) -> TrajectoryFrame:
         """Build a frame from an ``(atoms, 3)`` float32/float64 NumPy array (one copy) or lists."""
@@ -1562,6 +1564,44 @@ class Playback:
         self, renderer: Renderer, *, times: Iterable[float], size: tuple[int, int]
     ) -> list[Image]: ...
 
+@final
+class TimelineTrack:
+    @property
+    def structure(self) -> StructureId: ...
+
+@final
+class Timeline:
+    def __new__(cls, scene: Scene) -> Self: ...
+    def fit_track(
+        self,
+        structure: StructureId,
+        *,
+        range: tuple[float, float],
+        unit: TimeUnit,
+        seconds: float,
+        mode: PlaybackMode | None = None,
+        display_unit: TimeUnit | None = None,
+    ) -> TimelineTrack:
+        """Play ``range`` (in ``unit``) of the resident frame pair once across ``seconds``."""
+    def dilate_track(
+        self,
+        structure: StructureId,
+        *,
+        range: tuple[float, float],
+        unit: TimeUnit,
+        per_second: float,
+        mode: PlaybackMode | None = None,
+        display_unit: TimeUnit | None = None,
+    ) -> TimelineTrack:
+        """Play ``range`` at ``per_second`` of physical time (in ``unit``) per playback second."""
+    def apply(self, playback_seconds: float) -> None: ...
+    def readings(self) -> list[tuple[float, TimeUnit]]:
+        """Each track's physical time in its own display unit, in the order added."""
+    def reading(self, track: TimelineTrack) -> tuple[float, TimeUnit]: ...
+    @property
+    def seconds(self) -> float: ...
+    def __len__(self) -> int: ...
+
 class _PlaybackModule(Protocol):
     def attach(
         self,
@@ -1569,11 +1609,19 @@ class _PlaybackModule(Protocol):
         positions: _FrameStack,
         times: Iterable[float],
         *,
+        unit: TimeUnit,
         structure: StructureId | None = None,
-    ) -> Playback: ...
+    ) -> Playback:
+        """Bind frames whose ``times`` are expressed in ``unit``; seeks stay in seconds."""
     def attach_trajectory(
-        self, scene: Scene, source: object, *, structure: StructureId | None = None
-    ) -> Playback: ...
+        self,
+        scene: Scene,
+        source: object,
+        *,
+        unit: TimeUnit | None = None,
+        structure: StructureId | None = None,
+    ) -> Playback:
+        """Bind a molframe trajectory; ``unit`` is the unit of ``source.times`` (default ps)."""
 
 place: _Place
 properties: _Properties
@@ -1644,6 +1692,8 @@ __all__ = [
     "Session",
     "SpecError",
     "StructureId",
+    "Timeline",
+    "TimelineTrack",
     "Trajectory",
     "TrajectoryFrame",
     "TrajectoryId",

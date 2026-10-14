@@ -5,22 +5,34 @@ from __future__ import annotations
 import json
 import weakref
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import anywidget
 import traitlets
 from molframe import Structure
 
 from molgfx._engine import Command, Scene, Session
+from molgfx.time import PlaybackMode, TimeUnit
 
 from ._runtime import load_runtime
+from ._transport import (
+    CHUNK_FRAMES,
+    PlaybackTime,
+    chunk_rows,
+    decode_time,
+    finite,
+    to_seconds,
+    wire_mode,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
     from molframe import Query
 
-    from molgfx._engine import CommandResult, ScenePatch
+    from molgfx._engine import CommandResult, Playback, ScenePatch
+
+    from ._transport import ChunkFrameRow
 
 _STATIC = Path(__file__).parents[1] / "static"
 
@@ -91,6 +103,16 @@ class Viewer(anywidget.AnyWidget):
         traitlets.Float(),
         default_value=("", "", "", 0.0),
     ).tag(sync=True)
+    trajectory_chunk = traitlets.Tuple(
+        traitlets.Int(),
+        traitlets.Unicode(),
+        traitlets.List(
+            traitlets.Tuple(
+                traitlets.Unicode(), traitlets.Unicode(), traitlets.Float(), traitlets.Bytes()
+            )
+        ),
+        default_value=(0, "", []),
+    ).tag(sync=True)
     pick = traitlets.Dict().tag(sync=True)
     camera = traitlets.Dict().tag(sync=True)
     error = traitlets.Unicode().tag(sync=True)
@@ -104,6 +126,10 @@ class Viewer(anywidget.AnyWidget):
         self._subscription: weakref.WeakMethod[Callable[[str], None]] | None = None
         self._runtime_subscription: weakref.WeakMethod[Callable[[str], None]] | None = None
         self._last_clear_event: str | None = None
+        self._time: PlaybackTime | None = None
+        self._raw_time: tuple[object, object] | None = None
+        self._streams: dict[str, tuple[Sequence[object], list[float]]] = {}
+        self._chunk_serial = 0
         runtime = load_runtime()
         self.session = source if isinstance(source, Session) else Session(source)
         self._scene = self.session.scene
@@ -139,6 +165,9 @@ class Viewer(anywidget.AnyWidget):
         self.scene.subscribe_runtime(self._runtime_subscription)
         self.observe(self._on_sync_request, names="sync_request")
         self.observe(self._on_interaction, names="interaction_event")
+        # anywidget's custom-message API is untyped; Any states that once, here.
+        widget: Any = self
+        widget.on_msg(self._on_message)
 
     @property
     def scene(self) -> Scene:
@@ -202,7 +231,96 @@ class Viewer(anywidget.AnyWidget):
             self._runtime_subscription = None
         self.unobserve(self._on_sync_request, names="sync_request")
         self.unobserve(self._on_interaction, names="interaction_event")
+        widget: Any = self
+        widget.on_msg(self._on_message, remove=True)
+        self._streams.clear()
         super().close()
+
+    @property
+    def time(self) -> PlaybackTime | None:
+        """The browser transport's latest position, or ``None`` before the first tick."""
+        if self._time is None and self._raw_time is not None:
+            self._time = decode_time(*self._raw_time)
+        return self._time
+
+    def play(self) -> None:
+        """Start the browser transport."""
+        self._command({"type": "play"})
+
+    def pause(self) -> None:
+        """Pause the browser transport."""
+        self._command({"type": "pause"})
+
+    def seek(self, seconds: float) -> None:
+        """Move the browser transport to ``seconds``."""
+        self._command({"type": "seek", "seconds": finite(seconds, "seconds")})
+
+    def set_rate(self, rate: float) -> None:
+        """Set the playback rate; the browser transport validates its range."""
+        self._command({"type": "set_rate", "rate": finite(rate, "rate")})
+
+    def set_loop(self, mode: PlaybackMode) -> None:
+        """Set what the transport does at the end; only a ``PlaybackMode`` is accepted."""
+        self._command({"type": "set_loop", "mode": wire_mode(mode)})
+
+    def stream_trajectory(self, playback: Playback, *, unit: TimeUnit = TimeUnit.SECOND) -> None:
+        """Serve ``playback``'s frames to the browser in chunks and push the first one.
+
+        ``unit`` is the unit the playback's frame times are expressed in. The
+        browser pulls later chunks with ``chunk_request`` messages.
+        """
+        if self._closed:
+            message = "cannot stream a trajectory through a closed Viewer"
+            raise RuntimeError(message)
+        structure = str(playback.structure.value)
+        positions = cast("Sequence[object]", playback.positions)
+        self._streams[structure] = (positions, to_seconds(playback.times, unit))
+        self._reply_chunk(structure, float("-inf"), CHUNK_FRAMES)
+
+    def sample_trajectory(self, seconds: float) -> None:
+        """Ask every streamed structure for the chunk that brackets ``seconds``."""
+        if self._closed:
+            message = "cannot sample a trajectory through a closed Viewer"
+            raise RuntimeError(message)
+        at = finite(seconds, "seconds")
+        for structure in self._streams:
+            self._reply_chunk(structure, at, CHUNK_FRAMES)
+
+    def _command(self, message: dict[str, object]) -> None:
+        if self._closed:
+            text = "cannot control playback through a closed Viewer"
+            raise RuntimeError(text)
+        widget: Any = self
+        widget.send(message)
+
+    def _on_message(self, _widget: object, content: object, _buffers: object) -> None:
+        if self._closed or not isinstance(content, dict):
+            return
+        message = cast("dict[str, object]", content)
+        kind = message.get("type")
+        if kind == "timechange":
+            self._raw_time = (message.get("seconds"), message.get("readouts"))
+            self._time = None
+        elif kind == "chunk_request":
+            structure = message.get("structure")
+            origin = message.get("from_seconds")
+            count = message.get("count")
+            if (
+                isinstance(structure, str)
+                and isinstance(origin, (int, float))
+                and isinstance(count, int)
+                and not isinstance(count, bool)
+                and structure in self._streams
+            ):
+                self._reply_chunk(structure, float(origin), count)
+
+    def _reply_chunk(self, structure: str, from_seconds: float, count: int) -> None:
+        positions, seconds = self._streams[structure]
+        self._chunk_serial += 1
+        rows: list[ChunkFrameRow] = chunk_rows(
+            f"{structure}:{self._chunk_serial}", positions, seconds, from_seconds, count
+        )
+        self.trajectory_chunk = (self._chunk_serial, structure, rows)
 
     def _on_sync_request(self, _change: Mapping[str, object]) -> None:
         if not self._closed:

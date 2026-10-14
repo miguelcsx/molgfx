@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from molframe import sel as sel
 
+from . import time as time
 from ._engine import (
     Anchor,
     AnnotationId,
@@ -54,6 +55,8 @@ from ._engine import (
     Session,
     SpecError,
     StructureId,
+    Timeline,
+    TimelineTrack,
     Trajectory,
     TrajectoryId,
     VectorExpr,
@@ -153,6 +156,8 @@ __all__ = [
     "Session",
     "SpecError",
     "StructureId",
+    "Timeline",
+    "TimelineTrack",
     "Trajectory",
     "TrajectoryId",
     "VectorExpr",

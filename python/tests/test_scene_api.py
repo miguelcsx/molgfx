@@ -9,6 +9,8 @@ import numpy as np
 
 import molgfx
 
+SECOND = molgfx.time.TimeUnit.SECOND
+
 PDB = (
     b"ATOM      1  CA  GLY A   1       0.000   0.000   0.000  1.00 10.00           C  \n"
     b"ATOM      2  CA  ALA A   2       4.000   0.000   0.000  1.00 10.00           C  \n"
@@ -98,7 +100,7 @@ class SeekTests(unittest.TestCase):
         seen: list[list[molgfx.Image]] = []
         for kind in ("f32", "f64", "list"):
             scene = _scene()
-            play = molgfx.playback.attach(scene, self._frames(kind), self.TIMES)
+            play = molgfx.playback.attach(scene, self._frames(kind), self.TIMES, unit=SECOND)
             seen.append(play.render(renderer, times=(0.5, 1.5), size=SIZE))
         for other in seen[1:]:
             for a, b in zip(seen[0], other, strict=True):
@@ -106,7 +108,7 @@ class SeekTests(unittest.TestCase):
 
     def test_seek_is_repeatable_and_has_no_row_cache(self) -> None:
         scene = _scene()
-        play = molgfx.playback.attach(scene, self._frames("f32"), self.TIMES)
+        play = molgfx.playback.attach(scene, self._frames("f32"), self.TIMES, unit=SECOND)
         renderer = molgfx.Renderer()
         play.seek(0.5)
         first = renderer.render_image(scene, size=SIZE).pixels()

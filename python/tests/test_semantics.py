@@ -216,7 +216,7 @@ class SceneSemanticsTests(unittest.TestCase):
                 source=molgfx.data.source("trajectory-sha256"),
                 frame_count=10,
                 time_step=0.5,
-                time_unit="ps",
+                time_unit=molgfx.time.TimeUnit.PICOSECOND,
             )
         )
 
