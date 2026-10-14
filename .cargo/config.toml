@@ -2,3 +2,10 @@
 # helpers cannot reach alone; fetch with the git CLI so they apply.
 [net]
 git-fetch-with-cli = true
+
+# The sibling molframe compiles in no reference table: bond perception reads
+# them from a data directory and a profile. Tests and benches use the ones the
+# molframe checkout commits.
+[env]
+MOLFRAME_DATA_DIR = { value = "../molframe/data", relative = true }
+MOLFRAME_PROFILE = { value = "../molframe/crates/molframe-bench/data/profile.txt", relative = true }
