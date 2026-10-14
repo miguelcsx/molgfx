@@ -2025,6 +2025,7 @@ dependencies = [
  "molframe-geom",
  "molframe-ic",
  "molframe-interop",
+ "molframe-modelcif",
  "molframe-pdb",
  "molframe-query",
  "molframe-spatial",
@@ -2148,6 +2149,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "molframe-modelcif"
+version = "0.6.0"
+dependencies = [
+ "molframe-cif",
+ "molframe-core",
+ "num-traits",
+]
+
+[[package]]
 name = "molframe-pdb"
 version = "0.6.0"
 dependencies = [
@@ -2180,6 +2190,7 @@ dependencies = [
 name = "molframe-seq"
 version = "0.6.0"
 dependencies = [
+ "molframe-chem",
  "molframe-core",
  "thiserror 2.0.21",
 ]
@@ -2200,6 +2211,7 @@ dependencies = [
 name = "molframe-surface"
 version = "0.6.0"
 dependencies = [
+ "molframe-chem",
  "molframe-core",
  "molframe-spatial",
  "num-traits",
@@ -2213,6 +2225,7 @@ name = "molframe-traj"
 version = "0.6.0"
 dependencies = [
  "bytemuck",
+ "faer",
  "hdf5-reader",
  "hdf5-writer",
  "hoomd-gsd",
