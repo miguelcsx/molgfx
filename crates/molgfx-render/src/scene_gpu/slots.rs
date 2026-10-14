@@ -339,6 +339,7 @@ impl<D: Device> GpuSlot<D> {
             property_alphas: [0.0; 4],
             state_offset: input.visual_state_offset,
             time_seconds: input.visual_time_seconds,
+            track: input.placed.track_clock(),
             entity_count: self.atom_count as usize,
             result_count: input.placed.atoms.len() as usize,
             base: VisualBase::representation(input.representation),

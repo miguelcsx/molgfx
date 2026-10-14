@@ -37,6 +37,7 @@ fn visual_config_carries_time_property_offsets_and_displacement_bound() {
         property_end_offsets: [0; 4],
         property_alphas: [0.0; 4],
         time_seconds: 0.75,
+        track: molgfx_core::TrackClock::default(),
         program_offset: 17,
         parameter_offset: 32,
         state_offset: 1,
@@ -91,6 +92,7 @@ fn visual_config_counts_only_fragment_stage_instructions_for_pipeline_routing() 
         property_end_offsets: [0; 4],
         property_alphas: [0.0; 4],
         time_seconds: 0.0,
+        track: molgfx_core::TrackClock::default(),
         program_offset: 0,
         parameter_offset: 0,
         state_offset: 1,
@@ -121,4 +123,50 @@ fn disabled_visual_buffers_are_initialized_exactly_once() {
         .lock()
         .unwrap_or_else(|error| panic!("writes should lock: {error}"));
     assert_eq!(writes.len(), 6);
+}
+
+#[test]
+fn visual_config_narrows_the_track_clock_next_to_the_time_uniform() {
+    let mut builder = VisualProgramBuilder::new();
+    let phase = builder
+        .track_phase()
+        .unwrap_or_else(|error| panic!("track phase should build: {error}"));
+    builder
+        .set_opacity(phase)
+        .unwrap_or_else(|error| panic!("opacity should build: {error}"));
+    let style = VisualStyle::new(
+        builder
+            .finish()
+            .unwrap_or_else(|error| panic!("program should build: {error}")),
+    );
+    let mut scene = Scene::new();
+    let selection = scene.add_selection(AtomSelection::All);
+    let representation = Representation::new(
+        RepresentationTarget::Selection(selection),
+        RepresentationKind::Spacefill,
+    );
+    let config = styled_config(&VisualConfigInput {
+        program: style.program(),
+        style: &style,
+        base: VisualBase::representation(&representation),
+        entity_count: 1,
+        result_count: 1,
+        property_offsets: [0; 4],
+        attribute_layouts: [0; 4],
+        property_end_offsets: [0; 4],
+        property_alphas: [0.0; 4],
+        time_seconds: 0.5,
+        track: molgfx_core::TrackClock {
+            phase: 0.25,
+            display_time: 25.0,
+        },
+        program_offset: 0,
+        parameter_offset: 0,
+        state_offset: 1,
+    });
+
+    assert_eq!(config.presentation[0].to_bits(), 0.5f32.to_bits());
+    assert_eq!(config.presentation[2].to_bits(), 0.25f32.to_bits());
+    assert_eq!(config.presentation[3].to_bits(), 25.0f32.to_bits());
+    assert_eq!(config.base_color[3].to_bits(), 0.25f32.to_bits());
 }

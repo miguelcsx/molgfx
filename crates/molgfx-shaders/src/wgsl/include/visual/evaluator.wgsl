@@ -60,6 +60,8 @@ fn visual_input(slot: u32, inputs: VisualEvaluationInputs) -> vec4f {
         case 9u: { return vec4f(visual_config.material.y, 0.0, 0.0, 0.0); }
         case 10u: { return vec4f(visual_config.material.z, 0.0, 0.0, 0.0); }
         case 11u: { return vec4f(visual_config.material.w, 0.0, 0.0, 0.0); }
+        case 12u: { return vec4f(visual_config.presentation.z, 0.0, 0.0, 0.0); }
+        case 13u: { return vec4f(visual_config.presentation.w, 0.0, 0.0, 0.0); }
         default: { return vec4f(0.0); }
     }
 }

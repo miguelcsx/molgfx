@@ -242,6 +242,7 @@ impl<D: Device> PagedRelationVisualState<D> {
             property_alphas: alphas,
             state_offset: 1,
             time_seconds,
+            track: molgfx_core::TrackClock::default(),
             entity_count: row_count,
             result_count: row_count,
             base: VisualBase::rgba8_opacity(color, opacity),

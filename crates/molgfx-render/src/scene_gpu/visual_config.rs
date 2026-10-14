@@ -19,13 +19,26 @@ fn set_outputs(program: &molgfx_core::VisualProgram, config: &mut VisualConfig) 
     set(VisualOutput::PositionOffset, &mut config.outputs2[2]);
 }
 
+/// Narrows one `f64` track reading to the `f32` uniform lane; a reading with no
+/// finite `f32` form reads as zero.
+fn uniform_lane(value: f64) -> f32 {
+    let Some(narrowed) = molgfx_core::narrow_to_f32(value) else {
+        return 0.0;
+    };
+    narrowed
+}
+
 fn styled_config(input: &VisualConfigInput<'_>) -> VisualConfig {
     let base_color = input.base.color;
     let base_material = input.base.material;
+    let track_phase = uniform_lane(input.track.phase);
+    let track_time = uniform_lane(input.track.display_time);
     let uniform = input.style.evaluate(molgfx_core::VisualInputs {
         base_color,
         base_opacity: base_material[0],
         time_seconds: input.time_seconds,
+        track_phase,
+        track_time,
         roughness: base_material[1],
         specular: base_material[2],
         material_strength: base_material[3],
@@ -46,8 +59,8 @@ fn styled_config(input: &VisualConfigInput<'_>) -> VisualConfig {
         presentation: [
             input.time_seconds,
             input.program.maximum_displacement(),
-            0.0,
-            0.0,
+            track_phase,
+            track_time,
         ],
         property_offsets: input.property_offsets,
         attribute_layouts: input.attribute_layouts,

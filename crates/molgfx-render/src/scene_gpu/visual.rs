@@ -190,6 +190,8 @@ pub(super) struct VisualSync<'a, D: Device> {
     pub(super) property_end_offsets: [u32; 4],
     pub(super) property_alphas: [f32; 4],
     pub(super) time_seconds: f32,
+    /// The structure's own track phase and display time, in `f64` until the uniform write.
+    pub(super) track: molgfx_core::TrackClock,
     pub(super) entity_count: usize,
     pub(super) result_count: usize,
     pub(super) base: VisualBase,
@@ -242,6 +244,7 @@ struct VisualConfigInput<'a> {
     property_alphas: [f32; 4],
     state_offset: u32,
     time_seconds: f32,
+    track: molgfx_core::TrackClock,
     program_offset: u32,
     parameter_offset: u32,
 }
@@ -407,6 +410,7 @@ impl<D: Device> VisualSlot<D> {
             property_alphas: input.property_alphas,
             state_offset: input.state_offset,
             time_seconds: input.time_seconds,
+            track: input.track,
             program_offset: input.program_offset,
             parameter_offset: input.parameter_offset,
         });
