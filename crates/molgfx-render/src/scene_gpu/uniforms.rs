@@ -13,17 +13,33 @@ use overlay::overlay_uniforms;
 mod overlay;
 mod surface;
 
+/// Traversal iterations per cell of ray length: the shader's minimum advance is
+/// half a cell (`GRID_STEP_FRACTION`).
+const MARCH_STEPS_PER_CELL: u32 = 2;
+
+/// Samples reserved for the entry sample and the crossing sample.
+const MARCH_RESERVED_STEPS: u32 = 2;
+
 /// Bounded hybrid traversal budget for a persistent grid.
 ///
-/// Each iteration crosses at least one cell and empty-space distances skip
-/// farther. Capping the rare near-surface miss at the grid's longest axis
-/// prevents grazing fragments from dominating frame time.
+/// Every iteration advances at least half a cell, so a ray crossing the grid
+/// along its diagonal needs at most two samples per cell of diagonal length
+/// before it leaves the box. The budget covers that worst case, so exhaustion
+/// can only happen once the ray has left the grid and never hides a surface.
+/// Root refinement runs after the loop and costs no traversal steps. The total
+/// stays bounded by the axis limit: at most `3.5 * max_dimension`, which is
+/// just above `2 * sqrt(3) * max_dimension`.
 fn march_steps(dimensions: [u32; 3], max_dimension: u32) -> u32 {
-    dimensions
+    let squared: u64 = dimensions
         .iter()
-        .copied()
-        .fold(2, u32::max)
-        .min(max_dimension)
+        .map(|&axis| u64::from(axis) * u64::from(axis))
+        .sum();
+    let diagonal_cells = squared.saturating_sub(1).isqrt() + 1;
+    let bound = max_dimension.max(2).saturating_mul(7) / 2;
+    let walk = u32::try_from(diagonal_cells).map_or(bound, |cells| {
+        cells.saturating_mul(MARCH_STEPS_PER_CELL).min(bound)
+    });
+    walk.saturating_add(MARCH_RESERVED_STEPS)
 }
 
 /// Per-structure placement, shared by every representation of that structure.

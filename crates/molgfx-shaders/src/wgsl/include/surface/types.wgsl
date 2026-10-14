@@ -9,6 +9,16 @@ const SURFACE_INFINITY: f32 = 1.0e20;
 const SURFACE_RAY_EPSILON: f32 = 1.0e-7;
 const SURFACE_NORMAL_EPSILON_SQ: f32 = 1.0e-10;
 
+// A translucent grid surface composites at most this many successive boundary
+// crossings along a pixel's ray (entry, exit, then a re-entry and its exit) in
+// the shader before it contributes one fragment to the blended pass. The
+// bound keeps the extra shading and tracing per pixel fixed. Only converged
+// outputs walk past the nearest crossing.
+const SURFACE_TRANSPARENT_LAYERS: u32 = 4u;
+// Layers behind this much accumulated opacity cannot change the pixel
+// visibly, so the walk stops there.
+const SURFACE_LAYER_TRANSMITTANCE_FLOOR: f32 = 0.02;
+
 const SURFACE_CAP_TINT: vec3f = vec3f(0.68, 0.76, 0.82);
 
 struct SurfaceHit {

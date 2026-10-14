@@ -209,3 +209,62 @@ fn direction_glyph_width_invalidates_and_expands_the_culling_bounds() {
         base
     );
 }
+
+#[test]
+fn a_low_isolevel_gaussian_grid_contains_the_whole_isosurface() {
+    use crate::scene_gpu::detail::GridLimits;
+    use crate::scene_gpu::uniforms::RepresentationUniforms;
+    use molgfx_core::Scene;
+
+    let source = "data_bounds\nloop_\n_atom_site.group_PDB\n_atom_site.id\n_atom_site.type_symbol\n_atom_site.label_atom_id\n_atom_site.label_comp_id\n_atom_site.label_asym_id\n_atom_site.label_seq_id\n_atom_site.Cartn_x\n_atom_site.Cartn_y\n_atom_site.Cartn_z\nATOM 1 C CA ALA A 1 0 0 0\n";
+    let parsed = molframe::read_bytes(
+        source.as_bytes().to_vec(),
+        Some("gaussian-extent.cif"),
+        &molframe::ReadOptions::new(),
+    );
+    let (structure, _) = match parsed {
+        Ok(value) => value,
+        Err(diagnostics) => panic!("gaussian fixture parses: {diagnostics:?}"),
+    };
+    let Some(placed) = PlacedStructure::new(&structure) else {
+        panic!("gaussian fixture has coordinates")
+    };
+    let radius = placed.atoms.radius().values()[0];
+    let mut scene = Scene::new();
+    let selection = scene.add_selection(AtomSelection::All);
+    let mut representation = Representation::new(
+        RepresentationTarget::Selection(selection),
+        RepresentationKind::Surface,
+    );
+    representation.params.surface_kind = SurfaceKind::Gaussian;
+    representation.params.gaussian_sigma = 1.0;
+    representation.params.gaussian_cutoff = 4.0;
+    representation.params.isolevel = 0.05;
+    let bounds = resolved(selected_atom_bounds(
+        &placed,
+        &AtomSelection::All,
+        effective_radius_scale(&representation),
+    ));
+
+    let uniforms = RepresentationUniforms::for_spacing(
+        &representation,
+        bounds,
+        None,
+        GridLimits {
+            spacing: 0.25,
+            max_dimension: 512,
+            max_cells: u32::MAX,
+        },
+    );
+
+    // A lone atom's isosurface sits at radius * sigma * sqrt(-2 ln level).
+    let extent = radius * (-2.0_f32 * 0.05_f32.ln()).sqrt();
+    for axis in 0..3 {
+        let lower = uniforms.grid_min[axis];
+        let upper = lower
+            + uniforms.grid_cell[axis]
+                * f32::from(u16::try_from(uniforms.grid_size[axis] - 1).unwrap_or(u16::MAX));
+        assert!(lower <= -extent, "axis {axis}: {lower} > {}", -extent);
+        assert!(upper >= extent, "axis {axis}: {upper} < {extent}");
+    }
+}

@@ -28,6 +28,7 @@
 //!include "include/surface/grid_trace.wgsl"
 //!include "include/visual/fragment.wgsl"
 //!include "include/surface/shading.wgsl"
+//!include "include/surface/layers.wgsl"
 
 @vertex
 fn vs_surface(
@@ -127,17 +128,19 @@ fn fs_surface_grid(
 fn fs_surface_grid_transparent(
     in: SurfaceVsOut,
 ) -> OitOutput {
+    let ray =
+        surface_ray(in);
+
     let hit =
-        intersect_grid_surface(
-            surface_ray(in)
-        );
+        intersect_grid_surface(ray);
 
     if !hit.valid {
         discard;
     }
 
-    return surface_transparent_output(
+    return grid_transparent_output(
         in,
+        ray,
         hit,
     );
 }

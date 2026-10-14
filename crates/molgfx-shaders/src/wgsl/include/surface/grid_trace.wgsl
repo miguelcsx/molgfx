@@ -4,11 +4,18 @@
 // the depth terraces caused by treating an outside epsilon band as geometry,
 // while keeping empty-space traversal compact enough for the fragment hot path.
 
-const GRID_ROOT_BISECTIONS: u32 = 2u;
-// Two samples per smallest grid cell are sufficient to preserve a trilinear
-// sign interval; the bracketed root refinement recovers sub-cell depth. A
-// quarter-cell floor doubled near-surface texture work without adding a
-// representable crossing.
+// Refinement narrows the sign bracket until it is a small fraction of the
+// smallest cell, independent of how wide the traversal step was. A bracket is
+// at most two cells wide, so six halvings after the interpolated candidate
+// reach about 0.03 cell; the cap bounds the per-pixel cost.
+const GRID_ROOT_BISECTIONS: u32 = 6u;
+const GRID_ROOT_TOLERANCE_CELLS: f32 = 0.03;
+// Samples are at most half a cell apart where the field is near the level.
+// Along a ray a trilinear cell is a cubic, so this does not prove that every
+// sign interval is seen: a sliver thinner than the sample spacing can lie
+// between two samples. Measured against an exact cell-by-cell tracer the
+// misses are about 1e-4 of hits, mostly grazing silhouette rays. A
+// quarter-cell floor doubled near-surface texture work for no measurable gain.
 const GRID_STEP_FRACTION: f32 = 0.5;
 const GRID_DISTANCE_SAFETY: f32 = 0.9;
 
@@ -48,6 +55,12 @@ fn grid_clip_face(
 
 /// Converts stored scalar values to an approximate distance used only to skip
 /// empty space. Hit acceptance and refinement always use the exact level sign.
+///
+/// For Gaussian fields this inverts a single unit Gaussian of width
+/// `surface.z` (sigma, not radius * sigma). That is not a conservative bound
+/// for a sum of Gaussians or for atoms with a radius other than one. Safety
+/// comes from the two-cell step cap in `intersect_grid_surface` and from the
+/// sign-bracketed acceptance, not from this estimate.
 fn grid_empty_space_distance(field: f32) -> f32 {
     if representation.options.x != SURFACE_KIND_GAUSSIAN {
         return max(grid_level_value(field), 0.0);
@@ -99,11 +112,21 @@ fn grid_refine_hit(
         high = candidate;
     }
 
+    let minimum_cell = min(
+        representation.grid_cell.x,
+        min(representation.grid_cell.y, representation.grid_cell.z),
+    );
+    let tolerance = minimum_cell * GRID_ROOT_TOLERANCE_CELLS;
+
     for (
         var iteration = 0u;
         iteration < GRID_ROOT_BISECTIONS;
         iteration++
     ) {
+        if high - low <= tolerance {
+            break;
+        }
+
         let middle = (low + high) * 0.5;
         let point = fma(ray.direction, vec3f(middle), ray.origin);
 
@@ -138,11 +161,13 @@ fn grid_resolved_hit(
     );
 }
 
-fn intersect_grid_surface(ray: SurfaceRay) -> SurfaceHit {
+/// The clipped interval a ray spends inside the field's bounding box.
+fn grid_clipped_span(ray: SurfaceRay) -> RepresentationClipInterval {
     let grid_upper = representation.grid_min.xyz +
         representation.grid_cell.xyz *
         vec3f(representation.grid_size.xyz - vec3u(1u));
-    let clipped = clipped_local_interval(
+
+    return clipped_local_interval(
         ray,
         ray_box(
             ray.origin,
@@ -151,21 +176,20 @@ fn intersect_grid_surface(ray: SurfaceRay) -> SurfaceHit {
             grid_upper,
         ),
     );
-    var current_t = max(clipped.range.x, 0.0);
-    let maximum_t = clipped.range.y;
+}
 
-    if current_t > maximum_t {
-        return surface_miss();
-    }
-
-    if representation.clip_meta.y != 0u {
-        let cap = grid_clip_face(ray, clipped);
-
-        if cap.valid {
-            return cap;
-        }
-    }
-
+/// Marches from `start_t` to the next outside-to-inside crossing.
+///
+/// `budget` counts the samples still available and is spent as the march
+/// runs, so a caller that continues past a hit shares one bound across every
+/// search instead of multiplying it.
+fn grid_march_entry(
+    ray: SurfaceRay,
+    start_t: f32,
+    maximum_t: f32,
+    budget: ptr<function, u32>,
+) -> SurfaceHit {
+    var current_t = start_t;
     let minimum_cell = min(
         representation.grid_cell.x,
         min(representation.grid_cell.y, representation.grid_cell.z),
@@ -175,11 +199,8 @@ fn intersect_grid_surface(ray: SurfaceRay) -> SurfaceHit {
     var previous_t = current_t;
     var previous_level = SURFACE_INFINITY;
 
-    for (
-        var step = 0u;
-        step < representation.options.y;
-        step++
-    ) {
+    while *budget > 0u {
+        *budget -= 1u;
         let point = fma(ray.direction, vec3f(current_t), ray.origin);
         let field = grid_surface_field(point);
         let level = grid_level_value(field);
@@ -219,4 +240,119 @@ fn intersect_grid_surface(ray: SurfaceRay) -> SurfaceHit {
     }
 
     return surface_miss();
+}
+
+/// Marches from inside the field to the next inside-to-outside crossing.
+///
+/// The returned normal is reversed so it faces the viewer, as the boundary
+/// seen from inside the solid. Inside, a signed-distance level bounds the
+/// distance to the boundary, so the step grows with depth; a Gaussian density
+/// has no such bound and keeps the two-cell cap used for entry.
+fn grid_march_exit(
+    ray: SurfaceRay,
+    start_t: f32,
+    maximum_t: f32,
+    budget: ptr<function, u32>,
+) -> SurfaceHit {
+    let minimum_cell = min(
+        representation.grid_cell.x,
+        min(representation.grid_cell.y, representation.grid_cell.z),
+    );
+    let minimum_step = minimum_cell * GRID_STEP_FRACTION;
+    // The ray starts on the boundary it entered by, so the first sample is
+    // one step in; sampling the start itself could report that same boundary.
+    var previous_t = start_t;
+    var current_t = start_t + minimum_step;
+
+    while *budget > 0u && current_t <= maximum_t {
+        *budget -= 1u;
+        let level = grid_level_value(
+            grid_surface_field(fma(ray.direction, vec3f(current_t), ray.origin))
+        );
+
+        if level > 0.0 {
+            var low = previous_t;
+            var high = current_t;
+
+            for (
+                var iteration = 0u;
+                iteration < GRID_ROOT_BISECTIONS;
+                iteration++
+            ) {
+                let middle = (low + high) * 0.5;
+                let inside = grid_level_value(
+                    grid_surface_field(fma(ray.direction, vec3f(middle), ray.origin))
+                ) <= 0.0;
+                low = select(low, middle, inside);
+                high = select(middle, high, inside);
+            }
+
+            // Resolve on the outside end of the bracket: the next entry march
+            // starts here, and an inside sample would report this same wall
+            // again as an entry.
+            let boundary = grid_resolved_hit(ray, high);
+
+            return SurfaceHit(
+                boundary.local_position,
+                -boundary.local_normal,
+                boundary.compact_index,
+                boundary.valid,
+                false,
+            );
+        }
+
+        previous_t = current_t;
+        var advance = minimum_cell * 2.0;
+
+        if representation.options.x != SURFACE_KIND_GAUSSIAN {
+            advance = max(-level * GRID_DISTANCE_SAFETY, minimum_step);
+        }
+
+        current_t += advance;
+    }
+
+    return surface_miss();
+}
+
+/// The next boundary crossing after `from_t`: an exit when the ray is inside
+/// the field, an entry when it is outside. Callers alternate the two.
+///
+/// `limit_t` is the ray parameter of the opaque surface along this ray; no
+/// crossing beyond it is reported, because opaque geometry hides it.
+fn grid_next_crossing(
+    ray: SurfaceRay,
+    from_t: f32,
+    limit_t: f32,
+    inside: bool,
+    budget: ptr<function, u32>,
+) -> SurfaceHit {
+    let maximum_t = min(grid_clipped_span(ray).range.y, limit_t);
+
+    if inside {
+        return grid_march_exit(ray, from_t, maximum_t, budget);
+    }
+
+    return grid_march_entry(ray, from_t, maximum_t, budget);
+}
+
+fn intersect_grid_surface(ray: SurfaceRay) -> SurfaceHit {
+    let clipped = grid_clipped_span(ray);
+    let current_t = max(clipped.range.x, 0.0);
+    let maximum_t = clipped.range.y;
+
+    if current_t > maximum_t {
+        return surface_miss();
+    }
+
+    if representation.clip_meta.y != 0u {
+        let cap = grid_clip_face(ray, clipped);
+
+        if cap.valid {
+            return cap;
+        }
+    }
+
+    var budget = representation.options.y;
+
+    return grid_march_entry(ray, current_t, maximum_t, &budget);
 }

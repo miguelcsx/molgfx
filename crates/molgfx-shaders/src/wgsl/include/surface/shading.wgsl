@@ -324,10 +324,24 @@ fn surface_opaque_output(
     return out;
 }
 
-fn surface_transparent_output(
+/// One shaded crossing of a translucent surface. `visible` is false where the
+/// pattern or a visual rule removes the fragment, so a later crossing can
+/// still contribute instead of the whole pixel being discarded.
+struct SurfaceLayer {
+    color: vec3f,
+    opacity: f32,
+    depth: f32,
+    visible: bool,
+}
+
+fn surface_hidden_layer() -> SurfaceLayer {
+    return SurfaceLayer(vec3f(0.0), 0.0, 0.0, false);
+}
+
+fn surface_transparent_layer(
     in: SurfaceVsOut,
     hit: SurfaceHit,
-) -> OitOutput {
+) -> SurfaceLayer {
     let atom =
         atoms[hit.compact_index];
 
@@ -365,7 +379,7 @@ fn surface_transparent_output(
         && representation.options.w != 5u
         && representation.options.w != 3u
         && pattern <= 0.01 {
-        discard;
+        return surface_hidden_layer();
     }
 
     let presented =
@@ -384,7 +398,7 @@ fn surface_transparent_output(
         );
 
     if !visual.visible {
-        discard;
+        return surface_hidden_layer();
     }
 
     let depth =
@@ -419,9 +433,26 @@ fn surface_transparent_output(
         }
     }
 
+    return SurfaceLayer(lit, opacity, depth, true);
+}
+
+fn surface_transparent_output(
+    in: SurfaceVsOut,
+    hit: SurfaceHit,
+) -> OitOutput {
+    let layer =
+        surface_transparent_layer(
+            in,
+            hit,
+        );
+
+    if !layer.visible {
+        discard;
+    }
+
     return weighted_transparency(
-        lit,
-        opacity,
-        depth,
+        layer.color,
+        layer.opacity,
+        layer.depth,
     );
 }

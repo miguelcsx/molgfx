@@ -195,6 +195,97 @@ fn grid_surfaces_use_sign_bracketed_hits_and_continuous_normals() {
     assert!(!GEOMETRY_SURFACE.contains("surface_normals"));
 }
 
+/// The body of the named WGSL function, up to the next top-level item.
+fn wgsl_function<'a>(source: &'a str, name: &str) -> &'a str {
+    let start = source
+        .find(&format!("fn {name}("))
+        .unwrap_or_else(|| panic!("`{name}` is missing from the composed source"));
+    let rest = &source[start..];
+    let end = rest.find("\n}\n").map_or(rest.len(), |end| end + 3);
+    &rest[..end]
+}
+
+#[test]
+fn a_translucent_grid_surface_composites_a_bounded_number_of_crossings() {
+    let layers: u32 = GEOMETRY_SURFACE
+        .lines()
+        .find_map(|line| line.strip_prefix("const SURFACE_TRANSPARENT_LAYERS: u32 = "))
+        .and_then(|rest| {
+            rest.trim_end_matches(';')
+                .trim_end_matches('u')
+                .parse()
+                .ok()
+        })
+        .expect("the layer bound is declared as a u32 constant");
+    // Fewer than two layers is the single shell this replaced; the cap keeps
+    // the per-pixel shading and trace cost fixed.
+    assert!((2..=8).contains(&layers));
+
+    let entry = wgsl_function(GEOMETRY_SURFACE, "fs_surface_grid_transparent");
+    assert!(entry.contains("grid_transparent_output("));
+    let compositor = wgsl_function(GEOMETRY_SURFACE, "grid_transparent_output");
+    assert!(compositor.contains("layer < layers;"));
+    assert!(compositor.contains("transmittance *= 1.0 - alpha"));
+    // One contribution per pixel leaves the shader, carrying the nearest depth.
+    assert_eq!(compositor.matches("weighted_transparency(").count(), 1);
+}
+
+#[test]
+fn the_translucent_continuation_shares_one_march_budget() {
+    let compositor = wgsl_function(GEOMETRY_SURFACE, "grid_transparent_output");
+    assert!(compositor.contains("var budget = representation.options.y;"));
+    assert!(compositor.contains("&budget"));
+    for march in ["grid_march_entry", "grid_march_exit"] {
+        let body = wgsl_function(GEOMETRY_SURFACE, march);
+        assert!(
+            body.contains("*budget > 0u"),
+            "{march} must spend the shared budget"
+        );
+    }
+}
+
+#[test]
+fn the_translucent_continuation_stops_at_the_opaque_depth() {
+    let limit = wgsl_function(GEOMETRY_SURFACE, "surface_opaque_limit");
+    assert!(limit.contains("oit_depth_texture"));
+    assert!(limit.contains("frame.inv_proj"));
+    assert!(limit.contains("model.world_to_model"));
+    // Empty pixels (reversed-Z depth of zero) impose no limit.
+    assert!(limit.contains("SURFACE_INFINITY"));
+
+    let compositor = wgsl_function(GEOMETRY_SURFACE, "grid_transparent_output");
+    assert!(compositor.contains("surface_opaque_limit(in.position, ray)"));
+    assert!(compositor.contains("limit_t,"));
+
+    let crossing = wgsl_function(GEOMETRY_SURFACE, "grid_next_crossing");
+    assert!(crossing.contains("min(grid_clipped_span(ray).range.y, limit_t)"));
+}
+
+#[test]
+fn only_a_converged_output_walks_past_the_nearest_translucent_crossing() {
+    let compositor = wgsl_function(GEOMETRY_SURFACE, "grid_transparent_output");
+    assert!(compositor.contains("SURFACE_TRANSPARENT_LAYERS,\n        frame.temporal.z > 0.5,"));
+    assert!(compositor.contains("layer + 1u == layers"));
+}
+
+#[test]
+fn opaque_and_union_surfaces_keep_the_single_crossing_path() {
+    for opaque in ["fs_surface_grid", "fs_surface_union"] {
+        assert!(!wgsl_function(GEOMETRY_SURFACE, opaque).contains("grid_transparent_output"));
+    }
+    assert!(
+        wgsl_function(GEOMETRY_SURFACE, "fs_surface_union_transparent")
+            .contains("surface_transparent_output(")
+    );
+}
+
+#[test]
+fn a_hidden_layer_does_not_discard_the_pixel_it_shares() {
+    let layer = wgsl_function(GEOMETRY_SURFACE, "surface_transparent_layer");
+    assert!(!layer.contains("discard;"));
+    assert!(layer.contains("surface_hidden_layer()"));
+}
+
 #[test]
 fn soft_union_is_explicit_and_keeps_the_exact_surface_path() {
     assert!(GEOMETRY_SURFACE.contains("representation.options.w == 5u"));

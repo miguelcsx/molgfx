@@ -58,11 +58,19 @@ fn a_coarser_target_spacing_shrinks_the_grid_without_changing_the_finest_spacing
 }
 
 #[test]
-fn grid_traversal_budget_is_bounded_by_the_longest_axis() {
-    assert_eq!(march_steps([2, 2, 2], 192), 2);
-    assert_eq!(march_steps([192, 121, 87], 192), 192);
-    assert_eq!(march_steps([576, 400, 300], 1024), 576);
-    assert_eq!(march_steps([576, 400, 300], 512), 512);
+fn grid_traversal_budget_covers_a_half_cell_diagonal_crossing() {
+    let steps = march_steps([100, 100, 100], 192);
+    let diagonal_samples = 347; // ceil(sqrt(3) * 100 / 0.5)
+    assert!(steps >= diagonal_samples, "{steps} < {diagonal_samples}");
+    assert!(march_steps([192, 121, 87], 192) > 192);
+}
+
+#[test]
+fn grid_traversal_budget_stays_bounded_by_the_axis_limit() {
+    // 3.5 * 512 caps the diagonal walk; two samples stay reserved.
+    assert_eq!(march_steps([2048, 2048, 2048], 512), 1794);
+    assert!(march_steps([576, 576, 576], 1024) >= 1996);
+    assert!(march_steps([2, 2, 2], 192) >= 2);
 }
 
 #[test]
