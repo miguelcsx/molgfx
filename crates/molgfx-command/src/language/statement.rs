@@ -96,6 +96,9 @@ pub(super) fn parse(source: &str, span: Span) -> Result<Command, CommandError> {
         "plane" => plane(source, verb.span, span),
         "volume" => volume(source, verb.span, span),
         "snapshot" => super::snapshot::parse(&arguments, tail),
+        "seek" | "play" | "pause" | "dilate" => {
+            super::transport::parse(verb.text, &arguments, tail)
+        }
         unknown => Err(CommandError::new(
             ErrorKind::Syntax,
             format!("'{unknown}' is not a command"),

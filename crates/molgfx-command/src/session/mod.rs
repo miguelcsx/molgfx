@@ -39,9 +39,11 @@ mod state;
 mod state_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod transport_tests;
 
 pub use complete::Completion;
-pub use state::{LayerSpec, RuleSpec, SessionSpec};
+pub use state::{LayerSpec, RuleSpec, SessionSpec, TransportSpec};
 
 mod authoring;
 mod label;

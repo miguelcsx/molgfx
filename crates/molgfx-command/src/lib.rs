@@ -20,8 +20,9 @@ pub use error::{CommandError, CommandErrors, ErrorKind, Span};
 pub use ir::{
     ColorValue, Command, ContentHash, Finite, Form, FormKind, InvalidName, MeasureKind, Name,
     Opacity, OptionError, OptionInfo, OptionKind, Positive, Program, QueryText, Show, Statement,
-    Target,
+    Target, TimeAmount, Transport,
 };
 pub use session::{
     Completion, LayerSpec, NamedSnapshot, Outcome, RuleSpec, Session, SessionSpec, SnapshotSymbols,
+    TransportSpec,
 };

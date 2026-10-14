@@ -9,6 +9,7 @@ use super::color::ColorValue;
 use super::form::Form;
 use super::name::Name;
 use super::target::{QueryText, Target};
+use super::transport::Transport;
 use super::value::{Opacity, Positive};
 use molgfx_scene::{
     AssemblySpec, FitResult, InteractionSpec, PlaneSpec, SegmentStyle, SegmentationId,
@@ -289,6 +290,8 @@ pub enum Command {
         /// Snapshot to remove.
         name: Name,
     },
+    /// Moves or paces the playback clock; see [`Transport`].
+    Transport(Transport),
     /// Clears the focus.
     Unfocus,
     /// Undoes the most recent edit.
@@ -326,6 +329,7 @@ impl Command {
             Self::SnapshotSave { .. }
             | Self::SnapshotRestore { .. }
             | Self::SnapshotRemove { .. } => "snapshot",
+            Self::Transport(transport) => transport.verb(),
             Self::Unfocus => "unfocus",
             Self::Undo => "undo",
             Self::Redo => "redo",
@@ -422,6 +426,7 @@ impl fmt::Display for Command {
             Self::SnapshotSave { name } => write!(formatter, "snapshot save {name}"),
             Self::SnapshotRestore { name } => write!(formatter, "snapshot restore {name}"),
             Self::SnapshotRemove { name } => write!(formatter, "snapshot remove {name}"),
+            Self::Transport(transport) => write!(formatter, "{transport}"),
             Self::Unfocus => formatter.write_str("unfocus"),
             Self::Undo => formatter.write_str("undo"),
             Self::Redo => formatter.write_str("redo"),

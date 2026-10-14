@@ -1,6 +1,6 @@
 //! What a session knows: names, selections, layers, colour rules and focus.
 
-use crate::ir::{ColorValue, Form, Name, QueryText};
+use crate::ir::{ColorValue, Form, Name, QueryText, TimeAmount};
 use molgfx_scene::{AppearanceRuleId, RepresentationId, SceneSpec, StructureId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -29,6 +29,21 @@ pub struct RuleSpec {
     pub color: ColorValue,
 }
 
+/// The authored playback position and per-track paces a session holds.
+///
+/// This is history-bearing state: `seek` and `dilate` change it, and undo
+/// restores the previous value. Whether the clock is running is not here; see
+/// `State::playing`.
+#[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
+pub struct TransportSpec {
+    /// The playback time the clock was last moved to, as written.
+    #[serde(default)]
+    pub time: TimeAmount,
+    /// Physical time per playback second, by track name, as written.
+    #[serde(default)]
+    pub dilations: BTreeMap<Name, TimeAmount>,
+}
+
 /// A session's portable symbolic state.
 ///
 /// Selections keep the text their author wrote, `$name` references included,
@@ -49,6 +64,9 @@ pub struct SessionSpec {
     /// Complete portable scenes captured under authoring names.
     #[serde(default)]
     pub snapshots: BTreeMap<Name, super::NamedSnapshot>,
+    /// Playback position and track paces.
+    #[serde(default)]
+    pub transport: TransportSpec,
 }
 
 impl SessionSpec {
@@ -82,6 +100,9 @@ impl SessionSpec {
 pub(crate) struct State {
     pub(crate) spec: SessionSpec,
     pub(crate) aliases: molframe::QueryAliases,
+    /// Whether the clock is running. Transient: kept out of the spec so that
+    /// undoing an edit never starts or stops playback.
+    pub(crate) playing: bool,
 }
 
 impl State {
@@ -91,7 +112,11 @@ impl State {
             // Every `Name` is a valid alias name, so defining cannot fail.
             let _ = aliases.define(name.as_str(), query.query().clone());
         }
-        Self { spec, aliases }
+        Self {
+            spec,
+            aliases,
+            playing: false,
+        }
     }
 
     /// Brings names in line with the scene: every structure gets a name, and
@@ -121,6 +146,9 @@ impl State {
                 && scene.structures.contains_key(&layer.structure)
         });
         spec.rules.retain(|id, _| scene.appearance.contains_key(id));
+        spec.transport
+            .dilations
+            .retain(|track, _| scene.timeline.tracks.contains_key(track.as_str()));
         if scene.focus.is_none() {
             spec.focus = None;
         }

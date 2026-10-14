@@ -14,6 +14,9 @@ mod snapshot;
 mod split;
 mod statement;
 mod targets;
+mod transport;
+#[cfg(test)]
+mod transport_tests;
 mod words;
 
 #[cfg(test)]

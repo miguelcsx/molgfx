@@ -47,6 +47,15 @@ impl Session {
         &self.state.spec
     }
 
+    /// Whether `play` has started the clock and `pause` has not stopped it.
+    ///
+    /// The session records the transport; the caller that owns the timeline
+    /// reads this and [`SessionSpec::transport`] and drives `Timeline::apply`.
+    #[must_use]
+    pub const fn is_playing(&self) -> bool {
+        self.state.playing
+    }
+
     /// Parses and executes command text as one atomic program.
     ///
     /// # Errors
@@ -98,6 +107,7 @@ impl Session {
             messages: Vec::new(),
             site: None,
             sources: scene.sources(),
+            timeline: &scene.spec().timeline,
         };
         if stale {
             planner.messages.push(
@@ -247,7 +257,9 @@ impl Session {
         let mut messages = Vec::new();
         if let Some((undo, entry)) = steps.last() {
             let spec = if *undo { &entry.before } else { &entry.after };
+            let playing = self.state.playing;
             self.state = State::from_spec(spec.clone());
+            self.state.playing = playing;
         }
         for (undo, entry) in &steps {
             messages.push(format!(

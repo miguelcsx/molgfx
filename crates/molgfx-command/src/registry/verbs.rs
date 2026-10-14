@@ -126,6 +126,26 @@ pub const VERBS: &[VerbInfo] = &[
         summary: "capture, atomically restore, or remove a named portable scene",
     },
     VerbInfo {
+        name: "seek",
+        synopsis: "seek TIME UNIT",
+        summary: "move the playback clock to a time; the unit is required",
+    },
+    VerbInfo {
+        name: "play",
+        synopsis: "play",
+        summary: "start the playback clock",
+    },
+    VerbInfo {
+        name: "pause",
+        synopsis: "pause",
+        summary: "stop the playback clock",
+    },
+    VerbInfo {
+        name: "dilate",
+        synopsis: "dilate TRACK RATE UNIT",
+        summary: "play a timeline track at RATE physical UNIT per playback second",
+    },
+    VerbInfo {
         name: "unfocus",
         synopsis: "unfocus",
         summary: "clear the focus",

@@ -66,6 +66,8 @@ pub enum ErrorKind {
     Conflict,
     /// The scene changed outside the session since the session last edited it.
     StaleSession,
+    /// A time is out of range for the clock.
+    InvalidTime,
     /// There is nothing to undo or redo.
     History,
     /// The scene rejected the resulting edit.

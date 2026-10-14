@@ -17,6 +17,7 @@ mod overlay;
 mod segment;
 mod selection;
 mod snapshot;
+mod transport;
 
 pub(crate) struct Planner<'a> {
     pub(crate) state: State,
@@ -27,6 +28,8 @@ pub(crate) struct Planner<'a> {
     /// policy that depends on the structure's own chemistry — the automatic
     /// preset classifies by polymer residue count — without re-reading it.
     pub(crate) sources: &'a BTreeMap<StructureId, molgfx_scene::source::MolecularSource>,
+    /// The authored timeline, read-only; `dilate` re-paces one of its tracks.
+    pub(crate) timeline: &'a molgfx_scene::timeline::TimelineSpec,
 }
 
 impl Planner<'_> {
@@ -96,6 +99,7 @@ impl Planner<'_> {
             Command::SnapshotSave { name } => self.snapshot_save(name),
             Command::SnapshotRestore { name } => self.snapshot_restore(name),
             Command::SnapshotRemove { name } => self.snapshot_remove(name),
+            Command::Transport(transport) => self.transport(transport),
             Command::Unfocus => {
                 self.transaction
                     .stage(PatchOperation::SetFocus { selection: None })

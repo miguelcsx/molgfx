@@ -9,6 +9,7 @@ mod form_text;
 mod name;
 mod program;
 mod target;
+mod transport;
 mod value;
 pub(crate) mod volume;
 
@@ -20,4 +21,5 @@ pub use form::{ContentHash, Form, FormKind, OptionError, OptionInfo, OptionKind}
 pub use name::{InvalidName, Name};
 pub use program::{Program, Statement};
 pub use target::{QueryText, Target};
+pub use transport::{TimeAmount, Transport};
 pub use value::{Finite, Opacity, Positive};
