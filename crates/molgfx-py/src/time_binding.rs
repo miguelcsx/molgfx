@@ -2,7 +2,11 @@
 
 use molgfx::time::{SimTime, TimeUnit};
 use pyo3::prelude::*;
+use pyo3::sync::PyOnceLock;
 use pyo3::{PyResult, exceptions::PyValueError};
+
+/// `molgfx.time.TimeUnit` members, in `TimeUnit::ALL` order, resolved once.
+static MEMBERS: PyOnceLock<Vec<Py<PyAny>>> = PyOnceLock::new();
 
 /// Parses a unit symbol; an unknown one is a `ValueError`, never seconds.
 pub(crate) fn unit_from_symbol(symbol: &str) -> PyResult<TimeUnit> {
@@ -16,6 +20,23 @@ pub(crate) fn parse_unit(value: &Bound<'_, PyAny>) -> PyResult<TimeUnit> {
         .extract::<String>()
         .map_err(|_| PyValueError::new_err("a time unit must be a molgfx.time.TimeUnit member"))?;
     unit_from_symbol(&symbol)
+}
+
+/// The `molgfx.time.TimeUnit` member for `unit`, without a lookup per call.
+pub(crate) fn unit_member(py: Python<'_>, unit: TimeUnit) -> PyResult<Bound<'_, PyAny>> {
+    let members = MEMBERS.get_or_try_init(py, || {
+        let class = py.import("molgfx.time")?.getattr("TimeUnit")?;
+        TimeUnit::ALL
+            .iter()
+            .map(|unit| class.call1((unit.symbol(),)).map(Bound::unbind))
+            .collect::<PyResult<Vec<_>>>()
+    })?;
+    TimeUnit::ALL
+        .iter()
+        .position(|candidate| *candidate == unit)
+        .and_then(|index| members.get(index))
+        .map(|member| member.bind(py).clone())
+        .ok_or_else(|| PyValueError::new_err("time unit has no Python member"))
 }
 
 /// Converts frame times given in `unit` to canonical seconds, once.

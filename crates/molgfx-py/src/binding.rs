@@ -410,6 +410,7 @@ fn _engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     crate::placement_binding::register(module)?;
     crate::properties_binding::register(module)?;
     crate::playback_binding::register(module)?;
+    crate::timeline_binding::register(module)?;
     let rep = PyModule::new(module.py(), "rep")?;
     rep.add_function(wrap_pyfunction!(cartoon, &rep)?)?;
     rep.add_function(wrap_pyfunction!(new_cartoon, &rep)?)?;
