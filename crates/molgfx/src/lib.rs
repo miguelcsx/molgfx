@@ -86,8 +86,8 @@ pub mod schema {
 /// screen pixels.
 pub mod camera {
     pub use molgfx_scene::camera::{
-        CameraEasing, CameraKeyframe, CameraPath, Ray, ScreenPoint, frame_bounds, path,
-        perspective, project, ray, stereo_eyes,
+        CameraBookmark, CameraEasing, CameraKeyframe, CameraPath, Ray, ScreenPoint, frame_bounds,
+        path, perspective, project, ray, stereo_eyes,
     };
 }
 
@@ -98,6 +98,20 @@ pub mod controls {
         ArcballController, Button, FlyController, InputEvent, Key, OrbitCamera, OrbitController,
         ScaleController,
     };
+}
+
+/// Physical time: typed simulation instants and their units.
+pub mod time {
+    pub use molgfx_scene::time::{PlaybackTime, SimTime, TimeUnit};
+}
+
+/// Playback warps that map presentation seconds onto each track's physical time.
+pub mod timeline {
+    pub use molgfx_scene::timeline::{
+        PlaybackMode, TimeWarp, Timeline, TimelineSpec, TimelineTrackHandle, TrackPace,
+        TrackReading, TrackSpec,
+    };
+    pub use molgfx_scene::{FrameSchedule, SequenceManifest};
 }
 
 /// Immutable representation specifications and constructors.
