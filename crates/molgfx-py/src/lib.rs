@@ -29,5 +29,6 @@ mod scene_state_binding;
 mod session_binding;
 mod snfg_binding;
 mod subscription_binding;
+mod time_binding;
 mod transaction_binding;
 mod visual_binding;

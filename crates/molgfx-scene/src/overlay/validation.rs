@@ -116,7 +116,7 @@ impl TrajectorySpec {
         }
         if self
             .time_step
-            .is_some_and(|value| !value.is_finite() || value <= 0.0)
+            .is_some_and(|value| !value.seconds().is_finite() || value.seconds() <= 0.0)
         {
             return Err(Error::InvalidSpec(
                 "trajectory time step must be finite and positive".to_owned(),

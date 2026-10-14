@@ -324,12 +324,13 @@ fn bind_trajectory(
     time_step: Option<f64>,
     time_unit: Option<&str>,
 ) -> PyResult<PyTrajectory> {
+    let (time_step, unit) = crate::time_binding::trajectory_clock(time_step, time_unit)?;
     Ok(PyTrajectory(molgfx::TrajectorySpec {
         structure: molgfx::StructureId::new(crate::id_binding::structure_id(structure)?),
         source: source.0.clone(),
         frame_count,
         time_step,
-        time_unit: time_unit.map(Into::into),
+        time_unit: unit,
     }))
 }
 

@@ -1,31 +1,46 @@
 use crate::TrajectoryFrame;
-use crate::playback::{FrameCache, Timeline, TimelineError};
+use crate::playback::{FrameCache, FrameTable, FrameTableError};
+use crate::time::SimTime;
 use std::sync::Arc;
 
+fn table(frames: usize, seconds: &[f64]) -> Result<FrameTable, FrameTableError> {
+    FrameTable::new(frames, seconds.iter().copied().map(SimTime::from).collect())
+}
+
 #[test]
-fn timelines_validate_counts_and_order() {
-    assert_eq!(Timeline::new(1, vec![0.0]), Err(TimelineError::FrameCount));
+fn frame_tables_validate_counts_and_order() {
+    assert_eq!(table(1, &[0.0]), Err(FrameTableError::FrameCount));
+    assert_eq!(table(3, &[0.0, 1.0]), Err(FrameTableError::FrameCount));
     assert_eq!(
-        Timeline::new(3, vec![0.0, 1.0]),
-        Err(TimelineError::FrameCount)
+        table(3, &[0.0, 2.0, 1.0]),
+        Err(FrameTableError::NotAscending)
+    );
+    assert!(table(3, &[0.0, 1.0, 2.0]).is_ok());
+}
+
+#[test]
+fn unrecorded_frame_times_are_rejected_as_non_finite() {
+    // molframe reports an unrecorded frame as NaN; a NaN gap must not pass as ascending.
+    assert_eq!(
+        table(3, &[0.0, f64::NAN, 2.0]),
+        Err(FrameTableError::NonFinite)
     );
     assert_eq!(
-        Timeline::new(3, vec![0.0, 2.0, 1.0]),
-        Err(TimelineError::NotAscending)
+        table(3, &[0.0, 1.0, f64::INFINITY]),
+        Err(FrameTableError::NonFinite)
     );
-    assert!(Timeline::new(3, vec![0.0, 1.0, 2.0]).is_ok());
 }
 
 #[test]
 fn locate_clamps_and_picks_the_containing_segment() {
-    let Ok(line) = Timeline::new(3, vec![0.0, 1.0, 2.0]) else {
-        panic!("valid timeline")
+    let Ok(line) = table(3, &[0.0, 1.0, 2.0]) else {
+        panic!("valid frame table")
     };
-    assert_eq!(line.locate(0.5).segment, 0);
-    assert_eq!(line.locate(1.0).segment, 1);
-    assert_eq!(line.locate(9.0).segment, 1);
-    assert!((line.locate(9.0).time - 2.0).abs() < f32::EPSILON);
-    assert!(line.locate(-3.0).time.abs() < f32::EPSILON);
+    assert_eq!(line.locate(SimTime::from(0.5)).segment, 0);
+    assert_eq!(line.locate(SimTime::from(1.0)).segment, 1);
+    assert_eq!(line.locate(SimTime::from(9.0)).segment, 1);
+    assert!((line.locate(SimTime::from(9.0)).time.seconds() - 2.0).abs() < f64::EPSILON);
+    assert!(line.locate(SimTime::from(-3.0)).time.seconds().abs() < f64::EPSILON);
 }
 
 #[test]

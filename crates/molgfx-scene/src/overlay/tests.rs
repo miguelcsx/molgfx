@@ -1,7 +1,8 @@
+use crate::time::SimTime;
 use crate::{
     Anchor, DataSource, InteractionKind, Scene, ScenePatch, SceneSpec, StructureId,
-    TrajectoryBinding, TrajectoryFrame, VolumeBinding, annotation, density, interaction,
-    measurement, trajectory,
+    TrajectoryBinding, TrajectoryFrame, TrajectorySpec, VolumeBinding, annotation, density,
+    interaction, measurement, trajectory,
 };
 use std::sync::Arc;
 
@@ -338,6 +339,22 @@ fn a_trajectory_pair_outside_its_declared_frame_count_is_refused() {
         result.is_err(),
         "a pair reaching past the declared frame count is refused"
     );
+}
+
+#[test]
+fn a_trajectory_time_step_must_be_finite_and_positive() {
+    let mut scene = Scene::from_structure(&structure()).unwrap_or_else(|error| panic!("{error}"));
+    for step in [f64::NAN, f64::INFINITY, 0.0, -1.0] {
+        let spec = TrajectorySpec {
+            structure: StructureId::new(1),
+            source: DataSource::new("frames-hash"),
+            frame_count: 2,
+            time_step: Some(SimTime::from(step)),
+            time_unit: None,
+        };
+        assert!(scene.add(spec).is_err(), "a time step of {step} is refused");
+    }
+    assert!(scene.spec().trajectories.is_empty());
 }
 
 #[test]

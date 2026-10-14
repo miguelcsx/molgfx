@@ -4,7 +4,9 @@ use crate::id_binding::PyStructureId;
 use crate::overlay_binding::PyTrajectoryFrame;
 use crate::render_binding::{PyImage, PyRenderer};
 use crate::scene_binding::PyScene;
-use molgfx::playback::{FrameCache, Timeline};
+use crate::time_binding::{frame_times, parse_unit};
+use molgfx::playback::{FrameCache, FrameTable};
+use molgfx::time::{SimTime, TimeUnit};
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyModule, PyTuple};
@@ -15,10 +17,10 @@ struct PyPlayback {
     scene: Py<PyScene>,
     structure: Py<PyAny>,
     positions: Py<PyAny>,
-    timeline: Timeline,
+    timeline: FrameTable,
     cache: FrameCache,
     segment: Option<usize>,
-    at: Option<f32>,
+    at: Option<f64>,
     pair: Option<(PyTrajectoryFrame, PyTrajectoryFrame)>,
 }
 
@@ -32,14 +34,15 @@ impl PyPlayback {
         self.cache
             .get_or_convert(index, || {
                 let atoms = positions.bind(py).get_item(index)?;
-                PyTrajectoryFrame::new(index as u64, f64::from(time), &atoms).map(|frame| frame.0)
+                PyTrajectoryFrame::new(index as u64, time.seconds(), &atoms).map(|frame| frame.0)
             })
             .map(PyTrajectoryFrame)
     }
 
-    fn move_to(&mut self, py: Python<'_>, time: f32) -> PyResult<()> {
-        let position = self.timeline.locate(time);
-        if self.at == Some(position.time) && self.pair.is_some() {
+    fn move_to(&mut self, py: Python<'_>, time: f64) -> PyResult<()> {
+        let position = self.timeline.locate(SimTime::from(time));
+        let sample = position.time.seconds();
+        if self.at == Some(sample) && self.pair.is_some() {
             return Ok(());
         }
         if self.segment != Some(position.segment) || self.pair.is_none() {
@@ -54,11 +57,11 @@ impl PyPlayback {
                 self.structure.bind(py),
                 start,
                 end,
-                f64::from(position.time),
+                sample,
             )?;
         }
         self.segment = Some(position.segment);
-        self.at = Some(position.time);
+        self.at = Some(sample);
         Ok(())
     }
 }
@@ -82,7 +85,7 @@ impl PyPlayback {
 
     #[getter]
     fn times<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
-        PyTuple::new(py, self.timeline.times())
+        PyTuple::new(py, self.timeline.times().iter().map(|time| time.seconds()))
     }
 
     /// Make the scene show the interpolated state at `time`.
@@ -90,7 +93,7 @@ impl PyPlayback {
     /// `time` is clamped to the first and last frame time. Seeking to the time
     /// already shown does nothing, and seeking within the current segment
     /// reuses its frame handles.
-    fn seek(&mut self, py: Python<'_>, time: f32) -> PyResult<()> {
+    fn seek(&mut self, py: Python<'_>, time: f64) -> PyResult<()> {
         self.move_to(py, time)
     }
 
@@ -105,7 +108,7 @@ impl PyPlayback {
         let py = slf.py();
         let mut images = Vec::new();
         for time in times.try_iter()? {
-            let time: f32 = time?.extract()?;
+            let time: f64 = time?.extract()?;
             slf.borrow_mut().move_to(py, time)?;
             let scene = slf.borrow().scene.clone_ref(py);
             let image = renderer
@@ -120,22 +123,33 @@ impl PyPlayback {
 /// Bind frames to a structure and return a `Playback` positioned at frame 0.
 ///
 /// `positions` is `(frames, atoms, 3)` in the structure's atom order and
-/// `times` has one strictly ascending entry per frame. At least two frames are
-/// needed.
+/// `times` has one strictly ascending, finite entry per frame, expressed in
+/// `unit`. At least two frames are needed.
 #[pyfunction]
-#[pyo3(signature = (scene, positions, times, *, structure=None))]
+#[pyo3(signature = (scene, positions, times, *, unit, structure=None))]
 fn attach(
     scene: &Bound<'_, PyScene>,
     positions: &Bound<'_, PyAny>,
     times: &Bound<'_, PyAny>,
+    unit: &Bound<'_, PyAny>,
+    structure: Option<&Bound<'_, PyAny>>,
+) -> PyResult<PyPlayback> {
+    let unit = parse_unit(unit)?;
+    let stamps = times
+        .try_iter()?
+        .map(|time| time?.extract::<f64>())
+        .collect::<PyResult<Vec<_>>>()?;
+    bind(scene, positions, frame_times(&stamps, unit)?, structure)
+}
+
+fn bind(
+    scene: &Bound<'_, PyScene>,
+    positions: &Bound<'_, PyAny>,
+    stamps: Vec<SimTime>,
     structure: Option<&Bound<'_, PyAny>>,
 ) -> PyResult<PyPlayback> {
     let py = scene.py();
-    let stamps = times
-        .try_iter()?
-        .map(|time| time?.extract::<f32>())
-        .collect::<PyResult<Vec<_>>>()?;
-    let timeline = Timeline::new(positions.len()?, stamps)
+    let timeline = FrameTable::new(positions.len()?, stamps)
         .map_err(|failure| PyValueError::new_err(failure.to_string()))?;
     let &[first, ..] = timeline.times() else {
         return Err(PyValueError::new_err(
@@ -156,22 +170,34 @@ fn attach(
         at: None,
         pair: None,
     };
-    play.move_to(py, first)?;
+    play.move_to(py, first.seconds())?;
     Ok(play)
 }
 
 /// `attach` for a molframe `Trajectory` (its `positions` and `times`).
+///
+/// molframe records frame times in picoseconds, with NaN for a frame that has
+/// none. `unit` names the unit of `source.times` and defaults to picoseconds;
+/// the single conversion to seconds happens here, and a non-finite time is
+/// refused naming its frame.
 #[pyfunction]
-#[pyo3(signature = (scene, source, *, structure=None))]
+#[pyo3(signature = (scene, source, *, unit=None, structure=None))]
 fn attach_trajectory(
     scene: &Bound<'_, PyScene>,
     source: &Bound<'_, PyAny>,
+    unit: Option<&Bound<'_, PyAny>>,
     structure: Option<&Bound<'_, PyAny>>,
 ) -> PyResult<PyPlayback> {
-    attach(
+    let unit = unit.map_or(Ok(TimeUnit::Picosecond), parse_unit)?;
+    let recorded = source
+        .getattr("times")?
+        .try_iter()?
+        .map(|time| time?.extract::<f64>())
+        .collect::<PyResult<Vec<_>>>()?;
+    bind(
         scene,
         &source.getattr("positions")?,
-        &source.getattr("times")?,
+        frame_times(&recorded, unit)?,
         structure,
     )
 }
