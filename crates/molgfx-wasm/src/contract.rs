@@ -9,6 +9,7 @@ mod cartoon_tests;
 mod hydrogen_bonds;
 mod molecular_surface;
 mod motion;
+mod pages;
 mod playback;
 mod pointer_hover;
 mod restoration;

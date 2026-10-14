@@ -10,6 +10,28 @@ function words<T extends Float32Array | Uint32Array>(payload: BinaryState, Type:
   return new Type(aligned.buffer, aligned.byteOffset, aligned.byteLength / 4);
 }
 
+/** Elements per transfer page; a larger column crosses the boundary in slices, never in one copy. */
+export const PAGE_ELEMENTS = 1 << 20;
+
+interface Pages<T> { push(page: T): void; free(): void }
+
+/** Fills a typed page accumulator from `column`, then hands it to `consume`; the accumulator is always freed. */
+export function pagedTransfer<T extends Float32Array | Uint32Array | Uint8Array, R>(
+  column: T,
+  create: (total: number) => Pages<T>,
+  consume: (pages: Pages<T>) => R,
+): R {
+  const pages = create(column.length);
+  try {
+    for (let start = 0; start < column.length; start += PAGE_ELEMENTS) {
+      pages.push(column.subarray(start, start + PAGE_ELEMENTS) as T);
+    }
+    return consume(pages);
+  } finally {
+    pages.free();
+  }
+}
+
 interface PatchOperation {
   op?: string;
   channel?: string;
@@ -31,17 +53,22 @@ export function buildScene(
   const scene = new runtime.Scene(snapshot.spec);
   try {
     for (const structure of snapshot.structures) {
-      scene.bindStructure(
-        structure.id,
-        sourceBytes(structure.payload),
-        structure.name,
-      );
+      const bytes = sourceBytes(structure.payload);
+      if (bytes.length <= PAGE_ELEMENTS) {
+        scene.bindStructure(structure.id, bytes, structure.name);
+      } else {
+        pagedTransfer(bytes, (n) => new runtime.BytePages(n), (pages) => scene.bindStructurePaged(structure.id, pages as InstanceType<RuntimeModule["BytePages"]>, structure.name));
+      }
     }
     for (const binding of snapshot.bindings?.volumes ?? []) {
-      scene.restoreVolume(binding.id, words(binding.values, Float32Array));
+      const values = words(binding.values, Float32Array);
+      if (values.length <= PAGE_ELEMENTS) scene.restoreVolume(binding.id, values);
+      else pagedTransfer(values, (n) => new runtime.FloatPages(n), (pages) => scene.restoreVolumePaged(binding.id, pages as InstanceType<RuntimeModule["FloatPages"]>));
     }
     for (const frame of snapshot.bindings?.coordinateFrames ?? []) {
-      scene.restoreCoordinateFrame(frame.id, frame.index, frame.seconds, words(frame.positions, Float32Array));
+      const positions = words(frame.positions, Float32Array);
+      if (positions.length <= PAGE_ELEMENTS) scene.restoreCoordinateFrame(frame.id, frame.index, frame.seconds, positions);
+      else pagedTransfer(positions, (n) => new runtime.FloatPages(n), (pages) => scene.restoreCoordinateFramePaged(frame.id, frame.index, frame.seconds, pages as InstanceType<RuntimeModule["FloatPages"]>));
     }
     for (const binding of snapshot.bindings?.trajectories ?? []) {
       scene.restoreTrajectory(binding.id, binding.start, binding.end, binding.seconds);
@@ -50,7 +77,9 @@ export function buildScene(
       scene.restorePlayback(binding.structure, binding.start, binding.end, binding.seconds);
     }
     for (const binding of snapshot.bindings?.hydrogenBonds ?? []) {
-      scene.restoreHydrogenBonds(binding.id, words(binding.endpoints, Uint32Array), binding.candidateDistance, binding.pose);
+      const endpoints = words(binding.endpoints, Uint32Array);
+      if (endpoints.length <= PAGE_ELEMENTS) scene.restoreHydrogenBonds(binding.id, endpoints, binding.candidateDistance, binding.pose);
+      else pagedTransfer(endpoints, (n) => new runtime.WordPages(n), (pages) => scene.restoreHydrogenBondsPaged(binding.id, pages as InstanceType<RuntimeModule["WordPages"]>, binding.candidateDistance, binding.pose));
     }
     for (const binding of snapshot.bindings?.molecularSurfaces ?? []) {
       scene.restoreMolecularSurface(binding.id, binding.metadata, words(binding.vertices, Float32Array), words(binding.normals, Float32Array), words(binding.faces, Uint32Array), words(binding.atoms, Uint32Array));

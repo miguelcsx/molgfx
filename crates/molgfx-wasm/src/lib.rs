@@ -8,6 +8,11 @@ mod camera;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 mod contract;
 
+pub mod paging;
+
+#[cfg(test)]
+mod paging_tests;
+
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 mod quality;
 

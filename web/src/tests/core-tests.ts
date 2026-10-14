@@ -2,7 +2,7 @@ import { CleanupBag } from "../core/lifecycle.js";
 import { SceneGeneration } from "../core/interaction.js";
 import { readDeviceLoss, recoverRenderer } from "../render/device-loss.js";
 import { RenderLoop } from "../render/render-loop.js";
-import { applyScenePatch, buildScene, patchChangesCamera } from "../runtime/scene.js";
+import { PAGE_ELEMENTS, applyScenePatch, buildScene, patchChangesCamera } from "../runtime/scene.js";
 import { AnywidgetAdapter } from "../anywidget/adapter.js";
 import type { RuntimeModule, WasmCamera, WasmRenderer, WasmScene } from "../core/types.js";
 import type { WidgetModel, WidgetTraits, ModelChangeEvent } from "../anywidget/model.js";
@@ -62,6 +62,17 @@ test("Scene construction frees partial bindings on failure", () => {
   let rejected = false;
   try { buildScene({ spec: '{}', structures: [{ id: 1n, name: 'bad', payload: new Uint8Array() }] }, runtime); } catch { rejected = true; }
   check(rejected && freed === 1, "failed scene leaks");
+});
+test("Large columns cross the wasm boundary in bounded pages and free their accumulator", () => {
+  const pushed: number[] = []; let freed = 0, whole = 0, paged = 0, total = 0;
+  class FloatPages { constructor(n: number) { total = n; } push(page: Float32Array) { pushed.push(page.length); } free() { freed++; } }
+  class Scene { restoreVolume() { whole++; } restoreVolumePaged() { paged++; } resolve() {} free() {} }
+  const runtime = { Scene, FloatPages } as unknown as RuntimeModule;
+  const big = new Uint8Array((PAGE_ELEMENTS * 2 + 5) * 4), small = new Uint8Array(16);
+  const volume = (values: Uint8Array) => ({ id: 1n, values } as never);
+  buildScene({ spec: '{}', structures: [], bindings: { volumes: [volume(big), volume(small)] } } as never, runtime);
+  check(whole === 1 && paged === 1 && freed === 1, "small column paged or accumulator leaked");
+  check(total === PAGE_ELEMENTS * 2 + 5 && pushed.join() === [PAGE_ELEMENTS, PAGE_ELEMENTS, 5].join(), "pages unbounded or out of order");
 });
 test("Anywidget preserves exact pick identity and unsubscribes its transport", () => {
   const values: Partial<WidgetTraits> = { scene_spec: '{}', revision: 4, structure_ids: [1, 2], structure_names: ['a','b'], structure_payloads: [new Uint8Array([9]), new Uint8Array()], structure_sources: [1, 1] };
