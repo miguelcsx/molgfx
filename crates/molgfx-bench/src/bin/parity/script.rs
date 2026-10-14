@@ -1,7 +1,9 @@
 //! Script cases: scenes built from command text, fitted cameras and orbit frames.
 use molgfx::{
     Renderer, Scene, StructureId, TrajectoryBinding, TrajectoryFrame, camera,
-    profile::MeasuredOutput, schema::DataSource, trajectory,
+    schema::DataSource,
+    timeline::{FrameSchedule, PlaybackMode, SequenceManifest, TimeWarp, Timeline},
+    trajectory,
 };
 use molgfx_bench::fallback;
 use molgfx_bench::gallery::{Camera, Catalog, FitCamera, Fixture, Result, Video, VideoKind};
@@ -99,48 +101,90 @@ fn trajectory(
     std::fs::create_dir_all(&frames)?;
     let span = fallback(last.to_f64(), 1.0);
     let steps = f64::from(video.frames.saturating_sub(1).max(1));
-    let mut resident: Option<(usize, Scene, StructureId)> = None;
-    for index in 0..video.frames {
-        let time = f64::from(index) / steps * span;
-        let interval = fallback(time.floor().to_usize(), 0).min(last - 1);
-        let sample = time
-            .to_f64()
-            .ok_or_else(|| io::Error::other("trajectory time is not representable"))?;
-        let stale = resident.as_ref().is_none_or(|(held, ..)| *held != interval);
-        if stale {
-            let (mut scene, _) = molgfx_bench::gallery::script_scene(fixture, cache)?;
-            let structure = StructureId::new(1);
-            let source = DataSource::new(format!("{}:{interval}", fixture.id));
-            scene.add(trajectory::trajectory(
-                structure,
-                source.clone(),
-                fallback(models.len().to_u64(), 0),
-            ))?;
-            let frame = |model: usize| -> Result<TrajectoryFrame> {
-                let time = model
-                    .to_f64()
-                    .ok_or_else(|| io::Error::other("model index is not representable"))?;
-                Ok(TrajectoryFrame::new(
-                    fallback(model.to_u64(), 0),
-                    time,
-                    std::sync::Arc::clone(&models[model]),
-                ))
-            };
-            scene.bind_trajectory(
-                TrajectoryBinding::new(source, frame(interval)?, frame(interval + 1)?)
-                    .sample_seconds(sample),
-            )?;
-            resident = Some((interval, scene, structure));
+    let fps = f64::from(video.fps);
+    // Model time per second of playback, so frame `i` shows model `i / steps * span`.
+    let rate = fps * span / steps;
+    let interval_of = |index: u32| -> usize {
+        let time = f64::from(index) / fps * rate;
+        fallback(time.floor().to_usize(), 0).min(last - 1)
+    };
+    let mut manifest: Option<SequenceManifest> = None;
+    let mut first = 0;
+    while first < video.frames {
+        // One interval is resident at a time; each run of frames inside it is
+        // one deterministic timeline sequence, joined into a single manifest.
+        let interval = interval_of(first);
+        let mut end = first + 1;
+        while end < video.frames && interval_of(end) == interval {
+            end += 1;
         }
-        let Some((_, scene, structure)) = resident.as_mut() else {
-            continue;
-        };
-        scene.set_trajectory_time(*structure, sample)?;
-        let image =
-            renderer.render_output_with_camera(scene, &camera, size, MeasuredOutput::Converged)?;
-        image.save(frames.join(format!("{:04}.png", index + 1)))?;
+        let (mut scene, mut timeline) = interval_scene(fixture, cache, &models, interval, rate)?;
+        let schedule = FrameSchedule::converged(fps, u64::from(first)..u64::from(end));
+        let piece = renderer.render_timeline(
+            &mut scene,
+            &mut timeline,
+            &camera,
+            size,
+            &schedule,
+            |index, image| image.save(frames.join(format!("{:04}.png", index + 1))),
+        )?;
+        match manifest.as_mut() {
+            Some(joined) => joined.append(&piece)?,
+            None => manifest = Some(piece),
+        }
+        first = end;
+    }
+    if let Some(manifest) = manifest {
+        manifest.write_json(directory.join("manifest.json"))?;
     }
     Ok(())
+}
+
+/// A scene holding models `interval` and `interval + 1`, with a timeline track
+/// that plays them at `rate` model-seconds per playback second.
+fn interval_scene(
+    fixture: &Fixture,
+    cache: &Path,
+    models: &[std::sync::Arc<[[f32; 3]]>],
+    interval: usize,
+    rate: f64,
+) -> Result<(Scene, Timeline)> {
+    let (mut scene, _) = molgfx_bench::gallery::script_scene(fixture, cache)?;
+    let structure = StructureId::new(1);
+    let source = DataSource::new(format!("{}:{interval}", fixture.id));
+    scene.add(trajectory::trajectory(
+        structure,
+        source.clone(),
+        fallback(models.len().to_u64(), 0),
+    ))?;
+    let frame = |model: usize| -> Result<TrajectoryFrame> {
+        let time = model
+            .to_f64()
+            .ok_or_else(|| io::Error::other("model index is not representable"))?;
+        Ok(TrajectoryFrame::new(
+            fallback(model.to_u64(), 0),
+            time,
+            std::sync::Arc::clone(&models[model]),
+        ))
+    };
+    let start = interval
+        .to_f64()
+        .ok_or_else(|| io::Error::other("interval is not representable"))?;
+    scene.bind_trajectory(
+        TrajectoryBinding::new(source, frame(interval)?, frame(interval + 1)?)
+            .sample_seconds(start),
+    )?;
+    // Playback origin where the clock reaches `start`; clamped to the interval.
+    let warp = TimeWarp::new(
+        start / rate,
+        start,
+        rate,
+        [start, start + 1.0],
+        PlaybackMode::Clamp,
+    )?;
+    let mut timeline = Timeline::new();
+    scene.bind_timeline_trajectory(&mut timeline, structure, warp)?;
+    Ok((scene, timeline))
 }
 
 /// Encodes `frames/%04d.png` into `video.mp4` with the supplied ffmpeg.

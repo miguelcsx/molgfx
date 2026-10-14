@@ -42,9 +42,26 @@ pub fn read_density_map(
 pub fn read_structure(
     path: &Path,
 ) -> Result<(molframe::Structure, Option<String>), Box<dyn Error>> {
+    read_structure_with(path, molframe::MissingElementPolicy::PreserveUnknown)
+}
+
+/// Reads one structure with an explicit policy for atoms that lack an element.
+///
+/// `InferFromAtomName` applies the PDB naming convention, which is what a file
+/// without an element column needs before element-based selections such as
+/// `hydrogen` can see its atoms.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be read even in recovery mode.
+pub fn read_structure_with(
+    path: &Path,
+    element_policy: molframe::MissingElementPolicy,
+) -> Result<(molframe::Structure, Option<String>), Box<dyn Error>> {
     let options = molframe::ReadOptions::new()
         .mode(molframe::ParseMode::Recover)
-        .only_first_model(true);
+        .only_first_model(true)
+        .missing_element_policy(element_policy);
     molframe::read_with_options(path, &options)
         .map(|(structure, diagnostics)| {
             let diagnostics = if diagnostics.is_empty() {
