@@ -21,6 +21,7 @@ mod selection;
 mod serialization;
 mod storage;
 mod structure;
+mod time;
 
 pub(crate) use controls::input;
 pub(crate) use gpu::gpu_types;
@@ -129,3 +130,4 @@ pub use structure::{
     SourceBond, SourceTopology, SymmetryInstance, TopologyBond, TrajectoryFrame, TrajectorySegment,
     ValidationKind, ValidationMarker, dominant_index, ensemble_opacities,
 };
+pub use time::{PlaybackTime, SimTime, TimeUnit, TrackClock, narrow_to_f32};
