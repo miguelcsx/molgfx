@@ -91,7 +91,7 @@ impl WebScene {
         &mut self,
         identity: u64,
         index: u64,
-        seconds: f32,
+        seconds: f64,
         pages: &FloatPages,
     ) -> Result<(), JsError> {
         if !pages.0.is_complete() {
@@ -116,5 +116,24 @@ impl WebScene {
             return Err(JsError::new("hydrogen-bond pages are incomplete"));
         }
         self.restore_hydrogen_bonds(identity, pages.0.as_slice(), candidate_distance, pose)
+    }
+
+    /// Atomically swaps an interval whose two coordinate columns arrived paged.
+    ///
+    /// # Errors
+    /// Refuses incomplete pages, unresolved scenes, inconsistent frame
+    /// identities and invalid topology or time.
+    #[wasm_bindgen(js_name = setTrajectoryPairPaged)]
+    pub fn set_trajectory_pair_paged(
+        &mut self,
+        structure: u64,
+        metadata: &str,
+        start: &FloatPages,
+        end: &FloatPages,
+    ) -> Result<(), JsError> {
+        if !start.0.is_complete() || !end.0.is_complete() {
+            return Err(JsError::new("coordinate pages are incomplete"));
+        }
+        self.set_trajectory_pair(structure, metadata, start.0.as_slice(), end.0.as_slice())
     }
 }

@@ -73,7 +73,7 @@ impl WebSession {
         &mut self,
         scene: &mut WebScene,
         structure: u64,
-        sample_seconds: f32,
+        sample_seconds: f64,
     ) -> Result<(), JsError> {
         scene.set_trajectory_time(structure, sample_seconds)
     }

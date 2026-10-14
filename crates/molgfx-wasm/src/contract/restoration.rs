@@ -78,7 +78,7 @@ impl WebScene {
             .structures
             .get(&spec.structure)
             .ok_or_else(|| JsError::new("bind the hydrogen-bond molecular structure first"))?;
-        let interval: Option<(u64, u64, f32)> = match pose {
+        let interval: Option<(u64, u64, f64)> = match pose {
             Some(metadata) => serde_json::from_str(&metadata).map_err(javascript_error)?,
             None => None,
         };
@@ -186,5 +186,5 @@ struct SurfaceMetadata(
     molgfx::MolecularSurfaceMethod,
     molgfx::MolecularSurfaceControls,
     u64,
-    #[serde(default)] Option<(u64, u64, f32)>,
+    #[serde(default)] Option<(u64, u64, f64)>,
 );

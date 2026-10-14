@@ -84,7 +84,7 @@ impl WebScene {
         source: molgfx::schema::DataSource,
         start: u64,
         end: u64,
-        seconds: f32,
+        seconds: f64,
     ) -> Result<molgfx::TrajectoryBinding, JsError> {
         let start = self
             .coordinate_frames
@@ -96,7 +96,7 @@ impl WebScene {
             .ok_or_else(|| JsError::new("resident interval has no end frame"))?;
         Ok(
             molgfx::TrajectoryBinding::new(source, start.clone(), end.clone())
-                .sample_seconds(f64::from(seconds)),
+                .sample_seconds(seconds),
         )
     }
 }
@@ -112,7 +112,7 @@ impl WebScene {
         &mut self,
         identity: u64,
         index: u64,
-        seconds: f32,
+        seconds: f64,
         positions: &[f32],
     ) -> Result<(), JsError> {
         self.require_unresolved()?;
@@ -128,11 +128,8 @@ impl WebScene {
         if self.coordinate_frames.contains_key(&identity) {
             return Err(JsError::new("coordinate frame is already restored"));
         }
-        let frame = molgfx::TrajectoryFrame::new(
-            index,
-            f64::from(seconds),
-            Arc::from(positions.as_chunks::<3>().0),
-        );
+        let frame =
+            molgfx::TrajectoryFrame::new(index, seconds, Arc::from(positions.as_chunks::<3>().0));
         let _ = self.coordinate_frames.insert(identity, frame);
         Ok(())
     }
@@ -147,7 +144,7 @@ impl WebScene {
         identity: u64,
         start: u64,
         end: u64,
-        seconds: f32,
+        seconds: f64,
     ) -> Result<(), JsError> {
         self.require_unresolved()?;
         let spec = self
@@ -172,17 +169,14 @@ impl WebScene {
     pub fn set_trajectory_time(
         &mut self,
         structure: u64,
-        sample_seconds: f32,
+        sample_seconds: f64,
     ) -> Result<(), JsError> {
         let scene = self
             .resolved
             .as_mut()
             .ok_or_else(|| JsError::new("scene must be resolved before trajectory updates"))?;
         scene
-            .set_trajectory_time(
-                molgfx::StructureId::new(structure),
-                f64::from(sample_seconds),
-            )
+            .set_trajectory_time(molgfx::StructureId::new(structure), sample_seconds)
             .map_err(javascript_error)?;
         for binding in scene.playback_bindings() {
             let _ = self.playback_bindings.insert(binding.structure, binding);

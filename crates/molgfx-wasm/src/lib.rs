@@ -10,6 +10,17 @@ mod contract;
 
 pub mod paging;
 
+pub mod timeline_wire;
+
+#[cfg(test)]
+mod timeline_wire_tests;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+mod timeline;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+mod camera_path;
+
 #[cfg(test)]
 mod paging_tests;
 
@@ -33,3 +44,9 @@ pub use contract::{WebScene, WebScenePatch, WebSceneSpec};
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub use renderer::{WebPickReadback, WebRenderer};
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub use camera_path::{WebCameraBookmark, WebCameraPath, WebCameraPathBuilder};
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub use timeline::{WebTimeline, WebTrackReading};
