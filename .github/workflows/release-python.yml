@@ -137,8 +137,19 @@ jobs:
   sdist:
     needs: [detect, verify]
     runs-on: ubuntu-latest
+    env:
+      MOLFRAME_DATA_DIR: ${{ github.workspace }}/.molframe-tables/data
+      MOLFRAME_PROFILE: ${{ github.workspace }}/.molframe-tables/crates/molframe-bench/data/profile.txt
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: miguelcsx/molframe
+          ref: v0.6.3
+          path: .molframe-tables
+          sparse-checkout: |
+            data
+            crates/molframe-bench/data/profile.txt
       - uses: actions/download-artifact@v4
         with:
           name: browser-runtime
@@ -185,8 +196,19 @@ jobs:
           - runner: windows-latest
             label: windows-x86_64
     runs-on: ${{ matrix.runner }}
+    env:
+      MOLFRAME_DATA_DIR: ${{ github.workspace }}/.molframe-tables/data
+      MOLFRAME_PROFILE: ${{ github.workspace }}/.molframe-tables/crates/molframe-bench/data/profile.txt
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: miguelcsx/molframe
+          ref: v0.6.3
+          path: .molframe-tables
+          sparse-checkout: |
+            data
+            crates/molframe-bench/data/profile.txt
       - uses: actions/download-artifact@v4
         with:
           name: browser-runtime
