@@ -1,4 +1,6 @@
-// Visual-program configuration and selective result-lane layout.
+//! Visual-program configuration and selective result-lane layout.
+
+use super::{MISSING_REGISTER, VisualConfig, VisualConfigInput, VisualOutput, saturating_u32};
 
 fn set_outputs(program: &molgfx_core::VisualProgram, config: &mut VisualConfig) {
     let set = |output: VisualOutput, register: &mut u32| {
@@ -28,7 +30,7 @@ fn uniform_lane(value: f64) -> f32 {
     narrowed
 }
 
-fn styled_config(input: &VisualConfigInput<'_>) -> VisualConfig {
+pub(super) fn styled_config(input: &VisualConfigInput<'_>) -> VisualConfig {
     let base_color = input.base.color;
     let base_material = input.base.material;
     let track_phase = uniform_lane(input.track.phase);
@@ -125,13 +127,13 @@ fn uniform_output(program: &molgfx_core::VisualProgram, output: VisualOutput) ->
     program.output_stage(output) == Some(molgfx_core::VisualStage::Uniform)
 }
 
-const RESULT_COLOR: u32 = 1 << 0;
-const RESULT_EMISSION: u32 = 1 << 1;
-const RESULT_RESPONSE: u32 = 1 << 2;
-const RESULT_GEOMETRY: u32 = 1 << 3;
-const RESULT_OFFSET: u32 = 1 << 4;
+pub(super) const RESULT_COLOR: u32 = 1 << 0;
+pub(super) const RESULT_EMISSION: u32 = 1 << 1;
+pub(super) const RESULT_RESPONSE: u32 = 1 << 2;
+pub(super) const RESULT_GEOMETRY: u32 = 1 << 3;
+pub(super) const RESULT_OFFSET: u32 = 1 << 4;
 
-fn result_layout(program: &molgfx_core::VisualProgram, count: usize) -> [u32; 4] {
+pub(super) fn result_layout(program: &molgfx_core::VisualProgram, count: usize) -> [u32; 4] {
     let entity_lane = |outputs: &[VisualOutput]| {
         outputs.iter().any(|output| {
             program

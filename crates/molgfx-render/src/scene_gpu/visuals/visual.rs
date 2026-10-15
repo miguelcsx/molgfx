@@ -5,15 +5,17 @@
 //! parameter block, result table and configuration, so parameter edits never
 //! duplicate program storage or reallocate entity-scale buffers.
 
+mod config;
 use crate::error::RenderError;
 use crate::scene_gpu::buffers::ensure_upload_buffer;
+use config::{
+    RESULT_COLOR, RESULT_EMISSION, RESULT_GEOMETRY, RESULT_OFFSET, RESULT_RESPONSE, result_layout,
+    styled_config,
+};
 use molgfx_core::{Representation, VisualInstructionGpu, VisualOutput, VisualStyle};
 use molgfx_gpu::{BufferDesc, BufferUsage, Device, Queue};
-
-#[path = "visual_helpers.rs"]
 mod helpers;
 use helpers::{representation_base_color, result_word_count, saturating_u32};
-#[path = "visual/fragment_program.rs"]
 mod fragment_program;
 use fragment_program::{FRAGMENT_PARAMETER_OFFSET, VisualFragmentProgram};
 
@@ -496,5 +498,3 @@ impl<D: Device> VisualSlot<D> {
         Ok(changed)
     }
 }
-
-include!("visual_config.rs");

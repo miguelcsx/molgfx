@@ -1,7 +1,13 @@
-// Cold helpers and engine-facing views for picking pages.
+//! Cold helpers and engine-facing views for picking pages.
+
+use super::{
+    ChunkId, ChunkSpan, DatasetId, Device, EntityKind, GlobalPickIdentity, GpuPickToken, GpuScene,
+    LogicalRow, MONOLITHIC_CHUNK, PagePlan, PickPageTicket, PickPages, PickRevision, RenderError,
+    Scene,
+};
 
 impl PickPages {
-    fn add_owner_row(
+    pub(super) fn add_owner_row(
         &mut self,
         scene: &Scene,
         owner: molgfx_core::StructureHandle,
@@ -18,7 +24,7 @@ impl PickPages {
         self.add_rows(dataset, kind, rows)
     }
 
-    fn add_len(
+    pub(super) fn add_len(
         &mut self,
         dataset: DatasetId,
         kind: EntityKind,
@@ -28,7 +34,7 @@ impl PickPages {
         self.add_rows(dataset, kind, rows)
     }
 
-    fn add_rows(
+    pub(super) fn add_rows(
         &mut self,
         dataset: DatasetId,
         kind: EntityKind,
@@ -59,7 +65,7 @@ impl PickPages {
     }
 }
 
-const STRUCTURE_ENTITY_KINDS: [EntityKind; 9] = [
+pub(super) const STRUCTURE_ENTITY_KINDS: [EntityKind; 9] = [
     EntityKind::Atom,
     EntityKind::Bond,
     EntityKind::Edge,
@@ -90,7 +96,7 @@ pub(in crate::scene_gpu) const fn kind_index(kind: EntityKind) -> usize {
     }
 }
 
-fn revision(scene: &Scene) -> PickRevision {
+pub(super) fn revision(scene: &Scene) -> PickRevision {
     let topology = scene.structures().fold(0_u64, |value, (_, placed)| {
         value
             .wrapping_mul(0x9e37_79b9_7f4a_7c15)
@@ -109,7 +115,7 @@ fn revision(scene: &Scene) -> PickRevision {
     }
 }
 
-fn table_chunk(row: u32, generation: u32) -> ChunkId {
+pub(super) fn table_chunk(row: u32, generation: u32) -> ChunkId {
     ChunkId::new(u64::from(row) | (u64::from(generation) << 32))
 }
 

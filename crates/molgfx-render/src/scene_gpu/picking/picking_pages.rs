@@ -1,5 +1,6 @@
 //! Bounded resident picking pages derived from the render working set.
 
+mod support;
 use crate::RenderError;
 use crate::scene_gpu::GpuScene;
 use hashbrown::HashMap;
@@ -9,6 +10,8 @@ use molgfx_core::{
 };
 use molgfx_gpu::Device;
 use std::sync::Arc;
+pub(in crate::scene_gpu) use support::kind_index;
+use support::{STRUCTURE_ENTITY_KINDS, revision, table_chunk};
 
 const MONOLITHIC_CHUNK: ChunkId = ChunkId::new(0);
 const EMPTY_PAGE: u32 = u32::MAX;
@@ -372,5 +375,3 @@ impl PickPages {
 }
 
 mod plans;
-
-include!("picking_pages_support.rs");
