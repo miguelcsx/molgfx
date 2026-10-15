@@ -60,6 +60,7 @@
     "@playwright/test": "^1.55.1",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
+    "binaryen": "129.0.0",
     "esbuild": "^0.25.0",
     "next": "^16.3.5",
     "react": "^19.1.1",

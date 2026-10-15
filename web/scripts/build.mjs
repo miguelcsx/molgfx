@@ -31,7 +31,9 @@ if (!args.includes("--no-wasm")) {
   // The shipped artifact is the size-tuned `wasm-release` profile (see the
   // workspace manifest), then binaryen. wasm-pack's own wasm-opt step is off:
   // it ignores custom profiles and runs a speed preset without the feature
-  // flags rustc's output needs.
+  // flags rustc's output needs. Binaryen is the pinned npm package, never a
+  // distribution package: Ubuntu's is too old to read what current rustc
+  // emits and writes a module browsers refuse to compile.
   execFileSync(
     "wasm-pack",
     [
@@ -54,13 +56,20 @@ if (!args.includes("--no-wasm")) {
     const optimised = wasm + ".opt";
     try {
       execFileSync(
-        "wasm-opt",
-        ["-Oz", "--all-features", wasm, "-o", optimised],
+        process.execPath,
+        [
+          join(web, "node_modules/binaryen/bin/wasm-opt"),
+          "-Oz",
+          "--all-features",
+          wasm,
+          "-o",
+          optimised,
+        ],
         { stdio: "inherit" },
       );
     } catch (error) {
       throw new Error(
-        "wasm-opt (binaryen) is required for a release build: " + error.message,
+        "wasm-opt (npm binaryen) failed for a release build: " + error.message,
       );
     }
     renameSync(optimised, wasm);
