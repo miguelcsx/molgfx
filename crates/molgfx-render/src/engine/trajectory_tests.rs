@@ -1,4 +1,4 @@
-use super::tests::{camera, engine, structure};
+use super::tests::{engine, render_ok, structure};
 use crate::testing::Locked;
 use molgfx_core::{
     AtomSelection, BondTopologyFrame, BondTopologySegment, RepresentationKind, Scene, TopologyBond,
@@ -35,9 +35,7 @@ fn trajectory_scene() -> (Scene, molgfx_core::StructureHandle, [usize; 2]) {
 fn resident_frames_upload_directly_and_dispatch_once_when_the_sample_changes() {
     let (mut scene, handle, pointers) = trajectory_scene();
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let writes = engine.device.log.writes.locked();
     assert!(pointers.into_iter().all(|pointer| {
         writes
@@ -46,17 +44,13 @@ fn resident_frames_upload_directly_and_dispatch_once_when_the_sample_changes() {
     }));
     drop(writes);
     let after_first = engine.device.log.dispatches.locked().len();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let after_steady = engine.device.log.dispatches.locked().len();
     assert_eq!(after_steady - after_first, 2, "only culling repeats");
     scene
         .set_trajectory_time(handle, 0.75)
         .unwrap_or_else(|error| panic!("{error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let after_advance = engine.device.log.dispatches.locked().len();
     assert_eq!(
         after_advance - after_steady,
@@ -69,16 +63,12 @@ fn resident_frames_upload_directly_and_dispatch_once_when_the_sample_changes() {
 fn time_only_advances_upload_one_uniform_beside_the_frame_uniforms() {
     let (mut scene, handle, _) = trajectory_scene();
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let before = engine.device.log.writes.locked().len();
     scene
         .set_trajectory_time(handle, 0.5)
         .unwrap_or_else(|error| panic!("{error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let writes = engine.device.log.writes.locked();
     assert_eq!(
         writes.len() - before,
@@ -130,16 +120,12 @@ fn cartoon_time_advances_never_rebuild_or_reupload_ribbon_geometry() {
         )
         .unwrap_or_else(|error| panic!("{error}"));
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let before = engine.device.log.writes.locked().len();
     scene
         .set_trajectory_time(handle, 0.75)
         .unwrap_or_else(|error| panic!("{error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let writes = engine.device.log.writes.locked();
     assert_eq!(
         writes.len() - before,
@@ -190,9 +176,7 @@ ATOM 4 C CA . LEU A 1 4 6.0 -0.4 0.0 1.00 10.0 4 A 1
 fn replacing_shared_storage_reuploads_frames_even_when_logical_ids_are_reused() {
     let (mut scene, handle, _) = trajectory_scene();
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let before = engine.device.log.writes.lock().map_or_else(
         |error| panic!("{error}"),
         |writes| writes.iter().filter(|write| write.2 == 36).count(),
@@ -217,9 +201,7 @@ fn replacing_shared_storage_reuploads_frames_even_when_logical_ids_are_reused() 
             TrajectorySegment::new(start, end, 0.5).unwrap_or_else(|error| panic!("{error}")),
         )
         .unwrap_or_else(|error| panic!("{error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let after = engine.device.log.writes.lock().map_or_else(
         |error| panic!("{error}"),
         |writes| writes.iter().filter(|write| write.2 == 36).count(),
@@ -251,9 +233,7 @@ fn topology_only_ticks_never_reupload_stable_atom_records() {
         )
         .unwrap_or_else(|error| panic!("{error}"));
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let (before, atom_buffer) = engine.device.log.writes.lock().map_or_else(
         |error| panic!("{error}"),
         |writes| {
@@ -267,9 +247,7 @@ fn topology_only_ticks_never_reupload_stable_atom_records() {
     scene
         .set_bond_topology_time(handle, 0.75)
         .unwrap_or_else(|error| panic!("{error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let writes = engine.device.log.writes.locked();
     assert!(
         writes.len() > before + 1,
@@ -290,7 +268,7 @@ fn editing_cartoon_proportions_refreshes_geometry_without_uploading_coordinates(
         .represent(selection, RepresentationKind::Cartoon)
         .expect("cartoon attaches");
     let mut engine = engine();
-    engine.render(&scene, &camera()).expect("initial frame");
+    render_ok(&mut engine, &scene);
     for (aspect_ratio, arrow_factor, helix_profile, nucleic_profile) in [
         (
             10.0,
@@ -323,7 +301,7 @@ fn editing_cartoon_proportions_refreshes_geometry_without_uploading_coordinates(
         value.params.cartoon_arrow_factor = arrow_factor;
         value.params.cartoon_helix_profile = helix_profile;
         value.params.cartoon_nucleic_profile = nucleic_profile;
-        engine.render(&scene, &camera()).expect("edited frame");
+        render_ok(&mut engine, &scene);
         let writes = engine.device.log.writes.locked();
         let buffers = engine.device.log.buffers.locked();
         let labels: Vec<_> = writes[before..]

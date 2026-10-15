@@ -1,4 +1,4 @@
-use super::tests::{camera, engine, structure};
+use super::tests::{engine, render_ok, structure};
 use crate::testing::Locked;
 use molgfx_core::{AtomSelection, RepresentationKind, Scene};
 
@@ -21,15 +21,11 @@ fn a_different_scene_invalidates_equal_revision_values() {
     let first = one_representation_scene();
     let second = one_representation_scene();
     assert_ne!(first.cache_identity(), second.cache_identity());
-    if let Err(error) = engine.render(&first, &camera()) {
-        panic!("first scene renders: {error}");
-    }
+    render_ok(&mut engine, &first);
     let mut writes = engine.device.log.writes.locked();
     writes.clear();
     drop(writes);
-    if let Err(error) = engine.render(&second, &camera()) {
-        panic!("second scene renders: {error}");
-    }
+    render_ok(&mut engine, &second);
     let writes = engine.device.log.writes.locked();
     assert!(
         writes.len() > 1,

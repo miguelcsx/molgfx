@@ -1,4 +1,4 @@
-use super::tests::{camera, engine};
+use super::tests::{camera, engine, render_ok};
 use crate::{scene_gpu::GeometryKind, testing::MockLog};
 use molgfx_core::{Representation, ScalarVolume, Scene, VolumeRendering, VolumeStyle};
 use molgfx_math::Mat4;
@@ -38,7 +38,7 @@ fn mesh_and_dots_share_geometry_and_style_edits_do_not_rebuild_it() {
         handles.push(scene.represent(volume, representation).unwrap());
     }
     let mut engine = engine();
-    engine.render(&scene, &camera()).unwrap();
+    render_ok(&mut engine, &scene);
     assert_eq!(writes(&engine.device.log, "field boundary vertices"), 1);
     assert_eq!(writes(&engine.device.log, "field boundary indices"), 1);
     assert_eq!(engine.scene_gpu.volume_draws().count(), 2);
@@ -53,8 +53,8 @@ fn mesh_and_dots_share_geometry_and_style_edits_do_not_rebuild_it() {
         representation.volume.iso_width_voxels = 0.2;
         representation.material.opacity = 0.4;
     }
-    engine.render(&scene, &camera()).unwrap();
-    engine.render(&scene, &camera()).unwrap();
+    render_ok(&mut engine, &scene);
+    render_ok(&mut engine, &scene);
     assert_eq!(writes(&engine.device.log, "field boundary vertices"), 1);
     assert_eq!(writes(&engine.device.log, "field boundary indices"), 1);
     assert_eq!(
@@ -72,12 +72,12 @@ fn mesh_and_dots_share_geometry_and_style_edits_do_not_rebuild_it() {
     for handle in &handles {
         scene.representation_mut(*handle).unwrap().params.isolevel = 0.7;
     }
-    engine.render(&scene, &camera()).unwrap();
+    render_ok(&mut engine, &scene);
     assert_eq!(writes(&engine.device.log, "field boundary vertices"), 2);
     for handle in &handles {
         scene.representation_mut(*handle).unwrap().params.isolevel = 0.5;
     }
-    engine.render(&scene, &camera()).unwrap();
+    render_ok(&mut engine, &scene);
     assert_eq!(
         writes(&engine.device.log, "field boundary vertices"),
         3,
@@ -113,7 +113,7 @@ fn constant_fields_have_no_mesh_or_dot_drawables() {
         }
     }
     let mut engine = engine();
-    engine.render(&scene, &camera()).unwrap();
+    render_ok(&mut engine, &scene);
     assert_eq!(engine.scene_gpu.volume_draws().count(), 0);
 }
 
@@ -141,7 +141,7 @@ fn malformed_live_scalar_styles_return_errors_instead_of_becoming_valid_defaults
             )
             .unwrap();
         let mut engine = engine();
-        engine.render(&scene, &camera()).unwrap();
+        render_ok(&mut engine, &scene);
         scene.representation_mut(handle).unwrap().params.isolevel = f32::NAN;
         assert!(engine.render(&scene, &camera()).is_err());
         let representation = scene.representation_mut(handle).unwrap();
@@ -154,6 +154,6 @@ fn malformed_live_scalar_styles_return_errors_instead_of_becoming_valid_defaults
             ))
         ));
         scene.representation_mut(handle).unwrap().volume.step_scale = 0.65;
-        engine.render(&scene, &camera()).unwrap();
+        render_ok(&mut engine, &scene);
     }
 }

@@ -1,4 +1,4 @@
-use super::tests::{camera, engine, structure};
+use super::tests::{engine, render_ok, structure};
 use crate::testing::Locked;
 use molgfx_core::{
     AtomSelection, RepresentationKind, Scene, SurfaceComponentPolicy, SurfaceKind, SurfaceStyle,
@@ -24,9 +24,7 @@ fn solid_mesh_and_dots_share_the_incremental_component_filter() {
             .unwrap_or_else(|error| panic!("policy validates: {error}"));
 
         let mut renderer = engine();
-        renderer
-            .render(&scene, &camera())
-            .unwrap_or_else(|error| panic!("filtered frame renders: {error}"));
+        render_ok(&mut renderer, &scene);
         let first = renderer.device.log.dispatches.locked().len();
         assert!(
             first > 6,
@@ -34,9 +32,7 @@ fn solid_mesh_and_dots_share_the_incremental_component_filter() {
         );
         assert_eq!(dispatch_count.get_or_insert(first), &first);
         let allocations = renderer.device.log.buffers.locked().len();
-        renderer
-            .render(&scene, &camera())
-            .unwrap_or_else(|error| panic!("stable filtered frame renders: {error}"));
+        render_ok(&mut renderer, &scene);
         assert_eq!(
             renderer.device.log.dispatches.locked().len(),
             first,

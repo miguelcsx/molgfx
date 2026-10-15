@@ -1,4 +1,4 @@
-use super::tests::{camera, engine, structure};
+use super::tests::{engine, render_ok, structure};
 use crate::testing::Locked;
 use molgfx_core::{
     AtomProperty, AtomPropertyMeaning, AtomSelection, ColorScheme, PropertyAppearance,
@@ -43,9 +43,7 @@ fn uncertainty_appearance_routes_atoms_through_transparency_and_tracks_its_prope
     representation.appearance = Some(appearance);
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     assert!(engine.scene_gpu.has_translucency());
     assert_eq!(engine.scene_gpu.atom_draws(false).count(), 0);
     assert_eq!(engine.scene_gpu.atom_draws(true).count(), 1);
@@ -54,9 +52,7 @@ fn uncertainty_appearance_routes_atoms_through_transparency_and_tracks_its_prope
     scene
         .replace_atom_property(confidence, property(owner, "confidence", [0.9, 0.5, 0.1]))
         .unwrap_or_else(|error| panic!("{error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let after = engine.device.log.writes.locked().len();
     assert!(after > before + 1, "dependent appearance records repack");
 }
@@ -85,26 +81,20 @@ fn replacing_one_property_recolors_only_its_dependent_slot() {
     representation.color = scheme;
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let before = engine.device.log.writes.locked().len();
 
     scene
         .replace_atom_property(confidence, property(owner, "confidence", [0.9, 0.5, 0.1]))
         .unwrap_or_else(|error| panic!("{error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let after_recolor = engine.device.log.writes.locked().len();
     assert!(after_recolor > before + 1, "dependent records are repacked");
 
     scene
         .add_atom_property(property(owner, "unrelated", [1.0, 2.0, 3.0]))
         .unwrap_or_else(|error| panic!("{error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let writes = engine.device.log.writes.locked();
     assert_eq!(
         writes.len() - after_recolor,
@@ -143,9 +133,7 @@ fn visual_properties_upload_once_for_all_dependent_slots() {
         .map_or(0, |column| column.values().as_ptr() as usize);
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let direct_writes = engine.device.log.writes.lock().map_or_else(
         |error| panic!("{error}"),
         |writes| {
@@ -157,9 +145,7 @@ fn visual_properties_upload_once_for_all_dependent_slots() {
     );
     assert_eq!(direct_writes, 1, "one shared property upload is expected");
 
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let steady_state_writes = engine.device.log.writes.lock().map_or_else(
         |error| panic!("{error}"),
         |writes| {
@@ -198,16 +184,12 @@ fn visual_time_updates_only_the_presentation_uniform() {
     representation.visual = Some(style);
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let before = engine.device.log.writes.locked().len();
     scene
         .set_presentation_time(0.5)
         .unwrap_or_else(|error| panic!("{error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let after = engine.device.log.writes.locked().len();
     assert_eq!(after - before, 2, "frame and visual uniforms change");
 }
@@ -236,17 +218,13 @@ fn uniform_visual_parameter_updates_only_the_resolved_config_without_rebinding()
         )
         .unwrap_or_else(|error| panic!("representation should build: {error}"));
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let before = engine.device.log.writes.locked().len();
 
     scene
         .set_visual_scalar_parameter(handle, 0, 0.75)
         .unwrap_or_else(|error| panic!("parameter should update: {error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
 
     let writes = engine.device.log.writes.locked();
     let changed = &writes[before..];
@@ -298,18 +276,14 @@ fn hover_uploads_only_the_changed_state_words() {
         .represent(selected, RepresentationKind::Spacefill)
         .unwrap_or_else(|error| panic!("{error}"));
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let log_len = |engine: &crate::Engine<crate::testing::MockDevice>| {
         engine.device.log.writes.locked().len()
     };
 
     let mark = log_len(&engine);
     assert!(scene.update_pointer_hover(Some(owner), &[1]).is_ok());
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let first = state_writes(&engine, mark, hovered);
     assert_eq!(first.len(), 1, "one ranged write: {first:?}");
     assert_eq!(first[0].1, 4, "a single word, not the whole column");
@@ -317,9 +291,7 @@ fn hover_uploads_only_the_changed_state_words() {
 
     let mark = log_len(&engine);
     assert!(scene.update_pointer_hover(Some(owner), &[2]).is_ok());
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let moved = state_writes(&engine, mark, hovered);
     assert_eq!(moved.len(), 1, "{moved:?}");
     assert_eq!(moved[0].0, column_start + 4);

@@ -1,4 +1,4 @@
-use crate::engine::tests::{camera, engine, represented_scene};
+use crate::engine::tests::{engine, render_ok, represented_scene};
 use crate::testing::Locked;
 use molgfx_core::RepresentationKind;
 use std::collections::BTreeSet;
@@ -12,9 +12,7 @@ fn one_indirect_argument_arena_serves_every_representation() {
     for representation_count in [1_usize, 8] {
         let scene = represented_scene(1, representation_count);
         let mut engine = engine();
-        if let Err(error) = engine.render(&scene, &camera()) {
-            panic!("frame renders: {error}")
-        }
+        render_ok(&mut engine, &scene);
         let buffers = engine.device.log.buffers.locked();
         counts.push(
             buffers
@@ -34,9 +32,7 @@ fn one_indirect_argument_arena_serves_every_representation() {
 fn every_indirect_draw_reads_the_one_arena() {
     let scene = represented_scene(1, 4);
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let draws = engine.device.log.indirect_draws.locked();
     let ids: Vec<u32> = draws.iter().map(|(id, _)| *id).collect();
     assert!(!ids.is_empty(), "the frame issues indirect draws");
@@ -61,9 +57,7 @@ fn different_cull_policies_read_different_slots_of_one_arena() {
         panic!("licorice applies: {error}")
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let draws = engine.device.log.indirect_draws.locked();
     let offsets: BTreeSet<u64> = draws.iter().map(|(_, offset)| *offset).collect();
     assert!(
@@ -87,7 +81,7 @@ fn many_distinct_record_sets_upload_every_argument_to_the_final_arena() {
             .radius_scale = f32::from(scale);
     }
     let mut engine = engine();
-    engine.render(&scene, &camera()).expect("frame renders");
+    render_ok(&mut engine, &scene);
     let buffers = engine.device.log.buffers.locked();
     let arenas: Vec<_> = buffers
         .iter()

@@ -1,4 +1,4 @@
-use super::tests::{camera, engine};
+use super::tests::{engine, render_ok};
 use super::{DerivedCacheBudget, Engine, EngineConfig};
 use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
@@ -31,9 +31,7 @@ fn generic_points_keep_twelve_byte_positions_and_use_compute_indirect_draw() {
     let _handle = scene.add_point_batch(batch);
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         dispatches.as_slice(),
@@ -88,9 +86,7 @@ fn tiny_point_batches_reserve_the_full_runtime_storage_struct() {
         .unwrap_or_else(|error| panic!("points validate: {error}"));
         let _ = scene.add_point_batch(batch);
         let mut engine = engine();
-        engine
-            .render(&scene, &camera())
-            .unwrap_or_else(|error| panic!("points render: {error}"));
+        render_ok(&mut engine, &scene);
         let buffers = engine.device.log.buffers.locked();
         assert!(
             buffers
@@ -104,16 +100,12 @@ fn tiny_point_batches_reserve_the_full_runtime_storage_struct() {
 fn massive_point_policy_requires_only_opaque_disc_batches() {
     let disc_scene = point_scene(131_072, PointGlyph::Disc);
     let mut disc_engine = engine();
-    disc_engine
-        .render(&disc_scene, &camera())
-        .unwrap_or_else(|error| panic!("discs render: {error}"));
+    render_ok(&mut disc_engine, &disc_scene);
     assert!(disc_engine.scene_gpu.is_massive_points_only());
 
     let sphere_scene = point_scene(131_072, PointGlyph::Sphere);
     let mut sphere_engine = engine();
-    sphere_engine
-        .render(&sphere_scene, &camera())
-        .unwrap_or_else(|error| panic!("spheres render: {error}"));
+    render_ok(&mut sphere_engine, &sphere_scene);
     assert!(!sphere_engine.scene_gpu.is_massive_points_only());
 
     let mut mixed_scene = point_scene(131_072, PointGlyph::Disc);
@@ -135,9 +127,7 @@ fn massive_point_policy_requires_only_opaque_disc_batches() {
     .unwrap_or_else(|error| panic!("batch validates: {error}"));
     let _ = mixed_scene.add_instance_batch(instances);
     let mut mixed_engine = engine();
-    mixed_engine
-        .render(&mixed_scene, &camera())
-        .unwrap_or_else(|error| panic!("mixed scene renders: {error}"));
+    render_ok(&mut mixed_engine, &mixed_scene);
     assert!(!mixed_engine.scene_gpu.is_massive_points_only());
 }
 
@@ -177,9 +167,7 @@ fn massive_discs_do_not_disable_shading_for_resident_spacefill() {
                 .unwrap_or_else(|error| panic!("spacefill validates: {error}")),
         }])
         .unwrap_or_else(|error| panic!("placement validates: {error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("mixed paged scene renders: {error}"));
+    render_ok(&mut engine, &scene);
     assert!(engine.scene_gpu.paged_spacefill_draw().is_some());
     assert!(!engine.scene_gpu.is_massive_points_only());
 }
@@ -244,9 +232,7 @@ fn generic_point_visuals_split_geometry_before_culling_and_appearance_after_lod(
         .unwrap_or_else(|error| panic!("visual attaches: {error}"));
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("visual points render: {error}"));
+    render_ok(&mut engine, &scene);
     let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         dispatches.as_slice(),
@@ -336,15 +322,11 @@ fn shared_attribute_timeline_materialization_is_budgeted_and_gpu_resident() {
     };
     let mut direct = Engine::<MockDevice>::new(&direct_config, None)
         .unwrap_or_else(|error| panic!("direct engine opens: {error}"));
-    direct
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("direct timeline renders: {error}"));
+    render_ok(&mut direct, &scene);
     let direct_size = visual_property_size(&direct);
 
     let mut cached = engine();
-    cached
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("materialized timeline renders: {error}"));
+    render_ok(&mut cached, &scene);
     let cached_size = visual_property_size(&cached);
     // Capacities are rounded for growth, so the sizes are compared by what
     // they must hold, not pinned to one rounding.
@@ -389,13 +371,9 @@ fn stable_generic_points_upload_only_frame_uniforms_and_picking_restores_source_
     let chunk = ChunkId::new(u64::from(handle.row()) | (u64::from(handle.generation()) << 32));
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let before = engine.device.log.writes.locked().len();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let writes = engine.device.log.writes.locked();
     assert_eq!(writes.len() - before, 1, "only frame uniforms change");
     drop(writes);
@@ -431,9 +409,7 @@ fn translucent_generic_points_use_only_the_oit_draw_route() {
     .unwrap_or_else(|error| panic!("points validate: {error}"));
     let _handle = scene.add_point_batch(batch);
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("transparent points render: {error}"));
+    render_ok(&mut engine, &scene);
 
     assert_eq!(engine.scene_gpu.generic_point_draws(false).count(), 0);
     assert_eq!(engine.scene_gpu.generic_point_draws(true).count(), 1);

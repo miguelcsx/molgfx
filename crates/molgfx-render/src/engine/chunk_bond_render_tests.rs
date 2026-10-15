@@ -1,4 +1,5 @@
 use super::chunk_residency_tests::{Fixture, complete, engine, request_and_deliver, upload};
+use super::tests::render_ok;
 use super::{
     BondChunkPlacement, ChunkPlacementId, ChunkPlacementStatus, ChunkRepresentation, Engine,
     StructureChunkPlacement,
@@ -45,9 +46,7 @@ fn cross_chunk_global_endpoints_render_and_pick_in_a_separate_namespace() {
         .set_structure_chunk_placements(&[atoms])
         .unwrap_or_else(|error| panic!("atom placement: {error}"));
     let scene = molgfx_core::Scene::new();
-    if let Err(error) = engine.render(&scene, &super::tests::camera()) {
-        panic!("paged bonds must render: {error}");
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(
         engine.bond_chunk_placement_status(placement.id),
         ChunkPlacementStatus::Resident
@@ -69,9 +68,7 @@ fn cross_chunk_global_endpoints_render_and_pick_in_a_separate_namespace() {
     assert_eq!(indirect_count(&engine, args), 1);
     let buffers = buffer_count(&engine);
     let writes = bond_write_count(&engine);
-    if let Err(error) = engine.render(&scene, &super::tests::camera()) {
-        panic!("stable paged bond frame must render: {error}");
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(buffer_count(&engine), buffers);
     assert_eq!(bond_write_count(&engine), writes);
     assert_eq!(indirect_count(&engine, args), 2);

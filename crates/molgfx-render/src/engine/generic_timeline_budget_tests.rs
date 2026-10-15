@@ -1,4 +1,4 @@
-use super::tests::camera;
+use super::tests::render_ok;
 use super::{DerivedCacheBudget, Engine, EngineConfig};
 use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
@@ -86,15 +86,11 @@ fn zero_budget_relations_sample_instance_frames_without_a_derived_allocation() {
     };
     let mut engine = Engine::<MockDevice>::new(&config, None)
         .unwrap_or_else(|error| panic!("engine opens: {error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("first frame renders: {error}"));
+    render_ok(&mut engine, &scene);
     timeline
         .apply(&mut scene, 0.75)
         .unwrap_or_else(|error| panic!("timeline resamples: {error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("second frame renders: {error}"));
+    render_ok(&mut engine, &scene);
 
     assert_eq!(engine.derived_cache_usage().gpu_bytes, 0);
     let buffers = engine.device.log.buffers.locked();
@@ -163,18 +159,14 @@ fn deformable_points_and_their_relations_share_one_gpu_timeline() {
     };
     let mut direct = Engine::<MockDevice>::new(&direct_config, None)
         .unwrap_or_else(|error| panic!("direct engine opens: {error}"));
-    direct
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("direct frame renders: {error}"));
+    render_ok(&mut direct, &scene);
     assert_eq!(direct.derived_cache_usage().gpu_bytes, 0);
     assert!(!has_buffer(&direct, "materialized generic point timeline"));
     assert_eq!(latest_point_alpha(&direct).to_bits(), 0.25f32.to_bits());
 
     let mut cached = Engine::<MockDevice>::new(&EngineConfig::default(), None)
         .unwrap_or_else(|error| panic!("cached engine opens: {error}"));
-    cached
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("cached frame renders: {error}"));
+    render_ok(&mut cached, &scene);
     assert!(has_buffer(&cached, "materialized generic point timeline"));
     assert_eq!(cached.derived_cache_usage().gpu_bytes, 24);
     assert_eq!(latest_point_alpha(&cached).to_bits(), 0.0f32.to_bits());
@@ -309,9 +301,7 @@ fn one_budget_is_shared_by_attribute_and_instance_materializations() {
     };
     let mut engine = Engine::<MockDevice>::new(&config, None)
         .unwrap_or_else(|error| panic!("engine opens: {error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("scene renders: {error}"));
+    render_ok(&mut engine, &scene);
 
     let usage = engine.derived_cache_usage();
     assert_eq!(usage.gpu_bytes, 16, "the first deterministic plan wins");

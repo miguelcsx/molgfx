@@ -1,4 +1,4 @@
-use super::tests::{camera, engine, structure};
+use super::tests::{engine, render_ok, structure};
 use crate::testing::Locked;
 use molgfx_core::{
     AnalyticSphere, AnalyticTemplate, AttributeColumn, AttributeValues, ChunkId, DatasetId,
@@ -28,9 +28,7 @@ fn static_world_relations_share_one_indirect_analytic_draw() {
         .unwrap_or_else(|error| panic!("{error}"));
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(
         draws.len(),
@@ -103,9 +101,7 @@ fn relation_visual_timeline_runs_on_gpu_without_repacking_glyph_rows() {
         .unwrap_or_else(|error| panic!("{error}"));
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let glyph = engine
         .device
         .log
@@ -125,9 +121,7 @@ fn relation_visual_timeline_runs_on_gpu_without_repacking_glyph_rows() {
     timeline
         .apply(&mut scene, 0.5)
         .unwrap_or_else(|error| panic!("{error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let writes = engine.device.log.writes.locked();
     assert_eq!(
         writes.iter().filter(|(id, _, _, _)| *id == glyph).count(),
@@ -159,9 +153,7 @@ fn static_relation_picking_restores_the_external_source_key() {
     let chunk = ChunkId::new(u64::from(handle.row()) | (u64::from(handle.generation()) << 32));
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     engine
         .capture_pick_submission_for_test()
         .unwrap_or_else(|error| panic!("{error}"));
@@ -215,18 +207,14 @@ fn dynamic_point_relations_resolve_once_without_cpu_endpoint_uploads() {
         .unwrap_or_else(|error| panic!("relations attach: {error}"));
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("dynamic relations render: {error}"));
+    render_ok(&mut engine, &scene);
     let first_dispatches = engine.device.log.dispatches.locked().len();
     assert_eq!(
         first_dispatches, 9,
         "one resolver, three point LOD and five stable relation cull dispatches run"
     );
     let writes_before = engine.device.log.writes.locked().len();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("stable dynamic relations render: {error}"));
+    render_ok(&mut engine, &scene);
     let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         &dispatches[first_dispatches..],
@@ -275,9 +263,7 @@ fn atom_relations_follow_model_changes_without_reuploading_endpoints() {
         .unwrap_or_else(|error| panic!("relations attach: {error}"));
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("atom relations render: {error}"));
+    render_ok(&mut engine, &scene);
     let glyph_buffer = engine
         .device
         .log
@@ -298,9 +284,7 @@ fn atom_relations_follow_model_changes_without_reuploading_endpoints() {
         .structure_mut(structure)
         .unwrap_or_else(|| panic!("structure stays live"))
         .model_to_world = Mat4::from_translation(Vec3::new(3.0, 4.0, 5.0));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("moved atom relations render: {error}"));
+    render_ok(&mut engine, &scene);
     let writes = engine.device.log.writes.locked();
     assert_eq!(
         writes
@@ -358,9 +342,7 @@ fn template_part_relations_resolve_the_local_part_through_its_rigid_instance() {
         .unwrap_or_else(|error| panic!("relations attach: {error}"));
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("template relation renders: {error}"));
+    render_ok(&mut engine, &scene);
     let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         dispatches.as_slice(),

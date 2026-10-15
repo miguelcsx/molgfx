@@ -1,4 +1,4 @@
-use super::tests::{camera, engine, structure};
+use super::tests::{engine, render_ok, structure};
 use crate::engine::RenderMode;
 use crate::testing::Locked;
 use molgfx_core::{LicoriceTemplate, LigandPose, Scene};
@@ -21,9 +21,7 @@ fn pose(index: u32, opacity: f32) -> LigandPose {
 fn realtime_pose_sampling_is_bounded_deterministic_and_opacity_correct() {
     let scene = ligand_scene(10_000, true);
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("compact ligand batch renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
     assert!(
         engine.scene_gpu.primitive_groups().is_none(),
         "pose topology must never lower into PrimitiveGpu rows"
@@ -54,9 +52,7 @@ fn realtime_pose_sampling_is_bounded_deterministic_and_opacity_correct() {
     let first_groups = groups.to_vec();
     let before = engine.device.log.writes.locked().len();
 
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("stable compact ligand batch renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
     let Some((_, _, stable_groups)) = engine.scene_gpu.ligand_pose_draws() else {
         panic!("stable compact ligand draws exist");
     };
@@ -106,9 +102,7 @@ fn zero_alpha_poses_use_no_budget_and_fractional_alpha_routes_to_oit() {
         panic!("ligand batch stores: {error}");
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("compact ligand batch renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
     let Some((_, _, groups)) = engine.scene_gpu.ligand_pose_draws() else {
         panic!("compact ligand draws exist");
     };
@@ -145,9 +139,7 @@ fn many_small_batches_have_a_fixed_realtime_raster_draw_ceiling() {
         }
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("compact ligand batches render: {error}");
-    }
+    render_ok(&mut engine, &scene);
     let Some((_, _, groups)) = engine.scene_gpu.ligand_pose_draws() else {
         panic!("compact ligand draws exist");
     };
@@ -164,13 +156,9 @@ fn many_small_batches_have_a_fixed_realtime_raster_draw_ceiling() {
 fn quality_mode_switch_restores_every_pose_without_rebuilding_the_scene() {
     let scene = ligand_scene(10_000, true);
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("realtime compact ligand batch renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
     engine.set_render_mode(RenderMode::Converged);
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("quality compact ligand batch renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
     let Some((_, _, groups)) = engine.scene_gpu.ligand_pose_draws() else {
         panic!("quality compact ligand draws exist");
     };
@@ -188,9 +176,7 @@ fn quality_mode_switch_restores_every_pose_without_rebuilding_the_scene() {
 fn realtime_keeps_a_four_hundred_pose_batch_exact_when_it_fits() {
     let scene = ligand_scene(400, false);
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("compact ligand batch renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
     let Some((_, _, groups)) = engine.scene_gpu.ligand_pose_draws() else {
         panic!("compact ligand draws exist");
     };
@@ -218,9 +204,7 @@ fn realtime_keeps_a_four_hundred_pose_batch_exact_when_it_fits() {
 fn small_opaque_ligand_batches_cast_grouped_sphere_and_capsule_shadows() {
     let scene = ligand_scene(20, false);
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("compact ligand batch renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
     assert!(engine.scene_gpu.ligand_pose_shadow_draws(false).is_some());
     let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(

@@ -1,4 +1,4 @@
-use super::tests::{camera, engine, structure};
+use super::tests::{engine, render_ok, structure};
 use crate::testing::Locked;
 use molgfx_core::{
     AtomSelection, RepresentationKind, ScalarContours, ScalarRamp, ScalarVolume, Scene,
@@ -41,12 +41,8 @@ fn a_surface_overlay_reuses_one_resident_caller_grid_across_frames() {
         ..SurfaceScalarOverlay::new(volume, ScalarRamp::diverging(1.0))
     });
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("overlay frame renders: {error}")
-    }
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("unchanged overlay frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
+    render_ok(&mut engine, &scene);
     let uploads = engine.device.log.texture_writes.locked();
     assert_eq!(uploads.len(), 2, "the caller field remains resident");
     assert_eq!(uploads[0].0, "caller density volume");

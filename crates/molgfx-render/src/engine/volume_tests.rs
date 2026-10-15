@@ -1,4 +1,4 @@
-use super::tests::{camera, engine};
+use super::tests::{engine, render_ok};
 use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
     AtomSelection, ClipPlane, OccupancyStream, Representation, ScalarVolume, Scene, SegmentStyle,
@@ -54,9 +54,7 @@ fn temporal_occupancy_stays_gpu_resident_and_runs_only_for_new_samples() {
 
     represent_occupancy_lattices(&mut scene, volume);
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("initial occupancy renders: {error}"));
+    render_ok(&mut engine, &scene);
     assert_eq!(engine.scene_gpu.volume_draws().count(), 3);
     assert!(
         engine
@@ -74,16 +72,12 @@ fn temporal_occupancy_stays_gpu_resident_and_runs_only_for_new_samples() {
     );
     drop(texture_uploads);
 
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("steady occupancy renders: {error}"));
+    render_ok(&mut engine, &scene);
     let after_steady = dispatch_count(&engine);
     scene
         .set_trajectory_time(structure, 0.75)
         .unwrap_or_else(|error| panic!("trajectory advances: {error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("advanced occupancy renders: {error}"));
+    render_ok(&mut engine, &scene);
     let after_advance = dispatch_count(&engine);
     assert_eq!(
         after_advance - after_steady,
@@ -96,9 +90,7 @@ fn temporal_occupancy_stays_gpu_resident_and_runs_only_for_new_samples() {
     scene
         .replace_occupancy_stream(volume, structure, &AtomSelection::Range(0..1), replacement)
         .unwrap_or_else(|error| panic!("occupancy replaces: {error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("replacement occupancy renders: {error}"));
+    render_ok(&mut engine, &scene);
     let after_replace = dispatch_count(&engine);
     assert_eq!(
         after_replace - after_advance,
@@ -158,9 +150,7 @@ fn density_volume_uploads_the_callers_values_once_and_draws_through_oit() {
         panic!("liquid representation applies: {error}")
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("volume renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let uploads = engine.device.log.texture_writes.locked().clone();
     assert_eq!(uploads.len(), 2);
     assert_eq!(uploads[0], ("caller density volume", 256, source_pointer));
@@ -180,9 +170,7 @@ fn density_volume_uploads_the_callers_values_once_and_draws_through_oit() {
         ]
     );
     assert!(engine.scene_gpu.has_translucency());
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("unchanged volume renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let uploads = engine.device.log.texture_writes.locked();
     assert_eq!(uploads.len(), 2, "representations share one resident grid");
 }
@@ -224,9 +212,7 @@ fn independent_scalar_channels_keep_distinct_residency_and_styles() {
         style.volume.opacity_scale = 3.0;
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("channels render: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let uploads = engine.device.log.texture_writes.locked().clone();
     assert_eq!(uploads.len(), 4);
     assert_eq!(
@@ -277,9 +263,7 @@ fn categorical_labels_upload_once_share_residency_and_keep_styles_independent() 
         representation.segmentation.slice = Some(VolumeSlice::new(plane));
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("categorical segmentation renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let uploads = engine.device.log.texture_writes.locked().clone();
     assert_eq!(
         uploads,
@@ -301,9 +285,7 @@ fn categorical_labels_upload_once_share_residency_and_keep_styles_independent() 
     if let Some(representation) = scene.representation_mut(first) {
         representation.segmentation.opacity_scale = 0.25;
     }
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("style-only categorical edit renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let uploads = engine.device.log.texture_writes.locked();
     assert_eq!(uploads.len(), 1, "style edits do not reupload labels");
 }
@@ -324,9 +306,7 @@ fn categorical_picking_returns_the_typed_volume_segment_identity() {
         panic!("segmentation represents: {error}")
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("categorical segmentation renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     if let Ok(mut source) = engine.device.log.segment_pick_source.lock() {
         *source = 0;
     }
@@ -370,9 +350,7 @@ fn molecular_picking_remains_compatible_when_categorical_attachments_exist() {
         panic!("segmentation represents: {error}");
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("mixed scene renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
     let pick = match engine.pick(0, 0) {
         Ok(Some(pick)) => pick,
         Ok(None) => panic!("molecular pick resolves"),
@@ -416,7 +394,7 @@ fn a_volume_only_scene_renders_without_a_structure() {
             .unwrap();
     }
     let mut engine = engine();
-    engine.render(&scene, &camera()).unwrap();
+    render_ok(&mut engine, &scene);
     assert_eq!(scene.structures().count(), 0);
     let writes = engine.device.log.texture_writes.lock().unwrap();
     assert_eq!(

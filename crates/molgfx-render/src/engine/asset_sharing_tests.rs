@@ -1,4 +1,4 @@
-use super::tests::{camera, engine, structure};
+use super::tests::{camera, engine, render_ok, structure};
 use crate::RenderError;
 use crate::testing::Locked;
 use molgfx_core::{AtomSelection, DatasetId, RepresentationKind, Scene, StructureAsset};
@@ -18,9 +18,7 @@ fn distinct_assets_share_one_physical_buffer_without_overlapping_ranges() {
     scene.add_asset(&second);
     represent_all(&mut scene);
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("distinct asset scene renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
     let layouts = engine.scene_gpu.asset_layouts(|buffer| buffer.id);
     assert_eq!(engine.scene_gpu.asset_counts().0, 2);
     assert_eq!(layouts.len(), 2);
@@ -48,9 +46,7 @@ fn placements_share_asset_buffers_and_release_after_the_last_owner() {
     let second = scene.add_asset(&asset);
     represent_all(&mut scene);
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("shared asset scene renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
 
     let (asset_count, placement_count, resident_bytes) = engine.scene_gpu.asset_counts();
     assert_eq!((asset_count, placement_count), (1, 2));
@@ -76,18 +72,14 @@ fn placements_share_asset_buffers_and_release_after_the_last_owner() {
     );
     let steady_metrics = engine.residency_metrics().immutable_assets;
     let steady_buffer_count = immutable_buffer_count(&engine);
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("steady shared scene renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
     let after_steady = engine.residency_metrics().immutable_assets;
     assert_eq!(after_steady.writes, steady_metrics.writes);
     assert_eq!(after_steady.relocations, steady_metrics.relocations);
     assert_eq!(immutable_buffer_count(&engine), steady_buffer_count);
 
     assert!(scene.remove_structure(first).is_some());
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("remaining placement renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(engine.scene_gpu.asset_counts().0, 1);
     let remaining = engine.scene_gpu.asset_layouts(|buffer| buffer.id);
     assert_eq!(remaining.len(), 1);
@@ -95,9 +87,7 @@ fn placements_share_asset_buffers_and_release_after_the_last_owner() {
     assert_eq!(remaining[0].offsets, layouts[0].offsets);
 
     assert!(scene.remove_structure(second).is_some());
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("empty scene renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(engine.scene_gpu.asset_counts(), (0, 0, 0));
     let released = engine.residency_metrics().immutable_assets;
     assert_eq!(released.resident_bytes, 0);

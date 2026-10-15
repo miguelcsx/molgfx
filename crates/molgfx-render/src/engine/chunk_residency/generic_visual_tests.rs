@@ -7,6 +7,7 @@ use super::{
     AttributeChunkWindow, ChunkPlacementId, ChunkPlacementStatus, PointChunkPlacement,
     RelationChunkPlacement,
 };
+use crate::engine::tests::render_ok;
 use molgfx_core::{
     AttributeChunkPayload, AttributeValues, ChunkDomainKind, ChunkDomainRef, ChunkPayload,
     ChunkVisualBinding, ChunkVisualDescriptor, PayloadKind, RelationStyle, ResidencyOutput,
@@ -94,16 +95,12 @@ fn paged_relation_visual_reads_one_native_resident_column() {
         ChunkPlacementStatus::Resident
     );
     let mut scene = molgfx_core::Scene::new();
-    engine
-        .render(&scene, &super::tests::camera())
-        .unwrap_or_else(|error| panic!("paged visual relation must render: {error}"));
+    render_ok(&mut engine, &scene);
     assert_materialized_visual(&engine);
 
     let buffers = buffer_count(&engine);
     let writes = relation_write_count(&engine);
-    engine
-        .render(&scene, &super::tests::camera())
-        .unwrap_or_else(|error| panic!("stable visual relation must render: {error}"));
+    render_ok(&mut engine, &scene);
     assert_eq!(buffer_count(&engine), buffers);
     assert_eq!(relation_write_count(&engine), writes);
 
@@ -112,9 +109,7 @@ fn paged_relation_visual_reads_one_native_resident_column() {
     scene
         .set_presentation_time(0.5)
         .unwrap_or_else(|error| panic!("presentation time validates: {error}"));
-    engine
-        .render(&scene, &super::tests::camera())
-        .unwrap_or_else(|error| panic!("animated visual relation must render: {error}"));
+    render_ok(&mut engine, &scene);
     assert_eq!(relation_geometry_write_count(&engine), geometry_writes);
     assert_eq!(relation_write_count(&engine), visual_writes + 1);
     assert_eq!(buffer_count(&engine), buffers);

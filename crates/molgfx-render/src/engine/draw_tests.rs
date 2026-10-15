@@ -1,5 +1,5 @@
 use super::Engine;
-use super::tests::{camera, engine, structure};
+use super::tests::{engine, render_ok, structure};
 use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
     AnisotropicEllipsoid, AtomSelection, CarbohydrateShape, CarbohydrateSymbol, Material, Mesh,
@@ -57,9 +57,7 @@ ATOM  12 C C   . GLY A 1 4 13.800 1.200 0.000 1.00 10.0 4 A 1
 fn ball_and_stick_records_atom_and_bond_indirect_draws() {
     let scene = scene(RepresentationKind::BallAndStick);
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(
         draws.len(),
@@ -78,9 +76,7 @@ fn ball_and_stick_records_atom_and_bond_indirect_draws() {
 fn lines_record_only_one_gpu_compacted_bond_draw() {
     let scene = scene(RepresentationKind::Lines);
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(
         draws.len(),
@@ -120,9 +116,7 @@ fn overlays_share_one_post_tonemap_indirect_draw() {
         scene.add_overlay(overlay);
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("overlay frame renders: {error}");
-    }
+    render_ok(&mut engine, &scene);
     let draws = engine.device.log.indirect_draws.locked();
     // The overlay kinds — glyph, gradient, scale, axis — are drawn by four
     // specialized pipelines over one decluttered table, so there are four
@@ -178,9 +172,7 @@ fn mesh_instances_share_one_indirect_draw_per_pass() {
     }
 
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("instanced mesh renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let draws = engine.device.log.indexed_draws.locked();
     assert_eq!(draws.len(), 2, "shadow and beauty each consume one batch");
 }
@@ -213,9 +205,7 @@ fn vertex_alpha_routes_a_mesh_only_through_transparency() {
         panic!("alpha mesh stores: {error}")
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("alpha mesh renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let draws = engine.device.log.indexed_draws.locked();
     assert_eq!(
         draws.len(),
@@ -236,9 +226,7 @@ fn cartoon_ribbons_share_the_scene_fit_shadow_stream() {
         panic!("cartoon representation applies: {error}")
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let draws = engine.device.log.indexed_draws.locked();
     assert_eq!(
         draws.len(),
@@ -282,9 +270,7 @@ fn structure_scoped_selection_creates_no_draw_for_equal_rows_elsewhere() {
         panic!("spacefill applies: {error}")
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(
         draws.len(),
@@ -368,9 +354,7 @@ fn heterogeneous_primitives_use_exact_shadow_ranges_and_transparency_route() {
     }
 
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("primitives render: {error}");
-    }
+    render_ok(&mut engine, &scene);
     assert!(engine.scene_gpu.primitive_shadow_draw(false).is_some());
     assert!(engine.scene_gpu.has_transparent_primitives());
     assert!(engine.scene_gpu.has_translucency());

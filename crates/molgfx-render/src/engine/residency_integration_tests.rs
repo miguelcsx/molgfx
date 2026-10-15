@@ -1,4 +1,4 @@
-use super::tests::{camera, engine};
+use super::tests::{camera, engine, render_ok};
 use super::{Engine, EngineConfig};
 use crate::RenderError;
 use crate::testing::MockDevice;
@@ -10,9 +10,7 @@ fn steady_frames_reuse_residency_storage_and_report_real_bytes() {
     let scene = Scene::new();
     let initial = engine.residency_metrics();
     for _ in 0..2 {
-        if let Err(error) = engine.render(&scene, &camera()) {
-            panic!("steady frame renders: {error}")
-        }
+        render_ok(&mut engine, &scene);
     }
     let metrics = engine.residency_metrics();
     let uniform_bytes = std::mem::size_of::<crate::scene_gpu::FrameUniforms>() as u64;

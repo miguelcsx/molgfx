@@ -6,6 +6,7 @@ use super::{
     PickEntity, PointChunkPlacement, RelationChunkPlacement, StructureChunkPlacement,
     TrajectoryChunkWindow,
 };
+use crate::engine::tests::render_ok;
 use molgfx_core::{
     AnalyticCapsule, AnalyticSphere, AnalyticTemplate, AttributeChunkPayload, AttributeValues,
     ChunkBounds, ChunkData, ChunkDescriptor, ChunkDomainKind, ChunkDomainRef, ChunkEntityRef,
@@ -107,9 +108,7 @@ fn resident_generic_points_join_the_indirect_batch_and_pick_global_rows() {
         .set_point_chunk_placements(&[placement])
         .unwrap_or_else(|error| panic!("point placement must fit: {error}"));
     let scene = molgfx_core::Scene::new();
-    engine
-        .render(&scene, &super::tests::camera())
-        .unwrap_or_else(|error| panic!("generic points must render: {error}"));
+    render_ok(&mut engine, &scene);
 
     assert_eq!(
         engine.point_chunk_placement_status(placement.id()),
@@ -145,9 +144,7 @@ fn resident_generic_points_join_the_indirect_batch_and_pick_global_rows() {
 
     let buffers = buffer_count(&engine);
     let writes = paged_write_count(&engine);
-    engine
-        .render(&scene, &super::tests::camera())
-        .unwrap_or_else(|error| panic!("stable generic point frame must render: {error}"));
+    render_ok(&mut engine, &scene);
     assert_eq!(buffer_count(&engine), buffers);
     assert_eq!(paged_write_count(&engine), writes);
     assert_eq!(indirect_count(&engine, args), 2);
@@ -192,9 +189,7 @@ fn resident_instance_chunks_reuse_analytic_culling_and_flat_part_picking() {
         .set_instance_chunk_placements(std::slice::from_ref(&placement))
         .unwrap_or_else(|error| panic!("instance placement must fit: {error}"));
     let scene = molgfx_core::Scene::new();
-    engine
-        .render(&scene, &super::tests::camera())
-        .unwrap_or_else(|error| panic!("paged instances must render: {error}"));
+    render_ok(&mut engine, &scene);
 
     assert_eq!(
         engine.instance_chunk_placement_status(placement.id()),
@@ -235,9 +230,7 @@ fn resident_instance_chunks_reuse_analytic_culling_and_flat_part_picking() {
 
     let buffers = buffer_count(&engine);
     let writes = paged_write_count(&engine);
-    engine
-        .render(&scene, &super::tests::camera())
-        .unwrap_or_else(|error| panic!("stable paged instance frame must render: {error}"));
+    render_ok(&mut engine, &scene);
     assert_eq!(buffer_count(&engine), buffers);
     assert_eq!(paged_write_count(&engine), writes);
     let template_uploads = engine.device.log.buffers.lock().map_or(0, |values| {
@@ -410,9 +403,7 @@ fn paged_relations_wait_for_exact_sources_then_share_one_indirect_draw() {
     );
 
     let scene = molgfx_core::Scene::new();
-    engine
-        .render(&scene, &super::tests::camera())
-        .unwrap_or_else(|error| panic!("paged relations must render: {error}"));
+    render_ok(&mut engine, &scene);
     let args = buffer_id(&engine, "interaction glyph indirect arguments");
     assert_eq!(indirect_count(&engine, args), 1);
     let page = engine.scene_gpu.test_chunk_pick_page(
@@ -443,9 +434,7 @@ fn paged_relations_wait_for_exact_sources_then_share_one_indirect_draw() {
 
     let buffers = buffer_count(&engine);
     let writes = relation_write_count(&engine);
-    engine
-        .render(&scene, &super::tests::camera())
-        .unwrap_or_else(|error| panic!("stable paged relation frame must render: {error}"));
+    render_ok(&mut engine, &scene);
     assert_eq!(buffer_count(&engine), buffers);
     assert_eq!(relation_write_count(&engine), writes);
     assert_eq!(indirect_count(&engine, args), 2);

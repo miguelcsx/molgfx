@@ -1,4 +1,4 @@
-use super::tests::{camera, engine, structure};
+use super::tests::{engine, render_ok, structure};
 use crate::testing::Locked;
 use molgfx_core::{
     EntityKind, Guide, GuideStyle, InteractionAnchor, InteractionDirection, InteractionEdge,
@@ -43,9 +43,7 @@ fn interaction_scene() -> Scene {
 fn all_interactions_share_one_indirect_draw() {
     let scene = interaction_scene();
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(draws.len(), 1);
 }
@@ -54,13 +52,9 @@ fn all_interactions_share_one_indirect_draw() {
 fn unchanged_interactions_add_no_steady_frame_uploads() {
     let scene = interaction_scene();
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let before = engine.device.log.writes.locked().len();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let writes = engine.device.log.writes.locked();
     assert_eq!(writes.len() - before, 1, "only frame uniforms change");
 }
@@ -96,9 +90,7 @@ fn interaction_and_guide_row_zero_resolve_distinct_global_namespaces() {
         .unwrap_or_else(|error| panic!("{error}"));
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let edge_page = engine
         .scene_gpu
         .test_pick_page(dataset, EntityKind::Edge)

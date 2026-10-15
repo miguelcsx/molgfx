@@ -1,6 +1,6 @@
 //! Colour is presentation state, so changing a scheme never touches a record.
 
-use super::tests::{camera, engine, represented_scene};
+use super::tests::{camera, engine, render_ok, represented_scene};
 use crate::engine::Engine;
 use crate::scene_gpu::color_uniforms;
 use crate::testing::{Locked, MockDevice};
@@ -67,9 +67,7 @@ fn a_colour_scheme_change_writes_only_fixed_size_uniforms() {
     };
     let column = category_column(&mut scene);
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("initial frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let buffers_before = engine.device.log.buffers.locked().len();
 
     for scheme in [
@@ -123,9 +121,7 @@ fn representations_differing_only_in_colour_share_one_record_set() {
         value.color = scheme;
         value.order = u16::try_from(index).unwrap_or(0);
         let mut engine = engine();
-        if let Err(error) = engine.render(&scene, &camera()) {
-            panic!("frame renders: {error}")
-        }
+        render_ok(&mut engine, &scene);
         let buffers = engine.device.log.buffers.locked();
         counts.push(
             buffers
@@ -187,9 +183,7 @@ fn the_colour_block_is_written_with_the_active_scheme() {
     };
     value.color = ColorScheme::Uniform(Rgba8::opaque(12, 34, 56));
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let buffers = engine.device.log.buffers.locked();
     let color_buffer = buffers
         .iter()

@@ -1,6 +1,7 @@
 use super::chunk_residency_tests::{
     complete, engine, fixture, frame_fixture, request_and_deliver, upload,
 };
+use super::tests::render_ok;
 use super::{
     ChunkPlacementId, ChunkPlacementStatus, ChunkRepresentation, Engine, PickEntity,
     StructureChunkPlacement, TrajectoryChunkWindow,
@@ -32,9 +33,7 @@ fn resident_points_render_as_one_indirect_batch_and_pick_global_rows() {
         panic!("placement must fit: {error}");
     }
     let scene = molgfx_core::Scene::new();
-    if let Err(error) = engine.render(&scene, &super::tests::camera()) {
-        panic!("resident chunk must render: {error}");
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(
         engine.structure_chunk_placement_status(placement_id),
         ChunkPlacementStatus::Resident
@@ -47,9 +46,7 @@ fn resident_points_render_as_one_indirect_batch_and_pick_global_rows() {
     );
     let buffers_after_warmup = buffer_count(&engine);
     let paged_writes_after_warmup = paged_write_count(&engine);
-    if let Err(error) = engine.render(&scene, &super::tests::camera()) {
-        panic!("stable paged frame must render: {error}");
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(buffer_count(&engine), buffers_after_warmup);
     assert_eq!(paged_write_count(&engine), paged_writes_after_warmup);
     assert_eq!(indirect_count(&engine, args_id), 2);
@@ -114,9 +111,7 @@ fn points_and_spacefill_share_one_persistent_indirect_command_arena() {
         panic!("mixed placements must fit: {error}");
     }
     let scene = molgfx_core::Scene::new();
-    if let Err(error) = engine.render(&scene, &super::tests::camera()) {
-        panic!("mixed paged representations must render: {error}");
-    }
+    render_ok(&mut engine, &scene);
     let arena = buffer_id(&engine, "paged indirect command arena");
     assert_eq!(indirect_offsets(&engine, arena), vec![16, 0]);
     let page = engine.scene_gpu.test_chunk_pick_page(
@@ -130,9 +125,7 @@ fn points_and_spacefill_share_one_persistent_indirect_command_arena() {
     assert_global_pick(&mut engine, 79, 83, page);
     let buffers = buffer_count(&engine);
     let writes = paged_write_count(&engine);
-    if let Err(error) = engine.render(&scene, &super::tests::camera()) {
-        panic!("stable mixed frame must render: {error}");
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(buffer_count(&engine), buffers);
     assert_eq!(paged_write_count(&engine), writes);
     assert_eq!(indirect_offsets(&engine, arena), vec![16, 0, 16, 0]);
@@ -179,9 +172,7 @@ fn provider_frames_interpolate_through_one_bounded_gpu_window() {
         panic!("trajectory window must fit: {error}");
     }
     let scene = molgfx_core::Scene::new();
-    if let Err(error) = engine.render(&scene, &super::tests::camera()) {
-        panic!("paged trajectory must render: {error}");
-    }
+    render_ok(&mut engine, &scene);
     let frame_buffer = buffer_id(&engine, "resident trajectory frames");
     // A trajectory window is the one case that needs the second coordinate
     // backing: the interpolation pass writes through it.
@@ -196,9 +187,7 @@ fn provider_frames_interpolate_through_one_bounded_gpu_window() {
     if let Err(error) = engine.set_trajectory_chunk_windows(&[advanced]) {
         panic!("time-only update must fit: {error}");
     }
-    if let Err(error) = engine.render(&scene, &super::tests::camera()) {
-        panic!("advanced trajectory must render: {error}");
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(buffer_write_count(&engine, frame_buffer), writes_before);
 }
 

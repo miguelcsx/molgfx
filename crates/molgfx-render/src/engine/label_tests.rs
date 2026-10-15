@@ -1,4 +1,4 @@
-use super::tests::{camera, engine, structure};
+use super::tests::{engine, render_ok, structure};
 use crate::testing::Locked;
 use molgfx_core::{Annotation, AnnotationAnchor, Measurement, Scene};
 use molgfx_math::Vec3;
@@ -39,9 +39,7 @@ fn labelled_scene() -> Scene {
 fn all_label_records_compact_to_one_indirect_draw() {
     let scene = labelled_scene();
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let draws = engine.device.log.indirect_draws.locked();
     // The glyph, guide and marker kinds share one compacted table but each
     // draws with its own specialized pipeline, so there are three indirect
@@ -57,13 +55,9 @@ fn all_label_records_compact_to_one_indirect_draw() {
 fn unchanged_labels_upload_only_frame_uniforms() {
     let scene = labelled_scene();
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let before = engine.device.log.writes.locked().len();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let writes = engine.device.log.writes.locked();
     assert_eq!(writes.len() - before, 1, "only frame uniforms change");
 }

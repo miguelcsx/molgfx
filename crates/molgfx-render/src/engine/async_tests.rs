@@ -1,5 +1,5 @@
 use super::ImageConfig;
-use super::tests::{camera, engine, structure};
+use super::tests::{camera, engine, render_ok, structure};
 use molgfx_core::{AtomSelection, RepresentationKind, Scene};
 
 #[test]
@@ -33,9 +33,7 @@ fn asynchronous_pick_resolves_the_same_integer_entity() {
         panic!("spacefill applies: {error}")
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let picked = pollster::block_on(engine.pick_async(0, 0));
     let pick = match picked {
         Ok(Some(pick)) => pick,
@@ -64,18 +62,14 @@ fn a_detached_pick_readback_resolves_after_the_engine_is_idle() {
         panic!("spacefill applies: {error}")
     }
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let readback = match engine.begin_pick(0, 0) {
         Ok(Some(readback)) => readback,
         Ok(None) => panic!("a rendered frame records a pick"),
         Err(error) => panic!("pick records: {error}"),
     };
     // The engine is free: render another frame before resolving the readback.
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("a frame renders while a readback is detached: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let packed = match pollster::block_on(readback.resolve()) {
         Ok(packed) => packed,
         Err(error) => panic!("detached readback resolves: {error}"),

@@ -1,4 +1,5 @@
 use super::*;
+use crate::engine::tests::render_ok;
 use crate::testing::{Locked, MockDevice};
 use crate::{AdaptiveQualityConfig, EngineConfig};
 
@@ -89,9 +90,7 @@ fn every_effect_combination_allocates_only_its_active_targets_and_bindings() {
             profile = profile.with_effect(PresentationEffect::MotionBlur(MotionBlur::restrained()));
         }
         engine.set_render_profile(profile).expect("profile applies");
-        engine
-            .render(&scene, &crate::engine::tests::camera())
-            .expect("frame renders");
+        render_ok(&mut engine, &scene);
         let pool = engine.pool.as_ref().expect("frame pool exists");
         let bindings = engine
             .bindings
@@ -110,9 +109,7 @@ fn every_effect_combination_allocates_only_its_active_targets_and_bindings() {
         assert!(bindings.tonemap.get(1).is_some());
         let textures = engine.device.log.textures.locked().len();
         let buffers = engine.device.log.buffers.locked().len();
-        engine
-            .render(&scene, &crate::engine::tests::camera())
-            .expect("stable frame renders");
+        render_ok(&mut engine, &scene);
         assert_eq!(engine.device.log.textures.locked().len(), textures);
         assert_eq!(engine.device.log.buffers.locked().len(), buffers);
     }

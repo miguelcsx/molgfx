@@ -1,3 +1,4 @@
+use super::tests::render_ok;
 use super::{Engine, EngineConfig};
 use crate::testing::{Locked, MockDevice};
 use molframe::engine::core as frame;
@@ -93,9 +94,7 @@ fn paged_gpu_storage_and_staging_are_committed_only_when_used() {
     assert_paged_buffers_absent(&engine);
 
     let scene = molgfx_core::Scene::new();
-    if let Err(error) = engine.render(&scene, &super::tests::camera()) {
-        panic!("empty frame must render without paged storage: {error}");
-    }
+    render_ok(&mut engine, &scene);
     assert_paged_buffers_absent(&engine);
 
     let mut output = ResidencyOutput::default();

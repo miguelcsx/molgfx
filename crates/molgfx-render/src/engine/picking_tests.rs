@@ -1,12 +1,10 @@
-use super::tests::{camera, engine, represented_scene, structure};
+use super::tests::{engine, render_ok, represented_scene, structure};
 
 #[test]
 fn picking_resolves_the_global_atom_from_integer_attachments() {
     let mut engine = engine();
     let scene = represented_scene(2, 1);
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let pick = match engine.pick(0, 0) {
         Ok(Some(pick)) => pick,
         Ok(None) => panic!("mock readback resolves zero ids"),
@@ -32,9 +30,7 @@ fn picking_resolves_the_global_atom_from_integer_attachments() {
 fn recycled_pick_page_rejects_an_older_submission_generation() {
     let mut engine = engine();
     let mut scene = represented_scene(2, 1);
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let submission = engine
         .capture_pick_submission_for_test()
         .unwrap_or_else(|error| panic!("{error}"));
@@ -44,9 +40,7 @@ fn recycled_pick_page_rejects_an_older_submission_generation() {
     let asset = molgfx_core::StructureAsset::new(molgfx_core::DatasetId::new(99), &source)
         .unwrap_or_else(|error| panic!("{error}"));
     scene.add_asset(&asset);
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
 
     let error = engine
         .resolve_pick_token_against_for_test(old, &submission)
@@ -63,17 +57,13 @@ fn changing_to_a_distinct_scene_rebuilds_equal_revision_pick_pages() {
     let mut engine = engine();
     let first = represented_scene(2, 1);
     let second = represented_scene(2, 1);
-    engine
-        .render(&first, &camera())
-        .unwrap_or_else(|error| panic!("first scene renders: {error}"));
+    render_ok(&mut engine, &first);
     let submission = engine
         .capture_pick_submission_for_test()
         .unwrap_or_else(|error| panic!("first picking table is captured: {error}"));
     let old = molgfx_core::GpuPickToken::new(0, 0);
 
-    engine
-        .render(&second, &camera())
-        .unwrap_or_else(|error| panic!("second scene renders: {error}"));
+    render_ok(&mut engine, &second);
 
     let error = engine
         .resolve_pick_token_against_for_test(old, &submission)
@@ -88,9 +78,7 @@ fn changing_to_a_distinct_scene_rebuilds_equal_revision_pick_pages() {
 fn concurrent_picks_are_bounded_and_each_owns_its_readback() {
     let mut engine = engine();
     let scene = represented_scene(1, 1);
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let mut pending = Vec::new();
     for _ in 0..4 {
         let Some(pick) = engine
@@ -118,9 +106,7 @@ fn thousands_of_placed_structures_render_and_pick_past_the_initial_page_table() 
     let mut engine = engine();
     let initial = engine.scene_gpu.pick_page_capacity();
     let scene = represented_scene(initial + 1_500, 1);
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("a scene beyond the initial pick-page table renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     assert!(engine.scene_gpu.pick_page_capacity() > initial);
     let submission = engine
         .capture_pick_submission_for_test()

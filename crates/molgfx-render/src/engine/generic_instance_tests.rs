@@ -1,4 +1,4 @@
-use super::tests::{camera, engine};
+use super::tests::{engine, render_ok};
 use super::{DerivedCacheBudget, Engine, EngineConfig};
 use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
@@ -82,9 +82,7 @@ fn timeline_materialization_is_a_real_budgeted_optional_allocation() {
     };
     let mut direct =
         Engine::<MockDevice>::new(&direct_config, None).unwrap_or_else(|error| panic!("{error}"));
-    direct
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut direct, &scene);
     let direct_buffers = direct.device.log.buffers.locked();
     assert!(
         !direct_buffers
@@ -94,9 +92,7 @@ fn timeline_materialization_is_a_real_budgeted_optional_allocation() {
     drop(direct_buffers);
 
     let mut cached = engine();
-    cached
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut cached, &scene);
     let cached_buffers = cached.device.log.buffers.locked();
     assert!(
         cached_buffers
@@ -119,9 +115,7 @@ fn four_hundred_instances_are_gpu_culled_then_expand_two_homogeneous_draws() {
     let _handle = scene.add_instance_batch(batch);
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(dispatches.as_slice(), &[(1, 1, 1), (7, 1, 1)]);
     drop(dispatches);
@@ -143,9 +137,7 @@ fn tiny_instance_batches_reserve_the_full_runtime_storage_struct() {
         .unwrap_or_else(|error| panic!("instances validate: {error}"));
         let _ = scene.add_instance_batch(batch);
         let mut engine = engine();
-        engine
-            .render(&scene, &camera())
-            .unwrap_or_else(|error| panic!("instances render: {error}"));
+        render_ok(&mut engine, &scene);
         let buffers = engine.device.log.buffers.locked();
         assert!(
             buffers.iter().any(|(_, label, bytes)| {
@@ -175,9 +167,7 @@ fn sphere_only_templates_still_bind_one_complete_capsule_record() {
     let mut scene = Scene::new();
     let _ = scene.add_instance_batch(batch);
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("renders: {error}"));
+    render_ok(&mut engine, &scene);
     let buffers = engine.device.log.buffers.locked();
     assert!(
         buffers.iter().any(|(_, label, size)| {
@@ -242,9 +232,7 @@ fn instance_visuals_split_geometry_before_culling_and_appearance_after_compactio
         .unwrap_or_else(|error| panic!("visual attaches: {error}"));
 
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("visual instances render: {error}"));
+    render_ok(&mut engine, &scene);
     let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         dispatches.as_slice(),
@@ -280,9 +268,7 @@ fn shared_templates_upload_once_and_stable_frames_only_upload_uniforms() {
         let _handle = scene.add_instance_batch(batch);
     }
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let template_buffers = engine
         .device
         .log
@@ -293,9 +279,7 @@ fn shared_templates_upload_once_and_stable_frames_only_upload_uniforms() {
         .count();
     assert_eq!(template_buffers, 1);
     let before = engine.device.log.writes.locked().len();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     let after = engine.device.log.writes.locked().len();
     assert_eq!(
         after - before,
@@ -317,9 +301,7 @@ fn template_part_picking_uses_one_flat_attachment_index() {
     let handle = scene.add_instance_batch(batch);
     let chunk = ChunkId::new(u64::from(handle.row()) | (u64::from(handle.generation()) << 32));
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("{error}"));
+    render_ok(&mut engine, &scene);
     engine
         .capture_pick_submission_for_test()
         .unwrap_or_else(|error| panic!("{error}"));
@@ -353,9 +335,7 @@ fn translucent_generic_instances_use_only_the_oit_draw_route() {
     });
     let _handle = scene.add_instance_batch(batch);
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("transparent instances render: {error}"));
+    render_ok(&mut engine, &scene);
 
     assert_eq!(engine.scene_gpu.generic_instance_draws(false).count(), 0);
     assert_eq!(engine.scene_gpu.generic_instance_draws(true).count(), 2);

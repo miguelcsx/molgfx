@@ -1,6 +1,6 @@
 //! Sharing of implicit surface fields across representations.
 
-use super::tests::{camera, engine, structure};
+use super::tests::{engine, render_ok, structure};
 use crate::testing::{Locked, MockDevice};
 use molgfx_core::{AtomSelection, RepresentationKind, Scene, SurfaceKind, SurfaceStyle};
 
@@ -63,9 +63,7 @@ fn surfaces_differing_only_in_appearance_allocate_one_field() {
     for count in [1_usize, 4] {
         let scene = surface_scene(count);
         let mut engine = engine();
-        if let Err(error) = engine.render(&scene, &camera()) {
-            panic!("frame renders: {error}")
-        }
+        render_ok(&mut engine, &scene);
         labels.push(field_labels(&engine.device));
     }
     let (Some(one), Some(four)) = (labels.first(), labels.get(1)) else {
@@ -88,9 +86,7 @@ fn a_second_surface_over_one_key_dispatches_no_second_field() {
     for count in [1_usize, 4] {
         let scene = surface_scene(count);
         let mut engine = engine();
-        if let Err(error) = engine.render(&scene, &camera()) {
-            panic!("frame renders: {error}")
-        }
+        render_ok(&mut engine, &scene);
         let log = engine.device.log.compute_passes.locked();
         passes.push(
             log.iter()

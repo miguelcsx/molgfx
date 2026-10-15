@@ -1,4 +1,4 @@
-use super::tests::{camera, engine};
+use super::tests::{engine, render_ok};
 use molgfx_core::{AtomSelection, Representation, Scene, TubeRadiusMapping};
 
 fn polymer() -> molframe::Structure {
@@ -55,9 +55,7 @@ fn putty_uses_one_persistent_guide_buffer_and_indirect_render_path() {
         .represent(selection, recipe)
         .unwrap_or_else(|error| panic!("putty representation applies: {error}"));
     let mut engine = engine();
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("putty frame renders: {error}"));
+    render_ok(&mut engine, &scene);
 
     let radius_buffer = engine
         .device
@@ -84,9 +82,7 @@ fn putty_uses_one_persistent_guide_buffer_and_indirect_render_path() {
         |buffers| buffers.len(),
     );
 
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("stable putty frame renders: {error}"));
+    render_ok(&mut engine, &scene);
     assert_eq!(write_count(&engine.device, radius_buffer.0), 1);
     assert_eq!(
         engine.device.log.buffers.lock().map_or_else(
@@ -102,9 +98,7 @@ fn putty_uses_one_persistent_guide_buffer_and_indirect_render_path() {
     };
     value.params.tube_radius_mapping = TubeRadiusMapping::b_factor([0.0, 60.0], [0.1, 1.0])
         .unwrap_or_else(|error| panic!("replacement mapping validates: {error}"));
-    engine
-        .render(&scene, &camera())
-        .unwrap_or_else(|error| panic!("remapped putty frame renders: {error}"));
+    render_ok(&mut engine, &scene);
     assert_eq!(
         write_count(&engine.device, radius_buffer.0),
         1,

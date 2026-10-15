@@ -12,6 +12,12 @@ pub(super) fn camera() -> Camera {
         1.0,
     )
 }
+/// Renders one frame at the default camera, failing the test on error.
+pub(super) fn render_ok(engine: &mut Engine<MockDevice>, scene: &Scene) {
+    if let Err(error) = engine.render(scene, &camera()) {
+        panic!("frame renders: {error}");
+    }
+}
 pub(super) fn engine() -> Engine<MockDevice> {
     match Engine::new(&EngineConfig::default(), None) {
         Ok(engine) => engine,
@@ -197,14 +203,10 @@ fn frame_recording_issues_no_direct_scene_draws() {
 fn every_structure_representation_pair_has_one_indirect_draw() {
     let mut engine = engine();
     let scene = represented_scene(2, 2);
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let first = engine.device.log.indirect_draws.locked().clone();
     assert_eq!(first.len(), 8);
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("second frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(
         &draws[first.len()..],
@@ -224,9 +226,7 @@ fn opaque_and_translucent_representations_are_routed_to_disjoint_draws() {
     representation.material.opacity = 0.4;
 
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     assert!(engine.scene_gpu.has_translucency());
     assert_eq!(engine.scene_gpu.atom_draws(false).count(), 1);
     assert_eq!(engine.scene_gpu.atom_draws(true).count(), 1);
@@ -245,18 +245,14 @@ fn points_use_their_own_opaque_and_translucent_routes() {
         Err(error) => panic!("points apply: {error}"),
     };
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("opaque points render: {error}")
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(engine.scene_gpu.point_draws(false).count(), 1);
     assert_eq!(engine.scene_gpu.atom_draws(false).count(), 0);
     let Some(representation) = scene.representation_mut(handle) else {
         panic!("points resolve")
     };
     representation.material.opacity = 0.4;
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("transparent points render: {error}")
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(engine.scene_gpu.point_draws(false).count(), 0);
     assert_eq!(engine.scene_gpu.point_draws(true).count(), 1);
 }
@@ -274,9 +270,7 @@ fn translucent_surfaces_are_routed_to_the_transparent_pass_only() {
         Err(error) => panic!("surface applies: {error}"),
     };
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("opaque surface renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(engine.scene_gpu.surface_draws(true).count(), 0);
     let opaque =
         engine.scene_gpu.surface_draws(false).count() + engine.scene_gpu.atom_draws(false).count();
@@ -285,9 +279,7 @@ fn translucent_surfaces_are_routed_to_the_transparent_pass_only() {
         panic!("surface resolves")
     };
     representation.material.opacity = 0.4;
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("translucent surface renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(engine.scene_gpu.surface_draws(false).count(), 0);
     assert_eq!(engine.scene_gpu.atom_draws(false).count(), 0);
     assert_eq!(engine.scene_gpu.surface_draws(true).count(), 1);
@@ -297,13 +289,9 @@ fn translucent_surfaces_are_routed_to_the_transparent_pass_only() {
 fn an_unchanged_scene_uploads_only_the_frame_uniforms() {
     let mut engine = engine();
     let scene = represented_scene(1, 1);
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("first frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let before = engine.device.log.writes.locked().len();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("second frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let writes = engine.device.log.writes.locked();
     assert_eq!(writes.len() - before, 1, "only group 0 changes");
     assert_eq!(
@@ -326,9 +314,7 @@ fn changing_a_clip_plane_updates_only_representation_state() {
         Err(error) => panic!("surface applies: {error}"),
     };
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("initial frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let before = engine.device.log.writes.locked().len();
     let plane = match ClipPlane::from_point_normal(Vec3::ZERO, Vec3::X) {
         Ok(plane) => plane,
@@ -342,9 +328,7 @@ fn changing_a_clip_plane_updates_only_representation_state() {
         panic!("surface resolves")
     };
     representation.clipping = clipping;
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("clipped frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let writes = engine.device.log.writes.locked();
     let changed = &writes[before..];
     // Frame, representation and colour blocks: all fixed size, none of them the
@@ -374,9 +358,7 @@ fn solvent_excluded_field_generates_once_and_not_on_an_unchanged_frame() {
     representation.params.surface_kind = SurfaceKind::SolventExcluded;
 
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("first frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let before = engine.device.log.dispatches.locked().clone();
     assert_eq!(
         before.len(),
@@ -385,9 +367,7 @@ fn solvent_excluded_field_generates_once_and_not_on_an_unchanged_frame() {
     );
     assert!(before[0].0 > 1, "the field contains many workgroups");
     assert_eq!(before[0], before[1], "both stages cover the same grid");
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("unchanged frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(dispatches.as_slice(), before.as_slice());
 }
@@ -412,9 +392,7 @@ fn gaussian_surface_generates_one_persistent_field_dispatch() {
     representation.params.isolevel = 0.45;
 
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("first Gaussian frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let before = engine.device.log.dispatches.locked().clone();
     assert_eq!(
         before.len(),
@@ -425,9 +403,7 @@ fn gaussian_surface_generates_one_persistent_field_dispatch() {
         before[0].0 > 1,
         "the Gaussian field contains many workgroups"
     );
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("unchanged Gaussian frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(dispatches.as_slice(), before.as_slice());
 }

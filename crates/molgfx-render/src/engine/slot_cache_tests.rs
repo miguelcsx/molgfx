@@ -1,4 +1,4 @@
-use super::tests::{camera, engine, represented_scene};
+use super::tests::{engine, render_ok, represented_scene};
 use crate::testing::Locked;
 use molgfx_core::RepresentationKind;
 
@@ -9,23 +9,17 @@ fn hide_and_show_retain_the_resident_representation_resources() {
         panic!("fixture has a representation")
     };
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("initial frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let buffer_count = engine.device.log.buffers.locked().len();
 
     scene.hide(representation);
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("hidden frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(engine.scene_gpu.atom_draws(false).count(), 0);
     let hidden_buffer_count = engine.device.log.buffers.locked().len();
     assert_eq!(hidden_buffer_count, buffer_count);
 
     scene.show(representation);
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("restored frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(engine.scene_gpu.atom_draws(false).count(), 1);
     let restored_buffer_count = engine.device.log.buffers.locked().len();
     assert_eq!(restored_buffer_count, buffer_count);
@@ -38,19 +32,13 @@ fn visibility_changes_do_not_reupload_representation_records() {
         panic!("fixture has a representation")
     };
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("initial frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let writes_before = engine.device.log.writes.locked().len();
 
     scene.hide(representation);
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("hidden frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     scene.show(representation);
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("restored frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let writes_after = engine.device.log.writes.locked().len();
     assert_eq!(
         writes_after - writes_before,
@@ -66,9 +54,7 @@ fn opacity_changes_write_only_fixed_size_presentation_state() {
         panic!("fixture has a representation")
     };
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("initial frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let writes_before = engine.device.log.writes.locked().len();
     let buffers_before = engine.device.log.buffers.locked().len();
 
@@ -76,9 +62,7 @@ fn opacity_changes_write_only_fixed_size_presentation_state() {
         panic!("representation resolves")
     };
     value.material.opacity = 0.4;
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("transparent frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
 
     let changed = engine.device.log.writes.locked()[writes_before..].to_vec();
     let buffers = engine.device.log.buffers.locked().clone();
@@ -113,9 +97,7 @@ fn cartoon_opacity_changes_do_not_rebuild_ribbon_geometry() {
     };
     value.kind = RepresentationKind::Cartoon;
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("initial frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let writes_before = engine.device.log.writes.locked().len();
     let buffers_before = engine.device.log.buffers.locked().len();
 
@@ -123,9 +105,7 @@ fn cartoon_opacity_changes_do_not_rebuild_ribbon_geometry() {
         panic!("representation resolves")
     };
     value.material.opacity = 0.4;
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("transparent frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
 
     let changed = engine.device.log.writes.locked()[writes_before..].to_vec();
     let buffers = engine.device.log.buffers.locked().clone();
@@ -150,17 +130,13 @@ fn a_stable_frame_allocates_no_buffers_and_uploads_only_frame_state() {
     // Two warm-up frames: the first builds pools and uploads everything, the
     // second settles anything the first deferred.
     for _ in 0..2 {
-        if let Err(error) = engine.render(&scene, &camera()) {
-            panic!("warm-up frame renders: {error}")
-        }
+        render_ok(&mut engine, &scene);
     }
     let buffers_before = engine.device.log.buffers.locked().len();
     let writes_before = engine.device.log.writes.locked().len();
 
     for _ in 0..8 {
-        if let Err(error) = engine.render(&scene, &camera()) {
-            panic!("stable frame renders: {error}")
-        }
+        render_ok(&mut engine, &scene);
     }
 
     let buffers_after = engine.device.log.buffers.locked().len();
@@ -189,15 +165,11 @@ fn overlapping_representations_do_not_multiply_stable_frame_cost() {
         let scene = represented_scene(1, count);
         let mut engine = engine();
         for _ in 0..2 {
-            if let Err(error) = engine.render(&scene, &camera()) {
-                panic!("warm-up frame renders: {error}")
-            }
+            render_ok(&mut engine, &scene);
         }
         let before = engine.device.log.writes.locked().len();
         for _ in 0..8 {
-            if let Err(error) = engine.render(&scene, &camera()) {
-                panic!("stable frame renders: {error}")
-            }
+            render_ok(&mut engine, &scene);
         }
         let after = engine.device.log.writes.locked().len();
         costs.push(after - before);
@@ -224,9 +196,7 @@ fn structure_wide_resources_are_shared_by_every_representation() {
     for count in [1_usize, 8] {
         let scene = represented_scene(1, count);
         let mut engine = engine();
-        if let Err(error) = engine.render(&scene, &camera()) {
-            panic!("frame renders: {error}")
-        }
+        render_ok(&mut engine, &scene);
         let buffers = engine.device.log.buffers.locked();
         for label in SHARED {
             let created = buffers.iter().filter(|entry| entry.1 == label).count();
@@ -246,9 +216,7 @@ fn one_packed_record_set_serves_every_representation_over_one_selection() {
     for count in [1_usize, 8] {
         let scene = represented_scene(1, count);
         let mut engine = engine();
-        if let Err(error) = engine.render(&scene, &camera()) {
-            panic!("frame renders: {error}")
-        }
+        render_ok(&mut engine, &scene);
         let buffers = engine.device.log.buffers.locked();
         for label in [
             "atom instances",
@@ -274,9 +242,7 @@ fn four_representations_with_one_visibility_key_dispatch_one_cull() {
     for representation_count in [1_usize, 4] {
         let scene = represented_scene(1, representation_count);
         let mut engine = engine();
-        if let Err(error) = engine.render(&scene, &camera()) {
-            panic!("frame renders: {error}")
-        }
+        render_ok(&mut engine, &scene);
         let passes = engine.device.log.compute_passes.locked();
         let culls = passes
             .iter()
@@ -293,9 +259,7 @@ fn four_representations_with_one_visibility_key_dispatch_one_cull() {
     );
     let scene = represented_scene(1, 4);
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let buffers = engine.device.log.buffers.locked();
     assert_eq!(
         buffers
@@ -311,9 +275,7 @@ fn four_representations_with_one_visibility_key_dispatch_one_cull() {
 fn a_tight_budget_releases_the_records_of_a_dropped_selection() {
     let scene = represented_scene(1, 1);
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     assert!(
         engine.derived_cache_usage().gpu_bytes > 0,
         "records are charged"
@@ -324,9 +286,7 @@ fn a_tight_budget_releases_the_records_of_a_dropped_selection() {
         cpu_bytes: 0,
         gpu_bytes: 1,
     });
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame still renders under a tight budget: {error}")
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(
         engine.derived_cache_usage().gpu_bytes,
         0,
@@ -341,9 +301,7 @@ fn a_representation_reclaims_its_records_after_being_evicted() {
     // the budget would be a correctness hazard rather than a memory bound.
     let scene = represented_scene(1, 1);
     let mut engine = engine();
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("first frame renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     let charged = engine.derived_cache_usage().gpu_bytes;
     assert!(charged > 0, "records are charged once resident");
 
@@ -352,9 +310,7 @@ fn a_representation_reclaims_its_records_after_being_evicted() {
         cpu_bytes: 0,
         gpu_bytes: 1,
     });
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("frame under a tight budget renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     assert_eq!(
         engine.derived_cache_usage().gpu_bytes,
         0,
@@ -363,9 +319,7 @@ fn a_representation_reclaims_its_records_after_being_evicted() {
 
     // The next frame must re-materialise it rather than draw from nothing.
     engine.set_derived_cache_budget(crate::DerivedCacheBudget::default());
-    if let Err(error) = engine.render(&scene, &camera()) {
-        panic!("the frame after re-admitting the budget renders: {error}")
-    }
+    render_ok(&mut engine, &scene);
     assert!(
         engine.derived_cache_usage().gpu_bytes > 0,
         "an evicted record set is rebuilt by the frame that needs it"
@@ -396,9 +350,7 @@ fn per_representation_gpu_cost_stays_within_its_budget() {
     for count in [1_usize, 8] {
         let scene = represented_scene(1, count);
         let mut engine = engine();
-        if let Err(error) = engine.render(&scene, &camera()) {
-            panic!("frame renders: {error}")
-        }
+        render_ok(&mut engine, &scene);
         let buffers = engine.device.log.buffers.locked();
         counts.push(buffers.len());
     }

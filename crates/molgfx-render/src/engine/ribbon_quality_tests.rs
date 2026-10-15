@@ -1,4 +1,4 @@
-use super::tests::camera;
+use super::tests::{camera, render_ok};
 use super::{AdaptiveQualityConfig, Engine, EngineConfig, QualityTier};
 use crate::testing::{Locked, MockDevice};
 use molgfx_core::{AtomSelection, Representation, Scene};
@@ -59,9 +59,7 @@ fn a_large_fixed_quality_ribbon_keeps_every_requested_sample() {
         ..EngineConfig::default()
     };
     let mut renderer = Engine::<MockDevice>::new(&config, None).expect("renderer opens");
-    renderer
-        .render(&scene, &camera())
-        .expect("full-quality ribbon renders");
+    render_ok(&mut renderer, &scene);
     let buffers = renderer.device.log.buffers.locked();
     let (id, _, _) = buffers
         .iter()

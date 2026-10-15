@@ -5,6 +5,7 @@ use super::generic_chunk_residency_tests::{
 use super::{
     ChunkPlacementId, InstanceChunkPlacement, InstanceChunkWindow, RelationChunkPlacement,
 };
+use crate::engine::tests::render_ok;
 use molgfx_core::{
     AnalyticSphere, AnalyticTemplate, ChunkEntityRef, ChunkPayload, ChunkSpatialKind,
     InstanceChunkPayload, LogicalRow, PagedRelation, PagedSpatialAnchor, PayloadKind,
@@ -38,9 +39,7 @@ fn paged_instance_timeline_samples_resident_pages_without_rebuilding_batches() {
     install_anchored_relations(&mut engine, &mut output, dataset, id, base);
 
     let scene = molgfx_core::Scene::new();
-    engine
-        .render(&scene, &super::tests::camera())
-        .unwrap_or_else(|error| panic!("paged instance timeline renders: {error}"));
+    render_ok(&mut engine, &scene);
     let buffers = buffer_count(&engine);
     let writes = instance_config_writes(&engine);
     let materialization_writes = instance_timeline_writes(&engine);
@@ -62,9 +61,7 @@ fn paged_instance_timeline_samples_resident_pages_without_rebuilding_batches() {
     if let Ok(mut passes) = engine.device.log.compute_passes.lock() {
         passes.clear();
     }
-    engine
-        .render(&scene, &super::tests::camera())
-        .unwrap_or_else(|error| panic!("advanced timeline renders: {error}"));
+    render_ok(&mut engine, &scene);
     assert_eq!(buffer_count(&engine), buffers);
     assert_eq!(instance_config_writes(&engine), writes);
     assert_eq!(

@@ -76,9 +76,7 @@ fn paged_atom_relations_resolve_after_gpu_trajectory_interpolation() {
         .unwrap_or_else(|error| panic!("relation placement must fit: {error}"));
 
     let scene = molgfx_core::Scene::new();
-    engine
-        .render(&scene, &crate::engine::tests::camera())
-        .unwrap_or_else(|error| panic!("trajectory relation must render: {error}"));
+    render_ok(&mut engine, &scene);
     assert_compute_precedes(
         &engine,
         "paged trajectory interpolation",
@@ -94,8 +92,6 @@ fn paged_atom_relations_resolve_after_gpu_trajectory_interpolation() {
         .set_trajectory_chunk_windows(&[TrajectoryChunkWindow::new(structure, start, end, 0.75)
             .unwrap_or_else(|error| panic!("advanced trajectory window validates: {error}"))])
         .unwrap_or_else(|error| panic!("advanced trajectory window must fit: {error}"));
-    engine
-        .render(&scene, &crate::engine::tests::camera())
-        .unwrap_or_else(|error| panic!("advanced trajectory relation must render: {error}"));
+    render_ok(&mut engine, &scene);
     assert_eq!(relation_write_count(&engine), endpoint_writes);
 }
