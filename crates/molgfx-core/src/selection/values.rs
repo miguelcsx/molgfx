@@ -11,7 +11,7 @@ use smallvec::SmallVec;
 use std::ops::Range;
 
 #[cfg(test)]
-#[path = "selection_tests.rs"]
+#[path = "values_tests.rs"]
 mod tests;
 
 /// A set of atom rows.

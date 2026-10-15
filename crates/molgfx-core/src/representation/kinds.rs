@@ -9,19 +9,16 @@ use crate::{
     SurfaceScalarOverlay, TubeRadiusMapping,
 };
 use molgfx_math::Rgba8;
-#[path = "color_scheme.rs"]
 mod color_scheme;
 pub use color_scheme::ColorColumns;
-#[path = "kind_names.rs"]
 mod kind_names;
-#[path = "volume_types.rs"]
 mod volume_types;
 pub use volume_types::{
     MAX_VOLUME_TRANSFER_POINTS, VolumeRegion, VolumeRendering, VolumeSlice, VolumeStyle,
     VolumeTransferFunction, VolumeTransferPoint,
 };
 #[cfg(test)]
-#[path = "representation_tests.rs"]
+#[path = "kinds_tests.rs"]
 mod tests;
 /// The catalogue of drawable forms.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

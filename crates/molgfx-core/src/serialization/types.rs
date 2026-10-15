@@ -9,11 +9,8 @@ pub use super::representation_description::{
 };
 use serde::{Deserialize, Serialize};
 
-#[path = "display_descriptions.rs"]
 mod display_descriptions;
-#[path = "interaction_description.rs"]
 mod interaction_description;
-#[path = "primitive_description.rs"]
 mod primitive_description;
 
 pub use display_descriptions::*;

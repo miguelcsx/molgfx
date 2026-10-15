@@ -1,18 +1,12 @@
 //! Cold-source scene reconstruction from a stable manifest.
 
-#[path = "rehydrate_color.rs"]
 mod color;
-#[path = "rehydrate_generic.rs"]
 mod generic;
 mod interactions;
-#[path = "rehydrate_payload.rs"]
 mod payload;
 mod render;
-#[path = "rehydrate_rows.rs"]
 mod rows;
-#[path = "rehydrate_structures.rs"]
 mod structures;
-#[path = "rehydrate_volumes.rs"]
 mod volumes;
 
 use super::types::{

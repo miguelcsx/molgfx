@@ -4,7 +4,7 @@ use super::{Scene, SceneDescription, invalid};
 use crate::handle::SlotMap;
 
 #[cfg(test)]
-#[path = "rehydrate_rows_tests.rs"]
+#[path = "rows_tests.rs"]
 mod tests;
 
 pub(super) fn prepare(

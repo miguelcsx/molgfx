@@ -1,6 +1,5 @@
 //! Sparse brick identities and immutable logical metadata.
 
-#[path = "brick_index.rs"]
 mod brick_index;
 
 use self::brick_index::BrickSpatialIndex;

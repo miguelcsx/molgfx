@@ -9,7 +9,6 @@ mod config;
 mod gap_style;
 pub(crate) mod guide;
 pub(crate) mod interaction;
-#[path = "representation.rs"]
 pub(crate) mod kinds;
 pub(crate) mod material;
 pub(crate) mod mesh;

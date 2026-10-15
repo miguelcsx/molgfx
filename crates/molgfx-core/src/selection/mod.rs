@@ -3,7 +3,6 @@
 pub(crate) mod clipping;
 mod entity_selection;
 pub(crate) mod select;
-#[path = "selection.rs"]
 pub(crate) mod values;
 
 pub use clipping::{ClipCap, ClipPlane, ClipSet, MAX_CLIP_PLANES};

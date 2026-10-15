@@ -1,18 +1,11 @@
 //! Typed construction of bounded visual programs.
 
-#[path = "builder/arithmetic.rs"]
 mod arithmetic;
-#[path = "builder/inputs.rs"]
 mod inputs;
-#[path = "builder/literals.rs"]
 mod literals;
-#[path = "builder/logic.rs"]
 mod logic;
-#[path = "builder/parameters.rs"]
 mod parameters;
-#[path = "builder/properties.rs"]
 mod properties;
-#[path = "builder/ramps.rs"]
 mod ramps;
 
 use super::types::next_program_owner;

@@ -15,11 +15,8 @@ use crate::placed::PlacedStructure;
 use crate::representation::Representation;
 use crate::scene::StoredSelection;
 use crate::{DatasetId, StructureAsset};
-#[path = "identity.rs"]
 mod identity;
-#[path = "representation_state.rs"]
 mod representation_state;
-#[path = "world_bound.rs"]
 mod world_bound;
 use identity::SceneIdentity;
 

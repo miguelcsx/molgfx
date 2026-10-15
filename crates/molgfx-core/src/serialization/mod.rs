@@ -16,7 +16,6 @@ mod rehydrate;
 mod representation_description;
 mod types;
 
-#[path = "serialization.rs"]
 pub(crate) mod manifest;
 
 pub use generic_description::{

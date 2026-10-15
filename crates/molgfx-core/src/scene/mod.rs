@@ -33,7 +33,6 @@ mod rows;
 pub(crate) mod segmentation;
 pub(crate) mod selection;
 mod selection_lifecycle;
-#[path = "selection_state.rs"]
 pub(crate) mod selection_state;
 pub(crate) mod state;
 mod timeline;

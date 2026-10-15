@@ -12,11 +12,8 @@ use crate::{
     InteractionDirection, InteractionKind, MarkerShape, MeasurementKind, Scene,
 };
 use molgfx_math::Rgba8;
-#[path = "hash.rs"]
 mod hash;
-#[path = "primitive_records.rs"]
 mod primitive_records;
-#[path = "record_values.rs"]
 mod record_values;
 pub(crate) use hash::{label_hash, mesh_hash, value_hash};
 use primitive_records::primitive_description;

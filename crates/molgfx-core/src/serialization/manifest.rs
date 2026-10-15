@@ -19,7 +19,7 @@ use crate::{
 use molgfx_math::Rgba8;
 
 #[cfg(test)]
-#[path = "serialization_tests.rs"]
+#[path = "manifest_tests.rs"]
 mod tests;
 
 impl Scene {
