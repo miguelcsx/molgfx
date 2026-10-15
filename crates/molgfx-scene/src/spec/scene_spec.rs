@@ -80,6 +80,44 @@ pub struct SceneSpec {
 }
 
 impl SceneSpec {
+    /// The selection stored on one interaction channel.
+    pub(crate) fn interaction(&self, channel: &super::InteractionChannel) -> Option<&Selection> {
+        use super::InteractionChannel as Channel;
+        match channel {
+            Channel::Selected => self.selected.as_ref(),
+            Channel::Hovered => self.hovered.as_ref(),
+            Channel::Focused => self.focus.as_ref(),
+            Channel::Muted => self.muted.as_ref(),
+            Channel::Hidden => self.hidden.as_ref(),
+            Channel::Custom(name) => self.custom_interactions.get(name),
+        }
+    }
+
+    /// Replaces or clears the selection stored on one interaction channel.
+    pub(crate) fn set_interaction(
+        &mut self,
+        channel: &super::InteractionChannel,
+        selection: Option<&Selection>,
+    ) {
+        use super::InteractionChannel as Channel;
+        match channel {
+            Channel::Selected => self.selected = selection.cloned(),
+            Channel::Hovered => self.hovered = selection.cloned(),
+            Channel::Focused => self.focus = selection.cloned(),
+            Channel::Muted => self.muted = selection.cloned(),
+            Channel::Hidden => self.hidden = selection.cloned(),
+            Channel::Custom(name) => {
+                if let Some(selection) = selection {
+                    let _ = self
+                        .custom_interactions
+                        .insert(name.clone(), selection.clone());
+                } else {
+                    let _ = self.custom_interactions.remove(name);
+                }
+            }
+        }
+    }
+
     pub(crate) fn empty() -> Self {
         Self {
             revision: 0,

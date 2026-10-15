@@ -3,7 +3,7 @@
 
 use crate::error::{Error, PatchError};
 use crate::id::RepresentationId;
-use crate::spec::{InteractionChannel, PatchOperation, ScenePatch, SceneSpec, StructureSource};
+use crate::spec::{PatchOperation, ScenePatch, SceneSpec, StructureSource};
 use std::collections::BTreeMap;
 
 pub(crate) fn candidate_spec(current: &SceneSpec, patch: &ScenePatch) -> Result<SceneSpec, Error> {
@@ -53,22 +53,9 @@ pub(crate) fn apply_operation(
             candidate.revision = revision;
         }
         PatchOperation::SetFocus { selection } => candidate.focus.clone_from(selection),
-        PatchOperation::SetInteraction { channel, selection } => match channel {
-            InteractionChannel::Selected => candidate.selected.clone_from(selection),
-            InteractionChannel::Hovered => candidate.hovered.clone_from(selection),
-            InteractionChannel::Focused => candidate.focus.clone_from(selection),
-            InteractionChannel::Muted => candidate.muted.clone_from(selection),
-            InteractionChannel::Hidden => candidate.hidden.clone_from(selection),
-            InteractionChannel::Custom(name) => {
-                if let Some(selection) = selection {
-                    let _ = candidate
-                        .custom_interactions
-                        .insert(name.clone(), selection.clone());
-                } else {
-                    let _ = candidate.custom_interactions.remove(name);
-                }
-            }
-        },
+        PatchOperation::SetInteraction { channel, selection } => {
+            candidate.set_interaction(channel, selection.as_ref());
+        }
         PatchOperation::SetCamera { camera } => candidate.camera = *camera,
         PatchOperation::AddStructure { id, source } => {
             let descriptor = StructureSource {

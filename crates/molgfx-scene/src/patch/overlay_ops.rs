@@ -101,9 +101,7 @@ fn apply_overlay_item(
                 "annotation",
             )?;
         }
-        PatchOperation::RemoveAnnotation { id } => {
-            remove_existing(&mut candidate.annotations, id)?;
-        }
+        PatchOperation::RemoveAnnotation { id } => remove_existing(&mut candidate.annotations, id)?,
         PatchOperation::AddMeasurement { id, measurement } => {
             measurement.validate(candidate)?;
             insert_unique(
@@ -144,9 +142,7 @@ fn apply_overlay_item(
             spec.validate(candidate)?;
             insert_unique(&mut candidate.ellipsoids, *id, spec.clone(), "ellipsoid")?;
         }
-        PatchOperation::RemoveEllipsoids { id } => {
-            remove_existing(&mut candidate.ellipsoids, id)?;
-        }
+        PatchOperation::RemoveEllipsoids { id } => remove_existing(&mut candidate.ellipsoids, id)?,
         PatchOperation::AddPlane { id, spec } => {
             spec.validate(candidate)?;
             insert_unique(&mut candidate.planes, *id, *spec, "plane")?;

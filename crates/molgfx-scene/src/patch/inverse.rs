@@ -4,8 +4,7 @@
 use std::collections::BTreeMap;
 
 use crate::PatchOperation;
-use crate::representation::Selection;
-use crate::spec::{InteractionChannel, SceneSpec};
+use crate::spec::SceneSpec;
 
 type Inverse = Result<Vec<PatchOperation>, crate::Error>;
 
@@ -36,7 +35,7 @@ pub(super) fn inverse_operations(operation: &PatchOperation, base: &SceneSpec) -
         }),
         PatchOperation::SetInteraction { channel, .. } => one(PatchOperation::SetInteraction {
             channel: channel.clone(),
-            selection: interaction(base, channel).cloned(),
+            selection: base.interaction(channel).cloned(),
         }),
         PatchOperation::SetCamera { .. } => one(PatchOperation::SetCamera {
             camera: base.camera,
@@ -274,15 +273,4 @@ fn fetch<'a, K: Ord, V>(map: &'a BTreeMap<K, V>, id: &K) -> Result<&'a V, crate:
 
 fn one<T: From<Vec<PatchOperation>>>(operation: PatchOperation) -> T {
     T::from(vec![operation])
-}
-
-fn interaction<'a>(scene: &'a SceneSpec, channel: &InteractionChannel) -> Option<&'a Selection> {
-    match channel {
-        InteractionChannel::Selected => scene.selected.as_ref(),
-        InteractionChannel::Hovered => scene.hovered.as_ref(),
-        InteractionChannel::Focused => scene.focus.as_ref(),
-        InteractionChannel::Muted => scene.muted.as_ref(),
-        InteractionChannel::Hidden => scene.hidden.as_ref(),
-        InteractionChannel::Custom(name) => scene.custom_interactions.get(name),
-    }
 }
