@@ -8,7 +8,7 @@
 use crate::error::RenderError;
 use crate::passes::primitive_pipelines::{PrimitivePipelineSet, TRANSPARENT_ENTRIES};
 use crate::passes::segmentation_targets;
-use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
+use crate::passes::visual_pipelines::VisualPipelineSet;
 use crate::scene_gpu::{
     GENERIC_INSTANCE_CAPSULE, GENERIC_INSTANCE_SPHERE, SegmentationPipelineKey,
 };
@@ -191,11 +191,7 @@ pub(super) fn visual_pipeline<D: Device>(
             topology: PrimitiveTopology::TriangleList,
         })
     };
-    Ok(VisualPipelineSet::new(
-        build(&[])?,
-        build(&constants(false))?,
-        build(&constants(true))?,
-    ))
+    Ok(VisualPipelineSet::build(build)?)
 }
 
 pub(super) fn generic_instance_pipelines<D: Device>(

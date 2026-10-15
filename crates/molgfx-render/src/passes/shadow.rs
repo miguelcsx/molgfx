@@ -53,11 +53,7 @@ fn analytic_set<D: Device>(
             topology: PrimitiveTopology::TriangleList,
         })
     };
-    Ok(VisualPipelineSet::new(
-        build(&[])?,
-        build(&constants(false))?,
-        build(&constants(true))?,
-    ))
+    Ok(VisualPipelineSet::build(build)?)
 }
 
 fn ribbon_set<D: Device>(env: &PassEnv<'_, D>) -> Result<VisualPipelineSet<D>, RenderError> {
