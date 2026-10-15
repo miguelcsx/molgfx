@@ -170,8 +170,8 @@ fn reuses_whole_cull<D: Device>(scene: &crate::scene_gpu::GpuScene<D>) -> bool {
         && scene.paged_bond_cull().is_none()
 }
 
-include!("cull_timeline.rs");
-include!("cull_base.rs");
+include!("timeline.rs");
+include!("base.rs");
 
 struct PagedPipelines<D: Device> {
     reset: D::Pipeline,
@@ -348,8 +348,8 @@ impl<D: Device> InstancePipelines<D> {
     }
 }
 
-include!("cull_relations.rs");
-include!("cull_pipeline.rs");
+include!("relations.rs");
+include!("pipeline.rs");
 
 fn record_structures<D: Device, P: ComputePassEncoder<D>>(
     pass: &mut P,
@@ -470,4 +470,4 @@ fn record_instances<D: Device, P: ComputePassEncoder<D>>(
     }
 }
 
-include!("cull_paged.rs");
+include!("paged.rs");

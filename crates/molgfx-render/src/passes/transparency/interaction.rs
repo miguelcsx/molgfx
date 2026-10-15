@@ -75,7 +75,8 @@ impl<D: Device> InteractionPass<D> {
             return;
         };
         let passes = ctx.passes;
-        let Some(interaction) = ctx.build(&passes.interaction, super::build::interaction) else {
+        let Some(interaction) = ctx.build(&passes.interaction, crate::passes::build::interaction)
+        else {
             return;
         };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {

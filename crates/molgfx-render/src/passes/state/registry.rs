@@ -1,6 +1,6 @@
 //! Load-time state for every render pass.
 
-use super::{
+use crate::passes::{
     AmbientOcclusionPass, AoDenoisePass, BloomPass, BondPass, CartoonPass, CullPass,
     DepthOfFieldPass, HelixFitPass, InteractionPass, LabelPass, Lazy, LightingPass, MotionBlurPass,
     OccupancyPass, OitCompositePass, OitPass, OverlayPass, ParticleMotionPass, PointPass,

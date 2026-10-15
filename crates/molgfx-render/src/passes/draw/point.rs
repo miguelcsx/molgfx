@@ -100,7 +100,7 @@ impl<D: Device> PointPass<D> {
             return;
         }
         let passes = ctx.passes;
-        let Some(point) = ctx.build(&passes.point, super::build::point) else {
+        let Some(point) = ctx.build(&passes.point, crate::passes::build::point) else {
             return;
         };
         let Some(mut pass) = begin_gbuffer_pass(

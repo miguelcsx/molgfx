@@ -277,7 +277,7 @@ fn record<D: Device>(ctx: &mut PassContext<'_, D>, primitive: Primitive) {
     };
     let passes = ctx.passes;
     let Some(oit_pass) = ctx.build(&passes.oit, |env| {
-        super::build::oit(env, &passes.oit_layout)
+        crate::passes::build::oit(env, &passes.oit_layout)
     }) else {
         return;
     };

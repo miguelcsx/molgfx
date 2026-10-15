@@ -1,12 +1,12 @@
 //! How each lazily built pass is constructed from the device and the scene's
 //! bind group layouts.
 
-use super::{
+use crate::error::RenderError;
+use crate::graph::PassEnv;
+use crate::passes::{
     BondPass, CartoonPass, InteractionPass, LabelPass, OitPass, PointPass, PrimitivePass,
     SpherePass, SurfacePass,
 };
-use crate::error::RenderError;
-use crate::graph::PassEnv;
 use molgfx_gpu::Device;
 
 pub(crate) fn sphere<D: Device>(env: &PassEnv<'_, D>) -> Result<SpherePass<D>, RenderError> {

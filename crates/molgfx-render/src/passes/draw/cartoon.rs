@@ -70,7 +70,7 @@ impl<D: Device> CartoonPass<D> {
             return;
         }
         let passes = ctx.passes;
-        let Some(cartoon) = ctx.build(&passes.cartoon, super::build::cartoon) else {
+        let Some(cartoon) = ctx.build(&passes.cartoon, crate::passes::build::cartoon) else {
             return;
         };
         let Some(mut pass) = begin_gbuffer_pass(

@@ -130,7 +130,7 @@ impl<D: Device> PrimitivePass<D> {
             return;
         }
         let passes = ctx.passes;
-        let Some(primitive) = ctx.build(&passes.primitive, super::build::primitive) else {
+        let Some(primitive) = ctx.build(&passes.primitive, crate::passes::build::primitive) else {
             return;
         };
         let Some(mut pass) = begin_gbuffer_pass(

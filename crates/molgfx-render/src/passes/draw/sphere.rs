@@ -114,7 +114,7 @@ impl<D: Device> SpherePass<D> {
             return;
         }
         let passes = ctx.passes;
-        let Some(sphere) = ctx.build(&passes.sphere, super::build::sphere) else {
+        let Some(sphere) = ctx.build(&passes.sphere, crate::passes::build::sphere) else {
             return;
         };
         let Some(mut pass) = begin_gbuffer_pass(

@@ -6,7 +6,7 @@ use molgfx_gpu::{Device, PrimitiveTopology, RenderPipelineDesc, ShaderModuleDesc
 const VOLUME_MODE_CONSTANT: &str = "VOLUME_RENDER_MODE";
 
 #[derive(Debug)]
-pub(in crate::passes::oit) struct VolumePipelineSet<D: Device> {
+pub(in crate::passes::transparency::oit) struct VolumePipelineSet<D: Device> {
     direct: D::Pipeline,
     isosurface: D::Pipeline,
     medium: D::Pipeline,
@@ -19,7 +19,7 @@ pub(in crate::passes::oit) struct VolumePipelineSet<D: Device> {
 }
 
 impl<D: Device> VolumePipelineSet<D> {
-    pub(in crate::passes::oit) const fn get(
+    pub(in crate::passes::transparency::oit) const fn get(
         &self,
         rendering: VolumeRendering,
         geometry: GeometryKind,
@@ -38,7 +38,7 @@ impl<D: Device> VolumePipelineSet<D> {
     }
 }
 
-pub(in crate::passes::oit) fn volume_pipelines<D: Device>(
+pub(in crate::passes::transparency::oit) fn volume_pipelines<D: Device>(
     device: &D,
     group0: &D::BindGroupLayout,
     group1: &D::BindGroupLayout,

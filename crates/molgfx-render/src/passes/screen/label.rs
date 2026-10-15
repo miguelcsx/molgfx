@@ -52,7 +52,7 @@ impl<D: Device> LabelPass<D> {
             return;
         };
         let passes = ctx.passes;
-        let Some(label) = ctx.build(&passes.label, super::build::label) else {
+        let Some(label) = ctx.build(&passes.label, crate::passes::build::label) else {
             return;
         };
         let mut pass = ctx.encoder.begin_compute_pass(&ComputePassDesc {
@@ -79,7 +79,7 @@ impl<D: Device> LabelPass<D> {
             return;
         };
         let passes = ctx.passes;
-        let Some(label) = ctx.build(&passes.label, super::build::label) else {
+        let Some(label) = ctx.build(&passes.label, crate::passes::build::label) else {
             return;
         };
         let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {

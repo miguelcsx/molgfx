@@ -17,18 +17,22 @@ use molgfx_gpu::Device;
 #[path = "visual_pipelines_tests.rs"]
 mod tests;
 
-pub(super) const VISUAL_PROGRAM_CONSTANT: &str = "VISUAL_PROGRAM_ENABLED";
-pub(super) const VISUAL_FRAGMENT_CONSTANT: &str = "VISUAL_FRAGMENT_ENABLED";
+pub(in crate::passes) const VISUAL_PROGRAM_CONSTANT: &str = "VISUAL_PROGRAM_ENABLED";
+pub(in crate::passes) const VISUAL_FRAGMENT_CONSTANT: &str = "VISUAL_FRAGMENT_ENABLED";
 
 #[derive(Debug)]
-pub(super) struct VisualPipelineSet<D: Device> {
+pub(in crate::passes) struct VisualPipelineSet<D: Device> {
     built_in: D::Pipeline,
     entity: D::Pipeline,
     fragment: D::Pipeline,
 }
 
 impl<D: Device> VisualPipelineSet<D> {
-    pub(super) fn new(built_in: D::Pipeline, entity: D::Pipeline, fragment: D::Pipeline) -> Self {
+    pub(in crate::passes) fn new(
+        built_in: D::Pipeline,
+        entity: D::Pipeline,
+        fragment: D::Pipeline,
+    ) -> Self {
         Self {
             built_in,
             entity,
@@ -42,7 +46,7 @@ impl<D: Device> VisualPipelineSet<D> {
     /// # Errors
     ///
     /// The first error `build` returns.
-    pub(super) fn build<E>(
+    pub(in crate::passes) fn build<E>(
         mut build: impl FnMut(&[(&'static str, f64)]) -> Result<D::Pipeline, E>,
     ) -> Result<Self, E> {
         Ok(Self::new(
@@ -52,7 +56,7 @@ impl<D: Device> VisualPipelineSet<D> {
         ))
     }
 
-    pub(super) const fn get(&self, shading: SlotShading) -> &D::Pipeline {
+    pub(in crate::passes) const fn get(&self, shading: SlotShading) -> &D::Pipeline {
         if shading.fragment_visual() {
             &self.fragment
         } else if shading.visual() {
@@ -69,7 +73,7 @@ impl<D: Device> VisualPipelineSet<D> {
     /// only that stage's unit carries the marker; every other shading keeps the
     /// unconditional selection so a caller cannot route an entity or built-in
     /// draw onto generated code by mistake.
-    pub(super) fn select<'s>(
+    pub(in crate::passes) fn select<'s>(
         &'s self,
         shading: SlotShading,
         specialized: Option<&'s D::Pipeline>,
@@ -81,7 +85,7 @@ impl<D: Device> VisualPipelineSet<D> {
     }
 }
 
-pub(super) const fn constants(fragment: bool) -> [(&'static str, f64); 2] {
+pub(in crate::passes) const fn constants(fragment: bool) -> [(&'static str, f64); 2] {
     [
         (VISUAL_PROGRAM_CONSTANT, 1.0),
         (VISUAL_FRAGMENT_CONSTANT, if fragment { 1.0 } else { 0.0 }),

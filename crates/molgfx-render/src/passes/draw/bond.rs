@@ -95,7 +95,7 @@ impl<D: Device> BondPass<D> {
             return;
         }
         let passes = ctx.passes;
-        let Some(bond_pass) = ctx.build(&passes.bond, super::build::bond) else {
+        let Some(bond_pass) = ctx.build(&passes.bond, crate::passes::build::bond) else {
             return;
         };
         let Some(mut pass) = begin_gbuffer_pass(

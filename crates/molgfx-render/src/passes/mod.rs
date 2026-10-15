@@ -1,45 +1,32 @@
 //! Pass state: pipelines and bind groups created at load, recorded per
 //! frame through plain function pointers.
 
-mod ambient_occlusion;
-mod ao_denoise;
-mod bindings;
-mod bloom;
-mod bond;
-pub(crate) mod build;
-mod cartoon;
-mod clear;
 mod cull;
-mod depth_of_field;
-mod helix_fit;
-mod interaction;
-mod label;
-mod lazy;
-mod ligand_pose_pipelines;
-mod lighting;
-mod motion_blur;
-mod occupancy;
-mod oit;
-mod oit_composite;
-mod opaque_depth;
-mod overlay;
-mod particle_motion;
-mod point;
-mod primitive;
-mod primitive_pipelines;
-mod primitive_shadow_pipelines;
-mod registry;
-mod relation_resolve;
-mod resources;
-mod shadow;
-mod sphere;
-mod surface;
-mod surface_components;
-mod surface_field;
-mod temporal;
-mod tonemap;
-mod trajectory;
-mod visual_pipelines;
+mod deferred;
+mod draw;
+mod dynamics;
+mod pipelines;
+mod postprocess;
+mod screen;
+mod state;
+mod surfaces;
+mod transparency;
+
+use deferred::{clear, lighting, opaque_depth, shadow};
+use draw::{bond, cartoon, helix_fit, point, primitive, sphere};
+use dynamics::{occupancy, particle_motion, trajectory};
+use pipelines::{
+    ligand_pose_pipelines, primitive_pipelines, primitive_shadow_pipelines, relation_resolve,
+    visual_pipelines,
+};
+use postprocess::{
+    ambient_occlusion, ao_denoise, bloom, depth_of_field, motion_blur, temporal, tonemap,
+};
+use screen::{label, overlay};
+pub(crate) use state::build;
+use state::{bindings, lazy, registry, resources};
+use surfaces::{surface, surface_components, surface_field};
+use transparency::{interaction, oit, oit_composite};
 
 pub(crate) use ambient_occlusion::AmbientOcclusionPass;
 pub(crate) use ao_denoise::AoDenoisePass;

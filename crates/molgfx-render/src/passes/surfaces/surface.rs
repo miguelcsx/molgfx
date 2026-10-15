@@ -87,7 +87,7 @@ impl<D: Device> SurfacePass<D> {
             return;
         }
         let passes = ctx.passes;
-        let Some(surface) = ctx.build(&passes.surface, super::build::surface) else {
+        let Some(surface) = ctx.build(&passes.surface, crate::passes::build::surface) else {
             return;
         };
         let Some(mut pass) = begin_gbuffer_pass(
