@@ -5,7 +5,7 @@ use molgfx_core::{Relation, RowDomain, Scene, SpatialAnchor};
 use molgfx_math::Vec3;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub(super) enum AnchorKernel {
+pub(in crate::scene_gpu) enum AnchorKernel {
     World,
     Point,
     Atom,
@@ -13,14 +13,14 @@ pub(super) enum AnchorKernel {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub(super) struct StreamKey {
-    pub(super) start: AnchorKernel,
-    pub(super) end: AnchorKernel,
-    pub(super) start_domain: Option<RowDomain>,
-    pub(super) end_domain: Option<RowDomain>,
+pub(in crate::scene_gpu) struct StreamKey {
+    pub(in crate::scene_gpu) start: AnchorKernel,
+    pub(in crate::scene_gpu) end: AnchorKernel,
+    pub(in crate::scene_gpu) start_domain: Option<RowDomain>,
+    pub(in crate::scene_gpu) end_domain: Option<RowDomain>,
 }
 
-pub(super) fn stream_key(relation: Relation) -> StreamKey {
+pub(in crate::scene_gpu) fn stream_key(relation: Relation) -> StreamKey {
     StreamKey {
         start: anchor_kernel(relation.start),
         end: anchor_kernel(relation.end),
@@ -42,7 +42,7 @@ fn anchor_kernel(anchor: SpatialAnchor) -> AnchorKernel {
     }
 }
 
-pub(super) fn anchor_payload(
+pub(in crate::scene_gpu) fn anchor_payload(
     scene: &Scene,
     anchor: SpatialAnchor,
 ) -> Result<[f32; 4], RenderError> {
@@ -81,7 +81,7 @@ fn template_part_payload(
     ])
 }
 
-pub(super) fn pipeline_index(key: StreamKey) -> u8 {
+pub(in crate::scene_gpu) fn pipeline_index(key: StreamKey) -> u8 {
     kernel_index(key.start) * 4 + kernel_index(key.end)
 }
 

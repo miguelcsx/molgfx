@@ -11,7 +11,7 @@ mod tests;
 
 const EPSILON: f32 = 1.0e-4;
 
-pub(super) fn append_caps(
+pub(in crate::scene_gpu) fn append_caps(
     vertices: &mut Vec<RibbonVertex>,
     indices: &mut Vec<u32>,
     vertex_range: Range<usize>,

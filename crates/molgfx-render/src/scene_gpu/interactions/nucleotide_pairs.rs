@@ -3,7 +3,7 @@
 use crate::RenderError;
 use molgfx_core::AtomSelection;
 
-pub(super) fn selected_pairs(
+pub(in crate::scene_gpu) fn selected_pairs(
     structure: &molframe::Structure,
     selection: &AtomSelection,
 ) -> Result<AtomSelection, RenderError> {

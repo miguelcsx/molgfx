@@ -6,8 +6,8 @@
 //! per family before any pass records, and each draw carries the pipeline its own
 //! family resolved to.
 
-use super::slot_types::SlotShading;
 use crate::engine::pipeline_cache::SpecializationKey;
+use crate::scene_gpu::slot_types::SlotShading;
 use molgfx_gpu::Device;
 
 /// Which generated pipeline a draw may use, named by the family that draws it.

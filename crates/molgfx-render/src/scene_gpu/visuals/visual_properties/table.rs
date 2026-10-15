@@ -1,7 +1,7 @@
 //! The persistent, deduplicated property table of a scene.
 
-use super::super::grow_buffer::GrowBuffer;
 use super::{AttributeTimelineGpu, PropertyColumn, StateColumn};
+use crate::scene_gpu::grow_buffer::GrowBuffer;
 use molgfx_core::VisualAttributeRef;
 use molgfx_gpu::Device;
 

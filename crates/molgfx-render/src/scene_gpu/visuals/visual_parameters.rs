@@ -5,28 +5,32 @@
 //! composition changes, and a parameter edit is one direct subrange write with
 //! no allocation or host-side table rebuild.
 
-use super::grow_buffer::GrowBuffer;
 use crate::error::RenderError;
+use crate::scene_gpu::grow_buffer::GrowBuffer;
 use molgfx_core::MAX_VISUAL_PARAMETERS;
 use molgfx_gpu::Device;
 
 const PARAMETER_LANE_BYTES: u64 = std::mem::size_of::<[f32; 4]>() as u64;
 
 #[derive(Debug)]
-pub(super) struct VisualParameterTable<D: Device> {
+pub(in crate::scene_gpu) struct VisualParameterTable<D: Device> {
     buffer: GrowBuffer<D>,
     binding_revision: u64,
 }
 
 impl<D: Device> VisualParameterTable<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             buffer: GrowBuffer::new(),
             binding_revision: 0,
         }
     }
 
-    pub(super) fn reserve(&mut self, device: &D, slots: usize) -> Result<bool, RenderError> {
+    pub(in crate::scene_gpu) fn reserve(
+        &mut self,
+        device: &D,
+        slots: usize,
+    ) -> Result<bool, RenderError> {
         let slot_count =
             u64::try_from(slots.max(1)).map_err(|_| molgfx_gpu::GpuError::LimitExceeded {
                 resource: "visual parameter slots",
@@ -44,16 +48,16 @@ impl<D: Device> VisualParameterTable<D> {
         Ok(rebound)
     }
 
-    pub(super) const fn buffer(&self) -> Option<&D::Buffer> {
+    pub(in crate::scene_gpu) const fn buffer(&self) -> Option<&D::Buffer> {
         self.buffer.get()
     }
 
-    pub(super) fn offset(slot: usize) -> u32 {
+    pub(in crate::scene_gpu) fn offset(slot: usize) -> u32 {
         let lanes = slot.saturating_mul(MAX_VISUAL_PARAMETERS);
         crate::fallback(u32::try_from(lanes), u32::MAX)
     }
 
-    pub(super) const fn binding_revision(&self) -> u64 {
+    pub(in crate::scene_gpu) const fn binding_revision(&self) -> u64 {
         self.binding_revision
     }
 }

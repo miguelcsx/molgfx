@@ -1,19 +1,19 @@
 //! One revision-diffed GPU table for analytic primitives.
 
-use super::buffers::{count, ensure_upload_buffer};
 use super::primitive_draw::{PackedPrimitive, PrimitiveDrawGroup, regroup};
 use super::primitive_packing::{pack_primitive, placement_revision};
-use super::structure::GpuStructure;
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::{count, ensure_upload_buffer};
+use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::{ParticleMotionGpu, PrimitiveGpu, Scene};
 use molgfx_gpu::{BindGroupDesc, BindGroupEntry, Device, Queue};
 
 /// The three bind-group layouts a primitive sync binds: the gbuffer table, the
 /// particle-motion compute group, and the shadow-caster group.
-pub(super) struct PrimitiveLayouts<'a, D: Device> {
-    pub(super) table: &'a D::BindGroupLayout,
-    pub(super) motion: &'a D::BindGroupLayout,
-    pub(super) shadow: &'a D::BindGroupLayout,
+pub(in crate::scene_gpu) struct PrimitiveLayouts<'a, D: Device> {
+    pub(in crate::scene_gpu) table: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) motion: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) shadow: &'a D::BindGroupLayout,
 }
 /// Above this count, realtime shadows use SSAO/contact shadows instead of a
 /// second full primitive raster. Converged mode retains the complete caster set.
@@ -25,7 +25,7 @@ const RETAINED_STAGING_BYTES: usize = 8 * 1024 * 1024;
 mod tests;
 
 #[derive(Debug)]
-pub(super) struct GpuPrimitives<D: Device> {
+pub(in crate::scene_gpu) struct GpuPrimitives<D: Device> {
     buffer: Option<D::Buffer>,
     previous: Option<D::Buffer>,
     motion: Option<D::Buffer>,
@@ -48,7 +48,7 @@ pub(super) struct GpuPrimitives<D: Device> {
 }
 
 impl<D: Device> GpuPrimitives<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             buffer: None,
             previous: None,
@@ -72,7 +72,7 @@ impl<D: Device> GpuPrimitives<D> {
         }
     }
 
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -252,7 +252,7 @@ impl<D: Device> GpuPrimitives<D> {
     }
 
     /// The shadow table and exact opaque class ranges.
-    pub(super) fn shadow_draw(
+    pub(in crate::scene_gpu) fn shadow_draw(
         &self,
         quality: bool,
     ) -> Option<(&D::BindGroup, &[PrimitiveDrawGroup])> {
@@ -262,15 +262,15 @@ impl<D: Device> GpuPrimitives<D> {
 
     /// The shape-sorted table with its per-class draw ranges, for the
     /// specialized gbuffer and transparency passes.
-    pub(super) fn groups(&self) -> Option<(&D::BindGroup, &[PrimitiveDrawGroup])> {
+    pub(in crate::scene_gpu) fn groups(&self) -> Option<(&D::BindGroup, &[PrimitiveDrawGroup])> {
         (self.count > 0).then_some((self.group.as_ref()?, self.groups.as_slice()))
     }
 
-    pub(super) fn particle_motion(&self) -> Option<(&D::BindGroup, u32)> {
+    pub(in crate::scene_gpu) fn particle_motion(&self) -> Option<(&D::BindGroup, u32)> {
         (self.motion_count > 0).then_some((self.motion_group.as_ref()?, self.count))
     }
 
-    pub(super) const fn has_translucency(&self) -> bool {
+    pub(in crate::scene_gpu) const fn has_translucency(&self) -> bool {
         self.translucent
     }
 }

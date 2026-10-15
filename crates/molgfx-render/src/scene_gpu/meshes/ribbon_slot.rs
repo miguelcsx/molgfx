@@ -1,12 +1,12 @@
 //! Persistent GPU storage for one cartoon representation slot.
 
-use super::asset_arena::AssetArena;
-use super::buffers::count;
-use super::grow_buffer::GrowBuffer;
-use super::indexed_draw::{IndexedDraw, write_arguments};
-use super::structure::GpuStructure;
-use super::uniforms::ClipUniforms;
-use super::visual::VisualCullEntries;
+use crate::scene_gpu::asset_arena::AssetArena;
+use crate::scene_gpu::buffers::count;
+use crate::scene_gpu::grow_buffer::GrowBuffer;
+use crate::scene_gpu::indexed_draw::{IndexedDraw, write_arguments};
+use crate::scene_gpu::structure::GpuStructure;
+use crate::scene_gpu::uniforms::ClipUniforms;
+use crate::scene_gpu::visual::VisualCullEntries;
 mod helix;
 mod molecular_surface;
 use crate::error::RenderError;
@@ -17,7 +17,7 @@ use molgfx_geometry::{RibbonMesh, RibbonParams, SplineProfile};
 use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
 
 #[derive(Debug)]
-pub(super) struct RibbonSlot<D: Device> {
+pub(in crate::scene_gpu) struct RibbonSlot<D: Device> {
     vertices: GrowBuffer<D>,
     indices: GrowBuffer<D>,
     deformations: GrowBuffer<D>,
@@ -32,7 +32,7 @@ pub(super) struct RibbonSlot<D: Device> {
 }
 
 impl<D: Device> RibbonSlot<D> {
-    pub(super) fn new() -> Self {
+    pub(in crate::scene_gpu) fn new() -> Self {
         Self {
             vertices: GrowBuffer::new(),
             indices: GrowBuffer::index(),
@@ -48,7 +48,10 @@ impl<D: Device> RibbonSlot<D> {
         }
     }
 
-    pub(super) fn sync(&mut self, input: &mut RibbonSync<'_, D>) -> Result<(), RenderError> {
+    pub(in crate::scene_gpu) fn sync(
+        &mut self,
+        input: &mut RibbonSync<'_, D>,
+    ) -> Result<(), RenderError> {
         prepare_geometry(input)?;
         self.index_count = count(input.mesh.indices.len());
         self.vertices.upload(
@@ -99,7 +102,7 @@ impl<D: Device> RibbonSlot<D> {
         Ok(())
     }
 
-    pub(super) fn sync_clipping(
+    pub(in crate::scene_gpu) fn sync_clipping(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -122,7 +125,7 @@ impl<D: Device> RibbonSlot<D> {
         Ok(())
     }
 
-    pub(super) fn bind(
+    pub(in crate::scene_gpu) fn bind(
         &mut self,
         device: &D,
         layout: &D::BindGroupLayout,
@@ -199,7 +202,7 @@ impl<D: Device> RibbonSlot<D> {
         }));
     }
 
-    pub(super) fn draw(&self) -> Option<IndexedDraw<'_, D>> {
+    pub(in crate::scene_gpu) fn draw(&self) -> Option<IndexedDraw<'_, D>> {
         (self.index_count > 0).then_some(IndexedDraw {
             group: self.group.as_ref()?,
             arguments: self.args.as_ref()?,
@@ -327,7 +330,7 @@ fn append_nucleotide_geometry<D: Device>(input: &mut RibbonSync<'_, D>) -> Resul
         RepresentationKind::Bases | RepresentationKind::BasePairs
     ) {
         let paired = if input.representation.kind == RepresentationKind::BasePairs {
-            Some(super::nucleotide_pairs::selected_pairs(
+            Some(crate::scene_gpu::nucleotide_pairs::selected_pairs(
                 structure,
                 input.selection,
             )?)
@@ -371,7 +374,10 @@ const TWISTER_MAX_STEPS: u8 = 32;
 /// ribbon is rebuilt on the rare edit that changes it.
 const RETAINED_SCRATCH_VERTICES: usize = 32_768;
 
-pub(super) fn spline_params(representation: &Representation, steps: u8) -> RibbonParams {
+pub(in crate::scene_gpu) fn spline_params(
+    representation: &Representation,
+    steps: u8,
+) -> RibbonParams {
     let color = match representation.color {
         ColorScheme::Uniform(color) => molgfx_math::Rgba8::new(color.r, color.g, color.b, u8::MAX),
         _ => molgfx_math::Rgba8::new(110, 165, 235, u8::MAX),
@@ -445,17 +451,17 @@ pub(super) fn spline_params(representation: &Representation, steps: u8) -> Ribbo
     }
 }
 
-pub(super) struct RibbonSync<'a, D: Device> {
+pub(in crate::scene_gpu) struct RibbonSync<'a, D: Device> {
     /// Maximum samples per trace interval the quality tier allows.
-    pub(super) ribbon_steps: u8,
-    pub(super) device: &'a D,
-    pub(super) queue: &'a D::Queue,
-    pub(super) placed: &'a PlacedStructure,
-    pub(super) representation: &'a Representation,
-    pub(super) selection: &'a AtomSelection,
-    pub(super) mesh: &'a mut RibbonMesh,
+    pub(in crate::scene_gpu) ribbon_steps: u8,
+    pub(in crate::scene_gpu) device: &'a D,
+    pub(in crate::scene_gpu) queue: &'a D::Queue,
+    pub(in crate::scene_gpu) placed: &'a PlacedStructure,
+    pub(in crate::scene_gpu) representation: &'a Representation,
+    pub(in crate::scene_gpu) selection: &'a AtomSelection,
+    pub(in crate::scene_gpu) mesh: &'a mut RibbonMesh,
     /// The columns the colour scheme, its overlay and its appearance read.
-    pub(super) color: molgfx_geometry::ColorContext<'a>,
+    pub(in crate::scene_gpu) color: molgfx_geometry::ColorContext<'a>,
 }
 
 #[cfg(test)]

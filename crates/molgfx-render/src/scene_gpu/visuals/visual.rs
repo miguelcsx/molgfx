@@ -5,8 +5,8 @@
 //! parameter block, result table and configuration, so parameter edits never
 //! duplicate program storage or reallocate entity-scale buffers.
 
-use super::buffers::ensure_upload_buffer;
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::ensure_upload_buffer;
 use molgfx_core::{Representation, VisualInstructionGpu, VisualOutput, VisualStyle};
 use molgfx_gpu::{BufferDesc, BufferUsage, Device, Queue};
 
@@ -25,23 +25,23 @@ const MISSING_REGISTER: u32 = u32::MAX;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct VisualConfig {
-    pub(super) counts: [u32; 4],
-    pub(super) outputs0: [u32; 4],
-    pub(super) outputs1: [u32; 4],
-    pub(super) outputs2: [u32; 4],
-    pub(super) base_color: [f32; 4],
-    pub(super) material: [f32; 4],
-    pub(super) uniform_emission: [f32; 4],
-    pub(super) uniform_geometry: [f32; 4],
-    pub(super) uniform_offset: [f32; 4],
-    pub(super) presentation: [f32; 4],
-    pub(super) property_offsets: [u32; 4],
-    pub(super) attribute_layouts: [u32; 4],
-    pub(super) property_end_offsets: [u32; 4],
-    pub(super) property_alphas: [f32; 4],
-    pub(super) arena_offsets: [u32; 4],
-    pub(super) result_layout: [u32; 4],
+pub(in super::super) struct VisualConfig {
+    pub(in super::super) counts: [u32; 4],
+    pub(in super::super) outputs0: [u32; 4],
+    pub(in super::super) outputs1: [u32; 4],
+    pub(in super::super) outputs2: [u32; 4],
+    pub(in super::super) base_color: [f32; 4],
+    pub(in super::super) material: [f32; 4],
+    pub(in super::super) uniform_emission: [f32; 4],
+    pub(in super::super) uniform_geometry: [f32; 4],
+    pub(in super::super) uniform_offset: [f32; 4],
+    pub(in super::super) presentation: [f32; 4],
+    pub(in super::super) property_offsets: [u32; 4],
+    pub(in super::super) attribute_layouts: [u32; 4],
+    pub(in super::super) property_end_offsets: [u32; 4],
+    pub(in super::super) property_alphas: [f32; 4],
+    pub(in super::super) arena_offsets: [u32; 4],
+    pub(in super::super) result_layout: [u32; 4],
 }
 
 impl Default for VisualConfig {
@@ -68,7 +68,7 @@ impl Default for VisualConfig {
 }
 
 #[derive(Debug)]
-pub(super) struct VisualSlot<D: Device> {
+pub(in super::super) struct VisualSlot<D: Device> {
     results: Option<D::Buffer>,
     config: Option<D::Buffer>,
     fragment_program: Option<D::Buffer>,
@@ -81,13 +81,13 @@ pub(super) struct VisualSlot<D: Device> {
     binding_revision: u64,
 }
 
-pub(super) struct VisualCullEntries<'a, D: Device> {
-    pub(super) instructions: &'a D::Buffer,
-    pub(super) parameters: &'a D::Buffer,
-    pub(super) properties: &'a D::Buffer,
-    pub(super) results: &'a D::Buffer,
-    pub(super) config: &'a D::Buffer,
-    pub(super) fragment_program: &'a D::Buffer,
+pub(in super::super) struct VisualCullEntries<'a, D: Device> {
+    pub(in super::super) instructions: &'a D::Buffer,
+    pub(in super::super) parameters: &'a D::Buffer,
+    pub(in super::super) properties: &'a D::Buffer,
+    pub(in super::super) results: &'a D::Buffer,
+    pub(in super::super) config: &'a D::Buffer,
+    pub(in super::super) fragment_program: &'a D::Buffer,
 }
 
 impl<D: Device> Copy for VisualCullEntries<'_, D> {}
@@ -102,7 +102,7 @@ impl<D: Device> Clone for VisualCullEntries<'_, D> {
 /// The specialized built-in pipeline never reads it; sharing it avoids five
 /// placeholder allocations per caller mesh.
 #[derive(Debug)]
-pub(super) struct VisualFallback<D: Device> {
+pub(in super::super) struct VisualFallback<D: Device> {
     instructions: D::Buffer,
     parameters: D::Buffer,
     properties: D::Buffer,
@@ -113,7 +113,7 @@ pub(super) struct VisualFallback<D: Device> {
 }
 
 impl<D: Device> VisualFallback<D> {
-    pub(super) fn new(device: &D) -> Result<Self, RenderError> {
+    pub(in super::super) fn new(device: &D) -> Result<Self, RenderError> {
         let storage = |label, size| {
             device.create_buffer(&BufferDesc {
                 label,
@@ -140,7 +140,7 @@ impl<D: Device> VisualFallback<D> {
         })
     }
 
-    pub(super) fn sync(&mut self, queue: &D::Queue) -> bool {
+    pub(in super::super) fn sync(&mut self, queue: &D::Queue) -> bool {
         if self.initialized {
             return false;
         }
@@ -162,7 +162,7 @@ impl<D: Device> VisualFallback<D> {
         true
     }
 
-    pub(super) const fn entries(&self) -> VisualCullEntries<'_, D> {
+    pub(in super::super) const fn entries(&self) -> VisualCullEntries<'_, D> {
         VisualCullEntries {
             instructions: &self.instructions,
             parameters: &self.parameters,
@@ -174,38 +174,38 @@ impl<D: Device> VisualFallback<D> {
     }
 }
 
-pub(super) struct VisualSync<'a, D: Device> {
-    pub(super) device: &'a D,
-    pub(super) queue: &'a D::Queue,
-    pub(super) style: Option<&'a VisualStyle>,
-    pub(super) program_offset: u32,
-    pub(super) parameter_buffer: &'a D::Buffer,
-    pub(super) parameter_offset: u32,
-    pub(super) parameters_preloaded: bool,
+pub(in super::super) struct VisualSync<'a, D: Device> {
+    pub(in super::super) device: &'a D,
+    pub(in super::super) queue: &'a D::Queue,
+    pub(in super::super) style: Option<&'a VisualStyle>,
+    pub(in super::super) program_offset: u32,
+    pub(in super::super) parameter_buffer: &'a D::Buffer,
+    pub(in super::super) parameter_offset: u32,
+    pub(in super::super) parameters_preloaded: bool,
     /// Word offset of this structure's interaction-state column in the property
     /// arena. One addresses the missing-value slot, which reads as no state bits.
-    pub(super) state_offset: u32,
-    pub(super) property_offsets: [u32; 4],
-    pub(super) attribute_layouts: [u32; 4],
-    pub(super) property_end_offsets: [u32; 4],
-    pub(super) property_alphas: [f32; 4],
-    pub(super) time_seconds: f32,
+    pub(in super::super) state_offset: u32,
+    pub(in super::super) property_offsets: [u32; 4],
+    pub(in super::super) attribute_layouts: [u32; 4],
+    pub(in super::super) property_end_offsets: [u32; 4],
+    pub(in super::super) property_alphas: [f32; 4],
+    pub(in super::super) time_seconds: f32,
     /// The structure's own track phase and display time, in `f64` until the uniform write.
-    pub(super) track: molgfx_core::TrackClock,
-    pub(super) entity_count: usize,
-    pub(super) result_count: usize,
-    pub(super) base: VisualBase,
+    pub(in super::super) track: molgfx_core::TrackClock,
+    pub(in super::super) entity_count: usize,
+    pub(in super::super) result_count: usize,
+    pub(in super::super) base: VisualBase,
 }
 
 /// Drawable-specific fallback inputs kept outside the generic program.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(super) struct VisualBase {
+pub(in super::super) struct VisualBase {
     color: [f32; 4],
     material: [f32; 4],
 }
 
 impl VisualBase {
-    pub(super) fn representation(value: &Representation) -> Self {
+    pub(in super::super) fn representation(value: &Representation) -> Self {
         let lanes = value.material.model_lanes();
         Self {
             color: representation_base_color(value),
@@ -218,7 +218,7 @@ impl VisualBase {
         }
     }
 
-    pub(super) fn rgba8_opacity(color: molgfx_math::Rgba8, opacity: f32) -> Self {
+    pub(in super::super) fn rgba8_opacity(color: molgfx_math::Rgba8, opacity: f32) -> Self {
         let scale = 1.0 / 255.0;
         Self {
             color: [
@@ -250,7 +250,7 @@ struct VisualConfigInput<'a> {
 }
 
 impl<D: Device> VisualSlot<D> {
-    pub(super) fn new() -> Self {
+    pub(in super::super) fn new() -> Self {
         Self {
             results: None,
             config: None,
@@ -265,23 +265,23 @@ impl<D: Device> VisualSlot<D> {
         }
     }
 
-    pub(super) fn entity_count(&self) -> usize {
+    pub(in super::super) fn entity_count(&self) -> usize {
         self.entity_count
     }
 
-    pub(super) const fn has_cull_results(&self) -> bool {
+    pub(in super::super) const fn has_cull_results(&self) -> bool {
         self.config_value.result_layout[0] & (RESULT_GEOMETRY | RESULT_OFFSET) != 0
     }
 
-    pub(super) const fn has_shading_results(&self) -> bool {
+    pub(in super::super) const fn has_shading_results(&self) -> bool {
         self.config_value.result_layout[0] & (RESULT_COLOR | RESULT_EMISSION | RESULT_RESPONSE) != 0
     }
 
-    pub(super) const fn binding_revision(&self) -> u64 {
+    pub(in super::super) const fn binding_revision(&self) -> u64 {
         self.binding_revision
     }
 
-    pub(super) fn cull_entries<'a>(
+    pub(in super::super) fn cull_entries<'a>(
         &'a self,
         instructions: &'a D::Buffer,
         parameters: &'a D::Buffer,
@@ -297,7 +297,7 @@ impl<D: Device> VisualSlot<D> {
         })
     }
 
-    pub(super) fn sync(&mut self, input: &VisualSync<'_, D>) -> Result<bool, RenderError> {
+    pub(in super::super) fn sync(&mut self, input: &VisualSync<D>) -> Result<bool, RenderError> {
         let Some(style) = input.style else {
             let changed = self.ensure_fallback(input.device, input.queue, input.state_offset)?;
             self.entity_count = input.entity_count;

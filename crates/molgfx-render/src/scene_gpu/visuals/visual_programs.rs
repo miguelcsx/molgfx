@@ -6,8 +6,8 @@
 //! offset from per-draw configuration. A million entities therefore do not
 //! duplicate program storage or add CPU work.
 
-use super::grow_buffer::GrowBuffer;
 use crate::error::RenderError;
+use crate::scene_gpu::grow_buffer::GrowBuffer;
 use molgfx_core::{Scene, VisualInstructionGpu, VisualProgram};
 use molgfx_gpu::Device;
 
@@ -22,7 +22,7 @@ struct ResidentProgram {
 }
 
 #[derive(Debug)]
-pub(super) struct VisualProgramTable<D: Device> {
+pub(in crate::scene_gpu) struct VisualProgramTable<D: Device> {
     buffer: GrowBuffer<D>,
     programs: Vec<ResidentProgram>,
     instructions: Vec<VisualInstructionGpu>,
@@ -32,7 +32,7 @@ pub(super) struct VisualProgramTable<D: Device> {
 }
 
 impl<D: Device> VisualProgramTable<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             buffer: GrowBuffer::new(),
             programs: Vec::new(),
@@ -43,7 +43,7 @@ impl<D: Device> VisualProgramTable<D> {
         }
     }
 
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -106,18 +106,18 @@ impl<D: Device> VisualProgramTable<D> {
         Ok(true)
     }
 
-    pub(super) fn offset(&self, program: &VisualProgram) -> Option<u32> {
+    pub(in crate::scene_gpu) fn offset(&self, program: &VisualProgram) -> Option<u32> {
         self.programs
             .iter()
             .find(|resident| resident.program == *program)
             .map(|resident| resident.offset)
     }
 
-    pub(super) const fn buffer(&self) -> Option<&D::Buffer> {
+    pub(in crate::scene_gpu) const fn buffer(&self) -> Option<&D::Buffer> {
         self.buffer.get()
     }
 
-    pub(super) const fn binding_revision(&self) -> u64 {
+    pub(in crate::scene_gpu) const fn binding_revision(&self) -> u64 {
         self.binding_revision
     }
 }

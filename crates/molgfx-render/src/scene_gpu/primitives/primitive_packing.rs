@@ -10,7 +10,7 @@ use molgfx_math::{Mat3, Mat4, Quat, Vec3};
 #[path = "primitive_packing_tests.rs"]
 mod tests;
 
-pub(super) fn pack_primitive(
+pub(in crate::scene_gpu) fn pack_primitive(
     primitive: Primitive,
     row: u32,
     pick_page: u32,
@@ -26,7 +26,8 @@ pub(super) fn pack_primitive(
         } => pack_ellipsoid(value, color.to_f32(), opacity, entity_id, pick_page, model)
             .map(|record| (record, ParticleMotionGpu::default())),
         Primitive::Carbohydrate(value) => {
-            let (family, draw_shape) = super::snfg_class::carbohydrate_class(value.shape);
+            let (family, draw_shape) =
+                crate::scene_gpu::snfg_class::carbohydrate_class(value.shape);
             pack_oriented(
                 OrientedPrimitive {
                     center: value.center,
@@ -36,7 +37,10 @@ pub(super) fn pack_primitive(
                     primitive: family,
                     shape: draw_shape,
                     parameters: [0.0; 2],
-                    secondary: super::snfg_class::secondary_split(value.shape, value.secondary),
+                    secondary: crate::scene_gpu::snfg_class::secondary_split(
+                        value.shape,
+                        value.secondary,
+                    ),
                 },
                 entity_id,
                 pick_page,
@@ -251,7 +255,7 @@ fn with_opacity(mut color: [f32; 4], opacity: f32) -> [f32; 4] {
     color
 }
 
-pub(super) fn placement_revision(scene: &Scene) -> u64 {
+pub(in crate::scene_gpu) fn placement_revision(scene: &Scene) -> u64 {
     let mut hash = 14_695_981_039_346_656_037u64;
     for (handle, placed) in scene.structures() {
         hash ^= u64::from(handle.row());

@@ -9,19 +9,21 @@ mod paged_visual;
 use coordinates::RelationCullConfig;
 pub(in crate::scene_gpu) use paged::PagedRelationSync;
 
-use super::asset_arena::AssetArena;
-use super::buffers::{count, write_draw_args};
-use super::dispatch::workgroups_2d;
-use super::generic_visual::{GenericVisualResources, GenericVisualState, GenericVisualTarget};
-use super::grow_buffer::GrowBuffer;
-use super::instance_batch_table::GpuInstanceBatches;
-use super::picking_pages::PickPages;
-use super::point_batch_table::GpuPointBatches;
 use super::relation_anchor::{StreamKey, anchor_payload, pipeline_index, stream_key};
-use super::structure::GpuStructure;
-use super::uniforms::ModelUniforms;
-use super::visual::VisualCullEntries;
 use crate::error::RenderError;
+use crate::scene_gpu::asset_arena::AssetArena;
+use crate::scene_gpu::buffers::{count, write_draw_args};
+use crate::scene_gpu::dispatch::workgroups_2d;
+use crate::scene_gpu::generic_visual::{
+    GenericVisualResources, GenericVisualState, GenericVisualTarget,
+};
+use crate::scene_gpu::grow_buffer::GrowBuffer;
+use crate::scene_gpu::instance_batch_table::GpuInstanceBatches;
+use crate::scene_gpu::picking_pages::PickPages;
+use crate::scene_gpu::point_batch_table::GpuPointBatches;
+use crate::scene_gpu::structure::GpuStructure;
+use crate::scene_gpu::uniforms::ModelUniforms;
+use crate::scene_gpu::visual::VisualCullEntries;
 use molgfx_core::{
     ChunkId, DatasetId, EntityKind, InteractionGpu, RelationBatchHandle, RowDomain, Scene,
 };
@@ -111,7 +113,7 @@ struct RelationCullStream<D: Device> {
 }
 
 #[derive(Debug)]
-pub(super) struct GpuInteractions<D: Device> {
+pub(in crate::scene_gpu) struct GpuInteractions<D: Device> {
     base: GrowBuffer<D>,
     buffer: GrowBuffer<D>,
     visible: GrowBuffer<D>,
@@ -144,25 +146,25 @@ pub(super) struct GpuInteractions<D: Device> {
     resolver_scratch: Vec<RelationResolverGpu>,
 }
 
-pub(super) struct RelationSources<'a, D: Device> {
-    pub(super) structures: &'a [GpuStructure<D>],
-    pub(super) asset_arena: &'a AssetArena<D>,
-    pub(super) points: &'a GpuPointBatches<D>,
-    pub(super) instances: &'a GpuInstanceBatches<D>,
+pub(in crate::scene_gpu) struct RelationSources<'a, D: Device> {
+    pub(in crate::scene_gpu) structures: &'a [GpuStructure<D>],
+    pub(in crate::scene_gpu) asset_arena: &'a AssetArena<D>,
+    pub(in crate::scene_gpu) points: &'a GpuPointBatches<D>,
+    pub(in crate::scene_gpu) instances: &'a GpuInstanceBatches<D>,
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct RelationSync<'a, D: Device> {
-    pub(super) device: &'a D,
-    pub(super) queue: &'a D::Queue,
-    pub(super) render_layout: &'a D::BindGroupLayout,
-    pub(super) cull_layout: &'a D::BindGroupLayout,
-    pub(super) resolve_layout: &'a D::BindGroupLayout,
-    pub(super) scene: &'a Scene,
-    pub(super) sources: RelationSources<'a, D>,
-    pub(super) picking: &'a PickPages,
-    pub(super) dynamic_sources_changed: bool,
-    pub(super) visual: GenericVisualResources<'a, D>,
+pub(in crate::scene_gpu) struct RelationSync<'a, D: Device> {
+    pub(in crate::scene_gpu) device: &'a D,
+    pub(in crate::scene_gpu) queue: &'a D::Queue,
+    pub(in crate::scene_gpu) render_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) cull_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) resolve_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) scene: &'a Scene,
+    pub(in crate::scene_gpu) sources: RelationSources<'a, D>,
+    pub(in crate::scene_gpu) picking: &'a PickPages,
+    pub(in crate::scene_gpu) dynamic_sources_changed: bool,
+    pub(in crate::scene_gpu) visual: GenericVisualResources<'a, D>,
 }
 
 impl<D: Device> Copy for RelationSources<'_, D> {}
@@ -174,7 +176,7 @@ impl<D: Device> Clone for RelationSources<'_, D> {
 }
 
 impl<D: Device> GpuInteractions<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             base: GrowBuffer::new(),
             buffer: GrowBuffer::new(),
@@ -209,7 +211,10 @@ impl<D: Device> GpuInteractions<D> {
         }
     }
 
-    pub(super) fn sync(&mut self, input: &RelationSync<'_, D>) -> Result<bool, RenderError> {
+    pub(in crate::scene_gpu) fn sync(
+        &mut self,
+        input: &RelationSync<'_, D>,
+    ) -> Result<bool, RenderError> {
         let RelationSync {
             device,
             queue,

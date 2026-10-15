@@ -1,30 +1,30 @@
 //! Shared visual-program lowering for generic homogeneous row domains.
 
-use super::slot_types::SlotShading;
-use super::visual::{VisualBase, VisualCullEntries, VisualSlot, VisualSync};
-use super::visual_parameters::VisualParameterTable;
-use super::visual_programs::VisualProgramTable;
-use super::visual_properties::VisualPropertyTable;
 use crate::error::RenderError;
+use crate::scene_gpu::slot_types::SlotShading;
+use crate::scene_gpu::visual::{VisualBase, VisualCullEntries, VisualSlot, VisualSync};
+use crate::scene_gpu::visual_parameters::VisualParameterTable;
+use crate::scene_gpu::visual_programs::VisualProgramTable;
+use crate::scene_gpu::visual_properties::VisualPropertyTable;
 use molgfx_core::{RowDomain, Scene, VisualOutput};
 use molgfx_gpu::Device;
 use molgfx_math::Rgba8;
 
-pub(super) struct GenericVisualResources<'a, D: Device> {
-    pub(super) programs: &'a VisualProgramTable<D>,
-    pub(super) parameters: &'a VisualParameterTable<D>,
-    pub(super) properties: &'a VisualPropertyTable<D>,
-    pub(super) fallback: VisualCullEntries<'a, D>,
-    pub(super) parameter_slot_base: usize,
-    pub(super) time_seconds: f32,
+pub(in crate::scene_gpu) struct GenericVisualResources<'a, D: Device> {
+    pub(in crate::scene_gpu) programs: &'a VisualProgramTable<D>,
+    pub(in crate::scene_gpu) parameters: &'a VisualParameterTable<D>,
+    pub(in crate::scene_gpu) properties: &'a VisualPropertyTable<D>,
+    pub(in crate::scene_gpu) fallback: VisualCullEntries<'a, D>,
+    pub(in crate::scene_gpu) parameter_slot_base: usize,
+    pub(in crate::scene_gpu) time_seconds: f32,
 }
 
-pub(super) struct GenericVisualTarget<'a> {
-    pub(super) scene: &'a Scene,
-    pub(super) domain: RowDomain,
-    pub(super) color: Rgba8,
-    pub(super) opacity: f32,
-    pub(super) row_count: usize,
+pub(in crate::scene_gpu) struct GenericVisualTarget<'a> {
+    pub(in crate::scene_gpu) scene: &'a Scene,
+    pub(in crate::scene_gpu) domain: RowDomain,
+    pub(in crate::scene_gpu) color: Rgba8,
+    pub(in crate::scene_gpu) opacity: f32,
+    pub(in crate::scene_gpu) row_count: usize,
 }
 
 impl<D: Device> Copy for GenericVisualResources<'_, D> {}
@@ -36,14 +36,14 @@ impl<D: Device> Clone for GenericVisualResources<'_, D> {
 }
 
 #[derive(Debug)]
-pub(super) struct GenericVisualState<D: Device> {
+pub(in crate::scene_gpu) struct GenericVisualState<D: Device> {
     slot: Option<VisualSlot<D>>,
     shading: SlotShading,
     translucent: bool,
 }
 
 impl<D: Device> GenericVisualState<D> {
-    pub(super) fn new() -> Self {
+    pub(in crate::scene_gpu) fn new() -> Self {
         Self {
             slot: None,
             shading: SlotShading::default(),
@@ -51,7 +51,7 @@ impl<D: Device> GenericVisualState<D> {
         }
     }
 
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -121,7 +121,7 @@ impl<D: Device> GenericVisualState<D> {
         Ok(changed)
     }
 
-    pub(super) fn sync_uniform(
+    pub(in crate::scene_gpu) fn sync_uniform(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -159,7 +159,7 @@ impl<D: Device> GenericVisualState<D> {
         Ok(changed)
     }
 
-    pub(super) fn entries<'a>(
+    pub(in crate::scene_gpu) fn entries<'a>(
         &'a self,
         resources: GenericVisualResources<'a, D>,
     ) -> VisualCullEntries<'a, D> {
@@ -179,31 +179,31 @@ impl<D: Device> GenericVisualState<D> {
         )
     }
 
-    pub(super) const fn shading(&self) -> SlotShading {
+    pub(in crate::scene_gpu) const fn shading(&self) -> SlotShading {
         self.shading
     }
 
-    pub(super) const fn is_translucent(&self) -> bool {
+    pub(in crate::scene_gpu) const fn is_translucent(&self) -> bool {
         self.translucent
     }
 
-    pub(super) fn has_cull_results(&self) -> bool {
+    pub(in crate::scene_gpu) fn has_cull_results(&self) -> bool {
         self.slot.as_ref().is_some_and(VisualSlot::has_cull_results)
     }
 
-    pub(super) fn has_shading_results(&self) -> bool {
+    pub(in crate::scene_gpu) fn has_shading_results(&self) -> bool {
         self.slot
             .as_ref()
             .is_some_and(VisualSlot::has_shading_results)
     }
 
-    pub(super) fn binding_revision(&self) -> u64 {
+    pub(in crate::scene_gpu) fn binding_revision(&self) -> u64 {
         self.slot.as_ref().map_or(0, VisualSlot::binding_revision)
     }
 }
 
 impl<D: Device> GenericVisualResources<'_, D> {
-    pub(super) const fn binding_revision(self) -> [u64; 3] {
+    pub(in crate::scene_gpu) const fn binding_revision(self) -> [u64; 3] {
         [
             self.programs.binding_revision(),
             self.parameters.binding_revision(),

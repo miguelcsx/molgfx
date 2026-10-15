@@ -40,15 +40,15 @@ pub(crate) const PARTICLE_SHAPES: u32 = 8;
 /// would desynchronize motion. They travel together and are split back out
 /// into the upload columns only after the sort.
 #[derive(Debug)]
-pub(super) struct PackedPrimitive {
-    pub(super) record: PrimitiveGpu,
-    pub(super) previous: [f32; 4],
-    pub(super) motion: ParticleMotionGpu,
+pub(in crate::scene_gpu) struct PackedPrimitive {
+    pub(in crate::scene_gpu) record: PrimitiveGpu,
+    pub(in crate::scene_gpu) previous: [f32; 4],
+    pub(in crate::scene_gpu) motion: ParticleMotionGpu,
     sort_key: u32,
 }
 
 impl PackedPrimitive {
-    pub(super) fn new(mut record: PrimitiveGpu, motion: ParticleMotionGpu) -> Self {
+    pub(in crate::scene_gpu) fn new(mut record: PrimitiveGpu, motion: ParticleMotionGpu) -> Self {
         let previous = record.center_radius;
         record.inverse_cross[3] = if motion.metadata[0] == 0 { 0.0 } else { 1.0 };
         let sort_key = sort_key(&record);
@@ -96,7 +96,7 @@ fn sort_key(record: &PrimitiveGpu) -> u32 {
 /// primitive moves; a fully static table binds one dummy row instead. The sort
 /// is stable, so equal keys keep insertion order and deterministic frames. All
 /// outputs retain their capacity for reuse.
-pub(super) fn regroup(
+pub(in crate::scene_gpu) fn regroup(
     rows: &mut [PackedPrimitive],
     records: &mut Vec<PrimitiveGpu>,
     previous: &mut Vec<[f32; 4]>,

@@ -3,7 +3,7 @@
 
 use molgfx_core::{AtomGpu, AtomSelection, PlacedStructure};
 
-pub(super) fn append_recipes(
+pub(in crate::scene_gpu) fn append_recipes(
     placed: &PlacedStructure,
     selection: &AtomSelection,
     beads: &[AtomGpu],

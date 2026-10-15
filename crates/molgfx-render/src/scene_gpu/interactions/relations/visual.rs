@@ -1,9 +1,9 @@
 //! Native typed visual lowering for scene-independent relation chunks.
 
-use super::super::grow_buffer::GrowBuffer;
-use super::super::visual::{VisualBase, VisualCullEntries, VisualSlot, VisualSync};
 use crate::engine::chunk_draw_plan::{ResidentAttributeColumn, ResidentRelationChunkPlacement};
 use crate::error::RenderError;
+use crate::scene_gpu::grow_buffer::GrowBuffer;
+use crate::scene_gpu::visual::{VisualBase, VisualCullEntries, VisualSlot, VisualSync};
 use molgfx_core::{
     ChunkOccurrenceId, ChunkVisualDescriptor, MAX_VISUAL_PARAMETERS, VisualInstructionGpu,
     VisualProgram, VisualStyle,

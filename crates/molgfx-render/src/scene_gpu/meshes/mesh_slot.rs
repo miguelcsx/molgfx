@@ -5,13 +5,13 @@
 //! the point: it binds the same group and draws with the same indexed pipeline,
 //! so caller triangles cost no extra pass, shader or pipeline.
 
-use super::buffers::{count, upload_grow};
-use super::grow_buffer::GrowBuffer;
-use super::indexed_draw::{IndexedDraw, write_arguments};
-use super::structure::GpuStructure;
-use super::uniforms::ClipUniforms;
-use super::visual::VisualCullEntries;
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::{count, upload_grow};
+use crate::scene_gpu::grow_buffer::GrowBuffer;
+use crate::scene_gpu::indexed_draw::{IndexedDraw, write_arguments};
+use crate::scene_gpu::structure::GpuStructure;
+use crate::scene_gpu::uniforms::ClipUniforms;
+use crate::scene_gpu::visual::VisualCullEntries;
 use molgfx_core::{EntityId, Mesh};
 use molgfx_geometry::RibbonVertex;
 use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
@@ -19,7 +19,7 @@ use molgfx_math::Mat4;
 
 /// One resident caller mesh.
 #[derive(Debug)]
-pub(super) struct GpuMeshSlot<D: Device> {
+pub(in crate::scene_gpu) struct GpuMeshSlot<D: Device> {
     vertices: Option<D::Buffer>,
     indices: GrowBuffer<D>,
     args: Option<D::Buffer>,
@@ -33,14 +33,14 @@ pub(super) struct GpuMeshSlot<D: Device> {
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct MeshOccurrences<'a> {
-    pub(super) transforms: &'a [Mat4],
-    pub(super) model_to_world: Mat4,
-    pub(super) entity: EntityId,
+pub(in crate::scene_gpu) struct MeshOccurrences<'a> {
+    pub(in crate::scene_gpu) transforms: &'a [Mat4],
+    pub(in crate::scene_gpu) model_to_world: Mat4,
+    pub(in crate::scene_gpu) entity: EntityId,
 }
 
 impl<D: Device> GpuMeshSlot<D> {
-    pub(super) fn new() -> Self {
+    pub(in crate::scene_gpu) fn new() -> Self {
         Self {
             vertices: None,
             indices: GrowBuffer::index(),
@@ -58,7 +58,7 @@ impl<D: Device> GpuMeshSlot<D> {
     /// Uploads the caller's triangles, converting them into the shared cartoon
     /// vertex. The scratch buffer is retained, so a re-sync of an unchanged
     /// mesh size allocates nothing.
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -238,7 +238,7 @@ impl<D: Device> GpuMeshSlot<D> {
 
     /// The bind group and indirect arguments for one pass, or nothing when the
     /// mesh is empty or belongs to the other transparency stream.
-    pub(super) fn draw(&self, translucent: bool) -> Option<IndexedDraw<'_, D>> {
+    pub(in crate::scene_gpu) fn draw(&self, translucent: bool) -> Option<IndexedDraw<'_, D>> {
         if self.translucent != translucent || self.index_count == 0 {
             return None;
         }
@@ -249,7 +249,7 @@ impl<D: Device> GpuMeshSlot<D> {
         })
     }
 
-    pub(super) const fn is_translucent(&self) -> bool {
+    pub(in crate::scene_gpu) const fn is_translucent(&self) -> bool {
         self.translucent && self.index_count > 0
     }
 }

@@ -6,7 +6,7 @@
 //! polygonal symbols the regular-polygon prism, so a glycan scene of any size
 //! is a handful of instanced draws with no vertex data behind them.
 
-use super::primitive_draw::{FAMILY_BOX, FAMILY_PARTICLE, FAMILY_POLYGON};
+use crate::scene_gpu::primitive_draw::{FAMILY_BOX, FAMILY_PARTICLE, FAMILY_POLYGON};
 use molgfx_core::CarbohydrateShape;
 use molgfx_math::Rgba8;
 
