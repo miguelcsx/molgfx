@@ -1,6 +1,6 @@
 use super::tests::camera;
 use super::{DerivedCacheBudget, Engine, EngineConfig};
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
     AnalyticSphere, AnalyticTemplate, AttributeColumn, AttributeValues, InstanceBatch,
     PlaybackMode, PointBatch, PointGlyph, PointStyle, Relation, RelationBatch, RelationStyle,
@@ -97,24 +97,14 @@ fn zero_budget_relations_sample_instance_frames_without_a_derived_allocation() {
         .unwrap_or_else(|error| panic!("second frame renders: {error}"));
 
     assert_eq!(engine.derived_cache_usage().gpu_bytes, 0);
-    let buffers = engine
-        .device
-        .log
-        .buffers
-        .lock()
-        .unwrap_or_else(|error| panic!("buffer log locks: {error}"));
+    let buffers = engine.device.log.buffers.locked();
     assert!(
         !buffers
             .iter()
             .any(|(_, label, _)| { *label == "materialized generic instance timeline" })
     );
     drop(buffers);
-    let dispatches = engine
-        .device
-        .log
-        .dispatches
-        .lock()
-        .unwrap_or_else(|error| panic!("dispatch log locks: {error}"));
+    let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         dispatches
             .iter()
@@ -195,8 +185,7 @@ fn has_buffer(engine: &Engine<MockDevice>, label: &'static str) -> bool {
         .device
         .log
         .buffers
-        .lock()
-        .unwrap_or_else(|error| panic!("buffer log locks: {error}"))
+        .locked()
         .iter()
         .any(|(_, candidate, _)| *candidate == label)
 }
@@ -206,8 +195,7 @@ fn latest_point_alpha(engine: &Engine<MockDevice>) -> f32 {
         .device
         .log
         .buffers
-        .lock()
-        .unwrap_or_else(|error| panic!("buffer log locks: {error}"))
+        .locked()
         .iter()
         .find(|(_, label, _)| *label == "generic point configuration")
         .map_or_else(|| panic!("point config exists"), |(id, _, _)| *id);
@@ -328,12 +316,7 @@ fn one_budget_is_shared_by_attribute_and_instance_materializations() {
     let usage = engine.derived_cache_usage();
     assert_eq!(usage.gpu_bytes, 16, "the first deterministic plan wins");
     assert!(usage.peak_gpu_bytes <= config.derived_cache.gpu_bytes);
-    let buffers = engine
-        .device
-        .log
-        .buffers
-        .lock()
-        .unwrap_or_else(|error| panic!("buffer log locks: {error}"));
+    let buffers = engine.device.log.buffers.locked();
     assert!(
         !buffers
             .iter()

@@ -1,6 +1,7 @@
 use super::HdrImage;
 use crate::engine::ImageConfig;
 use crate::engine::tests::{camera, engine};
+use crate::testing::Locked;
 use molgfx_core::Scene;
 
 #[test]
@@ -21,9 +22,7 @@ fn hdr_capture_returns_tightly_packed_native_half_pixels() {
     assert_eq!(image.rgba16f.len(), 3 * 2 * 8);
     assert!(image.quality().complete());
     assert_eq!(image.quality().extent, [3, 2]);
-    let Ok(textures) = engine.device.log.textures.lock() else {
-        panic!("texture log locks")
-    };
+    let textures = engine.device.log.textures.locked();
     assert!(
         !textures.contains(&"off-screen image"),
         "HDR capture does not allocate a display-encoded target"

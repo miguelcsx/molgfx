@@ -1,4 +1,5 @@
 use super::tests::{camera, engine, structure};
+use crate::testing::Locked;
 use molgfx_core::{
     AnalyticSphere, AnalyticTemplate, AttributeColumn, AttributeValues, ChunkId, DatasetId,
     EntityKind, GpuPickToken, InstanceBatch, LogicalRow, PlaybackMode, PointBatch, PointGlyph,
@@ -30,24 +31,14 @@ fn static_world_relations_share_one_indirect_analytic_draw() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let draws = engine
-        .device
-        .log
-        .indirect_draws
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(
         draws.len(),
         1,
         "one homogeneous relation stream is one draw"
     );
     drop(draws);
-    let dispatches = engine
-        .device
-        .log
-        .dispatches
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         dispatches.as_slice(),
         &[(1, 1, 1); 5],
@@ -119,8 +110,7 @@ fn relation_visual_timeline_runs_on_gpu_without_repacking_glyph_rows() {
         .device
         .log
         .buffers
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"))
+        .locked()
         .iter()
         .find(|(_, label, _)| *label == "interaction glyph table")
         .map_or_else(|| panic!("glyph table exists"), |(id, _, _)| *id);
@@ -128,8 +118,7 @@ fn relation_visual_timeline_runs_on_gpu_without_repacking_glyph_rows() {
         .device
         .log
         .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"))
+        .locked()
         .iter()
         .filter(|(id, _, _, _)| *id == glyph)
         .count();
@@ -139,12 +128,7 @@ fn relation_visual_timeline_runs_on_gpu_without_repacking_glyph_rows() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let writes = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let writes = engine.device.log.writes.locked();
     assert_eq!(
         writes.iter().filter(|(id, _, _, _)| *id == glyph).count(),
         glyph_writes,
@@ -234,31 +218,16 @@ fn dynamic_point_relations_resolve_once_without_cpu_endpoint_uploads() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("dynamic relations render: {error}"));
-    let first_dispatches = engine
-        .device
-        .log
-        .dispatches
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |dispatches| dispatches.len());
+    let first_dispatches = engine.device.log.dispatches.locked().len();
     assert_eq!(
         first_dispatches, 9,
         "one resolver, three point LOD and five stable relation cull dispatches run"
     );
-    let writes_before = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |writes| writes.len());
+    let writes_before = engine.device.log.writes.locked().len();
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("stable dynamic relations render: {error}"));
-    let dispatches = engine
-        .device
-        .log
-        .dispatches
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         &dispatches[first_dispatches..],
         &[
@@ -274,12 +243,7 @@ fn dynamic_point_relations_resolve_once_without_cpu_endpoint_uploads() {
         "stable endpoints skip resolution while visibility still follows the camera"
     );
     drop(dispatches);
-    let writes = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let writes = engine.device.log.writes.locked();
     assert_eq!(
         writes.len() - writes_before,
         1,
@@ -318,8 +282,7 @@ fn atom_relations_follow_model_changes_without_reuploading_endpoints() {
         .device
         .log
         .buffers
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"))
+        .locked()
         .iter()
         .find(|(_, label, _)| *label == "interaction glyph table")
         .map_or_else(|| panic!("glyph buffer exists"), |(id, _, _)| *id);
@@ -327,8 +290,7 @@ fn atom_relations_follow_model_changes_without_reuploading_endpoints() {
         .device
         .log
         .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"))
+        .locked()
         .iter()
         .filter(|(id, _, _, _)| *id == glyph_buffer)
         .count();
@@ -339,12 +301,7 @@ fn atom_relations_follow_model_changes_without_reuploading_endpoints() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("moved atom relations render: {error}"));
-    let writes = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let writes = engine.device.log.writes.locked();
     assert_eq!(
         writes
             .iter()
@@ -354,12 +311,7 @@ fn atom_relations_follow_model_changes_without_reuploading_endpoints() {
         "model motion updates the bound transform, never relation endpoints"
     );
     drop(writes);
-    let dispatches = engine
-        .device
-        .log
-        .dispatches
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         dispatches.as_slice(),
         &[(1, 1, 1); 12],
@@ -409,12 +361,7 @@ fn template_part_relations_resolve_the_local_part_through_its_rigid_instance() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("template relation renders: {error}"));
-    let dispatches = engine
-        .device
-        .log
-        .dispatches
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         dispatches.as_slice(),
         &[(1, 1, 1); 8],

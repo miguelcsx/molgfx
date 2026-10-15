@@ -465,7 +465,9 @@ impl molgfx_gpu::Queue<MockDevice> for MockQueue {
 
 mod device;
 mod encoder;
+mod locked;
 mod readback;
 use encoder::fail_mock_ray_query;
 
+pub(crate) use locked::Locked;
 pub(crate) use readback::MockReadback;

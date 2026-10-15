@@ -1,5 +1,5 @@
 use super::*;
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_core::{AtomSelection, ClipPlane, ClipSet, RepresentationKind, Scene, SurfaceKind};
 use molgfx_gpu::SurfaceError;
 use molgfx_math::{BoundingSphere, Camera, Vec3};
@@ -132,9 +132,7 @@ fn a_healthy_frame_presents_with_exactly_one_submission() {
         Err(e) => panic!("frame renders: {e}"),
     };
     assert_eq!(outcome.status, FrameStatus::Presented);
-    let Ok(submits) = engine.device.log.submits.lock() else {
-        panic!("log lock")
-    };
+    let submits = engine.device.log.submits.locked();
     let submits = *submits;
     assert_eq!(submits, 1, "one queue submission per frame");
 }
@@ -188,9 +186,7 @@ fn frame_recording_issues_no_direct_scene_draws() {
     let Ok(_) = engine.render(&scene, &camera()) else {
         panic!("frame renders")
     };
-    let Ok(draws) = engine.device.log.draws.lock() else {
-        panic!("log lock")
-    };
+    let draws = engine.device.log.draws.locked();
     let draws = draws.clone();
     assert!(
         draws.iter().all(|(vertices, _)| vertices.end <= 3),
@@ -204,17 +200,12 @@ fn every_structure_representation_pair_has_one_indirect_draw() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("frame renders: {error}")
     }
-    let first = match engine.device.log.indirect_draws.lock() {
-        Ok(draws) => draws.clone(),
-        Err(error) => panic!("log lock: {error}"),
-    };
+    let first = engine.device.log.indirect_draws.locked().clone();
     assert_eq!(first.len(), 8);
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("second frame renders: {error}")
     }
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
-        panic!("log lock")
-    };
+    let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(
         &draws[first.len()..],
         first.as_slice(),
@@ -309,16 +300,11 @@ fn an_unchanged_scene_uploads_only_the_frame_uniforms() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("first frame renders: {error}")
     }
-    let before = match engine.device.log.writes.lock() {
-        Ok(writes) => writes.len(),
-        Err(error) => panic!("log lock: {error}"),
-    };
+    let before = engine.device.log.writes.locked().len();
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("second frame renders: {error}")
     }
-    let Ok(writes) = engine.device.log.writes.lock() else {
-        panic!("log lock")
-    };
+    let writes = engine.device.log.writes.locked();
     assert_eq!(writes.len() - before, 1, "only group 0 changes");
     assert_eq!(
         writes[before].2,
@@ -343,10 +329,7 @@ fn changing_a_clip_plane_updates_only_representation_state() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("initial frame renders: {error}")
     }
-    let before = match engine.device.log.writes.lock() {
-        Ok(writes) => writes.len(),
-        Err(error) => panic!("log lock: {error}"),
-    };
+    let before = engine.device.log.writes.locked().len();
     let plane = match ClipPlane::from_point_normal(Vec3::ZERO, Vec3::X) {
         Ok(plane) => plane,
         Err(error) => panic!("clip plane validates: {error}"),
@@ -362,9 +345,7 @@ fn changing_a_clip_plane_updates_only_representation_state() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("clipped frame renders: {error}")
     }
-    let Ok(writes) = engine.device.log.writes.lock() else {
-        panic!("log lock")
-    };
+    let writes = engine.device.log.writes.locked();
     let changed = &writes[before..];
     // Frame, representation and colour blocks: all fixed size, none of them the
     // coordinate column.
@@ -396,10 +377,7 @@ fn solvent_excluded_field_generates_once_and_not_on_an_unchanged_frame() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("first frame renders: {error}")
     }
-    let before = match engine.device.log.dispatches.lock() {
-        Ok(dispatches) => dispatches.clone(),
-        Err(error) => panic!("log lock: {error}"),
-    };
+    let before = engine.device.log.dispatches.locked().clone();
     assert_eq!(
         before.len(),
         2,
@@ -410,9 +388,7 @@ fn solvent_excluded_field_generates_once_and_not_on_an_unchanged_frame() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("unchanged frame renders: {error}")
     }
-    let Ok(dispatches) = engine.device.log.dispatches.lock() else {
-        panic!("log lock")
-    };
+    let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(dispatches.as_slice(), before.as_slice());
 }
 
@@ -439,10 +415,7 @@ fn gaussian_surface_generates_one_persistent_field_dispatch() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("first Gaussian frame renders: {error}")
     }
-    let before = match engine.device.log.dispatches.lock() {
-        Ok(dispatches) => dispatches.clone(),
-        Err(error) => panic!("log lock: {error}"),
-    };
+    let before = engine.device.log.dispatches.locked().clone();
     assert_eq!(
         before.len(),
         1,
@@ -455,8 +428,6 @@ fn gaussian_surface_generates_one_persistent_field_dispatch() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("unchanged Gaussian frame renders: {error}")
     }
-    let Ok(dispatches) = engine.device.log.dispatches.lock() else {
-        panic!("log lock")
-    };
+    let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(dispatches.as_slice(), before.as_slice());
 }

@@ -1,6 +1,6 @@
 use super::Engine;
 use super::tests::{camera, engine, structure};
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
     AnisotropicEllipsoid, AtomSelection, CarbohydrateShape, CarbohydrateSymbol, Material, Mesh,
     MeshInstance, MeshVertex, OverlayAnchor, OverlayContent, Particle, ParticleBoundary,
@@ -60,17 +60,13 @@ fn ball_and_stick_records_atom_and_bond_indirect_draws() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("frame renders: {error}")
     }
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
-        panic!("log lock")
-    };
+    let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(
         draws.len(),
         4,
         "shadow and beauty passes each draw spheres and bonds"
     );
-    let Ok(dispatches) = engine.device.log.dispatches.lock() else {
-        panic!("log lock")
-    };
+    let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         dispatches.as_slice(),
         &[(1, 1, 1), (1, 1, 1), (1, 1, 1)],
@@ -85,17 +81,13 @@ fn lines_record_only_one_gpu_compacted_bond_draw() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("frame renders: {error}")
     }
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
-        panic!("log lock")
-    };
+    let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(
         draws.len(),
         3,
         "shadow and beauty passes draw bonds, and lone atoms draw crosses"
     );
-    let Ok(dispatches) = engine.device.log.dispatches.lock() else {
-        panic!("log lock")
-    };
+    let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         dispatches.as_slice(),
         &[(1, 1, 1), (1, 1, 1), (1, 1, 1)],
@@ -131,9 +123,7 @@ fn overlays_share_one_post_tonemap_indirect_draw() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("overlay frame renders: {error}");
     }
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
-        panic!("log lock")
-    };
+    let draws = engine.device.log.indirect_draws.locked();
     // The overlay kinds — glyph, gradient, scale, axis — are drawn by four
     // specialized pipelines over one decluttered table, so there are four
     // indirect draws and all share the same arguments buffer.
@@ -191,9 +181,7 @@ fn mesh_instances_share_one_indirect_draw_per_pass() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("instanced mesh renders: {error}")
     }
-    let Ok(draws) = engine.device.log.indexed_draws.lock() else {
-        panic!("log lock")
-    };
+    let draws = engine.device.log.indexed_draws.locked();
     assert_eq!(draws.len(), 2, "shadow and beauty each consume one batch");
 }
 
@@ -228,9 +216,7 @@ fn vertex_alpha_routes_a_mesh_only_through_transparency() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("alpha mesh renders: {error}")
     }
-    let Ok(draws) = engine.device.log.indexed_draws.lock() else {
-        panic!("log lock")
-    };
+    let draws = engine.device.log.indexed_draws.locked();
     assert_eq!(
         draws.len(),
         1,
@@ -253,32 +239,20 @@ fn cartoon_ribbons_share_the_scene_fit_shadow_stream() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("frame renders: {error}")
     }
-    let Ok(draws) = engine.device.log.indexed_draws.lock() else {
-        panic!("log lock")
-    };
+    let draws = engine.device.log.indexed_draws.locked();
     assert_eq!(
         draws.len(),
         2,
         "ribbon shadow and beauty passes are indirect"
     );
-    let bindings = engine
-        .device
-        .log
-        .index_buffers
-        .lock()
-        .expect("index bindings recorded");
+    let bindings = engine.device.log.index_buffers.locked();
     assert_eq!(bindings.len(), 2);
     assert_eq!(
         bindings[0], bindings[1],
         "beauty and shadows share topology"
     );
     assert_eq!(bindings[0].1, molgfx_gpu::IndexFormat::Uint32);
-    let layouts = engine
-        .device
-        .log
-        .bind_group_layouts
-        .lock()
-        .expect("layouts recorded");
+    let layouts = engine.device.log.bind_group_layouts.locked();
     let (_, counts) = layouts
         .iter()
         .find(|(label, _)| *label == "group2: cartoon representation")
@@ -311,9 +285,7 @@ fn structure_scoped_selection_creates_no_draw_for_equal_rows_elsewhere() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("frame renders: {error}")
     }
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
-        panic!("log lock")
-    };
+    let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(
         draws.len(),
         2,
@@ -405,9 +377,7 @@ fn heterogeneous_primitives_use_exact_shadow_ranges_and_transparency_route() {
 
     // Primitive shadows no longer reinterpret the whole heterogeneous table
     // through one ellipsoid pipeline or allocate indirect arguments.
-    let Ok(indirect) = engine.device.log.indirect_draws.lock() else {
-        panic!("log lock")
-    };
+    let indirect = engine.device.log.indirect_draws.locked();
     assert_eq!(
         indirect.len(),
         0,
@@ -418,9 +388,7 @@ fn heterogeneous_primitives_use_exact_shadow_ranges_and_transparency_route() {
     // in the gbuffer. Translucent box and Gaussian rows appear only in OIT.
     assert_primitive_draws_cover_expected_rows(&engine);
 
-    let Ok(dispatches) = engine.device.log.dispatches.lock() else {
-        panic!("log lock")
-    };
+    let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         dispatches.as_slice(),
         &[(1, 1, 1)],
@@ -431,9 +399,7 @@ fn heterogeneous_primitives_use_exact_shadow_ranges_and_transparency_route() {
 /// Asserts every packed primitive is drawn exactly once by a specialized
 /// six-vertex impostor draw, and that the sorted classes tile the table rows.
 fn assert_primitive_draws_cover_expected_rows(engine: &Engine<MockDevice>) {
-    let Ok(direct) = engine.device.log.draws.lock() else {
-        panic!("log lock")
-    };
+    let direct = engine.device.log.draws.locked();
     let mut instances = direct
         .iter()
         .filter(|(vertices, _)| *vertices == (0..6))

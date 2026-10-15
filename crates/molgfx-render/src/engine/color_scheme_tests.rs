@@ -3,19 +3,15 @@
 use super::tests::{camera, engine, represented_scene};
 use crate::engine::Engine;
 use crate::scene_gpu::color_uniforms;
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_core::ColorScheme;
 
 use molgfx_math::Rgba8;
 
 /// Buffer writes observed since `before`, with their creation labels.
 fn writes_since(engine: &Engine<MockDevice>, before: usize) -> Vec<&'static str> {
-    let Ok(writes) = engine.device.log.writes.lock() else {
-        panic!("write log lock")
-    };
-    let Ok(buffers) = engine.device.log.buffers.lock() else {
-        panic!("buffer log lock")
-    };
+    let writes = engine.device.log.writes.locked();
+    let buffers = engine.device.log.buffers.locked();
     writes[before..]
         .iter()
         .map(|(buffer, _, _, _)| {
@@ -29,9 +25,7 @@ fn writes_since(engine: &Engine<MockDevice>, before: usize) -> Vec<&'static str>
 
 /// Renders one frame, returning the writes it performed.
 fn frame_writes(engine: &mut Engine<MockDevice>, scene: &molgfx_core::Scene) -> Vec<&'static str> {
-    let Ok(writes) = engine.device.log.writes.lock() else {
-        panic!("write log lock")
-    };
+    let writes = engine.device.log.writes.locked();
     let before = writes.len();
     drop(writes);
     if let Err(error) = engine.render(scene, &camera()) {
@@ -76,9 +70,7 @@ fn a_colour_scheme_change_writes_only_fixed_size_uniforms() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("initial frame renders: {error}")
     }
-    let Ok(buffers_before) = engine.device.log.buffers.lock().map(|value| value.len()) else {
-        panic!("buffer log lock")
-    };
+    let buffers_before = engine.device.log.buffers.locked().len();
 
     for scheme in [
         ColorScheme::category(column, molgfx_core::CategoryPalette::Kelly),
@@ -101,9 +93,7 @@ fn a_colour_scheme_change_writes_only_fixed_size_uniforms() {
         );
     }
 
-    let Ok(buffers_after) = engine.device.log.buffers.lock().map(|value| value.len()) else {
-        panic!("buffer log lock")
-    };
+    let buffers_after = engine.device.log.buffers.locked().len();
     assert_eq!(
         buffers_after, buffers_before,
         "a scheme change must not allocate"
@@ -136,9 +126,7 @@ fn representations_differing_only_in_colour_share_one_record_set() {
         if let Err(error) = engine.render(&scene, &camera()) {
             panic!("frame renders: {error}")
         }
-        let Ok(buffers) = engine.device.log.buffers.lock() else {
-            panic!("buffer log lock")
-        };
+        let buffers = engine.device.log.buffers.locked();
         counts.push(
             buffers
                 .iter()
@@ -202,9 +190,7 @@ fn the_colour_block_is_written_with_the_active_scheme() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("frame renders: {error}")
     }
-    let Ok(buffers) = engine.device.log.buffers.lock() else {
-        panic!("buffer log lock")
-    };
+    let buffers = engine.device.log.buffers.locked();
     let color_buffer = buffers
         .iter()
         .find(|(_, label, _)| *label == "colour scheme uniforms")
@@ -213,12 +199,8 @@ fn the_colour_block_is_written_with_the_active_scheme() {
         panic!("the colour block is allocated")
     };
     drop(buffers);
-    let Ok(writes) = engine.device.log.write_payloads.lock() else {
-        panic!("payload log lock")
-    };
-    let Ok(write_log) = engine.device.log.writes.lock() else {
-        panic!("write log lock")
-    };
+    let writes = engine.device.log.write_payloads.locked();
+    let write_log = engine.device.log.writes.locked();
     let Some(index) = write_log
         .iter()
         .position(|(buffer, _, _, _)| *buffer == color_buffer)

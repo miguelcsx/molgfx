@@ -1,5 +1,5 @@
 use super::{Engine, EngineConfig};
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molframe::engine::core as frame;
 use molgfx_core::{
     ChunkData, ChunkFootprint, ChunkId, ChunkPayload, DatasetId, HostWorkingSet, ResidencyBudget,
@@ -312,10 +312,7 @@ fn provider_storage_is_retained_and_exact_bytes_become_resident_only_after_signa
     assert_eq!(resident.local_rows, 2);
     assert_eq!(resident.byte_len, expected.len() as u64);
     assert_eq!(retained_pointer(engine.host_working_set(), ticket), pointer);
-    let payloads = match engine.device.log.write_payloads.lock() {
-        Ok(value) => value,
-        Err(error) => panic!("write log must be available: {error}"),
-    };
+    let payloads = engine.device.log.write_payloads.locked();
     // The chunk's staged range opens with the provider's own coordinate bytes
     // and continues with its derived radii in the same reservation.
     let staged = payloads

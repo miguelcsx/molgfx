@@ -5,7 +5,7 @@ use super::{
     ChunkPlacementId, ChunkPlacementStatus, ChunkRepresentation, Engine, PickEntity,
     StructureChunkPlacement, TrajectoryChunkWindow,
 };
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_core::{ChunkId, DatasetId, ResidencyBudget, ResidencyOutput};
 use molgfx_math::{Mat4, Rgba8};
 
@@ -339,10 +339,7 @@ fn a_burst_of_chunks_produces_a_bounded_number_of_submissions() {
     // only submission it may add, and a frame's own submit is separate.
     let mut engine = engine();
     let mut output = ResidencyOutput::default();
-    let before = match engine.device.log.submits.lock() {
-        Ok(submits) => *submits,
-        Err(error) => panic!("submit log lock: {error}"),
-    };
+    let before = *engine.device.log.submits.locked();
     let mut tickets = Vec::new();
     for (dataset, chunk) in [(41_u64, 51_u64), (42, 52), (43, 53), (44, 54)] {
         let source = fixture(dataset, chunk, 1);
@@ -353,10 +350,7 @@ fn a_burst_of_chunks_produces_a_bounded_number_of_submissions() {
     for ticket in tickets {
         super::chunk_residency_tests::upload(&mut engine, ticket, &mut output);
     }
-    let after = match engine.device.log.submits.lock() {
-        Ok(submits) => *submits,
-        Err(error) => panic!("submit log lock: {error}"),
-    };
+    let after = *engine.device.log.submits.locked();
     assert!(
         after - before <= 4,
         "four chunks staged in one epoch issued {} submissions; uploads are batched by frame",
@@ -375,9 +369,7 @@ fn no_coordinate_payload_is_written_twice() {
     let (ticket, _, expected) =
         super::chunk_residency_tests::request_and_deliver(&mut engine, source, &mut output);
     super::chunk_residency_tests::upload(&mut engine, ticket, &mut output);
-    let Ok(payloads) = engine.device.log.write_payloads.lock() else {
-        panic!("payload log lock")
-    };
+    let payloads = engine.device.log.write_payloads.locked();
     let coordinate_payloads: Vec<&Vec<u8>> = payloads
         .iter()
         .filter(|bytes| bytes.starts_with(&expected))

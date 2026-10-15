@@ -5,7 +5,7 @@ use crate::engine::generic_chunk_residency_tests::{generic_fixtures, request_del
 use crate::engine::{
     ChunkPlacementId, Engine, InstanceChunkPlacement, PointChunkPlacement, RelationChunkPlacement,
 };
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_core::{AnalyticSphere, AnalyticTemplate, ResidencyOutput, SourceNamespace, SourceRows};
 use molgfx_math::{Mat4, Rgba8};
 use std::sync::Arc;
@@ -16,7 +16,7 @@ fn unused_paging_reserves_only_four_small_placeholder_buffers() {
     // allocated when a trajectory window exists, so an idle scene never pays
     // for a second coordinate buffer.
     let engine = engine();
-    let buffers = engine.device.log.buffers.lock().expect("buffer log");
+    let buffers = engine.device.log.buffers.locked();
     let placeholders: Vec<_> = buffers
         .iter()
         .filter(|(_, label, _)| label.starts_with("unused resident "))
@@ -72,17 +72,12 @@ fn generic_points_upload_exact_coordinates_into_the_drawable_backing() {
     // Paged chunks read the canonical backing unless a trajectory window
     // exists, so the payload lands in that buffer.
     let display = engine.chunk_residency.buffer.id;
-    let writes = engine.device.log.writes.lock().expect("write log");
+    let writes = engine.device.log.writes.locked();
     let index = writes
         .iter()
         .position(|(id, _, _, _)| *id == display)
         .expect("display payload write");
-    let payloads = engine
-        .device
-        .log
-        .write_payloads
-        .lock()
-        .expect("payload log");
+    let payloads = engine.device.log.write_payloads.locked();
     let positions = [[1.0_f32, 2.0, 3.0], [4.0, 5.0, 6.0]];
     assert_eq!(payloads[index], bytemuck::cast_slice::<_, u8>(&positions));
     assert_eq!(
@@ -164,8 +159,7 @@ fn backing_reset_rebinds_every_paged_consumer_without_an_intermediate_frame() {
         .device
         .log
         .buffer_bindings
-        .lock()
-        .expect("bindings")
+        .locked()
         .iter()
         .rev()
         .find(|(label, binding, _, _, _)| {
@@ -204,7 +198,7 @@ fn assert_current_bindings(engine: &Engine<MockDevice>) {
         Some(buffer) => buffer.id,
         None => source,
     };
-    let bindings = engine.device.log.buffer_bindings.lock().expect("bindings");
+    let bindings = engine.device.log.buffer_bindings.locked();
     for (label, slot, expected) in [
         ("paged structure chunks", 0, display),
         ("group1: generic instance culling", 0, source),

@@ -1,6 +1,7 @@
 use super::ImageConfig;
 use super::exposure::EXPOSURE_RUN;
 use super::tests::{camera, engine};
+use crate::testing::Locked;
 use molgfx_core::Scene;
 
 #[test]
@@ -19,9 +20,7 @@ fn a_converged_image_is_submitted_in_bounded_runs_covering_every_sample() {
     };
     let samples = image.quality.samples_required;
     assert!(samples > EXPOSURE_RUN, "the test must span several runs");
-    let Ok(submits) = engine.device.log.submits.lock() else {
-        panic!("log lock")
-    };
+    let submits = engine.device.log.submits.locked();
     assert_eq!(
         *submits,
         samples.div_ceil(EXPOSURE_RUN),
@@ -50,9 +49,7 @@ fn transparent_passes_read_a_depth_copy_only_where_the_live_depth_cannot_be_boun
         if let Err(error) = engine.render(&Scene::new(), &camera()) {
             panic!("frame renders: {error}")
         }
-        let Ok(copies) = engine.device.log.texture_copies.lock() else {
-            panic!("log lock")
-        };
+        let copies = engine.device.log.texture_copies.locked();
         copies.clone()
     };
     assert!(copies(MockDevice::default()).is_empty());

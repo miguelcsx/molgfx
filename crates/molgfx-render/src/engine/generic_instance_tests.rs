@@ -1,6 +1,6 @@
 use super::tests::{camera, engine};
 use super::{DerivedCacheBudget, Engine, EngineConfig};
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
     AnalyticCapsule, AnalyticSphere, AnalyticTemplate, AttributeColumn, AttributeValues, ChunkId,
     DatasetId, EntityKind, GpuPickToken, InstanceBatch, PlaybackMode, RigidInstance, RowDomain,
@@ -85,12 +85,7 @@ fn timeline_materialization_is_a_real_budgeted_optional_allocation() {
     direct
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let direct_buffers = direct
-        .device
-        .log
-        .buffers
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let direct_buffers = direct.device.log.buffers.locked();
     assert!(
         !direct_buffers
             .iter()
@@ -102,12 +97,7 @@ fn timeline_materialization_is_a_real_budgeted_optional_allocation() {
     cached
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let cached_buffers = cached
-        .device
-        .log
-        .buffers
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let cached_buffers = cached.device.log.buffers.locked();
     assert!(
         cached_buffers
             .iter()
@@ -132,20 +122,10 @@ fn four_hundred_instances_are_gpu_culled_then_expand_two_homogeneous_draws() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let dispatches = engine
-        .device
-        .log
-        .dispatches
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(dispatches.as_slice(), &[(1, 1, 1), (7, 1, 1)]);
     drop(dispatches);
-    let draws = engine
-        .device
-        .log
-        .indirect_draws
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(draws.len(), 2, "sphere and capsule stay homogeneous");
     assert_eq!(draws[0].1, 0);
     assert_eq!(draws[1].1, 16);
@@ -166,12 +146,7 @@ fn tiny_instance_batches_reserve_the_full_runtime_storage_struct() {
         engine
             .render(&scene, &camera())
             .unwrap_or_else(|error| panic!("instances render: {error}"));
-        let buffers = engine
-            .device
-            .log
-            .buffers
-            .lock()
-            .unwrap_or_else(|error| panic!("{error}"));
+        let buffers = engine.device.log.buffers.locked();
         assert!(
             buffers.iter().any(|(_, label, bytes)| {
                 *label == "generic instance cull output" && *bytes == 48
@@ -203,12 +178,7 @@ fn sphere_only_templates_still_bind_one_complete_capsule_record() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("renders: {error}"));
-    let buffers = engine
-        .device
-        .log
-        .buffers
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let buffers = engine.device.log.buffers.locked();
     assert!(
         buffers.iter().any(|(_, label, size)| {
             *label == "generic analytic template capsules" && *size == 48
@@ -275,12 +245,7 @@ fn instance_visuals_split_geometry_before_culling_and_appearance_after_compactio
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("visual instances render: {error}"));
-    let dispatches = engine
-        .device
-        .log
-        .dispatches
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let dispatches = engine.device.log.dispatches.locked();
     assert_eq!(
         dispatches.as_slice(),
         &[(3, 1, 1), (1, 1, 1), (3, 1, 1), (3, 1, 1)],
@@ -291,8 +256,7 @@ fn instance_visuals_split_geometry_before_culling_and_appearance_after_compactio
         .device
         .log
         .buffers
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"))
+        .locked()
         .iter()
         .filter(|(_, label, _)| *label == "visual property table")
         .count();
@@ -323,27 +287,16 @@ fn shared_templates_upload_once_and_stable_frames_only_upload_uniforms() {
         .device
         .log
         .buffers
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"))
+        .locked()
         .iter()
         .filter(|(_, label, _)| *label == "generic analytic template spheres")
         .count();
     assert_eq!(template_buffers, 1);
-    let before = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |writes| writes.len());
+    let before = engine.device.log.writes.locked().len();
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let after = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |writes| writes.len());
+    let after = engine.device.log.writes.locked().len();
     assert_eq!(
         after - before,
         1,

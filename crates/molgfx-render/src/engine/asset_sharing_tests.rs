@@ -1,5 +1,6 @@
 use super::tests::{camera, engine, structure};
 use crate::RenderError;
+use crate::testing::Locked;
 use molgfx_core::{AtomSelection, DatasetId, RepresentationKind, Scene, StructureAsset};
 
 #[test]
@@ -108,10 +109,7 @@ fn assert_single_writes(
     arena: u32,
     models: [u32; 2],
 ) {
-    let writes = match engine.device.log.writes.lock() {
-        Ok(writes) => writes,
-        Err(error) => panic!("write log locks: {error}"),
-    };
+    let writes = engine.device.log.writes.locked();
     assert_eq!(
         writes.iter().filter(|write| write.0 == arena).count(),
         3,
@@ -135,13 +133,14 @@ fn assert_non_overlapping(offsets: [u64; 3], lengths: [u64; 3]) {
 }
 
 fn immutable_buffer_count(engine: &super::Engine<crate::testing::MockDevice>) -> usize {
-    match engine.device.log.buffers.lock() {
-        Ok(buffers) => buffers
-            .iter()
-            .filter(|buffer| buffer.1 == "immutable asset arena")
-            .count(),
-        Err(error) => panic!("buffer log locks: {error}"),
-    }
+    engine
+        .device
+        .log
+        .buffers
+        .locked()
+        .iter()
+        .filter(|buffer| buffer.1 == "immutable asset arena")
+        .count()
 }
 
 fn assert_ranges_are_consumed(
@@ -149,10 +148,7 @@ fn assert_ranges_are_consumed(
     arena: u32,
     offsets: [u64; 3],
 ) {
-    let bindings = match engine.device.log.buffer_bindings.lock() {
-        Ok(bindings) => bindings,
-        Err(error) => panic!("binding log locks: {error}"),
-    };
+    let bindings = engine.device.log.buffer_bindings.locked();
     for offset in offsets {
         assert!(
             bindings
