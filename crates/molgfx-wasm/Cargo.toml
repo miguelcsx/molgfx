@@ -23,7 +23,6 @@ crate-type = ["cdylib", "rlib"]
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 js-sys.workspace = true
 molgfx.workspace = true
-molgfx-math.workspace = true
 molframe = { workspace = true, features = ["mmcif", "bcif", "pdb", "chemistry", "spatial"] }
 num-traits.workspace = true
 wasm-bindgen.workspace = true

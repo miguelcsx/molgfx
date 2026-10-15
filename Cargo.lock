@@ -2432,7 +2432,6 @@ dependencies = [
  "js-sys",
  "molframe",
  "molgfx",
- "molgfx-math",
  "num-traits",
  "serde",
  "serde_json",
