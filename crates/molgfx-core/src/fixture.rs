@@ -57,3 +57,20 @@ pub(crate) fn structure() -> molframe::Structure {
         Err(diagnostics) => panic!("fixture must parse: {diagnostics:?}"),
     }
 }
+
+/// A scene holding the fixture structure (tests only).
+pub(crate) fn scene() -> crate::Scene {
+    match crate::Scene::from_structure(&structure()) {
+        Ok(scene) => scene,
+        Err(error) => panic!("fixture scene builds: {error}"),
+    }
+}
+
+/// The fixture scene and the handle of its only structure (tests only).
+pub(crate) fn scene_with_owner() -> (crate::Scene, crate::StructureHandle) {
+    let scene = scene();
+    let Some((owner, _)) = scene.structures().next() else {
+        panic!("fixture has a structure")
+    };
+    (scene, owner)
+}

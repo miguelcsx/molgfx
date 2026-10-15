@@ -1,17 +1,6 @@
 use super::*;
-use crate::fixture;
+use crate::fixture::scene_with_owner;
 use molgfx_math::{Quat, Rgba8, Vec3};
-
-fn scene_with_owner() -> (Scene, StructureHandle) {
-    let scene = match Scene::from_structure(&fixture::structure()) {
-        Ok(value) => value,
-        Err(error) => panic!("fixture scene builds: {error}"),
-    };
-    let Some((owner, _)) = scene.structures().next() else {
-        panic!("fixture has a structure")
-    };
-    (scene, owner)
-}
 
 fn template_and_pose() -> (LicoriceTemplate, LigandPose) {
     let template = match LicoriceTemplate::new(Vec3::ZERO, vec![Vec3::ZERO, Vec3::Z], &[[0, 1]]) {

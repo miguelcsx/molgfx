@@ -1,17 +1,10 @@
 use super::*;
-use crate::fixture;
+use crate::fixture::{self, scene};
 use crate::representation::RepresentationKind;
 use crate::selection::AtomSelection;
 use crate::{ScalarVolume, SecondaryStructure};
 use molgfx_math::Mat4;
 use std::sync::Arc;
-
-fn scene() -> Scene {
-    match Scene::from_structure(&fixture::structure()) {
-        Ok(scene) => scene,
-        Err(e) => panic!("fixture scene must build: {e}"),
-    }
-}
 
 #[test]
 fn a_scene_built_from_a_structure_exposes_its_atoms() {

@@ -1,17 +1,6 @@
 use super::super::*;
-use crate::fixture;
+use crate::fixture::{self, scene_with_owner};
 use molgfx_math::{Aabb, Quat, Rgba8, Vec3};
-
-fn scene_with_owner() -> (Scene, StructureHandle) {
-    let scene = match Scene::from_structure(&fixture::structure()) {
-        Ok(scene) => scene,
-        Err(error) => panic!("fixture scene builds: {error}"),
-    };
-    let Some((owner, _)) = scene.structures().next() else {
-        panic!("fixture has a structure")
-    };
-    (scene, owner)
-}
 
 #[test]
 fn primitives_share_revisions_bounds_and_pick_provenance() {

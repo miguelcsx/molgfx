@@ -1,11 +1,8 @@
+use crate::fixture::scene;
 use crate::{
-    Annotation, AnnotationAnchor, AtomSelection, EntityKind, EntityRef, Measurement, Scene, fixture,
+    Annotation, AnnotationAnchor, AtomSelection, EntityKind, EntityRef, Measurement, Scene,
 };
 use molgfx_math::Vec3;
-
-fn scene() -> Scene {
-    Scene::from_structure(&fixture::structure()).unwrap_or_else(|error| panic!("{error}"))
-}
 
 fn owner(scene: &Scene) -> crate::StructureHandle {
     scene

@@ -1,17 +1,6 @@
 use super::super::*;
-use crate::fixture;
+use crate::fixture::scene_with_owner;
 use molgfx_math::{Mat4, Rgba8, Vec3};
-
-fn scene_with_owner() -> (Scene, StructureHandle) {
-    let scene = match Scene::from_structure(&fixture::structure()) {
-        Ok(value) => value,
-        Err(error) => panic!("fixture scene builds: {error}"),
-    };
-    let Some((owner, _)) = scene.structures().next() else {
-        panic!("fixture has an owner")
-    };
-    (scene, owner)
-}
 
 #[test]
 fn overlay_handles_edit_and_reject_stale_generations() {
