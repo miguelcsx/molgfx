@@ -4,9 +4,9 @@
 //! reads the compact resolved plan, so profile composition adds no per-frame
 //! allocation or dynamic dispatch.
 
-pub(super) use super::optics::{DepthOfField, MotionBlur};
-use super::profile_numeric::{finite_clamp, lerp, sanitize_bands, unit};
-use super::{BackdropStyle, DepthCue, DisplayTransform, LightingEnvironment};
+pub(in crate::engine) use crate::engine::optics::{DepthOfField, MotionBlur};
+use crate::engine::profile_numeric::{finite_clamp, lerp, sanitize_bands, unit};
+use crate::engine::{BackdropStyle, DepthCue, DisplayTransform, LightingEnvironment};
 use serde::{Deserialize, Serialize};
 
 #[path = "profile_resolve.rs"]
@@ -379,7 +379,7 @@ impl ResolvedRenderPlan {
     }
 
     pub(crate) fn packed_presentation(self, has_translucency: bool) -> [[f32; 4]; 6] {
-        super::backdrop::pack(
+        crate::engine::backdrop::pack(
             self.backdrop,
             self.display,
             has_translucency,

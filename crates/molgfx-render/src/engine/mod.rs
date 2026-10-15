@@ -1,5 +1,10 @@
 //! The engine: owns the device, the graph and every pass's state.
 
+mod style;
+use style::backdrop;
+use style::profile;
+use style::profile_numeric;
+
 mod quality;
 use quality::adaptive;
 use quality::effective_quality;
@@ -33,7 +38,6 @@ use chunk::chunk_residency_support;
 use chunk::chunk_residency_types;
 use chunk::derived_cache;
 
-mod backdrop;
 mod config;
 mod depth_cue;
 mod focus_target;
@@ -47,8 +51,6 @@ mod optics;
 mod picking;
 pub(crate) mod pipeline_cache;
 mod presentation;
-mod profile;
-mod profile_numeric;
 mod session;
 mod settings;
 mod shadow;
