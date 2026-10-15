@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { settled, submits, trackPresentation } from "./presentation.mjs";
 
 const pdb = "ATOM      1  CA  ALA A   1       0.000   0.000   0.000  1.00 20.00           C\nATOM      2  CA  GLY A   2       4.000   0.000   0.000  1.00 20.00           C\nEND\n";
 
@@ -139,6 +140,7 @@ test("unavailable WebGPU rejects creation with actionable capability error and c
 test("pointer hover highlights a molecule, restores on leave and settles on the same atom", async ({ page }) => {
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
+  await trackPresentation(page);
   await page.goto("/tests/browser/host.html");
   const point = await page.evaluate(async source => {
     const { Viewer } = await import("/dist/index.js");
@@ -146,12 +148,9 @@ test("pointer hover highlights a molecule, restores on leave and settles on the 
     // Hold the sampling tier so adaptive timing cannot change the comparison.
     const create = runtime.Renderer.create;
     runtime.Renderer.create = canvas => create(canvas, "interactive");
-    let submits = 0;
-    const original = GPUQueue.prototype.submit;
-    GPUQueue.prototype.submit = function (...args) { submits++; if (window.hoverReview) window.hoverReview.queue = this; return original.apply(this, args); };
     const viewer = await Viewer.create(document.querySelector("#viewer"), { structure: new TextEncoder().encode(source), name: "hover.pdb" });
     viewer.execute("show spacefill, all");
-    window.hoverReview = { viewer, submits: () => submits, original, runtime, create };
+    window.hoverReview = { viewer, runtime, create };
     await new Promise(resolve => setTimeout(resolve, 750));
     for (const x of [200, 240, 280, 320, 360, 400, 440]) {
       if ((await viewer.pick(x, 240))?.pick === "atom") return { x, y: 240 };
@@ -159,33 +158,24 @@ test("pointer hover highlights a molecule, restores on leave and settles on the 
     throw new Error("fixture did not render a pickable atom");
   }, pdb);
   const canvas = page.locator("canvas");
-  // Software adapters can still be accumulating presentation samples here;
-  // the baseline must be the settled image the restored frame converges to.
-  const settle = () => expect.poll(async () => {
-    const start = await page.evaluate(async () => {
-      await window.hoverReview.queue.onSubmittedWorkDone();
-      return window.hoverReview.submits();
-    });
-    await page.waitForTimeout(200);
-    return (await page.evaluate(() => window.hoverReview.submits())) === start;
-  }, { timeout: 60000 }).toBe(true);
-  await settle();
+  // Compare converged images only: software adapters accumulate presentation
+  // samples for seconds after every change.
+  await settled(page);
   const before = await canvas.screenshot({ path: "../target/vmd-fixed/hover/before.png" });
   await canvas.hover({ position: point });
   await expect(canvas).toHaveClass(/is-hovering-entity/);
-  await page.waitForTimeout(750);
+  await settled(page);
   expect((await canvas.screenshot({ path: "../target/vmd-fixed/hover/highlight.png" })).equals(before)).toBe(false);
-  // The highlight accumulates samples on software adapters before it settles.
-  await settle();
-  const settled = await page.evaluate(() => window.hoverReview.submits());
+  const highlighted = await submits(page);
   await canvas.hover({ position: { x: point.x + 1, y: point.y } });
   await page.waitForTimeout(350);
+  await settled(page);
   // A fresh hover pick may submit its readback, but unchanged highlight state
   // must not restart a stream of presentation samples.
-  expect((await page.evaluate(() => window.hoverReview.submits())) - settled).toBeLessThanOrEqual(1);
+  expect((await submits(page)) - highlighted).toBeLessThanOrEqual(1);
   await page.mouse.move(0, 0);
-  await page.waitForTimeout(750);
-  await page.evaluate(() => window.hoverReview.queue.onSubmittedWorkDone());
+  await expect(canvas).not.toHaveClass(/is-hovering-entity/);
+  await settled(page);
   const restored = await canvas.screenshot({ path: "../target/vmd-fixed/hover/restored.png" });
   const difference = await page.evaluate(async ([first, second]) => {
     const decode = async encoded => {
@@ -208,7 +198,6 @@ test("pointer hover highlights a molecule, restores on leave and settles on the 
   expect(difference.maximum).toBe(0);
   await page.evaluate(async () => {
     await window.hoverReview.viewer.dispose();
-    GPUQueue.prototype.submit = window.hoverReview.original;
     window.hoverReview.runtime.Renderer.create = window.hoverReview.create;
   });
   expect(errors).toEqual([]);

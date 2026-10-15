@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { settled, submits, trackPresentation } from "./presentation.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 function fixture() {
@@ -194,25 +195,21 @@ test("large wheel movements retain a finite interactive camera", async ({ page }
 });
 
 test("hovering a settled scene does not restart presentation sampling", async ({ page }) => {
+  await trackPresentation(page);
   await prepare(page);
   const canvas = page.locator("canvas");
   await expect(canvas).toBeVisible();
-  await expect.poll(async () => {
-    const before = await page.evaluate(async () => {
-      await window.widget.queue.onSubmittedWorkDone();
-      return window.widget.submits();
-    });
-    await page.waitForTimeout(200);
-    return (await page.evaluate(() => window.widget.submits())) === before;
-  }, { timeout: 60000 }).toBe(true);
-  await page.evaluate(() => window.widget.queue.onSubmittedWorkDone());
-  const before = await canvas.screenshot();
+  await settled(page);
+  const before = await canvas.screenshot(), sampled = await submits(page);
   // Hover empty corners: whether perceived bonds draw the fixture as
   // ball-and-stick or spacefill must not decide what the pointer touches.
   await canvas.hover({ position: { x: 10, y: 10 } });
   await page.waitForTimeout(300);
   await canvas.hover({ position: { x: 40, y: 20 } });
   await page.waitForTimeout(300);
+  // Each hover may submit its own pick readback, never a presentation sample.
+  await settled(page);
+  expect((await submits(page)) - sampled).toBeLessThanOrEqual(2);
   expect((await canvas.screenshot()).equals(before)).toBe(true);
   expect(await page.evaluate(() => window.widget.model.get("error"))).toBe("");
   await page.evaluate(() => window.widget.close());
