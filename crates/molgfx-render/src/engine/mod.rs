@@ -1,5 +1,13 @@
 //! The engine: owns the device, the graph and every pass's state.
 
+mod history;
+use history::temporal;
+use history::temporal_scene;
+
+mod lighting;
+use lighting::lighting_environment;
+use lighting::shadow;
+
 mod view;
 use view::depth_cue;
 use view::focus_target;
@@ -50,15 +58,11 @@ mod graph_setup;
 mod graph_transparency;
 pub use stereo::{StereoImages, StereoLayout};
 mod init;
-mod lighting_environment;
 pub(crate) mod pipeline_cache;
 mod presentation;
 mod session;
 mod settings;
-mod shadow;
 mod target;
-mod temporal;
-mod temporal_scene;
 
 pub(crate) use adaptive::occlusion_rays;
 pub use adaptive::{AdaptiveQuality, AdaptiveQualityConfig, QualityTier};

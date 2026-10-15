@@ -1,6 +1,6 @@
 //! History compatibility for both presented frames and offscreen exposures.
 
-use super::Engine;
+use crate::engine::Engine;
 use molgfx_core::Scene;
 use molgfx_gpu::Device;
 
@@ -40,7 +40,7 @@ impl TemporalSceneKey {
 }
 
 impl<D: Device> Engine<D> {
-    pub(super) fn update_temporal_scene_key(&mut self, scene: &Scene) -> bool {
+    pub(in crate::engine) fn update_temporal_scene_key(&mut self, scene: &Scene) -> bool {
         let key = TemporalSceneKey::from_scene(scene);
         self.temporal_scene_identity.replace(key) != Some(key)
     }

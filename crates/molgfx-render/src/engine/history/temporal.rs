@@ -1,6 +1,6 @@
 //! Deterministic temporal camera state and low-discrepancy subpixel sampling.
 
-use super::{QualityTier, ShapeCueStyle};
+use crate::engine::{QualityTier, ShapeCueStyle};
 use crate::scene_gpu::{FrameUniforms, TemporalFrame};
 use molgfx_math::{Camera, Mat4};
 
@@ -143,7 +143,7 @@ impl TemporalState {
 
     pub(crate) fn prepare(&mut self, camera: &Camera, options: &TemporalOptions) -> FrameUniforms {
         let camera_changed = self.camera_changed(camera);
-        let occlusion_rays = super::occlusion_rays(options.quality, options.converged);
+        let occlusion_rays = crate::engine::occlusion_rays(options.quality, options.converged);
         // Screen-space shading and traced shading cannot share an exposure.
         if camera_changed || options.reset || self.occlusion_rays != occlusion_rays {
             // Several analytic and provider-backed paths cannot encode exact

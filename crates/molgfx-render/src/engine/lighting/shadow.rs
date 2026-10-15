@@ -1,6 +1,6 @@
 //! Scene-fit light-space transforms used by the raster shadow pass.
 
-use super::LightingEnvironment;
+use crate::engine::LightingEnvironment;
 use molgfx_core::Scene;
 use molgfx_math::{Aabb, Camera, Mat4, Projection, Vec3};
 
@@ -54,7 +54,7 @@ impl ShadowBoundCache {
     }
 
     #[cfg(test)]
-    pub(super) const fn bound(&self) -> Aabb {
+    pub(in crate::engine) const fn bound(&self) -> Aabb {
         self.bound
     }
 }

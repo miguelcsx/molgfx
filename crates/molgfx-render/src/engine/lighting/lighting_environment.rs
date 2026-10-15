@@ -134,7 +134,7 @@ impl LightingEnvironment {
     pub(crate) fn packed(self) -> [[f32; 4]; 8] {
         let lighting = self.sanitize();
         let lane = |color: Rgba8, strength| {
-            let rgb = super::backdrop::linear_rgb(color);
+            let rgb = crate::engine::backdrop::linear_rgb(color);
             [rgb[0], rgb[1], rgb[2], strength]
         };
         [
