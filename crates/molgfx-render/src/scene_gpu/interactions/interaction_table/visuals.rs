@@ -1,5 +1,7 @@
+use super::*;
+
 impl<D: Device> GpuInteractions<D> {
-    fn sync_visuals(
+    pub(super) fn sync_visuals(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -34,7 +36,7 @@ impl<D: Device> GpuInteractions<D> {
         self.rebuild_cull_streams(device, queue, layout, resources, None)
     }
 
-    fn rebuild_cull_streams(
+    pub(super) fn rebuild_cull_streams(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -57,7 +59,13 @@ impl<D: Device> GpuInteractions<D> {
         } else {
             self.scene_visual_count
         };
-        for (index, plan) in self.visual_plans.iter().copied().take(plan_count).enumerate() {
+        for (index, plan) in self
+            .visual_plans
+            .iter()
+            .copied()
+            .take(plan_count)
+            .enumerate()
+        {
             let visual_revision = match plan.source {
                 RelationVisualSource::Scene(handle) => self
                     .visuals
@@ -97,9 +105,7 @@ impl<D: Device> GpuInteractions<D> {
             queue.write_buffer(
                 &config,
                 0,
-                bytemuck::bytes_of(&RelationCullConfig {
-                    counts,
-                }),
+                bytemuck::bytes_of(&RelationCullConfig { counts }),
             );
             let visual = self.visual_entries(plan.source, resources, paged_properties);
             let group = device.create_bind_group(&BindGroupDesc {
@@ -149,15 +155,14 @@ impl<D: Device> GpuInteractions<D> {
                 .visuals
                 .get(&handle)
                 .map_or(resources.fallback, |state| state.entries(resources)),
-            RelationVisualSource::Paged(id) => match paged_properties
-                .and_then(|properties| {
-                    self.paged_visuals
-                        .get(&id)
-                        .and_then(|state| state.entries(properties, &self.paged_visual_arenas))
-                }) {
-                    Some(entries) => entries,
-                    None => resources.fallback,
-                },
+            RelationVisualSource::Paged(id) => match paged_properties.and_then(|properties| {
+                self.paged_visuals
+                    .get(&id)
+                    .and_then(|state| state.entries(properties, &self.paged_visual_arenas))
+            }) {
+                Some(entries) => entries,
+                None => resources.fallback,
+            },
             RelationVisualSource::Fallback => resources.fallback,
         }
     }

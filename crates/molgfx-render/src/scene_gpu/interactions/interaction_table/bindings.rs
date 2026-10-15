@@ -1,7 +1,10 @@
-// Bind-group lowering for homogeneous relation-anchor streams.
+//! Bind-group lowering for homogeneous relation-anchor streams.
+
+use super::*;
+use crate::scene_gpu::interactions::relation_anchor::AnchorKernel;
 
 impl<D: Device> GpuInteractions<D> {
-    fn bind_streams(
+    pub(super) fn bind_streams(
         &mut self,
         device: &D,
         layout: &D::BindGroupLayout,
@@ -43,15 +46,11 @@ impl<D: Device> GpuInteractions<D> {
                 tracks_coordinates: matches!(
                     (plan.key.start, plan.key.end),
                     (
-                        super::relation_anchor::AnchorKernel::Point
-                            | super::relation_anchor::AnchorKernel::Atom
-                            | super::relation_anchor::AnchorKernel::Rigid,
+                        AnchorKernel::Point | AnchorKernel::Atom | AnchorKernel::Rigid,
                         _,
                     ) | (
                         _,
-                        super::relation_anchor::AnchorKernel::Point
-                            | super::relation_anchor::AnchorKernel::Atom
-                            | super::relation_anchor::AnchorKernel::Rigid,
+                        AnchorKernel::Point | AnchorKernel::Atom | AnchorKernel::Rigid,
                     )
                 ),
                 groups: workgroups_2d(u64::from(plan.count).div_ceil(64)),
@@ -89,16 +88,13 @@ impl<D: Device> GpuInteractions<D> {
                 .relation_source_entries(handle, bindings)
                 .ok_or_else(|| missing_domain(domain));
         }
-        let (start, end) = self.static_source_entries(domain, [bindings[0], bindings[1]], sources)?;
+        let (start, end) =
+            self.static_source_entries(domain, [bindings[0], bindings[1]], sources)?;
         let timeline = self
             .timeline_fallback
             .as_ref()
             .ok_or_else(|| missing_domain(domain))?;
-        Ok([
-            start,
-            end,
-            buffer_entry(bindings[2], timeline),
-        ])
+        Ok([start, end, buffer_entry(bindings[2], timeline)])
     }
 
     fn static_source_entries<'a>(
@@ -109,7 +105,10 @@ impl<D: Device> GpuInteractions<D> {
     ) -> Result<(BindGroupEntry<'a, D>, BindGroupEntry<'a, D>), RenderError> {
         match domain {
             None => {
-                let source = self.source_fallback.as_ref().ok_or_else(|| missing_domain(domain))?;
+                let source = self
+                    .source_fallback
+                    .as_ref()
+                    .ok_or_else(|| missing_domain(domain))?;
                 Ok((
                     buffer_entry(bindings[0], source),
                     buffer_entry(bindings[1], source),
@@ -119,10 +118,12 @@ impl<D: Device> GpuInteractions<D> {
                 .structures
                 .iter()
                 .find(|source| source.handle == handle)
-                .map(|source| (
-                    source.coords_entry(sources.asset_arena, bindings[0]),
-                    source.coords_entry(sources.asset_arena, bindings[1]),
-                ))
+                .map(|source| {
+                    (
+                        source.coords_entry(sources.asset_arena, bindings[0]),
+                        source.coords_entry(sources.asset_arena, bindings[1]),
+                    )
+                })
                 .ok_or_else(|| missing_domain(domain)),
             Some(RowDomain::Points(_) | RowDomain::Instances(_)) => Err(missing_domain(domain)),
             Some(domain @ (RowDomain::TemplateParts(_) | RowDomain::Relations(_))) => {
@@ -138,19 +139,30 @@ impl<D: Device> GpuInteractions<D> {
         sources: RelationSources<'a, D>,
     ) -> Result<BindGroupEntry<'a, D>, RenderError> {
         if let Some(RowDomain::Atoms(handle)) = domain {
-            return sources.structures.iter().find(|source| source.handle == handle)
+            return sources
+                .structures
+                .iter()
+                .find(|source| source.handle == handle)
                 .and_then(|source| source.model_entry(binding))
-                .ok_or(RenderError::RelationSourceMissing { domain: RowDomain::Atoms(handle) });
+                .ok_or(RenderError::RelationSourceMissing {
+                    domain: RowDomain::Atoms(handle),
+                });
         }
-        self.model_fallback.as_ref()
+        self.model_fallback
+            .as_ref()
             .map(|buffer| buffer_entry(binding, buffer))
             .ok_or_else(|| missing_domain(domain))
     }
 
-    fn ensure_fallbacks(&mut self, device: &D, queue: &D::Queue) -> Result<(), RenderError> {
+    pub(super) fn ensure_fallbacks(
+        &mut self,
+        device: &D,
+        queue: &D::Queue,
+    ) -> Result<(), RenderError> {
         if self.source_fallback.is_none() {
             self.source_fallback = Some(device.create_buffer(&BufferDesc {
-                label: "dynamic relation unused source", size: 256,
+                label: "dynamic relation unused source",
+                size: 256,
                 usage: BufferUsage::STORAGE.union(BufferUsage::COPY_DST),
             })?);
         }
@@ -160,14 +172,17 @@ impl<D: Device> GpuInteractions<D> {
                 size: std::mem::size_of::<ModelUniforms>() as u64,
                 usage: BufferUsage::UNIFORM.union(BufferUsage::COPY_DST),
             })?;
-            queue.write_buffer(&buffer, 0, bytemuck::bytes_of(&ModelUniforms::new(
-                Mat4::IDENTITY, Mat4::IDENTITY, [0; 9],
-            )));
+            queue.write_buffer(
+                &buffer,
+                0,
+                bytemuck::bytes_of(&ModelUniforms::new(Mat4::IDENTITY, Mat4::IDENTITY, [0; 9])),
+            );
             self.model_fallback = Some(buffer);
         }
         if self.timeline_fallback.is_none() {
             let buffer = device.create_buffer(&BufferDesc {
-                label: "dynamic relation static timeline", size: 48,
+                label: "dynamic relation static timeline",
+                size: 48,
                 usage: BufferUsage::UNIFORM.union(BufferUsage::COPY_DST),
             })?;
             queue.write_buffer(&buffer, 0, &[0; 48]);

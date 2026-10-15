@@ -1,13 +1,18 @@
 //! One revision-diffed glyph table plus branch-free dynamic relation streams.
 
-#[path = "relations/coordinates.rs"]
+mod bindings;
 mod coordinates;
-#[path = "relations/paged.rs"]
+mod helpers;
 mod paged;
-#[path = "relations/visual.rs"]
 mod paged_visual;
+mod views;
+mod visuals;
 use crate::scene_gpu::buffers::{buffer_entry, gpu_limit};
 use coordinates::RelationCullConfig;
+use helpers::{
+    missing_domain, relation_resolver, row_limit, source_binding_revision,
+    stable_relation_scratch_bytes, table_chunk,
+};
 pub(in crate::scene_gpu) use paged::PagedRelationSync;
 
 use super::relation_anchor::{StreamKey, anchor_payload, pipeline_index, stream_key};
@@ -453,11 +458,3 @@ impl<D: Device> GpuInteractions<D> {
         }));
     }
 }
-
-include!("interaction_bindings.rs");
-
-include!("interaction_table_views.rs");
-
-include!("interaction_table_helpers.rs");
-
-include!("interaction_visuals.rs");

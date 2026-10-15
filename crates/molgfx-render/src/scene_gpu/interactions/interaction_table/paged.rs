@@ -10,9 +10,7 @@ use crate::engine::chunk_draw_plan::{ResidentRelationChunkPlacement, ResidentSpa
 use crate::scene_gpu::buffers::buffer_entry;
 use molgfx_core::{EntityKind, PagedSpatialAnchor};
 
-#[path = "paged/input.rs"]
 mod input;
-#[path = "paged/support.rs"]
 mod support;
 use input::PagedGeometryInput;
 pub(in crate::scene_gpu) use input::PagedRelationSync;

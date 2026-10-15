@@ -1,6 +1,11 @@
-// Stable relation keys and limits.
+//! Stable relation keys and limits.
 
-fn relation_resolver(
+use super::{
+    ChunkId, Device, GpuStructure, RelationResolverGpu, RenderError, RowDomain, Scene,
+    anchor_payload, gpu_limit,
+};
+
+pub(super) fn relation_resolver(
     scene: &Scene,
     relation: molgfx_core::Relation,
     batch: &molgfx_core::RelationBatch,
@@ -57,16 +62,16 @@ fn oriented_geometry_payload(batch: &molgfx_core::RelationBatch, logical: u32) -
     ]
 }
 
-fn table_chunk(row: u32, generation: u32) -> ChunkId {
+pub(super) fn table_chunk(row: u32, generation: u32) -> ChunkId {
     ChunkId::new(u64::from(row) | (u64::from(generation) << 32))
 }
 
 // O(rows) scratch retains logical order without depending on atomic retirement.
-fn stable_relation_scratch_bytes(rows: u32) -> u64 {
+pub(super) fn stable_relation_scratch_bytes(rows: u32) -> u64 {
     u64::from(rows) * 8 + u64::from(rows).div_ceil(64) * 4
 }
 
-fn source_binding_revision<D: Device>(structures: &[GpuStructure<D>]) -> u64 {
+pub(super) fn source_binding_revision<D: Device>(structures: &[GpuStructure<D>]) -> u64 {
     structures
         .iter()
         .fold(0xcbf2_9ce4_8422_2325, |hash, source| {
@@ -77,11 +82,11 @@ fn source_binding_revision<D: Device>(structures: &[GpuStructure<D>]) -> u64 {
         })
 }
 
-fn row_limit() -> molgfx_gpu::GpuError {
+pub(super) fn row_limit() -> molgfx_gpu::GpuError {
     gpu_limit("generic relation rows", u64::from(u32::MAX))
 }
 
-fn missing_domain(domain: Option<RowDomain>) -> RenderError {
+pub(super) fn missing_domain(domain: Option<RowDomain>) -> RenderError {
     let Some(domain) = domain else {
         return RenderError::PickingOwnerMissing;
     };
