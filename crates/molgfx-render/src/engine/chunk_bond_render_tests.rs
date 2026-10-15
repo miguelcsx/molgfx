@@ -64,14 +64,17 @@ fn cross_chunk_global_endpoints_render_and_pick_in_a_separate_namespace() {
     assert!(atom_page.is_some());
     assert!(bond_page.is_some());
     assert_ne!(atom_page, bond_page);
-    let args = buffer_id(&engine, "paged bond indirect command arena");
-    assert_eq!(indirect_count(&engine, args), 1);
-    let buffers = buffer_count(&engine);
+    let args = engine
+        .device
+        .log
+        .buffer_id("paged bond indirect command arena");
+    assert_eq!(engine.device.log.indirect_count(args), 1);
+    let buffers = engine.device.log.buffer_count();
     let writes = bond_write_count(&engine);
     render_ok(&mut engine, &scene);
-    assert_eq!(buffer_count(&engine), buffers);
+    assert_eq!(engine.device.log.buffer_count(), buffers);
     assert_eq!(bond_write_count(&engine), writes);
-    assert_eq!(indirect_count(&engine, args), 2);
+    assert_eq!(engine.device.log.indirect_count(args), 2);
     assert_bond_pick(&mut engine, bond_page);
 }
 
@@ -322,46 +325,20 @@ fn bonded_structure() -> molframe::Structure {
     frame::Structure::new(data).into()
 }
 
-fn buffer_id(engine: &Engine<MockDevice>, label: &'static str) -> u32 {
-    engine
-        .device
-        .log
-        .buffers
-        .lock()
-        .map_or(u32::MAX, |buffers| {
-            buffers
-                .iter()
-                .find(|(_, value, _)| *value == label)
-                .map_or(u32::MAX, |(id, _, _)| *id)
-        })
-}
-
-fn buffer_count(engine: &Engine<MockDevice>) -> usize {
-    engine
-        .device
-        .log
-        .buffers
-        .lock()
-        .map_or(0, |value| value.len())
-}
-
 fn bond_write_count(engine: &Engine<MockDevice>) -> usize {
     let ids = [
-        buffer_id(engine, "resident provider bonds"),
-        buffer_id(engine, "paged bond placements"),
-        buffer_id(engine, "paged bond indirect command arena"),
+        engine.device.log.buffer_id("resident provider bonds"),
+        engine.device.log.buffer_id("paged bond placements"),
+        engine
+            .device
+            .log
+            .buffer_id("paged bond indirect command arena"),
     ];
     engine.device.log.writes.lock().map_or(0, |writes| {
         writes
             .iter()
             .filter(|(buffer, _, _, _)| ids.contains(buffer))
             .count()
-    })
-}
-
-fn indirect_count(engine: &Engine<MockDevice>, buffer: u32) -> usize {
-    engine.device.log.indirect_draws.lock().map_or(0, |draws| {
-        draws.iter().filter(|(id, _)| *id == buffer).count()
     })
 }
 

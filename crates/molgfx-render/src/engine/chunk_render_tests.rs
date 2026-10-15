@@ -38,18 +38,18 @@ fn resident_points_render_as_one_indirect_batch_and_pick_global_rows() {
         engine.structure_chunk_placement_status(placement_id),
         ChunkPlacementStatus::Resident
     );
-    let args_id = buffer_id(&engine, "paged indirect command arena");
+    let args_id = engine.device.log.buffer_id("paged indirect command arena");
     assert_eq!(
-        indirect_count(&engine, args_id),
+        engine.device.log.indirect_count(args_id),
         1,
         "one draw covers every resident chunk"
     );
-    let buffers_after_warmup = buffer_count(&engine);
+    let buffers_after_warmup = engine.device.log.buffer_count();
     let paged_writes_after_warmup = paged_write_count(&engine);
     render_ok(&mut engine, &scene);
-    assert_eq!(buffer_count(&engine), buffers_after_warmup);
+    assert_eq!(engine.device.log.buffer_count(), buffers_after_warmup);
     assert_eq!(paged_write_count(&engine), paged_writes_after_warmup);
-    assert_eq!(indirect_count(&engine, args_id), 2);
+    assert_eq!(engine.device.log.indirect_count(args_id), 2);
 
     let page = engine.scene_gpu.test_chunk_pick_page(
         DatasetId::new(dataset),
@@ -112,7 +112,7 @@ fn points_and_spacefill_share_one_persistent_indirect_command_arena() {
     }
     let scene = molgfx_core::Scene::new();
     render_ok(&mut engine, &scene);
-    let arena = buffer_id(&engine, "paged indirect command arena");
+    let arena = engine.device.log.buffer_id("paged indirect command arena");
     assert_eq!(indirect_offsets(&engine, arena), vec![16, 0]);
     let page = engine.scene_gpu.test_chunk_pick_page(
         DatasetId::new(79),
@@ -123,10 +123,10 @@ fn points_and_spacefill_share_one_persistent_indirect_command_arena() {
         panic!("second spacefill chunk must own a picking page")
     };
     assert_global_pick(&mut engine, 79, 83, page);
-    let buffers = buffer_count(&engine);
+    let buffers = engine.device.log.buffer_count();
     let writes = paged_write_count(&engine);
     render_ok(&mut engine, &scene);
-    assert_eq!(buffer_count(&engine), buffers);
+    assert_eq!(engine.device.log.buffer_count(), buffers);
     assert_eq!(paged_write_count(&engine), writes);
     assert_eq!(indirect_offsets(&engine, arena), vec![16, 0, 16, 0]);
 }
@@ -173,10 +173,10 @@ fn provider_frames_interpolate_through_one_bounded_gpu_window() {
     }
     let scene = molgfx_core::Scene::new();
     render_ok(&mut engine, &scene);
-    let frame_buffer = buffer_id(&engine, "resident trajectory frames");
+    let frame_buffer = engine.device.log.buffer_id("resident trajectory frames");
     // A trajectory window is the one case that needs the second coordinate
     // backing: the interpolation pass writes through it.
-    let display_buffer = buffer_id(&engine, "resident display coordinates");
+    let display_buffer = engine.device.log.buffer_id("resident display coordinates");
     assert_ne!(frame_buffer, u32::MAX);
     assert_ne!(display_buffer, u32::MAX, "a trajectory window allocates it");
     let writes_before = buffer_write_count(&engine, frame_buffer);
@@ -212,7 +212,7 @@ fn exercise_loss_and_eviction(
         engine.structure_chunk_placement_status(placement),
         ChunkPlacementStatus::Resident
     );
-    assert_eq!(indirect_count(engine, args), 3);
+    assert_eq!(engine.device.log.indirect_count(args), 3);
     if let Err(error) = engine.set_chunk_budget_into(
         ResidencyBudget {
             cpu: 4096,
@@ -243,32 +243,7 @@ fn render_absent(
         engine.structure_chunk_placement_status(placement),
         ChunkPlacementStatus::NotResident
     );
-    assert_eq!(indirect_count(engine, args), draws);
-}
-
-fn buffer_id(engine: &Engine<MockDevice>, label: &'static str) -> u32 {
-    match engine.device.log.buffers.lock() {
-        Ok(buffers) => buffers
-            .iter()
-            .find(|(_, candidate, _)| *candidate == label)
-            .map_or(u32::MAX, |(id, _, _)| *id),
-        Err(_) => u32::MAX,
-    }
-}
-
-fn buffer_count(engine: &Engine<MockDevice>) -> usize {
-    engine
-        .device
-        .log
-        .buffers
-        .lock()
-        .map_or(0, |value| value.len())
-}
-
-fn indirect_count(engine: &Engine<MockDevice>, buffer: u32) -> usize {
-    engine.device.log.indirect_draws.lock().map_or(0, |draws| {
-        draws.iter().filter(|(id, _)| *id == buffer).count()
-    })
+    assert_eq!(engine.device.log.indirect_count(args), draws);
 }
 
 fn indirect_offsets(engine: &Engine<MockDevice>, buffer: u32) -> Vec<u64> {
@@ -284,9 +259,12 @@ fn indirect_offsets(engine: &Engine<MockDevice>, buffer: u32) -> Vec<u64> {
 }
 
 fn paged_write_count(engine: &Engine<MockDevice>) -> usize {
-    let placement = buffer_id(engine, "paged chunk placements");
-    let coordinates = buffer_id(engine, "resident structure chunks");
-    let clusters = buffer_id(engine, "resident structure chunk clusters");
+    let placement = engine.device.log.buffer_id("paged chunk placements");
+    let coordinates = engine.device.log.buffer_id("resident structure chunks");
+    let clusters = engine
+        .device
+        .log
+        .buffer_id("resident structure chunk clusters");
     engine.device.log.writes.lock().map_or(0, |writes| {
         writes
             .iter()

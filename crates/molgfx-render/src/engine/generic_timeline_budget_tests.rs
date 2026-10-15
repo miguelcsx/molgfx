@@ -161,25 +161,25 @@ fn deformable_points_and_their_relations_share_one_gpu_timeline() {
         .unwrap_or_else(|error| panic!("direct engine opens: {error}"));
     render_ok(&mut direct, &scene);
     assert_eq!(direct.derived_cache_usage().gpu_bytes, 0);
-    assert!(!has_buffer(&direct, "materialized generic point timeline"));
+    assert!(
+        !direct
+            .device
+            .log
+            .has_buffer("materialized generic point timeline")
+    );
     assert_eq!(latest_point_alpha(&direct).to_bits(), 0.25f32.to_bits());
 
     let mut cached = Engine::<MockDevice>::new(&EngineConfig::default(), None)
         .unwrap_or_else(|error| panic!("cached engine opens: {error}"));
     render_ok(&mut cached, &scene);
-    assert!(has_buffer(&cached, "materialized generic point timeline"));
+    assert!(
+        cached
+            .device
+            .log
+            .has_buffer("materialized generic point timeline")
+    );
     assert_eq!(cached.derived_cache_usage().gpu_bytes, 24);
     assert_eq!(latest_point_alpha(&cached).to_bits(), 0.0f32.to_bits());
-}
-
-fn has_buffer(engine: &Engine<MockDevice>, label: &'static str) -> bool {
-    engine
-        .device
-        .log
-        .buffers
-        .locked()
-        .iter()
-        .any(|(_, candidate, _)| *candidate == label)
 }
 
 fn latest_point_alpha(engine: &Engine<MockDevice>) -> f32 {

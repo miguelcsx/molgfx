@@ -35,19 +35,6 @@ fn render(engine: &mut super::Engine<MockDevice>, scene: &Scene) {
         .expect("segmentation renders");
 }
 
-fn buffer_writes(log: &MockLog, label: &str) -> usize {
-    let buffers = log.buffers.locked();
-    let writes = log.writes.locked();
-    writes
-        .iter()
-        .filter(|write| {
-            buffers
-                .iter()
-                .any(|buffer| buffer.0 == write.0 && buffer.1 == label)
-        })
-        .count()
-}
-
 fn label_uploads(log: &MockLog) -> usize {
     log.texture_writes
         .locked()
@@ -62,9 +49,14 @@ fn changing_segment_color_and_opacity_uploads_only_the_style_table() {
         let (mut scene, representation) = scene(styles(label, Rgba8::WHITE, 0.8));
         let mut engine = engine();
         render(&mut engine, &scene);
-        let initial_styles = buffer_writes(&engine.device.log, "categorical segment style lookup");
-        let initial_uniforms =
-            buffer_writes(&engine.device.log, "categorical segmentation uniforms");
+        let initial_styles = engine
+            .device
+            .log
+            .writes_to("categorical segment style lookup");
+        let initial_uniforms = engine
+            .device
+            .log
+            .writes_to("categorical segmentation uniforms");
         let initial_buffers = engine.device.log.buffers.locked().len();
         scene
             .representation_mut(representation)
@@ -74,17 +66,26 @@ fn changing_segment_color_and_opacity_uploads_only_the_style_table() {
         render(&mut engine, &scene);
         assert_eq!(label_uploads(&engine.device.log), 1);
         assert_eq!(
-            buffer_writes(&engine.device.log, "categorical segment style lookup"),
+            engine
+                .device
+                .log
+                .writes_to("categorical segment style lookup"),
             initial_styles + 1
         );
         assert_eq!(
-            buffer_writes(&engine.device.log, "categorical segmentation uniforms"),
+            engine
+                .device
+                .log
+                .writes_to("categorical segmentation uniforms"),
             initial_uniforms
         );
         assert_eq!(engine.device.log.buffers.locked().len(), initial_buffers);
         render(&mut engine, &scene);
         assert_eq!(
-            buffer_writes(&engine.device.log, "categorical segment style lookup"),
+            engine
+                .device
+                .log
+                .writes_to("categorical segment style lookup"),
             initial_styles + 1
         );
     }
@@ -95,8 +96,14 @@ fn sampling_edits_do_not_reupload_the_style_table_or_labels() {
     let (mut scene, representation) = scene(styles(1, Rgba8::WHITE, 0.8));
     let mut engine = engine();
     render(&mut engine, &scene);
-    let initial_styles = buffer_writes(&engine.device.log, "categorical segment style lookup");
-    let initial_uniforms = buffer_writes(&engine.device.log, "categorical segmentation uniforms");
+    let initial_styles = engine
+        .device
+        .log
+        .writes_to("categorical segment style lookup");
+    let initial_uniforms = engine
+        .device
+        .log
+        .writes_to("categorical segmentation uniforms");
     scene
         .representation_mut(representation)
         .expect("representation exists")
@@ -105,11 +112,17 @@ fn sampling_edits_do_not_reupload_the_style_table_or_labels() {
     render(&mut engine, &scene);
     assert_eq!(label_uploads(&engine.device.log), 1);
     assert_eq!(
-        buffer_writes(&engine.device.log, "categorical segment style lookup"),
+        engine
+            .device
+            .log
+            .writes_to("categorical segment style lookup"),
         initial_styles
     );
     assert_eq!(
-        buffer_writes(&engine.device.log, "categorical segmentation uniforms"),
+        engine
+            .device
+            .log
+            .writes_to("categorical segmentation uniforms"),
         initial_uniforms + 1
     );
 }
@@ -162,8 +175,8 @@ fn surface_style_edits_reuse_label_and_boundary_uploads() {
         .presentation = molgfx_core::SegmentationPresentation::Surface;
     let mut engine = engine();
     render(&mut engine, &scene);
-    let vertices = buffer_writes(&engine.device.log, "field boundary vertices");
-    let indices = buffer_writes(&engine.device.log, "field boundary indices");
+    let vertices = engine.device.log.writes_to("field boundary vertices");
+    let indices = engine.device.log.writes_to("field boundary indices");
     assert_eq!(vertices, 1);
     assert_eq!(indices, 1);
     scene
@@ -174,11 +187,11 @@ fn surface_style_edits_reuse_label_and_boundary_uploads() {
     render(&mut engine, &scene);
     assert_eq!(label_uploads(&engine.device.log), 1);
     assert_eq!(
-        buffer_writes(&engine.device.log, "field boundary vertices"),
+        engine.device.log.writes_to("field boundary vertices"),
         vertices
     );
     assert_eq!(
-        buffer_writes(&engine.device.log, "field boundary indices"),
+        engine.device.log.writes_to("field boundary indices"),
         indices
     );
     assert_eq!(engine.scene_gpu.segmentation_draws().count(), 1);

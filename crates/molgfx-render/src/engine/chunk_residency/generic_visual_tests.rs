@@ -1,6 +1,6 @@
 use super::chunk_residency_tests::{complete, engine, upload};
 use super::generic_chunk_residency_tests::{
-    buffer_count, fixture, generic_fixtures, relation_geometry_write_count, relation_write_count,
+    fixture, generic_fixtures, relation_geometry_write_count, relation_write_count,
     request_deliver_upload,
 };
 use super::{
@@ -98,10 +98,10 @@ fn paged_relation_visual_reads_one_native_resident_column() {
     render_ok(&mut engine, &scene);
     assert_materialized_visual(&engine);
 
-    let buffers = buffer_count(&engine);
+    let buffers = engine.device.log.buffer_count();
     let writes = relation_write_count(&engine);
     render_ok(&mut engine, &scene);
-    assert_eq!(buffer_count(&engine), buffers);
+    assert_eq!(engine.device.log.buffer_count(), buffers);
     assert_eq!(relation_write_count(&engine), writes);
 
     let geometry_writes = relation_geometry_write_count(&engine);
@@ -112,7 +112,7 @@ fn paged_relation_visual_reads_one_native_resident_column() {
     render_ok(&mut engine, &scene);
     assert_eq!(relation_geometry_write_count(&engine), geometry_writes);
     assert_eq!(relation_write_count(&engine), visual_writes + 1);
-    assert_eq!(buffer_count(&engine), buffers);
+    assert_eq!(engine.device.log.buffer_count(), buffers);
 
     assert_attribute_advance(&mut engine, &scene, attribute_ticket, start, end, buffers);
 }
@@ -147,7 +147,7 @@ fn assert_attribute_advance(
     assert_eq!(relation_geometry_write_count(engine), geometry_writes);
     assert_eq!(relation_write_count(engine), visual_writes);
     assert_eq!(paged_attribute_timeline_writes(engine), timeline_writes + 1);
-    assert_eq!(buffer_count(engine), buffers);
+    assert_eq!(engine.device.log.buffer_count(), buffers);
 }
 
 fn animated_relation_visual(

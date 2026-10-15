@@ -1,22 +1,8 @@
 use super::tests::{camera, engine, render_ok};
-use crate::{scene_gpu::GeometryKind, testing::MockLog};
+use crate::scene_gpu::GeometryKind;
 use molgfx_core::{Representation, ScalarVolume, Scene, VolumeRendering, VolumeStyle};
 use molgfx_math::Mat4;
 use std::sync::Arc;
-
-fn writes(log: &MockLog, label: &str) -> usize {
-    let buffers = log.buffers.lock().unwrap();
-    log.writes
-        .lock()
-        .unwrap()
-        .iter()
-        .filter(|write| {
-            buffers
-                .iter()
-                .any(|buffer| buffer.0 == write.0 && buffer.1 == label)
-        })
-        .count()
-}
 
 #[test]
 fn mesh_and_dots_share_geometry_and_style_edits_do_not_rebuild_it() {
@@ -39,8 +25,8 @@ fn mesh_and_dots_share_geometry_and_style_edits_do_not_rebuild_it() {
     }
     let mut engine = engine();
     render_ok(&mut engine, &scene);
-    assert_eq!(writes(&engine.device.log, "field boundary vertices"), 1);
-    assert_eq!(writes(&engine.device.log, "field boundary indices"), 1);
+    assert_eq!(engine.device.log.writes_to("field boundary vertices"), 1);
+    assert_eq!(engine.device.log.writes_to("field boundary indices"), 1);
     assert_eq!(engine.scene_gpu.volume_draws().count(), 2);
     assert!(
         engine
@@ -55,8 +41,8 @@ fn mesh_and_dots_share_geometry_and_style_edits_do_not_rebuild_it() {
     }
     render_ok(&mut engine, &scene);
     render_ok(&mut engine, &scene);
-    assert_eq!(writes(&engine.device.log, "field boundary vertices"), 1);
-    assert_eq!(writes(&engine.device.log, "field boundary indices"), 1);
+    assert_eq!(engine.device.log.writes_to("field boundary vertices"), 1);
+    assert_eq!(engine.device.log.writes_to("field boundary indices"), 1);
     assert_eq!(
         engine
             .device
@@ -73,13 +59,13 @@ fn mesh_and_dots_share_geometry_and_style_edits_do_not_rebuild_it() {
         scene.representation_mut(*handle).unwrap().params.isolevel = 0.7;
     }
     render_ok(&mut engine, &scene);
-    assert_eq!(writes(&engine.device.log, "field boundary vertices"), 2);
+    assert_eq!(engine.device.log.writes_to("field boundary vertices"), 2);
     for handle in &handles {
         scene.representation_mut(*handle).unwrap().params.isolevel = 0.5;
     }
     render_ok(&mut engine, &scene);
     assert_eq!(
-        writes(&engine.device.log, "field boundary vertices"),
+        engine.device.log.writes_to("field boundary vertices"),
         3,
         "inactive levels release geometry instead of accumulating a history cache"
     );

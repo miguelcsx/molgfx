@@ -114,8 +114,8 @@ fn resident_generic_points_join_the_indirect_batch_and_pick_global_rows() {
         engine.point_chunk_placement_status(placement.id()),
         ChunkPlacementStatus::Resident
     );
-    let args = buffer_id(&engine, "paged indirect command arena");
-    assert_eq!(indirect_count(&engine, args), 1);
+    let args = engine.device.log.buffer_id("paged indirect command arena");
+    assert_eq!(engine.device.log.indirect_count(args), 1);
     let page = engine.scene_gpu.test_chunk_pick_page(
         ticket.key.dataset,
         ticket.key.chunk,
@@ -142,12 +142,12 @@ fn resident_generic_points_join_the_indirect_batch_and_pick_global_rows() {
     assert_eq!(identity.kind(), molgfx_core::EntityKind::Point);
     assert_eq!(identity.row(), LogicalRow::new(101));
 
-    let buffers = buffer_count(&engine);
+    let buffers = engine.device.log.buffer_count();
     let writes = paged_write_count(&engine);
     render_ok(&mut engine, &scene);
-    assert_eq!(buffer_count(&engine), buffers);
+    assert_eq!(engine.device.log.buffer_count(), buffers);
     assert_eq!(paged_write_count(&engine), writes);
-    assert_eq!(indirect_count(&engine, args), 2);
+    assert_eq!(engine.device.log.indirect_count(args), 2);
 }
 
 #[test]
@@ -228,10 +228,10 @@ fn resident_instance_chunks_reuse_analytic_culling_and_flat_part_picking() {
     assert_eq!(identity.kind(), molgfx_core::EntityKind::TemplatePart);
     assert_eq!(identity.row(), LogicalRow::new(3));
 
-    let buffers = buffer_count(&engine);
+    let buffers = engine.device.log.buffer_count();
     let writes = paged_write_count(&engine);
     render_ok(&mut engine, &scene);
-    assert_eq!(buffer_count(&engine), buffers);
+    assert_eq!(engine.device.log.buffer_count(), buffers);
     assert_eq!(paged_write_count(&engine), writes);
     let template_uploads = engine.device.log.buffers.lock().map_or(0, |values| {
         values
@@ -404,8 +404,11 @@ fn paged_relations_wait_for_exact_sources_then_share_one_indirect_draw() {
 
     let scene = molgfx_core::Scene::new();
     render_ok(&mut engine, &scene);
-    let args = buffer_id(&engine, "interaction glyph indirect arguments");
-    assert_eq!(indirect_count(&engine, args), 1);
+    let args = engine
+        .device
+        .log
+        .buffer_id("interaction glyph indirect arguments");
+    assert_eq!(engine.device.log.indirect_count(args), 1);
     let page = engine.scene_gpu.test_chunk_pick_page(
         relation_ticket.key.dataset,
         relation_ticket.key.chunk,
@@ -432,19 +435,19 @@ fn paged_relations_wait_for_exact_sources_then_share_one_indirect_draw() {
     assert_eq!(identity.kind(), molgfx_core::EntityKind::Relation);
     assert_eq!(identity.row(), LogicalRow::new(101));
 
-    let buffers = buffer_count(&engine);
+    let buffers = engine.device.log.buffer_count();
     let writes = relation_write_count(&engine);
     render_ok(&mut engine, &scene);
-    assert_eq!(buffer_count(&engine), buffers);
+    assert_eq!(engine.device.log.buffer_count(), buffers);
     assert_eq!(relation_write_count(&engine), writes);
-    assert_eq!(indirect_count(&engine, args), 2);
+    assert_eq!(engine.device.log.indirect_count(args), 2);
 }
 
 #[path = "generic_tests/support.rs"]
 mod support;
 pub(super) use support::{
-    assert_compute_precedes, buffer_count, buffer_id, fixture, generic_fixtures, indirect_count,
-    paged_write_count, relation_geometry_write_count, relation_write_count, request_deliver_upload,
+    assert_compute_precedes, fixture, generic_fixtures, paged_write_count,
+    relation_geometry_write_count, relation_write_count, request_deliver_upload,
 };
 
 #[path = "generic_tests/trajectory.rs"]

@@ -1,6 +1,6 @@
 use super::chunk_residency_tests::{engine, engine_with_derived_budget};
 use super::generic_chunk_residency_tests::{
-    buffer_count, fixture, relation_geometry_write_count, request_deliver_upload,
+    fixture, relation_geometry_write_count, request_deliver_upload,
 };
 use super::{
     ChunkPlacementId, InstanceChunkPlacement, InstanceChunkWindow, RelationChunkPlacement,
@@ -40,7 +40,7 @@ fn paged_instance_timeline_samples_resident_pages_without_rebuilding_batches() {
 
     let scene = molgfx_core::Scene::new();
     render_ok(&mut engine, &scene);
-    let buffers = buffer_count(&engine);
+    let buffers = engine.device.log.buffer_count();
     let writes = instance_config_writes(&engine);
     let materialization_writes = instance_timeline_writes(&engine);
     let relation_geometry_writes = relation_geometry_write_count(&engine);
@@ -62,7 +62,7 @@ fn paged_instance_timeline_samples_resident_pages_without_rebuilding_batches() {
         passes.clear();
     }
     render_ok(&mut engine, &scene);
-    assert_eq!(buffer_count(&engine), buffers);
+    assert_eq!(engine.device.log.buffer_count(), buffers);
     assert_eq!(instance_config_writes(&engine), writes);
     assert_eq!(
         instance_timeline_writes(&engine),
@@ -114,7 +114,10 @@ fn zero_budget_paged_instances_sample_two_resident_pages_directly() {
 
     assert_eq!(engine.derived_cache_usage().gpu_bytes, 0);
     assert_eq!(
-        buffer_id(&engine, "materialized paged instance timeline"),
+        engine
+            .device
+            .log
+            .buffer_id("materialized paged instance timeline"),
         u32::MAX
     );
     assert_eq!(
@@ -220,7 +223,7 @@ fn rigid(translation: Vec3) -> RigidInstance {
 }
 
 fn instance_config_writes(engine: &super::Engine<crate::testing::MockDevice>) -> usize {
-    let id = buffer_id(engine, "paged instance configuration");
+    let id = engine.device.log.buffer_id("paged instance configuration");
     engine.device.log.writes.lock().map_or(0, |writes| {
         writes
             .iter()
@@ -230,7 +233,7 @@ fn instance_config_writes(engine: &super::Engine<crate::testing::MockDevice>) ->
 }
 
 fn relation_timeline_writes(engine: &super::Engine<crate::testing::MockDevice>) -> usize {
-    let id = buffer_id(engine, "paged relation rigid timeline");
+    let id = engine.device.log.buffer_id("paged relation rigid timeline");
     engine.device.log.writes.lock().map_or(0, |writes| {
         writes
             .iter()
@@ -240,7 +243,10 @@ fn relation_timeline_writes(engine: &super::Engine<crate::testing::MockDevice>) 
 }
 
 fn instance_timeline_writes(engine: &super::Engine<crate::testing::MockDevice>) -> usize {
-    let id = buffer_id(engine, "paged instance timeline configuration");
+    let id = engine
+        .device
+        .log
+        .buffer_id("paged instance timeline configuration");
     engine.device.log.writes.lock().map_or(0, |writes| {
         writes
             .iter()
@@ -262,7 +268,7 @@ fn latest_config_words(
     label: &'static str,
     offsets: [usize; 3],
 ) -> [u32; 3] {
-    let id = buffer_id(engine, label);
+    let id = engine.device.log.buffer_id(label);
     let index = engine.device.log.writes.lock().ok().and_then(|writes| {
         writes
             .iter()
@@ -306,7 +312,10 @@ fn instance_offset(
 fn relations_read_materialized_instances(
     engine: &super::Engine<crate::testing::MockDevice>,
 ) -> bool {
-    let materialized = buffer_id(engine, "materialized paged instance timeline");
+    let materialized = engine
+        .device
+        .log
+        .buffer_id("materialized paged instance timeline");
     engine
         .device
         .log
@@ -318,19 +327,5 @@ fn relations_read_materialized_instances(
                     && [1, 2, 6, 7].contains(binding)
                     && *buffer == materialized
             })
-        })
-}
-
-fn buffer_id(engine: &super::Engine<crate::testing::MockDevice>, label: &'static str) -> u32 {
-    engine
-        .device
-        .log
-        .buffers
-        .lock()
-        .map_or(u32::MAX, |buffers| {
-            buffers
-                .iter()
-                .find(|(_, candidate, _)| *candidate == label)
-                .map_or(u32::MAX, |(id, _, _)| *id)
         })
 }

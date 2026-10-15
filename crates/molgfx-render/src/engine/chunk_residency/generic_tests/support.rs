@@ -95,49 +95,15 @@ pub(in crate::engine) fn write_count_for_labels(
     })
 }
 
-pub(in crate::engine) fn buffer_id(
-    engine: &crate::engine::Engine<crate::testing::MockDevice>,
-    label: &'static str,
-) -> u32 {
-    engine
-        .device
-        .log
-        .buffers
-        .lock()
-        .map_or(u32::MAX, |buffers| {
-            buffers
-                .iter()
-                .find(|(_, candidate, _)| *candidate == label)
-                .map_or(u32::MAX, |(id, _, _)| *id)
-        })
-}
-
-pub(in crate::engine) fn buffer_count(
-    engine: &crate::engine::Engine<crate::testing::MockDevice>,
-) -> usize {
-    engine
-        .device
-        .log
-        .buffers
-        .lock()
-        .map_or(0, |value| value.len())
-}
-
-pub(in crate::engine) fn indirect_count(
-    engine: &crate::engine::Engine<crate::testing::MockDevice>,
-    buffer: u32,
-) -> usize {
-    engine.device.log.indirect_draws.lock().map_or(0, |draws| {
-        draws.iter().filter(|(id, _)| *id == buffer).count()
-    })
-}
-
 pub(in crate::engine) fn paged_write_count(
     engine: &crate::engine::Engine<crate::testing::MockDevice>,
 ) -> usize {
-    let placement = buffer_id(engine, "paged chunk placements");
-    let coordinates = buffer_id(engine, "resident structure chunks");
-    let clusters = buffer_id(engine, "resident structure chunk clusters");
+    let placement = engine.device.log.buffer_id("paged chunk placements");
+    let coordinates = engine.device.log.buffer_id("resident structure chunks");
+    let clusters = engine
+        .device
+        .log
+        .buffer_id("resident structure chunk clusters");
     engine.device.log.writes.lock().map_or(0, |writes| {
         writes
             .iter()
