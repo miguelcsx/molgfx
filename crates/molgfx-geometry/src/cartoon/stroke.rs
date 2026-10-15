@@ -4,7 +4,6 @@ use super::ribbon::{RibbonBuild, RibbonDeformation, RibbonVertex, SplineProfile,
 use super::sweep::RibbonTrace;
 use crate::PackingError;
 use molgfx_math::{Vec3, catmull_rom_position};
-use num_traits::ToPrimitive as _;
 
 pub(super) fn append(
     input: RibbonTrace<'_>,
@@ -40,9 +39,7 @@ pub(super) fn append(
             .saturating_add(segments.saturating_mul(6)),
     )?;
     for interval in 0..input.points.len().saturating_sub(1) {
-        let offset = interval.to_f32().ok_or(PackingError::GeometryBudget {
-            resource: "polymer stroke parameter",
-        })?;
+        let offset = super::draw_limits::exact_f32(interval, "polymer stroke parameter")?;
         let (minimum, maximum) = match input.parameter_range {
             Some([minimum, maximum]) => ((minimum - offset).max(0.0), (maximum - offset).min(1.0)),
             None => (0.0, 1.0),

@@ -1,9 +1,7 @@
 //! Full-run helix fits for adjacent coil anchors, O(guides + vertices).
 
-use super::{RibbonMesh, helix::Run};
+use super::{RibbonMesh, helix::Run, helix_cells::row};
 use crate::PackingError;
-use molgfx_core::{EntityId, EntityKind};
-use num_traits::ToPrimitive;
 use std::collections::{HashMap, HashSet};
 
 pub(super) fn seed(
@@ -68,18 +66,11 @@ pub(super) fn seed(
 pub(super) fn bind(mesh: &mut RibbonMesh, runs: &[Run]) -> Result<(), PackingError> {
     let mut guides = HashMap::new();
     for fit in runs {
-        let count = fit
-            .rows
-            .len()
-            .to_f32()
-            .ok_or(PackingError::GeometryBudget {
-                resource: "helix sequence",
-            })?;
+        let count = crate::cartoon::draw_limits::exact_f32(fit.rows.len(), "helix sequence")?;
         let midpoint = (count - 1.0) * 0.5;
         for (index, &row) in fit.rows.iter().enumerate() {
-            let sequence = index.to_f32().ok_or(PackingError::GeometryBudget {
-                resource: "helix sequence",
-            })? - midpoint;
+            let sequence =
+                crate::cartoon::draw_limits::exact_f32(index, "helix sequence")? - midpoint;
             let sequence = sequence
                 + if index == 0 {
                     -0.5
@@ -106,13 +97,4 @@ pub(super) fn bind(mesh: &mut RibbonMesh, runs: &[Run]) -> Result<(), PackingErr
         }
     }
     Ok(())
-}
-
-fn row(entity: u32) -> Result<u32, PackingError> {
-    match EntityId(entity).unpack() {
-        Some((EntityKind::Atom, row)) => Ok(row),
-        _ => Err(PackingError::GeometryBudget {
-            resource: "helix atom provenance",
-        }),
-    }
 }

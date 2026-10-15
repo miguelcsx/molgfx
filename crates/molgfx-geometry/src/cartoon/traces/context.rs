@@ -3,7 +3,6 @@
 
 use super::{GuidePolicy, PolymerTraces, TracePolicy, TraceRange};
 use molgfx_core::{AtomSelection, EntityId, EntityKind, SecondaryStructure};
-use num_traits::ToPrimitive as _;
 
 pub(in crate::cartoon) fn extract_contextual_traces(
     structure: &molframe::Structure,
@@ -119,9 +118,7 @@ fn append_span(
 }
 
 fn number(index: usize) -> Result<f32, crate::PackingError> {
-    index.to_f32().ok_or(crate::PackingError::GeometryBudget {
-        resource: "polymer guide parameter",
-    })
+    crate::cartoon::draw_limits::exact_f32(index, "polymer guide parameter")
 }
 
 // Every guide is visited once, so disjoint selections share whole-run context without rescanning it.

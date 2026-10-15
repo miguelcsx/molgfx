@@ -6,7 +6,6 @@ use super::{RibbonDeformation, RibbonMesh, RibbonParams, RibbonVertex, control_r
 use crate::{CartoonError, PackingError};
 use molgfx_core::AtomSelection;
 use molgfx_math::{Vec3, catmull_rom_position, catmull_rom_tangent};
-use num_traits::ToPrimitive as _;
 
 const SIDES: u8 = 16;
 const SHELL_LANES: u8 = 2 + 2 * SIDES;
@@ -100,18 +99,16 @@ impl RibbonMesh {
             }
             for segment in 0..range.len() - 1 {
                 let mut edges = self.legacy_edges(range.clone(), segment, params.width, radius)?;
-                let segment_parameter = segment.to_f32().ok_or(PackingError::GeometryBudget {
-                    resource: "ribbon segment parameter",
-                })?;
+                let segment_parameter =
+                    crate::cartoon::draw_limits::exact_f32(segment, "ribbon segment parameter")?;
                 let visibility = match self.traces.visible_parameters.get(range_index) {
                     Some(&range) => range,
                     None => [
                         0.0,
-                        (range.len() - 1)
-                            .to_f32()
-                            .ok_or(PackingError::GeometryBudget {
-                                resource: "ribbon span parameter",
-                            })?,
+                        crate::cartoon::draw_limits::exact_f32(
+                            range.len() - 1,
+                            "ribbon span parameter",
+                        )?,
                     ],
                 };
                 edges.visibility = Some(visibility);

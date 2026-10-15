@@ -1,6 +1,7 @@
 //! Checks native draw limits before a sweep emits any geometry.
 
 use crate::PackingError;
+use num_traits::ToPrimitive as _;
 
 pub(super) fn vertex_index(index: usize) -> Result<u32, PackingError> {
     checked_u32("ribbon vertices", index as u64)
@@ -33,6 +34,14 @@ pub(super) fn check_sweep(
         })?;
     checked_u32("ribbon draw indices", indices)?;
     Ok(())
+}
+
+/// `count` as an `f32` parameter, or a budget error naming `resource` when it
+/// is not exactly representable.
+pub(super) fn exact_f32(count: usize, resource: &'static str) -> Result<f32, PackingError> {
+    count
+        .to_f32()
+        .ok_or(PackingError::GeometryBudget { resource })
 }
 
 fn checked_u32(resource: &'static str, index: u64) -> Result<u32, PackingError> {

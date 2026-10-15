@@ -4,7 +4,6 @@ use super::{PROFILE_SIDES, RibbonDeformation, RibbonMesh, RibbonParams, RibbonVe
 use crate::PackingError;
 use molgfx_core::{EntityId, EntityKind, SecondaryStructure};
 use molgfx_math::Vec3;
-use num_traits::ToPrimitive;
 use std::{collections::HashSet, ops::Range};
 
 impl RibbonMesh {
@@ -37,16 +36,13 @@ impl RibbonMesh {
             };
             let width = tangent.cross(seed).normalize();
             let height = tangent.cross(width);
-            let count = run.len().to_f32().ok_or(PackingError::GeometryBudget {
-                resource: "helix sequence",
-            })?;
+            let count = crate::cartoon::draw_limits::exact_f32(run.len(), "helix sequence")?;
             for (index, &entity) in entities[run.clone()].iter().enumerate() {
                 if !selected.contains(&entity) {
                     continue;
                 }
-                let sequence = index.to_f32().ok_or(PackingError::GeometryBudget {
-                    resource: "helix sequence",
-                })? - (count - 1.0) * 0.5;
+                let sequence = crate::cartoon::draw_limits::exact_f32(index, "helix sequence")?
+                    - (count - 1.0) * 0.5;
                 let cell = Cell {
                     center: center + slope * sequence,
                     slope,
@@ -154,12 +150,8 @@ fn vertex(mesh: &mut RibbonMesh, cell: Cell, parameter: f32, offset: Vec3, norma
 }
 
 fn radial(cell: Cell, facet: usize) -> Result<Vec3, PackingError> {
-    let amount = facet.to_f32().ok_or(PackingError::GeometryBudget {
-        resource: "helix sides",
-    })?;
-    let count = PROFILE_SIDES.to_f32().ok_or(PackingError::GeometryBudget {
-        resource: "helix sides",
-    })?;
+    let amount = crate::cartoon::draw_limits::exact_f32(facet, "helix sides")?;
+    let count = crate::cartoon::draw_limits::exact_f32(PROFILE_SIDES, "helix sides")?;
     let (sine, cosine) = (amount * std::f32::consts::TAU / count).sin_cos();
     Ok(cell.width * cosine + cell.height * sine)
 }
@@ -174,7 +166,7 @@ fn reserve(mesh: &RibbonMesh, vertices: usize, indices: usize) -> Result<(), Pac
     Ok(())
 }
 
-fn row(entity: u32) -> Result<u32, PackingError> {
+pub(super) fn row(entity: u32) -> Result<u32, PackingError> {
     match EntityId(entity).unpack() {
         Some((EntityKind::Atom, row)) => Ok(row),
         _ => Err(PackingError::GeometryBudget {
