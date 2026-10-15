@@ -1,7 +1,7 @@
 //! Sharing of implicit surface fields across representations.
 
 use super::tests::{camera, engine, structure};
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_core::{AtomSelection, RepresentationKind, Scene, SurfaceKind, SurfaceStyle};
 
 /// A scene with `count` surfaces over one selection, identical but for colour.
@@ -38,11 +38,7 @@ fn surface_scene(count: usize) -> Scene {
 
 /// The surface field labels the device created, in creation order.
 fn field_labels(device: &MockDevice) -> Vec<&'static str> {
-    let labels = device
-        .log
-        .textures
-        .lock()
-        .unwrap_or_else(|error| panic!("texture log locks: {error}"));
+    let labels = device.log.textures.locked();
     labels
         .iter()
         .filter_map(|label| {
@@ -95,9 +91,7 @@ fn a_second_surface_over_one_key_dispatches_no_second_field() {
         if let Err(error) = engine.render(&scene, &camera()) {
             panic!("frame renders: {error}")
         }
-        let Ok(log) = engine.device.log.compute_passes.lock() else {
-            panic!("compute pass log lock")
-        };
+        let log = engine.device.log.compute_passes.locked();
         passes.push(
             log.iter()
                 .filter(|label| {

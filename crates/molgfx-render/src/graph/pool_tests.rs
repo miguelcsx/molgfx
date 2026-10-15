@@ -1,6 +1,6 @@
 use super::*;
 use crate::graph::node::{PassKind, ResourceId};
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_gpu::{TextureFormat, TextureUsage};
 
 fn noop(_: &mut crate::graph::PassContext<'_, MockDevice>) {}
@@ -110,9 +110,7 @@ fn the_physical_pool_is_stable_across_frames_at_one_size() {
     };
     // One texture was created; a second frame at the same size reuses the
     // pool without touching the device.
-    let Ok(created_log) = opened.device.log.textures.lock() else {
-        panic!("log lock")
-    };
+    let created_log = opened.device.log.textures.locked();
     let created = created_log.len();
     assert_eq!(created, 1);
     assert!(pool.matches(640, 480));
@@ -138,9 +136,7 @@ fn tile_classification_targets_round_up_partial_frame_tiles() {
     if let Err(error) = TransientPool::build(&opened.device, &resources, plan, 641, 481) {
         panic!("tile pool builds: {error}")
     }
-    let Ok(extents) = opened.device.log.texture_extents.lock() else {
-        panic!("extent log locks")
-    };
+    let extents = opened.device.log.texture_extents.locked();
     assert_eq!(extents.as_slice(), &[("tiles", [41, 31, 1])]);
 }
 
@@ -162,14 +158,5 @@ fn inactive_resources_have_no_allocation_even_if_marked_persistent() {
     assert!(pool.view(ResourceId(0)).is_some());
     assert!(pool.view(ResourceId(1)).is_none());
     assert!(pool.texture(ResourceId(2)).is_none());
-    assert_eq!(
-        opened
-            .device
-            .log
-            .textures
-            .lock()
-            .expect("log locks")
-            .as_slice(),
-        &["active"]
-    );
+    assert_eq!(opened.device.log.textures.locked().as_slice(), &["active"]);
 }

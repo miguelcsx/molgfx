@@ -1,5 +1,5 @@
 use super::tests::{camera, engine};
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
     AtomSelection, ClipPlane, OccupancyStream, Representation, ScalarVolume, Scene, SegmentStyle,
     SegmentStyleTable, SegmentationStyle, SegmentedVolume, TrajectoryFrame, TrajectorySegment,
@@ -67,12 +67,7 @@ fn temporal_occupancy_stays_gpu_resident_and_runs_only_for_new_samples() {
     );
     let after_initial = dispatch_count(&engine);
     assert!(after_initial >= 5, "trajectory and occupancy compute run");
-    let texture_uploads = engine
-        .device
-        .log
-        .texture_writes
-        .lock()
-        .unwrap_or_else(|error| panic!("texture log lock: {error}"));
+    let texture_uploads = engine.device.log.texture_writes.locked();
     assert!(
         texture_uploads.is_empty(),
         "occupancy has no host voxel upload"
@@ -166,10 +161,7 @@ fn density_volume_uploads_the_callers_values_once_and_draws_through_oit() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("volume renders: {error}")
     }
-    let uploads = match engine.device.log.texture_writes.lock() {
-        Ok(uploads) => uploads.clone(),
-        Err(error) => panic!("log lock: {error}"),
-    };
+    let uploads = engine.device.log.texture_writes.locked().clone();
     assert_eq!(uploads.len(), 2);
     assert_eq!(uploads[0], ("caller density volume", 256, source_pointer));
     assert_eq!(uploads[1].0, "density empty-space bounds");
@@ -191,9 +183,7 @@ fn density_volume_uploads_the_callers_values_once_and_draws_through_oit() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("unchanged volume renders: {error}")
     }
-    let Ok(uploads) = engine.device.log.texture_writes.lock() else {
-        panic!("log lock")
-    };
+    let uploads = engine.device.log.texture_writes.locked();
     assert_eq!(uploads.len(), 2, "representations share one resident grid");
 }
 
@@ -237,10 +227,7 @@ fn independent_scalar_channels_keep_distinct_residency_and_styles() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("channels render: {error}")
     }
-    let uploads = match engine.device.log.texture_writes.lock() {
-        Ok(uploads) => uploads.clone(),
-        Err(error) => panic!("upload log lock: {error}"),
-    };
+    let uploads = engine.device.log.texture_writes.locked().clone();
     assert_eq!(uploads.len(), 4);
     assert_eq!(
         uploads
@@ -293,10 +280,7 @@ fn categorical_labels_upload_once_share_residency_and_keep_styles_independent() 
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("categorical segmentation renders: {error}")
     }
-    let uploads = match engine.device.log.texture_writes.lock() {
-        Ok(uploads) => uploads.clone(),
-        Err(error) => panic!("upload log lock: {error}"),
-    };
+    let uploads = engine.device.log.texture_writes.locked().clone();
     assert_eq!(
         uploads,
         vec![("caller categorical segmentation", 32, pointer)]
@@ -320,9 +304,7 @@ fn categorical_labels_upload_once_share_residency_and_keep_styles_independent() 
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("style-only categorical edit renders: {error}")
     }
-    let Ok(uploads) = engine.device.log.texture_writes.lock() else {
-        panic!("upload log lock")
-    };
+    let uploads = engine.device.log.texture_writes.locked();
     assert_eq!(uploads.len(), 1, "style edits do not reupload labels");
 }
 

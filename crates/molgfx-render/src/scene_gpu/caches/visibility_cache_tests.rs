@@ -1,6 +1,6 @@
 use super::*;
 use crate::scene_gpu::record_cache::RecordCache;
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_core::{AtomSelection, DatasetId, RepresentationKind, Scene};
 
 /// The render fixture's placement, the selection it draws, and that selection's
@@ -111,18 +111,14 @@ fn one_key_allocates_one_visible_set_however_many_representations_need_it() {
         .sync(&device, &queue, &policy)
         .unwrap_or_else(|error| panic!("visible sets allocate: {error}"));
     let before = {
-        let Ok(buffers) = device.log.buffers.lock() else {
-            panic!("buffer log lock")
-        };
+        let buffers = device.log.buffers.locked();
         buffers.len()
     };
 
     cache
         .sync(&device, &queue, &policy)
         .unwrap_or_else(|error| panic!("visible sets reuse: {error}"));
-    let Ok(buffers) = device.log.buffers.lock() else {
-        panic!("buffer log lock")
-    };
+    let buffers = device.log.buffers.locked();
     assert_eq!(
         buffers
             .iter()
@@ -147,9 +143,7 @@ fn a_different_cull_policy_is_a_different_key() {
     cache
         .sync(&device, &queue, &policy)
         .unwrap_or_else(|error| panic!("visible sets allocate: {error}"));
-    let Ok(buffers) = device.log.buffers.lock() else {
-        panic!("buffer log lock")
-    };
+    let buffers = device.log.buffers.locked();
     assert_eq!(
         buffers
             .iter()

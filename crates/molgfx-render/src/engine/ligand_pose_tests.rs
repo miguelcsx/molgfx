@@ -1,5 +1,6 @@
 use super::tests::{camera, engine, structure};
 use crate::engine::RenderMode;
+use crate::testing::Locked;
 use molgfx_core::{LicoriceTemplate, LigandPose, Scene};
 use molgfx_math::{Quat, Rgba8, Vec3};
 
@@ -51,10 +52,7 @@ fn realtime_pose_sampling_is_bounded_deterministic_and_opacity_correct() {
         }
     );
     let first_groups = groups.to_vec();
-    let before = match engine.device.log.writes.lock() {
-        Ok(writes) => writes.len(),
-        Err(error) => panic!("write log lock: {error}"),
-    };
+    let before = engine.device.log.writes.locked().len();
 
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("stable compact ligand batch renders: {error}");
@@ -63,9 +61,7 @@ fn realtime_pose_sampling_is_bounded_deterministic_and_opacity_correct() {
         panic!("stable compact ligand draws exist");
     };
     assert_eq!(stable_groups, first_groups);
-    let Ok(writes) = engine.device.log.writes.lock() else {
-        panic!("write log lock");
-    };
+    let writes = engine.device.log.writes.locked();
     assert_eq!(
         writes.len() - before,
         1,
@@ -73,9 +69,7 @@ fn realtime_pose_sampling_is_bounded_deterministic_and_opacity_correct() {
     );
     drop(writes);
 
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
-        panic!("draw log lock");
-    };
+    let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(
         draws.len(),
         12,
@@ -158,9 +152,7 @@ fn many_small_batches_have_a_fixed_realtime_raster_draw_ceiling() {
         panic!("compact ligand draws exist");
     };
     assert_eq!(groups.len(), 128, "beauty draw groups are globally capped");
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
-        panic!("draw log lock");
-    };
+    let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(
         draws.len(),
         256,
@@ -230,9 +222,7 @@ fn small_opaque_ligand_batches_cast_grouped_sphere_and_capsule_shadows() {
         panic!("compact ligand batch renders: {error}");
     }
     assert!(engine.scene_gpu.ligand_pose_shadow_draws(false).is_some());
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
-        panic!("draw log lock");
-    };
+    let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(
         draws.iter().map(|(_, offset)| *offset).collect::<Vec<_>>(),
         vec![0, 16, 0, 16],

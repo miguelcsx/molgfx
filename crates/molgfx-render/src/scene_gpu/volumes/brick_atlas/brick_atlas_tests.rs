@@ -1,6 +1,6 @@
 use super::types::{BrickAtlasConfig, BrickAtlasError, BrickAtlasKind, BrickAtlasUpload};
 use super::upload::GpuBrickAtlas;
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
     BrickAddress, BrickCatalog, BrickDescriptor, BrickId, BrickMetadata, BrickShape,
     BrickValueRange, ChunkId, DatasetId, DirtyGeneration,
@@ -97,9 +97,7 @@ fn adjacent_bricks_upload_complete_halos_and_resolve_to_distinct_slots() {
         atlas.resolve(rows[0].metadata.address),
         atlas.resolve(rows[1].metadata.address)
     );
-    let Ok(writes) = device.log.texture_writes.lock() else {
-        panic!("mock texture log must be readable");
-    };
+    let writes = device.log.texture_writes.locked();
     assert_eq!(
         writes
             .iter()
@@ -264,14 +262,10 @@ fn fixed_budgets_bound_memory_and_apply_typed_backpressure() {
         Err(BrickAtlasError::Upload(UploadBackpressure::InFlightBudget))
     ));
     let before = atlas.metrics();
-    let Ok(writes_before) = device.log.writes.lock().map(|writes| writes.len()) else {
-        panic!("mock writes must be readable");
-    };
+    let writes_before = device.log.writes.locked().len();
     atlas.begin_frame();
     assert!(atlas.poll(&device, &queue).is_ok());
-    let Ok(writes_after) = device.log.writes.lock().map(|writes| writes.len()) else {
-        panic!("mock writes must be readable");
-    };
+    let writes_after = device.log.writes.locked().len();
     assert_eq!(writes_before, writes_after);
     assert_eq!(atlas.metrics().atlas_bytes, 512);
     assert_eq!(atlas.metrics().page_table_bytes, before.page_table_bytes);

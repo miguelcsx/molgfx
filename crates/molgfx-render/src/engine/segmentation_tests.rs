@@ -1,4 +1,5 @@
 use super::tests::{camera, engine};
+use crate::testing::Locked;
 use crate::testing::{MockDevice, MockLog};
 use molgfx_core::{
     Representation, RepresentationHandle, Scene, SegmentStyle, SegmentStyleTable,
@@ -35,8 +36,8 @@ fn render(engine: &mut super::Engine<MockDevice>, scene: &Scene) {
 }
 
 fn buffer_writes(log: &MockLog, label: &str) -> usize {
-    let buffers = log.buffers.lock().expect("buffer log lock");
-    let writes = log.writes.lock().expect("upload log lock");
+    let buffers = log.buffers.locked();
+    let writes = log.writes.locked();
     writes
         .iter()
         .filter(|write| {
@@ -49,8 +50,7 @@ fn buffer_writes(log: &MockLog, label: &str) -> usize {
 
 fn label_uploads(log: &MockLog) -> usize {
     log.texture_writes
-        .lock()
-        .expect("texture upload log lock")
+        .locked()
         .iter()
         .filter(|write| write.0 == "caller categorical segmentation")
         .count()
@@ -65,13 +65,7 @@ fn changing_segment_color_and_opacity_uploads_only_the_style_table() {
         let initial_styles = buffer_writes(&engine.device.log, "categorical segment style lookup");
         let initial_uniforms =
             buffer_writes(&engine.device.log, "categorical segmentation uniforms");
-        let initial_buffers = engine
-            .device
-            .log
-            .buffers
-            .lock()
-            .expect("buffer log lock")
-            .len();
+        let initial_buffers = engine.device.log.buffers.locked().len();
         scene
             .representation_mut(representation)
             .expect("representation exists")
@@ -87,16 +81,7 @@ fn changing_segment_color_and_opacity_uploads_only_the_style_table() {
             buffer_writes(&engine.device.log, "categorical segmentation uniforms"),
             initial_uniforms
         );
-        assert_eq!(
-            engine
-                .device
-                .log
-                .buffers
-                .lock()
-                .expect("buffer log lock")
-                .len(),
-            initial_buffers
-        );
+        assert_eq!(engine.device.log.buffers.locked().len(), initial_buffers);
         render(&mut engine, &scene);
         assert_eq!(
             buffer_writes(&engine.device.log, "categorical segment style lookup"),

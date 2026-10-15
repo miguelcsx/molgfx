@@ -1,5 +1,5 @@
 use super::{AssetArena, AssetArenaError, STORAGE_ALIGNMENT};
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 
 #[test]
 fn allocations_are_aligned_non_overlapping_ranges_in_one_buffer() {
@@ -39,10 +39,7 @@ fn growth_relocates_once_and_preserves_stable_offsets() {
     assert!(arena.revision() > initial_revision);
     assert_eq!(arena.metrics().relocations, 1);
     assert_eq!(arena.metrics().physical_buffers, 1);
-    let copies = match device.log.buffer_copies.lock() {
-        Ok(copies) => copies,
-        Err(error) => panic!("copy log locks: {error}"),
-    };
+    let copies = device.log.buffer_copies.locked();
     assert_eq!(copies.len(), 1);
     assert_eq!(copies[0].2, STORAGE_ALIGNMENT);
 }

@@ -1,6 +1,6 @@
 use super::tests::camera;
 use super::{AdaptiveQualityConfig, Engine, EngineConfig, QualityTier};
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_core::{AtomSelection, Representation, Scene};
 use molgfx_geometry::{RibbonMesh, RibbonParams, RibbonVertex, SplineProfile};
 use std::fmt::Write;
@@ -62,17 +62,12 @@ fn a_large_fixed_quality_ribbon_keeps_every_requested_sample() {
     renderer
         .render(&scene, &camera())
         .expect("full-quality ribbon renders");
-    let buffers = renderer
-        .device
-        .log
-        .buffers
-        .lock()
-        .expect("buffers recorded");
+    let buffers = renderer.device.log.buffers.locked();
     let (id, _, _) = buffers
         .iter()
         .find(|(_, label, _)| *label == "cartoon vertices")
         .expect("ribbon vertices uploaded");
-    let writes = renderer.device.log.writes.lock().expect("writes recorded");
+    let writes = renderer.device.log.writes.locked();
     let bytes = writes
         .iter()
         .find(|(buffer, _, _, _)| buffer == id)

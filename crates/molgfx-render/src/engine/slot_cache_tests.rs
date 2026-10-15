@@ -1,4 +1,5 @@
 use super::tests::{camera, engine, represented_scene};
+use crate::testing::Locked;
 use molgfx_core::RepresentationKind;
 
 #[test]
@@ -11,20 +12,14 @@ fn hide_and_show_retain_the_resident_representation_resources() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("initial frame renders: {error}")
     }
-    let buffer_count = match engine.device.log.buffers.lock() {
-        Ok(buffers) => buffers.len(),
-        Err(error) => panic!("buffer log lock: {error}"),
-    };
+    let buffer_count = engine.device.log.buffers.locked().len();
 
     scene.hide(representation);
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("hidden frame renders: {error}")
     }
     assert_eq!(engine.scene_gpu.atom_draws(false).count(), 0);
-    let hidden_buffer_count = match engine.device.log.buffers.lock() {
-        Ok(buffers) => buffers.len(),
-        Err(error) => panic!("buffer log lock: {error}"),
-    };
+    let hidden_buffer_count = engine.device.log.buffers.locked().len();
     assert_eq!(hidden_buffer_count, buffer_count);
 
     scene.show(representation);
@@ -32,10 +27,7 @@ fn hide_and_show_retain_the_resident_representation_resources() {
         panic!("restored frame renders: {error}")
     }
     assert_eq!(engine.scene_gpu.atom_draws(false).count(), 1);
-    let restored_buffer_count = match engine.device.log.buffers.lock() {
-        Ok(buffers) => buffers.len(),
-        Err(error) => panic!("buffer log lock: {error}"),
-    };
+    let restored_buffer_count = engine.device.log.buffers.locked().len();
     assert_eq!(restored_buffer_count, buffer_count);
 }
 
@@ -49,10 +41,7 @@ fn visibility_changes_do_not_reupload_representation_records() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("initial frame renders: {error}")
     }
-    let writes_before = match engine.device.log.writes.lock() {
-        Ok(writes) => writes.len(),
-        Err(error) => panic!("write log lock: {error}"),
-    };
+    let writes_before = engine.device.log.writes.locked().len();
 
     scene.hide(representation);
     if let Err(error) = engine.render(&scene, &camera()) {
@@ -62,10 +51,7 @@ fn visibility_changes_do_not_reupload_representation_records() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("restored frame renders: {error}")
     }
-    let writes_after = match engine.device.log.writes.lock() {
-        Ok(writes) => writes.len(),
-        Err(error) => panic!("write log lock: {error}"),
-    };
+    let writes_after = engine.device.log.writes.locked().len();
     assert_eq!(
         writes_after - writes_before,
         2,
@@ -83,14 +69,8 @@ fn opacity_changes_write_only_fixed_size_presentation_state() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("initial frame renders: {error}")
     }
-    let writes_before = match engine.device.log.writes.lock() {
-        Ok(writes) => writes.len(),
-        Err(error) => panic!("write log lock: {error}"),
-    };
-    let buffers_before = match engine.device.log.buffers.lock() {
-        Ok(buffers) => buffers.len(),
-        Err(error) => panic!("buffer log lock: {error}"),
-    };
+    let writes_before = engine.device.log.writes.locked().len();
+    let buffers_before = engine.device.log.buffers.locked().len();
 
     let Some(value) = scene.representation_mut(representation) else {
         panic!("representation resolves")
@@ -100,14 +80,8 @@ fn opacity_changes_write_only_fixed_size_presentation_state() {
         panic!("transparent frame renders: {error}")
     }
 
-    let changed = match engine.device.log.writes.lock() {
-        Ok(writes) => writes[writes_before..].to_vec(),
-        Err(error) => panic!("write log lock: {error}"),
-    };
-    let buffers = match engine.device.log.buffers.lock() {
-        Ok(buffers) => buffers.clone(),
-        Err(error) => panic!("buffer log lock: {error}"),
-    };
+    let changed = engine.device.log.writes.locked()[writes_before..].to_vec();
+    let buffers = engine.device.log.buffers.locked().clone();
     assert_eq!(buffers.len(), buffers_before);
     // Three fixed-size blocks: the frame, the representation's presentation
     // parameters, and the colour scheme block, which carries the same
@@ -142,14 +116,8 @@ fn cartoon_opacity_changes_do_not_rebuild_ribbon_geometry() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("initial frame renders: {error}")
     }
-    let writes_before = match engine.device.log.writes.lock() {
-        Ok(writes) => writes.len(),
-        Err(error) => panic!("write log lock: {error}"),
-    };
-    let buffers_before = match engine.device.log.buffers.lock() {
-        Ok(buffers) => buffers.len(),
-        Err(error) => panic!("buffer log lock: {error}"),
-    };
+    let writes_before = engine.device.log.writes.locked().len();
+    let buffers_before = engine.device.log.buffers.locked().len();
 
     let Some(value) = scene.representation_mut(representation) else {
         panic!("representation resolves")
@@ -159,14 +127,8 @@ fn cartoon_opacity_changes_do_not_rebuild_ribbon_geometry() {
         panic!("transparent frame renders: {error}")
     }
 
-    let changed = match engine.device.log.writes.lock() {
-        Ok(writes) => writes[writes_before..].to_vec(),
-        Err(error) => panic!("write log lock: {error}"),
-    };
-    let buffers = match engine.device.log.buffers.lock() {
-        Ok(buffers) => buffers.clone(),
-        Err(error) => panic!("buffer log lock: {error}"),
-    };
+    let changed = engine.device.log.writes.locked()[writes_before..].to_vec();
+    let buffers = engine.device.log.buffers.locked().clone();
     assert_eq!(buffers.len(), buffers_before);
     assert_eq!(changed.len(), 2, "frame and cartoon uniforms change");
     for (buffer, _, _, _) in changed {
@@ -192,14 +154,8 @@ fn a_stable_frame_allocates_no_buffers_and_uploads_only_frame_state() {
             panic!("warm-up frame renders: {error}")
         }
     }
-    let buffers_before = match engine.device.log.buffers.lock() {
-        Ok(buffers) => buffers.len(),
-        Err(error) => panic!("buffer log lock: {error}"),
-    };
-    let writes_before = match engine.device.log.writes.lock() {
-        Ok(writes) => writes.len(),
-        Err(error) => panic!("write log lock: {error}"),
-    };
+    let buffers_before = engine.device.log.buffers.locked().len();
+    let writes_before = engine.device.log.writes.locked().len();
 
     for _ in 0..8 {
         if let Err(error) = engine.render(&scene, &camera()) {
@@ -207,14 +163,8 @@ fn a_stable_frame_allocates_no_buffers_and_uploads_only_frame_state() {
         }
     }
 
-    let buffers_after = match engine.device.log.buffers.lock() {
-        Ok(buffers) => buffers.len(),
-        Err(error) => panic!("buffer log lock: {error}"),
-    };
-    let writes_after = match engine.device.log.writes.lock() {
-        Ok(writes) => writes.len(),
-        Err(error) => panic!("write log lock: {error}"),
-    };
+    let buffers_after = engine.device.log.buffers.locked().len();
+    let writes_after = engine.device.log.writes.locked().len();
     assert_eq!(
         buffers_after, buffers_before,
         "an unchanged scene must not allocate GPU buffers"
@@ -243,19 +193,13 @@ fn overlapping_representations_do_not_multiply_stable_frame_cost() {
                 panic!("warm-up frame renders: {error}")
             }
         }
-        let before = match engine.device.log.writes.lock() {
-            Ok(writes) => writes.len(),
-            Err(error) => panic!("write log lock: {error}"),
-        };
+        let before = engine.device.log.writes.locked().len();
         for _ in 0..8 {
             if let Err(error) = engine.render(&scene, &camera()) {
                 panic!("stable frame renders: {error}")
             }
         }
-        let after = match engine.device.log.writes.lock() {
-            Ok(writes) => writes.len(),
-            Err(error) => panic!("write log lock: {error}"),
-        };
+        let after = engine.device.log.writes.locked().len();
         costs.push(after - before);
     }
     let (Some(one), Some(four)) = (costs.first(), costs.get(1)) else {
@@ -283,9 +227,7 @@ fn structure_wide_resources_are_shared_by_every_representation() {
         if let Err(error) = engine.render(&scene, &camera()) {
             panic!("frame renders: {error}")
         }
-        let Ok(buffers) = engine.device.log.buffers.lock() else {
-            panic!("buffer log lock")
-        };
+        let buffers = engine.device.log.buffers.locked();
         for label in SHARED {
             let created = buffers.iter().filter(|entry| entry.1 == label).count();
             assert_eq!(
@@ -307,9 +249,7 @@ fn one_packed_record_set_serves_every_representation_over_one_selection() {
         if let Err(error) = engine.render(&scene, &camera()) {
             panic!("frame renders: {error}")
         }
-        let Ok(buffers) = engine.device.log.buffers.lock() else {
-            panic!("buffer log lock")
-        };
+        let buffers = engine.device.log.buffers.locked();
         for label in [
             "atom instances",
             "bond instances",
@@ -337,9 +277,7 @@ fn four_representations_with_one_visibility_key_dispatch_one_cull() {
         if let Err(error) = engine.render(&scene, &camera()) {
             panic!("frame renders: {error}")
         }
-        let Ok(passes) = engine.device.log.compute_passes.lock() else {
-            panic!("pass log lock")
-        };
+        let passes = engine.device.log.compute_passes.locked();
         let culls = passes
             .iter()
             .filter(|label| **label == "visibility culling")
@@ -358,9 +296,7 @@ fn four_representations_with_one_visibility_key_dispatch_one_cull() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("frame renders: {error}")
     }
-    let Ok(buffers) = engine.device.log.buffers.lock() else {
-        panic!("buffer log lock")
-    };
+    let buffers = engine.device.log.buffers.locked();
     assert_eq!(
         buffers
             .iter()
@@ -463,9 +399,7 @@ fn per_representation_gpu_cost_stays_within_its_budget() {
         if let Err(error) = engine.render(&scene, &camera()) {
             panic!("frame renders: {error}")
         }
-        let Ok(buffers) = engine.device.log.buffers.lock() else {
-            panic!("buffer log lock")
-        };
+        let buffers = engine.device.log.buffers.locked();
         counts.push(buffers.len());
     }
     let (Some(one), Some(eight)) = (counts.first(), counts.get(1)) else {

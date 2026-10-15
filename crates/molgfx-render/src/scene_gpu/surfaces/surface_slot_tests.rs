@@ -1,5 +1,5 @@
 use super::*;
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 
 const DIMENSIONS: [u32; 3] = [17, 11, 7];
 const BYTES_PER_TEXEL: u64 = 4;
@@ -8,8 +8,7 @@ fn allocated_bytes(device: &MockDevice) -> u64 {
     let extents = device
         .log
         .texture_extents
-        .lock()
-        .unwrap_or_else(|error| panic!("texture log locks: {error}"));
+        .locked();
     extents
         .iter()
         .map(|(_, extent)| {
@@ -38,8 +37,7 @@ fn field_texture_residency_matches_each_grid_surface_kind() {
         let extents = device
             .log
             .texture_extents
-            .lock()
-            .unwrap_or_else(|error| panic!("texture log locks: {error}"));
+            .locked();
         assert_eq!(extents.len() as u64, expected_textures, "{kind:?}");
         assert!(extents.iter().all(|(_, extent)| *extent == DIMENSIONS));
         drop(extents);
@@ -81,8 +79,7 @@ fn scalar_fields_and_compact_normals_use_their_shader_formats() {
     let formats = device
         .log
         .texture_formats
-        .lock()
-        .unwrap_or_else(|error| panic!("texture format log locks: {error}"));
+        .locked();
     assert!(formats.contains(&("probe-inflated surface field", TextureFormat::R32Float)));
     assert!(formats.contains(&("solvent-excluded surface field", TextureFormat::R32Float)));
     assert!(formats.contains(&("continuous surface normals", TextureFormat::Rgba8Snorm)));

@@ -1,4 +1,5 @@
 use super::tests::{camera, engine, structure};
+use crate::testing::Locked;
 use molgfx_core::{
     EntityKind, Guide, GuideStyle, InteractionAnchor, InteractionDirection, InteractionEdge,
     InteractionGeometry, InteractionKind, LogicalRow, Scene,
@@ -45,12 +46,7 @@ fn all_interactions_share_one_indirect_draw() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let draws = engine
-        .device
-        .log
-        .indirect_draws
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let draws = engine.device.log.indirect_draws.locked();
     assert_eq!(draws.len(), 1);
 }
 
@@ -61,21 +57,11 @@ fn unchanged_interactions_add_no_steady_frame_uploads() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let before = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |writes| writes.len());
+    let before = engine.device.log.writes.locked().len();
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let writes = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let writes = engine.device.log.writes.locked();
     assert_eq!(writes.len() - before, 1, "only frame uniforms change");
 }
 

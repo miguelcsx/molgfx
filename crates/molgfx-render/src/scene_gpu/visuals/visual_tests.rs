@@ -1,5 +1,5 @@
 use super::{VisualBase, VisualConfigInput, VisualFallback, result_word_count, styled_config};
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
     AtomSelection, Representation, RepresentationKind, RepresentationTarget, Scene,
     VisualProgramBuilder, VisualStyle,
@@ -117,11 +117,7 @@ fn disabled_visual_buffers_are_initialized_exactly_once() {
 
     assert!(fallback.sync(&queue));
     assert!(!fallback.sync(&queue));
-    let writes = device
-        .log
-        .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("writes should lock: {error}"));
+    let writes = device.log.writes.locked();
     assert_eq!(writes.len(), 6);
 }
 

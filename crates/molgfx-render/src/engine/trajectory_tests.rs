@@ -1,4 +1,5 @@
 use super::tests::{camera, engine, structure};
+use crate::testing::Locked;
 use molgfx_core::{
     AtomSelection, BondTopologyFrame, BondTopologySegment, RepresentationKind, Scene, TopologyBond,
     TrajectoryFrame, TrajectorySegment,
@@ -37,33 +38,18 @@ fn resident_frames_upload_directly_and_dispatch_once_when_the_sample_changes() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let writes = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let writes = engine.device.log.writes.locked();
     assert!(pointers.into_iter().all(|pointer| {
         writes
             .iter()
             .any(|(_, _, byte_len, source)| *byte_len == 36 && *source == pointer)
     }));
     drop(writes);
-    let after_first = engine
-        .device
-        .log
-        .dispatches
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |values| values.len());
+    let after_first = engine.device.log.dispatches.locked().len();
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let after_steady = engine
-        .device
-        .log
-        .dispatches
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |values| values.len());
+    let after_steady = engine.device.log.dispatches.locked().len();
     assert_eq!(after_steady - after_first, 2, "only culling repeats");
     scene
         .set_trajectory_time(handle, 0.75)
@@ -71,12 +57,7 @@ fn resident_frames_upload_directly_and_dispatch_once_when_the_sample_changes() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let after_advance = engine
-        .device
-        .log
-        .dispatches
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |values| values.len());
+    let after_advance = engine.device.log.dispatches.locked().len();
     assert_eq!(
         after_advance - after_steady,
         3,
@@ -91,24 +72,14 @@ fn time_only_advances_upload_one_uniform_beside_the_frame_uniforms() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let before = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |writes| writes.len());
+    let before = engine.device.log.writes.locked().len();
     scene
         .set_trajectory_time(handle, 0.5)
         .unwrap_or_else(|error| panic!("{error}"));
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let writes = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let writes = engine.device.log.writes.locked();
     assert_eq!(
         writes.len() - before,
         2,
@@ -162,24 +133,14 @@ fn cartoon_time_advances_never_rebuild_or_reupload_ribbon_geometry() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let before = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |writes| writes.len());
+    let before = engine.device.log.writes.locked().len();
     scene
         .set_trajectory_time(handle, 0.75)
         .unwrap_or_else(|error| panic!("{error}"));
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let writes = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let writes = engine.device.log.writes.locked();
     assert_eq!(
         writes.len() - before,
         2,
@@ -309,12 +270,7 @@ fn topology_only_ticks_never_reupload_stable_atom_records() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let writes = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let writes = engine.device.log.writes.locked();
     assert!(
         writes.len() > before + 1,
         "topology adds work beside frame uniforms"
@@ -361,15 +317,15 @@ fn editing_cartoon_proportions_refreshes_geometry_without_uploading_coordinates(
             molgfx_core::CartoonProfile::Square,
         ),
     ] {
-        let before = engine.device.log.writes.lock().expect("write log").len();
+        let before = engine.device.log.writes.locked().len();
         let value = scene.representation_mut(handle).expect("cartoon resolves");
         value.params.cartoon_aspect_ratio = aspect_ratio;
         value.params.cartoon_arrow_factor = arrow_factor;
         value.params.cartoon_helix_profile = helix_profile;
         value.params.cartoon_nucleic_profile = nucleic_profile;
         engine.render(&scene, &camera()).expect("edited frame");
-        let writes = engine.device.log.writes.lock().expect("write log");
-        let buffers = engine.device.log.buffers.lock().expect("buffer log");
+        let writes = engine.device.log.writes.locked();
+        let buffers = engine.device.log.buffers.locked();
         let labels: Vec<_> = writes[before..]
             .iter()
             .filter_map(|(buffer, _, _, _)| {

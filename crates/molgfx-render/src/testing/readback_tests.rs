@@ -1,5 +1,5 @@
 use super::*;
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use molgfx_gpu::{BufferDesc, Device as _, Queue as _, Readback as _};
 
 #[test]
@@ -7,8 +7,8 @@ fn caller_scratch_reads_the_requested_pick_subrange_and_preserves_its_tail() {
     let opened = MockDevice::opened();
     let device = opened.device;
     let queue = opened.queue;
-    *device.log.pick_local_row.lock().expect("row") = 41;
-    *device.log.pick_resident_page.lock().expect("page") = 27;
+    *device.log.pick_local_row.locked() = 41;
+    *device.log.pick_resident_page.locked() = 27;
     let buffer = device
         .create_buffer(&BufferDesc {
             label: "packed pick readback",

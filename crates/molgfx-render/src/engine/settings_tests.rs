@@ -1,5 +1,5 @@
 use super::*;
-use crate::testing::MockDevice;
+use crate::testing::{Locked, MockDevice};
 use crate::{AdaptiveQualityConfig, EngineConfig};
 
 fn engine() -> Engine<MockDevice> {
@@ -108,19 +108,13 @@ fn every_effect_combination_allocates_only_its_active_targets_and_bindings() {
         assert_eq!(engine.passes.motion_blur.is_some(), mask & 4 != 0);
         assert!(bindings.tonemap.get(0).is_some());
         assert!(bindings.tonemap.get(1).is_some());
-        let textures = engine.device.log.textures.lock().expect("log locks").len();
-        let buffers = engine.device.log.buffers.lock().expect("log locks").len();
+        let textures = engine.device.log.textures.locked().len();
+        let buffers = engine.device.log.buffers.locked().len();
         engine
             .render(&scene, &crate::engine::tests::camera())
             .expect("stable frame renders");
-        assert_eq!(
-            engine.device.log.textures.lock().expect("log locks").len(),
-            textures
-        );
-        assert_eq!(
-            engine.device.log.buffers.lock().expect("log locks").len(),
-            buffers
-        );
+        assert_eq!(engine.device.log.textures.locked().len(), textures);
+        assert_eq!(engine.device.log.buffers.locked().len(), buffers);
     }
 }
 

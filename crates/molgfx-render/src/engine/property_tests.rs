@@ -1,4 +1,5 @@
 use super::tests::{camera, engine, structure};
+use crate::testing::Locked;
 use molgfx_core::{
     AtomProperty, AtomPropertyMeaning, AtomSelection, ColorScheme, PropertyAppearance,
     RepresentationKind, ScalarFieldSemantics, ScalarRamp, Scene, VisualProgramBuilder, VisualStyle,
@@ -49,24 +50,14 @@ fn uncertainty_appearance_routes_atoms_through_transparency_and_tracks_its_prope
     assert_eq!(engine.scene_gpu.atom_draws(false).count(), 0);
     assert_eq!(engine.scene_gpu.atom_draws(true).count(), 1);
 
-    let before = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |writes| writes.len());
+    let before = engine.device.log.writes.locked().len();
     scene
         .replace_atom_property(confidence, property(owner, "confidence", [0.9, 0.5, 0.1]))
         .unwrap_or_else(|error| panic!("{error}"));
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let after = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |writes| writes.len());
+    let after = engine.device.log.writes.locked().len();
     assert!(after > before + 1, "dependent appearance records repack");
 }
 
@@ -97,12 +88,7 @@ fn replacing_one_property_recolors_only_its_dependent_slot() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let before = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |writes| writes.len());
+    let before = engine.device.log.writes.locked().len();
 
     scene
         .replace_atom_property(confidence, property(owner, "confidence", [0.9, 0.5, 0.1]))
@@ -110,12 +96,7 @@ fn replacing_one_property_recolors_only_its_dependent_slot() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let after_recolor = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |writes| writes.len());
+    let after_recolor = engine.device.log.writes.locked().len();
     assert!(after_recolor > before + 1, "dependent records are repacked");
 
     scene
@@ -124,12 +105,7 @@ fn replacing_one_property_recolors_only_its_dependent_slot() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let writes = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let writes = engine.device.log.writes.locked();
     assert_eq!(
         writes.len() - after_recolor,
         1,
@@ -225,24 +201,14 @@ fn visual_time_updates_only_the_presentation_uniform() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let before = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |writes| writes.len());
+    let before = engine.device.log.writes.locked().len();
     scene
         .set_presentation_time(0.5)
         .unwrap_or_else(|error| panic!("{error}"));
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let after = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |writes| writes.len());
+    let after = engine.device.log.writes.locked().len();
     assert_eq!(after - before, 2, "frame and visual uniforms change");
 }
 
@@ -273,12 +239,7 @@ fn uniform_visual_parameter_updates_only_the_resolved_config_without_rebinding()
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
-    let before = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .map_or_else(|error| panic!("{error}"), |writes| writes.len());
+    let before = engine.device.log.writes.locked().len();
 
     scene
         .set_visual_scalar_parameter(handle, 0, 0.75)
@@ -287,12 +248,7 @@ fn uniform_visual_parameter_updates_only_the_resolved_config_without_rebinding()
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
 
-    let writes = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let writes = engine.device.log.writes.locked();
     let changed = &writes[before..];
     assert_eq!(
         changed.len(),
@@ -314,18 +270,8 @@ fn state_writes(
     from: usize,
     hovered: u32,
 ) -> Vec<(u64, usize, Vec<u8>)> {
-    let writes = engine
-        .device
-        .log
-        .writes
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
-    let payloads = engine
-        .device
-        .log
-        .write_payloads
-        .lock()
-        .unwrap_or_else(|error| panic!("{error}"));
+    let writes = engine.device.log.writes.locked();
+    let payloads = engine.device.log.write_payloads.locked();
     writes
         .iter()
         .zip(payloads.iter())
@@ -356,12 +302,7 @@ fn hover_uploads_only_the_changed_state_words() {
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("{error}"));
     let log_len = |engine: &crate::Engine<crate::testing::MockDevice>| {
-        engine
-            .device
-            .log
-            .writes
-            .lock()
-            .map_or_else(|error| panic!("{error}"), |writes| writes.len())
+        engine.device.log.writes.locked().len()
     };
 
     let mark = log_len(&engine);

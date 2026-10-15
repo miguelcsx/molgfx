@@ -1,5 +1,6 @@
 use super::*;
 use crate::passes::SurfaceComponentPass;
+use crate::testing::Locked;
 use crate::testing::{MockBindGroupLayout, MockDevice};
 use molgfx_gpu::{Device, TextureDesc, TextureDimension, TextureUsage, TextureViewDesc};
 use std::collections::VecDeque;
@@ -64,12 +65,7 @@ fn scratch_is_reused_and_pressure_is_typed() {
             policy,
         })
         .unwrap_or_else(|error| panic!("scratch allocates: {error}"));
-    let allocations = device
-        .log
-        .buffers
-        .lock()
-        .unwrap_or_else(|error| panic!("buffer log locks: {error}"))
-        .len();
+    let allocations = device.log.buffers.locked().len();
     resources
         .sync(&SurfaceComponentSync {
             device: &device,
@@ -83,15 +79,7 @@ fn scratch_is_reused_and_pressure_is_typed() {
             policy,
         })
         .unwrap_or_else(|error| panic!("scratch reuses: {error}"));
-    assert_eq!(
-        device
-            .log
-            .buffers
-            .lock()
-            .unwrap_or_else(|error| panic!("buffer log locks: {error}"))
-            .len(),
-        allocations
-    );
+    assert_eq!(device.log.buffers.locked().len(), allocations);
 
     let constrained = MockDevice::with_storage_limit(64);
     let error = storage_buffer::<MockDevice>(&constrained, "pressure", 32, 8);

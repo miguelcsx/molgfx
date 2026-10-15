@@ -1,4 +1,5 @@
 use super::trajectory_dispatch_groups;
+use crate::testing::Locked;
 
 #[test]
 fn trajectory_dispatch_covers_all_three_coordinate_lanes_per_atom() {
@@ -33,21 +34,15 @@ fn reactivating_a_resident_pair_starts_without_motion_from_the_old_activation() 
     trajectory
         .sync(&device, &queue, &layout, None)
         .expect("deactivation");
-    let writes_before = device.log.writes.lock().expect("writes").len();
-    let buffers_before = device.log.buffers.lock().expect("buffers").len();
+    let writes_before = device.log.writes.locked().len();
+    let buffers_before = device.log.buffers.locked().len();
     segment.set_sample_time(0.75).expect("new sample validates");
     trajectory
         .sync(&device, &queue, &layout, Some(&segment))
         .expect("reactivation");
-    assert_eq!(
-        device.log.buffers.lock().expect("buffers").len(),
-        buffers_before
-    );
-    assert_eq!(
-        device.log.writes.lock().expect("writes").len(),
-        writes_before + 1
-    );
-    let payloads = device.log.write_payloads.lock().expect("payloads");
+    assert_eq!(device.log.buffers.locked().len(), buffers_before);
+    assert_eq!(device.log.writes.locked().len(), writes_before + 1);
+    let payloads = device.log.write_payloads.locked();
     let uniforms =
         bytemuck::pod_read_unaligned::<TrajectoryUniforms>(payloads.last().expect("uniform write"));
     assert_eq!(uniforms.alpha.to_bits(), 0.75_f32.to_bits());
@@ -57,12 +52,12 @@ fn reactivating_a_resident_pair_starts_without_motion_from_the_old_activation() 
         "the old activation is not a previous frame"
     );
     drop(payloads);
-    let writes_before = device.log.writes.lock().expect("writes").len();
+    let writes_before = device.log.writes.locked().len();
     trajectory
         .sync(&device, &queue, &layout, Some(&segment))
         .expect("unchanged sample");
     assert_eq!(
-        device.log.writes.lock().expect("writes").len(),
+        device.log.writes.locked().len(),
         writes_before,
         "reactivation requires no settling upload"
     );
@@ -71,7 +66,7 @@ fn reactivating_a_resident_pair_starts_without_motion_from_the_old_activation() 
     trajectory
         .sync(&device, &queue, &layout, Some(&segment))
         .expect("continuous playback");
-    let payloads = device.log.write_payloads.lock().expect("payloads");
+    let payloads = device.log.write_payloads.locked();
     let uniforms =
         bytemuck::pod_read_unaligned::<TrajectoryUniforms>(payloads.last().expect("uniform write"));
     assert_eq!(uniforms.alpha.to_bits(), 1.0_f32.to_bits());
@@ -87,7 +82,7 @@ fn reactivating_a_resident_pair_starts_without_motion_from_the_old_activation() 
     trajectory
         .sync(&device, &queue, &layout, Some(&segment))
         .expect("same sample reactivates");
-    let payloads = device.log.write_payloads.lock().expect("payloads");
+    let payloads = device.log.write_payloads.locked();
     let uniforms =
         bytemuck::pod_read_unaligned::<TrajectoryUniforms>(payloads.last().expect("uniform write"));
     assert_eq!(uniforms.previous_alpha.to_bits(), 1.0_f32.to_bits());
@@ -111,7 +106,7 @@ fn scalar_frame(index: u64, time: f64, x: f32) -> molgfx_core::TrajectoryFrame {
 }
 
 fn buffer_count(device: &crate::testing::MockDevice) -> usize {
-    device.log.buffers.lock().expect("buffers").len()
+    device.log.buffers.locked().len()
 }
 
 #[test]
@@ -131,7 +126,7 @@ fn linear_residency_is_unchanged_and_hermite_adds_only_the_neighbours_it_has() {
         .expect("linear");
     // Two frames, two outputs and the uniforms: the pre-existing five buffers.
     assert_eq!(buffer_count(&device), 5);
-    let payloads = device.log.write_payloads.lock().expect("payloads");
+    let payloads = device.log.write_payloads.locked();
     let uniforms =
         bytemuck::pod_read_unaligned::<TrajectoryUniforms>(payloads.last().expect("uniform"));
     assert_eq!(uniforms.mode, 0);
@@ -148,7 +143,7 @@ fn linear_residency_is_unchanged_and_hermite_adds_only_the_neighbours_it_has() {
         .sync(&device, &queue, &layout, Some(&hermite))
         .expect("hermite");
     assert_eq!(buffer_count(&device), 7, "before and after are allocated");
-    let payloads = device.log.write_payloads.lock().expect("payloads");
+    let payloads = device.log.write_payloads.locked();
     let uniforms =
         bytemuck::pod_read_unaligned::<TrajectoryUniforms>(payloads.last().expect("uniform"));
     assert_eq!(uniforms.mode, 1);

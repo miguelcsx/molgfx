@@ -1,4 +1,5 @@
 use super::tests::{camera, engine, structure};
+use crate::testing::Locked;
 use molgfx_core::{AtomSelection, RepresentationKind, Scene, SurfaceKind};
 
 #[test]
@@ -19,12 +20,7 @@ fn van_der_waals_surface_allocates_no_voxel_grid() {
     engine
         .render(&scene, &camera())
         .unwrap_or_else(|error| panic!("frame renders: {error}"));
-    let textures = engine
-        .device
-        .log
-        .textures
-        .lock()
-        .unwrap_or_else(|error| panic!("texture log locks: {error}"));
+    let textures = engine.device.log.textures.locked();
     assert!(textures.iter().all(|label| {
         !matches!(
             *label,

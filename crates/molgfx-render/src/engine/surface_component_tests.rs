@@ -1,4 +1,5 @@
 use super::tests::{camera, engine, structure};
+use crate::testing::Locked;
 use molgfx_core::{
     AtomSelection, RepresentationKind, Scene, SurfaceComponentPolicy, SurfaceKind, SurfaceStyle,
 };
@@ -26,47 +27,23 @@ fn solid_mesh_and_dots_share_the_incremental_component_filter() {
         renderer
             .render(&scene, &camera())
             .unwrap_or_else(|error| panic!("filtered frame renders: {error}"));
-        let first = renderer
-            .device
-            .log
-            .dispatches
-            .lock()
-            .unwrap_or_else(|error| panic!("dispatch log locks: {error}"))
-            .len();
+        let first = renderer.device.log.dispatches.locked().len();
         assert!(
             first > 6,
             "field, union-find, filtering and normals execute"
         );
         assert_eq!(dispatch_count.get_or_insert(first), &first);
-        let allocations = renderer
-            .device
-            .log
-            .buffers
-            .lock()
-            .unwrap_or_else(|error| panic!("buffer log locks: {error}"))
-            .len();
+        let allocations = renderer.device.log.buffers.locked().len();
         renderer
             .render(&scene, &camera())
             .unwrap_or_else(|error| panic!("stable filtered frame renders: {error}"));
         assert_eq!(
-            renderer
-                .device
-                .log
-                .dispatches
-                .lock()
-                .unwrap_or_else(|error| panic!("dispatch log locks: {error}"))
-                .len(),
+            renderer.device.log.dispatches.locked().len(),
             first,
             "unchanged frames do no component work"
         );
         assert_eq!(
-            renderer
-                .device
-                .log
-                .buffers
-                .lock()
-                .unwrap_or_else(|error| panic!("buffer log locks: {error}"))
-                .len(),
+            renderer.device.log.buffers.locked().len(),
             allocations,
             "unchanged frames allocate no component scratch"
         );

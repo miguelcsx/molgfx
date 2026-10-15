@@ -1,4 +1,5 @@
 use crate::engine::tests::{camera, engine, represented_scene};
+use crate::testing::Locked;
 use molgfx_core::RepresentationKind;
 use std::collections::BTreeSet;
 
@@ -14,9 +15,7 @@ fn one_indirect_argument_arena_serves_every_representation() {
         if let Err(error) = engine.render(&scene, &camera()) {
             panic!("frame renders: {error}")
         }
-        let Ok(buffers) = engine.device.log.buffers.lock() else {
-            panic!("buffer log lock")
-        };
+        let buffers = engine.device.log.buffers.locked();
         counts.push(
             buffers
                 .iter()
@@ -38,14 +37,10 @@ fn every_indirect_draw_reads_the_one_arena() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("frame renders: {error}")
     }
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
-        panic!("draw log lock")
-    };
+    let draws = engine.device.log.indirect_draws.locked();
     let ids: Vec<u32> = draws.iter().map(|(id, _)| *id).collect();
     assert!(!ids.is_empty(), "the frame issues indirect draws");
-    let Ok(buffers) = engine.device.log.buffers.lock() else {
-        panic!("buffer log lock")
-    };
+    let buffers = engine.device.log.buffers.locked();
     let arena = buffers
         .iter()
         .find(|(_, label, _)| *label == "indirect draw arguments")
@@ -69,9 +64,7 @@ fn different_cull_policies_read_different_slots_of_one_arena() {
     if let Err(error) = engine.render(&scene, &camera()) {
         panic!("frame renders: {error}")
     }
-    let Ok(draws) = engine.device.log.indirect_draws.lock() else {
-        panic!("draw log lock")
-    };
+    let draws = engine.device.log.indirect_draws.locked();
     let offsets: BTreeSet<u64> = draws.iter().map(|(_, offset)| *offset).collect();
     assert!(
         offsets.len() > 1,
@@ -95,7 +88,7 @@ fn many_distinct_record_sets_upload_every_argument_to_the_final_arena() {
     }
     let mut engine = engine();
     engine.render(&scene, &camera()).expect("frame renders");
-    let buffers = engine.device.log.buffers.lock().expect("buffers");
+    let buffers = engine.device.log.buffers.locked();
     let arenas: Vec<_> = buffers
         .iter()
         .filter(|(_, label, _)| *label == "indirect draw arguments")
@@ -106,7 +99,7 @@ fn many_distinct_record_sets_upload_every_argument_to_the_final_arena() {
         "reserve the complete frame before writing arguments"
     );
     let arena = arenas[0].0;
-    let writes = engine.device.log.writes.lock().expect("writes");
+    let writes = engine.device.log.writes.locked();
     let offsets: BTreeSet<_> = writes
         .iter()
         .filter(|(id, _, size, _)| *id == arena && *size == 16)
