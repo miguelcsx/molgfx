@@ -88,21 +88,8 @@ jobs:
     needs: detect
     if: needs.detect.outputs.release == 'true'
     runs-on: ubuntu-latest
-    # The published molframe wheel embeds only the bonding reach, while the
-    # documented snippets also select covalent radii.
-    env:
-      MOLFRAME_DATA_DIR: ${{ github.workspace }}/.molframe-tables/data
-      MOLFRAME_PROFILE: ${{ github.workspace }}/.molframe-tables/crates/molframe-bench/data/profile.txt
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: miguelcsx/molframe
-          ref: v0.6.3
-          path: .molframe-tables
-          sparse-checkout: |
-            data
-            crates/molframe-bench/data/profile.txt
       - uses: ./.github/actions/browser-runtime
       - run: npm test --prefix web
       - run: npm pack ./web --pack-destination web
@@ -127,7 +114,7 @@ jobs:
           set -euo pipefail
           python -m venv .venv
           . .venv/bin/activate
-          python -m pip install --upgrade pip 'maturin>=1.15,<2' mypy numpy 'molframe>=0.6.3'
+          python -m pip install --upgrade pip 'maturin>=1.15,<2' mypy numpy 'molframe>=0.6.4'
           python buildsys/build_backend.py
           python .github/scripts/test-python-packaging.py
           maturin develop -m crates/molgfx-py/Cargo.toml
@@ -137,19 +124,8 @@ jobs:
   sdist:
     needs: [detect, verify]
     runs-on: ubuntu-latest
-    env:
-      MOLFRAME_DATA_DIR: ${{ github.workspace }}/.molframe-tables/data
-      MOLFRAME_PROFILE: ${{ github.workspace }}/.molframe-tables/crates/molframe-bench/data/profile.txt
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: miguelcsx/molframe
-          ref: v0.6.3
-          path: .molframe-tables
-          sparse-checkout: |
-            data
-            crates/molframe-bench/data/profile.txt
       - uses: actions/download-artifact@v4
         with:
           name: browser-runtime
@@ -196,19 +172,8 @@ jobs:
           - runner: windows-latest
             label: windows-x86_64
     runs-on: ${{ matrix.runner }}
-    env:
-      MOLFRAME_DATA_DIR: ${{ github.workspace }}/.molframe-tables/data
-      MOLFRAME_PROFILE: ${{ github.workspace }}/.molframe-tables/crates/molframe-bench/data/profile.txt
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: miguelcsx/molframe
-          ref: v0.6.3
-          path: .molframe-tables
-          sparse-checkout: |
-            data
-            crates/molframe-bench/data/profile.txt
       - uses: actions/download-artifact@v4
         with:
           name: browser-runtime
@@ -329,7 +294,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m venv .venv
-          .venv/bin/python -m pip install dist/*.whl 'molframe>=0.6.3'
+          .venv/bin/python -m pip install dist/*.whl 'molframe>=0.6.4'
           if [ "${{ matrix.name }}" = default ]; then
             env -u WGPU_BACKEND .venv/bin/python python/tests/headless_render.py
           else

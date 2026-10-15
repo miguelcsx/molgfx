@@ -2,8 +2,14 @@
 
 All notable changes to MolGFX are recorded here. The project follows
 [Semantic Versioning](https://semver.org/); before 1.0 a minor release may
-change the public API. MolGFX 0.5.4 needs `molframe>=0.6.3`: publish or install
+change the public API. MolGFX 0.5.5 needs `molframe>=0.6.4`: publish or install
 that first.
+
+## 0.5.5 — 2026-10-15
+
+- Pin `molframe` 0.6.4, whose wheel compiles in the reference tables the
+  default flows read: a clean `pip install molgfx` runs with no data
+  directory or profile.
 
 ## 0.5.4 — 2026-10-15
 
