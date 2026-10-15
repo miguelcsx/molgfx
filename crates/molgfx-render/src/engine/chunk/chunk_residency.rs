@@ -19,14 +19,14 @@ mod trajectory;
 #[path = "chunk_residency/upload_batch.rs"]
 mod upload_batch;
 
-use super::chunk_draw_plan::ChunkClusterGpu;
-use super::chunk_residency_support::local_offset;
-use super::{ChunkResidencyError, ChunkResidencyMetrics, ResidentStructureChunk};
+use crate::engine::chunk_draw_plan::ChunkClusterGpu;
+use crate::engine::chunk_residency_support::local_offset;
+use crate::engine::{ChunkResidencyError, ChunkResidencyMetrics, ResidentStructureChunk};
 use molgfx_core::{
     ChunkData, ChunkPayload, ChunkSpan, Eviction, LogicalRow, ResidencyOutput, ResidencyTicket,
 };
 use molgfx_gpu::{Device, Queue as _};
-pub(super) use state::ChunkGpuResidency;
+pub(in crate::engine) use state::ChunkGpuResidency;
 use tracked::{TrackedChunk, ticket_key};
 pub(in crate::engine) use upload_batch::{CopyTarget, stage_segments};
 
@@ -35,12 +35,12 @@ pub(in crate::engine) use upload_batch::{CopyTarget, stage_segments};
 mod lazy_tests;
 
 impl<D: Device> ChunkGpuResidency<D> {
-    pub(super) fn begin_epoch(&mut self) {
+    pub(in crate::engine) fn begin_epoch(&mut self) {
         self.uploads.begin_epoch();
         self.bonds.begin_epoch();
     }
 
-    pub(super) fn stage(
+    pub(in crate::engine) fn stage(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -158,7 +158,11 @@ impl<D: Device> ChunkGpuResidency<D> {
         Ok(())
     }
 
-    pub(super) fn poll(&mut self, device: &D, queue: &D::Queue) -> Result<(), ChunkResidencyError> {
+    pub(in crate::engine) fn poll(
+        &mut self,
+        device: &D,
+        queue: &D::Queue,
+    ) -> Result<(), ChunkResidencyError> {
         let completed = queue.completed_fence(device)?;
         if let Some(uploads) = self.uploads.get_mut() {
             let _ = uploads.retire(completed);
@@ -218,11 +222,14 @@ impl<D: Device> ChunkGpuResidency<D> {
         Ok(())
     }
 
-    pub(super) fn completed(&self) -> &[ResidencyTicket] {
+    pub(in crate::engine) fn completed(&self) -> &[ResidencyTicket] {
         &self.completed
     }
 
-    pub(super) fn apply(&mut self, output: &ResidencyOutput) -> Result<(), ChunkResidencyError> {
+    pub(in crate::engine) fn apply(
+        &mut self,
+        output: &ResidencyOutput,
+    ) -> Result<(), ChunkResidencyError> {
         for cancellation in &output.cancellations {
             self.cancel_generic(*cancellation);
             self.bonds.cancel_or_evict(*cancellation)?;
@@ -243,7 +250,10 @@ impl<D: Device> ChunkGpuResidency<D> {
         Ok(())
     }
 
-    pub(super) fn resident(&self, ticket: ResidencyTicket) -> Option<ResidentStructureChunk> {
+    pub(in crate::engine) fn resident(
+        &self,
+        ticket: ResidencyTicket,
+    ) -> Option<ResidentStructureChunk> {
         let index = *self.tracked_index.get(&ticket_key(ticket))?;
         self.tracked.get(index).and_then(|entry| match *entry {
             TrackedChunk::Resident {
@@ -267,7 +277,7 @@ impl<D: Device> ChunkGpuResidency<D> {
         })
     }
 
-    pub(super) fn metrics(&self) -> ChunkResidencyMetrics {
+    pub(in crate::engine) fn metrics(&self) -> ChunkResidencyMetrics {
         ChunkResidencyMetrics {
             arena: self.arena.metrics(),
             uploads: self.uploads.metrics(),
@@ -276,7 +286,7 @@ impl<D: Device> ChunkGpuResidency<D> {
         }
     }
 
-    pub(super) fn reset(&mut self, device: &D) -> Result<(), ChunkResidencyError> {
+    pub(in crate::engine) fn reset(&mut self, device: &D) -> Result<(), ChunkResidencyError> {
         let binding_revision = self.binding_revision;
         let bond_binding_revision = self.bonds.binding_revision();
         let replacement = Self::new(device, self.config)?;
@@ -312,7 +322,10 @@ impl<D: Device> ChunkGpuResidency<D> {
         Ok(())
     }
 
-    pub(super) fn discard(&mut self, ticket: ResidencyTicket) -> Result<(), ChunkResidencyError> {
+    pub(in crate::engine) fn discard(
+        &mut self,
+        ticket: ResidencyTicket,
+    ) -> Result<(), ChunkResidencyError> {
         self.bonds.cancel_or_evict(ticket)?;
         self.cancel_frame(ticket)?;
         self.discard_generic(ticket)?;

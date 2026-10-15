@@ -1,13 +1,13 @@
 //! Validation and fixed-buffer construction for paged structure residency.
 
-use super::{
+use crate::engine::{
     ChunkPlacementError, ChunkResidencyError, InstanceChunkPlacement, PointChunkPlacement,
     RelationChunkPlacement, StructureChunkPlacement,
 };
 use hashbrown::HashSet;
 use molgfx_gpu::{BufferDesc, BufferUsage, Device};
 
-pub(super) fn create_coordinate_buffer<D: Device>(
+pub(in crate::engine) fn create_coordinate_buffer<D: Device>(
     device: &D,
     size: u64,
     label: &'static str,
@@ -19,7 +19,7 @@ pub(super) fn create_coordinate_buffer<D: Device>(
     })?)
 }
 
-pub(super) fn validate_instance_placements(
+pub(in crate::engine) fn validate_instance_placements(
     placements: &[InstanceChunkPlacement],
     capacity: usize,
 ) -> Result<(), ChunkPlacementError> {
@@ -37,7 +37,7 @@ pub(super) fn validate_instance_placements(
     Ok(())
 }
 
-pub(super) fn validate_relation_placements(
+pub(in crate::engine) fn validate_relation_placements(
     placements: &[RelationChunkPlacement],
     capacity: usize,
 ) -> Result<(), ChunkPlacementError> {
@@ -55,7 +55,7 @@ pub(super) fn validate_relation_placements(
     Ok(())
 }
 
-pub(super) fn create_cluster_buffer<D: Device>(
+pub(in crate::engine) fn create_cluster_buffer<D: Device>(
     device: &D,
     size: u64,
 ) -> Result<D::Buffer, ChunkResidencyError> {
@@ -66,7 +66,7 @@ pub(super) fn create_cluster_buffer<D: Device>(
     })?)
 }
 
-pub(super) fn cluster_capacity(
+pub(in crate::engine) fn cluster_capacity(
     bytes: u64,
     machine_capacity: usize,
 ) -> Result<u32, ChunkResidencyError> {
@@ -77,7 +77,7 @@ pub(super) fn cluster_capacity(
     u32::try_from(clusters).map_err(|_| ChunkResidencyError::LocalAddressOverflow)
 }
 
-pub(super) fn local_offset<T>(bytes: u64) -> Result<u32, ChunkResidencyError> {
+pub(in crate::engine) fn local_offset<T>(bytes: u64) -> Result<u32, ChunkResidencyError> {
     let stride = std::mem::size_of::<T>() as u64;
     if !bytes.is_multiple_of(stride) {
         return Err(ChunkResidencyError::LocalAddressOverflow);
@@ -85,7 +85,7 @@ pub(super) fn local_offset<T>(bytes: u64) -> Result<u32, ChunkResidencyError> {
     u32::try_from(bytes / stride).map_err(|_| ChunkResidencyError::LocalAddressOverflow)
 }
 
-pub(super) fn validate_placements(
+pub(in crate::engine) fn validate_placements(
     placements: &[StructureChunkPlacement],
     capacity: usize,
 ) -> Result<(), ChunkPlacementError> {
@@ -106,7 +106,7 @@ pub(super) fn validate_placements(
     Ok(())
 }
 
-pub(super) fn validate_point_placements(
+pub(in crate::engine) fn validate_point_placements(
     placements: &[PointChunkPlacement],
     capacity: usize,
 ) -> Result<(), ChunkPlacementError> {

@@ -1,6 +1,6 @@
 //! Public values at the host-to-GPU paged chunk boundary.
 
-use super::ChunkPlacementError;
+use crate::engine::ChunkPlacementError;
 use molgfx_core::{ChunkDomainRef, PayloadKind, ResidencyTicket};
 use thiserror::Error;
 

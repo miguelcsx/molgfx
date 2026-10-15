@@ -7,7 +7,7 @@ use molgfx_core::{ChunkData, ChunkPayload, ResidencyTicket};
 use molgfx_gpu::{Device, Queue as _};
 
 impl<D: Device> ChunkGpuResidency<D> {
-    pub(in crate::engine::chunk_residency) fn stage_generic(
+    pub(in crate::engine::chunk::chunk_residency) fn stage_generic(
         &mut self,
         device: &D,
         queue: &D::Queue,

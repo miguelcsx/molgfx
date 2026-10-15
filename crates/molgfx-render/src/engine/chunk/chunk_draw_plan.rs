@@ -1,6 +1,6 @@
 //! Compact CPU plans lowered only when paged residency or placements change.
 
-use super::ChunkRepresentation;
+use crate::engine::ChunkRepresentation;
 use molgfx_core::{
     AnalyticTemplate, AttributeKind, ChunkDomainRef, ChunkId, ChunkSpan, DatasetId, EntityKind,
     PagedRelation, RelationStyle, ResidencyTicket,
@@ -14,11 +14,11 @@ use std::sync::Arc;
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct ChunkClusterGpu {
     /// XYZ center and enclosing radius.
-    pub(super) center_radius: [f32; 4],
+    pub(in crate::engine) center_radius: [f32; 4],
 }
 
 impl ChunkClusterGpu {
-    pub(super) fn from_positions(positions: &[[f32; 3]]) -> Self {
+    pub(in crate::engine) fn from_positions(positions: &[[f32; 3]]) -> Self {
         let mut min = [f32::INFINITY; 3];
         let mut max = [f32::NEG_INFINITY; 3];
         for position in positions {

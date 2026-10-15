@@ -1,20 +1,20 @@
 //! The engine: owns the device, the graph and every pass's state.
 
+mod chunk;
+pub(crate) use chunk::chunk_draw_plan;
+use chunk::chunk_placement;
+use chunk::chunk_residency;
+use chunk::chunk_residency_support;
+use chunk::chunk_residency_types;
+use chunk::derived_cache;
+
 mod adaptive;
 mod backdrop;
 pub(crate) mod bond_draw_plan;
 mod bond_residency;
-mod brick_atlas;
-mod chunk_api;
-pub(crate) mod chunk_draw_plan;
-mod chunk_placement;
-mod chunk_residency;
-mod chunk_residency_support;
-mod chunk_residency_types;
 mod config;
 mod cpu_stages;
 mod depth_cue;
-mod derived_cache;
 mod effective_quality;
 mod exposure;
 mod exr;
@@ -137,15 +137,15 @@ mod residency_integration_tests;
 mod chunk_residency_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "chunk_residency/generic_tests.rs"]
+#[path = "chunk/chunk_residency/generic_tests.rs"]
 mod generic_chunk_residency_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "chunk_residency/generic_visual_tests.rs"]
+#[path = "chunk/chunk_residency/generic_visual_tests.rs"]
 mod generic_chunk_visual_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "chunk_residency/instance_timeline_tests.rs"]
+#[path = "chunk/chunk_residency/instance_timeline_tests.rs"]
 mod chunk_instance_timeline_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

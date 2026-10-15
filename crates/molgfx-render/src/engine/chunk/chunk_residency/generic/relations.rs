@@ -13,7 +13,7 @@ const ENTITY_BYTES: u32 = 36;
 const TEMPLATE_BYTES: u32 = 40;
 
 #[derive(Clone, Copy, Debug)]
-pub(in crate::engine::chunk_residency) struct RelationUploadLayout {
+pub(in crate::engine::chunk::chunk_residency) struct RelationUploadLayout {
     offsets: [u32; LAYOUT_COUNT],
     counts: [u32; LAYOUT_COUNT],
     active_mask: u32,
@@ -21,7 +21,7 @@ pub(in crate::engine::chunk_residency) struct RelationUploadLayout {
 }
 
 impl RelationUploadLayout {
-    pub(in crate::engine::chunk_residency) const fn uniform_stride(self) -> u32 {
+    pub(in crate::engine::chunk::chunk_residency) const fn uniform_stride(self) -> u32 {
         if self.active_mask.is_power_of_two() {
             layout_stride(self.active_mask.trailing_zeros() as usize)
         } else {
@@ -30,14 +30,14 @@ impl RelationUploadLayout {
     }
 }
 
-pub(in crate::engine::chunk_residency) struct RelationUpload<'a> {
+pub(in crate::engine::chunk::chunk_residency) struct RelationUpload<'a> {
     rows: &'a [PagedRelation],
     layout: RelationUploadLayout,
     total_bytes: u64,
 }
 
 impl<'a> RelationUpload<'a> {
-    pub(in crate::engine::chunk_residency) fn new(
+    pub(in crate::engine::chunk::chunk_residency) fn new(
         rows: &'a [PagedRelation],
     ) -> Result<Self, ChunkResidencyError> {
         let mut counts = [0_u32; LAYOUT_COUNT];
@@ -90,15 +90,15 @@ impl<'a> RelationUpload<'a> {
         })
     }
 
-    pub(in crate::engine::chunk_residency) const fn byte_len(&self) -> u64 {
+    pub(in crate::engine::chunk::chunk_residency) const fn byte_len(&self) -> u64 {
         self.total_bytes
     }
 
-    pub(in crate::engine::chunk_residency) const fn layout(&self) -> RelationUploadLayout {
+    pub(in crate::engine::chunk::chunk_residency) const fn layout(&self) -> RelationUploadLayout {
         self.layout
     }
 
-    pub(in crate::engine::chunk_residency) fn write(
+    pub(in crate::engine::chunk::chunk_residency) fn write(
         &self,
         target: &mut [u8],
     ) -> Result<(), ChunkResidencyError> {

@@ -1,6 +1,6 @@
 //! Caller-driven sparse brick delivery without renderer-owned I/O.
 
-use super::Engine;
+use crate::engine::Engine;
 use crate::{BrickAtlasConfig, BrickAtlasError, BrickAtlasMetrics, BrickAtlasUpload};
 use molgfx_core::{BrickCatalog, BrickId};
 use molgfx_gpu::{Device, FenceValue};

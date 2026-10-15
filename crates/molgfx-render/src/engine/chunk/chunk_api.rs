@@ -1,6 +1,6 @@
 //! Public orchestration for caller-provided out-of-core chunks.
 
-use super::{
+use crate::engine::{
     AttributeChunkWindow, BondChunkPlacement, ChunkPlacementId, ChunkPlacementStatus,
     ChunkResidencyError, ChunkResidencyMetrics, Engine, InstanceChunkPlacement,
     InstanceChunkWindow, PointChunkPlacement, RelationChunkPlacement, ResidentGenericChunk,
