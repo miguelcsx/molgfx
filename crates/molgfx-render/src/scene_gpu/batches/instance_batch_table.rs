@@ -1,6 +1,6 @@
 //! Shared analytic templates and compact 32-byte rigid-instance GPU tables.
 use crate::error::RenderError;
-use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::buffers::{buffer_entry, pack_color};
 use crate::scene_gpu::dispatch::workgroups_2d;
 use crate::scene_gpu::generic_visual::{
     GenericVisualResources, GenericVisualState, GenericVisualTarget,
@@ -16,9 +16,7 @@ use molgfx_math::{Quat, Vec3};
 use std::sync::Arc;
 #[path = "instance_batch_table/support.rs"]
 mod support;
-use support::{
-    checked_count, frame_identity, limit, pack_color, storage_buffer, template_part_page,
-};
+use support::{checked_count, frame_identity, limit, storage_buffer, template_part_page};
 pub(crate) const GENERIC_INSTANCE_SPHERE: u32 = 0;
 pub(crate) const GENERIC_INSTANCE_CAPSULE: u32 = 3;
 

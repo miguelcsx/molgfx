@@ -4,7 +4,7 @@ use super::label_pack::pack_labels;
 use super::label_types::{LabelCountsGpu, LabelGpu, LabelHeaderGpu, OCCUPANCY_SLOTS};
 use crate::error::RenderError;
 use crate::scene_gpu::buffers::buffer_entry;
-use crate::scene_gpu::buffers::{count, upload_grow, write_draw_args};
+use crate::scene_gpu::buffers::{byte_len, count, upload_grow, write_draw_args};
 use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::Scene;
 use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, Device, Queue};
@@ -197,13 +197,6 @@ impl<D: Device> GpuLabels<D> {
     pub(in crate::scene_gpu) const fn has_visible(&self) -> bool {
         self.source_count > 0
     }
-}
-
-fn byte_len<T>(count: usize) -> u64 {
-    crate::fallback(
-        u64::try_from(count.saturating_mul(std::mem::size_of::<T>())),
-        u64::MAX,
-    )
 }
 
 fn size_u64<T>() -> u64 {

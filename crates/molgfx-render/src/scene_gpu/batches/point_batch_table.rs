@@ -1,7 +1,7 @@
 //! Persistent 12-byte generic point tables with GPU-authored visibility.
 
 use crate::error::RenderError;
-use crate::scene_gpu::buffers::{buffer_entry, limit_exceeded};
+use crate::scene_gpu::buffers::{buffer_entry, limit_exceeded, pack_color};
 use crate::scene_gpu::dispatch::workgroups_2d;
 use crate::scene_gpu::generic_visual::{
     GenericVisualResources, GenericVisualState, GenericVisualTarget,
@@ -15,7 +15,6 @@ use molgfx_core::{
     Scene,
 };
 use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue as _};
-use molgfx_math::Rgba8;
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -376,10 +375,6 @@ fn write_config<D: Device>(queue: &D::Queue, batch: &PointBatch, target: &PointC
             ],
         }),
     );
-}
-
-const fn pack_color(color: Rgba8) -> u32 {
-    color.r as u32 | ((color.g as u32) << 8) | ((color.b as u32) << 16) | ((color.a as u32) << 24)
 }
 
 fn table_chunk(handle: PointBatchHandle) -> ChunkId {

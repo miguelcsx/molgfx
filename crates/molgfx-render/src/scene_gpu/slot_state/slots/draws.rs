@@ -1,5 +1,6 @@
 //! Constant-cost draw routing for one persistent representation slot.
 
+use super::state::is_spline;
 use super::{FAST_POINT_INDEX_LIMIT, GpuSlot};
 use crate::engine::pipeline_cache::SpecializationKey;
 use crate::scene_gpu::slot_types::{
@@ -286,7 +287,7 @@ impl<D: Device> GpuSlot<D> {
             atom_group: self.atom_cull_group.as_ref()?,
             bond_group: self.bond_cull_group.as_ref()?,
             visual_group: self.visual_cull_group.as_ref()?,
-            atom_groups: if is_spline_kind(self.kind) {
+            atom_groups: if is_spline(self.kind) {
                 [0, 0]
             } else {
                 crate::scene_gpu::dispatch::workgroups_2d(u64::from(self.atom_count).div_ceil(64))
@@ -314,7 +315,7 @@ impl<D: Device> GpuSlot<D> {
                 .with_shading_visual(self.visual.has_shading_results())
                 .with_shading_all(
                     self.kind == RepresentationKind::Lines
-                        || is_spline_kind(self.kind)
+                        || is_spline(self.kind)
                         || (self.kind == RepresentationKind::Surface
                             && !self.shading.surface_atoms()),
                 ),
@@ -340,22 +341,4 @@ impl<D: Device> GpuSlot<D> {
             && self.atom_count >= REALTIME_SHADOW_INSTANCES
             && !self.translucent
     }
-}
-
-const fn is_spline_kind(kind: RepresentationKind) -> bool {
-    matches!(
-        kind,
-        RepresentationKind::Cartoon
-            | RepresentationKind::Trace
-            | RepresentationKind::Tube
-            | RepresentationKind::Rocket
-            | RepresentationKind::Twister
-            | RepresentationKind::MolecularSurface
-            | RepresentationKind::Polyhedra
-            | RepresentationKind::NewRibbons
-            | RepresentationKind::Ribbons
-            | RepresentationKind::PaperChain
-            | RepresentationKind::Bases
-            | RepresentationKind::BasePairs
-    )
 }

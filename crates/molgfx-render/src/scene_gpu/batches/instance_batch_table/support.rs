@@ -5,7 +5,6 @@ use crate::scene_gpu::buffers::limit_exceeded;
 use crate::scene_gpu::picking_pages::PickPages;
 use molgfx_core::{ChunkId, DatasetId, EntityKind, InstanceBatch, InstanceBatchHandle};
 use molgfx_gpu::{BufferDesc, BufferUsage, Device, Queue as _};
-use molgfx_math::Rgba8;
 use std::sync::Arc;
 
 pub(super) fn frame_identity(
@@ -56,10 +55,6 @@ fn table_chunk(handle: InstanceBatchHandle) -> ChunkId {
 
 pub(super) fn checked_count(count: usize) -> Result<u32, RenderError> {
     u32::try_from(count).map_err(|_| limit())
-}
-
-pub(super) const fn pack_color(color: Rgba8) -> u32 {
-    color.r as u32 | ((color.g as u32) << 8) | ((color.b as u32) << 16) | ((color.a as u32) << 24)
 }
 
 pub(super) fn limit() -> RenderError {

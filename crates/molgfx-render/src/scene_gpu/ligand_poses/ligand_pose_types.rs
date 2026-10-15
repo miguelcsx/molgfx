@@ -7,9 +7,9 @@
 //! translucent second.
 
 use crate::error::RenderError;
-use crate::scene_gpu::buffers::limit_exceeded;
+use crate::scene_gpu::buffers::{limit_exceeded, pack_color};
 use molgfx_core::{DrawIndirectArgs, EntityId, EntityKind, LigandPose};
-use molgfx_math::{Mat4, Quat, Rgba8, Vec3};
+use molgfx_math::{Mat4, Quat, Vec3};
 
 pub(crate) const POSE_SPHERE: u32 = 0;
 pub(crate) const POSE_CAPSULE: u32 = 3;
@@ -271,10 +271,6 @@ fn hash_pose(hash: &mut u64, pose: LigandPose) {
 
 pub(in crate::scene_gpu) fn batch_entity(row: u32) -> Result<EntityId, molgfx_core::EntityIdError> {
     EntityId::pack(EntityKind::LigandPoseBatch, u64::from(row))
-}
-
-const fn pack_color(color: Rgba8) -> u32 {
-    color.r as u32 | ((color.g as u32) << 8) | ((color.b as u32) << 16) | ((color.a as u32) << 24)
 }
 
 #[cfg(test)]

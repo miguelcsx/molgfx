@@ -7,6 +7,7 @@ use molgfx_gpu::{
     BindGroupEntry, BindGroupLayoutEntry, BindingType, BufferDesc, BufferUsage, Device, Queue,
     ShaderStages,
 };
+use molgfx_math::Rgba8;
 
 #[cfg(test)]
 #[path = "buffers_tests.rs"]
@@ -261,6 +262,17 @@ pub(in crate::scene_gpu) const fn storage_entry(
         visibility,
         ty: BindingType::Storage { read_only },
     }
+}
+
+pub(in crate::scene_gpu) fn byte_len<T>(count: usize) -> u64 {
+    crate::fallback(
+        u64::try_from(count.saturating_mul(std::mem::size_of::<T>())),
+        u64::MAX,
+    )
+}
+
+pub(in crate::scene_gpu) const fn pack_color(color: Rgba8) -> u32 {
+    color.r as u32 | ((color.g as u32) << 8) | ((color.b as u32) << 16) | ((color.a as u32) << 24)
 }
 
 pub(in crate::scene_gpu) fn count(len: usize) -> u32 {

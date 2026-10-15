@@ -2,7 +2,7 @@
 
 use crate::error::RenderError;
 use crate::scene_gpu::buffers::buffer_entry;
-use crate::scene_gpu::buffers::{count, upload_grow, write_draw_args};
+use crate::scene_gpu::buffers::{byte_len, count, upload_grow, write_draw_args};
 use crate::scene_gpu::label_types::glyph_bits;
 use molgfx_core::{OverlayContent, Scene};
 use molgfx_gpu::{BindGroupDesc, Device};
@@ -226,11 +226,4 @@ fn record(
         color_b,
         metadata,
     }
-}
-
-fn byte_len<T>(count: usize) -> u64 {
-    crate::fallback(
-        u64::try_from(count.saturating_mul(std::mem::size_of::<T>())),
-        u64::MAX,
-    )
 }
