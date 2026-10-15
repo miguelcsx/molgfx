@@ -8,11 +8,8 @@
 use crate::error::RenderError;
 use crate::graph::{PassContext, ResourceId};
 use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
-use crate::passes::{begin_gbuffer_pass, gbuffer_targets};
-use molgfx_gpu::{
-    CompareFunction, DepthState, Device, PrimitiveTopology, RenderPassEncoder as _,
-    RenderPipelineDesc, ShaderModuleDesc, TextureFormat,
-};
+use crate::passes::{begin_gbuffer_pass, gbuffer_pipeline};
+use molgfx_gpu::{Device, RenderPassEncoder as _, ShaderModuleDesc, TextureFormat};
 
 /// The graph resource id of the frame depth buffer.
 pub(crate) const DEPTH_RESOURCE: ResourceId = ResourceId(0);
@@ -47,49 +44,30 @@ impl<D: Device> SpherePass<D> {
             wgsl: molgfx_shaders::GEOMETRY_SPHERE,
         })?;
         // Groups: 0 per-frame camera, 1 unused, 2 per-representation atoms.
-        let pipeline = |label, fs_entry| -> Result<VisualPipelineSet<D>, RenderError> {
-            let build = |pipeline_constants: &[(&'static str, f64)]| {
-                device.create_render_pipeline(&RenderPipelineDesc {
+        let pipeline = |label, fs_entry| {
+            VisualPipelineSet::build(|set_constants| {
+                gbuffer_pipeline(
+                    device,
                     label,
-                    layouts: &[Some(group0), None, Some(group2)],
-                    shader: &shader,
-                    vs_entry: "vs_sphere_opaque",
-                    fs_entry: Some(fs_entry),
-                    color_targets: &gbuffer_targets(),
-                    depth: Some(DepthState {
-                        format: TextureFormat::Depth32Float,
-                        write: true,
-                        compare: CompareFunction::GreaterEqual,
-                    }),
-                    constants: pipeline_constants,
-                    topology: PrimitiveTopology::TriangleList,
-                })
-            };
-            Ok(VisualPipelineSet::new(
-                build(&[])?,
-                build(&constants(false))?,
-                build(&constants(true))?,
-            ))
+                    &[Some(group0), None, Some(group2)],
+                    &shader,
+                    ("vs_sphere_opaque", fs_entry),
+                    set_constants,
+                )
+            })
         };
         let paged_shader = device.create_shader_module(&ShaderModuleDesc {
             label: "paged structure chunks",
             wgsl: molgfx_shaders::PAGED_CHUNK,
         })?;
-        let paged = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "paged spacefill spheres",
-            layouts: &[Some(group0), Some(paged_layout)],
-            shader: &paged_shader,
-            vs_entry: "paged_spacefill_vertex",
-            fs_entry: Some("paged_spacefill_fragment"),
-            color_targets: &gbuffer_targets(),
-            depth: Some(DepthState {
-                format: TextureFormat::Depth32Float,
-                write: true,
-                compare: CompareFunction::GreaterEqual,
-            }),
-            constants: &[],
-            topology: PrimitiveTopology::TriangleList,
-        })?;
+        let paged = gbuffer_pipeline(
+            device,
+            "paged spacefill spheres",
+            &[Some(group0), Some(paged_layout)],
+            &paged_shader,
+            ("paged_spacefill_vertex", "paged_spacefill_fragment"),
+            &[],
+        )?;
         Ok(Self {
             unclipped: pipeline("sphere impostors", "fs_sphere")?,
             clipped: pipeline("clipped sphere impostors", "fs_sphere_clipped")?,
@@ -116,46 +94,18 @@ impl<D: Device> SpherePass<D> {
         } else {
             ("specialized sphere impostors", "fs_sphere")
         };
-        Self::fragment_pipeline(
-            device,
-            group0,
-            group2,
-            molgfx_shaders::GEOMETRY_SPHERE_SPECIALIZED,
-            "sphere impostors generated",
-            fs_entry,
-            label,
-        )
-    }
-
-    /// Builds one fragment pipeline of the sphere unit from a module source.
-    fn fragment_pipeline(
-        device: &D,
-        group0: &D::BindGroupLayout,
-        group2: &D::BindGroupLayout,
-        wgsl: &'static str,
-        module_label: &'static str,
-        fs_entry: &'static str,
-        label: &'static str,
-    ) -> Result<D::Pipeline, RenderError> {
         let shader = device.create_shader_module(&ShaderModuleDesc {
-            label: module_label,
-            wgsl,
+            label: "sphere impostors generated",
+            wgsl: molgfx_shaders::GEOMETRY_SPHERE_SPECIALIZED,
         })?;
-        Ok(device.create_render_pipeline(&RenderPipelineDesc {
+        Ok(gbuffer_pipeline(
+            device,
             label,
-            layouts: &[Some(group0), None, Some(group2)],
-            shader: &shader,
-            vs_entry: "vs_sphere_opaque",
-            fs_entry: Some(fs_entry),
-            color_targets: &gbuffer_targets(),
-            depth: Some(DepthState {
-                format: TextureFormat::Depth32Float,
-                write: true,
-                compare: CompareFunction::GreaterEqual,
-            }),
-            constants: &constants(true),
-            topology: PrimitiveTopology::TriangleList,
-        })?)
+            &[Some(group0), None, Some(group2)],
+            &shader,
+            ("vs_sphere_opaque", fs_entry),
+            &constants(true),
+        )?)
     }
 
     /// Records one indirect draw per ordered representation slot.

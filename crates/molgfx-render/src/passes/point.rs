@@ -3,11 +3,8 @@
 use crate::error::RenderError;
 use crate::graph::PassContext;
 use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
-use crate::passes::{begin_gbuffer_pass, gbuffer_targets};
-use molgfx_gpu::{
-    CompareFunction, DepthState, Device, PrimitiveTopology, RenderPassEncoder as _,
-    RenderPipelineDesc, ShaderModuleDesc, TextureFormat,
-};
+use crate::passes::{begin_gbuffer_pass, gbuffer_pipeline};
+use molgfx_gpu::{Device, RenderPassEncoder as _, ShaderModuleDesc};
 
 #[derive(Debug)]
 pub(crate) struct PointPass<D: Device> {
@@ -28,80 +25,44 @@ impl<D: Device> PointPass<D> {
             label: "geometry_point",
             wgsl: molgfx_shaders::GEOMETRY_POINT,
         })?;
-        let build = |pipeline_constants: &[(&'static str, f64)]| {
-            device.create_render_pipeline(&RenderPipelineDesc {
-                label: "atom points",
-                layouts: &[Some(group0), None, Some(group2)],
-                shader: &shader,
-                vs_entry: "vs_point",
-                fs_entry: Some("fs_point"),
-                color_targets: &[
-                    gbuffer_targets()[0],
-                    gbuffer_targets()[1],
-                    gbuffer_targets()[2],
-                    gbuffer_targets()[3],
-                    gbuffer_targets()[4],
-                ],
-                depth: Some(DepthState {
-                    format: TextureFormat::Depth32Float,
-                    write: true,
-                    compare: CompareFunction::GreaterEqual,
-                }),
-                constants: pipeline_constants,
-                topology: PrimitiveTopology::TriangleList,
-            })
-        };
+        let pipeline = VisualPipelineSet::build(|set_constants| {
+            gbuffer_pipeline(
+                device,
+                "atom points",
+                &[Some(group0), None, Some(group2)],
+                &shader,
+                ("vs_point", "fs_point"),
+                set_constants,
+            )
+        })?;
         let paged_shader = device.create_shader_module(&ShaderModuleDesc {
             label: "paged structure chunks",
             wgsl: molgfx_shaders::PAGED_CHUNK,
         })?;
-        let paged_pipeline = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "paged chunk points",
-            layouts: &[Some(group0), Some(paged_layout)],
-            shader: &paged_shader,
-            vs_entry: "paged_point_vertex",
-            fs_entry: Some("paged_point_fragment"),
-            color_targets: &gbuffer_targets(),
-            depth: Some(DepthState {
-                format: TextureFormat::Depth32Float,
-                write: true,
-                compare: CompareFunction::GreaterEqual,
-            }),
-            constants: &[],
-            topology: PrimitiveTopology::TriangleList,
-        })?;
+        let paged_pipeline = gbuffer_pipeline(
+            device,
+            "paged chunk points",
+            &[Some(group0), Some(paged_layout)],
+            &paged_shader,
+            ("paged_point_vertex", "paged_point_fragment"),
+            &[],
+        )?;
         let generic_shader = device.create_shader_module(&ShaderModuleDesc {
             label: "generic analytic points",
             wgsl: molgfx_shaders::GENERIC_POINT,
         })?;
-        let generic_build = |pipeline_constants: &[(&'static str, f64)]| {
-            device.create_render_pipeline(&RenderPipelineDesc {
-                label: "generic analytic points",
-                layouts: &[Some(group0), None, Some(generic_layout)],
-                shader: &generic_shader,
-                vs_entry: "vs_generic_point",
-                fs_entry: Some("fs_generic_point"),
-                color_targets: &gbuffer_targets(),
-                depth: Some(DepthState {
-                    format: TextureFormat::Depth32Float,
-                    write: true,
-                    compare: CompareFunction::GreaterEqual,
-                }),
-                constants: pipeline_constants,
-                topology: PrimitiveTopology::TriangleList,
-            })
-        };
-        let generic_pipeline = VisualPipelineSet::new(
-            generic_build(&[])?,
-            generic_build(&constants(false))?,
-            generic_build(&constants(true))?,
-        );
+        let generic_pipeline = VisualPipelineSet::build(|set_constants| {
+            gbuffer_pipeline(
+                device,
+                "generic analytic points",
+                &[Some(group0), None, Some(generic_layout)],
+                &generic_shader,
+                ("vs_generic_point", "fs_generic_point"),
+                set_constants,
+            )
+        })?;
         Ok(Self {
-            pipeline: VisualPipelineSet::new(
-                build(&[])?,
-                build(&constants(false))?,
-                build(&constants(true))?,
-            ),
+            pipeline,
             paged_pipeline,
             generic_pipeline,
         })
@@ -121,22 +82,14 @@ impl<D: Device> PointPass<D> {
             label: "point generated",
             wgsl: molgfx_shaders::GEOMETRY_POINT_SPECIALIZED,
         })?;
-        let targets = gbuffer_targets();
-        Ok(device.create_render_pipeline(&RenderPipelineDesc {
-            label: "specialized atom points",
-            layouts: &[Some(group0), None, Some(group2)],
-            shader: &shader,
-            vs_entry: "vs_point",
-            fs_entry: Some("fs_point"),
-            color_targets: &[targets[0], targets[1], targets[2], targets[3], targets[4]],
-            depth: Some(DepthState {
-                format: TextureFormat::Depth32Float,
-                write: true,
-                compare: CompareFunction::GreaterEqual,
-            }),
-            constants: &constants(true),
-            topology: PrimitiveTopology::TriangleList,
-        })?)
+        Ok(gbuffer_pipeline(
+            device,
+            "specialized atom points",
+            &[Some(group0), None, Some(group2)],
+            &shader,
+            ("vs_point", "fs_point"),
+            &constants(true),
+        )?)
     }
 
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {

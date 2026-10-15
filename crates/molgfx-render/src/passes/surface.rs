@@ -7,11 +7,8 @@
 use crate::error::RenderError;
 use crate::graph::PassContext;
 use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
-use crate::passes::{begin_gbuffer_pass, gbuffer_targets};
-use molgfx_gpu::{
-    CompareFunction, DepthState, Device, PrimitiveTopology, RenderPassEncoder as _,
-    RenderPipelineDesc, ShaderModuleDesc, TextureFormat,
-};
+use crate::passes::{begin_gbuffer_pass, gbuffer_pipeline};
+use molgfx_gpu::{Device, RenderPassEncoder as _, ShaderModuleDesc};
 
 #[derive(Debug)]
 pub(crate) struct SurfacePass<D: Device> {
@@ -34,29 +31,17 @@ impl<D: Device> SurfacePass<D> {
         // The two tracings share a vertex stage but nothing else, so each is
         // its own pipeline: an analytic surface never carries the grid march,
         // and a field surface never carries the hierarchy walk.
-        let pipeline = |label, fs_entry| -> Result<VisualPipelineSet<D>, RenderError> {
-            let build = |pipeline_constants: &[(&'static str, f64)]| {
-                device.create_render_pipeline(&RenderPipelineDesc {
+        let pipeline = |label, fs_entry| {
+            VisualPipelineSet::build(|set_constants| {
+                gbuffer_pipeline(
+                    device,
                     label,
-                    layouts: &[Some(group0), None, Some(group2)],
-                    shader: &shader,
-                    vs_entry: "vs_surface",
-                    fs_entry: Some(fs_entry),
-                    color_targets: &gbuffer_targets(),
-                    depth: Some(DepthState {
-                        format: TextureFormat::Depth32Float,
-                        write: true,
-                        compare: CompareFunction::GreaterEqual,
-                    }),
-                    constants: pipeline_constants,
-                    topology: PrimitiveTopology::TriangleList,
-                })
-            };
-            Ok(VisualPipelineSet::new(
-                build(&[])?,
-                build(&constants(false))?,
-                build(&constants(true))?,
-            ))
+                    &[Some(group0), None, Some(group2)],
+                    &shader,
+                    ("vs_surface", fs_entry),
+                    set_constants,
+                )
+            })
         };
         Ok(Self {
             union_surface: pipeline("analytic molecular surfaces", "fs_surface_union")?,
@@ -87,21 +72,14 @@ impl<D: Device> SurfacePass<D> {
             label: "surface generated",
             wgsl: molgfx_shaders::GEOMETRY_SURFACE_SPECIALIZED,
         })?;
-        Ok(device.create_render_pipeline(&RenderPipelineDesc {
+        Ok(gbuffer_pipeline(
+            device,
             label,
-            layouts: &[Some(group0), None, Some(group2)],
-            shader: &shader,
-            vs_entry: "vs_surface",
-            fs_entry: Some(fs_entry),
-            color_targets: &gbuffer_targets(),
-            depth: Some(DepthState {
-                format: TextureFormat::Depth32Float,
-                write: true,
-                compare: CompareFunction::GreaterEqual,
-            }),
-            constants: &constants(true),
-            topology: PrimitiveTopology::TriangleList,
-        })?)
+            &[Some(group0), None, Some(group2)],
+            &shader,
+            ("vs_surface", fs_entry),
+            &constants(true),
+        )?)
     }
 
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {

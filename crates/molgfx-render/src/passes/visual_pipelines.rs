@@ -36,6 +36,22 @@ impl<D: Device> VisualPipelineSet<D> {
         }
     }
 
+    /// Builds the three variants by calling `build` with each constant set:
+    /// none, the entity visual, and the entity plus fragment visual.
+    ///
+    /// # Errors
+    ///
+    /// The first error `build` returns.
+    pub(super) fn build<E>(
+        mut build: impl FnMut(&[(&'static str, f64)]) -> Result<D::Pipeline, E>,
+    ) -> Result<Self, E> {
+        Ok(Self::new(
+            build(&[])?,
+            build(&constants(false))?,
+            build(&constants(true))?,
+        ))
+    }
+
     pub(super) const fn get(&self, shading: SlotShading) -> &D::Pipeline {
         if shading.fragment_visual() {
             &self.fragment

@@ -3,8 +3,9 @@
 use crate::graph::ResourceTable;
 use crate::passes::DEPTH_RESOURCE;
 use molgfx_gpu::{
-    BlendMode, ColorAttachment, ColorTarget, CommandEncoder, DepthAttachment, DepthLoadOp, Device,
-    LoadOp, RenderPassDesc, TextureFormat, TimestampWrites,
+    BlendMode, ColorAttachment, ColorTarget, CommandEncoder, CompareFunction, DepthAttachment,
+    DepthLoadOp, DepthState, Device, GpuError, LoadOp, PrimitiveTopology, RenderPassDesc,
+    RenderPipelineDesc, TextureFormat, TimestampWrites,
 };
 
 pub(crate) const AO_FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
@@ -36,6 +37,41 @@ pub(crate) const fn gbuffer_targets() -> [ColorTarget; 5] {
             blend: BlendMode::Replace,
         },
     ]
+}
+
+/// Reversed-Z depth every opaque geometry pipeline writes and tests against.
+pub(crate) const GBUFFER_DEPTH: Option<DepthState> = Some(DepthState {
+    format: TextureFormat::Depth32Float,
+    write: true,
+    compare: CompareFunction::GreaterEqual,
+});
+
+/// Builds one triangle-list pipeline that writes the opaque gbuffer.
+///
+/// `entries` names the vertex and fragment entry points of `shader`.
+///
+/// # Errors
+///
+/// Pipeline creation failed.
+pub(crate) fn gbuffer_pipeline<D: Device>(
+    device: &D,
+    label: &'static str,
+    layouts: &[Option<&D::BindGroupLayout>],
+    shader: &D::ShaderModule,
+    entries: (&'static str, &'static str),
+    constants: &[(&'static str, f64)],
+) -> Result<D::Pipeline, GpuError> {
+    device.create_render_pipeline(&RenderPipelineDesc {
+        label,
+        layouts,
+        shader,
+        vs_entry: entries.0,
+        fs_entry: Some(entries.1),
+        color_targets: &gbuffer_targets(),
+        depth: GBUFFER_DEPTH,
+        constants,
+        topology: PrimitiveTopology::TriangleList,
+    })
 }
 
 /// Opens a pass over the shared opaque gbuffer, loading every target and the

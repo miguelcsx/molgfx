@@ -3,12 +3,9 @@
 use crate::error::RenderError;
 use crate::graph::PassContext;
 use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
-use crate::passes::{begin_gbuffer_pass, gbuffer_targets};
+use crate::passes::{begin_gbuffer_pass, gbuffer_pipeline};
 use crate::scene_gpu::DrawFamily;
-use molgfx_gpu::{
-    CompareFunction, DepthState, Device, PrimitiveTopology, RenderPassEncoder as _,
-    RenderPipelineDesc, ShaderModuleDesc, TextureFormat,
-};
+use molgfx_gpu::{Device, RenderPassEncoder as _, ShaderModuleDesc};
 
 #[derive(Debug)]
 pub(crate) struct CartoonPass<D: Device> {
@@ -25,29 +22,16 @@ impl<D: Device> CartoonPass<D> {
             label: "geometry_cartoon",
             wgsl: molgfx_shaders::GEOMETRY_CARTOON,
         })?;
-        let targets = gbuffer_targets();
-        let build = |pipeline_constants: &[(&'static str, f64)]| {
-            device.create_render_pipeline(&RenderPipelineDesc {
-                label: "cartoon ribbons",
-                layouts: &[Some(group0), None, Some(group2)],
-                shader: &shader,
-                vs_entry: "vs_cartoon",
-                fs_entry: Some("fs_cartoon"),
-                color_targets: &targets,
-                depth: Some(DepthState {
-                    format: TextureFormat::Depth32Float,
-                    write: true,
-                    compare: CompareFunction::GreaterEqual,
-                }),
-                constants: pipeline_constants,
-                topology: PrimitiveTopology::TriangleList,
-            })
-        };
-        let pipeline = VisualPipelineSet::new(
-            build(&[])?,
-            build(&constants(false))?,
-            build(&constants(true))?,
-        );
+        let pipeline = VisualPipelineSet::build(|set_constants| {
+            gbuffer_pipeline(
+                device,
+                "cartoon ribbons",
+                &[Some(group0), None, Some(group2)],
+                &shader,
+                ("vs_cartoon", "fs_cartoon"),
+                set_constants,
+            )
+        })?;
         Ok(Self { pipeline })
     }
 
@@ -65,21 +49,14 @@ impl<D: Device> CartoonPass<D> {
             label: "cartoon generated",
             wgsl: molgfx_shaders::GEOMETRY_CARTOON_SPECIALIZED,
         })?;
-        Ok(device.create_render_pipeline(&RenderPipelineDesc {
-            label: "specialized cartoon ribbons",
-            layouts: &[Some(group0), None, Some(ribbon)],
-            shader: &shader,
-            vs_entry: "vs_cartoon",
-            fs_entry: Some("fs_cartoon"),
-            color_targets: &gbuffer_targets(),
-            depth: Some(DepthState {
-                format: TextureFormat::Depth32Float,
-                write: true,
-                compare: CompareFunction::GreaterEqual,
-            }),
-            constants: &constants(true),
-            topology: PrimitiveTopology::TriangleList,
-        })?)
+        Ok(gbuffer_pipeline(
+            device,
+            "specialized cartoon ribbons",
+            &[Some(group0), None, Some(ribbon)],
+            &shader,
+            ("vs_cartoon", "fs_cartoon"),
+            &constants(true),
+        )?)
     }
 
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {

@@ -3,11 +3,8 @@
 use crate::error::RenderError;
 use crate::graph::PassContext;
 use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
-use crate::passes::{begin_gbuffer_pass, gbuffer_targets};
-use molgfx_gpu::{
-    CompareFunction, DepthState, Device, PrimitiveTopology, RenderPassEncoder as _,
-    RenderPipelineDesc, ShaderModuleDesc, TextureFormat,
-};
+use crate::passes::{begin_gbuffer_pass, gbuffer_pipeline};
+use molgfx_gpu::{Device, RenderPassEncoder as _, ShaderModuleDesc, TextureFormat};
 
 #[derive(Debug)]
 pub(crate) struct BondPass<D: Device> {
@@ -28,49 +25,30 @@ impl<D: Device> BondPass<D> {
             label: "geometry_bond",
             wgsl: molgfx_shaders::GEOMETRY_BOND,
         })?;
-        let pipeline = |label, vertex, fragment| -> Result<VisualPipelineSet<D>, RenderError> {
-            let build = |pipeline_constants: &[(&'static str, f64)]| {
-                device.create_render_pipeline(&RenderPipelineDesc {
+        let pipeline = |label, vertex, fragment| {
+            VisualPipelineSet::build(|set_constants| {
+                gbuffer_pipeline(
+                    device,
                     label,
-                    layouts: &[Some(group0), None, Some(group2)],
-                    shader: &shader,
-                    vs_entry: vertex,
-                    fs_entry: Some(fragment),
-                    color_targets: &gbuffer_targets(),
-                    depth: Some(DepthState {
-                        format: TextureFormat::Depth32Float,
-                        write: true,
-                        compare: CompareFunction::GreaterEqual,
-                    }),
-                    constants: pipeline_constants,
-                    topology: PrimitiveTopology::TriangleList,
-                })
-            };
-            Ok(VisualPipelineSet::new(
-                build(&[])?,
-                build(&constants(false))?,
-                build(&constants(true))?,
-            ))
+                    &[Some(group0), None, Some(group2)],
+                    &shader,
+                    (vertex, fragment),
+                    set_constants,
+                )
+            })
         };
         let paged_shader = device.create_shader_module(&ShaderModuleDesc {
             label: "paged provider bonds",
             wgsl: molgfx_shaders::PAGED_BOND,
         })?;
-        let paged = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "paged analytic bond capsules",
-            layouts: &[Some(group0), Some(paged_layout)],
-            shader: &paged_shader,
-            vs_entry: "paged_bond_vertex",
-            fs_entry: Some("paged_bond_fragment"),
-            color_targets: &gbuffer_targets(),
-            depth: Some(DepthState {
-                format: TextureFormat::Depth32Float,
-                write: true,
-                compare: CompareFunction::GreaterEqual,
-            }),
-            constants: &[],
-            topology: PrimitiveTopology::TriangleList,
-        })?;
+        let paged = gbuffer_pipeline(
+            device,
+            "paged analytic bond capsules",
+            &[Some(group0), Some(paged_layout)],
+            &paged_shader,
+            ("paged_bond_vertex", "paged_bond_fragment"),
+            &[],
+        )?;
         Ok(Self {
             capsule: pipeline("bond capsules", "vs_bond_capsule", "fs_bond_capsule")?,
             wire: pipeline("bond wires", "vs_bond_line", "fs_bond_line")?,
@@ -102,21 +80,14 @@ impl<D: Device> BondPass<D> {
             label: "bond generated",
             wgsl: molgfx_shaders::GEOMETRY_BOND_SPECIALIZED,
         })?;
-        Ok(device.create_render_pipeline(&RenderPipelineDesc {
+        Ok(gbuffer_pipeline(
+            device,
             label,
-            layouts: &[Some(group0), None, Some(group2)],
-            shader: &shader,
-            vs_entry: vertex,
-            fs_entry: Some(fragment),
-            color_targets: &gbuffer_targets(),
-            depth: Some(DepthState {
-                format: TextureFormat::Depth32Float,
-                write: true,
-                compare: CompareFunction::GreaterEqual,
-            }),
-            constants: &constants(true),
-            topology: PrimitiveTopology::TriangleList,
-        })?)
+            &[Some(group0), None, Some(group2)],
+            &shader,
+            (vertex, fragment),
+            &constants(true),
+        )?)
     }
 
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {

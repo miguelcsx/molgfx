@@ -6,7 +6,7 @@ use crate::passes::ligand_pose_pipelines::LigandPosePipelineSet;
 use crate::passes::primitive_pipelines::PRIMITIVE_QUAD_VERTICES;
 use crate::passes::primitive_shadow_pipelines::PrimitiveShadowPipelineSet;
 use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
-use crate::passes::{Lazy, SHADOW_RESOURCE};
+use crate::passes::{GBUFFER_DEPTH, Lazy, SHADOW_RESOURCE};
 use crate::scene_gpu::{DrawFamily, GpuScene};
 use molgfx_gpu::{
     CommandEncoder as _, CompareFunction, DepthAttachment, DepthLoadOp, DepthState, Device,
@@ -24,12 +24,6 @@ pub(crate) struct ShadowPass<D: Device> {
     primitive: Lazy<PrimitiveShadowPipelineSet<D>>,
     ligand_pose: Lazy<LigandPosePipelineSet<D>>,
 }
-
-const SHADOW_DEPTH: Option<DepthState> = Some(DepthState {
-    format: TextureFormat::Depth32Float,
-    write: true,
-    compare: CompareFunction::GreaterEqual,
-});
 
 /// The three visual variants of an analytic atom or bond shadow.
 fn analytic_set<D: Device>(
@@ -54,7 +48,7 @@ fn analytic_set<D: Device>(
             vs_entry: vertex,
             fs_entry: Some(fragment),
             color_targets: &[],
-            depth: SHADOW_DEPTH,
+            depth: GBUFFER_DEPTH,
             constants: pipeline_constants,
             topology: PrimitiveTopology::TriangleList,
         })
@@ -83,7 +77,7 @@ fn ribbon_set<D: Device>(env: &PassEnv<'_, D>) -> Result<VisualPipelineSet<D>, R
             vs_entry: "vs_shadow_ribbon",
             fs_entry: fragment,
             color_targets: &[],
-            depth: SHADOW_DEPTH,
+            depth: GBUFFER_DEPTH,
             constants: pipeline_constants,
             topology: PrimitiveTopology::TriangleList,
         })
@@ -311,7 +305,7 @@ fn record_primitive_casters<D: Device, P: RenderPassEncoder<D>>(
                     env.device,
                     &env.scene.group0_layout,
                     &env.scene.primitive_shadow_layout,
-                    SHADOW_DEPTH,
+                    GBUFFER_DEPTH,
                 )
             }) else {
                 break;
@@ -331,7 +325,7 @@ fn record_primitive_casters<D: Device, P: RenderPassEncoder<D>>(
                     env.device,
                     &env.scene.group0_layout,
                     &env.scene.ligand_pose_layout,
-                    SHADOW_DEPTH,
+                    GBUFFER_DEPTH,
                 )
             }) else {
                 break;

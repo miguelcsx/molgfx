@@ -14,12 +14,9 @@ use crate::passes::primitive_pipelines::{
 use crate::passes::visual_pipelines::{
     VISUAL_FRAGMENT_CONSTANT, VISUAL_PROGRAM_CONSTANT, VisualPipelineSet,
 };
-use crate::passes::{begin_gbuffer_pass, gbuffer_targets};
+use crate::passes::{GBUFFER_DEPTH, begin_gbuffer_pass, gbuffer_pipeline, gbuffer_targets};
 use crate::scene_gpu::{GENERIC_INSTANCE_CAPSULE, GENERIC_INSTANCE_SPHERE};
-use molgfx_gpu::{
-    CompareFunction, DepthState, Device, PrimitiveTopology, RenderPassEncoder as _,
-    RenderPipelineDesc, ShaderModuleDesc, TextureFormat,
-};
+use molgfx_gpu::{Device, RenderPassEncoder as _, ShaderModuleDesc};
 
 #[derive(Debug)]
 pub(crate) struct PrimitivePass<D: Device> {
@@ -37,32 +34,25 @@ impl<D: Device> PrimitivePass<D> {
         ligand_pose: &D::BindGroupLayout,
         generic_instance: &D::BindGroupLayout,
     ) -> Result<Self, RenderError> {
-        let depth = Some(DepthState {
-            format: TextureFormat::Depth32Float,
-            write: true,
-            compare: CompareFunction::GreaterEqual,
-        });
+        let depth = GBUFFER_DEPTH;
         let generic_shader = device.create_shader_module(&ShaderModuleDesc {
             label: "generic analytic instances",
             wgsl: molgfx_shaders::GENERIC_INSTANCE,
         })?;
         let generic_pipeline = |label, shape, visual, fragment| {
-            device.create_render_pipeline(&RenderPipelineDesc {
+            gbuffer_pipeline(
+                device,
                 label,
-                layouts: &[Some(group0), None, Some(generic_instance)],
-                shader: &generic_shader,
-                vs_entry: "vs_generic_instance",
-                fs_entry: Some("fs_generic_instance"),
-                color_targets: &gbuffer_targets(),
-                depth,
-                constants: &[
+                &[Some(group0), None, Some(generic_instance)],
+                &generic_shader,
+                ("vs_generic_instance", "fs_generic_instance"),
+                &[
                     ("GENERIC_INSTANCE_SHAPE", f64::from(shape)),
                     ("PARTICLE_SHAPE_KIND", f64::from(shape)),
                     (VISUAL_PROGRAM_CONSTANT, if visual { 1.0 } else { 0.0 }),
                     (VISUAL_FRAGMENT_CONSTANT, if fragment { 1.0 } else { 0.0 }),
                 ],
-                topology: PrimitiveTopology::TriangleList,
-            })
+            )
         };
         Ok(Self {
             pipelines: PrimitivePipelineSet::build(
