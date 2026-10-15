@@ -1,4 +1,6 @@
 // Scalar-field semantics serialization.
+use crate::ScalarFieldSemantics;
+use crate::serialization::types::ScalarSemanticsDescription;
 
 pub(crate) fn scalar_semantics(value: &ScalarFieldSemantics) -> ScalarSemanticsDescription {
     match value {

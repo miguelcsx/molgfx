@@ -4,14 +4,12 @@ use super::types::{
     GuideDescription, GuideStyleDescription, InteractionDescription, MarkerStyleDescription,
     MeasurementDescription, MeshDescription, MeshInstanceDescription, ObjectIdentity,
     OverlayDescription, PrimitiveDescription, PropertyAppearanceDescription, RegionDescription,
-    ScalarSemanticsDescription, SegmentStyleDescription, SegmentationStyleDescription,
-    SurfaceScalarDescription,
+    SegmentStyleDescription, SegmentationStyleDescription, SurfaceScalarDescription,
 };
 use crate::handle::StructureHandle;
 use crate::{
     AnnotationKind, AtomPropertyMeaning, EntityKind, Guide, GuideCap, InteractionAnchor,
-    InteractionDirection, InteractionKind, MarkerShape, MeasurementKind, ScalarFieldSemantics,
-    Scene,
+    InteractionDirection, InteractionKind, MarkerShape, MeasurementKind, Scene,
 };
 use molgfx_math::Rgba8;
 #[path = "hash.rs"]
@@ -23,7 +21,9 @@ mod record_values;
 pub(crate) use hash::{label_hash, mesh_hash, value_hash};
 use primitive_records::primitive_description;
 use record_values::volume_rendering;
+mod scalar;
 mod volume;
+pub(crate) use scalar::scalar_semantics;
 pub(crate) use volume::volume_style_description;
 pub(crate) fn primitives(scene: &Scene) -> Vec<PrimitiveDescription> {
     scene
@@ -449,5 +449,3 @@ pub(crate) fn property_meaning(value: AtomPropertyMeaning) -> &'static str {
         AtomPropertyMeaning::Exposure => "exposure",
     }
 }
-
-include!("records_scalar.rs");

@@ -1,8 +1,9 @@
 // Bond packing and indirect-draw wire records.
+use super::{BondGpu, EntityId};
 
 /// The smallest encodable bond radius, keeping the aromatic sign bit
 /// unambiguous on any input.
-pub(crate) const MIN_BOND_RADIUS: f32 = 1.0e-4;
+const MIN_BOND_RADIUS: f32 = 1.0e-4;
 
 /// Non-wire styling inputs used to pack one bond variant.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -64,7 +65,11 @@ impl BondGpu {
         entity_id: EntityId,
     ) -> Self {
         let magnitude = radius.abs().max(MIN_BOND_RADIUS);
-        let radius = if style.aromatic { -magnitude } else { magnitude };
+        let radius = if style.aromatic {
+            -magnitude
+        } else {
+            magnitude
+        };
         // Bits 0-2 are the metal bit and the two-bit variant; the remaining
         // twenty-nine were unused. Bit 31 records that an in-plane reference
         // exists and bits 4-19 carry its direction, so a multiple bond can be

@@ -8,6 +8,8 @@
 #[path = "gpu_types_tests.rs"]
 mod tests;
 
+mod bonds;
+
 use molgfx_math::Rgba8;
 use std::fmt;
 
@@ -497,4 +499,4 @@ pub struct ParticleMotionGpu {
     pub metadata: [u32; 4],
 }
 
-include!("gpu_types_bonds.rs");
+pub use bonds::{BondStyle, DrawIndirectArgs};
