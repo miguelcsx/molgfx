@@ -1,16 +1,12 @@
 //! Ensemble overlays and property-difference views on the Python scene.
 
-use crate::binding::selection;
+use crate::binding::{rgb, selection};
 use crate::scene_binding::{PyScene, deliver_nonempty};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 /// One overlay member as Python writes it: structure, weight, colour.
 type Member<'py> = (Bound<'py, PyAny>, f32, (u8, u8, u8));
-
-fn rgb(value: (u8, u8, u8)) -> molgfx::Color {
-    molgfx::Color::rgb(value.0, value.1, value.2)
-}
 
 #[pymethods]
 impl PyScene {

@@ -28,6 +28,11 @@ pub(super) fn error(value: molgfx::Error) -> PyErr {
     }
 }
 
+/// A colour from the `(red, green, blue)` triple Python passes.
+pub(super) fn rgb(value: (u8, u8, u8)) -> molgfx::Color {
+    molgfx::Color::rgb(value.0, value.1, value.2)
+}
+
 pub(super) fn selection(object: &Bound<'_, PyAny>) -> PyResult<String> {
     object
         .extract::<String>()

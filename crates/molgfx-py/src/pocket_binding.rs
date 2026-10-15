@@ -1,5 +1,6 @@
 //! The pocket-and-pose composition's style value.
 
+use crate::binding::rgb;
 use molgfx::preset::PocketStyle;
 use pyo3::prelude::*;
 
@@ -10,10 +11,6 @@ use pyo3::prelude::*;
 #[derive(Clone, Copy, Debug)]
 #[pyclass(name = "PocketStyle", frozen, from_py_object)]
 pub(super) struct PyPocketStyle(pub(super) PocketStyle);
-
-fn rgb(value: (u8, u8, u8)) -> molgfx::Color {
-    molgfx::Color::rgb(value.0, value.1, value.2)
-}
 
 #[pymethods]
 impl PyPocketStyle {

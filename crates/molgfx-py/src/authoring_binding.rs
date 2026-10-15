@@ -255,9 +255,7 @@ fn palette_names() -> Vec<&'static str> {
 
 #[pyfunction]
 fn uniform(rgb: (u8, u8, u8)) -> PyColorSpec {
-    PyColorSpec(molgfx::color::uniform(molgfx::Color::rgb(
-        rgb.0, rgb.1, rgb.2,
-    )))
+    PyColorSpec(molgfx::color::uniform(crate::binding::rgb(rgb)))
 }
 
 #[pyfunction]
@@ -274,7 +272,7 @@ fn property(
         ramp,
         [domain.0, domain.1],
         units.map(Into::into),
-        molgfx::Color::rgb(missing.0, missing.1, missing.2),
+        crate::binding::rgb(missing),
     ))
 }
 

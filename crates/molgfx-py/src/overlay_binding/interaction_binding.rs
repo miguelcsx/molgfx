@@ -48,7 +48,7 @@ fn hydrogen_bonds(
     )
     .selection(target);
     value.width_pixels = width;
-    value.color = molgfx::Color::rgb(color.0, color.1, color.2);
+    value.color = super::rgb(color);
     value.opacity = opacity;
     value.geometry =
         geometry.map(

@@ -245,7 +245,7 @@ fn vector_parameter(default: (f32, f32, f32), name: &str) -> PyVectorParameter {
 fn color_parameter(default: (u8, u8, u8), name: &str) -> PyColorParameter {
     PyColorParameter(molgfx::visual::Parameter::new(
         name,
-        molgfx::Color::rgb(default.0, default.1, default.2),
+        crate::binding::rgb(default),
     ))
 }
 
@@ -256,7 +256,7 @@ fn state(name: &str) -> PyBoolExpr {
 
 #[pyfunction(name = "color")]
 fn color_value(rgb: (u8, u8, u8)) -> PyColorExpr {
-    PyColorExpr(molgfx::Color::rgb(rgb.0, rgb.1, rgb.2).into())
+    PyColorExpr(crate::binding::rgb(rgb).into())
 }
 
 #[pyfunction]
@@ -271,7 +271,7 @@ fn ramp(
         value: scalar_expression(value)?.into(),
         palette: palette.into(),
         domain: [domain.0, domain.1],
-        missing: molgfx::Color::rgb(missing.0, missing.1, missing.2),
+        missing: crate::binding::rgb(missing),
     }))
 }
 

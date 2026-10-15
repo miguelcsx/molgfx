@@ -1,6 +1,6 @@
 //! Immutable Python authoring values for overlay scene items.
 
-use crate::binding::{error, selection};
+use crate::binding::{error, rgb, selection};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyModule};
@@ -113,10 +113,6 @@ fn frame_positions(positions: &Bound<'_, PyAny>) -> PyResult<std::sync::Arc<[[f3
     }
     let rows: Vec<[f32; 3]> = positions.extract()?;
     Ok(std::sync::Arc::from(rows))
-}
-
-fn rgb(value: (u8, u8, u8)) -> molgfx::Color {
-    molgfx::Color::rgb(value.0, value.1, value.2)
 }
 
 #[pyfunction]
