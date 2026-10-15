@@ -14,8 +14,8 @@ use config::{
 };
 use molgfx_core::{Representation, VisualInstructionGpu, VisualOutput, VisualStyle};
 use molgfx_gpu::{BufferDesc, BufferUsage, Device, Queue};
-mod helpers;
-use helpers::{representation_base_color, result_word_count, saturating_u32};
+mod result_layout;
+use result_layout::{representation_base_color, result_word_count, saturating_u32};
 mod fragment_program;
 use fragment_program::{FRAGMENT_PARAMETER_OFFSET, VisualFragmentProgram};
 

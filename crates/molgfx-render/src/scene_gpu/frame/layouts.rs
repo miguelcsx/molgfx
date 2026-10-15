@@ -1,13 +1,13 @@
 //! Persistent scene bind-group layouts, grouped away from synchronization.
 
-mod helpers;
+mod layout_entries;
 mod representation;
 use crate::error::RenderError;
 use molgfx_gpu::{BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, Device, ShaderStages};
 
 mod storage_limits;
-use helpers::{all_stages, compute_uniform, relation_cull_entries, storage_visible};
-pub(in crate::scene_gpu) use helpers::{occupancy_layout, storage, writable_storage};
+use layout_entries::{all_stages, compute_uniform, relation_cull_entries, storage_visible};
+pub(in crate::scene_gpu) use layout_entries::{occupancy_layout, storage, writable_storage};
 pub(in crate::scene_gpu) use representation::{quality_layout, representation_layout};
 #[cfg(test)]
 use storage_limits::storage_counts;

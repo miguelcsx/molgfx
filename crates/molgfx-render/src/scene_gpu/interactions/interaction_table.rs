@@ -2,18 +2,18 @@
 
 mod bindings;
 mod coordinates;
-mod helpers;
 mod paged;
 mod paged_visual;
+mod relation_resolve;
 mod views;
 mod visuals;
 use crate::scene_gpu::buffers::{buffer_entry, gpu_limit};
 use coordinates::RelationCullConfig;
-use helpers::{
+pub(in crate::scene_gpu) use paged::PagedRelationSync;
+use relation_resolve::{
     missing_domain, relation_resolver, row_limit, source_binding_revision,
     stable_relation_scratch_bytes, table_chunk,
 };
-pub(in crate::scene_gpu) use paged::PagedRelationSync;
 
 use super::relation_anchor::{StreamKey, anchor_payload, pipeline_index, stream_key};
 use crate::error::RenderError;
