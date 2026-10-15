@@ -1,5 +1,9 @@
 //! The engine: owns the device, the graph and every pass's state.
 
+mod quality;
+use quality::adaptive;
+use quality::effective_quality;
+
 mod timing;
 use timing::cpu_stages;
 use timing::gpu_timing;
@@ -29,11 +33,9 @@ use chunk::chunk_residency_support;
 use chunk::chunk_residency_types;
 use chunk::derived_cache;
 
-mod adaptive;
 mod backdrop;
 mod config;
 mod depth_cue;
-mod effective_quality;
 mod focus_target;
 mod frame;
 mod graph_setup;

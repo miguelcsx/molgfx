@@ -1,6 +1,6 @@
 //! Resolved quality and observed exposure completion, without inferred budgets.
 
-use super::{Engine, QualityTier};
+use crate::engine::{Engine, QualityTier};
 use molgfx_gpu::Device;
 
 /// What bounded the sampling of the implicit-surface fields.
@@ -41,7 +41,7 @@ pub struct EffectiveQuality {
     /// Analytic occlusion and area-light rays per covered pixel per sample.
     pub occlusion_rays_per_sample: u8,
     /// Resolved diffuse/specular environment and direct-light settings.
-    pub lighting: super::LightingEnvironment,
+    pub lighting: crate::engine::LightingEnvironment,
     /// Indirect transport iterations; zero when no GI transport is scheduled.
     pub illumination_bounces: u8,
     /// Largest active molecular cull LOD mode; zero preserves analytic geometry.
@@ -80,7 +80,7 @@ impl serde::Serialize for EffectiveQuality {
 }
 
 impl EffectiveQuality {
-    pub(super) fn observe_completion(&mut self) {
+    pub(in crate::engine) fn observe_completion(&mut self) {
         self.samples_completed = Some(self.samples_submitted);
     }
 
@@ -106,7 +106,7 @@ impl EffectiveQuality {
 }
 
 impl<D: Device> Engine<D> {
-    pub(super) fn effective_quality(
+    pub(in crate::engine) fn effective_quality(
         &self,
         samples_required: u32,
         samples_submitted: u32,
