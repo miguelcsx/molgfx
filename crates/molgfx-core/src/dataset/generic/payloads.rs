@@ -1,6 +1,7 @@
 //! Immutable native-width storage admitted by the generic residency path.
 
 use super::PagedRelation;
+use crate::dataset::payload::{bytes, invalid};
 use crate::{AttributeKind, AttributeValues, ChunkDomainRef, DatasetError, RigidInstance};
 use std::sync::Arc;
 
@@ -172,15 +173,4 @@ impl AttributeChunkPayload {
 
 fn checked_rows(rows: usize) -> Result<u32, DatasetError> {
     u32::try_from(rows).map_err(|_| invalid("generic chunk exceeds local u32 addressing"))
-}
-
-fn bytes(rows: usize, stride: u64) -> Result<u64, DatasetError> {
-    u64::try_from(rows)
-        .ok()
-        .and_then(|rows| rows.checked_mul(stride))
-        .ok_or(DatasetError::PayloadByteSizeOverflow)
-}
-
-const fn invalid(reason: &'static str) -> DatasetError {
-    DatasetError::InvalidPayload { reason }
 }

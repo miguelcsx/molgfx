@@ -80,6 +80,21 @@ pub enum VisualOutput {
 }
 
 impl VisualOutput {
+    /// Every output channel, in code order.
+    pub(crate) const ALL: [Self; 11] = [
+        Self::BaseColor,
+        Self::Opacity,
+        Self::Emission,
+        Self::Roughness,
+        Self::Specular,
+        Self::MaterialStrength,
+        Self::Visibility,
+        Self::SilhouetteSoftness,
+        Self::RadiusScale,
+        Self::WidthScale,
+        Self::PositionOffset,
+    ];
+
     pub(crate) const fn code(self) -> u8 {
         self as u8
     }

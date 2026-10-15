@@ -344,7 +344,7 @@ impl VisualProgram {
         &self,
         compatibility: VisualCompatibility,
     ) -> Result<(), VisualError> {
-        for output in ALL_OUTPUTS {
+        for output in VisualOutput::ALL {
             if self.outputs.get(output).is_some() && !compatibility.supports(output) {
                 return Err(VisualError::UnsupportedOutput { output });
             }
@@ -352,20 +352,6 @@ impl VisualProgram {
         Ok(())
     }
 }
-
-const ALL_OUTPUTS: [VisualOutput; 11] = [
-    VisualOutput::BaseColor,
-    VisualOutput::Opacity,
-    VisualOutput::Emission,
-    VisualOutput::Roughness,
-    VisualOutput::Specular,
-    VisualOutput::MaterialStrength,
-    VisualOutput::Visibility,
-    VisualOutput::SilhouetteSoftness,
-    VisualOutput::RadiusScale,
-    VisualOutput::WidthScale,
-    VisualOutput::PositionOffset,
-];
 
 /// One immutable program plus its compact mutable parameter block.
 #[derive(Clone, PartialEq, Debug)]

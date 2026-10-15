@@ -326,20 +326,7 @@ impl CarbohydrateSymbol {
     /// Eight oriented-box corners, useful for conservative culling.
     #[must_use]
     pub fn bounds(self) -> Aabb {
-        let half = self.size * 0.5;
-        Aabb::from_points(
-            [
-                Vec3::new(-half.x, -half.y, -half.z),
-                Vec3::new(half.x, -half.y, -half.z),
-                Vec3::new(-half.x, half.y, -half.z),
-                Vec3::new(half.x, half.y, -half.z),
-                Vec3::new(-half.x, -half.y, half.z),
-                Vec3::new(half.x, -half.y, half.z),
-                Vec3::new(-half.x, half.y, half.z),
-                Vec3::new(half.x, half.y, half.z),
-            ]
-            .map(|corner| self.center + self.orientation * corner),
-        )
+        oriented_box_bounds(self.center, self.orientation, self.size)
     }
 }
 
@@ -414,6 +401,24 @@ impl Primitive {
             Self::Particle(value) => value.bounds(),
         }
     }
+}
+
+/// Bounds of the box of `size` centred at `center` and rotated by `orientation`.
+pub(super) fn oriented_box_bounds(center: Vec3, orientation: Quat, size: Vec3) -> Aabb {
+    let half = size * 0.5;
+    Aabb::from_points(
+        [
+            Vec3::new(-half.x, -half.y, -half.z),
+            Vec3::new(half.x, -half.y, -half.z),
+            Vec3::new(-half.x, half.y, -half.z),
+            Vec3::new(half.x, half.y, -half.z),
+            Vec3::new(-half.x, -half.y, half.z),
+            Vec3::new(half.x, -half.y, half.z),
+            Vec3::new(-half.x, half.y, half.z),
+            Vec3::new(half.x, half.y, half.z),
+        ]
+        .map(|corner| center + orientation * corner),
+    )
 }
 
 const fn invalid(reason: &'static str) -> CoreError {

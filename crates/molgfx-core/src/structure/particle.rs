@@ -4,6 +4,7 @@
 //! positions, shape, scale and colour; an optional fixed-step motion sample
 //! advances the record in the shared analytic table without inferring a field.
 
+use super::primitive::oriented_box_bounds;
 use crate::{CoreError, StructureHandle};
 use molgfx_math::{Aabb, Quat, Rgba8, Vec3};
 
@@ -263,19 +264,6 @@ impl Particle {
     /// Conservative model-space bound used by culling and shadow fitting.
     #[must_use]
     pub fn bounds(self) -> Aabb {
-        let half = self.size * 0.5;
-        Aabb::from_points(
-            [
-                Vec3::new(-half.x, -half.y, -half.z),
-                Vec3::new(half.x, -half.y, -half.z),
-                Vec3::new(-half.x, half.y, -half.z),
-                Vec3::new(half.x, half.y, -half.z),
-                Vec3::new(-half.x, -half.y, half.z),
-                Vec3::new(half.x, -half.y, half.z),
-                Vec3::new(-half.x, half.y, half.z),
-                Vec3::new(half.x, half.y, half.z),
-            ]
-            .map(|corner| self.center + self.orientation * corner),
-        )
+        oriented_box_bounds(self.center, self.orientation, self.size)
     }
 }

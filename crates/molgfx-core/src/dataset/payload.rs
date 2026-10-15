@@ -240,14 +240,14 @@ pub(super) fn row_count(value: usize) -> Result<u32, DatasetError> {
     u32::try_from(value).map_err(|_| invalid("payload exceeds chunk-local u32 addressing"))
 }
 
-pub(super) fn bytes(count: usize, width: u64) -> Result<u64, DatasetError> {
+pub(in crate::dataset) fn bytes(count: usize, width: u64) -> Result<u64, DatasetError> {
     u64::try_from(count)
         .ok()
         .and_then(|value| value.checked_mul(width))
         .ok_or(DatasetError::PayloadByteSizeOverflow)
 }
 
-pub(super) const fn invalid(reason: &'static str) -> DatasetError {
+pub(in crate::dataset) const fn invalid(reason: &'static str) -> DatasetError {
     DatasetError::InvalidPayload { reason }
 }
 

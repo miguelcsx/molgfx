@@ -215,7 +215,7 @@ fn compact_live_instructions(
     outputs: &mut super::ProgramOutputs,
 ) {
     let mut live = [false; MAX_VISUAL_INSTRUCTIONS];
-    for output in ALL_OUTPUTS {
+    for output in VisualOutput::ALL {
         if let Some(register) = outputs.get(output) {
             live[usize::from(register)] = true;
         }
@@ -248,26 +248,12 @@ fn compact_live_instructions(
         index += 1;
         retain
     });
-    for output in ALL_OUTPUTS {
+    for output in VisualOutput::ALL {
         if let Some(register) = outputs.get(output) {
             outputs.registers[output as usize] = remap[usize::from(register)];
         }
     }
 }
-
-const ALL_OUTPUTS: [VisualOutput; 11] = [
-    VisualOutput::BaseColor,
-    VisualOutput::Opacity,
-    VisualOutput::Emission,
-    VisualOutput::Roughness,
-    VisualOutput::Specular,
-    VisualOutput::MaterialStrength,
-    VisualOutput::Visibility,
-    VisualOutput::SilhouetteSoftness,
-    VisualOutput::RadiusScale,
-    VisualOutput::WidthScale,
-    VisualOutput::PositionOffset,
-];
 
 pub(super) fn finite(values: &[f32]) -> Result<(), VisualError> {
     if values.iter().any(|value| !value.is_finite()) {

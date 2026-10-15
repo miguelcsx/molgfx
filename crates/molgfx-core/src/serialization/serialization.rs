@@ -261,26 +261,14 @@ fn representation_description(
 
 pub(super) fn visual_description(style: &VisualStyle) -> VisualStyleDescription {
     let program = style.program();
-    let outputs = [
-        VisualOutput::BaseColor,
-        VisualOutput::Opacity,
-        VisualOutput::Emission,
-        VisualOutput::Roughness,
-        VisualOutput::Specular,
-        VisualOutput::MaterialStrength,
-        VisualOutput::Visibility,
-        VisualOutput::SilhouetteSoftness,
-        VisualOutput::RadiusScale,
-        VisualOutput::WidthScale,
-        VisualOutput::PositionOffset,
-    ]
-    .into_iter()
-    .filter_map(|output| {
-        program
-            .output_register(output)
-            .map(|register| [output.code(), register])
-    })
-    .collect();
+    let outputs = VisualOutput::ALL
+        .into_iter()
+        .filter_map(|output| {
+            program
+                .output_register(output)
+                .map(|register| [output.code(), register])
+        })
+        .collect();
     VisualStyleDescription {
         instructions: program
             .instructions()
