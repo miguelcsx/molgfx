@@ -88,8 +88,21 @@ jobs:
     needs: detect
     if: needs.detect.outputs.release == 'true'
     runs-on: ubuntu-latest
+    # The published molframe wheel embeds only the bonding reach, while the
+    # documented snippets also select covalent radii.
+    env:
+      MOLFRAME_DATA_DIR: ${{ github.workspace }}/.molframe-tables/data
+      MOLFRAME_PROFILE: ${{ github.workspace }}/.molframe-tables/crates/molframe-bench/data/profile.txt
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: miguelcsx/molframe
+          ref: v0.6.3
+          path: .molframe-tables
+          sparse-checkout: |
+            data
+            crates/molframe-bench/data/profile.txt
       - uses: ./.github/actions/browser-runtime
       - run: npm test --prefix web
       - run: npm pack ./web --pack-destination web
