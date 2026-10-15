@@ -69,13 +69,13 @@ molgfx-semantic = { version = "0.5.3", path = "crates/molgfx-semantic" }
 molgfx-scene = { version = "0.5.3", path = "crates/molgfx-scene", default-features = false }
 molgfx-command = { version = "0.5.3", path = "crates/molgfx-command", default-features = false }
 
-# The structural model and every detection the engine consumes. The local
-# patch below keeps the engine and its companion parser on one source tree while
-# the package requirement remains publishable.
+# The structural model and every detection the engine consumes. The patch
+# below keeps the engine and its companion parser on one source tree while the
+# package requirement remains publishable.
 molframe = { version = ">=0.6.0, <0.7", default-features = false, features = ["mmcif", "bcif", "pdb"] }
 # The provider's Python bridge names its library target `_native`, so the
 # dependency is renamed back to the package name for `molframe_py::` to resolve.
-molframe-py = { package = "molframe-py", path = "../molframe/crates/molframe-py", default-features = false, features = ["base", "analysis", "crystal"] }
+molframe-py = { package = "molframe-py", git = "https://github.com/miguelcsx/molframe", tag = "v0.6.0", default-features = false, features = ["base", "analysis", "crystal"] }
 
 # Python ABI shared by the thin binding crate and the sibling molframe bridge.
 pyo3 = "0.29"
@@ -151,8 +151,8 @@ strip = true
 # any LTO measures a call sequence the release build never emits.
 lto = "thin"
 
-# Development uses the sibling structural provider for both the engine and its
-# Python bridge. The registry requirement remains publishable; release builds
-# must replace this workspace-local patch with the tested upstream revision.
+# The Python bridge is not published to crates.io, so it is taken from the
+# tagged release. Patching the registry crate to the same tag keeps the engine
+# and the bridge on one source tree, so their types are the same types.
 [patch.crates-io]
-molframe = { path = "../molframe/crates/molframe" }
+molframe = { git = "https://github.com/miguelcsx/molframe", tag = "v0.6.0" }
