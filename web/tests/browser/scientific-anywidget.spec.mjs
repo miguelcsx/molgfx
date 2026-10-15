@@ -85,7 +85,9 @@ for (const method of ["volume", "hydrogen_bonds", "surf", "msms", "trajectory", 
         widget.close = await widget.entry.render({ model: widget.model, el: document.querySelector("#viewer") });
       });
       await expect(page.locator("#viewer canvas")).toBeVisible();
-      if (expires) await expect.poll(async () => (await screenshotColors(page)).red).toBe(0);
+      // The reopened view builds a fresh device and pipelines; a software
+      // adapter needs as long for that as it did for the first render.
+      if (expires) await expect.poll(async () => (await screenshotColors(page)).red, { timeout: 30000 }).toBe(0);
       await page.evaluate(playback => {
         const { model, states } = window.scientificWidget;
         model.batch(playback ? {
@@ -94,7 +96,7 @@ for (const method of ["volume", "hydrogen_bonds", "surf", "msms", "trajectory", 
           playback_pair: states.reversed.playback_pair,
         } : { trajectory_sample: states.reversed.trajectory_sample });
       }, playback);
-      await expect.poll(async () => (await screenshotColors(page)).red).toBeGreaterThan(100);
+      await expect.poll(async () => (await screenshotColors(page)).red, { timeout: 30000 }).toBeGreaterThan(100);
       expect(await page.evaluate(() => window.scientificWidget.model.get("error"))).toBe("");
     }
     await page.evaluate(() => {

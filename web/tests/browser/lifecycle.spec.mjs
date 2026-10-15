@@ -159,6 +159,16 @@ test("pointer hover highlights a molecule, restores on leave and settles on the 
     throw new Error("fixture did not render a pickable atom");
   }, pdb);
   const canvas = page.locator("canvas");
+  // Software adapters can still be accumulating presentation samples here;
+  // the baseline must be the settled image the restored frame converges to.
+  await expect.poll(async () => {
+    const start = await page.evaluate(async () => {
+      await window.hoverReview.queue.onSubmittedWorkDone();
+      return window.hoverReview.submits();
+    });
+    await page.waitForTimeout(200);
+    return (await page.evaluate(() => window.hoverReview.submits())) === start;
+  }, { timeout: 60000 }).toBe(true);
   const before = await canvas.screenshot({ path: "../target/vmd-fixed/hover/before.png" });
   await canvas.hover({ position: point });
   await expect(canvas).toHaveClass(/is-hovering-entity/);

@@ -204,12 +204,14 @@ test("hovering a settled scene does not restart presentation sampling", async ({
     });
     await page.waitForTimeout(200);
     return (await page.evaluate(() => window.widget.submits())) === before;
-  }).toBe(true);
+  }, { timeout: 60000 }).toBe(true);
   await page.evaluate(() => window.widget.queue.onSubmittedWorkDone());
   const before = await canvas.screenshot();
-  await canvas.hover({ position: { x: 100, y: 100 } });
+  // Hover empty corners: whether perceived bonds draw the fixture as
+  // ball-and-stick or spacefill must not decide what the pointer touches.
+  await canvas.hover({ position: { x: 10, y: 10 } });
   await page.waitForTimeout(300);
-  await canvas.hover({ position: { x: 130, y: 120 } });
+  await canvas.hover({ position: { x: 40, y: 20 } });
   await page.waitForTimeout(300);
   expect((await canvas.screenshot()).equals(before)).toBe(true);
   expect(await page.evaluate(() => window.widget.model.get("error"))).toBe("");
