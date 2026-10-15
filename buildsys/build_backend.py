@@ -10,7 +10,7 @@ from typing import Any
 
 import maturin
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def validate_runtime(root: Path = ROOT) -> None:

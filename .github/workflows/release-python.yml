@@ -115,7 +115,7 @@ jobs:
           python -m venv .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip 'maturin>=1.15,<2' mypy numpy 'molframe>=0.5.0'
-          python build_backend.py
+          python buildsys/build_backend.py
           python .github/scripts/test-python-packaging.py
           maturin develop -m crates/molgfx-py/Cargo.toml
           python -m unittest discover -s python/tests
@@ -192,7 +192,7 @@ jobs:
         shell: bash
         run: |
           python -m pip install 'maturin>=1.15,<2'
-          python build_backend.py
+          python buildsys/build_backend.py
 
       # Linux wheels are built inside the manylinux_2_28 container, so they
       # need glibc 2.28 rather than whatever the runner's newer glibc lets the

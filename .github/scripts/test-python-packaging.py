@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
-SPEC = importlib.util.spec_from_file_location("build_backend", ROOT / "build_backend.py")
+SPEC = importlib.util.spec_from_file_location("build_backend", ROOT / "buildsys/build_backend.py")
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError("Missing Python build backend")
 BACKEND = importlib.util.module_from_spec(SPEC)

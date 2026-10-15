@@ -1,7 +1,7 @@
 [build-system]
 requires = ["maturin>=1.15,<2"]
 build-backend = "build_backend"
-backend-path = ["."]
+backend-path = ["buildsys"]
 
 [project]
 name = "molgfx"
@@ -47,7 +47,7 @@ python-source = "python"
 module-name = "molgfx._engine"
 include = [
     { path = "python/molgfx/static/**/*", format = ["wheel", "sdist"] },
-    { path = "build_backend.py", format = "sdist" },
+    { path = "buildsys/build_backend.py", format = "sdist" },
 ]
 auditwheel = "repair"
 # The stable ABI, matching molframe's own binding crate. `pyo3/extension-module`

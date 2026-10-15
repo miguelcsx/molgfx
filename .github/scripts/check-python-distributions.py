@@ -28,7 +28,7 @@ def compare(source: Path, wheel: Path) -> None:
             return member.read()
 
         project = tomllib.loads(read("pyproject.toml").decode())["project"]
-        read("build_backend.py")
+        read("buildsys/build_backend.py")
         manifest_bytes = read("python/molgfx/static/runtime-manifest.json")
         manifest = json.loads(manifest_bytes)
         if manifest["version"] != project["version"]:
