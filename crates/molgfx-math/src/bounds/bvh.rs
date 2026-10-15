@@ -26,7 +26,6 @@ use build::{checked_index, checked_u32};
 #[path = "bvh_tests.rs"]
 mod tests;
 
-#[path = "bvh_query.rs"]
 mod query;
 #[cfg(test)]
 use query::point_box_distance_squared;

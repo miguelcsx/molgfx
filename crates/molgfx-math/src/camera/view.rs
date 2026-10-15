@@ -10,7 +10,7 @@ use crate::{Mat4, Vec3, Vec4};
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
-#[path = "camera_tests.rs"]
+#[path = "view_tests.rs"]
 mod tests;
 
 /// A look-at camera in world space (right-handed, +Y up, looking down −Z in
