@@ -1,8 +1,8 @@
 //! Scene-linear HDR readback with coverage separated from temporal depth.
 
-use super::image::ImageLayout;
-use super::image::ImagePurpose;
-use super::{Engine, ImageConfig, QualityTier};
+use crate::engine::image::ImageLayout;
+use crate::engine::image::ImagePurpose;
+use crate::engine::{Engine, ImageConfig, QualityTier};
 use crate::error::RenderError;
 use crate::graph::{PassEnv, ResourceId};
 use crate::passes::{DOF_RESOURCE, HISTORY_A_RESOURCE, HISTORY_B_RESOURCE, MOTION_BLUR_RESOURCE};
@@ -23,18 +23,18 @@ use molgfx_math::Camera;
 #[derive(PartialEq, Debug)]
 pub struct HdrImage {
     /// Width in pixels.
-    pub(super) width: u32,
+    pub(in crate::engine) width: u32,
     /// Height in pixels.
-    pub(super) height: u32,
+    pub(in crate::engine) height: u32,
     /// Row-major RGBA16F bytes with no row padding.
-    pub(super) rgba16f: Vec<u8>,
-    pub(super) quality: super::EffectiveQuality,
+    pub(in crate::engine) rgba16f: Vec<u8>,
+    pub(in crate::engine) quality: crate::engine::EffectiveQuality,
 }
 
 impl HdrImage {
     /// Physical settings captured for this completed HDR exposure.
     #[must_use]
-    pub const fn quality(&self) -> &super::EffectiveQuality {
+    pub const fn quality(&self) -> &crate::engine::EffectiveQuality {
         &self.quality
     }
 
@@ -63,7 +63,7 @@ impl HdrImage {
     /// Returns [`RenderError::ImageEncoding`] for malformed pixels or layout
     /// overflow. Use [`Self::write_exr`] to avoid allocating encoded bytes.
     pub fn exr_bytes(&self) -> Result<Vec<u8>, RenderError> {
-        super::exr::encode(self)
+        crate::engine::exr::encode(self)
     }
 
     /// Streams deterministic, uncompressed `OpenEXR` to a caller-owned sink.
@@ -76,7 +76,7 @@ impl HdrImage {
     /// Returns [`RenderError::ImageEncoding`] for malformed pixels, layout
     /// overflow, or a sink write failure.
     pub fn write_exr(&self, writer: impl std::io::Write) -> Result<(), RenderError> {
-        super::exr::write(self, writer)
+        crate::engine::exr::write(self, writer)
     }
 }
 
@@ -232,7 +232,7 @@ struct PendingHdrImage<D: Device> {
     layout: ImageLayout,
     buffer: D::Buffer,
     _capture: D::Texture,
-    quality: super::EffectiveQuality,
+    quality: crate::engine::EffectiveQuality,
 }
 
 impl<D: Device> PendingHdrImage<D> {

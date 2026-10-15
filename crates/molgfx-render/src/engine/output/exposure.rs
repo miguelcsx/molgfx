@@ -1,8 +1,8 @@
 //! Frozen output state shared by images, sequences, HDR and profiling.
 
-use super::image::ImagePurpose;
-use super::{Engine, MotionBlur, QualityTier, TemporalOptions};
 use crate::RenderError;
+use crate::engine::image::ImagePurpose;
+use crate::engine::{Engine, MotionBlur, QualityTier, TemporalOptions};
 use molgfx_core::Scene;
 #[cfg(not(target_arch = "wasm32"))]
 use molgfx_gpu::Queue;
@@ -15,10 +15,10 @@ use molgfx_math::Camera;
 /// so a converged exposure that queues all of its samples at once keeps
 /// hundreds of encoders alive together. Runs of this size, with at most two
 /// in flight, bound that without leaving the device idle.
-pub(super) const EXPOSURE_RUN: u32 = 1;
+pub(in crate::engine) const EXPOSURE_RUN: u32 = 1;
 
-pub(super) struct Exposure {
-    pub(super) samples: u32,
+pub(in crate::engine) struct Exposure {
+    pub(in crate::engine) samples: u32,
     submitted: u32,
     /// The previous run, awaited before the next is queued (native only).
     #[cfg(not(target_arch = "wasm32"))]
@@ -29,7 +29,7 @@ pub(super) struct Exposure {
 }
 
 impl<D: Device> Engine<D> {
-    pub(super) fn prepare_exposure(
+    pub(in crate::engine) fn prepare_exposure(
         &mut self,
         scene: &Scene,
         camera: &Camera,
@@ -89,7 +89,7 @@ impl<D: Device> Engine<D> {
         })
     }
 
-    pub(super) fn prepare_exposure_sample(
+    pub(in crate::engine) fn prepare_exposure_sample(
         &mut self,
         exposure: &mut Exposure,
         sample: u32,
@@ -116,7 +116,7 @@ impl<D: Device> Engine<D> {
     /// Submits the samples recorded so far once a run is full, and starts a
     /// fresh encoder for the rest. The last run goes through
     /// [`Self::submit_exposure`].
-    pub(super) fn flush_exposure_run(
+    pub(in crate::engine) fn flush_exposure_run(
         &mut self,
         exposure: &mut Exposure,
         sample: u32,
@@ -146,7 +146,7 @@ impl<D: Device> Engine<D> {
         Ok(())
     }
 
-    pub(super) fn submit_exposure(
+    pub(in crate::engine) fn submit_exposure(
         &mut self,
         exposure: &Exposure,
         encoder: D::CommandEncoder,

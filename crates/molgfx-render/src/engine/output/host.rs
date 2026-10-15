@@ -12,8 +12,8 @@
 //! restarts accumulation, and picking answers for the most recently
 //! rendered target.
 
-use super::image::{ImageConfig, ImagePurpose};
-use super::{Engine, EngineConfig, FrameReport, FrameStatus};
+use crate::engine::image::{ImageConfig, ImagePurpose};
+use crate::engine::{Engine, EngineConfig, FrameReport, FrameStatus};
 use crate::error::RenderError;
 use molgfx_core::Scene;
 use molgfx_gpu::{

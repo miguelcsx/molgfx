@@ -1,8 +1,8 @@
 //! Parallel stereo eye exposures and O(pixels) presentation composition.
-use super::Image;
-#[cfg(not(target_arch = "wasm32"))]
-use super::{Engine, ImageConfig};
 use crate::RenderError;
+use crate::engine::Image;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::engine::{Engine, ImageConfig};
 #[cfg(not(target_arch = "wasm32"))]
 use molgfx_core::Scene;
 #[cfg(not(target_arch = "wasm32"))]

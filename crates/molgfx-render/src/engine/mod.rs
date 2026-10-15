@@ -1,5 +1,15 @@
 //! The engine: owns the device, the graph and every pass's state.
 
+mod output;
+use output::exposure;
+use output::exr;
+use output::hdr_image;
+use output::host;
+use output::image;
+#[cfg(not(target_arch = "wasm32"))]
+use output::sequence;
+use output::stereo;
+
 mod bonds;
 pub(crate) use bonds::bond_draw_plan;
 use bonds::bond_residency;
@@ -18,17 +28,11 @@ mod config;
 mod cpu_stages;
 mod depth_cue;
 mod effective_quality;
-mod exposure;
-mod exr;
 mod focus_target;
 mod frame;
 mod gpu_timing;
 mod graph_setup;
 mod graph_transparency;
-mod hdr_image;
-mod host;
-mod image;
-mod stereo;
 pub use stereo::{StereoImages, StereoLayout};
 mod init;
 mod lighting_environment;
@@ -40,8 +44,6 @@ mod presentation;
 mod profile;
 mod profile_numeric;
 mod profiling;
-#[cfg(not(target_arch = "wasm32"))]
-mod sequence;
 mod session;
 mod settings;
 mod shadow;

@@ -1,6 +1,6 @@
 //! Minimal deterministic `OpenEXR` scanline encoder for native RGBA16F data.
 
-use super::HdrImage;
+use crate::engine::HdrImage;
 use crate::error::RenderError;
 use std::io::Write;
 
@@ -12,7 +12,7 @@ const CHANNEL_COUNT: usize = 4;
 const BLOCK_HEADER_BYTES: usize = 8;
 const OFFSET_BYTES: usize = 8;
 
-pub(super) fn encode(image: &HdrImage) -> Result<Vec<u8>, RenderError> {
+pub(in crate::engine) fn encode(image: &HdrImage) -> Result<Vec<u8>, RenderError> {
     let height = usize::try_from(image.height).map_err(|_| encoding_overflow())?;
     let capacity = height
         .checked_mul(OFFSET_BYTES + BLOCK_HEADER_BYTES)
@@ -24,7 +24,10 @@ pub(super) fn encode(image: &HdrImage) -> Result<Vec<u8>, RenderError> {
     Ok(output)
 }
 
-pub(super) fn write(image: &HdrImage, mut writer: impl Write) -> Result<(), RenderError> {
+pub(in crate::engine) fn write(
+    image: &HdrImage,
+    mut writer: impl Write,
+) -> Result<(), RenderError> {
     let width = usize::try_from(image.width).map_err(|_| encoding_overflow())?;
     let height = usize::try_from(image.height).map_err(|_| encoding_overflow())?;
     let row_bytes = width

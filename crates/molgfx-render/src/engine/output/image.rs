@@ -1,5 +1,5 @@
 //! Off-screen rendering and mapped converged images.
-use super::{Engine, QualityTier};
+use crate::engine::{Engine, QualityTier};
 use crate::error::RenderError;
 use crate::graph::{PassContext, ResourceTable};
 use molgfx_core::Scene;
@@ -10,16 +10,16 @@ use molgfx_gpu::{
 use molgfx_math::Camera;
 #[path = "image/layout.rs"]
 mod layout;
-pub(super) use layout::ImageLayout;
+pub(in crate::engine) use layout::ImageLayout;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ImagePurpose {
     Converged,
     Progressive,
 }
 #[derive(Clone, Copy)]
-pub(super) struct ImagePreparation {
-    pub(super) scene_changed: bool,
-    pub(super) rebuild: bool,
+pub(in crate::engine) struct ImagePreparation {
+    pub(in crate::engine) scene_changed: bool,
+    pub(in crate::engine) rebuild: bool,
 }
 /// Requested off-screen image dimensions.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -39,7 +39,7 @@ impl ImageConfig {
         }
     }
 
-    pub(super) fn validate(self, max_dimension: u32) -> Result<(), RenderError> {
+    pub(in crate::engine) fn validate(self, max_dimension: u32) -> Result<(), RenderError> {
         if self.width == 0
             || self.height == 0
             || self.width > max_dimension
@@ -61,7 +61,7 @@ pub struct Image {
     /// Row-major RGBA8 pixels with no row padding.
     pub pixels: Vec<u8>,
     /// Settings and completed exposure observed for these pixels.
-    pub quality: super::EffectiveQuality,
+    pub quality: crate::engine::EffectiveQuality,
 }
 
 impl Image {
@@ -163,7 +163,12 @@ impl<D: Device> Engine<D> {
         camera: &Camera,
         config: ImageConfig,
     ) -> Result<Image, RenderError> {
-        self.render_output(scene, camera, config, super::MeasuredOutput::Converged)
+        self.render_output(
+            scene,
+            camera,
+            config,
+            crate::engine::MeasuredOutput::Converged,
+        )
     }
 
     /// Renders one off-screen image of the requested kind: the converged
@@ -180,7 +185,7 @@ impl<D: Device> Engine<D> {
         scene: &Scene,
         camera: &Camera,
         config: ImageConfig,
-        output: super::MeasuredOutput,
+        output: crate::engine::MeasuredOutput,
     ) -> Result<Image, RenderError> {
         let pending = self.render_image_to_buffer(scene, camera, config, output.purpose())?;
         let mapped = self.queue.read_buffer_blocking(
@@ -192,7 +197,7 @@ impl<D: Device> Engine<D> {
         pending.resolve(mapped, self.target_format)
     }
 
-    pub(super) fn render_image_to_buffer(
+    pub(in crate::engine) fn render_image_to_buffer(
         &mut self,
         scene: &Scene,
         camera: &Camera,
@@ -239,7 +244,7 @@ impl<D: Device> Engine<D> {
     /// finished frame into a readback buffer. The one off-screen frame path:
     /// the readback image and every GPU-resident target share it, so their
     /// pixels are identical by construction.
-    pub(super) fn render_exposure(
+    pub(in crate::engine) fn render_exposure(
         &mut self,
         scene: &Scene,
         camera: &Camera,
@@ -247,7 +252,7 @@ impl<D: Device> Engine<D> {
         purpose: ImagePurpose,
         view: &D::TextureView,
         copy: Option<&ReadbackCopy<'_, D>>,
-    ) -> Result<(FenceValue, super::EffectiveQuality), RenderError> {
+    ) -> Result<(FenceValue, crate::engine::EffectiveQuality), RenderError> {
         self.width = config.width;
         self.height = config.height;
         let mut exposure = self.prepare_exposure(scene, camera, purpose)?;
@@ -293,7 +298,7 @@ impl<D: Device> Engine<D> {
     ///
     /// Converged outputs pin maximum detail. Explicit progressive sequences
     /// restore the configured realtime policy and retain compatible history.
-    pub(super) fn prepare_image(
+    pub(in crate::engine) fn prepare_image(
         &mut self,
         scene: &Scene,
         purpose: ImagePurpose,
@@ -337,7 +342,7 @@ impl<D: Device> Engine<D> {
         })
     }
 
-    pub(super) fn record_image(
+    pub(in crate::engine) fn record_image(
         &self,
         encoder: &mut D::CommandEncoder,
         target: &D::TextureView,
@@ -348,7 +353,7 @@ impl<D: Device> Engine<D> {
         self.record_image_until(encoder, target, queries, quality, timestamps_started, None)
     }
 
-    pub(super) fn record_image_until(
+    pub(in crate::engine) fn record_image_until(
         &self,
         encoder: &mut D::CommandEncoder,
         target: &D::TextureView,
@@ -405,33 +410,33 @@ impl<D: Device> Engine<D> {
 }
 
 /// The readback destination of one exposure.
-pub(super) struct ReadbackCopy<'a, D: Device> {
-    pub(super) texture: &'a D::Texture,
-    pub(super) buffer: &'a D::Buffer,
-    pub(super) padded_row: u32,
+pub(in crate::engine) struct ReadbackCopy<'a, D: Device> {
+    pub(in crate::engine) texture: &'a D::Texture,
+    pub(in crate::engine) buffer: &'a D::Buffer,
+    pub(in crate::engine) padded_row: u32,
 }
 
-pub(super) struct PendingImage<D: Device> {
+pub(in crate::engine) struct PendingImage<D: Device> {
     config: ImageConfig,
     layout: ImageLayout,
     buffer: D::Buffer,
     _texture: D::Texture,
     completion: FenceValue,
-    quality: super::EffectiveQuality,
+    quality: crate::engine::EffectiveQuality,
 }
 
 impl<D: Device> PendingImage<D> {
     #[cfg(not(target_arch = "wasm32"))]
-    pub(super) const fn completion(&self) -> FenceValue {
+    pub(in crate::engine) const fn completion(&self) -> FenceValue {
         self.completion
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(super) fn readback(&self) -> (&D::Buffer, u64) {
+    pub(in crate::engine) fn readback(&self) -> (&D::Buffer, u64) {
         (&self.buffer, self.layout.buffer_size)
     }
 
-    pub(super) fn resolve(
+    pub(in crate::engine) fn resolve(
         mut self,
         mapped: Vec<u8>,
         format: TextureFormat,

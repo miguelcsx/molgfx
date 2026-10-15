@@ -1,8 +1,8 @@
 //! Bounded, history-preserving off-screen sequence submission.
 
-use super::image::{ImagePurpose, PendingImage};
-use super::{Engine, Image, ImageConfig};
 use crate::RenderError;
+use crate::engine::image::{ImagePurpose, PendingImage};
+use crate::engine::{Engine, Image, ImageConfig};
 use molgfx_core::Scene;
 use molgfx_gpu::{Device, Queue as _};
 use molgfx_math::Camera;
