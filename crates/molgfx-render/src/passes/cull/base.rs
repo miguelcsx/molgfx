@@ -1,18 +1,22 @@
-struct BasePipelines<D: Device> {
-    reset: D::Pipeline,
-    reset_tiles: D::Pipeline,
-    bin_atoms: D::Pipeline,
-    compact_tiles: D::Pipeline,
-    atoms: D::Pipeline,
-    bonds: D::Pipeline,
-    direct_bonds: D::Pipeline,
-    visual_cull: D::Pipeline,
-    visual_shading: D::Pipeline,
-    visual_shading_all: D::Pipeline,
+use super::pipeline::{pipeline, shader};
+use crate::error::RenderError;
+use molgfx_gpu::Device;
+
+pub(super) struct BasePipelines<D: Device> {
+    pub(super) reset: D::Pipeline,
+    pub(super) reset_tiles: D::Pipeline,
+    pub(super) bin_atoms: D::Pipeline,
+    pub(super) compact_tiles: D::Pipeline,
+    pub(super) atoms: D::Pipeline,
+    pub(super) bonds: D::Pipeline,
+    pub(super) direct_bonds: D::Pipeline,
+    pub(super) visual_cull: D::Pipeline,
+    pub(super) visual_shading: D::Pipeline,
+    pub(super) visual_shading_all: D::Pipeline,
 }
 
 impl<D: Device> BasePipelines<D> {
-    fn new(
+    pub(super) fn new(
         device: &D,
         atom_layout: &D::BindGroupLayout,
         bond_layout: &D::BindGroupLayout,

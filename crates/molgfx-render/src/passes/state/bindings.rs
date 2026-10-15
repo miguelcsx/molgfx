@@ -10,7 +10,6 @@ use crate::passes::{
 };
 use molgfx_gpu::{BindGroupDesc, BindGroupEntry, Device};
 
-#[path = "bindings/presentation.rs"]
 mod presentation;
 use presentation::presentation_bindings;
 

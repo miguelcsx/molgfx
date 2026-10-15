@@ -2,10 +2,18 @@
 
 use crate::error::RenderError;
 use crate::graph::PassContext;
-use molgfx_gpu::{
-    CommandEncoder as _, ComputePassDesc, ComputePassEncoder, ComputePipelineDesc, Device,
-    ShaderModuleDesc,
-};
+use molgfx_gpu::{CommandEncoder as _, ComputePassDesc, ComputePassEncoder, Device};
+
+mod base;
+mod paged;
+mod pipeline;
+mod relations;
+mod timeline;
+
+use base::BasePipelines;
+use paged::record_paged;
+use pipeline::{pipeline, shader};
+use relations::{RelationPipelines, record_relations};
 
 #[derive(Debug)]
 pub(crate) struct CullPass<D: Device> {
@@ -169,9 +177,6 @@ fn reuses_whole_cull<D: Device>(scene: &crate::scene_gpu::GpuScene<D>) -> bool {
         && scene.paged_chunk_cull().is_none()
         && scene.paged_bond_cull().is_none()
 }
-
-include!("timeline.rs");
-include!("base.rs");
 
 struct PagedPipelines<D: Device> {
     reset: D::Pipeline,
@@ -348,9 +353,6 @@ impl<D: Device> InstancePipelines<D> {
     }
 }
 
-include!("relations.rs");
-include!("pipeline.rs");
-
 fn record_structures<D: Device, P: ComputePassEncoder<D>>(
     pass: &mut P,
     scene: &crate::scene_gpu::GpuScene<D>,
@@ -469,5 +471,3 @@ fn record_instances<D: Device, P: ComputePassEncoder<D>>(
         }
     }
 }
-
-include!("paged.rs");

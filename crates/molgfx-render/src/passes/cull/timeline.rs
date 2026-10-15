@@ -1,3 +1,6 @@
+use super::CullPass;
+use molgfx_gpu::{CommandEncoder as _, ComputePassDesc, ComputePassEncoder as _, Device};
+
 // Optional generic timeline materialization runs before dependent relations.
 
 impl<D: Device> CullPass<D> {

@@ -1,6 +1,9 @@
 // Shared compute shader and pipeline construction.
 
-fn shader<D: Device>(
+use crate::error::RenderError;
+use molgfx_gpu::{ComputePipelineDesc, Device, ShaderModuleDesc};
+
+pub(super) fn shader<D: Device>(
     device: &D,
     label: &'static str,
     wgsl: &'static str,
@@ -10,7 +13,7 @@ fn shader<D: Device>(
         .map_err(Into::into)
 }
 
-fn pipeline<D: Device>(
+pub(super) fn pipeline<D: Device>(
     device: &D,
     shader: &D::ShaderModule,
     layouts: &[Option<&D::BindGroupLayout>],

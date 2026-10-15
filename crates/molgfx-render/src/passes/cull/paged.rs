@@ -1,4 +1,7 @@
-fn record_paged<D: Device, P: ComputePassEncoder<D>>(
+use super::CullPass;
+use molgfx_gpu::{ComputePassEncoder, Device};
+
+pub(super) fn record_paged<D: Device, P: ComputePassEncoder<D>>(
     pass: &mut P,
     scene: &crate::scene_gpu::GpuScene<D>,
     cull: &CullPass<D>,

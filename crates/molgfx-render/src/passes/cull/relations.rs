@@ -1,15 +1,20 @@
+use super::CullPass;
+use super::pipeline::{pipeline, shader};
+use crate::error::RenderError;
+use molgfx_gpu::{ComputePassEncoder, Device};
+
 // Specialized relation visibility pipelines and recording.
 
-struct RelationPipelines<D: Device> {
-    reset: D::Pipeline,
-    cull: D::Pipeline,
-    scan: D::Pipeline,
-    prefix: D::Pipeline,
-    scatter: D::Pipeline,
+pub(super) struct RelationPipelines<D: Device> {
+    pub(super) reset: D::Pipeline,
+    pub(super) cull: D::Pipeline,
+    pub(super) scan: D::Pipeline,
+    pub(super) prefix: D::Pipeline,
+    pub(super) scatter: D::Pipeline,
 }
 
 impl<D: Device> RelationPipelines<D> {
-    fn new(
+    pub(super) fn new(
         device: &D,
         frame: &D::BindGroupLayout,
         relations: &D::BindGroupLayout,
@@ -35,14 +40,32 @@ impl<D: Device> RelationPipelines<D> {
                 "cull generic relations",
                 "cull_relations",
             )?,
-            scan: pipeline(device, &shader, layouts, "scan relation rows", "scan_relation_rows")?,
-            prefix: pipeline(device, &shader, layouts, "scan relation groups", "scan_relation_groups")?,
-            scatter: pipeline(device, &shader, layouts, "scatter relation rows", "scatter_relation_rows")?,
+            scan: pipeline(
+                device,
+                &shader,
+                layouts,
+                "scan relation rows",
+                "scan_relation_rows",
+            )?,
+            prefix: pipeline(
+                device,
+                &shader,
+                layouts,
+                "scan relation groups",
+                "scan_relation_groups",
+            )?,
+            scatter: pipeline(
+                device,
+                &shader,
+                layouts,
+                "scatter relation rows",
+                "scatter_relation_rows",
+            )?,
         })
     }
 }
 
-fn record_relations<D: Device, P: ComputePassEncoder<D>>(
+pub(super) fn record_relations<D: Device, P: ComputePassEncoder<D>>(
     pass: &mut P,
     scene: &crate::scene_gpu::GpuScene<D>,
     cull: &CullPass<D>,
