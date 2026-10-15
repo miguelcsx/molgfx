@@ -289,9 +289,9 @@ impl<D: Device> GpuSlot<D> {
             atom_groups: if is_spline_kind(self.kind) {
                 [0, 0]
             } else {
-                super::super::dispatch::workgroups_2d(u64::from(self.atom_count).div_ceil(64))
+                crate::scene_gpu::dispatch::workgroups_2d(u64::from(self.atom_count).div_ceil(64))
             },
-            bin_groups: super::super::dispatch::workgroups_2d(
+            bin_groups: crate::scene_gpu::dispatch::workgroups_2d(
                 u64::from(
                     self.atom_count
                         .div_ceil(self.atom_count.div_ceil(65_536).max(1)),
@@ -318,10 +318,10 @@ impl<D: Device> GpuSlot<D> {
                         || (self.kind == RepresentationKind::Surface
                             && !self.shading.surface_atoms()),
                 ),
-            bond_groups: super::super::dispatch::workgroups_2d(
+            bond_groups: crate::scene_gpu::dispatch::workgroups_2d(
                 u64::from(self.bond_count).div_ceil(64),
             ),
-            visual_groups: super::super::dispatch::workgroups_2d(
+            visual_groups: crate::scene_gpu::dispatch::workgroups_2d(
                 match u64::try_from(self.visual.entity_count()) {
                     Ok(count) => count.div_ceil(64),
                     Err(_) => u64::MAX.div_ceil(64),

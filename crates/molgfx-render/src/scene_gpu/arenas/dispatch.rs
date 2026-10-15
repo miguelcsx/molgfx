@@ -3,7 +3,7 @@
 const MAX_DISPATCH_AXIS: u64 = 65_535;
 
 /// Maps a linear workgroup count onto portable WebGPU X/Y limits.
-pub(super) fn workgroups_2d(total: u64) -> [u32; 2] {
+pub(in crate::scene_gpu) fn workgroups_2d(total: u64) -> [u32; 2] {
     if total == 0 {
         return [0, 0];
     }

@@ -1,7 +1,7 @@
 //! Retained scratch for the per-frame draw path.
 
-use super::VisibilityKey;
-use super::surface_field::SurfaceFieldKey;
+use crate::scene_gpu::VisibilityKey;
+use crate::scene_gpu::surface_field::SurfaceFieldKey;
 
 /// Scratch the record passes reuse so a steady-state frame allocates nothing.
 #[derive(Debug, Default)]

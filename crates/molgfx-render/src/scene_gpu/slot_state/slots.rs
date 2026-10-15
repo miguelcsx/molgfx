@@ -4,17 +4,17 @@ mod bindings;
 mod draws;
 mod records;
 mod state;
-use super::placement_acceleration::PlacementAcceleration;
-use super::record_cache::RecordKey;
-use super::ribbon_slot::{RibbonSlot, RibbonSync};
 use super::slot_types::{
     DrawSpecializations, SlotKey, SlotPlan, SlotShading, SlotSync, SlotSynced,
 };
-use super::surface_slot::SurfaceSlot;
-use super::sync::selection_bounds::SelectionBoundsCache;
-use super::uniforms::write_representation_uniforms;
-use super::visual::{VisualBase, VisualSlot, VisualSync};
 use crate::error::RenderError;
+use crate::scene_gpu::placement_acceleration::PlacementAcceleration;
+use crate::scene_gpu::record_cache::RecordKey;
+use crate::scene_gpu::ribbon_slot::{RibbonSlot, RibbonSync};
+use crate::scene_gpu::surface_slot::SurfaceSlot;
+use crate::scene_gpu::sync::selection_bounds::SelectionBoundsCache;
+use crate::scene_gpu::uniforms::write_representation_uniforms;
+use crate::scene_gpu::visual::{VisualBase, VisualSlot, VisualSync};
 use bindings::{CullBinding, RepresentationBinding};
 use molgfx_core::RepresentationKind;
 use molgfx_gpu::Device;
@@ -23,24 +23,24 @@ use state::{is_spline, shading, synced_state};
 pub(crate) const FAST_POINT_INDEX_LIMIT: u32 = 1 << 24;
 
 #[derive(Debug)]
-pub(super) struct GpuSlot<D: Device> {
-    pub(super) key: SlotKey,
+pub(in crate::scene_gpu) struct GpuSlot<D: Device> {
+    pub(in crate::scene_gpu) key: SlotKey,
     /// Which shared record set this slot draws from.
-    pub(super) record_key: Option<RecordKey>,
+    pub(in crate::scene_gpu) record_key: Option<RecordKey>,
     /// The cull policy this slot's shared visible set was computed under.
-    pub(super) visibility_key: Option<super::VisibilityKey>,
-    pub(super) structure_index: usize,
-    pub(super) draw_order: usize,
-    pub(super) visible: bool,
+    pub(in crate::scene_gpu) visibility_key: Option<crate::scene_gpu::VisibilityKey>,
+    pub(in crate::scene_gpu) structure_index: usize,
+    pub(in crate::scene_gpu) draw_order: usize,
+    pub(in crate::scene_gpu) visible: bool,
     /// Prepared scientific geometry is drawable only at its captured molecular sample.
-    pub(super) data_current: bool,
+    pub(in crate::scene_gpu) data_current: bool,
     atom_args: Option<u64>,
     bond_args: Option<u64>,
     surface_args: Option<u64>,
     representation_uniforms: Option<D::Buffer>,
     color_uniforms: Option<D::Buffer>,
     /// The colour property column's arena offset and stride in words.
-    color_columns: super::color_uniforms::ResolvedColumns,
+    color_columns: crate::scene_gpu::color_uniforms::ResolvedColumns,
     /// The overlay class column's arena offset and stride.
     pub(in crate::scene_gpu) surface: SurfaceSlot,
     group2: Option<D::BindGroup>,
@@ -65,7 +65,7 @@ pub(super) struct GpuSlot<D: Device> {
 }
 
 impl<D: Device> GpuSlot<D> {
-    pub(super) fn new(plan: SlotPlan) -> Self {
+    pub(in crate::scene_gpu) fn new(plan: SlotPlan) -> Self {
         Self {
             key: plan.key,
             record_key: None,
@@ -79,7 +79,7 @@ impl<D: Device> GpuSlot<D> {
             surface_args: None,
             representation_uniforms: None,
             color_uniforms: None,
-            color_columns: super::color_uniforms::ResolvedColumns::NONE,
+            color_columns: crate::scene_gpu::color_uniforms::ResolvedColumns::NONE,
             surface: SurfaceSlot::new(),
             group2: None,
             quality_group: None,
@@ -101,16 +101,19 @@ impl<D: Device> GpuSlot<D> {
     }
 
     /// Whether this slot has reached the GPU at least once for its plan.
-    pub(super) const fn is_synced(&self) -> bool {
+    pub(in crate::scene_gpu) const fn is_synced(&self) -> bool {
         self.synced.is_some()
     }
 
     #[cfg(test)]
-    pub(super) fn forget_sync(&mut self) {
+    pub(in crate::scene_gpu) fn forget_sync(&mut self) {
         self.synced = None;
     }
 
-    pub(super) fn sync(&mut self, mut input: SlotSync<'_, D>) -> Result<bool, RenderError> {
+    pub(in crate::scene_gpu) fn sync(
+        &mut self,
+        mut input: SlotSync<'_, D>,
+    ) -> Result<bool, RenderError> {
         if input.representation.kind == RepresentationKind::Surface {
             input.representation.params.validate_surface()?;
         }
@@ -448,15 +451,18 @@ impl<D: Device> GpuSlot<D> {
         // state: writing it here is what keeps a scheme change off the record
         // path entirely.
         if let Some(color) = &self.color_uniforms {
-            super::color_uniforms::ColorUniforms::new(input.representation, &self.color_columns)
-                .write::<D>(input.queue, color);
+            crate::scene_gpu::color_uniforms::ColorUniforms::new(
+                input.representation,
+                &self.color_columns,
+            )
+            .write::<D>(input.queue, color);
         }
     }
 
     /// The shared field this slot shades, when it shades one.
     pub(in crate::scene_gpu) const fn surface_key(
         &self,
-    ) -> Option<super::surface_field::SurfaceFieldKey> {
+    ) -> Option<crate::scene_gpu::surface_field::SurfaceFieldKey> {
         self.surface.key()
     }
 }

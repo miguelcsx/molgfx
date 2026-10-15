@@ -92,7 +92,7 @@ impl CullModes {
 
 pub(crate) struct CullDispatch<'a, D: Device> {
     /// Shared visibility and the indirect destination this dispatch populates.
-    pub(crate) key: Option<(super::visibility_cache::VisibilityKey, u64)>,
+    pub(crate) key: Option<(crate::scene_gpu::visibility_cache::VisibilityKey, u64)>,
     pub(crate) atom_group: &'a D::BindGroup,
     pub(crate) bond_group: &'a D::BindGroup,
     pub(crate) visual_group: &'a D::BindGroup,

@@ -30,7 +30,7 @@ impl<D: Device> GpuSlot<D> {
     /// Records the arena columns this slot's colour reads.
     pub(in crate::scene_gpu) const fn adopt_color_columns(
         &mut self,
-        columns: super::super::color_uniforms::ResolvedColumns,
+        columns: crate::scene_gpu::color_uniforms::ResolvedColumns,
     ) {
         self.color_columns = columns;
     }

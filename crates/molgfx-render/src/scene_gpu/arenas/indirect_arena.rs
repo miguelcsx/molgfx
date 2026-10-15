@@ -9,9 +9,9 @@
 //! zero" of its own view, and the draw passes that same real offset to
 //! `draw_indirect`. No draw needs a first-instance offset.
 
-use super::record_cache::RecordKey;
-use super::visibility_cache::VisibilityKey;
 use crate::error::RenderError;
+use crate::scene_gpu::record_cache::RecordKey;
+use crate::scene_gpu::visibility_cache::VisibilityKey;
 use molgfx_core::DrawIndirectArgs;
 use molgfx_gpu::{BufferDesc, BufferUsage, Device, Queue};
 
@@ -22,7 +22,7 @@ use molgfx_gpu::{BufferDesc, BufferUsage, Device, Queue};
 /// binding's offset must satisfy the device's storage-buffer offset alignment.
 /// Padding every slot to the portable 256-byte alignment is what lets one arena
 /// serve every draw without a per-slot copy.
-pub(super) const SLOT_STRIDE: u64 = 256;
+pub(in crate::scene_gpu) const SLOT_STRIDE: u64 = 256;
 
 /// A non-molecular drawable's arguments, keyed by the geometry it draws.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -37,7 +37,7 @@ pub(crate) enum IndirectSlotKey {
 
 /// Grow-only arena of aligned indirect-argument slots.
 #[derive(Debug)]
-pub(super) struct IndirectArgsArena<D: Device> {
+pub(in crate::scene_gpu) struct IndirectArgsArena<D: Device> {
     buffer: Option<D::Buffer>,
     capacity: u64,
     /// Slot index per key, assigned on first use and released when unused.
@@ -47,7 +47,7 @@ pub(super) struct IndirectArgsArena<D: Device> {
 }
 
 impl<D: Device> IndirectArgsArena<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             buffer: None,
             capacity: 0,
@@ -63,12 +63,16 @@ impl<D: Device> IndirectArgsArena<D> {
         }
     }
 
-    pub(super) fn contains(&self, key: IndirectSlotKey) -> bool {
+    pub(in crate::scene_gpu) fn contains(&self, key: IndirectSlotKey) -> bool {
         self.slots.iter().any(|(candidate, _)| *candidate == key)
     }
 
     /// Reserves all new keys before any argument is written or bound.
-    pub(super) fn reserve(&mut self, device: &D, additional: usize) -> Result<bool, RenderError> {
+    pub(in crate::scene_gpu) fn reserve(
+        &mut self,
+        device: &D,
+        additional: usize,
+    ) -> Result<bool, RenderError> {
         let additional =
             u64::try_from(additional).map_err(|_| molgfx_gpu::GpuError::LimitExceeded {
                 resource: "indirect argument slots",
@@ -113,7 +117,7 @@ impl<D: Device> IndirectArgsArena<D> {
     }
 
     /// Writes one draw's arguments into its slot.
-    pub(super) fn write(
+    pub(in crate::scene_gpu) fn write(
         &mut self,
         queue: &D::Queue,
         key: IndirectSlotKey,
@@ -150,14 +154,14 @@ impl<D: Device> IndirectArgsArena<D> {
     }
 
     /// Releases every slot no draw claimed this frame.
-    pub(super) fn retain(&mut self, live: &[IndirectSlotKey]) {
+    pub(in crate::scene_gpu) fn retain(&mut self, live: &[IndirectSlotKey]) {
         self.slots.retain(|(key, _)| live.contains(key));
         self.written.retain(|(key, _)| live.contains(key));
     }
 
     /// The arena buffer, bound as a whole.
     #[must_use]
-    pub(super) fn buffer(&self) -> Option<&D::Buffer> {
+    pub(in crate::scene_gpu) fn buffer(&self) -> Option<&D::Buffer> {
         self.buffer.as_ref()
     }
 

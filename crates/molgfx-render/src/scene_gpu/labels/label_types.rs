@@ -2,14 +2,14 @@
 
 use molgfx_math::{Rgba8, Vec3};
 
-pub(super) const OCCUPANCY_SLOTS: u64 = 4096;
-pub(super) const GLYPH_WIDTH: f32 = 10.0;
-pub(super) const GLYPH_HEIGHT: f32 = 16.0;
-pub(super) const GLYPH_ADVANCE: f32 = 11.0;
+pub(in crate::scene_gpu) const OCCUPANCY_SLOTS: u64 = 4096;
+pub(in crate::scene_gpu) const GLYPH_WIDTH: f32 = 10.0;
+pub(in crate::scene_gpu) const GLYPH_HEIGHT: f32 = 16.0;
+pub(in crate::scene_gpu) const GLYPH_ADVANCE: f32 = 11.0;
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct LabelHeaderGpu {
+pub(in crate::scene_gpu) struct LabelHeaderGpu {
     pub anchor_width: [f32; 4],
     pub bounds: [f32; 4],
     pub range: [u32; 4],
@@ -17,7 +17,7 @@ pub(super) struct LabelHeaderGpu {
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct LabelGpu {
+pub(in crate::scene_gpu) struct LabelGpu {
     pub start_size: [f32; 4],
     pub end_offset: [f32; 4],
     pub color: [f32; 4],
@@ -26,14 +26,14 @@ pub(super) struct LabelGpu {
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct LabelCountsGpu {
+pub(in crate::scene_gpu) struct LabelCountsGpu {
     pub header_count: u32,
     pub source_count: u32,
     pub occupancy_count: u32,
     pub padding: u32,
 }
 
-pub(super) fn glyph_record(
+pub(in crate::scene_gpu) fn glyph_record(
     anchor: Vec3,
     offset: [f32; 2],
     bits: u64,
@@ -51,7 +51,7 @@ pub(super) fn glyph_record(
     }
 }
 
-pub(super) fn line_record(
+pub(in crate::scene_gpu) fn line_record(
     start: Vec3,
     end: Vec3,
     width: f32,
@@ -67,7 +67,7 @@ pub(super) fn line_record(
     }
 }
 
-pub(super) fn marker_record(
+pub(in crate::scene_gpu) fn marker_record(
     anchor: Vec3,
     radius: f32,
     shape: molgfx_core::MarkerShape,
@@ -88,7 +88,7 @@ pub(super) fn marker_record(
     }
 }
 
-pub(super) fn glyph_bits(value: char) -> u64 {
+pub(in crate::scene_gpu) fn glyph_bits(value: char) -> u64 {
     glyph_rows(value)
         .iter()
         .enumerate()

@@ -11,7 +11,7 @@
 //! shader function. Categorical rules index the shared palette bank, which
 //! holds every built-in palette and is therefore identical in every block.
 
-use super::ramp_lut::RampLut;
+use crate::scene_gpu::ramp_lut::RampLut;
 use molgfx_core::{
     CategoryPalette, ColorColumns, ColorOverlay, ColorScheme, MAX_COLOR_OVERLAY_CLASSES,
     Representation,
@@ -177,7 +177,7 @@ impl ColorUniforms {
     }
 
     /// Writes this block into its buffer.
-    pub(super) fn write<D: Device>(self, queue: &D::Queue, buffer: &D::Buffer) {
+    pub(in crate::scene_gpu) fn write<D: Device>(self, queue: &D::Queue, buffer: &D::Buffer) {
         queue.write_buffer(buffer, 0, bytemuck::bytes_of(&self));
     }
 }

@@ -15,21 +15,21 @@ const INITIAL_ARENA_BYTES: u64 = 1 << 20;
 
 /// A generation-checked range in the immutable GPU asset arena.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct AssetRange {
+pub(in crate::scene_gpu) struct AssetRange {
     allocation: ArenaAllocation,
     binding_bytes: u64,
 }
 
 impl AssetRange {
-    pub(super) const fn offset(self) -> u64 {
+    pub(in crate::scene_gpu) const fn offset(self) -> u64 {
         self.allocation.byte_offset()
     }
 
-    pub(super) const fn binding_bytes(self) -> u64 {
+    pub(in crate::scene_gpu) const fn binding_bytes(self) -> u64 {
         self.binding_bytes
     }
 
-    pub(super) fn allocated_bytes(self) -> u64 {
+    pub(in crate::scene_gpu) fn allocated_bytes(self) -> u64 {
         u64::from(self.allocation.page_count()) * STORAGE_ALIGNMENT
     }
 }
@@ -58,7 +58,7 @@ pub enum AssetArenaError {
 }
 
 #[derive(Debug)]
-pub(super) struct AssetArena<D: Device> {
+pub(in crate::scene_gpu) struct AssetArena<D: Device> {
     buffer: D::Buffer,
     allocator: PagedArena,
     max_bytes: u64,
@@ -67,7 +67,7 @@ pub(super) struct AssetArena<D: Device> {
 }
 
 impl<D: Device> AssetArena<D> {
-    pub(super) fn new(device: &D) -> Result<Self, AssetArenaError> {
+    pub(in crate::scene_gpu) fn new(device: &D) -> Result<Self, AssetArenaError> {
         Self::with_initial_bytes(device, INITIAL_ARENA_BYTES)
     }
 
@@ -90,7 +90,7 @@ impl<D: Device> AssetArena<D> {
         })
     }
 
-    pub(super) fn upload(
+    pub(in crate::scene_gpu) fn upload(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -120,13 +120,20 @@ impl<D: Device> AssetArena<D> {
         })
     }
 
-    pub(super) fn release(&mut self, range: AssetRange) -> Result<(), AssetArenaError> {
+    pub(in crate::scene_gpu) fn release(
+        &mut self,
+        range: AssetRange,
+    ) -> Result<(), AssetArenaError> {
         self.allocator.release(range.allocation)?;
         self.refresh_resident_metrics();
         Ok(())
     }
 
-    pub(super) fn entry(&self, binding: u32, range: AssetRange) -> BindGroupEntry<'_, D> {
+    pub(in crate::scene_gpu) fn entry(
+        &self,
+        binding: u32,
+        range: AssetRange,
+    ) -> BindGroupEntry<'_, D> {
         BindGroupEntry::BufferRange {
             binding,
             buffer: &self.buffer,
@@ -136,15 +143,15 @@ impl<D: Device> AssetArena<D> {
     }
 
     #[cfg(test)]
-    pub(super) const fn buffer(&self) -> &D::Buffer {
+    pub(in crate::scene_gpu) const fn buffer(&self) -> &D::Buffer {
         &self.buffer
     }
 
-    pub(super) const fn revision(&self) -> u64 {
+    pub(in crate::scene_gpu) const fn revision(&self) -> u64 {
         self.revision
     }
 
-    pub(super) const fn metrics(&self) -> ImmutableArenaMetrics {
+    pub(in crate::scene_gpu) const fn metrics(&self) -> ImmutableArenaMetrics {
         self.metrics
     }
 

@@ -5,7 +5,7 @@ use super::label_types::{
     GLYPH_ADVANCE, GLYPH_HEIGHT, GLYPH_WIDTH, LabelGpu, LabelHeaderGpu, glyph_bits, glyph_record,
     marker_record,
 };
-use super::structure::GpuStructure;
+use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::{
     Annotation, AnnotationHandle, AnnotationKind, EntityId, EntityKind, Measurement,
     MeasurementHandle, Scene,
@@ -35,7 +35,7 @@ impl Source<'_> {
     }
 }
 
-pub(super) fn pack_labels<D: Device>(
+pub(in crate::scene_gpu) fn pack_labels<D: Device>(
     scene: &Scene,
     structures: &[GpuStructure<D>],
     headers: &mut Vec<LabelHeaderGpu>,

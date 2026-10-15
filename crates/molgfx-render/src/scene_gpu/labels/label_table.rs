@@ -1,15 +1,15 @@
 //! Persistent analytic label table and its GPU decluttering resources.
 
-use super::buffers::{count, upload_grow, write_draw_args};
 use super::label_pack::pack_labels;
 use super::label_types::{LabelCountsGpu, LabelGpu, LabelHeaderGpu, OCCUPANCY_SLOTS};
-use super::structure::GpuStructure;
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::{count, upload_grow, write_draw_args};
+use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::Scene;
 use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
 
 #[derive(Debug)]
-pub(super) struct GpuLabels<D: Device> {
+pub(in crate::scene_gpu) struct GpuLabels<D: Device> {
     headers: Option<D::Buffer>,
     source: Option<D::Buffer>,
     visible: Option<D::Buffer>,
@@ -29,7 +29,7 @@ pub(super) struct GpuLabels<D: Device> {
 }
 
 impl<D: Device> GpuLabels<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             headers: None,
             source: None,
@@ -50,7 +50,7 @@ impl<D: Device> GpuLabels<D> {
         }
     }
 
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -185,15 +185,15 @@ impl<D: Device> GpuLabels<D> {
         }));
     }
 
-    pub(super) fn declutter(&self) -> Option<&D::BindGroup> {
+    pub(in crate::scene_gpu) fn declutter(&self) -> Option<&D::BindGroup> {
         (self.header_count > 0).then_some(self.compute_group.as_ref()?)
     }
 
-    pub(super) fn draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
+    pub(in crate::scene_gpu) fn draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
         (self.source_count > 0).then_some((self.render_group.as_ref()?, self.args.as_ref()?))
     }
 
-    pub(super) const fn has_visible(&self) -> bool {
+    pub(in crate::scene_gpu) const fn has_visible(&self) -> bool {
         self.source_count > 0
     }
 }

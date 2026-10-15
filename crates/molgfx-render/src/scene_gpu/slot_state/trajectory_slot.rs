@@ -1,9 +1,9 @@
 //! Persistent coordinate storage for one placed structure: two frames, plus the
 //! neighbouring `before`/`after` frames only while cubic Hermite is selected.
 
-use super::buffers::buffer_entry;
-use super::grow_buffer::grow_capacity;
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::grow_buffer::grow_capacity;
 use molgfx_core::{InterpolationKind, TrajectoryFrame, TrajectorySegment};
 use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, ComputePassEncoder, Device, Queue};
 
@@ -24,8 +24,8 @@ struct TrajectoryUniforms {
 /// What a sync changed, so the caller can re-record or rebind.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TrajectorySync {
-    pub(super) changed: bool,
-    pub(super) coordinate_binding_changed: bool,
+    pub(in crate::scene_gpu) changed: bool,
+    pub(in crate::scene_gpu) coordinate_binding_changed: bool,
 }
 
 /// Four equal buffers are held per trajectory, so the rounding waste is paid
@@ -374,7 +374,7 @@ impl<D: Device> GpuTrajectory<D> {
         }
     }
 
-    pub(super) const fn dirty(&self) -> bool {
+    pub(in crate::scene_gpu) const fn dirty(&self) -> bool {
         self.active && self.dirty
     }
 
@@ -399,7 +399,7 @@ const OUTPUT_USAGE: BufferUsage = BufferUsage::STORAGE.union(BufferUsage::COPY_S
 
 fn trajectory_dispatch_groups(atom_count: u32) -> [u32; 2] {
     let coordinates = u64::from(atom_count) * 3;
-    super::dispatch::workgroups_2d(coordinates.div_ceil(64))
+    crate::scene_gpu::dispatch::workgroups_2d(coordinates.div_ceil(64))
 }
 
 #[cfg(test)]

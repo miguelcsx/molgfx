@@ -18,7 +18,7 @@ pub(crate) struct GpuAssetIdentity {
 }
 
 impl GpuAssetIdentity {
-    pub(super) fn from_placed(placed: &PlacedStructure) -> Self {
+    pub(in crate::scene_gpu) fn from_placed(placed: &PlacedStructure) -> Self {
         let mut fingerprint = Fingerprint::new();
         fingerprint.bytes(placed.atoms.coords().as_bytes());
         fingerprint.column(placed.atoms.element().values());
@@ -34,7 +34,7 @@ impl GpuAssetIdentity {
         }
     }
 
-    pub(super) fn conflicts_with(self, other: Self) -> bool {
+    pub(in crate::scene_gpu) fn conflicts_with(self, other: Self) -> bool {
         self.dataset == other.dataset
             && self.coordinate_generation == other.coordinate_generation
             && self.fingerprint != other.fingerprint
@@ -43,8 +43,8 @@ impl GpuAssetIdentity {
 
 /// Physical buffers for one immutable structure asset.
 #[derive(Debug)]
-pub(super) struct GpuAsset<D: Device> {
-    pub(super) identity: GpuAssetIdentity,
+pub(in crate::scene_gpu) struct GpuAsset<D: Device> {
+    pub(in crate::scene_gpu) identity: GpuAssetIdentity,
     coordinates: AssetRange,
     bvh_nodes: AssetRange,
     bvh_indices: AssetRange,
@@ -53,7 +53,7 @@ pub(super) struct GpuAsset<D: Device> {
 }
 
 impl<D: Device> GpuAsset<D> {
-    pub(super) fn upload(
+    pub(in crate::scene_gpu) fn upload(
         device: &D,
         queue: &D::Queue,
         arena: &mut AssetArena<D>,
@@ -107,23 +107,26 @@ impl<D: Device> GpuAsset<D> {
         })
     }
 
-    pub(super) const fn coordinates(&self) -> AssetRange {
+    pub(in crate::scene_gpu) const fn coordinates(&self) -> AssetRange {
         self.coordinates
     }
 
-    pub(super) const fn bvh_nodes(&self) -> AssetRange {
+    pub(in crate::scene_gpu) const fn bvh_nodes(&self) -> AssetRange {
         self.bvh_nodes
     }
 
-    pub(super) const fn bvh_indices(&self) -> AssetRange {
+    pub(in crate::scene_gpu) const fn bvh_indices(&self) -> AssetRange {
         self.bvh_indices
     }
 
-    pub(super) const fn resident_bytes(&self) -> u64 {
+    pub(in crate::scene_gpu) const fn resident_bytes(&self) -> u64 {
         self.resident_bytes
     }
 
-    pub(super) fn release(&self, arena: &mut AssetArena<D>) -> Result<(), RenderError> {
+    pub(in crate::scene_gpu) fn release(
+        &self,
+        arena: &mut AssetArena<D>,
+    ) -> Result<(), RenderError> {
         arena.release(self.coordinates)?;
         arena.release(self.bvh_nodes)?;
         arena.release(self.bvh_indices)?;

@@ -1,7 +1,6 @@
 //! Borrowed synchronization inputs and stable representation-slot keys.
 
-use super::asset_arena::AssetArena;
-use super::structure::GpuStructure;
+use crate::scene_gpu::{asset_arena::AssetArena, structure::GpuStructure};
 use molgfx_core::{
     AtomSelection, ClipSet, ColorScheme, Material, PlacedStructure, Representation,
     RepresentationHandle, RepresentationKind, RepresentationParams, RepresentationTarget,
@@ -9,11 +8,11 @@ use molgfx_core::{
 };
 use molgfx_gpu::Device;
 
-pub(crate) use super::draw_family::{
+pub(crate) use crate::scene_gpu::draw_family::{
     DRAW_FAMILIES, DrawArgs, DrawFamily, DrawSpecializations, QualityDraw, RibbonDraw,
 };
 
-pub(super) use super::buffers::CullCounts;
+pub(in super::super) use crate::scene_gpu::buffers::CullCounts;
 
 /// Which specialized pipeline one slot's draw needs.
 ///
@@ -98,18 +97,18 @@ impl SlotShading {
 /// row mask has no query to fingerprint and is identified by its handle.
 /// Stable identity of one resident representation slot.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub(super) struct SlotKey {
-    pub(super) structure: StructureHandle,
-    pub(super) representation: RepresentationHandle,
+pub(in super::super) struct SlotKey {
+    pub(in super::super) structure: StructureHandle,
+    pub(in super::super) representation: RepresentationHandle,
 }
 
 /// One frame's plan for a resident slot.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) struct SlotPlan {
-    pub(super) key: SlotKey,
-    pub(super) structure_index: usize,
-    pub(super) draw_order: usize,
-    pub(super) visible: bool,
+pub(in super::super) struct SlotPlan {
+    pub(in super::super) key: SlotKey,
+    pub(in super::super) structure_index: usize,
+    pub(in super::super) draw_order: usize,
+    pub(in super::super) visible: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -131,43 +130,43 @@ pub(crate) enum SelectionIdentity {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) struct SlotSynced {
-    pub(super) arguments: Option<(u64, u64, u64)>,
-    pub(super) visibility: super::VisibilityKey,
-    pub(super) quality: bool,
-    pub(super) detail: super::detail::TierDetail,
+pub(in super::super) struct SlotSynced {
+    pub(in super::super) arguments: Option<(u64, u64, u64)>,
+    pub(in super::super) visibility: crate::scene_gpu::VisibilityKey,
+    pub(in super::super) quality: bool,
+    pub(in super::super) detail: crate::scene_gpu::detail::TierDetail,
     /// Which shared record set this slot's draws resolve against.
-    pub(super) record_key: super::record_cache::RecordKey,
-    pub(super) representation: u64,
-    pub(super) presentation: PresentationState,
-    pub(super) records: RecordState,
-    pub(super) ribbon: RibbonState,
-    pub(super) color: u64,
-    pub(super) flags: u64,
-    pub(super) semantic: u64,
-    pub(super) properties: [u64; 2],
+    pub(in super::super) record_key: crate::scene_gpu::record_cache::RecordKey,
+    pub(in super::super) representation: u64,
+    pub(in super::super) presentation: PresentationState,
+    pub(in super::super) records: RecordState,
+    pub(in super::super) ribbon: RibbonState,
+    pub(in super::super) color: u64,
+    pub(in super::super) flags: u64,
+    pub(in super::super) semantic: u64,
+    pub(in super::super) properties: [u64; 2],
     /// The selection-scoped overlay and its class column's content revision:
     /// either changing rewrites the colour block and recolours ribbons.
-    pub(super) color_overlay: (Option<molgfx_core::ColorOverlay>, u64),
-    pub(super) visual_program: u64,
-    pub(super) visual_parameters: u64,
-    pub(super) visual_properties: [u64; 4],
-    pub(super) visual_property_binding: u64,
-    pub(super) visual_program_binding: u64,
-    pub(super) visual_parameter_binding: u64,
-    pub(super) visual_time: u64,
-    pub(super) secondary_structure: u64,
-    pub(super) bond_topology: u64,
-    pub(super) structure_binding: u64,
-    pub(super) coordinates: [u64; 2],
-    pub(super) spatial_bounds: [u64; 2],
-    pub(super) placement_transform: [u32; 16],
-    pub(super) overlay_binding: u64,
-    pub(super) cull_binding: u64,
+    pub(in super::super) color_overlay: (Option<molgfx_core::ColorOverlay>, u64),
+    pub(in super::super) visual_program: u64,
+    pub(in super::super) visual_parameters: u64,
+    pub(in super::super) visual_properties: [u64; 4],
+    pub(in super::super) visual_property_binding: u64,
+    pub(in super::super) visual_program_binding: u64,
+    pub(in super::super) visual_parameter_binding: u64,
+    pub(in super::super) visual_time: u64,
+    pub(in super::super) secondary_structure: u64,
+    pub(in super::super) bond_topology: u64,
+    pub(in super::super) structure_binding: u64,
+    pub(in super::super) coordinates: [u64; 2],
+    pub(in super::super) spatial_bounds: [u64; 2],
+    pub(in super::super) placement_transform: [u32; 16],
+    pub(in super::super) overlay_binding: u64,
+    pub(in super::super) cull_binding: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) struct PresentationState {
+pub(in super::super) struct PresentationState {
     material: Material,
     params: RepresentationParams,
     clipping: ClipSet,
@@ -182,7 +181,7 @@ pub(super) struct PresentationState {
 }
 
 impl PresentationState {
-    pub(super) const fn new(representation: &Representation) -> Self {
+    pub(in super::super) const fn new(representation: &Representation) -> Self {
         Self {
             material: representation.material,
             params: representation.params,
@@ -205,7 +204,7 @@ pub(crate) struct RecordState {
 }
 
 impl RecordState {
-    pub(super) fn new(representation: &Representation) -> Self {
+    pub(in super::super) fn new(representation: &Representation) -> Self {
         Self {
             target: representation.target,
             kind: kind_id(representation.kind),
@@ -221,38 +220,38 @@ impl RecordState {
         }
     }
 
-    pub(super) const fn target(&self) -> RepresentationTarget {
+    pub(in super::super) const fn target(&self) -> RepresentationTarget {
         self.target
     }
 
-    pub(super) const fn kind(&self) -> u8 {
+    pub(in super::super) const fn kind(&self) -> u8 {
         self.kind
     }
 
     /// The radius scalar as stored, so a geometry projection can order it.
-    pub(super) const fn radius_scale_bits(&self) -> u32 {
+    pub(in super::super) const fn radius_scale_bits(&self) -> u32 {
         self.radius_scale
     }
 
-    pub(super) const fn radius_scale(&self) -> u32 {
+    pub(in super::super) const fn radius_scale(&self) -> u32 {
         self.radius_scale
     }
 
-    pub(super) const fn distance_cutoff(&self) -> u32 {
+    pub(in super::super) const fn distance_cutoff(&self) -> u32 {
         self.distance_cutoff
     }
 
-    pub(super) const fn bond_radius(&self) -> u32 {
+    pub(in super::super) const fn bond_radius(&self) -> u32 {
         self.bond_radius
     }
 
-    pub(super) const fn surface(&self) -> [u32; 4] {
+    pub(in super::super) const fn surface(&self) -> [u32; 4] {
         self.surface
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) struct RibbonState {
+pub(in super::super) struct RibbonState {
     surface_geometry: u64,
     surface_wire: bool,
     cutoff: u32,
@@ -274,7 +273,7 @@ pub(super) struct RibbonState {
 }
 
 impl RibbonState {
-    pub(super) fn new(representation: &Representation, steps: u8) -> Self {
+    pub(in super::super) fn new(representation: &Representation, steps: u8) -> Self {
         Self {
             steps,
             surface_geometry: representation
@@ -315,7 +314,7 @@ pub(crate) const FAST_POINT_INDEX_LIMIT: u32 = 1 << 24;
 /// cull shaders vary on. Appearance is deliberately absent.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub(crate) struct CullPolicy {
-    pub(crate) records: super::record_cache::RecordKey,
+    pub(crate) records: crate::scene_gpu::record_cache::RecordKey,
     pub(crate) kind: RepresentationKind,
     pub(crate) visual_enabled: bool,
     pub(crate) lod_enabled: bool,
@@ -328,7 +327,7 @@ pub(crate) struct CullPolicy {
 
 impl CullPolicy {
     pub(crate) fn new(
-        records: super::RecordKey,
+        records: crate::scene_gpu::RecordKey,
         representation: &Representation,
         placed: &PlacedStructure,
         lod_enabled: bool,
@@ -347,8 +346,8 @@ impl CullPolicy {
             },
         }
     }
-    pub(crate) fn visibility_key(self, atoms: u32, bonds: u32) -> super::VisibilityKey {
-        super::VisibilityKey {
+    pub(crate) fn visibility_key(self, atoms: u32, bonds: u32) -> crate::scene_gpu::VisibilityKey {
+        crate::scene_gpu::VisibilityKey {
             records: self.records,
             lod_mode: lod_mode(atoms, bonds, self.kind, self.lod_enabled, self.opaque),
             visual_enabled: self.visual_enabled,
@@ -431,66 +430,67 @@ fn kind_id(kind: RepresentationKind) -> u8 {
     }
 }
 
-pub(super) struct SlotSync<'a, D: Device> {
-    pub(super) device: &'a D,
-    pub(super) queue: &'a D::Queue,
+pub(in super::super) struct SlotSync<'a, D: Device> {
+    pub(in super::super) device: &'a D,
+    pub(in super::super) queue: &'a D::Queue,
     /// The shared packed records this slot draws from.
-    pub(super) records: super::record_cache::RecordSetRef<'a, D>,
+    pub(in super::super) records: crate::scene_gpu::record_cache::RecordSetRef<'a, D>,
     /// The scene-wide surface fields this slot's textures come from.
-    pub(super) surface_fields: &'a super::surface_cache::SurfaceFieldCache<D>,
+    pub(in super::super) surface_fields: &'a crate::scene_gpu::surface_cache::SurfaceFieldCache<D>,
     /// The shared visible set and cull counts for this slot's visibility key.
-    pub(super) visibility: super::visibility_cache::VisibilitySetRef<'a, D>,
+    pub(in super::super) visibility: crate::scene_gpu::visibility_cache::VisibilitySetRef<'a, D>,
     /// Byte offsets of this slot's argument slots in the scene arena.
-    pub(super) args: Option<(u64, u64, u64)>,
+    pub(in super::super) args: Option<(u64, u64, u64)>,
     /// The scene arena the cull groups bind as ranged slices.
-    pub(super) draw_arena: Option<&'a D::Buffer>,
+    pub(in super::super) draw_arena: Option<&'a D::Buffer>,
     /// The shared quality hierarchy, or `None` in a realtime frame.
-    pub(super) acceleration_draw: Option<&'a super::acceleration_cache::SharedAcceleration<D>>,
-    pub(super) layout: &'a D::BindGroupLayout,
-    pub(super) quality_layout: &'a D::BindGroupLayout,
-    pub(super) ray_query_layout: Option<&'a D::BindGroupLayout>,
-    pub(super) ribbon_layout: &'a D::BindGroupLayout,
-    pub(super) helix_fit_layout: &'a D::BindGroupLayout,
-    pub(super) atom_cull_layout: &'a D::BindGroupLayout,
-    pub(super) bond_cull_layout: &'a D::BindGroupLayout,
-    pub(super) visual_cull_layout: &'a D::BindGroupLayout,
-    pub(super) surface_field_fallback: &'a D::TextureView,
-    pub(super) overlay_volume: Option<&'a ScalarVolume>,
-    pub(super) overlay_view: &'a D::TextureView,
-    pub(super) overlay_binding_revision: u64,
-    pub(super) quality: bool,
-    pub(super) detail: super::detail::TierDetail,
-    pub(super) frame: &'a D::Buffer,
-    pub(super) cull_tiles: &'a D::Buffer,
-    pub(super) cull_binding_revision: u64,
-    pub(super) structure_gpu: &'a GpuStructure<D>,
-    pub(super) asset_arena: &'a AssetArena<D>,
-    pub(super) asset_identity: super::asset::GpuAssetIdentity,
+    pub(in super::super) acceleration_draw:
+        Option<&'a crate::scene_gpu::acceleration_cache::SharedAcceleration<D>>,
+    pub(in super::super) layout: &'a D::BindGroupLayout,
+    pub(in super::super) quality_layout: &'a D::BindGroupLayout,
+    pub(in super::super) ray_query_layout: Option<&'a D::BindGroupLayout>,
+    pub(in super::super) ribbon_layout: &'a D::BindGroupLayout,
+    pub(in super::super) helix_fit_layout: &'a D::BindGroupLayout,
+    pub(in super::super) atom_cull_layout: &'a D::BindGroupLayout,
+    pub(in super::super) bond_cull_layout: &'a D::BindGroupLayout,
+    pub(in super::super) visual_cull_layout: &'a D::BindGroupLayout,
+    pub(in super::super) surface_field_fallback: &'a D::TextureView,
+    pub(in super::super) overlay_volume: Option<&'a ScalarVolume>,
+    pub(in super::super) overlay_view: &'a D::TextureView,
+    pub(in super::super) overlay_binding_revision: u64,
+    pub(in super::super) quality: bool,
+    pub(in super::super) detail: crate::scene_gpu::detail::TierDetail,
+    pub(in super::super) frame: &'a D::Buffer,
+    pub(in super::super) cull_tiles: &'a D::Buffer,
+    pub(in super::super) cull_binding_revision: u64,
+    pub(in super::super) structure_gpu: &'a GpuStructure<D>,
+    pub(in super::super) asset_arena: &'a AssetArena<D>,
+    pub(in super::super) asset_identity: crate::scene_gpu::asset::GpuAssetIdentity,
     /// The scene, for canonical query identity.
-    pub(super) scene: &'a Scene,
-    pub(super) placed: &'a PlacedStructure,
-    pub(super) representation: &'a Representation,
-    pub(super) representation_revision: u64,
-    pub(super) selection: &'a AtomSelection,
+    pub(in super::super) scene: &'a Scene,
+    pub(in super::super) placed: &'a PlacedStructure,
+    pub(in super::super) representation: &'a Representation,
+    pub(in super::super) representation_revision: u64,
+    pub(in super::super) selection: &'a AtomSelection,
     /// Handle of `selection`, needed to key the shared packed records.
-    pub(super) selection_handle: molgfx_core::SelectionHandle,
-    pub(super) color: molgfx_geometry::ColorContext<'a>,
-    pub(super) property_revisions: [u64; 2],
-    pub(super) visual_property_buffer: Option<&'a D::Buffer>,
-    pub(super) visual_program_buffer: Option<&'a D::Buffer>,
-    pub(super) visual_program_offset: u32,
-    pub(super) visual_program_binding_revision: u64,
-    pub(super) visual_parameter_buffer: Option<&'a D::Buffer>,
-    pub(super) visual_parameter_offset: u32,
-    pub(super) visual_parameter_binding_revision: u64,
-    pub(super) visual_property_offsets: [u32; 4],
-    pub(super) visual_attribute_layouts: [u32; 4],
-    pub(super) visual_state_offset: u32,
-    pub(super) visual_property_binding_revision: u64,
-    pub(super) visual_property_revisions: [u64; 4],
-    pub(super) visual_time_seconds: f32,
-    pub(super) visual_time_revision: u64,
-    pub(super) ribbon: &'a mut molgfx_geometry::RibbonMesh,
+    pub(in super::super) selection_handle: molgfx_core::SelectionHandle,
+    pub(in super::super) color: molgfx_geometry::ColorContext<'a>,
+    pub(in super::super) property_revisions: [u64; 2],
+    pub(in super::super) visual_property_buffer: Option<&'a D::Buffer>,
+    pub(in super::super) visual_program_buffer: Option<&'a D::Buffer>,
+    pub(in super::super) visual_program_offset: u32,
+    pub(in super::super) visual_program_binding_revision: u64,
+    pub(in super::super) visual_parameter_buffer: Option<&'a D::Buffer>,
+    pub(in super::super) visual_parameter_offset: u32,
+    pub(in super::super) visual_parameter_binding_revision: u64,
+    pub(in super::super) visual_property_offsets: [u32; 4],
+    pub(in super::super) visual_attribute_layouts: [u32; 4],
+    pub(in super::super) visual_state_offset: u32,
+    pub(in super::super) visual_property_binding_revision: u64,
+    pub(in super::super) visual_property_revisions: [u64; 4],
+    pub(in super::super) visual_time_seconds: f32,
+    pub(in super::super) visual_time_revision: u64,
+    pub(in super::super) ribbon: &'a mut molgfx_geometry::RibbonMesh,
 }
 
 pub(crate) use super::slot_culling::{CullDispatch, CullModes};

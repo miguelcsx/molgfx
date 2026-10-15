@@ -9,7 +9,7 @@ use molgfx_gpu::{BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
 #[path = "buffers_tests.rs"]
 mod tests;
 
-pub(super) fn create_cull_tiles<D: Device>(
+pub(in crate::scene_gpu) fn create_cull_tiles<D: Device>(
     device: &D,
     bytes: u64,
 ) -> Result<(D::Buffer, u64), RenderError> {
@@ -28,7 +28,7 @@ pub(super) fn create_cull_tiles<D: Device>(
 /// scenes big enough to use it, and capped at the storage binding every
 /// backend guarantees. A buffer under the cap is too small for the shader's own
 /// check, which then draws every atom rather than cull on a partial plane.
-pub(super) fn cull_tiles_bytes(extent: [u32; 2], tiles: u32, occlusion: bool) -> u64 {
+pub(in crate::scene_gpu) fn cull_tiles_bytes(extent: [u32; 2], tiles: u32, occlusion: bool) -> u64 {
     const WORD: u64 = std::mem::size_of::<u32>() as u64;
     const BINDING_CAP: u64 = 128 << 20;
     let tile_bytes = u64::from(tiles) * WORD;
@@ -42,7 +42,7 @@ pub(super) fn cull_tiles_bytes(extent: [u32; 2], tiles: u32, occlusion: bool) ->
     bytes.max(256)
 }
 
-pub(super) fn upload_grow<D: Device, T: bytemuck::Pod>(
+pub(in crate::scene_gpu) fn upload_grow<D: Device, T: bytemuck::Pod>(
     device: &D,
     queue: &D::Queue,
     label: &'static str,
@@ -63,7 +63,7 @@ pub(super) fn upload_grow<D: Device, T: bytemuck::Pod>(
 ///
 /// The cull shader writes instance counts at "offset zero" of its own view, so
 /// a slot binds a range starting at its own slot rather than the whole arena.
-pub(super) fn arena_range<D: Device>(
+pub(in crate::scene_gpu) fn arena_range<D: Device>(
     binding: u32,
     arena: &D::Buffer,
     offset: u64,
@@ -80,7 +80,7 @@ pub(super) fn arena_range<D: Device>(
 ///
 /// This is the streaming counterpart to [`upload_grow`]: callers can reserve
 /// the final table once and fill it through bounded chunks.
-pub(super) fn ensure_upload_buffer<D: Device>(
+pub(in crate::scene_gpu) fn ensure_upload_buffer<D: Device>(
     device: &D,
     label: &'static str,
     needed: u64,
@@ -120,32 +120,32 @@ fn grow_capacity(needed: u64, limit: u64, label: &'static str) -> Result<u64, Re
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct CullCounts {
-    pub(super) atoms: u32,
-    pub(super) bonds: u32,
-    pub(super) lod_enabled: u32,
-    pub(super) padding: u32,
+pub(in crate::scene_gpu) struct CullCounts {
+    pub(in crate::scene_gpu) atoms: u32,
+    pub(in crate::scene_gpu) bonds: u32,
+    pub(in crate::scene_gpu) lod_enabled: u32,
+    pub(in crate::scene_gpu) padding: u32,
     /// Model-space length past which a stretched bond is culled; zero disables.
-    pub(super) bond_break_length: f32,
+    pub(in crate::scene_gpu) bond_break_length: f32,
     /// One when a typed visual result table should affect culling/shading.
-    pub(super) visual_enabled: u32,
-    pub(super) atom_bvh_nodes: u32,
-    pub(super) atom_bvh_indices: u32,
-    pub(super) quality_bvh_nodes: u32,
-    pub(super) quality_bvh_indices: u32,
+    pub(in crate::scene_gpu) visual_enabled: u32,
+    pub(in crate::scene_gpu) atom_bvh_nodes: u32,
+    pub(in crate::scene_gpu) atom_bvh_indices: u32,
+    pub(in crate::scene_gpu) quality_bvh_nodes: u32,
+    pub(in crate::scene_gpu) quality_bvh_indices: u32,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub(super) struct CullCountInput {
-    pub(super) atoms: u32,
-    pub(super) bonds: u32,
-    pub(super) lod_mode: u32,
-    pub(super) bond_break_length: f32,
-    pub(super) visual_enabled: bool,
-    pub(super) atom_bvh_nodes: u32,
-    pub(super) atom_bvh_indices: u32,
-    pub(super) quality_bvh_nodes: u32,
-    pub(super) quality_bvh_indices: u32,
+pub(in crate::scene_gpu) struct CullCountInput {
+    pub(in crate::scene_gpu) atoms: u32,
+    pub(in crate::scene_gpu) bonds: u32,
+    pub(in crate::scene_gpu) lod_mode: u32,
+    pub(in crate::scene_gpu) bond_break_length: f32,
+    pub(in crate::scene_gpu) visual_enabled: bool,
+    pub(in crate::scene_gpu) atom_bvh_nodes: u32,
+    pub(in crate::scene_gpu) atom_bvh_indices: u32,
+    pub(in crate::scene_gpu) quality_bvh_nodes: u32,
+    pub(in crate::scene_gpu) quality_bvh_indices: u32,
 }
 
 impl From<CullCountInput> for CullCounts {
@@ -170,7 +170,7 @@ impl From<CullCountInput> for CullCounts {
 }
 
 /// Writes cull counts into an already-allocated buffer.
-pub(super) fn write_counts_into<D: Device>(
+pub(in crate::scene_gpu) fn write_counts_into<D: Device>(
     queue: &D::Queue,
     buffer: &D::Buffer,
     input: CullCountInput,
@@ -178,7 +178,7 @@ pub(super) fn write_counts_into<D: Device>(
     queue.write_buffer(buffer, 0, bytemuck::bytes_of(&CullCounts::from(input)));
 }
 
-pub(super) fn write_draw_args<D: Device>(
+pub(in crate::scene_gpu) fn write_draw_args<D: Device>(
     device: &D,
     queue: &D::Queue,
     label: &'static str,
@@ -209,7 +209,7 @@ pub(super) fn write_draw_args<D: Device>(
     Ok(())
 }
 
-pub(super) fn ensure_indices<D: Device>(
+pub(in crate::scene_gpu) fn ensure_indices<D: Device>(
     device: &D,
     label: &'static str,
     count: u32,
@@ -228,10 +228,13 @@ pub(super) fn ensure_indices<D: Device>(
     Ok(())
 }
 
-pub(super) fn buffer_entry<D: Device>(binding: u32, buffer: &D::Buffer) -> BindGroupEntry<'_, D> {
+pub(in crate::scene_gpu) fn buffer_entry<D: Device>(
+    binding: u32,
+    buffer: &D::Buffer,
+) -> BindGroupEntry<'_, D> {
     BindGroupEntry::Buffer { binding, buffer }
 }
 
-pub(super) fn count(len: usize) -> u32 {
+pub(in crate::scene_gpu) fn count(len: usize) -> u32 {
     crate::fallback(u32::try_from(len), u32::MAX)
 }

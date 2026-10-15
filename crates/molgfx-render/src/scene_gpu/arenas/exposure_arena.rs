@@ -4,9 +4,9 @@
 //! uploads each run of samples just before the submission that records it; bank
 //! reuse requires the final fence.
 
-use super::FrameUniforms;
-use super::sync::GpuScene;
 use crate::RenderError;
+use crate::scene_gpu::FrameUniforms;
+use crate::scene_gpu::sync::GpuScene;
 use molgfx_gpu::{
     BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, FenceValue, Queue,
 };
@@ -16,18 +16,21 @@ pub(crate) const EXPOSURE_SAMPLES: usize = 64;
 const BANKS: usize = 3;
 
 #[derive(Debug)]
-pub(super) struct ExposureArena<D: Device> {
+pub(in crate::scene_gpu) struct ExposureArena<D: Device> {
     buffer: D::Buffer,
     groups: Vec<D::BindGroup>,
     staging: Vec<u8>,
     stride: usize,
     fences: [FenceValue; BANKS],
     active: Option<usize>,
-    pub(super) uploaded_bytes: u64,
+    pub(in crate::scene_gpu) uploaded_bytes: u64,
 }
 
 impl<D: Device> ExposureArena<D> {
-    pub(super) fn new(device: &D, layout: &D::BindGroupLayout) -> Result<Self, RenderError> {
+    pub(in crate::scene_gpu) fn new(
+        device: &D,
+        layout: &D::BindGroupLayout,
+    ) -> Result<Self, RenderError> {
         let size = std::mem::size_of::<FrameUniforms>();
         let alignment = device.capabilities().min_uniform_buffer_offset_alignment as usize;
         if alignment == 0 || !alignment.is_power_of_two() {
@@ -64,19 +67,19 @@ impl<D: Device> ExposureArena<D> {
         })
     }
 
-    pub(super) fn available(&self, completed: FenceValue) -> Option<usize> {
+    pub(in crate::scene_gpu) fn available(&self, completed: FenceValue) -> Option<usize> {
         self.fences.iter().position(|fence| *fence <= completed)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(super) fn oldest(&self) -> FenceValue {
+    pub(in crate::scene_gpu) fn oldest(&self) -> FenceValue {
         self.fences[1..]
             .iter()
             .copied()
             .fold(self.fences[0], std::cmp::min)
     }
 
-    pub(super) fn stage(
+    pub(in crate::scene_gpu) fn stage(
         &mut self,
         bank: usize,
         sample: usize,
@@ -96,7 +99,12 @@ impl<D: Device> ExposureArena<D> {
         Ok(())
     }
 
-    pub(super) fn upload(&mut self, queue: &D::Queue, bank: usize, run: Range<usize>) {
+    pub(in crate::scene_gpu) fn upload(
+        &mut self,
+        queue: &D::Queue,
+        bank: usize,
+        run: Range<usize>,
+    ) {
         let bytes = &self.staging[run.start * self.stride..run.end * self.stride];
         queue.write_buffer(
             &self.buffer,
@@ -106,12 +114,17 @@ impl<D: Device> ExposureArena<D> {
         self.uploaded_bytes = self.uploaded_bytes.saturating_add(bytes.len() as u64);
     }
 
-    pub(super) fn submit(&mut self, bank: usize, fence: FenceValue, group: &mut D::BindGroup) {
+    pub(in crate::scene_gpu) fn submit(
+        &mut self,
+        bank: usize,
+        fence: FenceValue,
+        group: &mut D::BindGroup,
+    ) {
         self.fences[bank] = fence;
         self.restore(group);
     }
 
-    pub(super) fn restore(&mut self, group: &mut D::BindGroup) {
+    pub(in crate::scene_gpu) fn restore(&mut self, group: &mut D::BindGroup) {
         if let Some(index) = self.active.take() {
             std::mem::swap(group, &mut self.groups[index]);
         }

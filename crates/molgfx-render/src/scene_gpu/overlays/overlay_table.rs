@@ -1,8 +1,8 @@
 //! Persistent screen-overlay records rebuilt only after overlay edits.
 
-use super::buffers::{count, upload_grow, write_draw_args};
-use super::label_types::glyph_bits;
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::{count, upload_grow, write_draw_args};
+use crate::scene_gpu::label_types::glyph_bits;
 use molgfx_core::{OverlayContent, Scene};
 use molgfx_gpu::{BindGroupDesc, BindGroupEntry, Device};
 
@@ -17,7 +17,7 @@ struct OverlayGpu {
 }
 
 #[derive(Debug)]
-pub(super) struct GpuOverlays<D: Device> {
+pub(in crate::scene_gpu) struct GpuOverlays<D: Device> {
     records: Option<D::Buffer>,
     args: Option<D::Buffer>,
     group: Option<D::BindGroup>,
@@ -28,7 +28,7 @@ pub(super) struct GpuOverlays<D: Device> {
 }
 
 impl<D: Device> GpuOverlays<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             records: None,
             args: None,
@@ -40,7 +40,7 @@ impl<D: Device> GpuOverlays<D> {
         }
     }
 
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -90,7 +90,7 @@ impl<D: Device> GpuOverlays<D> {
         }));
     }
 
-    pub(super) fn draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
+    pub(in crate::scene_gpu) fn draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
         (self.count > 0).then_some((self.group.as_ref()?, self.args.as_ref()?))
     }
 }

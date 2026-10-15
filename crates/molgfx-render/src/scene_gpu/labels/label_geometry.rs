@@ -13,7 +13,7 @@ struct ArcStyle {
     structure: u32,
 }
 
-pub(super) fn measurement_guides(
+pub(in crate::scene_gpu) fn measurement_guides(
     output: &mut Vec<LabelGpu>,
     value: &Measurement,
     entity: u32,

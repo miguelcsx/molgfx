@@ -23,7 +23,7 @@ const OCTAVE_STEPS: u64 = 8;
 
 /// A grow-only device buffer and the capacity it currently holds.
 #[derive(Debug)]
-pub(super) struct GrowBuffer<D: Device> {
+pub(in crate::scene_gpu) struct GrowBuffer<D: Device> {
     buffer: Option<D::Buffer>,
     capacity: u64,
     usage: BufferUsage,
@@ -37,7 +37,7 @@ impl<D: Device> Default for GrowBuffer<D> {
 
 impl<D: Device> GrowBuffer<D> {
     /// An empty buffer that has not been allocated yet.
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             buffer: None,
             capacity: 0,
@@ -46,7 +46,7 @@ impl<D: Device> GrowBuffer<D> {
     }
 
     /// An index allocation that does not occupy a shader storage binding.
-    pub(super) const fn index() -> Self {
+    pub(in crate::scene_gpu) const fn index() -> Self {
         Self {
             buffer: None,
             capacity: 0,
@@ -55,7 +55,7 @@ impl<D: Device> GrowBuffer<D> {
     }
 
     /// The device buffer, once something has been written to it.
-    pub(super) const fn get(&self) -> Option<&D::Buffer> {
+    pub(in crate::scene_gpu) const fn get(&self) -> Option<&D::Buffer> {
         self.buffer.as_ref()
     }
 
@@ -68,7 +68,7 @@ impl<D: Device> GrowBuffer<D> {
     ///
     /// Returns [`RenderError`] when the records exceed the device's storage
     /// limit or the allocation fails.
-    pub(super) fn upload<T: bytemuck::Pod>(
+    pub(in crate::scene_gpu) fn upload<T: bytemuck::Pod>(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -93,7 +93,7 @@ impl<D: Device> GrowBuffer<D> {
     ///
     /// Returns [`RenderError`] when `needed` exceeds the device's storage limit
     /// or the allocation fails.
-    pub(super) fn reserve(
+    pub(in crate::scene_gpu) fn reserve(
         &mut self,
         device: &D,
         label: &'static str,
@@ -131,7 +131,7 @@ impl<D: Device> GrowBuffer<D> {
 /// A power of two wastes up to half of a large table, which is resident device
 /// memory; an eighth of an octave wastes at most an eighth and still lets a
 /// table that grows steadily reuse its allocation for many appends.
-pub(super) fn grow_capacity(
+pub(in crate::scene_gpu) fn grow_capacity(
     needed: u64,
     limit: u64,
     label: &'static str,
@@ -159,7 +159,7 @@ pub(super) fn grow_capacity(
 /// the start and end frames. It is planned only when its single output buffer
 /// fits the binding, so a batch past the limit keeps interpolating on the fly
 /// instead of failing the whole frame on a cache it does not need.
-pub(super) const fn fits_one_binding(bytes: u64, limit: u64) -> bool {
+pub(in crate::scene_gpu) const fn fits_one_binding(bytes: u64, limit: u64) -> bool {
     bytes <= limit
 }
 

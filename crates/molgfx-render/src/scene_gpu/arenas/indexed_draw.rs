@@ -13,13 +13,13 @@ struct IndexedArguments {
     first_instance: u32,
 }
 
-pub(super) struct IndexedDraw<'a, D: Device> {
-    pub(super) group: &'a D::BindGroup,
-    pub(super) arguments: &'a D::Buffer,
-    pub(super) indices: &'a D::Buffer,
+pub(in crate::scene_gpu) struct IndexedDraw<'a, D: Device> {
+    pub(in crate::scene_gpu) group: &'a D::BindGroup,
+    pub(in crate::scene_gpu) arguments: &'a D::Buffer,
+    pub(in crate::scene_gpu) indices: &'a D::Buffer,
 }
 
-pub(super) fn write_arguments<D: Device>(
+pub(in crate::scene_gpu) fn write_arguments<D: Device>(
     device: &D,
     queue: &D::Queue,
     label: &'static str,

@@ -284,7 +284,7 @@ impl<D: Device> GpuSlot<D> {
                 buffer_entry(20, visual.config),
                 match input
                     .acceleration
-                    .map(super::super::acceleration_cache::SharedAcceleration::hierarchy)
+                    .map(crate::scene_gpu::acceleration_cache::SharedAcceleration::hierarchy)
                     .and_then(|value| value.nodes())
                 {
                     Some(nodes) => buffer_entry(21, nodes),

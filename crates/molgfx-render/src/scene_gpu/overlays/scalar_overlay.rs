@@ -1,10 +1,10 @@
 //! Resolution of scalar-overlay scene handles to resident GPU resources.
 
-use super::volume_slot::GpuVolumeResource;
+use crate::scene_gpu::volume_slot::GpuVolumeResource;
 use molgfx_core::{Representation, ScalarVolume, Scene};
 use molgfx_gpu::Device;
 
-pub(super) fn resolve<'gpu, 'scene, D: Device>(
+pub(in crate::scene_gpu) fn resolve<'gpu, 'scene, D: Device>(
     resources: &'gpu [GpuVolumeResource<D>],
     scene: &'scene Scene,
     representation: &Representation,
