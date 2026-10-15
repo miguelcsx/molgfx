@@ -1,6 +1,6 @@
 //! Constant-time picking from the exact integer gbuffer silhouette.
 
-use super::Engine;
+use crate::engine::Engine;
 use crate::error::RenderError;
 use crate::passes::{
     ENTITY_RESOURCE, SEGMENT_LABEL_RESOURCE, SEGMENT_VOLUME_RESOURCE, STRUCTURE_RESOURCE,

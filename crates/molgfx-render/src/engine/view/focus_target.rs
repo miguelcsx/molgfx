@@ -5,7 +5,7 @@
 //! trajectory playback, endpoint centroids are interpolated in `O(structures)`;
 //! no atom rows are scanned and no coordinates are materialized per frame.
 
-use super::{Engine, FocusTarget};
+use crate::engine::{Engine, FocusTarget};
 use crate::error::RenderError;
 use molgfx_core::{AtomSelection, Scene, SelectionHandle, StructureHandle};
 use molgfx_gpu::Device;
@@ -115,7 +115,7 @@ impl FocusTracker {
 }
 
 impl<D: Device> Engine<D> {
-    pub(super) fn resolve_optics(
+    pub(in crate::engine) fn resolve_optics(
         &mut self,
         scene: &Scene,
         camera: &Camera,

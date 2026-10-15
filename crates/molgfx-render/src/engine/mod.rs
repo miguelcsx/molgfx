@@ -1,5 +1,11 @@
 //! The engine: owns the device, the graph and every pass's state.
 
+mod view;
+use view::depth_cue;
+use view::focus_target;
+use view::optics;
+use view::picking;
+
 mod style;
 use style::backdrop;
 use style::profile;
@@ -39,16 +45,12 @@ use chunk::chunk_residency_types;
 use chunk::derived_cache;
 
 mod config;
-mod depth_cue;
-mod focus_target;
 mod frame;
 mod graph_setup;
 mod graph_transparency;
 pub use stereo::{StereoImages, StereoLayout};
 mod init;
 mod lighting_environment;
-mod optics;
-mod picking;
 pub(crate) mod pipeline_cache;
 mod presentation;
 mod session;

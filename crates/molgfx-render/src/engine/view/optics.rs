@@ -1,6 +1,6 @@
 //! Camera-space optical presentation settings.
 
-use super::profile_numeric::{finite_clamp, lerp, unit};
+use crate::engine::profile_numeric::{finite_clamp, lerp, unit};
 use molgfx_core::SelectionHandle;
 use molgfx_math::Vec3;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ pub enum FocusTarget {
 }
 
 impl FocusTarget {
-    pub(super) fn sanitize(self) -> Self {
+    pub(in crate::engine) fn sanitize(self) -> Self {
         match self {
             Self::Distance(distance) if distance.is_finite() && distance > 0.0 => self,
             Self::WorldPoint(point) if point.is_finite() => self,
@@ -67,7 +67,7 @@ impl DepthOfField {
         }
     }
 
-    pub(super) fn sanitize(self) -> Self {
+    pub(in crate::engine) fn sanitize(self) -> Self {
         Self {
             focal_length_mm: finite_clamp(self.focal_length_mm, 1.0, 300.0, 50.0),
             f_number: finite_clamp(self.f_number, 0.7, 64.0, 4.0),
@@ -78,7 +78,7 @@ impl DepthOfField {
         }
     }
 
-    pub(super) fn blend(self, other: Self, weight: f32) -> Self {
+    pub(in crate::engine) fn blend(self, other: Self, weight: f32) -> Self {
         let weight = unit(weight);
         Self {
             focal_length_mm: lerp(self.focal_length_mm, other.focal_length_mm, weight),
@@ -129,14 +129,14 @@ impl MotionBlur {
         }
     }
 
-    pub(super) fn sanitize(self) -> Self {
+    pub(in crate::engine) fn sanitize(self) -> Self {
         Self {
             shutter: unit(self.shutter),
             max_blur_pixels: finite_clamp(self.max_blur_pixels, 0.0, 96.0, 18.0),
         }
     }
 
-    pub(super) fn blend(self, other: Self, weight: f32) -> Self {
+    pub(in crate::engine) fn blend(self, other: Self, weight: f32) -> Self {
         let weight = unit(weight);
         Self {
             shutter: lerp(self.shutter, other.shutter, weight),

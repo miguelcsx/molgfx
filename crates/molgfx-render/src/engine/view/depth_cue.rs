@@ -1,6 +1,6 @@
 //! Explicit view-space depth-cue settings.
 
-use super::profile_numeric::{finite_clamp, lerp, unit};
+use crate::engine::profile_numeric::{finite_clamp, lerp, unit};
 use serde::{Deserialize, Serialize};
 
 /// Distance-based atmospheric cue applied in view space after lighting.
@@ -15,7 +15,7 @@ pub struct DepthCue {
 }
 
 impl DepthCue {
-    pub(super) fn sanitize(self) -> Self {
+    pub(in crate::engine) fn sanitize(self) -> Self {
         let near_distance = finite_clamp(self.near_distance, 0.0, 999_999.0, 0.0);
         let minimum_far = near_distance + near_distance.mul_add(1.0e-6, 1.0e-3);
         let far_distance = finite_clamp(
@@ -31,7 +31,7 @@ impl DepthCue {
         }
     }
 
-    pub(super) fn blend(self, other: Self, weight: f32) -> Self {
+    pub(in crate::engine) fn blend(self, other: Self, weight: f32) -> Self {
         let weight = unit(weight);
         Self {
             near_distance: lerp(self.near_distance, other.near_distance, weight),
