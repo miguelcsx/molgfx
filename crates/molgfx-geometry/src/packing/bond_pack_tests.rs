@@ -4,6 +4,7 @@ use molgfx_core::{
     AtomSelection, BondTopologyFrame, BondTopologySegment, EntityKind, RepresentationKind, Scene,
     TopologyBond,
 };
+use molgfx_math::Vec3;
 use std::sync::Arc;
 
 #[test]
@@ -79,63 +80,31 @@ fn a_multiple_bond_packs_an_in_plane_reference_the_shader_can_reconstruct() {
     let carbon = coordinates[1];
     let oxygen = coordinates[2];
     let nitrogen = coordinates[0];
-    let axis = normalize(sub(&oxygen, &carbon));
+    let axis = (Vec3::from(oxygen) - Vec3::from(carbon)).normalize();
     let reference = perpendicular_to(axis).unwrap_or_else(|| panic!("axis has a perpendicular"));
     let angle = f32::from(turns) / 65_536.0 * std::f32::consts::TAU;
-    let basis_y = cross(axis, reference);
-    let direction = add(
-        &scale(&reference, angle.cos()),
-        &scale(&basis_y, angle.sin()),
-    );
+    let basis_y = axis.cross(reference);
+    let direction = reference * angle.cos() + basis_y * angle.sin();
 
     assert!(
-        dot(direction, axis).abs() < 1.0e-4,
+        direction.dot(axis).abs() < 1.0e-4,
         "the separation direction is perpendicular to the bond: {}",
-        dot(direction, axis)
+        direction.dot(axis)
     );
-    let length = dot(direction, direction).sqrt();
+    let length = direction.length();
     assert!(
         (length - 1.0).abs() < 1.0e-4,
         "the separation direction is unit length: {length}"
     );
     // The substituent that defines the plane must lie along the separation, so
     // the two strands of the double bond sit either side of it.
-    let offset = sub(&nitrogen, &carbon);
-    let in_plane = normalize(sub(&offset, &scale(&axis, dot(offset, axis))));
+    let offset = Vec3::from(nitrogen) - Vec3::from(carbon);
+    let in_plane = (offset - axis * offset.dot(axis)).normalize();
     assert!(
-        dot(in_plane, direction).abs() > 0.999,
+        in_plane.dot(direction).abs() > 0.999,
         "the packed plane follows the substituent: {}",
-        dot(in_plane, direction)
+        in_plane.dot(direction)
     );
-}
-
-fn normalize(v: [f32; 3]) -> [f32; 3] {
-    let length = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
-    [v[0] / length, v[1] / length, v[2] / length]
-}
-
-fn sub(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
-    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-}
-
-fn add(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
-    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
-}
-
-fn scale(a: &[f32; 3], factor: f32) -> [f32; 3] {
-    [a[0] * factor, a[1] * factor, a[2] * factor]
-}
-
-fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
-    [
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0],
-    ]
-}
-
-fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
-    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
 #[test]
