@@ -1,5 +1,5 @@
-use super::Engine;
 use super::tests::{engine, render_ok, structure};
+use crate::engine::Engine;
 use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
     AnisotropicEllipsoid, AtomSelection, CarbohydrateShape, CarbohydrateSymbol, Material, Mesh,

@@ -1,5 +1,5 @@
 use super::tests::{camera, render_ok};
-use super::{AdaptiveQualityConfig, Engine, EngineConfig, QualityTier};
+use crate::engine::{AdaptiveQualityConfig, Engine, EngineConfig, QualityTier};
 use crate::testing::{Locked, MockDevice};
 use molgfx_core::{AtomSelection, Representation, Scene};
 use molgfx_geometry::{RibbonMesh, RibbonParams, RibbonVertex, SplineProfile};

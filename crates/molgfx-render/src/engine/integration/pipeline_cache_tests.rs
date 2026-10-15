@@ -1,4 +1,4 @@
-use super::pipeline_cache::{
+use crate::engine::pipeline_cache::{
     MAX_SPECIALIZED_PIPELINES, Specialization, SpecializationKey, SpecializedPipelines,
     VisualFamily,
 };

@@ -1,5 +1,5 @@
 use super::tests::{camera, engine};
-use super::*;
+use crate::engine::*;
 use molgfx_core::Scene;
 
 #[test]

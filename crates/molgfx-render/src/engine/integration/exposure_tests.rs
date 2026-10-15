@@ -1,6 +1,6 @@
-use super::ImageConfig;
-use super::exposure::EXPOSURE_RUN;
 use super::tests::{camera, engine};
+use crate::engine::ImageConfig;
+use crate::engine::exposure::EXPOSURE_RUN;
 use crate::testing::Locked;
 use molgfx_core::Scene;
 

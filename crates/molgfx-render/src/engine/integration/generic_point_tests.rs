@@ -1,5 +1,5 @@
 use super::tests::{engine, render_ok};
-use super::{DerivedCacheBudget, Engine, EngineConfig};
+use crate::engine::{DerivedCacheBudget, Engine, EngineConfig};
 use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
     AnalyticSphere, AnalyticTemplate, AttributeColumn, AttributeValues, ChunkId, DatasetId,
@@ -148,7 +148,7 @@ fn point_scene(count: usize, glyph: PointGlyph) -> Scene {
 #[test]
 fn massive_discs_do_not_disable_shading_for_resident_spacefill() {
     use super::chunk_residency_tests::{complete, fixture, request_and_deliver, upload};
-    use super::{ChunkPlacementId, ChunkRepresentation, StructureChunkPlacement};
+    use crate::engine::{ChunkPlacementId, ChunkRepresentation, StructureChunkPlacement};
     use molgfx_core::ResidencyOutput;
     use molgfx_math::Mat4;
 

@@ -3,11 +3,11 @@ use super::generic_chunk_residency_tests::{
     fixture, generic_fixtures, relation_geometry_write_count, relation_write_count,
     request_deliver_upload,
 };
-use super::{
+use crate::engine::tests::render_ok;
+use crate::engine::{
     AttributeChunkWindow, ChunkPlacementId, ChunkPlacementStatus, PointChunkPlacement,
     RelationChunkPlacement,
 };
-use crate::engine::tests::render_ok;
 use molgfx_core::{
     AttributeChunkPayload, AttributeValues, ChunkDomainKind, ChunkDomainRef, ChunkPayload,
     ChunkVisualBinding, ChunkVisualDescriptor, PayloadKind, RelationStyle, ResidencyOutput,
@@ -117,7 +117,7 @@ fn paged_relation_visual_reads_one_native_resident_column() {
     assert_attribute_advance(&mut engine, &scene, attribute_ticket, start, end, buffers);
 }
 
-fn assert_materialized_visual(engine: &super::Engine<crate::testing::MockDevice>) {
+fn assert_materialized_visual(engine: &crate::engine::Engine<crate::testing::MockDevice>) {
     let labels = buffer_labels(engine);
     assert!(labels.contains(&"paged visual instructions"));
     assert!(labels.contains(&"visual entity results"));
@@ -126,7 +126,7 @@ fn assert_materialized_visual(engine: &super::Engine<crate::testing::MockDevice>
 }
 
 fn assert_attribute_advance(
-    engine: &mut super::Engine<crate::testing::MockDevice>,
+    engine: &mut crate::engine::Engine<crate::testing::MockDevice>,
     scene: &molgfx_core::Scene,
     attribute: molgfx_core::ResidencyTicket,
     start: molgfx_core::ResidencyTicket,
@@ -191,7 +191,7 @@ fn animated_relation_visual(
 }
 
 fn scalar_attribute(
-    engine: &mut super::Engine<crate::testing::MockDevice>,
+    engine: &mut crate::engine::Engine<crate::testing::MockDevice>,
     output: &mut ResidencyOutput,
     target: ChunkDomainRef,
     chunk: u64,
@@ -208,14 +208,16 @@ fn scalar_attribute(
     request_deliver_upload(engine, output, request, data)
 }
 
-fn buffer_labels(engine: &super::Engine<crate::testing::MockDevice>) -> Vec<&'static str> {
+fn buffer_labels(engine: &crate::engine::Engine<crate::testing::MockDevice>) -> Vec<&'static str> {
     engine.device.log.buffers.lock().map_or_else(
         |_| Vec::new(),
         |buffers| buffers.iter().map(|(_, label, _)| *label).collect(),
     )
 }
 
-fn paged_attribute_timeline_writes(engine: &super::Engine<crate::testing::MockDevice>) -> usize {
+fn paged_attribute_timeline_writes(
+    engine: &crate::engine::Engine<crate::testing::MockDevice>,
+) -> usize {
     let id = engine.device.log.buffers.lock().ok().and_then(|buffers| {
         buffers
             .iter()

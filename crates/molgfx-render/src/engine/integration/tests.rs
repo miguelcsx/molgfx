@@ -1,9 +1,9 @@
-use super::*;
+use crate::engine::*;
 use crate::testing::{Locked, MockDevice};
 use molgfx_core::{AtomSelection, ClipPlane, ClipSet, RepresentationKind, Scene, SurfaceKind};
 use molgfx_gpu::SurfaceError;
 use molgfx_math::{BoundingSphere, Camera, Vec3};
-pub(super) fn camera() -> Camera {
+pub(in crate::engine) fn camera() -> Camera {
     Camera::framing(
         &BoundingSphere {
             center: Vec3::ZERO,
@@ -13,12 +13,12 @@ pub(super) fn camera() -> Camera {
     )
 }
 /// Renders one frame at the default camera, failing the test on error.
-pub(super) fn render_ok(engine: &mut Engine<MockDevice>, scene: &Scene) {
+pub(in crate::engine) fn render_ok(engine: &mut Engine<MockDevice>, scene: &Scene) {
     if let Err(error) = engine.render(scene, &camera()) {
         panic!("frame renders: {error}");
     }
 }
-pub(super) fn engine() -> Engine<MockDevice> {
+pub(in crate::engine) fn engine() -> Engine<MockDevice> {
     match Engine::new(&EngineConfig::default(), None) {
         Ok(engine) => engine,
         Err(e) => panic!("mock engine opens: {e}"),
@@ -109,7 +109,10 @@ _struct_conn.pdbx_value_order
         Err(diagnostics) => panic!("fixture parses: {diagnostics:?}"),
     }
 }
-pub(super) fn represented_scene(structure_count: usize, representation_count: usize) -> Scene {
+pub(in crate::engine) fn represented_scene(
+    structure_count: usize,
+    representation_count: usize,
+) -> Scene {
     let source = structure();
     let mut scene = Scene::new();
     for _ in 0..structure_count {

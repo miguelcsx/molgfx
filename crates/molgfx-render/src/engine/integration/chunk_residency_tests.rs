@@ -1,5 +1,5 @@
 use super::tests::render_ok;
-use super::{Engine, EngineConfig};
+use crate::engine::{Engine, EngineConfig};
 use crate::testing::{Locked, MockDevice};
 use molframe::engine::core as frame;
 use molgfx_core::{
@@ -33,19 +33,19 @@ ATOM 2 N N  . GLY A 1 1 4.0 5.0 6.0 1.0 10.0 1 A 1
 ";
 
 #[derive(Clone)]
-pub(super) struct Fixture {
-    pub(super) data: ChunkData,
-    pub(super) pointer: usize,
-    pub(super) bytes: Vec<u8>,
-    pub(super) request: ResidencyRequest,
+pub(in crate::engine) struct Fixture {
+    pub(in crate::engine) data: ChunkData,
+    pub(in crate::engine) pointer: usize,
+    pub(in crate::engine) bytes: Vec<u8>,
+    pub(in crate::engine) request: ResidencyRequest,
 }
 
-pub(super) fn engine() -> Engine<MockDevice> {
-    engine_with_derived_budget(super::DerivedCacheBudget::default())
+pub(in crate::engine) fn engine() -> Engine<MockDevice> {
+    engine_with_derived_budget(crate::engine::DerivedCacheBudget::default())
 }
 
-pub(super) fn engine_with_derived_budget(
-    derived_cache: super::DerivedCacheBudget,
+pub(in crate::engine) fn engine_with_derived_budget(
+    derived_cache: crate::engine::DerivedCacheBudget,
 ) -> Engine<MockDevice> {
     let mut config = EngineConfig {
         derived_cache,
@@ -140,7 +140,7 @@ fn buffer_exists(engine: &Engine<MockDevice>, label: &'static str) -> bool {
         .is_ok_and(|buffers| buffers.iter().any(|(_, value, _)| *value == label))
 }
 
-pub(super) fn fixture(dataset: u64, chunk: u64, priority: i32) -> Fixture {
+pub(in crate::engine) fn fixture(dataset: u64, chunk: u64, priority: i32) -> Fixture {
     let structure = match molframe::read_bytes(
         CIF.as_bytes().to_vec(),
         Some("chunk.cif"),
@@ -187,7 +187,12 @@ pub(super) fn fixture(dataset: u64, chunk: u64, priority: i32) -> Fixture {
     }
 }
 
-pub(super) fn frame_fixture(dataset: u64, chunk: u64, priority: i32, offset: f32) -> Fixture {
+pub(in crate::engine) fn frame_fixture(
+    dataset: u64,
+    chunk: u64,
+    priority: i32,
+    offset: f32,
+) -> Fixture {
     let source_text = CIF
         .replace("1.0 2.0 3.0", &format!("{} 2.0 3.0", 1.0 + offset))
         .replace("4.0 5.0 6.0", &format!("{} 5.0 6.0", 4.0 + offset));
@@ -238,7 +243,7 @@ pub(super) fn frame_fixture(dataset: u64, chunk: u64, priority: i32, offset: f32
     }
 }
 
-pub(super) fn request_and_deliver(
+pub(in crate::engine) fn request_and_deliver(
     engine: &mut Engine<MockDevice>,
     fixture: Fixture,
     output: &mut ResidencyOutput,
@@ -263,7 +268,7 @@ fn retained_pointer(host: &HostWorkingSet, ticket: ResidencyTicket) -> usize {
     structure.positions().as_ptr() as usize
 }
 
-pub(super) fn upload(
+pub(in crate::engine) fn upload(
     engine: &mut Engine<MockDevice>,
     ticket: ResidencyTicket,
     output: &mut ResidencyOutput,
@@ -273,7 +278,7 @@ pub(super) fn upload(
     }
 }
 
-pub(super) fn complete(engine: &mut Engine<MockDevice>, output: &mut ResidencyOutput) {
+pub(in crate::engine) fn complete(engine: &mut Engine<MockDevice>, output: &mut ResidencyOutput) {
     engine.device.complete_submissions();
     if let Err(error) = engine.poll_chunk_uploads_into(output) {
         panic!("completion must be accepted: {error}");
@@ -427,7 +432,7 @@ fn upload_backpressure_preserves_cpu_payload_for_retry() {
     let rejected = engine.upload_chunk_into(second, &mut output);
     assert!(matches!(
         rejected,
-        Err(super::ChunkResidencyError::Upload(
+        Err(crate::engine::ChunkResidencyError::Upload(
             molgfx_gpu::UploadBackpressure::TicketCapacity
         ))
     ));

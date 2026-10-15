@@ -1,6 +1,6 @@
 use super::tests::{camera, engine, render_ok};
-use super::{Engine, EngineConfig};
 use crate::RenderError;
+use crate::engine::{Engine, EngineConfig};
 use crate::testing::MockDevice;
 use molgfx_core::Scene;
 

@@ -1,9 +1,16 @@
 //! The engine: owns the device, the graph and every pass's state.
 
-mod runtime;
-use runtime::config;
-use runtime::init;
-use runtime::session;
+mod bonds;
+pub(crate) use bonds::bond_draw_plan;
+use bonds::bond_residency;
+
+mod chunk;
+pub(crate) use chunk::chunk_draw_plan;
+use chunk::chunk_placement;
+use chunk::chunk_residency;
+use chunk::chunk_residency_support;
+use chunk::chunk_residency_types;
+use chunk::derived_cache;
 
 mod graph;
 use graph::graph_setup;
@@ -19,28 +26,6 @@ mod lighting;
 use lighting::lighting_environment;
 use lighting::shadow;
 
-mod view;
-use view::depth_cue;
-use view::focus_target;
-use view::optics;
-use view::picking;
-
-mod style;
-use style::backdrop;
-use style::profile;
-use style::profile_numeric;
-
-mod quality;
-use quality::adaptive;
-use quality::effective_quality;
-
-mod timing;
-use timing::cpu_stages;
-use timing::gpu_timing;
-use timing::pass_profiling;
-use timing::profiling;
-use timing::statistics;
-
 mod output;
 use output::exposure;
 use output::exr;
@@ -51,17 +36,32 @@ use output::image;
 use output::sequence;
 use output::stereo;
 
-mod bonds;
-pub(crate) use bonds::bond_draw_plan;
-use bonds::bond_residency;
+mod quality;
+use quality::adaptive;
+use quality::effective_quality;
 
-mod chunk;
-pub(crate) use chunk::chunk_draw_plan;
-use chunk::chunk_placement;
-use chunk::chunk_residency;
-use chunk::chunk_residency_support;
-use chunk::chunk_residency_types;
-use chunk::derived_cache;
+mod runtime;
+use runtime::config;
+use runtime::init;
+use runtime::session;
+
+mod style;
+use style::backdrop;
+use style::profile;
+use style::profile_numeric;
+
+mod timing;
+use timing::cpu_stages;
+use timing::gpu_timing;
+use timing::pass_profiling;
+use timing::profiling;
+use timing::statistics;
+
+mod view;
+use view::depth_cue;
+use view::focus_target;
+use view::optics;
+use view::picking;
 
 pub use stereo::{StereoImages, StereoLayout};
 
@@ -116,144 +116,7 @@ pub(crate) use profiling::GpuProfiler;
 pub(crate) use shadow::ShadowBoundCache;
 pub(crate) use temporal::{TemporalOptions, TemporalState};
 
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "engine_tests.rs"]
-pub(crate) mod tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "offscreen_tests.rs"]
-mod offscreen_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "exposure_tests.rs"]
-mod exposure_tests;
-
 #[cfg(test)]
-#[path = "pipeline_cache_tests.rs"]
-mod pipeline_cache_tests;
-
-#[cfg(test)]
-#[path = "indirect_arena_tests.rs"]
-mod indirect_arena_tests;
-
+mod integration;
 #[cfg(all(test, not(target_arch = "wasm32")))]
-mod slot_cache_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod surface_field_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod color_scheme_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "residency_integration_tests.rs"]
-mod residency_integration_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "chunk_residency_tests.rs"]
-mod chunk_residency_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "chunk/chunk_residency/generic_tests.rs"]
-mod generic_chunk_residency_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "chunk/chunk_residency/generic_visual_tests.rs"]
-mod generic_chunk_visual_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "chunk/chunk_residency/instance_timeline_tests.rs"]
-mod chunk_instance_timeline_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "chunk_render_tests.rs"]
-mod chunk_render_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "chunk_bond_render_tests.rs"]
-mod chunk_bond_render_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "asset_sharing_tests.rs"]
-mod asset_sharing_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "scene_identity_tests.rs"]
-mod scene_identity_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "draw_tests.rs"]
-mod draw_tests;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "generic_instance_tests.rs"]
-mod generic_instance_tests;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "generic_point_tests.rs"]
-mod generic_point_tests;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "generic_relation_tests.rs"]
-mod generic_relation_tests;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "generic_timeline_budget_tests.rs"]
-mod generic_timeline_budget_tests;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "ligand_pose_tests.rs"]
-mod ligand_pose_tests;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "putty_tests.rs"]
-mod putty_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "async_tests.rs"]
-mod async_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "device_loss_tests.rs"]
-mod device_loss_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "picking_tests.rs"]
-mod picking_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "scalar_overlay_tests.rs"]
-mod scalar_overlay_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "surface_component_tests.rs"]
-mod surface_component_tests;
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "surface_memory_tests.rs"]
-mod surface_memory_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "interaction_tests.rs"]
-mod interaction_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "label_tests.rs"]
-mod label_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "property_tests.rs"]
-mod property_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "trajectory_tests.rs"]
-mod trajectory_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-#[path = "volume_tests.rs"]
-mod volume_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod segmentation_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod completion_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod volume_boundary_tests;
-
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod ribbon_quality_tests;
+pub(crate) use integration::tests;

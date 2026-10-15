@@ -1,12 +1,12 @@
 use super::chunk_residency_tests::{
     complete, engine, fixture as structure_fixture, frame_fixture, upload,
 };
-use super::{
+use crate::engine::tests::render_ok;
+use crate::engine::{
     ChunkPlacementId, ChunkPlacementStatus, ChunkRepresentation, InstanceChunkPlacement,
     PickEntity, PointChunkPlacement, RelationChunkPlacement, StructureChunkPlacement,
     TrajectoryChunkWindow,
 };
-use crate::engine::tests::render_ok;
 use molgfx_core::{
     AnalyticCapsule, AnalyticSphere, AnalyticTemplate, AttributeChunkPayload, AttributeValues,
     ChunkBounds, ChunkData, ChunkDescriptor, ChunkDomainKind, ChunkDomainRef, ChunkEntityRef,
@@ -244,7 +244,7 @@ fn resident_instance_chunks_reuse_analytic_culling_and_flat_part_picking() {
 
 #[test]
 fn paged_point_anchors_resolve_exact_occurrences_to_local_gpu_rows() {
-    use super::chunk_draw_plan::ResidentSpatialAnchor;
+    use crate::engine::chunk_draw_plan::ResidentSpatialAnchor;
 
     let mut engine = engine();
     let mut output = ResidencyOutput::default();
@@ -302,7 +302,7 @@ fn paged_point_anchors_resolve_exact_occurrences_to_local_gpu_rows() {
 
 #[test]
 fn paged_instance_anchors_resolve_template_parts_to_local_gpu_rows() {
-    use super::chunk_draw_plan::ResidentSpatialAnchor;
+    use crate::engine::chunk_draw_plan::ResidentSpatialAnchor;
 
     let mut engine = engine();
     let mut output = ResidencyOutput::default();
@@ -445,7 +445,7 @@ fn paged_relations_wait_for_exact_sources_then_share_one_indirect_draw() {
 
 #[path = "generic_tests/support.rs"]
 mod support;
-pub(super) use support::{
+pub(in crate::engine) use support::{
     assert_compute_precedes, fixture, generic_fixtures, paged_write_count,
     relation_geometry_write_count, relation_write_count, request_deliver_upload,
 };

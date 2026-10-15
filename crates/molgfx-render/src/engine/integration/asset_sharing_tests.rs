@@ -95,7 +95,7 @@ fn placements_share_asset_buffers_and_release_after_the_last_owner() {
 }
 
 fn assert_single_writes(
-    engine: &super::Engine<crate::testing::MockDevice>,
+    engine: &crate::engine::Engine<crate::testing::MockDevice>,
     arena: u32,
     models: [u32; 2],
 ) {
@@ -122,7 +122,7 @@ fn assert_non_overlapping(offsets: [u64; 3], lengths: [u64; 3]) {
     assert!(offsets[1] + lengths[1] <= offsets[2]);
 }
 
-fn immutable_buffer_count(engine: &super::Engine<crate::testing::MockDevice>) -> usize {
+fn immutable_buffer_count(engine: &crate::engine::Engine<crate::testing::MockDevice>) -> usize {
     engine
         .device
         .log
@@ -134,7 +134,7 @@ fn immutable_buffer_count(engine: &super::Engine<crate::testing::MockDevice>) ->
 }
 
 fn assert_ranges_are_consumed(
-    engine: &super::Engine<crate::testing::MockDevice>,
+    engine: &crate::engine::Engine<crate::testing::MockDevice>,
     arena: u32,
     offsets: [u64; 3],
 ) {

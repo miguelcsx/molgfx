@@ -1,5 +1,5 @@
-use super::ImageConfig;
 use super::tests::{camera, engine, render_ok, structure};
+use crate::engine::ImageConfig;
 use molgfx_core::{AtomSelection, RepresentationKind, Scene};
 
 #[test]
@@ -40,7 +40,7 @@ fn asynchronous_pick_resolves_the_same_integer_entity() {
         Ok(None) => panic!("mock readback resolves zero ids"),
         Err(error) => panic!("asynchronous pick resolves: {error}"),
     };
-    let super::PickEntity::Structure(entity) = pick.entity else {
+    let crate::engine::PickEntity::Structure(entity) = pick.entity else {
         panic!("molecular pick resolves to a structure entity")
     };
     assert_eq!(entity.kind(), molgfx_core::EntityKind::Atom);
@@ -79,7 +79,7 @@ fn a_detached_pick_readback_resolves_after_the_engine_is_idle() {
         Ok(None) => panic!("mock readback resolves zero ids"),
         Err(error) => panic!("detached pick resolves: {error}"),
     };
-    let super::PickEntity::Structure(entity) = pick.entity else {
+    let crate::engine::PickEntity::Structure(entity) = pick.entity else {
         panic!("molecular pick resolves to a structure entity")
     };
     assert_eq!(entity.kind(), molgfx_core::EntityKind::Atom);

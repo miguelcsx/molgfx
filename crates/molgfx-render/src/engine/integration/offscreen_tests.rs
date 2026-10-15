@@ -1,5 +1,5 @@
 use super::tests::{camera, engine};
-use super::*;
+use crate::engine::*;
 use molgfx_core::Scene;
 
 #[test]
@@ -50,7 +50,7 @@ fn profiling_without_timestamps_still_completes_the_exposure() {
             MeasuredOutput::Converged,
         )
         .unwrap();
-    assert_eq!(timing.gpu_timing, super::GpuTiming::Unsupported);
+    assert_eq!(timing.gpu_timing, crate::engine::GpuTiming::Unsupported);
     assert_eq!(timing.quality.samples_required, 64);
     assert_eq!(timing.quality.samples_completed, Some(64));
     assert!(timing.quality.complete());

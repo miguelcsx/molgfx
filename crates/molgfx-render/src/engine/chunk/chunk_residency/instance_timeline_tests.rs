@@ -2,10 +2,10 @@ use super::chunk_residency_tests::{engine, engine_with_derived_budget};
 use super::generic_chunk_residency_tests::{
     fixture, relation_geometry_write_count, request_deliver_upload,
 };
-use super::{
+use crate::engine::tests::render_ok;
+use crate::engine::{
     ChunkPlacementId, InstanceChunkPlacement, InstanceChunkWindow, RelationChunkPlacement,
 };
-use crate::engine::tests::render_ok;
 use molgfx_core::{
     AnalyticSphere, AnalyticTemplate, ChunkEntityRef, ChunkPayload, ChunkSpatialKind,
     InstanceChunkPayload, LogicalRow, PagedRelation, PagedSpatialAnchor, PayloadKind,
@@ -85,7 +85,7 @@ fn paged_instance_timeline_samples_resident_pages_without_rebuilding_batches() {
 
 #[test]
 fn zero_budget_paged_instances_sample_two_resident_pages_directly() {
-    let mut engine = engine_with_derived_budget(super::DerivedCacheBudget {
+    let mut engine = engine_with_derived_budget(crate::engine::DerivedCacheBudget {
         cpu_bytes: 0,
         gpu_bytes: 0,
     });
@@ -131,7 +131,7 @@ fn zero_budget_paged_instances_sample_two_resident_pages_directly() {
 }
 
 fn compute_pass_recorded(
-    engine: &super::Engine<crate::testing::MockDevice>,
+    engine: &crate::engine::Engine<crate::testing::MockDevice>,
     label: &'static str,
 ) -> bool {
     engine
@@ -143,7 +143,7 @@ fn compute_pass_recorded(
 }
 
 fn install_anchored_relations(
-    engine: &mut super::Engine<crate::testing::MockDevice>,
+    engine: &mut crate::engine::Engine<crate::testing::MockDevice>,
     output: &mut ResidencyOutput,
     dataset: molgfx_core::DatasetId,
     instance: ChunkPlacementId,
@@ -183,7 +183,7 @@ fn install_anchored_relations(
 }
 
 fn instance_chunk(
-    engine: &mut super::Engine<crate::testing::MockDevice>,
+    engine: &mut crate::engine::Engine<crate::testing::MockDevice>,
     output: &mut ResidencyOutput,
     dataset: molgfx_core::DatasetId,
     chunk: u64,
@@ -222,7 +222,7 @@ fn rigid(translation: Vec3) -> RigidInstance {
         .unwrap_or_else(|error| panic!("rigid instance validates: {error}"))
 }
 
-fn instance_config_writes(engine: &super::Engine<crate::testing::MockDevice>) -> usize {
+fn instance_config_writes(engine: &crate::engine::Engine<crate::testing::MockDevice>) -> usize {
     let id = engine.device.log.buffer_id("paged instance configuration");
     engine.device.log.writes.lock().map_or(0, |writes| {
         writes
@@ -232,7 +232,7 @@ fn instance_config_writes(engine: &super::Engine<crate::testing::MockDevice>) ->
     })
 }
 
-fn relation_timeline_writes(engine: &super::Engine<crate::testing::MockDevice>) -> usize {
+fn relation_timeline_writes(engine: &crate::engine::Engine<crate::testing::MockDevice>) -> usize {
     let id = engine.device.log.buffer_id("paged relation rigid timeline");
     engine.device.log.writes.lock().map_or(0, |writes| {
         writes
@@ -242,7 +242,7 @@ fn relation_timeline_writes(engine: &super::Engine<crate::testing::MockDevice>) 
     })
 }
 
-fn instance_timeline_writes(engine: &super::Engine<crate::testing::MockDevice>) -> usize {
+fn instance_timeline_writes(engine: &crate::engine::Engine<crate::testing::MockDevice>) -> usize {
     let id = engine
         .device
         .log
@@ -255,16 +255,16 @@ fn instance_timeline_writes(engine: &super::Engine<crate::testing::MockDevice>) 
     })
 }
 
-fn latest_timeline_config(engine: &super::Engine<crate::testing::MockDevice>) -> [u32; 3] {
+fn latest_timeline_config(engine: &crate::engine::Engine<crate::testing::MockDevice>) -> [u32; 3] {
     latest_config_words(engine, "paged instance timeline configuration", [20, 24, 0])
 }
 
-fn latest_direct_config(engine: &super::Engine<crate::testing::MockDevice>) -> [u32; 3] {
+fn latest_direct_config(engine: &crate::engine::Engine<crate::testing::MockDevice>) -> [u32; 3] {
     latest_config_words(engine, "paged instance configuration", [28, 44, 36])
 }
 
 fn latest_config_words(
-    engine: &super::Engine<crate::testing::MockDevice>,
+    engine: &crate::engine::Engine<crate::testing::MockDevice>,
     label: &'static str,
     offsets: [usize; 3],
 ) -> [u32; 3] {
@@ -299,7 +299,7 @@ fn latest_config_words(
 }
 
 fn instance_offset(
-    engine: &super::Engine<crate::testing::MockDevice>,
+    engine: &crate::engine::Engine<crate::testing::MockDevice>,
     ticket: molgfx_core::ResidencyTicket,
 ) -> u32 {
     let resident = engine
@@ -310,7 +310,7 @@ fn instance_offset(
 }
 
 fn relations_read_materialized_instances(
-    engine: &super::Engine<crate::testing::MockDevice>,
+    engine: &crate::engine::Engine<crate::testing::MockDevice>,
 ) -> bool {
     let materialized = engine
         .device

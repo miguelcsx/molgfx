@@ -1,7 +1,9 @@
-use crate::engine::chunk_residency_tests::{
+use crate::engine::integration::chunk_residency_tests::{
     complete, engine, frame_fixture, request_and_deliver, upload,
 };
-use crate::engine::generic_chunk_residency_tests::{generic_fixtures, request_deliver_upload};
+use crate::engine::integration::generic_chunk_residency_tests::{
+    generic_fixtures, request_deliver_upload,
+};
 use crate::engine::{
     ChunkPlacementId, Engine, InstanceChunkPlacement, PointChunkPlacement, RelationChunkPlacement,
 };

@@ -1,6 +1,6 @@
 use super::chunk_residency_tests::{Fixture, complete, engine, request_and_deliver, upload};
 use super::tests::render_ok;
-use super::{
+use crate::engine::{
     BondChunkPlacement, ChunkPlacementId, ChunkPlacementStatus, ChunkRepresentation, Engine,
     StructureChunkPlacement,
 };
@@ -147,8 +147,8 @@ fn bond_placement_capacity_is_bounded_by_the_working_set() {
     let result = engine.set_bond_chunk_placements(&placements);
     assert!(matches!(
         result,
-        Err(super::ChunkResidencyError::Placement(
-            super::ChunkPlacementError::Capacity { capacity: 16 }
+        Err(crate::engine::ChunkResidencyError::Placement(
+            crate::engine::ChunkPlacementError::Capacity { capacity: 16 }
         ))
     ));
 }
@@ -358,7 +358,7 @@ fn assert_bond_pick(engine: &mut Engine<MockDevice>, page: Option<u32>) {
     let Some(value) = picked else {
         panic!("bond pick expected")
     };
-    let super::PickEntity::Structure(identity) = value.entity else {
+    let crate::engine::PickEntity::Structure(identity) = value.entity else {
         panic!("global bond expected")
     };
     assert_eq!(identity.kind(), molgfx_core::EntityKind::Bond);

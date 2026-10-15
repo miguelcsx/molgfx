@@ -29,7 +29,7 @@ fn scene(table: SegmentStyleTable) -> (Scene, RepresentationHandle) {
     (scene, representation)
 }
 
-fn render(engine: &mut super::Engine<MockDevice>, scene: &Scene) {
+fn render(engine: &mut crate::engine::Engine<MockDevice>, scene: &Scene) {
     engine
         .render(scene, &camera())
         .expect("segmentation renders");

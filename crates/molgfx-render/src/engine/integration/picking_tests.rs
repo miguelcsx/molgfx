@@ -13,7 +13,7 @@ fn picking_resolves_the_global_atom_from_integer_attachments() {
     let Some((_, placed)) = scene.structures().next() else {
         panic!("scene has structures")
     };
-    let super::PickEntity::Structure(entity) = pick.entity else {
+    let crate::engine::PickEntity::Structure(entity) = pick.entity else {
         panic!("molecular pick resolves to a global identity")
     };
     assert_eq!(entity.dataset(), placed.dataset_id());

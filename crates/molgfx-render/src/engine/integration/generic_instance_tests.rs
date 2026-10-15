@@ -1,5 +1,5 @@
 use super::tests::{engine, render_ok};
-use super::{DerivedCacheBudget, Engine, EngineConfig};
+use crate::engine::{DerivedCacheBudget, Engine, EngineConfig};
 use crate::testing::{Locked, MockDevice};
 use molgfx_core::{
     AnalyticCapsule, AnalyticSphere, AnalyticTemplate, AttributeColumn, AttributeValues, ChunkId,

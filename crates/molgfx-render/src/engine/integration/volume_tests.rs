@@ -99,7 +99,7 @@ fn temporal_occupancy_stays_gpu_resident_and_runs_only_for_new_samples() {
     );
 }
 
-fn dispatch_count(engine: &super::Engine<MockDevice>) -> usize {
+fn dispatch_count(engine: &crate::engine::Engine<MockDevice>) -> usize {
     engine.device.log.dispatches.lock().map_or_else(
         |error| panic!("dispatch log lock: {error}"),
         |log| log.len(),
@@ -318,7 +318,7 @@ fn categorical_picking_returns_the_typed_volume_segment_identity() {
         Ok(None) => panic!("categorical pick resolves"),
         Err(error) => panic!("categorical pick reads: {error}"),
     };
-    let super::PickEntity::VolumeSegment(segment) = pick.entity else {
+    let crate::engine::PickEntity::VolumeSegment(segment) = pick.entity else {
         panic!("pick resolves a typed categorical entity")
     };
     assert_eq!(segment.volume, volume);
@@ -356,7 +356,10 @@ fn molecular_picking_remains_compatible_when_categorical_attachments_exist() {
         Ok(None) => panic!("molecular pick resolves"),
         Err(error) => panic!("molecular pick reads: {error}"),
     };
-    assert!(matches!(pick.entity, super::PickEntity::Structure(_)));
+    assert!(matches!(
+        pick.entity,
+        crate::engine::PickEntity::Structure(_)
+    ));
 }
 
 fn segmentation(styles: SegmentStyleTable) -> molgfx_core::RepresentationConfig {

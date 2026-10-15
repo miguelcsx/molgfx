@@ -40,7 +40,7 @@ fn realtime_pose_sampling_is_bounded_deterministic_and_opacity_correct() {
     );
     assert_eq!(
         engine.ligand_pose_stats(),
-        super::LigandPoseStats {
+        crate::engine::LigandPoseStats {
             resident_poses: 10_000,
             visible_poses: 10_000,
             selected_poses: 2_730,
@@ -189,7 +189,7 @@ fn realtime_keeps_a_four_hundred_pose_batch_exact_when_it_fits() {
     );
     assert_eq!(
         engine.ligand_pose_stats(),
-        super::LigandPoseStats {
+        crate::engine::LigandPoseStats {
             resident_poses: 400,
             visible_poses: 400,
             selected_poses: 400,

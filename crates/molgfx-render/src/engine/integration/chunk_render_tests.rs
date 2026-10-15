@@ -2,7 +2,7 @@ use super::chunk_residency_tests::{
     complete, engine, fixture, frame_fixture, request_and_deliver, upload,
 };
 use super::tests::render_ok;
-use super::{
+use crate::engine::{
     ChunkPlacementId, ChunkPlacementStatus, ChunkRepresentation, Engine, PickEntity,
     StructureChunkPlacement, TrajectoryChunkWindow,
 };

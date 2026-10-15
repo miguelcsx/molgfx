@@ -112,7 +112,7 @@ fn interaction_and_guide_row_zero_resolve_distinct_global_namespaces() {
             .pick(0, 0)
             .unwrap_or_else(|error| panic!("{error}"))
             .unwrap_or_else(|| panic!("page resolves"));
-        let super::PickEntity::Structure(identity) = pick.entity else {
+        let crate::engine::PickEntity::Structure(identity) = pick.entity else {
             panic!("global structure identity resolves")
         };
         assert_eq!(identity.dataset(), dataset);
