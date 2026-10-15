@@ -1,7 +1,7 @@
+use super::representation::{quality_entries, representation_entries};
 use super::{
-    all_stages, atom_cull_entries, bond_cull_entries, quality_entries, relation_cull_entries,
-    relation_resolve_entries, representation_entries, storage_counts, validate_storage_limit,
-    visual_cull_entries,
+    all_stages, atom_cull_entries, bond_cull_entries, relation_cull_entries,
+    relation_resolve_entries, storage_counts, validate_storage_limit, visual_cull_entries,
 };
 use molgfx_gpu::{GpuError, ShaderStages};
 

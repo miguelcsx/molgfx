@@ -1,4 +1,6 @@
-// Shared portable binding constructors.
+//! Shared portable binding constructors.
+
+use super::{BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, Device, ShaderStages};
 
 pub(in crate::scene_gpu) fn occupancy_layout<D: Device>(
     device: &D,
@@ -29,7 +31,7 @@ pub(in crate::scene_gpu) fn occupancy_layout<D: Device>(
     })
 }
 
-fn relation_cull_entries() -> [BindGroupLayoutEntry; 10] {
+pub(super) fn relation_cull_entries() -> [BindGroupLayoutEntry; 10] {
     [
         storage_visible(0, ShaderStages::COMPUTE),
         writable_storage(1),
@@ -44,7 +46,7 @@ fn relation_cull_entries() -> [BindGroupLayoutEntry; 10] {
     ]
 }
 
-const fn compute_uniform(binding: u32) -> BindGroupLayoutEntry {
+pub(super) const fn compute_uniform(binding: u32) -> BindGroupLayoutEntry {
     BindGroupLayoutEntry {
         binding,
         visibility: ShaderStages::COMPUTE,
@@ -64,7 +66,7 @@ pub(in crate::scene_gpu) fn writable_storage(binding: u32) -> BindGroupLayoutEnt
     }
 }
 
-fn storage_visible(binding: u32, visibility: ShaderStages) -> BindGroupLayoutEntry {
+pub(super) fn storage_visible(binding: u32, visibility: ShaderStages) -> BindGroupLayoutEntry {
     BindGroupLayoutEntry {
         binding,
         visibility,
@@ -72,7 +74,7 @@ fn storage_visible(binding: u32, visibility: ShaderStages) -> BindGroupLayoutEnt
     }
 }
 
-fn all_stages() -> ShaderStages {
+pub(super) fn all_stages() -> ShaderStages {
     ShaderStages::VERTEX
         .union(ShaderStages::FRAGMENT)
         .union(ShaderStages::COMPUTE)

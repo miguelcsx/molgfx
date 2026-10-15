@@ -1,10 +1,14 @@
 //! Persistent scene bind-group layouts, grouped away from synchronization.
 
+mod helpers;
+mod representation;
 use crate::error::RenderError;
 use molgfx_gpu::{BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, Device, ShaderStages};
 
-#[path = "layouts/storage.rs"]
 mod storage_limits;
+use helpers::{all_stages, compute_uniform, relation_cull_entries, storage_visible};
+pub(in crate::scene_gpu) use helpers::{occupancy_layout, storage, writable_storage};
+pub(in crate::scene_gpu) use representation::{quality_layout, representation_layout};
 #[cfg(test)]
 use storage_limits::storage_counts;
 use storage_limits::validate_storage_limit;
@@ -324,8 +328,6 @@ pub(in crate::scene_gpu) fn label_declutter_layout<D: Device>(device: &D) -> D::
     })
 }
 
-include!("layouts/representation.rs");
-
 pub(in crate::scene_gpu) fn cartoon_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: cartoon representation",
@@ -463,8 +465,6 @@ pub(in crate::scene_gpu) fn helix_fit_layout<D: Device>(device: &D) -> D::BindGr
         ],
     })
 }
-
-include!("layouts_helpers.rs");
 
 /// The draw and live helix-fit layouts share the persistent ribbon resources.
 #[derive(Debug)]

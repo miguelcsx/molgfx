@@ -1,3 +1,8 @@
+use super::{
+    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, Device, RenderError, ShaderStages,
+    all_stages, storage_visible, validate_storage_limit,
+};
+
 pub(in crate::scene_gpu) fn representation_layout<D: Device>(
     device: &D,
 ) -> Result<D::BindGroupLayout, RenderError> {
@@ -13,7 +18,7 @@ pub(in crate::scene_gpu) fn representation_layout<D: Device>(
     }))
 }
 
-fn representation_entries() -> [BindGroupLayoutEntry; 19] {
+pub(super) fn representation_entries() -> [BindGroupLayoutEntry; 19] {
     [
         storage_visible(0, all_stages()),
         storage_visible(1, all_stages()),
@@ -74,7 +79,9 @@ fn representation_entries() -> [BindGroupLayoutEntry; 19] {
     ]
 }
 
-pub(in crate::scene_gpu) fn quality_layout<D: Device>(device: &D) -> Result<D::BindGroupLayout, RenderError> {
+pub(in crate::scene_gpu) fn quality_layout<D: Device>(
+    device: &D,
+) -> Result<D::BindGroupLayout, RenderError> {
     let entries = quality_entries();
     validate_storage_limit(
         "group2: quality tracing",
@@ -87,7 +94,7 @@ pub(in crate::scene_gpu) fn quality_layout<D: Device>(device: &D) -> Result<D::B
     }))
 }
 
-fn quality_entries() -> [BindGroupLayoutEntry; 14] {
+pub(super) fn quality_entries() -> [BindGroupLayoutEntry; 14] {
     [
         storage_visible(0, ShaderStages::FRAGMENT),
         storage_visible(1, ShaderStages::FRAGMENT),
