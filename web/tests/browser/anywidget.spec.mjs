@@ -182,6 +182,7 @@ test("large wheel movements retain a finite interactive camera", async ({ page }
   const canvas = page.locator("canvas");
   await expect(canvas).toBeVisible();
   await canvas.dispatchEvent("wheel", { deltaY: 2400, bubbles: true, cancelable: true });
+  // Software adapters take seconds to present the frame that publishes the camera.
   await expect.poll(() => page.evaluate(() => {
     const model = window.widget.model;
     if (model.get("error")) return model.get("error");
@@ -189,7 +190,7 @@ test("large wheel movements retain a finite interactive camera", async ({ page }
     return [camera.position, camera.target, camera.up].every(
       vector => Array.isArray(vector) && vector.length === 3 && vector.every(Number.isFinite),
     );
-  })).toBe(true);
+  }), { timeout: 60000 }).toBe(true);
   expect(await page.evaluate(() => window.widget.model.get("error"))).toBe("");
   await page.evaluate(() => window.widget.close());
 });
