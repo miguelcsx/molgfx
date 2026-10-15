@@ -1,4 +1,10 @@
 //! Shared analytic templates and compact 32-byte rigid-instance GPU tables.
+mod groups;
+pub(in crate::scene_gpu) use paged::PagedInstanceSync;
+use paged::{GpuPagedInstanceBatch, paged_instance_dispatch, paged_instance_draws};
+mod paged;
+mod relations;
+mod resource;
 use crate::error::RenderError;
 use crate::scene_gpu::buffers::{buffer_entry, pack_color};
 use crate::scene_gpu::dispatch::workgroups_2d;
@@ -14,7 +20,6 @@ use molgfx_core::{
 use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue as _};
 use molgfx_math::{Quat, Vec3};
 use std::sync::Arc;
-#[path = "instance_batch_table/support.rs"]
 mod support;
 use support::{checked_count, frame_identity, limit, storage_buffer, template_part_page};
 pub(crate) const GENERIC_INSTANCE_SPHERE: u32 = 0;
@@ -97,8 +102,6 @@ struct GpuInstanceBatch<D: Device> {
     sphere_count: u32,
     capsule_count: u32,
 }
-
-include!("instance_batch_paged.rs");
 
 pub(in crate::scene_gpu) struct InstanceBatchSync<'a, D: Device> {
     pub(in crate::scene_gpu) device: &'a D,
@@ -345,8 +348,6 @@ fn instance_dispatch<D: Device>(batch: &GpuInstanceBatch<D>) -> GenericInstanceD
     }
 }
 
-include!("instance_batch_relations.rs");
-
 fn plan_timelines<D: Device>(context: &mut InstanceBatchSync<'_, D>) {
     for (handle, batch) in context
         .scene
@@ -424,10 +425,6 @@ impl<D: Device> GpuAnalyticTemplate<D> {
         }))
     }
 }
-
-include!("instance_batch_resource.rs");
-
-include!("instance_batch_groups.rs");
 
 fn write_config<D: Device>(
     queue: &D::Queue,

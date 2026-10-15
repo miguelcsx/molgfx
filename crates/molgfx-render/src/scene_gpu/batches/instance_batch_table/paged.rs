@@ -1,7 +1,11 @@
-// Resident chunk-backed rigid instances using the shared analytic pipelines.
+//! Resident chunk-backed rigid instances using the shared analytic pipelines.
+
+use super::groups::instance_groups;
+use super::resource::instance_args;
+use super::*;
 
 #[derive(Debug)]
-struct GpuPagedInstanceBatch<D: Device> {
+pub(super) struct GpuPagedInstanceBatch<D: Device> {
     source_revision: u64,
     plan: crate::engine::chunk_draw_plan::ResidentInstanceChunkPlacement,
     template: Arc<GpuAnalyticTemplate<D>>,
@@ -9,11 +13,11 @@ struct GpuPagedInstanceBatch<D: Device> {
     config: D::Buffer,
     materialized: Option<D::Buffer>,
     timeline_config: Option<D::Buffer>,
-    timeline_group: Option<D::BindGroup>,
+    pub(super) timeline_group: Option<D::BindGroup>,
     cull_group: D::BindGroup,
     render_group: D::BindGroup,
-    visual: GenericVisualState<D>,
-    count: u32,
+    pub(super) visual: GenericVisualState<D>,
+    pub(super) count: u32,
     sphere_count: u32,
     capsule_count: u32,
 }
@@ -42,7 +46,8 @@ pub(in crate::scene_gpu) struct PagedInstanceSync<'a, D: Device> {
     pub(in crate::scene_gpu) source: &'a D::Buffer,
     pub(in crate::scene_gpu) source_revision: u64,
     pub(in crate::scene_gpu) picking: &'a PickPages,
-    pub(in crate::scene_gpu) plans: &'a [crate::engine::chunk_draw_plan::ResidentInstanceChunkPlacement],
+    pub(in crate::scene_gpu) plans:
+        &'a [crate::engine::chunk_draw_plan::ResidentInstanceChunkPlacement],
     pub(in crate::scene_gpu) resources: GenericVisualResources<'a, D>,
     pub(in crate::scene_gpu) derived_cache: &'a mut DerivedCache,
     pub(in crate::scene_gpu) frame: u64,
@@ -73,8 +78,14 @@ impl<D: Device> GpuPagedInstanceBatch<D> {
             size: std::mem::size_of::<GenericInstanceConfig>() as u64,
             usage: BufferUsage::UNIFORM.union(BufferUsage::COPY_DST),
         })?;
-        let (materialized, timeline_config, timeline_group) =
-            create_paged_materialization(device, queue, timeline_layout, source, plan, materialize)?;
+        let (materialized, timeline_config, timeline_group) = create_paged_materialization(
+            device,
+            queue,
+            timeline_layout,
+            source,
+            plan,
+            materialize,
+        )?;
         write_paged_instance_config::<D>(queue, &config, page, plan, materialized.is_some())?;
         let mut visual = GenericVisualState::new();
         visual.sync_uniform(
@@ -141,7 +152,11 @@ impl<D: Device> GpuPagedInstanceBatch<D> {
             )?;
         }
         if let (Some(config), Some(timeline)) = (&self.timeline_config, plan.timeline) {
-            queue.write_buffer(config, 0, bytemuck::bytes_of(&timeline_config(timeline, plan.span.row_count())?));
+            queue.write_buffer(
+                config,
+                0,
+                bytemuck::bytes_of(&timeline_config(timeline, plan.span.row_count())?),
+            );
         }
         self.plan = plan.clone();
         Ok(true)
@@ -188,10 +203,10 @@ impl<D: Device> GpuInstanceBatches<D> {
                 .zip(plans)
                 .zip(&self.paged_materialization)
                 .all(|((resident, plan), materialized)| {
-                resident.source_revision == source_revision
-                    && Arc::ptr_eq(&resident.plan.template, &plan.template)
-                    && resident.plan.span.row_count() == plan.span.row_count()
-                    && resident.materialized.is_some() == *materialized
+                    resident.source_revision == source_revision
+                        && Arc::ptr_eq(&resident.plan.template, &plan.template)
+                        && resident.plan.span.row_count() == plan.span.row_count()
+                        && resident.materialized.is_some() == *materialized
                 })
         {
             let mut changed = false;
@@ -257,7 +272,10 @@ impl<D: Device> GpuInstanceBatches<D> {
         frame: u64,
     ) {
         for resident in &self.paged {
-            if !plans.iter().any(|plan| plan.id == resident.plan.id && plan.timeline.is_some()) {
+            if !plans
+                .iter()
+                .any(|plan| plan.id == resident.plan.id && plan.timeline.is_some())
+            {
                 derived_cache.release(paged_timeline_cache_key(resident.plan.id));
             }
         }
@@ -280,8 +298,7 @@ impl<D: Device> GpuInstanceBatches<D> {
         let _evicted = derived_cache.take_evictions().count();
         self.paged_materialization.clear();
         self.paged_materialization.extend(plans.iter().map(|plan| {
-            plan.timeline.is_some()
-                && derived_cache.contains(paged_timeline_cache_key(plan.id))
+            plan.timeline.is_some() && derived_cache.contains(paged_timeline_cache_key(plan.id))
         }));
     }
 
@@ -419,7 +436,7 @@ fn instance_word_offset(byte_offset: u64) -> Result<u32, RenderError> {
     u32::try_from(byte_offset / 32).map_err(|_| limit())
 }
 
-fn paged_instance_dispatch<D: Device>(
+pub(super) fn paged_instance_dispatch<D: Device>(
     batch: &GpuPagedInstanceBatch<D>,
 ) -> GenericInstanceDispatch<'_, D> {
     GenericInstanceDispatch {
@@ -430,7 +447,7 @@ fn paged_instance_dispatch<D: Device>(
     }
 }
 
-fn paged_instance_draws<D: Device>(
+pub(super) fn paged_instance_draws<D: Device>(
     batch: &GpuPagedInstanceBatch<D>,
 ) -> impl Iterator<Item = GenericInstanceDraw<'_, D>> {
     [

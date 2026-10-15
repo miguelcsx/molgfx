@@ -1,6 +1,5 @@
 //! Bounded GPU command arena for resident provider-backed atom chunks.
 
-#[path = "paged_chunks/lowering.rs"]
 mod lowering;
 use crate::scene_gpu::buffers::{buffer_entry, create_buffer, storage_entry};
 use lowering::{bytes_for, lower, lower_window, representation_command};

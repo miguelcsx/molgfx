@@ -1,7 +1,10 @@
-// Persistent resources for one generic analytic instance batch.
+//! Persistent resources for one generic analytic instance batch.
+
+use super::groups::instance_groups;
+use super::*;
 
 impl<D: Device> GpuInstanceBatch<D> {
-    fn new(
+    pub(super) fn new(
         context: &InstanceBatchSync<'_, D>,
         handle: InstanceBatchHandle,
         batch: &InstanceBatch,
@@ -19,32 +22,22 @@ impl<D: Device> GpuInstanceBatch<D> {
             "generic rigid instance transforms",
             batch.transforms().as_ref(),
         )?;
-        let mut timeline_start = None;
-        let mut timeline_end = None;
-        let mut timeline_source = None;
-        if let Some((start, end, _, _)) = context.scene.instance_frames(handle) {
-            timeline_start = Some(storage_buffer(
-                device, queue, "generic instance timeline start", start.as_ref(),
-            )?);
-            timeline_end = Some(storage_buffer(
-                device, queue, "generic instance timeline end", end.as_ref(),
-            )?);
-            timeline_source = Some(frame_identity(start, end));
-        }
-        let (materialized, timeline_config, timeline_group) = if timeline_materialized(context, handle) {
-            create_materialization(
-                context,
-                timeline_start.as_ref(),
-                timeline_end.as_ref(),
-                context
-                    .scene
-                    .instance_frames(handle)
-                    .map_or(0.0, |(_, _, alpha, _)| alpha),
-                count,
-            )?
-        } else {
-            (None, None, None)
-        };
+        let (timeline_start, timeline_end, timeline_source) = timeline_buffers(context, handle)?;
+        let (materialized, timeline_config, timeline_group) =
+            if timeline_materialized(context, handle) {
+                create_materialization(
+                    context,
+                    timeline_start.as_ref(),
+                    timeline_end.as_ref(),
+                    context
+                        .scene
+                        .instance_frames(handle)
+                        .map_or(0.0, |(_, _, alpha, _)| alpha),
+                    count,
+                )?
+            } else {
+                (None, None, None)
+            };
         let args = instance_args::<D>(device, queue, count)?;
         let config = device.create_buffer(&BufferDesc {
             label: "generic instance configuration",
@@ -109,7 +102,7 @@ impl<D: Device> GpuInstanceBatch<D> {
         })
     }
 
-    fn rebind(
+    pub(super) fn rebind(
         &mut self,
         device: &D,
         cull_layout: &D::BindGroupLayout,
@@ -117,7 +110,11 @@ impl<D: Device> GpuInstanceBatch<D> {
         visual_resources: GenericVisualResources<'_, D>,
     ) {
         let groups = instance_groups(
-            &InstanceGroupContext { device, cull_layout, render_layout },
+            &InstanceGroupContext {
+                device,
+                cull_layout,
+                render_layout,
+            },
             &InstanceGroupInputs {
                 template: &self.template,
                 transforms: buffer_or::<D>(self.materialized.as_ref(), &self.transforms),
@@ -132,13 +129,14 @@ impl<D: Device> GpuInstanceBatch<D> {
         self.render_group = groups.render;
     }
 
-    fn sync_timeline(
+    pub(super) fn sync_timeline(
         &mut self,
         context: &InstanceBatchSync<'_, D>,
         _batch: &InstanceBatch,
     ) -> Result<bool, RenderError> {
         let Some((start, end, alpha, _)) = context.scene.instance_frames(self.handle) else {
-            let changed = self.timeline_start.take().is_some() || self.timeline_end.take().is_some();
+            let changed =
+                self.timeline_start.take().is_some() || self.timeline_end.take().is_some();
             self.timeline_source = None;
             self.materialized = None;
             self.timeline_config = None;
@@ -165,13 +163,14 @@ impl<D: Device> GpuInstanceBatch<D> {
         let should_materialize = timeline_materialized(context, self.handle);
         let mode_changed = should_materialize != self.materialized.is_some();
         if should_materialize && (self.materialized.is_none() || source_changed) {
-            (self.materialized, self.timeline_config, self.timeline_group) = create_materialization(
-                context,
-                self.timeline_start.as_ref(),
-                self.timeline_end.as_ref(),
-                alpha,
-                self.count,
-            )?;
+            (self.materialized, self.timeline_config, self.timeline_group) =
+                create_materialization(
+                    context,
+                    self.timeline_start.as_ref(),
+                    self.timeline_end.as_ref(),
+                    alpha,
+                    self.count,
+                )?;
         } else if should_materialize {
             let Some(config) = &self.timeline_config else {
                 return Ok(source_changed || mode_changed);
@@ -193,7 +192,41 @@ impl<D: Device> GpuInstanceBatch<D> {
     }
 }
 
-fn buffer_or<'a, D: Device>(candidate: Option<&'a D::Buffer>, fallback: &'a D::Buffer) -> &'a D::Buffer {
+type TimelineBuffers<D> = (
+    Option<<D as Device>::Buffer>,
+    Option<<D as Device>::Buffer>,
+    Option<(usize, usize)>,
+);
+
+fn timeline_buffers<D: Device>(
+    context: &InstanceBatchSync<'_, D>,
+    handle: InstanceBatchHandle,
+) -> Result<TimelineBuffers<D>, RenderError> {
+    let Some((start, end, _, _)) = context.scene.instance_frames(handle) else {
+        return Ok((None, None, None));
+    };
+    let (device, queue) = (context.device, context.queue);
+    Ok((
+        Some(storage_buffer(
+            device,
+            queue,
+            "generic instance timeline start",
+            start.as_ref(),
+        )?),
+        Some(storage_buffer(
+            device,
+            queue,
+            "generic instance timeline end",
+            end.as_ref(),
+        )?),
+        Some(frame_identity(start, end)),
+    ))
+}
+
+fn buffer_or<'a, D: Device>(
+    candidate: Option<&'a D::Buffer>,
+    fallback: &'a D::Buffer,
+) -> &'a D::Buffer {
     match candidate {
         Some(buffer) => buffer,
         None => fallback,
@@ -241,21 +274,34 @@ fn create_materialization<D: Device>(
     Ok((Some(output), Some(config), Some(group)))
 }
 
-fn instance_args<D: Device>(device: &D, queue: &D::Queue, count: u32) -> Result<D::Buffer, RenderError> {
+pub(super) fn instance_args<D: Device>(
+    device: &D,
+    queue: &D::Queue,
+    count: u32,
+) -> Result<D::Buffer, RenderError> {
     let args = device.create_buffer(&BufferDesc {
         label: "generic instance cull output",
-        size: runtime_storage_bytes(
-            (std::mem::size_of::<DrawIndirectArgs>() * 2) as u64,
-            count,
-        ),
-        usage: BufferUsage::INDIRECT.union(BufferUsage::STORAGE).union(BufferUsage::COPY_DST),
+        size: runtime_storage_bytes((std::mem::size_of::<DrawIndirectArgs>() * 2) as u64, count),
+        usage: BufferUsage::INDIRECT
+            .union(BufferUsage::STORAGE)
+            .union(BufferUsage::COPY_DST),
     })?;
     queue.write_buffer(
         &args,
         0,
         bytemuck::cast_slice(&[
-            DrawIndirectArgs { vertex_count: 6, instance_count: 0, first_vertex: 0, first_instance: 0 },
-            DrawIndirectArgs { vertex_count: 6, instance_count: 0, first_vertex: 0, first_instance: 0 },
+            DrawIndirectArgs {
+                vertex_count: 6,
+                instance_count: 0,
+                first_vertex: 0,
+                first_instance: 0,
+            },
+            DrawIndirectArgs {
+                vertex_count: 6,
+                instance_count: 0,
+                first_vertex: 0,
+                first_instance: 0,
+            },
         ]),
     );
     Ok(args)

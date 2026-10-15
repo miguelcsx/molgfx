@@ -1,5 +1,8 @@
 //! Persistent 12-byte generic point tables with GPU-authored visibility.
 
+mod groups;
+mod resource;
+mod timeline;
 use crate::error::RenderError;
 use crate::scene_gpu::buffers::{buffer_entry, limit_exceeded, pack_color};
 use crate::scene_gpu::dispatch::workgroups_2d;
@@ -15,6 +18,7 @@ use molgfx_core::{
     Scene,
 };
 use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue as _};
+pub(crate) use timeline::GenericPointTimelineDispatch;
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -311,11 +315,6 @@ impl<D: Device> GpuPointBatches<D> {
         })
     }
 }
-
-include!("point_batch_resource.rs");
-include!("point_batch_timeline.rs");
-
-include!("point_batch_groups.rs");
 
 fn count(batch: &PointBatch) -> usize {
     batch.source_rows().len() as usize

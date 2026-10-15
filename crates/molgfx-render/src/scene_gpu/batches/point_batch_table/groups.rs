@@ -1,4 +1,8 @@
-fn point_groups<D: Device>(
+use super::{
+    BindGroupDesc, Device, PointGroupContext, PointGroupInputs, PointGroups, buffer_entry,
+};
+
+pub(super) fn point_groups<D: Device>(
     context: &PointGroupContext<'_, D>,
     inputs: &PointGroupInputs<'_, D>,
 ) -> PointGroups<D> {

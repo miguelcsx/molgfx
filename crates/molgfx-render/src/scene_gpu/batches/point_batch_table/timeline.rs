@@ -1,4 +1,6 @@
-// Optional GPU materialization for deformable point streams.
+//! Optional GPU materialization for deformable point streams.
+
+use super::*;
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -20,7 +22,7 @@ pub(crate) struct GenericPointTimelineDispatch<'a, D: Device> {
 }
 
 impl<D: Device> GpuPointBatches<D> {
-    fn plan_timelines(context: &mut PointBatchSync<'_, D>) {
+    pub(super) fn plan_timelines(context: &mut PointBatchSync<'_, D>) {
         for (handle, batch) in context
             .scene
             .point_batches()
@@ -49,7 +51,7 @@ impl<D: Device> GpuPointBatches<D> {
 }
 
 impl<D: Device> GpuPointBatch<D> {
-    fn active_start_buffer(&self) -> Option<&D::Buffer> {
+    pub(super) fn active_start_buffer(&self) -> Option<&D::Buffer> {
         if let Some(materialized) = &self.materialized {
             return Some(materialized);
         }
@@ -59,7 +61,7 @@ impl<D: Device> GpuPointBatch<D> {
         self.positions.get()
     }
 
-    fn active_end_buffer(&self) -> Option<&D::Buffer> {
+    pub(super) fn active_end_buffer(&self) -> Option<&D::Buffer> {
         if let Some(materialized) = &self.materialized {
             return Some(materialized);
         }
@@ -69,7 +71,10 @@ impl<D: Device> GpuPointBatch<D> {
         self.positions.get()
     }
 
-    fn sync_timeline(&mut self, context: &PointBatchSync<'_, D>) -> Result<bool, RenderError> {
+    pub(super) fn sync_timeline(
+        &mut self,
+        context: &PointBatchSync<'_, D>,
+    ) -> Result<bool, RenderError> {
         let Some((start, end, alpha, _)) = context.scene.point_frames(self.handle) else {
             let changed = self.timeline_start.take().is_some()
                 || self.timeline_end.take().is_some()
@@ -99,13 +104,14 @@ impl<D: Device> GpuPointBatch<D> {
         let should_materialize = timeline_materialized(context, self.handle);
         let mode_changed = should_materialize != self.materialized.is_some();
         if should_materialize && (self.materialized.is_none() || source_changed) {
-            (self.materialized, self.timeline_config, self.timeline_group) = create_materialization(
-                context,
-                self.timeline_start.as_ref(),
-                self.timeline_end.as_ref(),
-                alpha,
-                self.count,
-            )?;
+            (self.materialized, self.timeline_config, self.timeline_group) =
+                create_materialization(
+                    context,
+                    self.timeline_start.as_ref(),
+                    self.timeline_end.as_ref(),
+                    alpha,
+                    self.count,
+                )?;
         } else if should_materialize {
             let Some(config) = &self.timeline_config else {
                 return Ok(source_changed || mode_changed);
@@ -120,7 +126,7 @@ impl<D: Device> GpuPointBatch<D> {
     }
 }
 
-fn timeline_materialized<D: Device>(
+pub(super) fn timeline_materialized<D: Device>(
     context: &PointBatchSync<'_, D>,
     handle: PointBatchHandle,
 ) -> bool {
@@ -133,18 +139,24 @@ const fn point_timeline_cache_key(handle: PointBatchHandle) -> crate::engine::De
     crate::engine::DerivedCacheKey::ScenePoint(handle)
 }
 
-fn frame_identity(start: &std::sync::Arc<[[f32; 3]]>, end: &std::sync::Arc<[[f32; 3]]>) -> (usize, usize) {
+pub(super) fn frame_identity(
+    start: &std::sync::Arc<[[f32; 3]]>,
+    end: &std::sync::Arc<[[f32; 3]]>,
+) -> (usize, usize) {
     (start.as_ptr() as usize, end.as_ptr() as usize)
 }
 
-fn buffer_or<'a, D: Device>(candidate: Option<&'a D::Buffer>, fallback: &'a D::Buffer) -> &'a D::Buffer {
+pub(super) fn buffer_or<'a, D: Device>(
+    candidate: Option<&'a D::Buffer>,
+    fallback: &'a D::Buffer,
+) -> &'a D::Buffer {
     match candidate {
         Some(buffer) => buffer,
         None => fallback,
     }
 }
 
-fn storage_buffer<D: Device, T: bytemuck::Pod>(
+pub(super) fn storage_buffer<D: Device, T: bytemuck::Pod>(
     device: &D,
     queue: &D::Queue,
     label: &'static str,
@@ -153,14 +165,16 @@ fn storage_buffer<D: Device, T: bytemuck::Pod>(
     let bytes = bytemuck::cast_slice(rows);
     let buffer = device.create_buffer(&BufferDesc {
         label,
-        size: u64::try_from(bytes.len()).map_err(|_| missing_buffer())?.max(4),
+        size: u64::try_from(bytes.len())
+            .map_err(|_| missing_buffer())?
+            .max(4),
         usage: BufferUsage::STORAGE.union(BufferUsage::COPY_DST),
     })?;
     queue.write_buffer(&buffer, 0, bytes);
     Ok(buffer)
 }
 
-fn create_materialization<D: Device>(
+pub(super) fn create_materialization<D: Device>(
     context: &PointBatchSync<'_, D>,
     start: Option<&D::Buffer>,
     end: Option<&D::Buffer>,

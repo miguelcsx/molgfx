@@ -1,7 +1,13 @@
-// Persistent resources for one generic point batch.
+//! Persistent resources for one generic point batch.
+
+use super::groups::point_groups;
+use super::timeline::{
+    buffer_or, create_materialization, frame_identity, storage_buffer, timeline_materialized,
+};
+use super::*;
 
 impl<D: Device> GpuPointBatch<D> {
-    fn new(
+    pub(super) fn new(
         context: &PointBatchSync<'_, D>,
         handle: PointBatchHandle,
         batch: &PointBatch,
@@ -12,42 +18,34 @@ impl<D: Device> GpuPointBatch<D> {
         let queue = context.queue;
         let row_count = batch.source_rows().len();
         let mut positions = GrowBuffer::new();
-        positions.upload(device, queue, "generic point positions", batch.positions().as_ref())?;
-        let output = device.create_buffer(&BufferDesc {
-            label: "generic point cull output",
-            size: runtime_storage_bytes(
-                std::mem::size_of::<DrawIndirectArgs>() as u64,
-                row_count,
-            ),
-            usage: BufferUsage::INDIRECT.union(BufferUsage::STORAGE).union(BufferUsage::COPY_DST),
-        })?;
-        queue.write_buffer(
-            &output,
-            0,
-            bytemuck::bytes_of(&DrawIndirectArgs {
-                vertex_count: 6,
-                instance_count: 0,
-                first_vertex: 0,
-                first_instance: 0,
-            }),
-        );
+        positions.upload(
+            device,
+            queue,
+            "generic point positions",
+            batch.positions().as_ref(),
+        )?;
+        let output = create_output(device, queue, row_count)?;
         let config = device.create_buffer(&BufferDesc {
             label: "generic point configuration",
             size: std::mem::size_of::<PointBatchGpu>() as u64,
             usage: BufferUsage::UNIFORM.union(BufferUsage::COPY_DST),
         })?;
         let (timeline_start, timeline_end, timeline_source) = point_sources(context, handle)?;
-        let (materialized, timeline_config, timeline_group) = if timeline_materialized(context, handle) {
-            create_materialization(
-                context,
-                timeline_start.as_ref(),
-                timeline_end.as_ref(),
-                context.scene.point_frames(handle).map_or(0.0, |(_, _, alpha, _)| alpha),
-                row_count,
-            )?
-        } else {
-            (None, None, None)
-        };
+        let (materialized, timeline_config, timeline_group) =
+            if timeline_materialized(context, handle) {
+                create_materialization(
+                    context,
+                    timeline_start.as_ref(),
+                    timeline_end.as_ref(),
+                    context
+                        .scene
+                        .point_frames(handle)
+                        .map_or(0.0, |(_, _, alpha, _)| alpha),
+                    row_count,
+                )?
+            } else {
+                (None, None, None)
+            };
         write_config::<D>(
             queue,
             batch,
@@ -81,8 +79,14 @@ impl<D: Device> GpuPointBatch<D> {
                 tiles: tiles.buffer,
             },
             &PointGroupInputs {
-                positions: buffer_or::<D>(materialized.as_ref(), positions.get().ok_or_else(missing_buffer)?),
-                frame_end: buffer_or::<D>(timeline_end.as_ref(), positions.get().ok_or_else(missing_buffer)?),
+                positions: buffer_or::<D>(
+                    materialized.as_ref(),
+                    positions.get().ok_or_else(missing_buffer)?,
+                ),
+                frame_end: buffer_or::<D>(
+                    timeline_end.as_ref(),
+                    positions.get().ok_or_else(missing_buffer)?,
+                ),
                 output: &output,
                 config: &config,
                 visual: visual.entries(context.visual),
@@ -107,7 +111,7 @@ impl<D: Device> GpuPointBatch<D> {
         })
     }
 
-    fn rebind(
+    pub(super) fn rebind(
         &mut self,
         device: &D,
         cull_layout: &D::BindGroupLayout,
@@ -115,8 +119,12 @@ impl<D: Device> GpuPointBatch<D> {
         tiles: &D::Buffer,
         visual_resources: GenericVisualResources<'_, D>,
     ) {
-        let Some(positions) = self.active_start_buffer() else { return };
-        let Some(frame_end) = self.active_end_buffer() else { return };
+        let Some(positions) = self.active_start_buffer() else {
+            return;
+        };
+        let Some(frame_end) = self.active_end_buffer() else {
+            return;
+        };
         let inputs = PointGroupInputs {
             positions,
             frame_end,
@@ -125,12 +133,42 @@ impl<D: Device> GpuPointBatch<D> {
             visual: self.visual.entries(visual_resources),
         };
         let groups = point_groups(
-            &PointGroupContext { device, cull_layout, render_layout, tiles },
+            &PointGroupContext {
+                device,
+                cull_layout,
+                render_layout,
+                tiles,
+            },
             &inputs,
         );
         self.cull_group = groups.cull;
         self.render_group = groups.render;
     }
+}
+
+fn create_output<D: Device>(
+    device: &D,
+    queue: &D::Queue,
+    row_count: u32,
+) -> Result<D::Buffer, RenderError> {
+    let output = device.create_buffer(&BufferDesc {
+        label: "generic point cull output",
+        size: runtime_storage_bytes(std::mem::size_of::<DrawIndirectArgs>() as u64, row_count),
+        usage: BufferUsage::INDIRECT
+            .union(BufferUsage::STORAGE)
+            .union(BufferUsage::COPY_DST),
+    })?;
+    queue.write_buffer(
+        &output,
+        0,
+        bytemuck::bytes_of(&DrawIndirectArgs {
+            vertex_count: 6,
+            instance_count: 0,
+            first_vertex: 0,
+            first_instance: 0,
+        }),
+    );
+    Ok(output)
 }
 
 fn runtime_storage_bytes(header: u64, rows: u32) -> u64 {
@@ -148,8 +186,18 @@ fn point_sources<D: Device>(
         return Ok((None, None, None));
     };
     Ok((
-        Some(storage_buffer(context.device, context.queue, "generic point timeline start", start.as_ref())?),
-        Some(storage_buffer(context.device, context.queue, "generic point timeline end", end.as_ref())?),
+        Some(storage_buffer(
+            context.device,
+            context.queue,
+            "generic point timeline start",
+            start.as_ref(),
+        )?),
+        Some(storage_buffer(
+            context.device,
+            context.queue,
+            "generic point timeline end",
+            end.as_ref(),
+        )?),
         Some(frame_identity(start, end)),
     ))
 }

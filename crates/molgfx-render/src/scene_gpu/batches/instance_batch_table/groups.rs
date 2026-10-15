@@ -1,4 +1,8 @@
-fn instance_groups<D: Device>(
+use super::{
+    BindGroupDesc, Device, InstanceGroupContext, InstanceGroupInputs, InstanceGroups, buffer_entry,
+};
+
+pub(super) fn instance_groups<D: Device>(
     context: &InstanceGroupContext<'_, D>,
     inputs: &InstanceGroupInputs<'_, D>,
 ) -> InstanceGroups<D> {

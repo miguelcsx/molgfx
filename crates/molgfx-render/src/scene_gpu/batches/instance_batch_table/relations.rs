@@ -1,4 +1,6 @@
-// Relation-source views for direct or materialized rigid timelines.
+//! Relation-source views for direct or materialized rigid timelines.
+
+use super::{BindGroupEntry, Device, GpuInstanceBatches, InstanceBatchHandle, buffer_entry};
 
 impl<D: Device> GpuInstanceBatches<D> {
     pub(in crate::scene_gpu) fn relation_source_entries(
