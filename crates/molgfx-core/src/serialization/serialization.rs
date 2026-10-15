@@ -285,10 +285,7 @@ pub(super) fn visual_description(style: &VisualStyle) -> VisualStyleDescription 
         properties: program
             .properties()
             .iter()
-            .map(|property| super::types::ObjectIdentity {
-                row: property.row(),
-                generation: property.generation(),
-            })
+            .map(|&property| property.into())
             .collect(),
         attributes: program
             .attributes()
@@ -298,10 +295,7 @@ pub(super) fn visual_description(style: &VisualStyle) -> VisualStyleDescription 
                     return None;
                 };
                 Some(super::types::VisualAttributeDescription {
-                    identity: super::types::ObjectIdentity {
-                        row: handle.row(),
-                        generation: handle.generation(),
-                    },
+                    identity: handle.into(),
                     kind: match kind {
                         crate::AttributeKind::Scalar => "scalar",
                         crate::AttributeKind::Category => "category",
@@ -435,10 +429,7 @@ fn stored_volume_description(
         voxel_to_world: transform.to_cols_array(),
         content_hash: 0,
         occupancy: Some(OccupancyDescription {
-            structure: crate::serialization::ObjectIdentity {
-                row: bound.structure.row(),
-                generation: bound.structure.generation(),
-            },
+            structure: bound.structure.into(),
             atom_rows: bound.atom_rows.to_vec(),
             voxel_to_model: bound.stream.voxel_to_model().to_cols_array(),
             decay: bound.stream.decay(),

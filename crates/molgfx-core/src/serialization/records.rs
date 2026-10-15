@@ -69,10 +69,7 @@ pub(crate) fn mesh_instances(scene: &Scene) -> Vec<MeshInstanceDescription> {
         .map(|(handle, instance)| MeshInstanceDescription {
             row: handle.row(),
             generation: handle.generation(),
-            mesh: ObjectIdentity {
-                row: instance.mesh().row(),
-                generation: instance.mesh().generation(),
-            },
+            mesh: instance.mesh().into(),
             transform: instance.transform().to_cols_array(),
             visible: instance.visible(),
         })
@@ -146,10 +143,7 @@ pub(crate) fn atom_properties(scene: &Scene) -> Vec<AtomPropertyDescription> {
         .map(|(handle, property)| AtomPropertyDescription {
             row: handle.row(),
             generation: handle.generation(),
-            owner: ObjectIdentity {
-                row: property.owner().row(),
-                generation: property.owner().generation(),
-            },
+            owner: property.owner().into(),
             name: property.name().to_owned(),
             length: property.values().len() as u64,
             finite_domain: property.finite_domain(),
@@ -165,10 +159,7 @@ pub(crate) fn appearance_description(
 ) -> PropertyAppearanceDescription {
     let (domain, opacity, softness_pixels, missing) = value.description_values();
     PropertyAppearanceDescription {
-        property: ObjectIdentity {
-            row: value.property.row(),
-            generation: value.property.generation(),
-        },
+        property: value.property.into(),
         domain,
         opacity,
         softness_pixels,
@@ -208,10 +199,7 @@ pub(crate) fn surface_scalar_description(
     value: &crate::SurfaceScalarOverlay,
 ) -> SurfaceScalarDescription {
     SurfaceScalarDescription {
-        field: ObjectIdentity {
-            row: value.field.row(),
-            generation: value.field.generation(),
-        },
+        field: value.field.into(),
         ramp_values: value
             .ramp
             .values()
@@ -285,10 +273,7 @@ pub(crate) fn annotations(scene: &Scene) -> Vec<AnnotationDescription> {
             owner: identity(annotation.owner()),
             kind: annotation_kind(annotation.kind()).to_owned(),
             anchor: annotation.anchor().map(annotation_anchor),
-            region: annotation.region_selection().map(|handle| ObjectIdentity {
-                row: handle.row(),
-                generation: handle.generation(),
-            }),
+            region: annotation.region_selection().map(Into::into),
             text: annotation.text().to_owned(),
             marker: marker_style(annotation.marker_style()),
             priority: annotation.priority(),
@@ -365,10 +350,7 @@ fn entity(value: crate::EntityRef) -> EntityDescription {
 }
 
 pub(crate) fn identity(handle: StructureHandle) -> ObjectIdentity {
-    ObjectIdentity {
-        row: handle.0.row(),
-        generation: handle.0.generation(),
-    }
+    handle.into()
 }
 
 pub(crate) fn rgba(color: Rgba8) -> [u8; 4] {

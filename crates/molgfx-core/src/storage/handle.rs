@@ -105,6 +105,15 @@ macro_rules! handle_identity {
                     self.0.generation
                 }
             }
+
+            impl From<$handle> for crate::serialization::ObjectIdentity {
+                fn from(handle: $handle) -> Self {
+                    Self {
+                        row: handle.row(),
+                        generation: handle.generation(),
+                    }
+                }
+            }
         )+
     };
 }

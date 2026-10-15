@@ -50,7 +50,7 @@ pub(crate) fn records(scene: &Scene) -> Vec<LigandPoseBatchDescription> {
             LigandPoseBatchDescription {
                 row: handle.row(),
                 generation: handle.generation(),
-                owner: identity(batch.owner()),
+                owner: batch.owner().into(),
                 atoms: template.atom_centers().iter().map(Vec3::to_array).collect(),
                 bonds: template.bond_indices().to_vec(),
                 atom_radius: template.atom_radius(),
@@ -149,13 +149,6 @@ fn pose(value: &LigandPoseDescription) -> Result<LigandPose, crate::CoreError> {
         ),
         value.opacity,
     )
-}
-
-const fn identity(handle: StructureHandle) -> ObjectIdentity {
-    ObjectIdentity {
-        row: handle.row(),
-        generation: handle.generation(),
-    }
 }
 
 #[cfg(test)]
