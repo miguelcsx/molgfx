@@ -6,6 +6,7 @@
 //! no allocation or host-side table rebuild.
 
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::gpu_limit;
 use crate::scene_gpu::grow_buffer::GrowBuffer;
 use molgfx_core::MAX_VISUAL_PARAMETERS;
 use molgfx_gpu::Device;
@@ -31,11 +32,8 @@ impl<D: Device> VisualParameterTable<D> {
         device: &D,
         slots: usize,
     ) -> Result<bool, RenderError> {
-        let slot_count =
-            u64::try_from(slots.max(1)).map_err(|_| molgfx_gpu::GpuError::LimitExceeded {
-                resource: "visual parameter slots",
-                limit: u64::MAX,
-            })?;
+        let slot_count = u64::try_from(slots.max(1))
+            .map_err(|_| gpu_limit("visual parameter slots", u64::MAX))?;
         let needed = slot_count
             .saturating_mul(MAX_VISUAL_PARAMETERS as u64)
             .saturating_mul(PARAMETER_LANE_BYTES);

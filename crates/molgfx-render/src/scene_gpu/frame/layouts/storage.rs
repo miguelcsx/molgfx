@@ -1,5 +1,6 @@
 //! Portable per-stage storage-binding validation.
 
+use crate::scene_gpu::buffers::gpu_limit;
 use molgfx_gpu::{BindGroupLayoutEntry, BindingType, ShaderStages};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -30,10 +31,7 @@ pub(super) fn validate_storage_limit(
     let counts = storage_counts(entries);
     let required = counts.vertex.max(counts.fragment).max(counts.compute);
     if required > limit {
-        return Err(molgfx_gpu::GpuError::LimitExceeded {
-            resource: label,
-            limit: u64::from(limit),
-        });
+        return Err(gpu_limit(label, u64::from(limit)));
     }
     Ok(counts)
 }

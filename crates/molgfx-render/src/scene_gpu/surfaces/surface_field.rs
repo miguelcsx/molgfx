@@ -7,7 +7,7 @@
 
 use super::surface_components::{SurfaceComponentSync, SurfaceComponents};
 use crate::error::RenderError;
-use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::buffers::{buffer_entry, gpu_limit};
 use crate::scene_gpu::record_cache::RecordGeometry;
 use crate::scene_gpu::uniforms::RepresentationUniforms;
 use molgfx_core::{Representation, SurfaceComponentPolicy, SurfaceComponentThreshold, SurfaceKind};
@@ -449,10 +449,7 @@ fn probe_buffer<D: Device>(sync: &FieldSync<'_, D>) -> Result<(D::Buffer, u64), 
     let offsets = super::probe_offsets::probe_offsets(f32::from_bits(sync.key.probe));
     let bytes = bytemuck::cast_slice(&offsets);
     let size = u64::try_from(bytes.len())
-        .map_err(|_| molgfx_gpu::GpuError::LimitExceeded {
-            resource: "surface erosion probe table",
-            limit: u64::from(u32::MAX),
-        })?
+        .map_err(|_| gpu_limit("surface erosion probe table", u64::from(u32::MAX)))?
         .next_power_of_two()
         .max(256);
     let buffer = sync.device.create_buffer(&BufferDesc {

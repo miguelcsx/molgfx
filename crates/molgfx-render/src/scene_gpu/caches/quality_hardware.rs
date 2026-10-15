@@ -10,6 +10,7 @@
 //! device failure disables it and leaves the compute path ready for the same
 //! frame.
 
+use crate::scene_gpu::buffers::gpu_limit;
 use molgfx_core::{AtomGpu, BondGpu, EntityKind, PlacedStructure};
 use molgfx_gpu::{
     AabbGeometry, AabbGeometrySize, AccelerationGeometryFlags, AccelerationStructureFlags,
@@ -139,16 +140,14 @@ impl<D: Device> QualityBlas<D> {
         queue: &D::Queue,
         bounds: &[RayAabb],
     ) -> Result<(), GpuError> {
-        let primitive_count = u32::try_from(bounds.len()).map_err(|_| GpuError::LimitExceeded {
-            resource: "quality ray-query primitives",
-            limit: u64::from(u32::MAX),
-        })?;
+        let primitive_count = u32::try_from(bounds.len())
+            .map_err(|_| gpu_limit("quality ray-query primitives", u64::from(u32::MAX)))?;
         let limits = device.ray_query_limits()?;
         if primitive_count > limits.max_blas_primitives || limits.max_blas_geometries == 0 {
-            return Err(GpuError::LimitExceeded {
-                resource: "quality ray-query acceleration",
-                limit: u64::from(limits.max_blas_primitives),
-            });
+            return Err(gpu_limit(
+                "quality ray-query acceleration",
+                u64::from(limits.max_blas_primitives),
+            ));
         }
         let bytes = bytemuck::cast_slice(bounds);
         let needed = bytes.len() as u64;

@@ -2,6 +2,7 @@
 
 use crate::engine::chunk_draw_plan::{ResidentAttributeColumn, ResidentRelationChunkPlacement};
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::gpu_limit;
 use crate::scene_gpu::grow_buffer::GrowBuffer;
 use crate::scene_gpu::visual::{VisualBase, VisualCullEntries, VisualSlot, VisualSync};
 use molgfx_core::{
@@ -264,8 +265,8 @@ impl<D: Device> PagedRelationVisualState<D> {
 }
 
 fn limit() -> molgfx_gpu::GpuError {
-    molgfx_gpu::GpuError::LimitExceeded {
-        resource: "paged relation visual arena",
-        limit: (MAX_VISUAL_PARAMETERS * 16) as u64,
-    }
+    gpu_limit(
+        "paged relation visual arena",
+        (MAX_VISUAL_PARAMETERS * 16) as u64,
+    )
 }

@@ -78,10 +78,7 @@ fn source_binding_revision<D: Device>(structures: &[GpuStructure<D>]) -> u64 {
 }
 
 fn row_limit() -> molgfx_gpu::GpuError {
-    molgfx_gpu::GpuError::LimitExceeded {
-        resource: "generic relation rows",
-        limit: u64::from(u32::MAX),
-    }
+    gpu_limit("generic relation rows", u64::from(u32::MAX))
 }
 
 fn missing_domain(domain: Option<RowDomain>) -> RenderError {

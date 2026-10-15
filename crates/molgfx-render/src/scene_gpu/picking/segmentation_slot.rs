@@ -3,7 +3,7 @@
 use super::segmentation_lookup::{LookupMode, SegmentLookup};
 use super::segmentation_uniforms::SegmentationUniforms;
 use crate::error::RenderError;
-use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::buffers::{buffer_entry, limit_exceeded};
 use molgfx_core::{
     Representation, RepresentationHandle, SegmentStyleTable, SegmentationHandle, SegmentedVolume,
 };
@@ -138,11 +138,10 @@ impl<D: Device> GpuSegmentationResource<D> {
             .iter()
             .any(|&dimension| dimension > device.capabilities().max_texture_dim_3d)
         {
-            return Err(molgfx_gpu::GpuError::LimitExceeded {
-                resource: "3-D categorical segmentation texture",
-                limit: u64::from(device.capabilities().max_texture_dim_3d),
-            }
-            .into());
+            return Err(limit_exceeded(
+                "3-D categorical segmentation texture",
+                u64::from(device.capabilities().max_texture_dim_3d),
+            ));
         }
         self.upload_texture(device, queue, volume)?;
         self.synced_revision = Some(revision);

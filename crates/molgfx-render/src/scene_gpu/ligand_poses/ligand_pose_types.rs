@@ -7,6 +7,7 @@
 //! translucent second.
 
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::limit_exceeded;
 use molgfx_core::{DrawIndirectArgs, EntityId, EntityKind, LigandPose};
 use molgfx_math::{Mat4, Quat, Rgba8, Vec3};
 
@@ -199,7 +200,7 @@ pub(in crate::scene_gpu) fn checked_count(
     value: usize,
     resource: &'static str,
 ) -> Result<u32, RenderError> {
-    u32::try_from(value).map_err(|_| limit(resource, u64::from(u32::MAX)))
+    u32::try_from(value).map_err(|_| limit_exceeded(resource, u64::from(u32::MAX)))
 }
 
 pub(in crate::scene_gpu) fn checked_add(
@@ -208,7 +209,7 @@ pub(in crate::scene_gpu) fn checked_add(
     resource: &'static str,
 ) -> Result<u32, RenderError> {
     left.checked_add(right)
-        .ok_or_else(|| limit(resource, u64::from(u32::MAX)))
+        .ok_or_else(|| limit_exceeded(resource, u64::from(u32::MAX)))
 }
 
 pub(in crate::scene_gpu) fn checked_mul(
@@ -217,17 +218,17 @@ pub(in crate::scene_gpu) fn checked_mul(
     resource: &'static str,
 ) -> Result<u32, RenderError> {
     left.checked_mul(right)
-        .ok_or_else(|| limit(resource, u64::from(u32::MAX)))
+        .ok_or_else(|| limit_exceeded(resource, u64::from(u32::MAX)))
 }
 
 pub(in crate::scene_gpu) fn checked_bytes<T>(
     count: usize,
     resource: &'static str,
 ) -> Result<u64, RenderError> {
-    let count = u64::try_from(count).map_err(|_| limit(resource, u64::MAX))?;
+    let count = u64::try_from(count).map_err(|_| limit_exceeded(resource, u64::MAX))?;
     count
         .checked_mul(std::mem::size_of::<T>() as u64)
-        .ok_or_else(|| limit(resource, u64::MAX))
+        .ok_or_else(|| limit_exceeded(resource, u64::MAX))
 }
 
 #[cfg(test)]
@@ -274,10 +275,6 @@ pub(in crate::scene_gpu) fn batch_entity(row: u32) -> Result<EntityId, molgfx_co
 
 const fn pack_color(color: Rgba8) -> u32 {
     color.r as u32 | ((color.g as u32) << 8) | ((color.b as u32) << 16) | ((color.a as u32) << 24)
-}
-
-fn limit(resource: &'static str, limit: u64) -> RenderError {
-    molgfx_gpu::GpuError::LimitExceeded { resource, limit }.into()
 }
 
 #[cfg(test)]

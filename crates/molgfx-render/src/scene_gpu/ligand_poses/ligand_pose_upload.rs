@@ -8,6 +8,7 @@ use super::ligand_pose_plan::BatchPlan;
 use super::ligand_pose_sampling::distributed_source_index;
 use super::ligand_pose_types::{PoseBondGpu, PoseStyleGpu, PoseTransformGpu};
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::limit_exceeded;
 use molgfx_core::Scene;
 use molgfx_gpu::{Device, Queue};
 
@@ -114,11 +115,7 @@ pub(in crate::scene_gpu) fn upload_batch_tables<D: Device>(
 }
 
 fn invalid_table(resource: &'static str) -> RenderError {
-    molgfx_gpu::GpuError::LimitExceeded {
-        resource,
-        limit: u64::from(u32::MAX),
-    }
-    .into()
+    limit_exceeded(resource, u64::from(u32::MAX))
 }
 
 struct StreamWriter<'a, D: Device, T: bytemuck::Pod> {

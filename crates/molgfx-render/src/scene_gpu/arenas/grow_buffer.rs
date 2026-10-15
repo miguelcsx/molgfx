@@ -13,6 +13,7 @@
 //! large again, and the frame loop must not be paying for allocation.
 
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::limit_exceeded;
 use molgfx_gpu::{BufferDesc, BufferUsage, Device, Queue};
 
 /// The smallest allocation worth making. Below this, a buffer costs the same
@@ -137,11 +138,7 @@ pub(in crate::scene_gpu) fn grow_capacity(
     label: &'static str,
 ) -> Result<u64, RenderError> {
     if needed > limit || limit == 0 {
-        return Err(molgfx_gpu::GpuError::LimitExceeded {
-            resource: label,
-            limit,
-        }
-        .into());
+        return Err(limit_exceeded(label, limit));
     }
     let octave = if needed == 0 {
         1

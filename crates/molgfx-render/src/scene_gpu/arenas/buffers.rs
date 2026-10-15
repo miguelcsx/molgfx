@@ -105,11 +105,7 @@ pub(in crate::scene_gpu) fn ensure_upload_buffer<D: Device>(
 
 fn grow_capacity(needed: u64, limit: u64, label: &'static str) -> Result<u64, RenderError> {
     if needed > limit || limit == 0 {
-        return Err(molgfx_gpu::GpuError::LimitExceeded {
-            resource: label,
-            limit,
-        }
-        .into());
+        return Err(limit_exceeded(label, limit));
     }
     let grown = match needed.checked_next_power_of_two() {
         Some(value) => value,
@@ -233,6 +229,14 @@ pub(in crate::scene_gpu) fn buffer_entry<D: Device>(
     buffer: &D::Buffer,
 ) -> BindGroupEntry<'_, D> {
     BindGroupEntry::Buffer { binding, buffer }
+}
+
+pub(in crate::scene_gpu) fn gpu_limit(resource: &'static str, limit: u64) -> molgfx_gpu::GpuError {
+    molgfx_gpu::GpuError::LimitExceeded { resource, limit }
+}
+
+pub(in crate::scene_gpu) fn limit_exceeded(resource: &'static str, limit: u64) -> RenderError {
+    gpu_limit(resource, limit).into()
 }
 
 pub(in crate::scene_gpu) fn count(len: usize) -> u32 {

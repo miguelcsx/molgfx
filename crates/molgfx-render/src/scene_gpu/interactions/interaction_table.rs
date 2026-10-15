@@ -6,7 +6,7 @@ mod coordinates;
 mod paged;
 #[path = "relations/visual.rs"]
 mod paged_visual;
-use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::buffers::{buffer_entry, gpu_limit};
 use coordinates::RelationCullConfig;
 pub(in crate::scene_gpu) use paged::PagedRelationSync;
 

@@ -5,7 +5,7 @@ use super::volume_uniforms::VolumeUniforms;
 use crate::error::RenderError;
 use crate::passes::OccupancyPass;
 use crate::scene_gpu::asset_arena::AssetArena;
-use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::buffers::{buffer_entry, limit_exceeded};
 use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::{
     OccupancyStream, PlacedStructure, Representation, RepresentationHandle, ScalarVolume,
@@ -96,11 +96,10 @@ impl<D: Device> GpuVolumeResource<D> {
             .iter()
             .any(|&dimension| dimension > device.capabilities().max_texture_dim_3d)
         {
-            return Err(molgfx_gpu::GpuError::LimitExceeded {
-                resource: "3-D density texture",
-                limit: u64::from(device.capabilities().max_texture_dim_3d),
-            }
-            .into());
+            return Err(limit_exceeded(
+                "3-D density texture",
+                u64::from(device.capabilities().max_texture_dim_3d),
+            ));
         }
         self.upload_texture(device, queue, volume)?;
         self.synced_revision = Some(revision);

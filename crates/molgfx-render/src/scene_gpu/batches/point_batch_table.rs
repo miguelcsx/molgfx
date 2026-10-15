@@ -1,7 +1,7 @@
 //! Persistent 12-byte generic point tables with GPU-authored visibility.
 
 use crate::error::RenderError;
-use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::buffers::{buffer_entry, limit_exceeded};
 use crate::scene_gpu::dispatch::workgroups_2d;
 use crate::scene_gpu::generic_visual::{
     GenericVisualResources, GenericVisualState, GenericVisualTarget,
@@ -387,17 +387,9 @@ fn table_chunk(handle: PointBatchHandle) -> ChunkId {
 }
 
 fn missing_buffer() -> RenderError {
-    molgfx_gpu::GpuError::LimitExceeded {
-        resource: "generic point buffer",
-        limit: 0,
-    }
-    .into()
+    limit_exceeded("generic point buffer", 0)
 }
 
 fn tile_limit() -> RenderError {
-    molgfx_gpu::GpuError::LimitExceeded {
-        resource: "generic point screen tiles",
-        limit: u64::from(u32::MAX),
-    }
-    .into()
+    limit_exceeded("generic point screen tiles", u64::from(u32::MAX))
 }

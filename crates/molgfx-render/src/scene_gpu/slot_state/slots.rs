@@ -8,6 +8,7 @@ use super::slot_types::{
     DrawSpecializations, SlotKey, SlotPlan, SlotShading, SlotSync, SlotSynced,
 };
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::limit_exceeded;
 use crate::scene_gpu::placement_acceleration::PlacementAcceleration;
 use crate::scene_gpu::record_cache::RecordKey;
 use crate::scene_gpu::ribbon_slot::{RibbonSlot, RibbonSync};
@@ -322,11 +323,7 @@ impl<D: Device> GpuSlot<D> {
 
     fn sync_visual(&mut self, input: &SlotSync<'_, D>) -> Result<bool, RenderError> {
         let Some(parameter_buffer) = input.visual_parameter_buffer else {
-            return Err(molgfx_gpu::GpuError::LimitExceeded {
-                resource: "visual parameter arena",
-                limit: 0,
-            }
-            .into());
+            return Err(limit_exceeded("visual parameter arena", 0));
         };
         self.visual.sync(&VisualSync {
             device: input.device,

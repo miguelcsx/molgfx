@@ -5,7 +5,7 @@
 //! Rebuilding costs O(atoms + bonds) and runs only when packed records change.
 
 use crate::error::RenderError;
-use crate::scene_gpu::buffers::upload_grow;
+use crate::scene_gpu::buffers::{gpu_limit, upload_grow};
 use molgfx_core::{AtomGpu, BondGpu, EntityKind, PlacedStructure};
 use molgfx_gpu::Device;
 use molgfx_math::{Aabb, Bvh, BvhBuildScratch, Vec3};
@@ -130,19 +130,14 @@ pub(in crate::scene_gpu) fn hierarchy_counts(
         .primitive_indices
         .len()
         .checked_add(hierarchy.escape.len())
-        .ok_or(molgfx_gpu::GpuError::LimitExceeded {
-            resource: "quality hierarchy index count",
-            limit: u64::from(u32::MAX),
-        })?;
-    let nodes =
-        u32::try_from(hierarchy.nodes.len()).map_err(|_| molgfx_gpu::GpuError::LimitExceeded {
-            resource: "quality hierarchy node count",
-            limit: u64::from(u32::MAX),
-        })?;
-    let indices = u32::try_from(index_count).map_err(|_| molgfx_gpu::GpuError::LimitExceeded {
-        resource: "quality hierarchy index count",
-        limit: u64::from(u32::MAX),
-    })?;
+        .ok_or(gpu_limit(
+            "quality hierarchy index count",
+            u64::from(u32::MAX),
+        ))?;
+    let nodes = u32::try_from(hierarchy.nodes.len())
+        .map_err(|_| gpu_limit("quality hierarchy node count", u64::from(u32::MAX)))?;
+    let indices = u32::try_from(index_count)
+        .map_err(|_| gpu_limit("quality hierarchy index count", u64::from(u32::MAX)))?;
     Ok(HierarchyCounts { nodes, indices })
 }
 

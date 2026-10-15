@@ -10,6 +10,7 @@
 //! `draw_indirect`. No draw needs a first-instance offset.
 
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::gpu_limit;
 use crate::scene_gpu::record_cache::RecordKey;
 use crate::scene_gpu::visibility_cache::VisibilityKey;
 use molgfx_core::DrawIndirectArgs;
@@ -73,11 +74,8 @@ impl<D: Device> IndirectArgsArena<D> {
         device: &D,
         additional: usize,
     ) -> Result<bool, RenderError> {
-        let additional =
-            u64::try_from(additional).map_err(|_| molgfx_gpu::GpuError::LimitExceeded {
-                resource: "indirect argument slots",
-                limit: u64::from(u32::MAX),
-            })?;
+        let additional = u64::try_from(additional)
+            .map_err(|_| gpu_limit("indirect argument slots", u64::from(u32::MAX)))?;
         let needed = SLOT_STRIDE.saturating_mul(self.next_slot().saturating_add(additional));
         if needed == 0 || self.buffer.is_some() && needed <= self.capacity {
             return Ok(false);
@@ -104,12 +102,8 @@ impl<D: Device> IndirectArgsArena<D> {
             } else {
                 // Slots are never recycled within a frame, so a released key's
                 // index can only be reused after the frame's writes are gone.
-                let index = u32::try_from(self.next_slot()).map_err(|_| {
-                    molgfx_gpu::GpuError::LimitExceeded {
-                        resource: "indirect argument slots",
-                        limit: u64::from(u32::MAX),
-                    }
-                })?;
+                let index = u32::try_from(self.next_slot())
+                    .map_err(|_| gpu_limit("indirect argument slots", u64::from(u32::MAX)))?;
                 self.slots.push((key, index));
                 index
             };

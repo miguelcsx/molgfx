@@ -7,6 +7,7 @@
 //! build one BLAS, not N.
 
 use super::quality_hardware::{HardwareFailure, affine_rows, classify};
+use crate::scene_gpu::buffers::gpu_limit;
 use molgfx_gpu::{
     AccelerationStructureBinding, AccelerationStructureFlags, AccelerationStructureUpdateMode,
     CommandEncoder, Device, GpuError, RayQueryBindGroupDesc, TlasDesc, TlasInstance,
@@ -83,10 +84,10 @@ impl<D: Device> PlacementAcceleration<D> {
     ) -> Result<(), GpuError> {
         let limits = device.ray_query_limits()?;
         if limits.max_tlas_instances == 0 || limits.max_bindings_per_shader_stage == 0 {
-            return Err(GpuError::LimitExceeded {
-                resource: "quality placement TLAS",
-                limit: u64::from(limits.max_tlas_instances),
-            });
+            return Err(gpu_limit(
+                "quality placement TLAS",
+                u64::from(limits.max_tlas_instances),
+            ));
         }
         if self.tlas.is_none() {
             let mut tlas = device.create_tlas(&TlasDesc {

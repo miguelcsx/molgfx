@@ -1,6 +1,7 @@
 //! Column layout planning for properties and interaction state.
 use crate::engine::DerivedCacheKey;
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::gpu_limit;
 use crate::{DerivedCache, DerivedFootprint, MaterializationPlan};
 use molgfx_core::{Scene, VisualAttributeRef};
 use molgfx_gpu::Device;
@@ -35,11 +36,8 @@ impl<D: Device> VisualPropertyTable<D> {
             let Some((length, stride_words)) = column_shape(scene, reference) else {
                 continue;
             };
-            let length =
-                u32::try_from(length).map_err(|_| molgfx_gpu::GpuError::LimitExceeded {
-                    resource: "visual property table",
-                    limit: u64::from(u32::MAX) * 4,
-                })?;
+            let length = u32::try_from(length)
+                .map_err(|_| gpu_limit("visual property table", u64::from(u32::MAX) * 4))?;
             let temporal = match reference {
                 VisualAttributeRef::Attribute { handle, .. } => {
                     scene.attribute_frames(handle).is_some()
@@ -85,12 +83,9 @@ impl<D: Device> VisualPropertyTable<D> {
                 materialized_offset,
                 cache_key: materialized.then_some(cache_key).flatten(),
             });
-            offset = offset.checked_add(storage_words).ok_or_else(|| {
-                molgfx_gpu::GpuError::LimitExceeded {
-                    resource: "visual property table",
-                    limit: u64::from(u32::MAX) * 4,
-                }
-            })?;
+            offset = offset
+                .checked_add(storage_words)
+                .ok_or_else(|| gpu_limit("visual property table", u64::from(u32::MAX) * 4))?;
         }
         for key in old_keys {
             if !self
@@ -148,24 +143,18 @@ impl<D: Device> VisualPropertyTable<D> {
             let Some(state) = scene.interaction_state(structure) else {
                 continue;
             };
-            let length =
-                u32::try_from(state.len()).map_err(|_| molgfx_gpu::GpuError::LimitExceeded {
-                    resource: "visual interaction state table",
-                    limit: u64::from(u32::MAX) * 4,
-                })?;
+            let length = u32::try_from(state.len()).map_err(|_| {
+                gpu_limit("visual interaction state table", u64::from(u32::MAX) * 4)
+            })?;
             self.states.push(StateColumn {
                 structure,
                 offset,
                 length,
                 revision: 0,
             });
-            offset =
-                offset
-                    .checked_add(length)
-                    .ok_or_else(|| molgfx_gpu::GpuError::LimitExceeded {
-                        resource: "visual interaction state table",
-                        limit: u64::from(u32::MAX) * 4,
-                    })?;
+            offset = offset.checked_add(length).ok_or_else(|| {
+                gpu_limit("visual interaction state table", u64::from(u32::MAX) * 4)
+            })?;
         }
         Ok(true)
     }

@@ -1,6 +1,7 @@
 //! Shared visual-program lowering for generic homogeneous row domains.
 
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::gpu_limit;
 use crate::scene_gpu::slot_types::SlotShading;
 use crate::scene_gpu::visual::{VisualBase, VisualCullEntries, VisualSlot, VisualSync};
 use crate::scene_gpu::visual_parameters::VisualParameterTable;
@@ -213,8 +214,5 @@ impl<D: Device> GenericVisualResources<'_, D> {
 }
 
 fn missing_visual_buffer() -> molgfx_gpu::GpuError {
-    molgfx_gpu::GpuError::LimitExceeded {
-        resource: "generic visual arena",
-        limit: 0,
-    }
+    gpu_limit("generic visual arena", 0)
 }

@@ -4,7 +4,7 @@ use super::volume_slot::OccupancySync;
 use crate::error::RenderError;
 use crate::passes::OccupancyPass;
 use crate::scene_gpu::asset_arena::AssetArena;
-use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::buffers::{buffer_entry, limit_exceeded};
 use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::PlacedStructure;
 use molgfx_gpu::{
@@ -219,7 +219,7 @@ fn occupancy_shape<D: Device>(
         .iter()
         .any(|&dimension| dimension > device.capabilities().max_texture_dim_3d)
     {
-        return Err(limit_error(
+        return Err(limit_exceeded(
             "occupancy 3-D texture",
             u64::from(device.capabilities().max_texture_dim_3d),
         ));
@@ -229,14 +229,14 @@ fn occupancy_shape<D: Device>(
     for (output, dimension) in macro_dimensions.iter_mut().zip(dimensions) {
         *output = dimension
             .checked_add(brick - 1)
-            .ok_or_else(|| limit_error("occupancy macro dimensions", u64::from(u32::MAX)))?
+            .ok_or_else(|| limit_exceeded("occupancy macro dimensions", u64::from(u32::MAX)))?
             / brick;
     }
     let selected_count = u32::try_from(selected_len)
-        .map_err(|_| limit_error("occupancy selected rows", u64::from(u32::MAX)))?;
+        .map_err(|_| limit_exceeded("occupancy selected rows", u64::from(u32::MAX)))?;
     let selected_bytes = u64::from(selected_count)
         .checked_mul(std::mem::size_of::<u32>() as u64)
-        .ok_or_else(|| limit_error("occupancy selected row bytes", u64::MAX))?
+        .ok_or_else(|| limit_exceeded("occupancy selected row bytes", u64::MAX))?
         .max(std::mem::size_of::<u32>() as u64);
     Ok(OccupancyShape {
         dimensions,
@@ -326,10 +326,6 @@ fn occupancy_uniforms(
     }
 }
 
-fn limit_error(resource: &'static str, limit: u64) -> RenderError {
-    molgfx_gpu::GpuError::LimitExceeded { resource, limit }.into()
-}
-
 fn create_texture<D: Device>(
     device: &D,
     label: &'static str,
@@ -351,13 +347,7 @@ fn product(dimensions: [u32; 3]) -> Result<u32, RenderError> {
     dimensions
         .into_iter()
         .try_fold(1u32, u32::checked_mul)
-        .ok_or(
-            molgfx_gpu::GpuError::LimitExceeded {
-                resource: "occupancy voxel count",
-                limit: u64::from(u32::MAX),
-            }
-            .into(),
-        )
+        .ok_or(limit_exceeded("occupancy voxel count", u64::from(u32::MAX)))
 }
 
 fn dispatch<D: Device, P: ComputePassEncoder<D>>(pass: &mut P, count: u32) {

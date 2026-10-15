@@ -2,6 +2,7 @@
 
 use super::asset_arena::{AssetArena, AssetRange};
 use crate::RenderError;
+use crate::scene_gpu::buffers::gpu_limit;
 use molgfx_core::{DatasetId, PlacedStructure};
 use molgfx_gpu::Device;
 
@@ -66,10 +67,7 @@ impl<D: Device> GpuAsset<D> {
             bvh.primitive_indices
                 .len()
                 .checked_add(bvh.escape.len())
-                .ok_or(molgfx_gpu::GpuError::LimitExceeded {
-                    resource: "asset BVH index count",
-                    limit: u64::from(u32::MAX),
-                })?,
+                .ok_or(gpu_limit("asset BVH index count", u64::from(u32::MAX)))?,
         );
         packed_indices.extend_from_slice(&bvh.primitive_indices);
         packed_indices.extend_from_slice(&bvh.escape);
@@ -93,10 +91,7 @@ impl<D: Device> GpuAsset<D> {
             .allocated_bytes()
             .checked_add(bvh_nodes.allocated_bytes())
             .and_then(|bytes| bytes.checked_add(bvh_indices.allocated_bytes()))
-            .ok_or(molgfx_gpu::GpuError::LimitExceeded {
-                resource: "asset resident byte count",
-                limit: u64::MAX,
-            })?;
+            .ok_or(gpu_limit("asset resident byte count", u64::MAX))?;
         Ok(Self {
             identity,
             coordinates,

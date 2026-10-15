@@ -1,6 +1,7 @@
 //! Stable identities, bounded conversions and buffer upload helpers.
 
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::limit_exceeded;
 use crate::scene_gpu::picking_pages::PickPages;
 use molgfx_core::{ChunkId, DatasetId, EntityKind, InstanceBatch, InstanceBatchHandle};
 use molgfx_gpu::{BufferDesc, BufferUsage, Device, Queue as _};
@@ -62,9 +63,5 @@ pub(super) const fn pack_color(color: Rgba8) -> u32 {
 }
 
 pub(super) fn limit() -> RenderError {
-    molgfx_gpu::GpuError::LimitExceeded {
-        resource: "generic analytic instances",
-        limit: u64::from(u32::MAX),
-    }
-    .into()
+    limit_exceeded("generic analytic instances", u64::from(u32::MAX))
 }

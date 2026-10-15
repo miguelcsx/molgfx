@@ -10,6 +10,7 @@ use super::ligand_pose_types::{
     mix_pose_key,
 };
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::limit_exceeded;
 use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::{LigandPoseBatch, LigandPoseBatchHandle, Scene};
 use molgfx_gpu::Device;
@@ -137,7 +138,7 @@ fn collect_candidates<D: Device>(
         stats.visible = stats
             .visible
             .checked_add(u64::from(ranges.visible()?))
-            .ok_or_else(|| limit("visible ligand poses", u64::MAX))?;
+            .ok_or_else(|| limit_exceeded("visible ligand poses", u64::MAX))?;
         let primitive_cost =
             checked_add(atom_count, bond_count, "ligand pose topology primitives")?;
         let shape_count = u32::from(atom_count > 0) + u32::from(bond_count > 0);
@@ -216,19 +217,11 @@ fn build_gpu_batches(
 }
 
 fn add_stat(total: &mut u64, count: usize, resource: &'static str) -> Result<(), RenderError> {
-    let count = u64::try_from(count).map_err(|_| limit(resource, u64::MAX))?;
+    let count = u64::try_from(count).map_err(|_| limit_exceeded(resource, u64::MAX))?;
     *total = total
         .checked_add(count)
-        .ok_or_else(|| limit(resource, u64::MAX))?;
+        .ok_or_else(|| limit_exceeded(resource, u64::MAX))?;
     Ok(())
-}
-
-fn limit(resource: &'static str, ceiling: u64) -> RenderError {
-    molgfx_gpu::GpuError::LimitExceeded {
-        resource,
-        limit: ceiling,
-    }
-    .into()
 }
 
 fn sampling_seed(batch: &LigandPoseBatch, model: Mat4) -> u64 {

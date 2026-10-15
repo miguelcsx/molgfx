@@ -1,7 +1,7 @@
 //! Attribute-timeline dispatch resources.
 
 use crate::error::RenderError;
-use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::buffers::{buffer_entry, limit_exceeded};
 use molgfx_core::{RowDomain, Scene, VisualAttributeRef};
 use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, Device, Queue};
 
@@ -142,18 +142,13 @@ pub(super) fn paged_timeline_config(
 ) -> Result<AttributeTimelineConfig, RenderError> {
     let word_offset = |bytes: u64| {
         if !bytes.is_multiple_of(4) {
-            return Err(molgfx_gpu::GpuError::LimitExceeded {
-                resource: "paged attribute timeline offset",
-                limit: u64::from(u32::MAX) * 4,
-            }
-            .into());
+            return Err(limit_exceeded(
+                "paged attribute timeline offset",
+                u64::from(u32::MAX) * 4,
+            ));
         }
-        u32::try_from(bytes / 4).map_err(|_| {
-            RenderError::from(molgfx_gpu::GpuError::LimitExceeded {
-                resource: "paged attribute timeline offset",
-                limit: u64::from(u32::MAX) * 4,
-            })
-        })
+        u32::try_from(bytes / 4)
+            .map_err(|_| limit_exceeded("paged attribute timeline offset", u64::from(u32::MAX) * 4))
     };
     Ok(AttributeTimelineConfig {
         offsets: [

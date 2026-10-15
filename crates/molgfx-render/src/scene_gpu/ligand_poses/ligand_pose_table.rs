@@ -13,7 +13,7 @@ use super::ligand_pose_types::{
 };
 use super::ligand_pose_upload::{PoseTableBuffers, PoseTableScratch, upload_batch_tables};
 use crate::error::RenderError;
-use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::buffers::{buffer_entry, limit_exceeded};
 use crate::scene_gpu::primitive_packing::placement_revision;
 use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::{DrawIndirectArgs, Scene};
@@ -222,7 +222,7 @@ impl<D: Device> GpuLigandPoses<D> {
             .groups
             .len()
             .checked_add(shadow_groups)
-            .ok_or_else(|| limit("ligand pose draw groups", u64::from(u32::MAX)))?;
+            .ok_or_else(|| limit_exceeded("ligand pose draw groups", u64::from(u32::MAX)))?;
         self.stats.draw_groups = checked_count(draw_groups, "ligand pose draw groups")?;
         Ok(())
     }
@@ -259,7 +259,7 @@ impl<D: Device> GpuLigandPoses<D> {
                     self.opaque_instances = self
                         .opaque_instances
                         .checked_add(instances)
-                        .ok_or_else(|| limit("ligand pose opaque instances", u64::MAX))?;
+                        .ok_or_else(|| limit_exceeded("ligand pose opaque instances", u64::MAX))?;
                 }
             }
         }
@@ -380,7 +380,7 @@ fn pose_table_bytes<T>(plans: &[BatchPlan]) -> Result<u64, RenderError> {
         )
     })?;
     rows.checked_mul(std::mem::size_of::<T>() as u64)
-        .ok_or_else(|| limit("ligand pose table bytes", u64::MAX))
+        .ok_or_else(|| limit_exceeded("ligand pose table bytes", u64::MAX))
 }
 
 fn table_bytes<T>(
@@ -390,10 +390,10 @@ fn table_bytes<T>(
     let rows = batches.iter().try_fold(0u64, |total, batch| {
         total
             .checked_add(u64::from(count(batch)))
-            .ok_or_else(|| limit("ligand pose table rows", u64::MAX))
+            .ok_or_else(|| limit_exceeded("ligand pose table rows", u64::MAX))
     })?;
     rows.checked_mul(std::mem::size_of::<T>() as u64)
-        .ok_or_else(|| limit("ligand pose table bytes", u64::MAX))
+        .ok_or_else(|| limit_exceeded("ligand pose table bytes", u64::MAX))
 }
 
 fn ensure_buffer<D: Device>(
@@ -407,7 +407,7 @@ fn ensure_buffer<D: Device>(
     let needed = needed.max(256);
     let limit = device.capabilities().max_storage_buffer_bytes;
     if needed > limit || limit == 0 {
-        return Err(limit_error(label, limit));
+        return Err(limit_exceeded(label, limit));
     }
     let shrink = *capacity > needed.saturating_mul(4)
         && capacity.saturating_sub(needed) > RETAINED_BUFFER_SLACK;
@@ -427,19 +427,7 @@ fn ensure_buffer<D: Device>(
     Ok(true)
 }
 
-fn limit(resource: &'static str, ceiling: u64) -> RenderError {
-    molgfx_gpu::GpuError::LimitExceeded {
-        resource,
-        limit: ceiling,
-    }
-    .into()
-}
-
 fn add_u64(left: u64, right: u64, resource: &'static str) -> Result<u64, RenderError> {
     left.checked_add(right)
-        .ok_or_else(|| limit(resource, u64::MAX))
-}
-
-fn limit_error(resource: &'static str, ceiling: u64) -> RenderError {
-    limit(resource, ceiling)
+        .ok_or_else(|| limit_exceeded(resource, u64::MAX))
 }

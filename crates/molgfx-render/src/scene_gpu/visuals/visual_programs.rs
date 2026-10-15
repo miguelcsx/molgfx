@@ -7,6 +7,7 @@
 //! duplicate program storage or add CPU work.
 
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::gpu_limit;
 use crate::scene_gpu::grow_buffer::GrowBuffer;
 use molgfx_core::{Scene, VisualInstructionGpu, VisualProgram};
 use molgfx_gpu::Device;
@@ -91,12 +92,8 @@ impl<D: Device> VisualProgramTable<D> {
         {
             return Ok(false);
         }
-        let offset = u32::try_from(self.instructions.len()).map_err(|_| {
-            molgfx_gpu::GpuError::LimitExceeded {
-                resource: "visual program instruction index",
-                limit: u64::from(u32::MAX),
-            }
-        })?;
+        let offset = u32::try_from(self.instructions.len())
+            .map_err(|_| gpu_limit("visual program instruction index", u64::from(u32::MAX)))?;
         program.write_gpu_instructions(&mut self.scratch);
         self.instructions.extend_from_slice(&self.scratch);
         self.programs.push(ResidentProgram {
