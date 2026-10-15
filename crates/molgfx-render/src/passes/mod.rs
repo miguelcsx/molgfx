@@ -74,7 +74,7 @@ pub(crate) use resources::{
     HDR_RESOURCE, HISTORY_A_RESOURCE, HISTORY_B_RESOURCE, MOTION_BLUR_RESOURCE, MOTION_RESOURCE,
     NORMAL_RESOURCE, OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE, OPAQUE_DEPTH_RESOURCE,
     SEGMENT_LABEL_RESOURCE, SEGMENT_VOLUME_RESOURCE, SHADOW_RESOURCE, STRUCTURE_RESOURCE,
-    gbuffer_targets, segmentation_targets,
+    begin_gbuffer_pass, gbuffer_targets, segmentation_targets,
 };
 pub(crate) use shadow::ShadowPass;
 pub(crate) use sphere::{DEPTH_RESOURCE, SpherePass};

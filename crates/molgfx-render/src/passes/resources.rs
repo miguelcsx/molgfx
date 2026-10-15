@@ -1,6 +1,11 @@
 //! Shared render-target formats and resource identifiers.
 
-use molgfx_gpu::{BlendMode, ColorTarget, TextureFormat};
+use crate::graph::ResourceTable;
+use crate::passes::DEPTH_RESOURCE;
+use molgfx_gpu::{
+    BlendMode, ColorAttachment, ColorTarget, CommandEncoder, DepthAttachment, DepthLoadOp, Device,
+    LoadOp, RenderPassDesc, TextureFormat, TimestampWrites,
+};
 
 pub(crate) const AO_FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
 pub(crate) const SHADOW_RESOURCE: crate::graph::ResourceId = crate::graph::ResourceId(21);
@@ -31,6 +36,42 @@ pub(crate) const fn gbuffer_targets() -> [ColorTarget; 5] {
             blend: BlendMode::Replace,
         },
     ]
+}
+
+/// Opens a pass over the shared opaque gbuffer, loading every target and the
+/// reversed depth, or `None` when a target is not allocated this frame.
+///
+/// The encoder, table and timestamps are separate borrows so the caller keeps
+/// reading `ctx.scene` while the pass is open.
+pub(crate) fn begin_gbuffer_pass<'e, D: Device>(
+    encoder: &'e mut D::CommandEncoder,
+    resources: &ResourceTable<'_, D>,
+    timestamps: Option<TimestampWrites<'_, D>>,
+    label: &'static str,
+) -> Option<<D::CommandEncoder as CommandEncoder<D>>::RenderPass<'e>> {
+    let attachment = |id| {
+        resources.view(id).map(|view| ColorAttachment {
+            view,
+            load: LoadOp::Load,
+        })
+    };
+    let colors = [
+        attachment(ALBEDO_RESOURCE)?,
+        attachment(NORMAL_RESOURCE)?,
+        attachment(ENTITY_RESOURCE)?,
+        attachment(STRUCTURE_RESOURCE)?,
+        attachment(MOTION_RESOURCE)?,
+    ];
+    Some(encoder.begin_render_pass(&RenderPassDesc {
+        label,
+        colors: &colors,
+        depth: Some(DepthAttachment {
+            view: resources.view(DEPTH_RESOURCE)?,
+            load: DepthLoadOp::Load,
+            read_only: false,
+        }),
+        timestamps,
+    }))
 }
 
 /// The categorical OIT pipeline writes color accumulation, revealage, source

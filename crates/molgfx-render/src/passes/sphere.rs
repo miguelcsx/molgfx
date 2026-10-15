@@ -8,13 +8,9 @@
 use crate::error::RenderError;
 use crate::graph::{PassContext, ResourceId};
 use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
-use crate::passes::{
-    ALBEDO_RESOURCE, ENTITY_RESOURCE, MOTION_RESOURCE, NORMAL_RESOURCE, STRUCTURE_RESOURCE,
-    gbuffer_targets,
-};
+use crate::passes::{begin_gbuffer_pass, gbuffer_targets};
 use molgfx_gpu::{
-    ColorAttachment, CommandEncoder as _, CompareFunction, DepthAttachment, DepthLoadOp,
-    DepthState, Device, LoadOp, PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _,
+    CompareFunction, DepthState, Device, PrimitiveTopology, RenderPassEncoder as _,
     RenderPipelineDesc, ShaderModuleDesc, TextureFormat,
 };
 
@@ -164,16 +160,6 @@ impl<D: Device> SpherePass<D> {
 
     /// Records one indirect draw per ordered representation slot.
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
-        let (Some(albedo), Some(normal), Some(entity), Some(structure), Some(motion), Some(depth)) = (
-            ctx.resources.view(ALBEDO_RESOURCE),
-            ctx.resources.view(NORMAL_RESOURCE),
-            ctx.resources.view(ENTITY_RESOURCE),
-            ctx.resources.view(STRUCTURE_RESOURCE),
-            ctx.resources.view(MOTION_RESOURCE),
-            ctx.resources.view(DEPTH_RESOURCE),
-        ) else {
-            return;
-        };
         if !ctx.scene.has_atom_draws(false) && ctx.scene.paged_spacefill_draw().is_none() {
             return;
         }
@@ -181,37 +167,14 @@ impl<D: Device> SpherePass<D> {
         let Some(sphere) = ctx.build(&passes.sphere, super::build::sphere) else {
             return;
         };
-        let mut pass = ctx.encoder.begin_render_pass(&RenderPassDesc {
-            label: "sphere impostors",
-            colors: &[
-                ColorAttachment {
-                    view: albedo,
-                    load: LoadOp::Load,
-                },
-                ColorAttachment {
-                    view: normal,
-                    load: LoadOp::Load,
-                },
-                ColorAttachment {
-                    view: entity,
-                    load: LoadOp::Load,
-                },
-                ColorAttachment {
-                    view: structure,
-                    load: LoadOp::Load,
-                },
-                ColorAttachment {
-                    view: motion,
-                    load: LoadOp::Load,
-                },
-            ],
-            depth: Some(DepthAttachment {
-                view: depth,
-                load: DepthLoadOp::Load,
-                read_only: false,
-            }),
-            timestamps: ctx.timestamps,
-        });
+        let Some(mut pass) = begin_gbuffer_pass(
+            &mut *ctx.encoder,
+            ctx.resources,
+            ctx.timestamps,
+            "sphere impostors",
+        ) else {
+            return;
+        };
         pass.set_bind_group(0, &ctx.scene.group0, &[]);
         // Draws arrive grouped by representation, so the pipeline changes at
         // most once per representation rather than once per draw.
