@@ -1,15 +1,12 @@
 //! Persistent command arena for one indirect batch of provider-backed bonds.
 
 use crate::engine::bond_draw_plan::{PagedBondGpu, ResidentBondPlacement};
-use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::buffers::{buffer_entry, create_buffer, storage_entry};
 use crate::scene_gpu::picking_pages::{ChunkPickPlan, PickPages};
 use crate::{RenderError, ResidencyConfig};
 use molgfx_core::{DrawIndirectArgs, EntityKind};
 use molgfx_gpu::Queue as _;
-use molgfx_gpu::{
-    BindGroupDesc, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, BufferDesc, BufferUsage,
-    Device, ShaderStages,
-};
+use molgfx_gpu::{BindGroupDesc, BindGroupLayoutDesc, BufferUsage, Device, ShaderStages};
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -181,19 +178,19 @@ impl<D: Device> PagedBondBatch<D> {
     fn ensure_buffers(&mut self, device: &D) -> Result<(), RenderError> {
         if self.buffers.is_none() {
             self.buffers = Some(PagedBondBuffers {
-                placements: buffer(
+                placements: create_buffer(
                     device,
                     "paged bond placements",
                     bytes_for::<BondPlacementGpu>(self.machine_capacity)?,
                     BufferUsage::STORAGE.union(BufferUsage::COPY_DST),
                 )?,
-                visible: buffer(
+                visible: create_buffer(
                     device,
                     "paged visible bonds",
                     u64::from(self.visible_capacity).saturating_mul(8).max(8),
                     BufferUsage::STORAGE,
                 )?,
-                args: buffer(
+                args: create_buffer(
                     device,
                     "paged bond indirect command arena",
                     std::mem::size_of::<DrawIndirectArgs>() as u64,
@@ -260,31 +257,14 @@ fn layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "paged provider bonds",
         entries: &[
-            storage(0, true, ShaderStages::VERTEX.union(ShaderStages::COMPUTE)),
-            storage(1, true, ShaderStages::VERTEX.union(ShaderStages::COMPUTE)),
-            storage(2, true, ShaderStages::VERTEX.union(ShaderStages::COMPUTE)),
-            storage(3, false, ShaderStages::COMPUTE),
-            storage(4, false, ShaderStages::COMPUTE),
-            storage(5, true, ShaderStages::VERTEX),
+            storage_entry(0, true, ShaderStages::VERTEX.union(ShaderStages::COMPUTE)),
+            storage_entry(1, true, ShaderStages::VERTEX.union(ShaderStages::COMPUTE)),
+            storage_entry(2, true, ShaderStages::VERTEX.union(ShaderStages::COMPUTE)),
+            storage_entry(3, false, ShaderStages::COMPUTE),
+            storage_entry(4, false, ShaderStages::COMPUTE),
+            storage_entry(5, true, ShaderStages::VERTEX),
         ],
     })
-}
-
-const fn storage(binding: u32, read_only: bool, visibility: ShaderStages) -> BindGroupLayoutEntry {
-    BindGroupLayoutEntry {
-        binding,
-        visibility,
-        ty: BindingType::Storage { read_only },
-    }
-}
-
-fn buffer<D: Device>(
-    device: &D,
-    label: &'static str,
-    size: u64,
-    usage: BufferUsage,
-) -> Result<D::Buffer, RenderError> {
-    Ok(device.create_buffer(&BufferDesc { label, size, usage })?)
 }
 
 fn bytes_for<T>(count: usize) -> Result<u64, RenderError> {

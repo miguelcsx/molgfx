@@ -3,7 +3,10 @@
 use crate::error::RenderError;
 use crate::graph::SHADOW_MAP_EXTENT;
 use molgfx_core::DrawIndirectArgs;
-use molgfx_gpu::{BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
+use molgfx_gpu::{
+    BindGroupEntry, BindGroupLayoutEntry, BindingType, BufferDesc, BufferUsage, Device, Queue,
+    ShaderStages,
+};
 
 #[cfg(test)]
 #[path = "buffers_tests.rs"]
@@ -237,6 +240,27 @@ pub(in crate::scene_gpu) fn gpu_limit(resource: &'static str, limit: u64) -> mol
 
 pub(in crate::scene_gpu) fn limit_exceeded(resource: &'static str, limit: u64) -> RenderError {
     gpu_limit(resource, limit).into()
+}
+
+pub(in crate::scene_gpu) fn create_buffer<D: Device>(
+    device: &D,
+    label: &'static str,
+    size: u64,
+    usage: BufferUsage,
+) -> Result<D::Buffer, RenderError> {
+    Ok(device.create_buffer(&BufferDesc { label, size, usage })?)
+}
+
+pub(in crate::scene_gpu) const fn storage_entry(
+    binding: u32,
+    read_only: bool,
+    visibility: ShaderStages,
+) -> BindGroupLayoutEntry {
+    BindGroupLayoutEntry {
+        binding,
+        visibility,
+        ty: BindingType::Storage { read_only },
+    }
 }
 
 pub(in crate::scene_gpu) fn count(len: usize) -> u32 {

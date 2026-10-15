@@ -2,7 +2,7 @@
 
 #[path = "paged_chunks/lowering.rs"]
 mod lowering;
-use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::buffers::{buffer_entry, create_buffer, storage_entry};
 use lowering::{bytes_for, lower, lower_window, representation_command};
 
 use crate::ResidencyConfig;
@@ -12,10 +12,7 @@ use crate::error::RenderError;
 use crate::scene_gpu::picking_pages::{ChunkPickPlan, PickPages};
 use molgfx_core::{DrawIndirectArgs, ResidencyTicket};
 use molgfx_gpu::Queue as _;
-use molgfx_gpu::{
-    BindGroupDesc, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, BufferDesc, BufferUsage,
-    Device, ShaderStages,
-};
+use molgfx_gpu::{BindGroupDesc, BindGroupLayoutDesc, BufferUsage, Device, ShaderStages};
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -311,19 +308,19 @@ impl<D: Device> PagedChunkBatch<D> {
             return Ok(false);
         }
         self.buffers = Some(PagedChunkBuffers {
-            placements: buffer(
+            placements: create_buffer(
                 device,
                 "paged chunk placements",
                 bytes_for::<PlacementGpu>(self.machine_capacity)?,
                 BufferUsage::STORAGE.union(BufferUsage::COPY_DST),
             )?,
-            visible: buffer(
+            visible: create_buffer(
                 device,
                 "paged visible rows",
                 u64::from(self.visible_capacity).saturating_mul(8).max(8),
                 BufferUsage::STORAGE,
             )?,
-            args: buffer(
+            args: create_buffer(
                 device,
                 "paged indirect command arena",
                 bytes_for::<DrawIndirectArgs>(COMMAND_COUNT)?,
@@ -331,7 +328,7 @@ impl<D: Device> PagedChunkBatch<D> {
                     .union(BufferUsage::INDIRECT)
                     .union(BufferUsage::COPY_DST),
             )?,
-            windows: buffer(
+            windows: create_buffer(
                 device,
                 "paged trajectory windows",
                 bytes_for::<TrajectoryWindowGpu>(self.machine_capacity)?,
@@ -367,38 +364,21 @@ impl<D: Device> PagedChunkBatch<D> {
     }
 }
 
-fn buffer<D: Device>(
-    device: &D,
-    label: &'static str,
-    size: u64,
-    usage: BufferUsage,
-) -> Result<D::Buffer, RenderError> {
-    Ok(device.create_buffer(&BufferDesc { label, size, usage })?)
-}
-
 fn layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "paged structure chunks",
         entries: &[
-            storage(0, false, ShaderStages::COMPUTE),
-            storage(1, true, ShaderStages::COMPUTE),
-            storage(2, true, ShaderStages::VERTEX.union(ShaderStages::COMPUTE)),
-            storage(3, false, ShaderStages::COMPUTE),
-            storage(4, false, ShaderStages::COMPUTE),
-            storage(5, true, ShaderStages::VERTEX),
-            storage(6, true, ShaderStages::COMPUTE),
-            storage(7, true, ShaderStages::COMPUTE),
-            storage(8, true, ShaderStages::VERTEX),
+            storage_entry(0, false, ShaderStages::COMPUTE),
+            storage_entry(1, true, ShaderStages::COMPUTE),
+            storage_entry(2, true, ShaderStages::VERTEX.union(ShaderStages::COMPUTE)),
+            storage_entry(3, false, ShaderStages::COMPUTE),
+            storage_entry(4, false, ShaderStages::COMPUTE),
+            storage_entry(5, true, ShaderStages::VERTEX),
+            storage_entry(6, true, ShaderStages::COMPUTE),
+            storage_entry(7, true, ShaderStages::COMPUTE),
+            storage_entry(8, true, ShaderStages::VERTEX),
         ],
     })
-}
-
-const fn storage(binding: u32, read_only: bool, visibility: ShaderStages) -> BindGroupLayoutEntry {
-    BindGroupLayoutEntry {
-        binding,
-        visibility,
-        ty: BindingType::Storage { read_only },
-    }
 }
 
 impl<D: Device> crate::scene_gpu::GpuScene<D> {
