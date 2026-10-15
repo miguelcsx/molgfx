@@ -1,7 +1,7 @@
 //! Presentation resources: the display encoding, the transient pool sized to
 //! the surface, and acquiring the next surface frame.
 
-use super::Engine;
+use crate::engine::Engine;
 use crate::error::RenderError;
 use crate::graph::{DisplayEncoding, TransientPool, plan_aliases};
 use crate::passes::FrameBindings;
@@ -17,7 +17,7 @@ impl<D: Device> Engine<D> {
     /// interactive scenes — which reach the highest tier — with hard,
     /// stair-stepped silhouettes at every zoom.
     #[inline]
-    pub(super) fn edge_smoothing(&self) -> bool {
+    pub(in crate::engine) fn edge_smoothing(&self) -> bool {
         match self.resolved_plan.antialias() {
             Some(style) => style.edge_smoothing,
             None => !self.adaptive.converged(),
@@ -29,7 +29,7 @@ impl<D: Device> Engine<D> {
     /// Selects a pre-built tonemap pipeline rather than a per-pixel branch, so
     /// the encoding is fixed for the whole frame by construction.
     #[inline]
-    pub(super) fn display_encoding(&self) -> DisplayEncoding {
+    pub(in crate::engine) fn display_encoding(&self) -> DisplayEncoding {
         let display = self.resolved_plan.display();
 
         DisplayEncoding {
@@ -65,7 +65,7 @@ impl<D: Device> Engine<D> {
     /// # Errors
     ///
     /// Returns an error when the transient pool cannot be built.
-    pub(super) fn rebuild_pool_if_needed(&mut self) -> Result<bool, RenderError> {
+    pub(in crate::engine) fn rebuild_pool_if_needed(&mut self) -> Result<bool, RenderError> {
         let rebuild = self
             .pool
             .as_ref()
@@ -109,7 +109,7 @@ impl<D: Device> Engine<D> {
     ///
     /// Returns an error for surface failures other than lost, outdated, or
     /// timeout conditions.
-    pub(super) fn acquire_surface_frame(
+    pub(in crate::engine) fn acquire_surface_frame(
         &mut self,
     ) -> Result<Option<<D::Surface as molgfx_gpu::Surface<D>>::Frame>, RenderError> {
         let Some(surface) = &mut self.surface else {

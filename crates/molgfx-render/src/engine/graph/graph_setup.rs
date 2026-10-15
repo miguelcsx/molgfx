@@ -28,16 +28,16 @@ mod tests;
 /// Every field changes the graph's shape, so a change to any of them rebuilds
 /// the schedule and the transient pool.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub(super) struct GraphTopology {
-    pub(super) depth_of_field: bool,
-    pub(super) bloom: bool,
-    pub(super) motion_blur: bool,
-    pub(super) transparent_depth: TransparentDepth,
+pub(in crate::engine) struct GraphTopology {
+    pub(in crate::engine) depth_of_field: bool,
+    pub(in crate::engine) bloom: bool,
+    pub(in crate::engine) motion_blur: bool,
+    pub(in crate::engine) transparent_depth: TransparentDepth,
 }
 
 /// What transparent passes bind as the opaque scene's depth.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub(super) enum TransparentDepth {
+pub(in crate::engine) enum TransparentDepth {
     /// The live depth, which the passes also test against.
     #[default]
     Live,
@@ -48,7 +48,7 @@ pub(super) enum TransparentDepth {
 
 impl GraphTopology {
     /// The topology a plan needs on a device.
-    pub(super) fn of<D: Device>(plan: &ResolvedRenderPlan, device: &D) -> Self {
+    pub(in crate::engine) fn of<D: Device>(plan: &ResolvedRenderPlan, device: &D) -> Self {
         Self {
             depth_of_field: plan.depth_of_field().is_some(),
             bloom: plan.bloom().is_some(),
@@ -62,7 +62,7 @@ impl GraphTopology {
     }
 }
 
-pub(super) fn realtime_nodes<D: Device>(topology: GraphTopology) -> Vec<PassNode<D>> {
+pub(in crate::engine) fn realtime_nodes<D: Device>(topology: GraphTopology) -> Vec<PassNode<D>> {
     let depth_snapshot = topology.transparent_depth == TransparentDepth::Copy;
     let gbuffer = smallvec![
         ALBEDO_RESOURCE,
@@ -132,7 +132,7 @@ pub(super) fn realtime_nodes<D: Device>(topology: GraphTopology) -> Vec<PassNode
         },
     ];
     nodes.extend(lighting_nodes());
-    nodes.extend(super::graph_transparency::transparency_nodes(
+    nodes.extend(crate::engine::graph_transparency::transparency_nodes(
         depth_snapshot,
     ));
     nodes.extend(presentation_nodes(
@@ -312,7 +312,7 @@ fn point_node<D: Device>(gbuffer: smallvec::SmallVec<[graph::ResourceId; 4]>) ->
     }
 }
 
-pub(super) fn realtime_resources() -> Vec<ResourceDesc> {
+pub(in crate::engine) fn realtime_resources() -> Vec<ResourceDesc> {
     let sampled_target = TextureUsage::RENDER_ATTACHMENT.union(TextureUsage::TEXTURE_BINDING);
     let readback_target = sampled_target.union(TextureUsage::COPY_SRC);
     let mut resources = vec![

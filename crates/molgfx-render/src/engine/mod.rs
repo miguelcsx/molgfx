@@ -1,5 +1,11 @@
 //! The engine: owns the device, the graph and every pass's state.
 
+mod graph;
+use graph::graph_setup;
+use graph::graph_transparency;
+pub(crate) use graph::pipeline_cache;
+use graph::target;
+
 mod history;
 use history::temporal;
 use history::temporal_scene;
@@ -54,15 +60,10 @@ use chunk::derived_cache;
 
 mod config;
 mod frame;
-mod graph_setup;
-mod graph_transparency;
 pub use stereo::{StereoImages, StereoLayout};
 mod init;
-pub(crate) mod pipeline_cache;
-mod presentation;
 mod session;
 mod settings;
-mod target;
 
 pub(crate) use adaptive::occlusion_rays;
 pub use adaptive::{AdaptiveQuality, AdaptiveQualityConfig, QualityTier};

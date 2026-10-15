@@ -1,9 +1,9 @@
 //! Presentation-format selection kept separate from graph construction.
 
-use super::EngineConfig;
+use crate::engine::EngineConfig;
 use molgfx_gpu::{Device, Surface as _, SurfaceConfig, TextureFormat};
 
-pub(super) fn configure<D: Device>(
+pub(in crate::engine) fn configure<D: Device>(
     device: &D,
     surface: &mut Option<D::Surface>,
     config: &EngineConfig,

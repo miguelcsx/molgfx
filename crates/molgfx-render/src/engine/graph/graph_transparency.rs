@@ -20,7 +20,7 @@ fn opaque_scene_reads(depth_snapshot: bool) -> smallvec::SmallVec<[crate::graph:
     reads
 }
 
-pub(super) fn transparency_nodes<D: Device>(depth_snapshot: bool) -> Vec<PassNode<D>> {
+pub(in crate::engine) fn transparency_nodes<D: Device>(depth_snapshot: bool) -> Vec<PassNode<D>> {
     let mut nodes = Vec::with_capacity(14);
     nodes.extend(transparency_clear_nodes());
     if depth_snapshot {
