@@ -13,7 +13,6 @@ use std::sync::Arc;
 use super::device_errors::DeviceErrors;
 use super::resource::{ResourceLedger, WgpuBuffer, WgpuTexture, texture_bytes};
 
-#[path = "device/adapter.rs"]
 mod adapter;
 use adapter::{opposite_power, request_adapter, select_headless_adapter, wgpu_power};
 
