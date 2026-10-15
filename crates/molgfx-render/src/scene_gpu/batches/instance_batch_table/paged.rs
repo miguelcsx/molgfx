@@ -2,7 +2,21 @@
 
 use super::groups::instance_groups;
 use super::resource::instance_args;
-use super::*;
+use super::support::{checked_count, limit};
+use super::{
+    GENERIC_INSTANCE_CAPSULE, GENERIC_INSTANCE_SPHERE, GenericInstanceConfig,
+    GenericInstanceDispatch, GenericInstanceDraw, GpuAnalyticTemplate, GpuInstanceBatches,
+    InstanceGroupContext, InstanceGroupInputs, InstanceTimelineConfig, MaterializationResources,
+};
+use crate::error::RenderError;
+use crate::scene_gpu::buffers::{buffer_entry, pack_color};
+use crate::scene_gpu::dispatch::workgroups_2d;
+use crate::scene_gpu::generic_visual::{GenericVisualResources, GenericVisualState};
+use crate::scene_gpu::picking_pages::PickPages;
+use crate::{DerivedCache, DerivedFootprint};
+use molgfx_core::{DrawIndirectArgs, EntityKind};
+use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, Device, Queue as _};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub(super) struct GpuPagedInstanceBatch<D: Device> {

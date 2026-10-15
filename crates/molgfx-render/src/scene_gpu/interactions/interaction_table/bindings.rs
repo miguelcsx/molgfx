@@ -1,7 +1,15 @@
 //! Bind-group lowering for homogeneous relation-anchor streams.
 
-use super::*;
-use crate::scene_gpu::interactions::relation_anchor::AnchorKernel;
+use super::relation_resolve::missing_domain;
+use super::{GpuInteractions, RelationResolverGpu, RelationSources, RelationStream, StreamPlan};
+use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::dispatch::workgroups_2d;
+use crate::scene_gpu::interactions::relation_anchor::{AnchorKernel, pipeline_index};
+use crate::scene_gpu::uniforms::ModelUniforms;
+use molgfx_core::RowDomain;
+use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue as _};
+use molgfx_math::Mat4;
 
 impl<D: Device> GpuInteractions<D> {
     pub(super) fn bind_streams(

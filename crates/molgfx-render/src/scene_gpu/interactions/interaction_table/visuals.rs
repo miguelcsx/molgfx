@@ -1,4 +1,15 @@
-use super::*;
+use super::coordinates::RelationCullConfig;
+use super::paged_visual::PagedRelationVisualState;
+use super::{GpuInteractions, RelationCullStream, RelationVisualSource};
+use crate::error::RenderError;
+use crate::scene_gpu::buffers::{buffer_entry, count};
+use crate::scene_gpu::dispatch::workgroups_2d;
+use crate::scene_gpu::generic_visual::{
+    GenericVisualResources, GenericVisualState, GenericVisualTarget,
+};
+use crate::scene_gpu::visual::VisualCullEntries;
+use molgfx_core::{RowDomain, Scene};
+use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, Device, Queue as _};
 
 impl<D: Device> GpuInteractions<D> {
     pub(super) fn sync_visuals(

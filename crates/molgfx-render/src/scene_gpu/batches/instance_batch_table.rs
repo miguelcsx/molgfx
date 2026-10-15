@@ -14,14 +14,12 @@ use crate::scene_gpu::generic_visual::{
 use crate::scene_gpu::picking_pages::PickPages;
 use crate::scene_gpu::visual::VisualCullEntries;
 use crate::{DerivedCache, DerivedFootprint};
-use molgfx_core::{
-    AnalyticTemplate, DrawIndirectArgs, EntityKind, InstanceBatch, InstanceBatchHandle, Scene,
-};
-use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue as _};
+use molgfx_core::{AnalyticTemplate, DrawIndirectArgs, InstanceBatch, InstanceBatchHandle, Scene};
+use molgfx_gpu::{BindGroupDesc, BindGroupEntry, Device, Queue as _};
 use molgfx_math::{Quat, Vec3};
 use std::sync::Arc;
 mod support;
-use support::{checked_count, frame_identity, limit, storage_buffer, template_part_page};
+use support::{checked_count, limit, storage_buffer, template_part_page};
 pub(crate) const GENERIC_INSTANCE_SPHERE: u32 = 0;
 pub(crate) const GENERIC_INSTANCE_CAPSULE: u32 = 3;
 

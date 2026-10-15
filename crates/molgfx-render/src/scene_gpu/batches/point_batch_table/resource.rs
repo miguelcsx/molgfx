@@ -4,7 +4,17 @@ use super::groups::point_groups;
 use super::timeline::{
     buffer_or, create_materialization, frame_identity, storage_buffer, timeline_materialized,
 };
-use super::*;
+use super::{
+    GpuPointBatch, PointBatchGpu, PointBatchSync, PointConfigWrite, PointGroupContext,
+    PointGroupInputs, PointTiles, count, missing_buffer, write_config,
+};
+use crate::error::RenderError;
+use crate::scene_gpu::generic_visual::{
+    GenericVisualResources, GenericVisualState, GenericVisualTarget,
+};
+use crate::scene_gpu::grow_buffer::GrowBuffer;
+use molgfx_core::{DrawIndirectArgs, PointBatch, PointBatchHandle};
+use molgfx_gpu::{BufferDesc, BufferUsage, Device, Queue as _};
 
 impl<D: Device> GpuPointBatch<D> {
     pub(super) fn new(

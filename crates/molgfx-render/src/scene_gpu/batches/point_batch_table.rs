@@ -3,6 +3,7 @@
 mod groups;
 mod resource;
 mod timeline;
+use crate::DerivedCache;
 use crate::error::RenderError;
 use crate::scene_gpu::buffers::{buffer_entry, limit_exceeded, pack_color};
 use crate::scene_gpu::dispatch::workgroups_2d;
@@ -12,12 +13,10 @@ use crate::scene_gpu::generic_visual::{
 use crate::scene_gpu::grow_buffer::GrowBuffer;
 use crate::scene_gpu::picking_pages::PickPages;
 use crate::scene_gpu::visual::VisualCullEntries;
-use crate::{DerivedCache, DerivedFootprint};
 use molgfx_core::{
-    ChunkId, DatasetId, DrawIndirectArgs, EntityKind, PointBatch, PointBatchHandle, PointGlyph,
-    Scene,
+    ChunkId, DatasetId, EntityKind, PointBatch, PointBatchHandle, PointGlyph, Scene,
 };
-use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue as _};
+use molgfx_gpu::{BindGroupDesc, BindGroupEntry, Device, Queue as _};
 pub(crate) use timeline::GenericPointTimelineDispatch;
 
 #[repr(C, align(16))]

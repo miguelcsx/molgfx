@@ -1,7 +1,20 @@
 //! Persistent resources for one generic analytic instance batch.
 
 use super::groups::instance_groups;
-use super::*;
+use super::support::{checked_count, frame_identity, storage_buffer};
+use super::{
+    GenericInstanceConfig, GpuAnalyticTemplate, GpuInstanceBatch, InstanceBatchSync,
+    InstanceGroupContext, InstanceGroupInputs, InstanceTimelineConfig, MaterializationResources,
+    timeline_materialized, write_config,
+};
+use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::generic_visual::{
+    GenericVisualResources, GenericVisualState, GenericVisualTarget,
+};
+use molgfx_core::{DrawIndirectArgs, InstanceBatch, InstanceBatchHandle};
+use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, Device, Queue as _};
+use std::sync::Arc;
 
 impl<D: Device> GpuInstanceBatch<D> {
     pub(super) fn new(

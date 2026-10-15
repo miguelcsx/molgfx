@@ -1,6 +1,11 @@
 //! Optional GPU materialization for deformable point streams.
 
-use super::*;
+use super::{GpuPointBatch, GpuPointBatches, PointBatchSync, missing_buffer};
+use crate::DerivedFootprint;
+use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
+use molgfx_core::PointBatchHandle;
+use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, Device, Queue as _};
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]

@@ -1,12 +1,7 @@
 //! A mock device: records every command so graph and engine behavior is
 //! testable without a GPU.
 
-use molgfx_gpu::{
-    BindGroupDesc, BindGroupLayoutDesc, BindingType, BufferDesc, Capabilities, ComputePassDesc,
-    ComputePipelineDesc, DeviceDesc, GpuError, Opened, RenderPassDesc, RenderPipelineDesc,
-    SamplerDesc, ShaderModuleDesc, ShaderStages, SurfaceConfig, SurfaceError, TextureDesc,
-    TextureFormat, TextureViewDesc, WindowTarget,
-};
+use molgfx_gpu::{Capabilities, GpuError, Opened, SurfaceConfig, SurfaceError, TextureFormat};
 use std::ops::Range;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -468,7 +463,6 @@ mod encoder;
 mod locked;
 mod queries;
 mod readback;
-use encoder::fail_mock_ray_query;
 
 pub(crate) use locked::Locked;
 pub(crate) use readback::MockReadback;

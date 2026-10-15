@@ -8,33 +8,27 @@ mod relation_resolve;
 mod views;
 mod visuals;
 use crate::scene_gpu::buffers::{buffer_entry, gpu_limit};
-use coordinates::RelationCullConfig;
 pub(in crate::scene_gpu) use paged::PagedRelationSync;
 use relation_resolve::{
-    missing_domain, relation_resolver, row_limit, source_binding_revision,
-    stable_relation_scratch_bytes, table_chunk,
+    relation_resolver, row_limit, source_binding_revision, stable_relation_scratch_bytes,
+    table_chunk,
 };
 
-use super::relation_anchor::{StreamKey, anchor_payload, pipeline_index, stream_key};
+use super::relation_anchor::{StreamKey, anchor_payload, stream_key};
 use crate::error::RenderError;
 use crate::scene_gpu::asset_arena::AssetArena;
 use crate::scene_gpu::buffers::{count, write_draw_args};
 use crate::scene_gpu::dispatch::workgroups_2d;
-use crate::scene_gpu::generic_visual::{
-    GenericVisualResources, GenericVisualState, GenericVisualTarget,
-};
+use crate::scene_gpu::generic_visual::{GenericVisualResources, GenericVisualState};
 use crate::scene_gpu::grow_buffer::GrowBuffer;
 use crate::scene_gpu::instance_batch_table::GpuInstanceBatches;
 use crate::scene_gpu::picking_pages::PickPages;
 use crate::scene_gpu::point_batch_table::GpuPointBatches;
 use crate::scene_gpu::structure::GpuStructure;
-use crate::scene_gpu::uniforms::ModelUniforms;
-use crate::scene_gpu::visual::VisualCullEntries;
 use molgfx_core::{
     ChunkId, DatasetId, EntityKind, InteractionGpu, RelationBatchHandle, RowDomain, Scene,
 };
-use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue as _};
-use molgfx_math::Mat4;
+use molgfx_gpu::{BindGroupDesc, BindGroupEntry, Device};
 use paged_visual::{PagedRelationVisualArenas, PagedRelationVisualState, PagedVisualSync};
 use std::collections::BTreeMap;
 mod legacy;
