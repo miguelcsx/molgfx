@@ -8,7 +8,6 @@ use molgfx_gpu::{
     TextureFormat, TextureUsage, TextureViewDesc,
 };
 use molgfx_math::Camera;
-#[path = "image/layout.rs"]
 mod layout;
 pub(in crate::engine) use layout::ImageLayout;
 #[derive(Clone, Copy, PartialEq, Eq)]

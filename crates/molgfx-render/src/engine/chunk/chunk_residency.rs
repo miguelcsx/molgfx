@@ -1,22 +1,13 @@
 //! End-to-end provider chunk upload over bounded residency primitives.
 
-#[path = "chunk_residency/attribute_materialization.rs"]
 mod attribute_materialization;
-#[path = "chunk_residency/draw.rs"]
 mod draw;
-#[path = "chunk_residency/generic.rs"]
 mod generic;
-#[path = "chunk_residency/payload.rs"]
 mod payload;
-#[path = "chunk_residency/placements.rs"]
 mod placements;
-#[path = "chunk_residency/state.rs"]
 mod state;
-#[path = "chunk_residency/tracked.rs"]
 mod tracked;
-#[path = "chunk_trajectory.rs"]
 mod trajectory;
-#[path = "chunk_residency/upload_batch.rs"]
 mod upload_batch;
 
 use crate::engine::chunk_draw_plan::ChunkClusterGpu;

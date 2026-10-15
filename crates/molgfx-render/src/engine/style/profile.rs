@@ -9,7 +9,6 @@ use crate::engine::profile_numeric::{finite_clamp, lerp, sanitize_bands, unit};
 use crate::engine::{BackdropStyle, DepthCue, DisplayTransform, LightingEnvironment};
 use serde::{Deserialize, Serialize};
 
-#[path = "profile_resolve.rs"]
 mod resolve;
 
 /// Screen-space cues that clarify molecular shape without changing geometry

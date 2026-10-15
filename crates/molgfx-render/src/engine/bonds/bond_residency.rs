@@ -1,6 +1,5 @@
 //! Bounded provider-bond upload and endpoint lifecycle over resident atom pages.
 
-#[path = "bond_residency_support.rs"]
 mod support;
 
 use crate::engine::bond_draw_plan::{

@@ -1,10 +1,7 @@
 //! Generic payload uploads sharing the provider residency arena and fences.
 
-#[path = "generic/relations.rs"]
 pub(super) mod relations;
-#[path = "generic/spatial_anchors.rs"]
 mod spatial_anchors;
-#[path = "generic/upload.rs"]
 mod upload;
 
 use super::{ChunkGpuResidency, ticket_key};
