@@ -4,7 +4,7 @@
 //! state. This envelope joins the scene description to the camera and ordered
 //! render profile without copying caller-owned structure or volume data.
 
-use super::RenderProfile;
+use crate::engine::RenderProfile;
 use crate::error::RenderError;
 use molgfx_core::{Scene, SceneDescription, SceneDescriptionSources};
 use molgfx_math::Camera;

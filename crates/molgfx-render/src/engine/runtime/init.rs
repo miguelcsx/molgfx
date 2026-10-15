@@ -1,6 +1,6 @@
 //! Engine construction: device open, pass creation, graph declaration.
-use super::graph_setup::{GraphTopology, realtime_nodes, realtime_resources};
-use super::{
+use crate::engine::graph_setup::{GraphTopology, realtime_nodes, realtime_resources};
+use crate::engine::{
     AdaptiveQuality, DerivedCache, EngineConfig, FocusTracker, GpuProfiler, PassRegistry, Picker,
     RenderMode, RenderProfile, ResolvedRenderPlan, ShadowBoundCache, TemporalState,
     chunk_residency::ChunkGpuResidency,
@@ -40,7 +40,7 @@ pub struct Engine<D: Device> {
     pub(crate) profiler: Option<GpuProfiler<D>>,
     pub(crate) picker: Picker<D>,
     pub(crate) temporal: TemporalState,
-    pub(crate) temporal_scene_identity: Option<super::temporal_scene::TemporalSceneKey>,
+    pub(crate) temporal_scene_identity: Option<crate::engine::temporal_scene::TemporalSceneKey>,
     pub(crate) mode: RenderMode,
     /// The closed adaptive-quality loop: frame time in, quality tier out.
     pub(crate) adaptive: AdaptiveQuality,
@@ -49,17 +49,17 @@ pub struct Engine<D: Device> {
     pub(crate) focus_tracker: FocusTracker,
     pub(crate) shadow_bound: ShadowBoundCache,
     pub(crate) derived_cache: DerivedCache,
-    pub(super) derived_frame: u64,
+    pub(in crate::engine) derived_frame: u64,
     pub(crate) host_working_set: molgfx_core::HostWorkingSet,
-    pub(super) chunk_residency: ChunkGpuResidency<D>,
+    pub(in crate::engine) chunk_residency: ChunkGpuResidency<D>,
     /// Monotonic origin used to make submission/completion timestamps
     /// comparable without exposing platform-specific clock epochs.
     pub(crate) clock_origin: Instant,
     pub(crate) last_submission_id: u64,
     pub(crate) last_submission_timestamp_ns: u64,
     pub(crate) last_completion_timestamp_ns: Option<u64>,
-    pub(super) submitted_frame_quality: Option<super::EffectiveQuality>,
-    pub(super) last_completed_frame: Option<super::CompletedFrame>,
+    pub(in crate::engine) submitted_frame_quality: Option<crate::engine::EffectiveQuality>,
+    pub(in crate::engine) last_completed_frame: Option<crate::engine::CompletedFrame>,
 
     pub(crate) last_frame_submission: FenceValue,
 
@@ -163,7 +163,7 @@ fn realtime_passes<D: Device>(
 }
 
 impl<D: Device> Engine<D> {
-    pub(super) fn ensure_occupancy(
+    pub(in crate::engine) fn ensure_occupancy(
         &mut self,
         scene: &molgfx_core::Scene,
     ) -> Result<(), RenderError> {
@@ -216,7 +216,7 @@ impl<D: Device> Engine<D> {
         Self::from_opened(config, opened)
     }
 
-    pub(super) fn from_opened(
+    pub(in crate::engine) fn from_opened(
         config: &EngineConfig,
         opened: Opened<D>,
     ) -> Result<Self, RenderError> {
@@ -226,7 +226,7 @@ impl<D: Device> Engine<D> {
     /// Builds the engine from an opened device. `output_format` pins the
     /// format the final passes write, for host-owned targets; `None` lets
     /// the surface (or the off-screen default) decide.
-    pub(super) fn from_opened_with(
+    pub(in crate::engine) fn from_opened_with(
         config: &EngineConfig,
         opened: Opened<D>,
         output_format: Option<TextureFormat>,
@@ -234,7 +234,7 @@ impl<D: Device> Engine<D> {
         let mut surface = opened.surface;
         let device = opened.device;
 
-        let configured = super::target::configure(&device, &mut surface, config);
+        let configured = crate::engine::target::configure(&device, &mut surface, config);
         let target_format = match output_format {
             Some(format) => format,
             None => configured,

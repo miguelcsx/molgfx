@@ -1,7 +1,7 @@
 //! Runtime engine settings and render-profile topology updates.
 
-use super::{Engine, QualityTier, RenderMode, RenderProfile, ResolvedRenderPlan};
 use crate::engine::graph_setup::{GraphTopology, realtime_nodes};
+use crate::engine::{Engine, QualityTier, RenderMode, RenderProfile, ResolvedRenderPlan};
 use crate::error::RenderError;
 use crate::graph;
 use molgfx_gpu::{Device, Surface as _, SurfaceConfig};

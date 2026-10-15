@@ -8,7 +8,7 @@
 //! than touching its contents. Nothing here allocates on the steady-state path
 //! beyond the first frame's pool construction.
 
-use super::{
+use crate::engine::{
     Engine, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport, FrameStatus,
     MotionBlur, QualityTier, RenderMode, TemporalOptions,
 };
@@ -156,7 +156,7 @@ impl<D: Device> Engine<D> {
     /// Returns an error for GPU validation or device failures, scene
     /// synchronization failures, pool reconstruction failures, optics
     /// resolution failures, or frame-uniform upload failures.
-    pub(super) fn prepare_frame(
+    pub(in crate::engine) fn prepare_frame(
         &mut self,
         scene: &Scene,
         camera: &Camera,
@@ -223,7 +223,7 @@ impl<D: Device> Engine<D> {
     /// `scene` remains part of the existing signature for compatibility.
     /// Specialization settlement is performed once by `prepare_frame` before
     /// this method is reached.
-    pub(super) fn record_frame(
+    pub(in crate::engine) fn record_frame(
         &mut self,
         encoder: &mut D::CommandEncoder,
         scene: &Scene,
@@ -281,7 +281,7 @@ impl<D: Device> Engine<D> {
     /// later poll observes the backend fence. That fence fires when submitted
     /// GPU work is done *executing* on the device, strictly later than host
     /// queue-completion, and is never GPU execution time itself.
-    pub(super) fn submit_frame(&mut self, encoder: D::CommandEncoder) {
+    pub(in crate::engine) fn submit_frame(&mut self, encoder: D::CommandEncoder) {
         self.last_submission_id = self.last_submission_id.wrapping_add(1);
         self.last_submission_timestamp_ns = duration_ns(self.clock_origin.elapsed());
         self.last_completion_timestamp_ns = None;
@@ -329,7 +329,7 @@ impl<D: Device> Engine<D> {
     /// # Errors
     ///
     /// Returns an error when the device cannot report the completed fence.
-    pub(super) fn poll_pending_submission(&mut self) -> Result<bool, RenderError> {
+    pub(in crate::engine) fn poll_pending_submission(&mut self) -> Result<bool, RenderError> {
         let was_pending = self.frame_submission_pending;
         let completed = self.queue.completed_fence(&self.device)?;
 
@@ -339,7 +339,7 @@ impl<D: Device> Engine<D> {
             self.last_completion_timestamp_ns = Some(duration_ns(self.clock_origin.elapsed()));
             if let Some(mut quality) = self.submitted_frame_quality.take() {
                 quality.observe_completion();
-                self.last_completed_frame = Some(super::CompletedFrame {
+                self.last_completed_frame = Some(crate::engine::CompletedFrame {
                     submission_id: self.last_submission_id,
                     quality,
                 });
@@ -363,7 +363,7 @@ impl<D: Device> Engine<D> {
     ///
     /// Coordinate-change signals are combined without allocating and drive
     /// dynamic relation resolution exactly once.
-    pub(super) fn record_scene_compute(
+    pub(in crate::engine) fn record_scene_compute(
         &mut self,
         encoder: &mut D::CommandEncoder,
         traced: bool,
@@ -430,7 +430,7 @@ impl<D: Device> Engine<D> {
     /// A skipped call has not fulfilled the caller's requested scene/view, even
     /// when an older exposure is already converged. Retry until it is presented;
     /// successful submissions idle only after streaming and exposure settle.
-    pub(super) fn frame_report(&self, status: FrameStatus) -> FrameReport {
+    pub(in crate::engine) fn frame_report(&self, status: FrameStatus) -> FrameReport {
         let residency = self.chunk_residency.metrics();
         let derived = self.derived_cache.usage();
         let physical = self.device.resource_memory();

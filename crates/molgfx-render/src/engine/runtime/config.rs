@@ -1,7 +1,7 @@
 //! Engine configuration and frame outcomes.
 
-use super::{AdaptiveQualityConfig, DerivedCacheBudget, QualityTier, RenderProfile};
 use crate::ResidencyConfig;
+use crate::engine::{AdaptiveQualityConfig, DerivedCacheBudget, QualityTier, RenderProfile};
 use molgfx_core::ResidencyBudget;
 use molgfx_gpu::PowerPreference;
 
@@ -43,7 +43,7 @@ impl FrameDegradation {
         self.0 & feature.0 == feature.0
     }
 
-    pub(super) const fn streaming_proxy(enabled: bool) -> Self {
+    pub(in crate::engine) const fn streaming_proxy(enabled: bool) -> Self {
         if enabled {
             Self::STREAMING_PROXY
         } else {
@@ -93,7 +93,7 @@ pub struct CompletedFrame {
     /// Submission identifier, independent of subsequent camera or scene edits.
     pub submission_id: u64,
     /// Settings captured at submission, with completion observed afterward.
-    pub quality: super::EffectiveQuality,
+    pub quality: crate::engine::EffectiveQuality,
 }
 
 /// Explicit frame status, completeness and degradation report.
@@ -113,7 +113,7 @@ pub struct FrameReport {
     /// The adaptive quality tier this frame rendered at.
     pub quality_tier: QualityTier,
     /// Physical settings and exposure completion observed at reporting time.
-    pub quality: super::EffectiveQuality,
+    pub quality: crate::engine::EffectiveQuality,
     /// Latest fence-observed submission; never inferred from a later frame.
     pub last_completed: Option<CompletedFrame>,
 }
