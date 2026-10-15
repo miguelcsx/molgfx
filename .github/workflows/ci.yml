@@ -13,8 +13,22 @@ env:
 jobs:
   rust:
     runs-on: ubuntu-latest
+    # Bond perception reads its reference tables from a data directory and a
+    # profile; .cargo/config.toml points at a sibling molframe checkout that
+    # CI does not have. Name the tables of the pinned release explicitly.
+    env:
+      MOLFRAME_DATA_DIR: ${{ github.workspace }}/.molframe-tables/data
+      MOLFRAME_PROFILE: ${{ github.workspace }}/.molframe-tables/crates/molframe-bench/data/profile.txt
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: miguelcsx/molframe
+          ref: v0.6.0
+          path: .molframe-tables
+          sparse-checkout: |
+            data
+            crates/molframe-bench/data/profile.txt
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Software graphics adapter for render-plan tests
