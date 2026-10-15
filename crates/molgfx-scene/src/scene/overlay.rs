@@ -5,62 +5,51 @@ use crate::error::Error;
 use crate::id::StructureId;
 use crate::overlay::{OverlayHandles, TrajectoryBinding, TrajectoryFrame, VolumeBinding};
 
+/// Declared ids that have no resolved runtime handle yet.
+fn unresolved<'a, K: Ord + Copy + 'a, H>(
+    declared: impl Iterator<Item = &'a K>,
+    resolved: &'a [(K, H)],
+    wrap: fn(K) -> crate::OverlayId,
+) -> impl Iterator<Item = crate::OverlayId> {
+    declared
+        .filter(move |id| !resolved.iter().any(|(done, _)| done == *id))
+        .map(move |id| wrap(*id))
+}
+
 impl Scene {
     /// Declared overlays whose runtime bulk source is not yet bound.
     #[must_use]
     pub fn unresolved_overlays(&self) -> Vec<crate::OverlayId> {
-        self.spec
-            .volumes
-            .keys()
-            .filter(|id| {
-                !self
-                    .overlay
-                    .volumes
-                    .iter()
-                    .any(|(resolved, _)| resolved == *id)
-            })
-            .map(|id| crate::OverlayId::Volume(*id))
-            .chain(
-                self.spec
-                    .segmentations
-                    .keys()
-                    .filter(|id| {
-                        !self
-                            .overlay
-                            .segmentations
-                            .iter()
-                            .any(|(resolved, _)| resolved == *id)
-                    })
-                    .map(|id| crate::OverlayId::Segmentation(*id)),
-            )
-            .chain(
-                self.spec
-                    .trajectories
-                    .keys()
-                    .filter(|id| {
-                        !self
-                            .overlay
-                            .trajectories
-                            .iter()
-                            .any(|(resolved, _)| resolved == *id)
-                    })
-                    .map(|id| crate::OverlayId::Trajectory(*id)),
-            )
-            .chain(
-                self.spec
-                    .interactions
-                    .iter()
-                    .filter_map(|(id, interaction)| {
-                        let crate::InteractionSpec::HydrogenBonds(spec) = interaction else {
-                            return None;
-                        };
-                        self.overlay_bindings
-                            .hydrogen_bonds(&spec.source.content_hash)
-                            .is_none()
-                            .then_some(crate::OverlayId::Interaction(*id))
-                    }),
-            )
-            .collect()
+        unresolved(
+            self.spec.volumes.keys(),
+            &self.overlay.volumes,
+            crate::OverlayId::Volume,
+        )
+        .chain(unresolved(
+            self.spec.segmentations.keys(),
+            &self.overlay.segmentations,
+            crate::OverlayId::Segmentation,
+        ))
+        .chain(unresolved(
+            self.spec.trajectories.keys(),
+            &self.overlay.trajectories,
+            crate::OverlayId::Trajectory,
+        ))
+        .chain(
+            self.spec
+                .interactions
+                .iter()
+                .filter_map(|(id, interaction)| {
+                    let crate::InteractionSpec::HydrogenBonds(spec) = interaction else {
+                        return None;
+                    };
+                    self.overlay_bindings
+                        .hydrogen_bonds(&spec.source.content_hash)
+                        .is_none()
+                        .then_some(crate::OverlayId::Interaction(*id))
+                }),
+        )
+        .collect()
     }
     /// Representations waiting for analytical provider geometry.
     #[must_use]

@@ -261,6 +261,9 @@ fn lower_trajectory(
     Ok(Some(handle))
 }
 
+/// Measures a value from resolved world points.
+type ValueFn = fn(&[Vec3]) -> Result<f32, Error>;
+
 fn lower_measurement(
     scene: &mut Scene,
     structures: &BTreeMap<StructureId, MolecularSource>,
@@ -268,48 +271,22 @@ fn lower_measurement(
     selections: &mut BTreeMap<String, SelectionHandle>,
     spec: &MeasurementSpec,
 ) -> Result<Measurement, Error> {
-    let (anchors, value, provenance) = match spec {
+    let (anchors, value_of, provenance): (&[Anchor], ValueFn, _) = match spec {
         MeasurementSpec::Distance { anchors } => {
-            let points = positions(scene, structures, handles, selections, anchors)?;
-            let value = distance_value(&points)?;
-            let world = [
-                AnnotationAnchor::world(points[0])?,
-                AnnotationAnchor::world(points[1])?,
-            ];
-            (
-                anchors.as_slice(),
-                (world.to_vec(), value),
-                "molgfx:distance",
-            )
+            (anchors.as_slice(), distance_value, "molgfx:distance")
         }
-        MeasurementSpec::Angle { anchors } => {
-            let points = positions(scene, structures, handles, selections, anchors)?;
-            let value = angle_value(&points)?;
-            let world = [
-                AnnotationAnchor::world(points[0])?,
-                AnnotationAnchor::world(points[1])?,
-                AnnotationAnchor::world(points[2])?,
-            ];
-            (anchors.as_slice(), (world.to_vec(), value), "molgfx:angle")
-        }
+        MeasurementSpec::Angle { anchors } => (anchors.as_slice(), angle_value, "molgfx:angle"),
         MeasurementSpec::Dihedral { anchors } => {
-            let points = positions(scene, structures, handles, selections, anchors)?;
-            let value = dihedral_value(&points)?;
-            let world = [
-                AnnotationAnchor::world(points[0])?,
-                AnnotationAnchor::world(points[1])?,
-                AnnotationAnchor::world(points[2])?,
-                AnnotationAnchor::world(points[3])?,
-            ];
-            (
-                anchors.as_slice(),
-                (world.to_vec(), value),
-                "molgfx:dihedral",
-            )
+            (anchors.as_slice(), dihedral_value, "molgfx:dihedral")
         }
     };
+    let points = positions(scene, structures, handles, selections, anchors)?;
+    let value = value_of(&points)?;
+    let world = points
+        .iter()
+        .map(|point| AnnotationAnchor::world(*point))
+        .collect::<Result<Vec<_>, _>>()?;
     let owner = owner_of(scene, handles, anchors)?;
-    let (world, value) = value;
     let built = match world.as_slice() {
         [a, b] => Measurement::distance(owner, [*a, *b], value, provenance)?,
         [a, b, c] => Measurement::angle(owner, [*a, *b, *c], value, provenance)?,
