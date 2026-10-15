@@ -13,10 +13,11 @@ use super::ligand_pose_types::{
 };
 use super::ligand_pose_upload::{PoseTableBuffers, PoseTableScratch, upload_batch_tables};
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::primitive_packing::placement_revision;
 use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::{DrawIndirectArgs, Scene};
-use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
+use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, Device, Queue};
 
 const RETAINED_BUFFER_SLACK: u64 = 8 * 1024 * 1024;
 
@@ -144,26 +145,11 @@ impl<D: Device> GpuLigandPoses<D> {
                 label: "group2: compact ligand poses",
                 layout,
                 entries: &[
-                    BindGroupEntry::Buffer {
-                        binding: 7,
-                        buffer: atoms,
-                    },
-                    BindGroupEntry::Buffer {
-                        binding: 8,
-                        buffer: bonds,
-                    },
-                    BindGroupEntry::Buffer {
-                        binding: 9,
-                        buffer: transforms,
-                    },
-                    BindGroupEntry::Buffer {
-                        binding: 10,
-                        buffer: styles,
-                    },
-                    BindGroupEntry::Buffer {
-                        binding: 11,
-                        buffer: batches,
-                    },
+                    buffer_entry(7, atoms),
+                    buffer_entry(8, bonds),
+                    buffer_entry(9, transforms),
+                    buffer_entry(10, styles),
+                    buffer_entry(11, batches),
                 ],
             }));
         }

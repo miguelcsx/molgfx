@@ -4,6 +4,7 @@ use super::uniforms::ModelUniforms;
 use crate::error::RenderError;
 use crate::scene_gpu::asset::GpuAsset;
 use crate::scene_gpu::asset_arena::AssetArena;
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::buffers::upload_grow;
 use crate::scene_gpu::trajectory_slot::GpuTrajectory;
 use molgfx_core::{PlacedStructure, StructureHandle};
@@ -159,10 +160,7 @@ impl<D: Device> GpuStructure<D> {
         binding: u32,
     ) -> BindGroupEntry<'a, D> {
         match self.trajectory.output() {
-            Some(output) => BindGroupEntry::Buffer {
-                binding,
-                buffer: output,
-            },
+            Some(output) => buffer_entry(binding, output),
             None => arena.entry(binding, self.asset.coordinates()),
         }
     }
@@ -170,7 +168,7 @@ impl<D: Device> GpuStructure<D> {
     pub(in crate::scene_gpu) fn model_entry(&self, binding: u32) -> Option<BindGroupEntry<'_, D>> {
         self.model
             .as_ref()
-            .map(|buffer| BindGroupEntry::Buffer { binding, buffer })
+            .map(|buffer| buffer_entry(binding, buffer))
     }
 
     pub(in crate::scene_gpu) fn base_coords_entry<'a>(
@@ -187,10 +185,7 @@ impl<D: Device> GpuStructure<D> {
         binding: u32,
     ) -> BindGroupEntry<'a, D> {
         match self.trajectory.previous_output() {
-            Some(output) => BindGroupEntry::Buffer {
-                binding,
-                buffer: output,
-            },
+            Some(output) => buffer_entry(binding, output),
             None => arena.entry(binding, self.asset.coordinates()),
         }
     }

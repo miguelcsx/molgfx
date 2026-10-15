@@ -1,11 +1,11 @@
 //! Source-owned indexed field buffers, independent of presentation styles.
 
 use crate::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::buffers::{upload_grow, write_draw_args};
 use molgfx_core::{ScalarVolume, SegmentedVolume};
 use molgfx_gpu::{
-    BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, Device,
-    ShaderStages,
+    BindGroupDesc, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, Device, ShaderStages,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -132,16 +132,7 @@ impl<D: Device> GpuFieldBoundary<D> {
         self.group = Some(device.create_bind_group(&BindGroupDesc {
             label: "indexed field boundary",
             layout,
-            entries: &[
-                BindGroupEntry::Buffer {
-                    binding: 0,
-                    buffer: vertices,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 1,
-                    buffer: indices,
-                },
-            ],
+            entries: &[buffer_entry(0, vertices), buffer_entry(1, indices)],
         }));
         self.vertex_count = vertex_count;
         self.key = Some(key);

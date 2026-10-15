@@ -3,6 +3,7 @@
 use super::{PagedAnchorKey, PagedRelationSources, PagedRigidConfig, PagedStreamKey};
 use crate::engine::chunk_draw_plan::{ResidentPositionSource, ResidentSpatialAnchor};
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::interaction_table::PagedRigidTimeline;
 use crate::scene_gpu::uniforms::ModelUniforms;
 use molgfx_gpu::{BindGroupEntry, BufferDesc, BufferUsage, Device, Queue as _};
@@ -100,10 +101,7 @@ pub(super) fn source_entry<'a, D: Device>(
     fallback: &'a D::Buffer,
 ) -> BindGroupEntry<'a, D> {
     match key {
-        PagedAnchorKey::World => BindGroupEntry::Buffer {
-            binding,
-            buffer: fallback,
-        },
+        PagedAnchorKey::World => buffer_entry(binding, fallback),
         PagedAnchorKey::Position {
             source,
             byte_offset,
@@ -138,7 +136,7 @@ pub(super) fn source_entry<'a, D: Device>(
                     },
                     size: byte_len,
                 },
-                |buffer| BindGroupEntry::Buffer { binding, buffer },
+                |buffer| buffer_entry(binding, buffer),
             ),
     }
 }

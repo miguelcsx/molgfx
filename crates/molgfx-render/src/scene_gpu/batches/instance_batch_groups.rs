@@ -6,96 +6,33 @@ fn instance_groups<D: Device>(
         label: "group1: generic instance culling",
         layout: context.cull_layout,
         entries: &[
-            BindGroupEntry::Buffer {
-                binding: 0,
-                buffer: inputs.transforms,
-            },
-            BindGroupEntry::Buffer {
-                binding: 1,
-                buffer: inputs.args,
-            },
-            BindGroupEntry::Buffer {
-                binding: 3,
-                buffer: inputs.config,
-            },
-            BindGroupEntry::Buffer {
-                binding: 4,
-                buffer: inputs.visual.instructions,
-            },
-            BindGroupEntry::Buffer {
-                binding: 5,
-                buffer: inputs.visual.parameters,
-            },
-            BindGroupEntry::Buffer {
-                binding: 6,
-                buffer: inputs.visual.properties,
-            },
-            BindGroupEntry::Buffer {
-                binding: 7,
-                buffer: inputs.visual.results,
-            },
-            BindGroupEntry::Buffer {
-                binding: 8,
-                buffer: inputs.visual.config,
-            },
-            BindGroupEntry::Buffer {
-                binding: 9,
-                buffer: inputs.frame_start,
-            },
-            BindGroupEntry::Buffer {
-                binding: 10,
-                buffer: inputs.frame_end,
-            },
+            buffer_entry(0, inputs.transforms),
+            buffer_entry(1, inputs.args),
+            buffer_entry(3, inputs.config),
+            buffer_entry(4, inputs.visual.instructions),
+            buffer_entry(5, inputs.visual.parameters),
+            buffer_entry(6, inputs.visual.properties),
+            buffer_entry(7, inputs.visual.results),
+            buffer_entry(8, inputs.visual.config),
+            buffer_entry(9, inputs.frame_start),
+            buffer_entry(10, inputs.frame_end),
         ],
     });
     let render = context.device.create_bind_group(&BindGroupDesc {
         label: "group2: generic analytic instances",
         layout: context.render_layout,
         entries: &[
-            BindGroupEntry::Buffer {
-                binding: 5,
-                buffer: &inputs.template.spheres,
-            },
-            BindGroupEntry::Buffer {
-                binding: 6,
-                buffer: &inputs.template.capsules,
-            },
-            BindGroupEntry::Buffer {
-                binding: 7,
-                buffer: inputs.transforms,
-            },
-            BindGroupEntry::Buffer {
-                binding: 8,
-                buffer: inputs.args,
-            },
-            BindGroupEntry::Buffer {
-                binding: 9,
-                buffer: inputs.config,
-            },
-            BindGroupEntry::Buffer {
-                binding: 10,
-                buffer: inputs.visual.properties,
-            },
-            BindGroupEntry::Buffer {
-                binding: 11,
-                buffer: inputs.visual.results,
-            },
-            BindGroupEntry::Buffer {
-                binding: 12,
-                buffer: inputs.visual.config,
-            },
-            BindGroupEntry::Buffer {
-                binding: 13,
-                buffer: inputs.visual.fragment_program,
-            },
-            BindGroupEntry::Buffer {
-                binding: 14,
-                buffer: inputs.frame_start,
-            },
-            BindGroupEntry::Buffer {
-                binding: 15,
-                buffer: inputs.frame_end,
-            },
+            buffer_entry(5, &inputs.template.spheres),
+            buffer_entry(6, &inputs.template.capsules),
+            buffer_entry(7, inputs.transforms),
+            buffer_entry(8, inputs.args),
+            buffer_entry(9, inputs.config),
+            buffer_entry(10, inputs.visual.properties),
+            buffer_entry(11, inputs.visual.results),
+            buffer_entry(12, inputs.visual.config),
+            buffer_entry(13, inputs.visual.fragment_program),
+            buffer_entry(14, inputs.frame_start),
+            buffer_entry(15, inputs.frame_end),
         ],
     });
     InstanceGroups { cull, render }

@@ -232,22 +232,10 @@ fn create_materialization<D: Device>(
         label: "group0: generic instance timeline",
         layout: context.timeline_layout,
         entries: &[
-            BindGroupEntry::Buffer {
-                binding: 0,
-                buffer: start,
-            },
-            BindGroupEntry::Buffer {
-                binding: 1,
-                buffer: end,
-            },
-            BindGroupEntry::Buffer {
-                binding: 2,
-                buffer: &output,
-            },
-            BindGroupEntry::Buffer {
-                binding: 3,
-                buffer: &config,
-            },
+            buffer_entry(0, start),
+            buffer_entry(1, end),
+            buffer_entry(2, &output),
+            buffer_entry(3, &config),
         ],
     });
     Ok((Some(output), Some(config), Some(group)))

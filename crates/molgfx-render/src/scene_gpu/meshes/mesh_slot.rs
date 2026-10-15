@@ -6,7 +6,7 @@
 //! so caller triangles cost no extra pass, shader or pipeline.
 
 use crate::error::RenderError;
-use crate::scene_gpu::buffers::{count, upload_grow};
+use crate::scene_gpu::buffers::{buffer_entry, count, upload_grow};
 use crate::scene_gpu::grow_buffer::GrowBuffer;
 use crate::scene_gpu::indexed_draw::{IndexedDraw, write_arguments};
 use crate::scene_gpu::structure::GpuStructure;
@@ -14,7 +14,7 @@ use crate::scene_gpu::uniforms::ClipUniforms;
 use crate::scene_gpu::visual::VisualCullEntries;
 use molgfx_core::{EntityId, Mesh};
 use molgfx_geometry::RibbonVertex;
-use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
+use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, Device, Queue};
 use molgfx_math::Mat4;
 
 /// One resident caller mesh.
@@ -175,63 +175,24 @@ impl<D: Device> GpuMeshSlot<D> {
             label: "group2: caller mesh",
             layout,
             entries: &[
-                BindGroupEntry::Buffer {
-                    binding: 0,
-                    buffer: vertices,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 2,
-                    buffer: model,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 3,
-                    buffer: clipping,
-                },
+                buffer_entry(0, vertices),
+                buffer_entry(2, model),
+                buffer_entry(3, clipping),
                 // Static meshes disable spline deformation before any storage
                 // read. Reuse the vertex buffer for the unused shared bindings.
-                BindGroupEntry::Buffer {
-                    binding: 4,
-                    buffer: vertices,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 5,
-                    buffer: vertices,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 6,
-                    buffer: vertices,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 7,
-                    buffer: vertices,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 8,
-                    buffer: visual.results,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 9,
-                    buffer: visual.instructions,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 10,
-                    buffer: visual.parameters,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 11,
-                    buffer: visual.properties,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 12,
-                    buffer: visual.config,
-                },
+                buffer_entry(4, vertices),
+                buffer_entry(5, vertices),
+                buffer_entry(6, vertices),
+                buffer_entry(7, vertices),
+                buffer_entry(8, visual.results),
+                buffer_entry(9, visual.instructions),
+                buffer_entry(10, visual.parameters),
+                buffer_entry(11, visual.properties),
+                buffer_entry(12, visual.config),
                 // Static caller meshes never enable tube mapping. Reusing the
                 // vertex allocation satisfies the shared layout without
                 // creating a per-mesh dummy resource.
-                BindGroupEntry::Buffer {
-                    binding: 13,
-                    buffer: vertices,
-                },
+                buffer_entry(13, vertices),
             ],
         }));
     }

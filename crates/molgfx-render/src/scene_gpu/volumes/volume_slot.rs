@@ -5,6 +5,7 @@ use super::volume_uniforms::VolumeUniforms;
 use crate::error::RenderError;
 use crate::passes::OccupancyPass;
 use crate::scene_gpu::asset_arena::AssetArena;
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::{
     OccupancyStream, PlacedStructure, Representation, RepresentationHandle, ScalarVolume,
@@ -298,22 +299,13 @@ impl<D: Device> GpuVolumeSlot<D> {
             layout,
             entries: &[
                 BindGroupEntry::Texture { binding: 0, view },
-                BindGroupEntry::Buffer {
-                    binding: 1,
-                    buffer: uniforms,
-                },
+                buffer_entry(1, uniforms),
                 BindGroupEntry::Texture {
                     binding: 2,
                     view: bounds_view,
                 },
-                BindGroupEntry::Buffer {
-                    binding: 3,
-                    buffer: sparse_pages,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 4,
-                    buffer: sparse_config,
-                },
+                buffer_entry(3, sparse_pages),
+                buffer_entry(4, sparse_config),
             ],
         }));
     }

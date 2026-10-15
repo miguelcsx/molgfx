@@ -7,6 +7,7 @@ use crate::ResidencyConfig;
 use crate::error::RenderError;
 use crate::passes::{SurfaceComponentPass, SurfaceFieldPass};
 use crate::scene_gpu::asset_arena::AssetArena;
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::buffers::create_cull_tiles;
 use crate::scene_gpu::instance_batch_table::GpuInstanceBatches;
 use crate::scene_gpu::interaction_table::GpuInteractions;
@@ -31,8 +32,8 @@ use crate::scene_gpu::visual_parameters::VisualParameterTable;
 use crate::scene_gpu::visual_programs::VisualProgramTable;
 use crate::scene_gpu::visual_properties::VisualPropertyTable;
 use molgfx_gpu::{
-    BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType,
-    BufferDesc, BufferUsage, Device, ShaderStages, TextureFormat,
+    BindGroupDesc, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, BufferDesc, BufferUsage,
+    Device, ShaderStages, TextureFormat,
 };
 
 struct SceneFrameBinding<D: Device> {
@@ -379,10 +380,7 @@ fn create_frame_binding<D: Device>(
     let group = device.create_bind_group(&BindGroupDesc {
         label: "group0: per-frame",
         layout: &layout,
-        entries: &[BindGroupEntry::Buffer {
-            binding: 0,
-            buffer: &uniforms,
-        }],
+        entries: &[buffer_entry(0, &uniforms)],
     });
     Ok(SceneFrameBinding {
         uniforms,

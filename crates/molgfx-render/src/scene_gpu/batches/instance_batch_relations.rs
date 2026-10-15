@@ -21,18 +21,9 @@ impl<D: Device> GpuInstanceBatches<D> {
             _ => (&batch.transforms, &batch.transforms),
         };
         Some([
-            BindGroupEntry::Buffer {
-                binding: bindings[0],
-                buffer: start,
-            },
-            BindGroupEntry::Buffer {
-                binding: bindings[1],
-                buffer: end,
-            },
-            BindGroupEntry::Buffer {
-                binding: bindings[2],
-                buffer: &batch.config,
-            },
+            buffer_entry(bindings[0], start),
+            buffer_entry(bindings[1], end),
+            buffer_entry(bindings[2], &batch.config),
         ])
     }
 }

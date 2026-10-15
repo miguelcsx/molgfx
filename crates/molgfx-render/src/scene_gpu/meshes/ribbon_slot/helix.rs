@@ -1,6 +1,7 @@
 //! Persistent fitting bindings share the ribbon's scalar storage allocation.
 use super::{AssetArena, GpuStructure, RibbonSlot};
-use molgfx_gpu::{BindGroupDesc, BindGroupEntry, ComputePassEncoder, Device};
+use crate::scene_gpu::buffers::buffer_entry;
+use molgfx_gpu::{BindGroupDesc, ComputePassEncoder, Device};
 
 impl<D: Device> RibbonSlot<D> {
     pub(in crate::scene_gpu) fn bind_helix_fits(
@@ -24,14 +25,8 @@ impl<D: Device> RibbonSlot<D> {
                 structure.coords_entry(arena, 0),
                 structure.previous_coords_entry(arena, 1),
                 structure.base_coords_entry(arena, 2),
-                BindGroupEntry::Buffer {
-                    binding: 3,
-                    buffer: jobs,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 4,
-                    buffer: fits,
-                },
+                buffer_entry(3, jobs),
+                buffer_entry(4, fits),
             ],
         }));
     }

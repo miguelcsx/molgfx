@@ -7,6 +7,7 @@
 
 use super::surface_components::{SurfaceComponentSync, SurfaceComponents};
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::record_cache::RecordGeometry;
 use crate::scene_gpu::uniforms::RepresentationUniforms;
 use molgfx_core::{Representation, SurfaceComponentPolicy, SurfaceComponentThreshold, SurfaceKind};
@@ -395,21 +396,12 @@ impl<D: Device> FieldGroups<D> {
             label: "surface field input",
             layout: sync.input_layout,
             entries: &[
-                BindGroupEntry::Buffer {
-                    binding: 0,
-                    buffer: sync.atoms,
-                },
+                buffer_entry(0, sync.atoms),
                 sync.structure.coords_entry(sync.asset_arena, 1),
                 sync.structure.bvh_nodes_entry(sync.asset_arena, 6),
                 sync.structure.bvh_indices_entry(sync.asset_arena, 7),
-                BindGroupEntry::Buffer {
-                    binding: 8,
-                    buffer: sync.compaction,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 9,
-                    buffer: uniforms,
-                },
+                buffer_entry(8, sync.compaction),
+                buffer_entry(9, uniforms),
             ],
         });
         let erosion = erosion_offsets.map(|offsets| {
@@ -425,10 +417,7 @@ impl<D: Device> FieldGroups<D> {
                         binding: 1,
                         view: &shading.view,
                     },
-                    BindGroupEntry::Buffer {
-                        binding: 2,
-                        buffer: offsets,
-                    },
+                    buffer_entry(2, offsets),
                 ],
             })
         });

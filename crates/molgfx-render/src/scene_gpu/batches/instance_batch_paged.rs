@@ -382,22 +382,10 @@ fn create_paged_materialization<D: Device>(
         label: "group0: paged instance timeline",
         layout,
         entries: &[
-            BindGroupEntry::Buffer {
-                binding: 0,
-                buffer: source,
-            },
-            BindGroupEntry::Buffer {
-                binding: 1,
-                buffer: source,
-            },
-            BindGroupEntry::Buffer {
-                binding: 2,
-                buffer: &output,
-            },
-            BindGroupEntry::Buffer {
-                binding: 3,
-                buffer: &config,
-            },
+            buffer_entry(0, source),
+            buffer_entry(1, source),
+            buffer_entry(2, &output),
+            buffer_entry(3, &config),
         ],
     });
     Ok((Some(output), Some(config), Some(group)))

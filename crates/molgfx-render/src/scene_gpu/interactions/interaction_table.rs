@@ -6,6 +6,7 @@ mod coordinates;
 mod paged;
 #[path = "relations/visual.rs"]
 mod paged_visual;
+use crate::scene_gpu::buffers::buffer_entry;
 use coordinates::RelationCullConfig;
 pub(in crate::scene_gpu) use paged::PagedRelationSync;
 
@@ -448,16 +449,7 @@ impl<D: Device> GpuInteractions<D> {
         self.render_group = Some(device.create_bind_group(&BindGroupDesc {
             label: "group2: interaction glyph table",
             layout: render_layout,
-            entries: &[
-                BindGroupEntry::Buffer {
-                    binding: 0,
-                    buffer: interactions,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 1,
-                    buffer: visible,
-                },
-            ],
+            entries: &[buffer_entry(0, interactions), buffer_entry(1, visible)],
         }));
     }
 }

@@ -30,10 +30,7 @@ impl<D: Device> GpuInteractions<D> {
                 },
                 start_a,
                 end_a,
-                BindGroupEntry::Buffer {
-                    binding: 3,
-                    buffer: output_buffer,
-                },
+                buffer_entry(3, output_buffer),
                 self.model_entry(plan.key.start_domain, 4, sources)?,
                 self.model_entry(plan.key.end_domain, 5, sources)?,
                 start_b,
@@ -100,10 +97,7 @@ impl<D: Device> GpuInteractions<D> {
         Ok([
             start,
             end,
-            BindGroupEntry::Buffer {
-                binding: bindings[2],
-                buffer: timeline,
-            },
+            buffer_entry(bindings[2], timeline),
         ])
     }
 
@@ -117,8 +111,8 @@ impl<D: Device> GpuInteractions<D> {
             None => {
                 let source = self.source_fallback.as_ref().ok_or_else(|| missing_domain(domain))?;
                 Ok((
-                    BindGroupEntry::Buffer { binding: bindings[0], buffer: source },
-                    BindGroupEntry::Buffer { binding: bindings[1], buffer: source },
+                    buffer_entry(bindings[0], source),
+                    buffer_entry(bindings[1], source),
                 ))
             }
             Some(RowDomain::Atoms(handle)) => sources
@@ -149,7 +143,7 @@ impl<D: Device> GpuInteractions<D> {
                 .ok_or(RenderError::RelationSourceMissing { domain: RowDomain::Atoms(handle) });
         }
         self.model_fallback.as_ref()
-            .map(|buffer| BindGroupEntry::Buffer { binding, buffer })
+            .map(|buffer| buffer_entry(binding, buffer))
             .ok_or_else(|| missing_domain(domain))
     }
 

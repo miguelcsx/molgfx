@@ -1,13 +1,14 @@
 //! Persistent command arena for one indirect batch of provider-backed bonds.
 
 use crate::engine::bond_draw_plan::{PagedBondGpu, ResidentBondPlacement};
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::picking_pages::{ChunkPickPlan, PickPages};
 use crate::{RenderError, ResidencyConfig};
 use molgfx_core::{DrawIndirectArgs, EntityKind};
 use molgfx_gpu::Queue as _;
 use molgfx_gpu::{
-    BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType,
-    BufferDesc, BufferUsage, Device, ShaderStages,
+    BindGroupDesc, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, BufferDesc, BufferUsage,
+    Device, ShaderStages,
 };
 
 #[repr(C, align(16))]
@@ -156,30 +157,12 @@ impl<D: Device> PagedBondBatch<D> {
             label: "paged provider bonds",
             layout: &self.layout,
             entries: &[
-                BindGroupEntry::Buffer {
-                    binding: 0,
-                    buffer: input.coordinates,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 1,
-                    buffer: input.bonds,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 2,
-                    buffer: &buffers.placements,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 3,
-                    buffer: &buffers.visible,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 4,
-                    buffer: &buffers.args,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 5,
-                    buffer: &buffers.visible,
-                },
+                buffer_entry(0, input.coordinates),
+                buffer_entry(1, input.bonds),
+                buffer_entry(2, &buffers.placements),
+                buffer_entry(3, &buffers.visible),
+                buffer_entry(4, &buffers.args),
+                buffer_entry(5, &buffers.visible),
             ],
         }));
         Ok(())

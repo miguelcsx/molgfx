@@ -3,6 +3,7 @@
 use super::segmentation_lookup::{LookupMode, SegmentLookup};
 use super::segmentation_uniforms::SegmentationUniforms;
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
 use molgfx_core::{
     Representation, RepresentationHandle, SegmentStyleTable, SegmentationHandle, SegmentedVolume,
 };
@@ -317,22 +318,10 @@ impl<D: Device> GpuSegmentationSlot<D> {
             layout,
             entries: &[
                 BindGroupEntry::Texture { binding: 0, view },
-                BindGroupEntry::Buffer {
-                    binding: 1,
-                    buffer: uniforms,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 2,
-                    buffer: lookup,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 3,
-                    buffer: sparse_pages,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 4,
-                    buffer: sparse_config,
-                },
+                buffer_entry(1, uniforms),
+                buffer_entry(2, lookup),
+                buffer_entry(3, sparse_pages),
+                buffer_entry(4, sparse_config),
             ],
         }));
     }

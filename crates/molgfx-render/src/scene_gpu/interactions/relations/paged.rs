@@ -7,6 +7,7 @@ use super::{
     count, row_limit, stable_relation_scratch_bytes, workgroups_2d, write_draw_args,
 };
 use crate::engine::chunk_draw_plan::{ResidentRelationChunkPlacement, ResidentSpatialAnchor};
+use crate::scene_gpu::buffers::buffer_entry;
 use molgfx_core::{EntityKind, PagedSpatialAnchor};
 
 #[path = "paged/input.rs"]
@@ -405,28 +406,13 @@ impl<D: Device> GpuInteractions<D> {
                 },
                 source_entry(key.start, 1, false, sources, fallback_source),
                 source_entry(key.end, 2, false, sources, fallback_source),
-                BindGroupEntry::Buffer {
-                    binding: 3,
-                    buffer: output,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 4,
-                    buffer: start_model_ref,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 5,
-                    buffer: end_model_ref,
-                },
+                buffer_entry(3, output),
+                buffer_entry(4, start_model_ref),
+                buffer_entry(5, end_model_ref),
                 source_entry(key.start, 6, true, sources, fallback_source),
                 source_entry(key.end, 7, true, sources, fallback_source),
-                BindGroupEntry::Buffer {
-                    binding: 8,
-                    buffer: start_config_ref,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 9,
-                    buffer: end_config_ref,
-                },
+                buffer_entry(8, start_config_ref),
+                buffer_entry(9, end_config_ref),
             ];
             self.streams.push(RelationStream {
                 pipeline: paged_pipeline(key),

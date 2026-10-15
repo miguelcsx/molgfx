@@ -1,8 +1,9 @@
 //! Attribute-timeline dispatch resources.
 
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
 use molgfx_core::{RowDomain, Scene, VisualAttributeRef};
-use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
+use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, Device, Queue};
 
 use super::{AttributeTimelineConfig, AttributeTimelineGpu, VisualPropertyTable};
 
@@ -49,13 +50,7 @@ impl<D: Device> VisualPropertyTable<D> {
             let group = device.create_bind_group(&BindGroupDesc {
                 label: "attribute timeline materialization",
                 layout,
-                entries: &[
-                    BindGroupEntry::Buffer { binding: 0, buffer },
-                    BindGroupEntry::Buffer {
-                        binding: 1,
-                        buffer: &config,
-                    },
-                ],
+                entries: &[buffer_entry(0, buffer), buffer_entry(1, &config)],
             });
             self.timelines.push(AttributeTimelineGpu {
                 config,
@@ -115,16 +110,7 @@ impl<D: Device> VisualPropertyTable<D> {
             let group = device.create_bind_group(&BindGroupDesc {
                 label: "paged attribute timeline materialization",
                 layout,
-                entries: &[
-                    BindGroupEntry::Buffer {
-                        binding: 0,
-                        buffer: source,
-                    },
-                    BindGroupEntry::Buffer {
-                        binding: 1,
-                        buffer: &config,
-                    },
-                ],
+                entries: &[buffer_entry(0, source), buffer_entry(1, &config)],
             });
             self.paged_timelines.push(AttributeTimelineGpu {
                 config,

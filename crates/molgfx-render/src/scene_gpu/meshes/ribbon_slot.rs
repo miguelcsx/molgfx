@@ -1,6 +1,7 @@
 //! Persistent GPU storage for one cartoon representation slot.
 
 use crate::scene_gpu::asset_arena::AssetArena;
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::buffers::count;
 use crate::scene_gpu::grow_buffer::GrowBuffer;
 use crate::scene_gpu::indexed_draw::{IndexedDraw, write_arguments};
@@ -14,7 +15,7 @@ use molgfx_core::{
     AtomSelection, ColorScheme, PlacedStructure, Representation, RepresentationKind,
 };
 use molgfx_geometry::{RibbonMesh, RibbonParams, SplineProfile};
-use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
+use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, Device, Queue};
 
 #[derive(Debug)]
 pub(in crate::scene_gpu) struct RibbonSlot<D: Device> {
@@ -155,49 +156,19 @@ impl<D: Device> RibbonSlot<D> {
             label: "group2: cartoon representation",
             layout,
             entries: &[
-                BindGroupEntry::Buffer {
-                    binding: 0,
-                    buffer: vertices,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 2,
-                    buffer: model,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 3,
-                    buffer: clipping,
-                },
+                buffer_entry(0, vertices),
+                buffer_entry(2, model),
+                buffer_entry(3, clipping),
                 structure.coords_entry(asset_arena, 4),
                 structure.previous_coords_entry(asset_arena, 5),
-                BindGroupEntry::Buffer {
-                    binding: 6,
-                    buffer: deformations,
-                },
+                buffer_entry(6, deformations),
                 structure.base_coords_entry(asset_arena, 7),
-                BindGroupEntry::Buffer {
-                    binding: 8,
-                    buffer: visual.results,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 9,
-                    buffer: visual.instructions,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 10,
-                    buffer: visual.parameters,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 11,
-                    buffer: visual.properties,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 12,
-                    buffer: visual.config,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 13,
-                    buffer: radius_sources,
-                },
+                buffer_entry(8, visual.results),
+                buffer_entry(9, visual.instructions),
+                buffer_entry(10, visual.parameters),
+                buffer_entry(11, visual.properties),
+                buffer_entry(12, visual.config),
+                buffer_entry(13, radius_sources),
             ],
         }));
     }

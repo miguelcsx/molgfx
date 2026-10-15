@@ -1,6 +1,7 @@
 //! Persistent 12-byte generic point tables with GPU-authored visibility.
 
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::dispatch::workgroups_2d;
 use crate::scene_gpu::generic_visual::{
     GenericVisualResources, GenericVisualState, GenericVisualTarget,
@@ -291,18 +292,9 @@ impl<D: Device> GpuPointBatches<D> {
             .ok()?;
         let batch = &self.batches[index];
         Some([
-            BindGroupEntry::Buffer {
-                binding: bindings[0],
-                buffer: batch.active_start_buffer()?,
-            },
-            BindGroupEntry::Buffer {
-                binding: bindings[1],
-                buffer: batch.active_end_buffer()?,
-            },
-            BindGroupEntry::Buffer {
-                binding: bindings[2],
-                buffer: &batch.config,
-            },
+            buffer_entry(bindings[0], batch.active_start_buffer()?),
+            buffer_entry(bindings[1], batch.active_end_buffer()?),
+            buffer_entry(bindings[2], &batch.config),
         ])
     }
 

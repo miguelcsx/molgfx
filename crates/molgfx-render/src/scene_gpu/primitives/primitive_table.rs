@@ -3,10 +3,11 @@
 use super::primitive_draw::{PackedPrimitive, PrimitiveDrawGroup, regroup};
 use super::primitive_packing::{pack_primitive, placement_revision};
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::buffers::{count, ensure_upload_buffer};
 use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::{ParticleMotionGpu, PrimitiveGpu, Scene};
-use molgfx_gpu::{BindGroupDesc, BindGroupEntry, Device, Queue};
+use molgfx_gpu::{BindGroupDesc, Device, Queue};
 
 /// The three bind-group layouts a primitive sync binds: the gbuffer table, the
 /// particle-motion compute group, and the shadow-caster group.
@@ -217,36 +218,24 @@ impl<D: Device> GpuPrimitives<D> {
         self.shadow_group = Some(device.create_bind_group(&BindGroupDesc {
             label: "group2: primitive shadow casters",
             layout: layouts.shadow,
-            entries: &[BindGroupEntry::Buffer { binding: 6, buffer }],
+            entries: &[buffer_entry(6, buffer)],
         }));
         self.group = Some(device.create_bind_group(&BindGroupDesc {
             label: "group2: primitive table",
             layout: layouts.table,
             entries: &[
-                BindGroupEntry::Buffer { binding: 0, buffer },
-                BindGroupEntry::Buffer {
-                    binding: 1,
-                    buffer: previous,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 2,
-                    buffer: motion,
-                },
+                buffer_entry(0, buffer),
+                buffer_entry(1, previous),
+                buffer_entry(2, motion),
             ],
         }));
         self.motion_group = Some(device.create_bind_group(&BindGroupDesc {
             label: "group2: primitive particle motion",
             layout: layouts.motion,
             entries: &[
-                BindGroupEntry::Buffer { binding: 0, buffer },
-                BindGroupEntry::Buffer {
-                    binding: 1,
-                    buffer: previous,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 2,
-                    buffer: motion,
-                },
+                buffer_entry(0, buffer),
+                buffer_entry(1, previous),
+                buffer_entry(2, motion),
             ],
         }));
     }

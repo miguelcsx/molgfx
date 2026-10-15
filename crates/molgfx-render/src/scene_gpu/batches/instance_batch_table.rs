@@ -1,5 +1,6 @@
 //! Shared analytic templates and compact 32-byte rigid-instance GPU tables.
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::dispatch::workgroups_2d;
 use crate::scene_gpu::generic_visual::{
     GenericVisualResources, GenericVisualState, GenericVisualTarget,

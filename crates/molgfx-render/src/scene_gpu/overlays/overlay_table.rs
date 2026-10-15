@@ -1,10 +1,11 @@
 //! Persistent screen-overlay records rebuilt only after overlay edits.
 
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::buffers::{count, upload_grow, write_draw_args};
 use crate::scene_gpu::label_types::glyph_bits;
 use molgfx_core::{OverlayContent, Scene};
-use molgfx_gpu::{BindGroupDesc, BindGroupEntry, Device};
+use molgfx_gpu::{BindGroupDesc, Device};
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
@@ -83,10 +84,7 @@ impl<D: Device> GpuOverlays<D> {
         self.group = Some(device.create_bind_group(&BindGroupDesc {
             label: "group2: screen overlays",
             layout,
-            entries: &[BindGroupEntry::Buffer {
-                binding: 0,
-                buffer: records,
-            }],
+            entries: &[buffer_entry(0, records)],
         }));
     }
 

@@ -2,6 +2,7 @@
 
 #[path = "paged_chunks/lowering.rs"]
 mod lowering;
+use crate::scene_gpu::buffers::buffer_entry;
 use lowering::{bytes_for, lower, lower_window, representation_command};
 
 use crate::ResidencyConfig;
@@ -12,8 +13,8 @@ use crate::scene_gpu::picking_pages::{ChunkPickPlan, PickPages};
 use molgfx_core::{DrawIndirectArgs, ResidencyTicket};
 use molgfx_gpu::Queue as _;
 use molgfx_gpu::{
-    BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType,
-    BufferDesc, BufferUsage, Device, ShaderStages,
+    BindGroupDesc, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, BufferDesc, BufferUsage,
+    Device, ShaderStages,
 };
 
 #[repr(C, align(16))]
@@ -270,42 +271,15 @@ impl<D: Device> PagedChunkBatch<D> {
             label: "paged structure chunks",
             layout: &self.layout,
             entries: &[
-                BindGroupEntry::Buffer {
-                    binding: 0,
-                    buffer: scene.display_coordinates,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 1,
-                    buffer: scene.clusters,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 2,
-                    buffer: &buffers.placements,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 3,
-                    buffer: &buffers.visible,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 4,
-                    buffer: &buffers.args,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 5,
-                    buffer: &buffers.visible,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 6,
-                    buffer: scene.frame_coordinates,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 7,
-                    buffer: &buffers.windows,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 8,
-                    buffer: scene.display_coordinates,
-                },
+                buffer_entry(0, scene.display_coordinates),
+                buffer_entry(1, scene.clusters),
+                buffer_entry(2, &buffers.placements),
+                buffer_entry(3, &buffers.visible),
+                buffer_entry(4, &buffers.args),
+                buffer_entry(5, &buffers.visible),
+                buffer_entry(6, scene.frame_coordinates),
+                buffer_entry(7, &buffers.windows),
+                buffer_entry(8, scene.display_coordinates),
             ],
         }));
         Ok(())

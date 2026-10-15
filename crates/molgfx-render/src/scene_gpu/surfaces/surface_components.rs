@@ -2,6 +2,7 @@
 
 use super::surface_field::FieldTexture;
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
 use molgfx_core::{SurfaceComponentPolicy, SurfaceComponentThreshold};
 use molgfx_gpu::{
     BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue, TextureFormat,
@@ -128,18 +129,9 @@ impl<D: Device> SurfaceComponents<D> {
                     binding: 1,
                     view: &filtered.view,
                 },
-                BindGroupEntry::Buffer {
-                    binding: 2,
-                    buffer: parents,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 3,
-                    buffer: statistics,
-                },
-                BindGroupEntry::Buffer {
-                    binding: 4,
-                    buffer: uniforms,
-                },
+                buffer_entry(2, parents),
+                buffer_entry(3, statistics),
+                buffer_entry(4, uniforms),
             ],
         }));
         Ok(())

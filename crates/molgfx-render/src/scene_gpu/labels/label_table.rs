@@ -3,10 +3,11 @@
 use super::label_pack::pack_labels;
 use super::label_types::{LabelCountsGpu, LabelGpu, LabelHeaderGpu, OCCUPANCY_SLOTS};
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::buffer_entry;
 use crate::scene_gpu::buffers::{count, upload_grow, write_draw_args};
 use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::Scene;
-use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
+use molgfx_gpu::{BindGroupDesc, BufferDesc, BufferUsage, Device, Queue};
 
 #[derive(Debug)]
 pub(in crate::scene_gpu) struct GpuLabels<D: Device> {
@@ -170,18 +171,18 @@ impl<D: Device> GpuLabels<D> {
             label: "group2: label declutter",
             layout: compute_layout,
             entries: &[
-                entry(0, headers),
-                entry(1, source),
-                entry(2, visible),
-                entry(3, occupancy),
-                entry(4, args),
-                entry(5, counts),
+                buffer_entry(0, headers),
+                buffer_entry(1, source),
+                buffer_entry(2, visible),
+                buffer_entry(3, occupancy),
+                buffer_entry(4, args),
+                buffer_entry(5, counts),
             ],
         }));
         self.render_group = Some(device.create_bind_group(&BindGroupDesc {
             label: "group2: visible labels",
             layout: render_layout,
-            entries: &[entry(0, visible)],
+            entries: &[buffer_entry(0, visible)],
         }));
     }
 
@@ -196,10 +197,6 @@ impl<D: Device> GpuLabels<D> {
     pub(in crate::scene_gpu) const fn has_visible(&self) -> bool {
         self.source_count > 0
     }
-}
-
-fn entry<D: Device>(binding: u32, buffer: &D::Buffer) -> BindGroupEntry<'_, D> {
-    BindGroupEntry::Buffer { binding, buffer }
 }
 
 fn byte_len<T>(count: usize) -> u64 {
