@@ -13,7 +13,7 @@ use storage_limits::validate_storage_limit;
 #[path = "layouts_tests.rs"]
 mod tests;
 
-pub(super) fn volume_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn volume_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: density volume representation",
         entries: &[
@@ -42,7 +42,7 @@ pub(super) fn volume_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     })
 }
 
-pub(super) fn segmentation_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn segmentation_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: categorical segmentation representation",
         entries: &[
@@ -71,21 +71,21 @@ pub(super) fn segmentation_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     })
 }
 
-pub(super) fn interaction_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn interaction_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: interaction glyph table",
         entries: &[storage(0), storage_visible(1, ShaderStages::VERTEX)],
     })
 }
 
-pub(super) fn relation_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn relation_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group1: relation culling",
         entries: &relation_cull_entries(),
     })
 }
 
-pub(super) fn relation_resolve_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn relation_resolve_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group1: dynamic relation resolver",
         entries: &relation_resolve_entries(),
@@ -107,7 +107,7 @@ fn relation_resolve_entries() -> [BindGroupLayoutEntry; 10] {
     ]
 }
 
-pub(super) fn generic_point_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn generic_point_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group1: generic point culling",
         entries: &[
@@ -125,7 +125,9 @@ pub(super) fn generic_point_cull_layout<D: Device>(device: &D) -> D::BindGroupLa
     })
 }
 
-pub(super) fn generic_point_render_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn generic_point_render_layout<D: Device>(
+    device: &D,
+) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: generic point rendering",
         entries: &[
@@ -153,7 +155,9 @@ pub(super) fn generic_point_render_layout<D: Device>(device: &D) -> D::BindGroup
     })
 }
 
-pub(super) fn generic_instance_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn generic_instance_cull_layout<D: Device>(
+    device: &D,
+) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group1: generic instance culling",
         entries: &[
@@ -171,7 +175,9 @@ pub(super) fn generic_instance_cull_layout<D: Device>(device: &D) -> D::BindGrou
     })
 }
 
-pub(super) fn generic_instance_render_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn generic_instance_render_layout<D: Device>(
+    device: &D,
+) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: generic analytic instances",
         entries: &[
@@ -202,7 +208,7 @@ pub(super) fn generic_instance_render_layout<D: Device>(device: &D) -> D::BindGr
     })
 }
 
-pub(super) fn instance_timeline_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn instance_timeline_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group0: generic instance timeline",
         entries: &[
@@ -214,14 +220,14 @@ pub(super) fn instance_timeline_layout<D: Device>(device: &D) -> D::BindGroupLay
     })
 }
 
-pub(super) fn attribute_timeline_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn attribute_timeline_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "attribute timeline materialization",
         entries: &[writable_storage(0), compute_uniform(1)],
     })
 }
 
-pub(super) fn primitive_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn primitive_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: primitive table",
         entries: &[
@@ -240,7 +246,7 @@ pub(super) fn primitive_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     })
 }
 
-pub(super) fn primitive_shadow_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn primitive_shadow_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     // The shadow module shares one binding space with the atom caster, which
     // owns bindings 0..5 and 13, so the primitive buffer is read at binding 6.
     // It is the same PrimitiveGpu records the gbuffer pass draws, bound here at
@@ -254,7 +260,7 @@ pub(super) fn primitive_shadow_layout<D: Device>(device: &D) -> D::BindGroupLayo
     })
 }
 
-pub(super) fn primitive_motion_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn primitive_motion_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: primitive particle motion",
         entries: &[
@@ -277,7 +283,7 @@ pub(super) fn primitive_motion_layout<D: Device>(device: &D) -> D::BindGroupLayo
     })
 }
 
-pub(super) fn ligand_pose_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn ligand_pose_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: compact ligand poses",
         entries: &[
@@ -290,21 +296,21 @@ pub(super) fn ligand_pose_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     })
 }
 
-pub(super) fn label_render_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn label_render_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: visible semantic labels",
         entries: &[storage_visible(0, ShaderStages::VERTEX)],
     })
 }
 
-pub(super) fn overlay_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn overlay_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: screen overlays",
         entries: &[storage_visible(0, ShaderStages::VERTEX)],
     })
 }
 
-pub(super) fn label_declutter_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn label_declutter_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: deterministic label decluttering",
         entries: &[
@@ -320,7 +326,7 @@ pub(super) fn label_declutter_layout<D: Device>(device: &D) -> D::BindGroupLayou
 
 include!("layouts/representation.rs");
 
-pub(super) fn cartoon_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn cartoon_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group2: cartoon representation",
         entries: &[
@@ -357,7 +363,7 @@ pub(super) fn cartoon_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     })
 }
 
-pub(super) fn atom_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn atom_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     let entries = atom_cull_entries();
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "atom cull slot",
@@ -382,7 +388,7 @@ fn atom_cull_entries() -> [BindGroupLayoutEntry; 12] {
     ]
 }
 
-pub(super) fn bond_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn bond_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     let entries = bond_cull_entries();
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "bond cull slot",
@@ -407,7 +413,7 @@ fn bond_cull_entries() -> [BindGroupLayoutEntry; 12] {
     ]
 }
 
-pub(super) fn visual_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn visual_cull_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     let entries = visual_cull_entries();
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "visual evaluation slot",
@@ -430,7 +436,7 @@ fn visual_cull_entries() -> [BindGroupLayoutEntry; 10] {
     ]
 }
 
-pub(super) fn trajectory_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn trajectory_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "trajectory interpolation",
         entries: &[
@@ -445,7 +451,7 @@ pub(super) fn trajectory_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     })
 }
 
-pub(super) fn helix_fit_layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn helix_fit_layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "live helix fitting",
         entries: &[
@@ -467,7 +473,7 @@ pub(crate) struct RibbonLayouts<D: Device> {
     pub(crate) fit: D::BindGroupLayout,
 }
 
-pub(super) fn ribbon_layouts<D: Device>(device: &D) -> RibbonLayouts<D> {
+pub(in crate::scene_gpu) fn ribbon_layouts<D: Device>(device: &D) -> RibbonLayouts<D> {
     RibbonLayouts {
         draw: cartoon_layout(device),
         fit: helix_fit_layout(device),

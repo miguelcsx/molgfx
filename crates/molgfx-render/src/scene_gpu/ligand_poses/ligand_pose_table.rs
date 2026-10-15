@@ -12,16 +12,16 @@ use super::ligand_pose_types::{
     PoseStyleGpu, PoseTableStats, PoseTransformGpu, append_draw, checked_bytes, checked_count,
 };
 use super::ligand_pose_upload::{PoseTableBuffers, PoseTableScratch, upload_batch_tables};
-use super::primitive_packing::placement_revision;
-use super::structure::GpuStructure;
 use crate::error::RenderError;
+use crate::scene_gpu::primitive_packing::placement_revision;
+use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::{DrawIndirectArgs, Scene};
 use molgfx_gpu::{BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
 
 const RETAINED_BUFFER_SLACK: u64 = 8 * 1024 * 1024;
 
 #[derive(Debug)]
-pub(super) struct GpuLigandPoses<D: Device> {
+pub(in crate::scene_gpu) struct GpuLigandPoses<D: Device> {
     atoms: Option<D::Buffer>,
     bonds: Option<D::Buffer>,
     transforms: Option<D::Buffer>,
@@ -48,7 +48,7 @@ pub(super) struct GpuLigandPoses<D: Device> {
 }
 
 impl<D: Device> GpuLigandPoses<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             atoms: None,
             bonds: None,
@@ -83,7 +83,7 @@ impl<D: Device> GpuLigandPoses<D> {
         }
     }
 
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -343,7 +343,9 @@ impl<D: Device> GpuLigandPoses<D> {
         Ok(changed)
     }
 
-    pub(super) fn draws(&self) -> Option<(&D::BindGroup, &D::Buffer, &[LigandPoseDrawGroup])> {
+    pub(in crate::scene_gpu) fn draws(
+        &self,
+    ) -> Option<(&D::BindGroup, &D::Buffer, &[LigandPoseDrawGroup])> {
         (!self.groups.is_empty()).then_some((
             self.group.as_ref()?,
             self.args.as_ref()?,
@@ -351,7 +353,7 @@ impl<D: Device> GpuLigandPoses<D> {
         ))
     }
 
-    pub(super) fn shadow_draws(
+    pub(in crate::scene_gpu) fn shadow_draws(
         &self,
         quality: bool,
     ) -> Option<(&D::BindGroup, &D::Buffer, &[LigandPoseDrawGroup])> {
@@ -360,11 +362,11 @@ impl<D: Device> GpuLigandPoses<D> {
             .then(|| self.draws())?
     }
 
-    pub(super) const fn has_translucency(&self) -> bool {
+    pub(in crate::scene_gpu) const fn has_translucency(&self) -> bool {
         self.translucent
     }
 
-    pub(super) const fn statistics(&self) -> PoseTableStats {
+    pub(in crate::scene_gpu) const fn statistics(&self) -> PoseTableStats {
         self.stats
     }
 

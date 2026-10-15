@@ -33,19 +33,19 @@ struct PagedInstanceCreate<'a, D: Device> {
     materialize: bool,
 }
 
-pub(super) struct PagedInstanceSync<'a, D: Device> {
-    pub(super) device: &'a D,
-    pub(super) queue: &'a D::Queue,
-    pub(super) cull_layout: &'a D::BindGroupLayout,
-    pub(super) render_layout: &'a D::BindGroupLayout,
-    pub(super) timeline_layout: &'a D::BindGroupLayout,
-    pub(super) source: &'a D::Buffer,
-    pub(super) source_revision: u64,
-    pub(super) picking: &'a PickPages,
-    pub(super) plans: &'a [crate::engine::chunk_draw_plan::ResidentInstanceChunkPlacement],
-    pub(super) resources: GenericVisualResources<'a, D>,
-    pub(super) derived_cache: &'a mut DerivedCache,
-    pub(super) frame: u64,
+pub(in crate::scene_gpu) struct PagedInstanceSync<'a, D: Device> {
+    pub(in crate::scene_gpu) device: &'a D,
+    pub(in crate::scene_gpu) queue: &'a D::Queue,
+    pub(in crate::scene_gpu) cull_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) render_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) timeline_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) source: &'a D::Buffer,
+    pub(in crate::scene_gpu) source_revision: u64,
+    pub(in crate::scene_gpu) picking: &'a PickPages,
+    pub(in crate::scene_gpu) plans: &'a [crate::engine::chunk_draw_plan::ResidentInstanceChunkPlacement],
+    pub(in crate::scene_gpu) resources: GenericVisualResources<'a, D>,
+    pub(in crate::scene_gpu) derived_cache: &'a mut DerivedCache,
+    pub(in crate::scene_gpu) frame: u64,
 }
 
 impl<D: Device> GpuPagedInstanceBatch<D> {
@@ -162,7 +162,7 @@ fn same_materialized_config(
 }
 
 impl<D: Device> GpuInstanceBatches<D> {
-    pub(super) fn sync_paged(
+    pub(in crate::scene_gpu) fn sync_paged(
         &mut self,
         input: PagedInstanceSync<'_, D>,
     ) -> Result<bool, RenderError> {
@@ -285,11 +285,11 @@ impl<D: Device> GpuInstanceBatches<D> {
         }));
     }
 
-    pub(super) const fn paged_binding_revision(&self) -> u64 {
+    pub(in crate::scene_gpu) const fn paged_binding_revision(&self) -> u64 {
         self.paged_binding_revision
     }
 
-    pub(super) fn paged_materialized_source(
+    pub(in crate::scene_gpu) fn paged_materialized_source(
         &self,
         start_byte_offset: u64,
         end_byte_offset: u64,

@@ -7,7 +7,7 @@ use molgfx_core::{ClipSet, MAX_CLIP_PLANES, Material, Representation, ScalarVolu
 use molgfx_gpu::{Device, Queue};
 use molgfx_math::{Aabb, Camera, Mat4, Projection};
 
-use super::probe_offsets::PROBE_SAMPLE_COUNT;
+use crate::scene_gpu::probe_offsets::PROBE_SAMPLE_COUNT;
 use overlay::overlay_uniforms;
 
 mod overlay;
@@ -57,7 +57,7 @@ pub(crate) struct ModelUniforms {
 }
 
 impl ModelUniforms {
-    pub(super) fn new(
+    pub(in crate::scene_gpu) fn new(
         model_to_world: Mat4,
         previous_model_to_world: Mat4,
         pick_pages: [u32; 9],
@@ -225,42 +225,42 @@ fn projection_parameters(projection: Projection, matrix: Mat4) -> [f32; 4] {
 /// Per-representation parameters consumed by procedural shaders.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct RepresentationUniforms {
+pub(in crate::scene_gpu) struct RepresentationUniforms {
     /// Probe radius, level set, hit epsilon and minimum marching step.
-    pub(super) surface: [f32; 4],
+    pub(in crate::scene_gpu) surface: [f32; 4],
     /// Local-space grid minimum and padding.
-    pub(super) grid_min: [f32; 4],
+    pub(in crate::scene_gpu) grid_min: [f32; 4],
     /// Local-space cell size, and one when the memory budget coarsened it.
-    pub(super) grid_cell: [f32; 4],
+    pub(in crate::scene_gpu) grid_cell: [f32; 4],
     /// Surface kind, maximum steps, reentrant directions and presentation.
-    pub(super) options: [u32; 4],
+    pub(in crate::scene_gpu) options: [u32; 4],
     /// Three grid dimensions followed by total cell count.
-    pub(super) grid_size: [u32; 4],
+    pub(in crate::scene_gpu) grid_size: [u32; 4],
     /// Point, surface-pattern and bond-wire dimensions in physical pixels.
-    pub(super) visual: [f32; 4],
+    pub(in crate::scene_gpu) visual: [f32; 4],
     /// World-space clipping plane equations.
-    pub(super) clip_planes: [[f32; 4]; MAX_CLIP_PLANES],
+    pub(in crate::scene_gpu) clip_planes: [[f32; 4]; MAX_CLIP_PLANES],
     /// Active plane count followed by future cap flags.
-    pub(super) clip_meta: [u32; 4],
+    pub(in crate::scene_gpu) clip_meta: [u32; 4],
     /// World-space position to caller scalar-grid coordinates.
-    pub(super) overlay_world_to_voxel: [[f32; 4]; 4],
+    pub(in crate::scene_gpu) overlay_world_to_voxel: [[f32; 4]; 4],
     /// The reciprocal contour interval in `x`, or zero for no contours.
-    pub(super) overlay_contour: [f32; 4],
+    pub(in crate::scene_gpu) overlay_contour: [f32; 4],
     /// The caller's scalar ramp, baked to a lookup table.
-    pub(super) overlay_ramp: super::ramp_lut::RampLut,
+    pub(in crate::scene_gpu) overlay_ramp: crate::scene_gpu::ramp_lut::RampLut,
     /// Grid dimensions followed by an enabled sentinel.
-    pub(super) overlay_size: [u32; 4],
+    pub(in crate::scene_gpu) overlay_size: [u32; 4],
     /// Contour half-width and normal sampling offset.
-    pub(super) overlay_visual: [f32; 4],
+    pub(in crate::scene_gpu) overlay_visual: [f32; 4],
     /// Perceptual roughness, dielectric specular strength and reserved lanes.
-    pub(super) material: [f32; 4],
+    pub(in crate::scene_gpu) material: [f32; 4],
     /// Global opacity followed by reserved presentation lanes.
-    pub(super) presentation: [f32; 4],
+    pub(in crate::scene_gpu) presentation: [f32; 4],
 }
 
 impl RepresentationUniforms {
     #[cfg(test)]
-    pub(super) fn new(
+    pub(in crate::scene_gpu) fn new(
         representation: &Representation,
         bounds: Aabb,
         overlay_volume: Option<&ScalarVolume>,
@@ -279,7 +279,7 @@ impl RepresentationUniforms {
 
     /// Uniforms for a surface field sampled at the spacing `limits` ask for,
     /// coarsened only where an axis or the whole field would exceed them.
-    pub(super) fn for_spacing(
+    pub(in crate::scene_gpu) fn for_spacing(
         representation: &Representation,
         bounds: Aabb,
         overlay_volume: Option<&ScalarVolume>,
@@ -290,7 +290,7 @@ impl RepresentationUniforms {
             minimum,
             fit,
         } = surface::sampling(representation, bounds, limits);
-        let super::grid_fit::GridFit {
+        let crate::scene_gpu::grid_fit::GridFit {
             cell,
             dimensions,
             memory_limited,
@@ -350,7 +350,7 @@ impl RepresentationUniforms {
     }
 }
 
-pub(super) fn write_representation_uniforms<D: Device>(
+pub(in crate::scene_gpu) fn write_representation_uniforms<D: Device>(
     queue: &D::Queue,
     buffer: &D::Buffer,
     representation: &Representation,
@@ -364,17 +364,20 @@ pub(super) fn write_representation_uniforms<D: Device>(
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct ClipUniforms {
-    pub(super) planes: [[f32; 4]; MAX_CLIP_PLANES],
-    pub(super) meta: [u32; 4],
-    pub(super) material: [f32; 4],
-    pub(super) presentation: [f32; 4],
-    pub(super) tube_mapping: [f32; 4],
-    pub(super) tube: [f32; 4],
+pub(in crate::scene_gpu) struct ClipUniforms {
+    pub(in crate::scene_gpu) planes: [[f32; 4]; MAX_CLIP_PLANES],
+    pub(in crate::scene_gpu) meta: [u32; 4],
+    pub(in crate::scene_gpu) material: [f32; 4],
+    pub(in crate::scene_gpu) presentation: [f32; 4],
+    pub(in crate::scene_gpu) tube_mapping: [f32; 4],
+    pub(in crate::scene_gpu) tube: [f32; 4],
 }
 
 impl ClipUniforms {
-    pub(super) fn for_material_and_clipping(material: Material, clipping: &ClipSet) -> Self {
+    pub(in crate::scene_gpu) fn for_material_and_clipping(
+        material: Material,
+        clipping: &ClipSet,
+    ) -> Self {
         Self {
             planes: clip_planes(clipping),
             meta: clip_meta(clipping),
@@ -385,7 +388,7 @@ impl ClipUniforms {
         }
     }
 
-    pub(super) fn for_mesh(mesh: &molgfx_core::Mesh) -> Self {
+    pub(in crate::scene_gpu) fn for_mesh(mesh: &molgfx_core::Mesh) -> Self {
         let mut value = Self::for_material_and_clipping(mesh.material(), &mesh.clipping());
         value.meta[2] = match mesh.face_visibility() {
             molgfx_core::FaceVisibility::DoubleSided => 0,
@@ -395,7 +398,7 @@ impl ClipUniforms {
         value
     }
 
-    pub(super) fn new(representation: &Representation) -> Self {
+    pub(in crate::scene_gpu) fn new(representation: &Representation) -> Self {
         let mut value = Self {
             planes: clip_planes(&representation.clipping),
             meta: clip_meta(&representation.clipping),
@@ -431,7 +434,7 @@ impl ClipUniforms {
     }
 }
 
-pub(super) fn material_uniforms(material: Material) -> [f32; 4] {
+pub(in crate::scene_gpu) fn material_uniforms(material: Material) -> [f32; 4] {
     let model = material.model_lanes();
     [
         material.perceptual_roughness(),
@@ -471,7 +474,7 @@ fn presentation_lanes(material: Material) -> [f32; 4] {
     [f32::from(material.opacity_unorm8()) / 255.0, 0.0, 0.0, 0.0]
 }
 
-pub(super) fn clip_planes(clipping: &ClipSet) -> [[f32; 4]; MAX_CLIP_PLANES] {
+pub(in crate::scene_gpu) fn clip_planes(clipping: &ClipSet) -> [[f32; 4]; MAX_CLIP_PLANES] {
     let mut output = [[0.0; 4]; MAX_CLIP_PLANES];
     for (index, plane) in clipping.planes().iter().enumerate() {
         output[index] = [plane.normal.x, plane.normal.y, plane.normal.z, plane.offset];
@@ -479,7 +482,7 @@ pub(super) fn clip_planes(clipping: &ClipSet) -> [[f32; 4]; MAX_CLIP_PLANES] {
     output
 }
 
-pub(super) fn clip_meta(clipping: &ClipSet) -> [u32; 4] {
+pub(in crate::scene_gpu) fn clip_meta(clipping: &ClipSet) -> [u32; 4] {
     [
         crate::fallback(u32::try_from(clipping.planes().len()), 0),
         clipping.cap() as u32,

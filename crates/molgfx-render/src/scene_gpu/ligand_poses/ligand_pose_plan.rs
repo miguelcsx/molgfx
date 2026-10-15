@@ -9,44 +9,44 @@ use super::ligand_pose_types::{
     POSE_HASH_OFFSET, PoseBatchGpu, batch_entity, checked_add, checked_count, classify_poses,
     mix_pose_key,
 };
-use super::structure::GpuStructure;
 use crate::error::RenderError;
+use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::{LigandPoseBatch, LigandPoseBatchHandle, Scene};
 use molgfx_gpu::Device;
 use molgfx_math::Mat4;
 
 #[derive(Clone, Copy, Debug)]
-pub(super) struct BatchPlan {
-    pub(super) handle: LigandPoseBatchHandle,
-    pub(super) batch_index: u32,
-    pub(super) atom_count: u32,
-    pub(super) bond_count: u32,
-    pub(super) sampled_opaque: u32,
-    pub(super) sampled_translucent: u32,
-    pub(super) source_opaque: u32,
-    pub(super) source_translucent: u32,
-    pub(super) opaque_index_first: usize,
-    pub(super) translucent_index_first: usize,
+pub(in crate::scene_gpu) struct BatchPlan {
+    pub(in crate::scene_gpu) handle: LigandPoseBatchHandle,
+    pub(in crate::scene_gpu) batch_index: u32,
+    pub(in crate::scene_gpu) atom_count: u32,
+    pub(in crate::scene_gpu) bond_count: u32,
+    pub(in crate::scene_gpu) sampled_opaque: u32,
+    pub(in crate::scene_gpu) sampled_translucent: u32,
+    pub(in crate::scene_gpu) source_opaque: u32,
+    pub(in crate::scene_gpu) source_translucent: u32,
+    pub(in crate::scene_gpu) opaque_index_first: usize,
+    pub(in crate::scene_gpu) translucent_index_first: usize,
     pick_page: u32,
     radii: [f32; 2],
     model: Mat4,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-pub(super) struct PoseSourceStats {
-    pub(super) resident: u64,
-    pub(super) visible: u64,
+pub(in crate::scene_gpu) struct PoseSourceStats {
+    pub(in crate::scene_gpu) resident: u64,
+    pub(in crate::scene_gpu) visible: u64,
 }
 
-pub(super) struct PosePlanScratch<'a> {
-    pub(super) plans: &'a mut Vec<BatchPlan>,
-    pub(super) batches: &'a mut Vec<PoseBatchGpu>,
-    pub(super) samples: &'a mut Vec<PoseBatchSample>,
-    pub(super) opaque_indices: &'a mut Vec<u32>,
-    pub(super) translucent_indices: &'a mut Vec<u32>,
+pub(in crate::scene_gpu) struct PosePlanScratch<'a> {
+    pub(in crate::scene_gpu) plans: &'a mut Vec<BatchPlan>,
+    pub(in crate::scene_gpu) batches: &'a mut Vec<PoseBatchGpu>,
+    pub(in crate::scene_gpu) samples: &'a mut Vec<PoseBatchSample>,
+    pub(in crate::scene_gpu) opaque_indices: &'a mut Vec<u32>,
+    pub(in crate::scene_gpu) translucent_indices: &'a mut Vec<u32>,
 }
 
-pub(super) fn plan_pose_batches<D: Device>(
+pub(in crate::scene_gpu) fn plan_pose_batches<D: Device>(
     scene: &Scene,
     structures: &[GpuStructure<D>],
     quality: bool,

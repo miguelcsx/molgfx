@@ -1,7 +1,7 @@
 //! Persistent command arena for one indirect batch of provider-backed bonds.
 
-use super::picking_pages::{ChunkPickPlan, PickPages};
 use crate::engine::bond_draw_plan::{PagedBondGpu, ResidentBondPlacement};
+use crate::scene_gpu::picking_pages::{ChunkPickPlan, PickPages};
 use crate::{RenderError, ResidencyConfig};
 use molgfx_core::{DrawIndirectArgs, EntityKind};
 use molgfx_gpu::Queue as _;
@@ -23,8 +23,8 @@ struct BondPlacementGpu {
 }
 
 #[derive(Debug)]
-pub(super) struct PagedBondBatch<D: Device> {
-    pub(super) layout: D::BindGroupLayout,
+pub(in crate::scene_gpu) struct PagedBondBatch<D: Device> {
+    pub(in crate::scene_gpu) layout: D::BindGroupLayout,
     buffers: Option<PagedBondBuffers<D>>,
     group: Option<D::BindGroup>,
     placement_scratch: Vec<BondPlacementGpu>,
@@ -58,7 +58,10 @@ pub(crate) struct PagedBondSceneSync<'a, D: Device> {
 }
 
 impl<D: Device> PagedBondBatch<D> {
-    pub(super) fn new(device: &D, config: ResidencyConfig) -> Result<Self, RenderError> {
+    pub(in crate::scene_gpu) fn new(
+        device: &D,
+        config: ResidencyConfig,
+    ) -> Result<Self, RenderError> {
         let visible_capacity = u32::try_from(
             config
                 .page_size
@@ -84,7 +87,7 @@ impl<D: Device> PagedBondBatch<D> {
         })
     }
 
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         input: &PagedBondSceneSync<'_, D>,
         picks: &mut PickPages,
@@ -182,13 +185,13 @@ impl<D: Device> PagedBondBatch<D> {
         Ok(())
     }
 
-    pub(super) fn cull(&self) -> Option<(&D::BindGroup, [u32; 3])> {
+    pub(in crate::scene_gpu) fn cull(&self) -> Option<(&D::BindGroup, [u32; 3])> {
         let placements = u32::try_from(self.placement_scratch.len()).ok()?;
         let x = self.max_rows.div_ceil(64);
         (placements > 0).then_some((self.group.as_ref()?, [x, placements, 1]))
     }
 
-    pub(super) fn draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
+    pub(in crate::scene_gpu) fn draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
         (self.active_rows > 0).then_some((self.group.as_ref()?, &self.buffers.as_ref()?.args))
     }
 
@@ -312,7 +315,7 @@ const fn resident(reason: &'static str) -> RenderError {
     RenderError::Residency { reason }
 }
 
-impl<D: Device> super::GpuScene<D> {
+impl<D: Device> crate::scene_gpu::GpuScene<D> {
     pub(crate) const fn paged_bond_layout(&self) -> &D::BindGroupLayout {
         &self.paged_bonds.layout
     }

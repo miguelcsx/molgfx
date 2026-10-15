@@ -12,14 +12,14 @@ use molgfx_math::{Mat4, Quat, Rgba8, Vec3};
 
 pub(crate) const POSE_SPHERE: u32 = 0;
 pub(crate) const POSE_CAPSULE: u32 = 3;
-pub(super) const QUAD_VERTICES: u32 = 6;
-pub(super) const POSE_HASH_OFFSET: u64 = 14_695_981_039_346_656_037;
+pub(in crate::scene_gpu) const QUAD_VERTICES: u32 = 6;
+pub(in crate::scene_gpu) const POSE_HASH_OFFSET: u64 = 14_695_981_039_346_656_037;
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct PoseTransformGpu {
-    pub(super) translation_opacity: [f32; 4],
-    pub(super) orientation: [f32; 4],
+pub(in crate::scene_gpu) struct PoseTransformGpu {
+    pub(in crate::scene_gpu) translation_opacity: [f32; 4],
+    pub(in crate::scene_gpu) orientation: [f32; 4],
 }
 
 impl From<LigandPose> for PoseTransformGpu {
@@ -35,7 +35,7 @@ impl From<LigandPose> for PoseTransformGpu {
 
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct PoseStyleGpu(pub(super) u32);
+pub(in crate::scene_gpu) struct PoseStyleGpu(pub(in crate::scene_gpu) u32);
 
 impl From<LigandPose> for PoseStyleGpu {
     fn from(pose: LigandPose) -> Self {
@@ -45,13 +45,13 @@ impl From<LigandPose> for PoseStyleGpu {
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct PoseBondGpu {
-    pub(super) center_length: [f32; 4],
-    pub(super) orientation: [f32; 4],
+pub(in crate::scene_gpu) struct PoseBondGpu {
+    pub(in crate::scene_gpu) center_length: [f32; 4],
+    pub(in crate::scene_gpu) orientation: [f32; 4],
 }
 
 impl PoseBondGpu {
-    pub(super) fn new(center: Vec3, orientation: Quat, length: f32) -> Self {
+    pub(in crate::scene_gpu) fn new(center: Vec3, orientation: Quat, length: f32) -> Self {
         Self {
             center_length: [center.x, center.y, center.z, length],
             orientation: orientation.to_array(),
@@ -61,16 +61,16 @@ impl PoseBondGpu {
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct PoseBatchGpu {
-    pub(super) topology: [u32; 4],
-    pub(super) poses: [u32; 4],
-    pub(super) sampling: [u32; 4],
-    pub(super) radii: [f32; 4],
-    pub(super) model: [[f32; 4]; 4],
+pub(in crate::scene_gpu) struct PoseBatchGpu {
+    pub(in crate::scene_gpu) topology: [u32; 4],
+    pub(in crate::scene_gpu) poses: [u32; 4],
+    pub(in crate::scene_gpu) sampling: [u32; 4],
+    pub(in crate::scene_gpu) radii: [f32; 4],
+    pub(in crate::scene_gpu) model: [[f32; 4]; 4],
 }
 
 impl PoseBatchGpu {
-    pub(super) fn new(
+    pub(in crate::scene_gpu) fn new(
         topology: [u32; 4],
         poses: [u32; 2],
         sampling: [u32; 4],
@@ -107,28 +107,28 @@ pub(crate) struct PoseTableStats {
     pub(crate) draw_groups: u32,
 }
 
-pub(super) struct BatchRanges {
-    pub(super) opaque: u32,
-    pub(super) translucent: u32,
-    pub(super) stable_key: u64,
+pub(in crate::scene_gpu) struct BatchRanges {
+    pub(in crate::scene_gpu) opaque: u32,
+    pub(in crate::scene_gpu) translucent: u32,
+    pub(in crate::scene_gpu) stable_key: u64,
 }
 
 impl BatchRanges {
-    pub(super) fn visible(&self) -> Result<u32, RenderError> {
+    pub(in crate::scene_gpu) fn visible(&self) -> Result<u32, RenderError> {
         checked_add(self.opaque, self.translucent, "visible ligand pose count")
     }
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct PoseDrawRange {
-    pub(super) batch_index: u32,
-    pub(super) shape: u32,
-    pub(super) topology_count: u32,
-    pub(super) pose_count: u32,
-    pub(super) translucent: bool,
+pub(in crate::scene_gpu) struct PoseDrawRange {
+    pub(in crate::scene_gpu) batch_index: u32,
+    pub(in crate::scene_gpu) shape: u32,
+    pub(in crate::scene_gpu) topology_count: u32,
+    pub(in crate::scene_gpu) pose_count: u32,
+    pub(in crate::scene_gpu) translucent: bool,
 }
 
-pub(super) fn classify_poses(
+pub(in crate::scene_gpu) fn classify_poses(
     poses: &[LigandPose],
     mut stable_key: u64,
     opaque_indices: &mut Vec<u32>,
@@ -162,7 +162,7 @@ pub(super) fn classify_poses(
     })
 }
 
-pub(super) fn append_draw(
+pub(in crate::scene_gpu) fn append_draw(
     args: &mut Vec<DrawIndirectArgs>,
     groups: &mut Vec<LigandPoseDrawGroup>,
     range: PoseDrawRange,
@@ -195,11 +195,14 @@ pub(super) fn append_draw(
     Ok(())
 }
 
-pub(super) fn checked_count(value: usize, resource: &'static str) -> Result<u32, RenderError> {
+pub(in crate::scene_gpu) fn checked_count(
+    value: usize,
+    resource: &'static str,
+) -> Result<u32, RenderError> {
     u32::try_from(value).map_err(|_| limit(resource, u64::from(u32::MAX)))
 }
 
-pub(super) fn checked_add(
+pub(in crate::scene_gpu) fn checked_add(
     left: u32,
     right: u32,
     resource: &'static str,
@@ -208,7 +211,7 @@ pub(super) fn checked_add(
         .ok_or_else(|| limit(resource, u64::from(u32::MAX)))
 }
 
-pub(super) fn checked_mul(
+pub(in crate::scene_gpu) fn checked_mul(
     left: u32,
     right: u32,
     resource: &'static str,
@@ -217,7 +220,10 @@ pub(super) fn checked_mul(
         .ok_or_else(|| limit(resource, u64::from(u32::MAX)))
 }
 
-pub(super) fn checked_bytes<T>(count: usize, resource: &'static str) -> Result<u64, RenderError> {
+pub(in crate::scene_gpu) fn checked_bytes<T>(
+    count: usize,
+    resource: &'static str,
+) -> Result<u64, RenderError> {
     let count = u64::try_from(count).map_err(|_| limit(resource, u64::MAX))?;
     count
         .checked_mul(std::mem::size_of::<T>() as u64)
@@ -225,13 +231,13 @@ pub(super) fn checked_bytes<T>(count: usize, resource: &'static str) -> Result<u
 }
 
 #[cfg(test)]
-pub(super) fn pose_is_translucent(pose: LigandPose) -> bool {
+pub(in crate::scene_gpu) fn pose_is_translucent(pose: LigandPose) -> bool {
     let alpha = pose_final_alpha(pose);
     alpha > 0.0 && alpha < 1.0
 }
 
 #[cfg(test)]
-pub(super) fn pose_is_visible(pose: LigandPose) -> bool {
+pub(in crate::scene_gpu) fn pose_is_visible(pose: LigandPose) -> bool {
     pose_final_alpha(pose) > 0.0
 }
 
@@ -239,7 +245,7 @@ fn pose_final_alpha(pose: LigandPose) -> f32 {
     pose.color().to_f32()[3] * pose.opacity()
 }
 
-pub(super) fn mix_pose_key(hash: &mut u64, value: u32) {
+pub(in crate::scene_gpu) fn mix_pose_key(hash: &mut u64, value: u32) {
     *hash ^= u64::from(value);
     *hash = (*hash).wrapping_mul(1_099_511_628_211);
 }
@@ -262,7 +268,7 @@ fn hash_pose(hash: &mut u64, pose: LigandPose) {
     mix_pose_key(hash, pose.opacity().to_bits());
 }
 
-pub(super) fn batch_entity(row: u32) -> Result<EntityId, molgfx_core::EntityIdError> {
+pub(in crate::scene_gpu) fn batch_entity(row: u32) -> Result<EntityId, molgfx_core::EntityIdError> {
     EntityId::pack(EntityKind::LigandPoseBatch, u64::from(row))
 }
 

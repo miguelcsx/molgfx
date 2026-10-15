@@ -1,9 +1,11 @@
 //! Shared analytic templates and compact 32-byte rigid-instance GPU tables.
-use super::dispatch::workgroups_2d;
-use super::generic_visual::{GenericVisualResources, GenericVisualState, GenericVisualTarget};
-use super::picking_pages::PickPages;
-use super::visual::VisualCullEntries;
 use crate::error::RenderError;
+use crate::scene_gpu::dispatch::workgroups_2d;
+use crate::scene_gpu::generic_visual::{
+    GenericVisualResources, GenericVisualState, GenericVisualTarget,
+};
+use crate::scene_gpu::picking_pages::PickPages;
+use crate::scene_gpu::visual::VisualCullEntries;
 use crate::{DerivedCache, DerivedFootprint};
 use molgfx_core::{
     AnalyticTemplate, DrawIndirectArgs, EntityKind, InstanceBatch, InstanceBatchHandle, Scene,
@@ -99,17 +101,17 @@ struct GpuInstanceBatch<D: Device> {
 
 include!("instance_batch_paged.rs");
 
-pub(super) struct InstanceBatchSync<'a, D: Device> {
-    pub(super) device: &'a D,
-    pub(super) queue: &'a D::Queue,
-    pub(super) cull_layout: &'a D::BindGroupLayout,
-    pub(super) render_layout: &'a D::BindGroupLayout,
-    pub(super) timeline_layout: &'a D::BindGroupLayout,
-    pub(super) scene: &'a Scene,
-    pub(super) picking: &'a PickPages,
-    pub(super) visual: GenericVisualResources<'a, D>,
-    pub(super) derived_cache: &'a mut DerivedCache,
-    pub(super) frame: u64,
+pub(in crate::scene_gpu) struct InstanceBatchSync<'a, D: Device> {
+    pub(in crate::scene_gpu) device: &'a D,
+    pub(in crate::scene_gpu) queue: &'a D::Queue,
+    pub(in crate::scene_gpu) cull_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) render_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) timeline_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) scene: &'a Scene,
+    pub(in crate::scene_gpu) picking: &'a PickPages,
+    pub(in crate::scene_gpu) visual: GenericVisualResources<'a, D>,
+    pub(in crate::scene_gpu) derived_cache: &'a mut DerivedCache,
+    pub(in crate::scene_gpu) frame: u64,
 }
 
 type InstanceSyncRevision = (u64, u64, u64, u64, u64, u64, u64, u64);
@@ -134,11 +136,11 @@ pub(crate) struct GenericInstanceDraw<'a, D: Device> {
     pub(crate) args: &'a D::Buffer,
     pub(crate) args_offset: u64,
     pub(crate) shape: u32,
-    pub(crate) shading: super::SlotShading,
+    pub(crate) shading: crate::scene_gpu::SlotShading,
 }
 
 #[derive(Debug)]
-pub(super) struct GpuInstanceBatches<D: Device> {
+pub(in crate::scene_gpu) struct GpuInstanceBatches<D: Device> {
     batches: Vec<GpuInstanceBatch<D>>,
     paged: Vec<GpuPagedInstanceBatch<D>>,
     paged_materialization: Vec<bool>,
@@ -147,7 +149,7 @@ pub(super) struct GpuInstanceBatches<D: Device> {
 }
 
 impl<D: Device> GpuInstanceBatches<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             batches: Vec::new(),
             paged: Vec::new(),
@@ -157,7 +159,7 @@ impl<D: Device> GpuInstanceBatches<D> {
         }
     }
 
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         context: &mut InstanceBatchSync<'_, D>,
     ) -> Result<bool, RenderError> {
@@ -259,14 +261,16 @@ impl<D: Device> GpuInstanceBatches<D> {
         Ok(changed)
     }
 
-    pub(super) fn dispatches(&self) -> impl Iterator<Item = GenericInstanceDispatch<'_, D>> {
+    pub(in crate::scene_gpu) fn dispatches(
+        &self,
+    ) -> impl Iterator<Item = GenericInstanceDispatch<'_, D>> {
         self.batches
             .iter()
             .map(instance_dispatch)
             .chain(self.paged.iter().map(paged_instance_dispatch))
     }
 
-    pub(super) fn timeline_dispatches(
+    pub(in crate::scene_gpu) fn timeline_dispatches(
         &self,
     ) -> impl Iterator<Item = GenericInstanceTimelineDispatch<'_, D>> {
         self.batches
@@ -285,7 +289,7 @@ impl<D: Device> GpuInstanceBatches<D> {
             }))
     }
 
-    pub(super) fn draws(
+    pub(in crate::scene_gpu) fn draws(
         &self,
         translucent: bool,
     ) -> impl Iterator<Item = GenericInstanceDraw<'_, D>> {
@@ -321,14 +325,14 @@ impl<D: Device> GpuInstanceBatches<D> {
         )
     }
 
-    pub(super) fn has_translucency(&self) -> bool {
+    pub(in crate::scene_gpu) fn has_translucency(&self) -> bool {
         self.batches
             .iter()
             .any(|batch| batch.visual.is_translucent())
             || self.paged.iter().any(|batch| batch.visual.is_translucent())
     }
 
-    pub(super) fn has_visible(&self) -> bool {
+    pub(in crate::scene_gpu) fn has_visible(&self) -> bool {
         !self.batches.is_empty() || !self.paged.is_empty()
     }
 }
@@ -359,7 +363,7 @@ fn plan_timelines<D: Device>(context: &mut InstanceBatchSync<'_, D>) {
             cpu_bytes: 0,
             gpu_bytes: u64::from(batch.source_rows().len()).saturating_mul(32),
         };
-        if !super::grow_buffer::fits_one_binding(
+        if !crate::scene_gpu::grow_buffer::fits_one_binding(
             footprint.gpu_bytes,
             context.device.capabilities().max_storage_buffer_bytes,
         ) {

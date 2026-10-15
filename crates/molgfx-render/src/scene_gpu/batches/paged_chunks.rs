@@ -4,11 +4,11 @@
 mod lowering;
 use lowering::{bytes_for, lower, lower_window, representation_command};
 
-use super::picking_pages::{ChunkPickPlan, PickPages};
 use crate::ResidencyConfig;
 use crate::engine::chunk_draw_plan::ResidentChunkPlacement;
 use crate::engine::chunk_draw_plan::ResidentTrajectoryWindow;
 use crate::error::RenderError;
+use crate::scene_gpu::picking_pages::{ChunkPickPlan, PickPages};
 use molgfx_core::{DrawIndirectArgs, ResidencyTicket};
 use molgfx_gpu::Queue as _;
 use molgfx_gpu::{
@@ -53,8 +53,8 @@ const COMMAND_COUNT: usize = 2;
 
 /// Persistent buffers and bindings reused by stable paged frames.
 #[derive(Debug)]
-pub(super) struct PagedChunkBatch<D: Device> {
-    pub(super) layout: D::BindGroupLayout,
+pub(in crate::scene_gpu) struct PagedChunkBatch<D: Device> {
+    pub(in crate::scene_gpu) layout: D::BindGroupLayout,
     buffers: Option<PagedChunkBuffers<D>>,
     group: Option<D::BindGroup>,
     placement_scratch: Vec<PlacementGpu>,
@@ -97,7 +97,10 @@ struct PagedChunkSync<'a, D: Device> {
 }
 
 impl<D: Device> PagedChunkBatch<D> {
-    pub(super) fn new(device: &D, config: ResidencyConfig) -> Result<Self, RenderError> {
+    pub(in crate::scene_gpu) fn new(
+        device: &D,
+        config: ResidencyConfig,
+    ) -> Result<Self, RenderError> {
         let visible_capacity = u32::try_from(
             (config
                 .page_size
@@ -308,13 +311,13 @@ impl<D: Device> PagedChunkBatch<D> {
         Ok(())
     }
 
-    pub(super) fn cull(&self) -> Option<(&D::BindGroup, [u32; 3])> {
+    pub(in crate::scene_gpu) fn cull(&self) -> Option<(&D::BindGroup, [u32; 3])> {
         let group = self.group.as_ref()?;
         let placements = u32::try_from(self.placement_scratch.len()).ok()?;
         (placements > 0).then_some((group, [self.max_clusters, placements, 1]))
     }
 
-    pub(super) fn interpolate(&self) -> Option<(&D::BindGroup, [u32; 3])> {
+    pub(in crate::scene_gpu) fn interpolate(&self) -> Option<(&D::BindGroup, [u32; 3])> {
         let windows = u32::try_from(self.window_scratch.len()).ok()?;
         let groups = self.max_window_rows.div_ceil(64);
         (windows > 0).then_some((self.group.as_ref()?, [groups, windows, 1]))
@@ -424,7 +427,7 @@ const fn storage(binding: u32, read_only: bool, visibility: ShaderStages) -> Bin
     }
 }
 
-impl<D: Device> super::GpuScene<D> {
+impl<D: Device> crate::scene_gpu::GpuScene<D> {
     pub(crate) const fn paged_chunk_layout(&self) -> &D::BindGroupLayout {
         &self.paged_chunks.layout
     }

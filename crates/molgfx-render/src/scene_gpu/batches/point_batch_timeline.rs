@@ -35,7 +35,7 @@ impl<D: Device> GpuPointBatches<D> {
                 cpu_bytes: 0,
                 gpu_bytes: u64::from(batch.source_rows().len()).saturating_mul(12),
             };
-            if !super::grow_buffer::fits_one_binding(
+            if !crate::scene_gpu::grow_buffer::fits_one_binding(
                 footprint.gpu_bytes,
                 context.device.capabilities().max_storage_buffer_bytes,
             ) {

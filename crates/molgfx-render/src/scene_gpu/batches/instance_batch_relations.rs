@@ -1,7 +1,7 @@
 // Relation-source views for direct or materialized rigid timelines.
 
 impl<D: Device> GpuInstanceBatches<D> {
-    pub(super) fn relation_source_entries(
+    pub(in crate::scene_gpu) fn relation_source_entries(
         &self,
         handle: InstanceBatchHandle,
         bindings: [u32; 3],

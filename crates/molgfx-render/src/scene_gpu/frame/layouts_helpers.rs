@@ -1,6 +1,6 @@
 // Shared portable binding constructors.
 
-pub(super) fn occupancy_layout<D: Device>(
+pub(in crate::scene_gpu) fn occupancy_layout<D: Device>(
     device: &D,
     bounds_format: molgfx_gpu::TextureFormat,
 ) -> D::BindGroupLayout {
@@ -52,11 +52,11 @@ const fn compute_uniform(binding: u32) -> BindGroupLayoutEntry {
     }
 }
 
-pub(super) fn storage(binding: u32) -> BindGroupLayoutEntry {
+pub(in crate::scene_gpu) fn storage(binding: u32) -> BindGroupLayoutEntry {
     storage_visible(binding, all_stages())
 }
 
-pub(super) fn writable_storage(binding: u32) -> BindGroupLayoutEntry {
+pub(in crate::scene_gpu) fn writable_storage(binding: u32) -> BindGroupLayoutEntry {
     BindGroupLayoutEntry {
         binding,
         visibility: ShaderStages::COMPUTE,

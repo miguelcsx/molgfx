@@ -13,21 +13,21 @@ use molgfx_gpu::{Device, Queue};
 
 const STAGING_ROWS: usize = 4_096;
 
-pub(super) struct PoseTableBuffers<'a, D: Device> {
-    pub(super) atoms: &'a D::Buffer,
-    pub(super) bonds: &'a D::Buffer,
-    pub(super) transforms: &'a D::Buffer,
-    pub(super) styles: &'a D::Buffer,
+pub(in crate::scene_gpu) struct PoseTableBuffers<'a, D: Device> {
+    pub(in crate::scene_gpu) atoms: &'a D::Buffer,
+    pub(in crate::scene_gpu) bonds: &'a D::Buffer,
+    pub(in crate::scene_gpu) transforms: &'a D::Buffer,
+    pub(in crate::scene_gpu) styles: &'a D::Buffer,
 }
 
-pub(super) struct PoseTableScratch<'a> {
-    pub(super) atoms: &'a mut Vec<[f32; 4]>,
-    pub(super) bonds: &'a mut Vec<PoseBondGpu>,
-    pub(super) transforms: &'a mut Vec<PoseTransformGpu>,
-    pub(super) styles: &'a mut Vec<PoseStyleGpu>,
+pub(in crate::scene_gpu) struct PoseTableScratch<'a> {
+    pub(in crate::scene_gpu) atoms: &'a mut Vec<[f32; 4]>,
+    pub(in crate::scene_gpu) bonds: &'a mut Vec<PoseBondGpu>,
+    pub(in crate::scene_gpu) transforms: &'a mut Vec<PoseTransformGpu>,
+    pub(in crate::scene_gpu) styles: &'a mut Vec<PoseStyleGpu>,
 }
 
-pub(super) fn upload_batch_tables<D: Device>(
+pub(in crate::scene_gpu) fn upload_batch_tables<D: Device>(
     queue: &D::Queue,
     buffers: &PoseTableBuffers<'_, D>,
     scratch: PoseTableScratch<'_>,

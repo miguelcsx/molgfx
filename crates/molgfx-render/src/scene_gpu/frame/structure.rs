@@ -1,21 +1,21 @@
 //! Placement-local GPU state over shared immutable asset buffers.
 
-use super::asset::GpuAsset;
-use super::asset_arena::AssetArena;
-use super::buffers::upload_grow;
-use super::trajectory_slot::GpuTrajectory;
 use super::uniforms::ModelUniforms;
 use crate::error::RenderError;
+use crate::scene_gpu::asset::GpuAsset;
+use crate::scene_gpu::asset_arena::AssetArena;
+use crate::scene_gpu::buffers::upload_grow;
+use crate::scene_gpu::trajectory_slot::GpuTrajectory;
 use molgfx_core::{PlacedStructure, StructureHandle};
 use molgfx_gpu::{BindGroupEntry, BufferDesc, BufferUsage, Device, Queue};
 use molgfx_math::Mat4;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub(super) struct GpuStructure<D: Device> {
-    pub(super) handle: StructureHandle,
+pub(in crate::scene_gpu) struct GpuStructure<D: Device> {
+    pub(in crate::scene_gpu) handle: StructureHandle,
     asset: Arc<GpuAsset<D>>,
-    pub(super) model: Option<D::Buffer>,
+    pub(in crate::scene_gpu) model: Option<D::Buffer>,
     trajectory_bvh_nodes: Option<D::Buffer>,
     trajectory_bvh_indices: Option<D::Buffer>,
     bvh_indices_upload: Vec<u32>,
@@ -26,7 +26,7 @@ pub(super) struct GpuStructure<D: Device> {
     model_to_world: Option<[f32; 16]>,
     model_needs_settle: bool,
     pick_pages: [u32; 9],
-    pub(super) binding_revision: u64,
+    pub(in crate::scene_gpu) binding_revision: u64,
     bvh_source: BvhSource,
     trajectory: GpuTrajectory<D>,
 }
@@ -38,7 +38,7 @@ enum BvhSource {
 }
 
 impl<D: Device> GpuStructure<D> {
-    pub(super) fn new(handle: StructureHandle, asset: Arc<GpuAsset<D>>) -> Self {
+    pub(in crate::scene_gpu) fn new(handle: StructureHandle, asset: Arc<GpuAsset<D>>) -> Self {
         Self {
             handle,
             asset,
@@ -59,7 +59,7 @@ impl<D: Device> GpuStructure<D> {
         }
     }
 
-    pub(super) fn replace_asset(&mut self, asset: Arc<GpuAsset<D>>) {
+    pub(in crate::scene_gpu) fn replace_asset(&mut self, asset: Arc<GpuAsset<D>>) {
         if !Arc::ptr_eq(&self.asset, &asset) {
             self.asset = asset;
             self.bvh_source = BvhSource::Asset;
@@ -67,7 +67,7 @@ impl<D: Device> GpuStructure<D> {
         }
     }
 
-    pub(super) fn set_pick_pages(&mut self, pick_pages: [u32; 9]) -> bool {
+    pub(in crate::scene_gpu) fn set_pick_pages(&mut self, pick_pages: [u32; 9]) -> bool {
         if self.pick_pages == pick_pages {
             return false;
         }
@@ -77,15 +77,15 @@ impl<D: Device> GpuStructure<D> {
     }
 
     /// Identity of the immutable asset this placement borrows.
-    pub(super) fn asset_identity(&self) -> super::asset::GpuAssetIdentity {
+    pub(in crate::scene_gpu) fn asset_identity(&self) -> crate::scene_gpu::asset::GpuAssetIdentity {
         self.asset.identity
     }
 
-    pub(super) fn pick_page(&self, kind: molgfx_core::EntityKind) -> u32 {
-        self.pick_pages[super::picking_pages::kind_index(kind)]
+    pub(in crate::scene_gpu) fn pick_page(&self, kind: molgfx_core::EntityKind) -> u32 {
+        self.pick_pages[crate::scene_gpu::picking_pages::kind_index(kind)]
     }
 
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -153,7 +153,7 @@ impl<D: Device> GpuStructure<D> {
         Ok(())
     }
 
-    pub(super) fn coords_entry<'a>(
+    pub(in crate::scene_gpu) fn coords_entry<'a>(
         &'a self,
         arena: &'a AssetArena<D>,
         binding: u32,
@@ -167,13 +167,13 @@ impl<D: Device> GpuStructure<D> {
         }
     }
 
-    pub(super) fn model_entry(&self, binding: u32) -> Option<BindGroupEntry<'_, D>> {
+    pub(in crate::scene_gpu) fn model_entry(&self, binding: u32) -> Option<BindGroupEntry<'_, D>> {
         self.model
             .as_ref()
             .map(|buffer| BindGroupEntry::Buffer { binding, buffer })
     }
 
-    pub(super) fn base_coords_entry<'a>(
+    pub(in crate::scene_gpu) fn base_coords_entry<'a>(
         &'a self,
         arena: &'a AssetArena<D>,
         binding: u32,
@@ -181,7 +181,7 @@ impl<D: Device> GpuStructure<D> {
         arena.entry(binding, self.asset.coordinates())
     }
 
-    pub(super) fn previous_coords_entry<'a>(
+    pub(in crate::scene_gpu) fn previous_coords_entry<'a>(
         &'a self,
         arena: &'a AssetArena<D>,
         binding: u32,
@@ -195,7 +195,7 @@ impl<D: Device> GpuStructure<D> {
         }
     }
 
-    pub(super) fn bvh_nodes_entry<'a>(
+    pub(in crate::scene_gpu) fn bvh_nodes_entry<'a>(
         &'a self,
         arena: &'a AssetArena<D>,
         binding: u32,
@@ -211,7 +211,7 @@ impl<D: Device> GpuStructure<D> {
         }
     }
 
-    pub(super) fn bvh_indices_entry<'a>(
+    pub(in crate::scene_gpu) fn bvh_indices_entry<'a>(
         &'a self,
         arena: &'a AssetArena<D>,
         binding: u32,
@@ -228,7 +228,9 @@ impl<D: Device> GpuStructure<D> {
     }
 
     #[cfg(test)]
-    pub(super) fn test_ranges(&self) -> [super::asset_arena::AssetRange; 3] {
+    pub(in crate::scene_gpu) fn test_ranges(
+        &self,
+    ) -> [crate::scene_gpu::asset_arena::AssetRange; 3] {
         [
             self.asset.coordinates(),
             self.asset.bvh_nodes(),
@@ -237,19 +239,19 @@ impl<D: Device> GpuStructure<D> {
     }
 
     #[cfg(test)]
-    pub(super) const fn test_model(&self) -> Option<&D::Buffer> {
+    pub(in crate::scene_gpu) const fn test_model(&self) -> Option<&D::Buffer> {
         self.model.as_ref()
     }
 
-    pub(super) fn invalidate_asset_binding(&mut self) {
+    pub(in crate::scene_gpu) fn invalidate_asset_binding(&mut self) {
         self.binding_revision = self.binding_revision.wrapping_add(1);
     }
 
-    pub(super) const fn trajectory_dirty(&self) -> bool {
+    pub(in crate::scene_gpu) const fn trajectory_dirty(&self) -> bool {
         self.trajectory.dirty()
     }
 
-    pub(super) fn record_trajectory<P: molgfx_gpu::ComputePassEncoder<D>>(
+    pub(in crate::scene_gpu) fn record_trajectory<P: molgfx_gpu::ComputePassEncoder<D>>(
         &mut self,
         pass: &mut P,
         pipeline: &D::Pipeline,

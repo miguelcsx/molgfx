@@ -1,4 +1,4 @@
-pub(super) fn representation_layout<D: Device>(
+pub(in crate::scene_gpu) fn representation_layout<D: Device>(
     device: &D,
 ) -> Result<D::BindGroupLayout, RenderError> {
     let entries = representation_entries();
@@ -74,7 +74,7 @@ fn representation_entries() -> [BindGroupLayoutEntry; 19] {
     ]
 }
 
-pub(super) fn quality_layout<D: Device>(device: &D) -> Result<D::BindGroupLayout, RenderError> {
+pub(in crate::scene_gpu) fn quality_layout<D: Device>(device: &D) -> Result<D::BindGroupLayout, RenderError> {
     let entries = quality_entries();
     validate_storage_limit(
         "group2: quality tracing",

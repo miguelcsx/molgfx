@@ -1,11 +1,13 @@
 //! Persistent 12-byte generic point tables with GPU-authored visibility.
 
-use super::dispatch::workgroups_2d;
-use super::generic_visual::{GenericVisualResources, GenericVisualState, GenericVisualTarget};
-use super::grow_buffer::GrowBuffer;
-use super::picking_pages::PickPages;
-use super::visual::VisualCullEntries;
 use crate::error::RenderError;
+use crate::scene_gpu::dispatch::workgroups_2d;
+use crate::scene_gpu::generic_visual::{
+    GenericVisualResources, GenericVisualState, GenericVisualTarget,
+};
+use crate::scene_gpu::grow_buffer::GrowBuffer;
+use crate::scene_gpu::picking_pages::PickPages;
+use crate::scene_gpu::visual::VisualCullEntries;
 use crate::{DerivedCache, DerivedFootprint};
 use molgfx_core::{
     ChunkId, DatasetId, DrawIndirectArgs, EntityKind, PointBatch, PointBatchHandle, PointGlyph,
@@ -50,18 +52,18 @@ struct GpuPointBatch<D: Device> {
     count: u32,
 }
 
-pub(super) struct PointBatchSync<'a, D: Device> {
-    pub(super) device: &'a D,
-    pub(super) queue: &'a D::Queue,
-    pub(super) cull_layout: &'a D::BindGroupLayout,
-    pub(super) render_layout: &'a D::BindGroupLayout,
-    pub(super) timeline_layout: &'a D::BindGroupLayout,
-    pub(super) scene: &'a Scene,
-    pub(super) picking: &'a PickPages,
-    pub(super) extent: [u32; 2],
-    pub(super) visual: GenericVisualResources<'a, D>,
-    pub(super) derived_cache: &'a mut DerivedCache,
-    pub(super) frame: u64,
+pub(in crate::scene_gpu) struct PointBatchSync<'a, D: Device> {
+    pub(in crate::scene_gpu) device: &'a D,
+    pub(in crate::scene_gpu) queue: &'a D::Queue,
+    pub(in crate::scene_gpu) cull_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) render_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) timeline_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) scene: &'a Scene,
+    pub(in crate::scene_gpu) picking: &'a PickPages,
+    pub(in crate::scene_gpu) extent: [u32; 2],
+    pub(in crate::scene_gpu) visual: GenericVisualResources<'a, D>,
+    pub(in crate::scene_gpu) derived_cache: &'a mut DerivedCache,
+    pub(in crate::scene_gpu) frame: u64,
 }
 
 struct PointTiles<'a, D: Device> {
@@ -93,7 +95,7 @@ struct PointGroups<D: Device> {
 type PointSyncRevision = (u64, u64, u64, u64, u64, u64, u64, u64, [u32; 2]);
 
 #[derive(Debug)]
-pub(super) struct GpuPointBatches<D: Device> {
+pub(in crate::scene_gpu) struct GpuPointBatches<D: Device> {
     batches: Vec<GpuPointBatch<D>>,
     tiles: GrowBuffer<D>,
     tile_extent: [u32; 2],
@@ -101,7 +103,7 @@ pub(super) struct GpuPointBatches<D: Device> {
 }
 
 impl<D: Device> GpuPointBatches<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             batches: Vec::new(),
             tiles: GrowBuffer::new(),
@@ -110,7 +112,7 @@ impl<D: Device> GpuPointBatches<D> {
         }
     }
 
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         context: &mut PointBatchSync<'_, D>,
     ) -> Result<bool, RenderError> {
@@ -227,7 +229,9 @@ impl<D: Device> GpuPointBatches<D> {
         Ok(visual_changed || timeline_changed)
     }
 
-    pub(super) fn dispatches(&self) -> impl Iterator<Item = GenericPointDispatch<'_, D>> {
+    pub(in crate::scene_gpu) fn dispatches(
+        &self,
+    ) -> impl Iterator<Item = GenericPointDispatch<'_, D>> {
         self.batches.iter().map(|batch| GenericPointDispatch {
             group: &batch.cull_group,
             source_groups: workgroups_2d(u64::from(batch.count).div_ceil(64)),
@@ -241,27 +245,27 @@ impl<D: Device> GpuPointBatches<D> {
         })
     }
 
-    pub(super) fn draws(
+    pub(in crate::scene_gpu) fn draws(
         &self,
         translucent: bool,
-    ) -> impl Iterator<Item = (&D::BindGroup, &D::Buffer, super::SlotShading)> {
+    ) -> impl Iterator<Item = (&D::BindGroup, &D::Buffer, crate::scene_gpu::SlotShading)> {
         self.batches
             .iter()
             .filter(move |batch| batch.visual.is_translucent() == translucent)
             .map(|batch| (&batch.render_group, &batch.output, batch.visual.shading()))
     }
 
-    pub(super) fn has_translucency(&self) -> bool {
+    pub(in crate::scene_gpu) fn has_translucency(&self) -> bool {
         self.batches
             .iter()
             .any(|batch| batch.visual.is_translucent())
     }
 
-    pub(super) fn has_visible(&self) -> bool {
+    pub(in crate::scene_gpu) fn has_visible(&self) -> bool {
         !self.batches.is_empty()
     }
 
-    pub(super) fn is_massive_opaque_discs(&self) -> bool {
+    pub(in crate::scene_gpu) fn is_massive_opaque_discs(&self) -> bool {
         const MASSIVE_POINT_COUNT: u64 = 131_072;
         !self.batches.is_empty()
             && self
@@ -276,7 +280,7 @@ impl<D: Device> GpuPointBatches<D> {
                 >= MASSIVE_POINT_COUNT
     }
 
-    pub(super) fn relation_source_entries(
+    pub(in crate::scene_gpu) fn relation_source_entries(
         &self,
         handle: PointBatchHandle,
         bindings: [u32; 3],
@@ -302,7 +306,7 @@ impl<D: Device> GpuPointBatches<D> {
         ])
     }
 
-    pub(super) fn timeline_dispatches(
+    pub(in crate::scene_gpu) fn timeline_dispatches(
         &self,
     ) -> impl Iterator<Item = GenericPointTimelineDispatch<'_, D>> {
         self.batches.iter().filter_map(|batch| {
