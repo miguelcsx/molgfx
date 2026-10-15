@@ -5,7 +5,7 @@
 //! encodings give that order: two representations pack to equal words exactly
 //! when they pack to equal records.
 
-use super::slot_types::RecordState;
+use crate::scene_gpu::slot_types::RecordState;
 use molgfx_core::RepresentationTarget;
 
 impl Eq for RecordState {}

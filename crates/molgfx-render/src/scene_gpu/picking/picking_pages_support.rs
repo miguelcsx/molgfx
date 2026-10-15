@@ -71,7 +71,7 @@ const STRUCTURE_ENTITY_KINDS: [EntityKind; 9] = [
     EntityKind::DynamicBond,
 ];
 
-pub(super) const fn kind_index(kind: EntityKind) -> usize {
+pub(in crate::scene_gpu) const fn kind_index(kind: EntityKind) -> usize {
     match kind {
         EntityKind::Atom => 0,
         EntityKind::Bond => 1,

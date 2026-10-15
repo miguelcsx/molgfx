@@ -1,11 +1,11 @@
 //! Persistent GPU-only temporal occupancy accumulation.
 
-use super::asset_arena::AssetArena;
-use super::buffers::buffer_entry;
-use super::structure::GpuStructure;
 use super::volume_slot::OccupancySync;
 use crate::error::RenderError;
 use crate::passes::OccupancyPass;
+use crate::scene_gpu::asset_arena::AssetArena;
+use crate::scene_gpu::buffers::buffer_entry;
+use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::PlacedStructure;
 use molgfx_gpu::{
     BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, ComputePassEncoder, Device, Queue,
@@ -50,7 +50,7 @@ struct OccupancyResources<D: Device> {
 }
 
 #[derive(Debug)]
-pub(super) struct GpuOccupancy<D: Device> {
+pub(in crate::scene_gpu) struct GpuOccupancy<D: Device> {
     accumulator: D::Buffer,
     selected_rows: D::Buffer,
     uniforms: D::Buffer,
@@ -69,7 +69,7 @@ pub(super) struct GpuOccupancy<D: Device> {
 }
 
 impl<D: Device> GpuOccupancy<D> {
-    pub(super) fn new(input: &OccupancySync<'_, D>) -> Result<Self, RenderError> {
+    pub(in crate::scene_gpu) fn new(input: &OccupancySync<'_, D>) -> Result<Self, RenderError> {
         let device = input.device;
         let queue = input.queue;
         let layout = input.layout;
@@ -114,7 +114,7 @@ impl<D: Device> GpuOccupancy<D> {
         Ok(value)
     }
 
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         layout: &D::BindGroupLayout,
@@ -167,7 +167,7 @@ impl<D: Device> GpuOccupancy<D> {
         }));
     }
 
-    pub(super) fn record<P: ComputePassEncoder<D>>(
+    pub(in crate::scene_gpu) fn record<P: ComputePassEncoder<D>>(
         &mut self,
         pass: &mut P,
         pipelines: &OccupancyPass<D>,
@@ -197,15 +197,15 @@ impl<D: Device> GpuOccupancy<D> {
         self.dirty = false;
     }
 
-    pub(super) const fn is_dirty(&self) -> bool {
+    pub(in crate::scene_gpu) const fn is_dirty(&self) -> bool {
         self.dirty && self.group.is_some()
     }
 
-    pub(super) fn view(&self) -> &D::TextureView {
+    pub(in crate::scene_gpu) fn view(&self) -> &D::TextureView {
         &self.view
     }
 
-    pub(super) fn bounds_view(&self) -> &D::TextureView {
+    pub(in crate::scene_gpu) fn bounds_view(&self) -> &D::TextureView {
         &self.bounds_view
     }
 }
@@ -361,6 +361,6 @@ fn product(dimensions: [u32; 3]) -> Result<u32, RenderError> {
 }
 
 fn dispatch<D: Device, P: ComputePassEncoder<D>>(pass: &mut P, count: u32) {
-    let groups = super::dispatch::workgroups_2d(u64::from(count).div_ceil(64));
+    let groups = crate::scene_gpu::dispatch::workgroups_2d(u64::from(count).div_ceil(64));
     pass.dispatch(groups[0], groups[1], 1);
 }

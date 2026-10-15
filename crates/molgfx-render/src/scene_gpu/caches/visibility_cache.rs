@@ -8,9 +8,9 @@
 //! appear here, which is what lets two representations with the same geometry
 //! and different appearance share one visible set and one dispatch.
 
-use super::buffers::CullCountInput;
 use super::record_cache::RecordKey;
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::CullCountInput;
 use molgfx_gpu::Device;
 
 #[cfg(test)]
@@ -31,7 +31,7 @@ pub(crate) struct VisibilityKey {
 
 /// One shared visible set and its cull counts.
 #[derive(Debug)]
-pub(super) struct VisibilitySet<D: Device> {
+pub(in crate::scene_gpu) struct VisibilitySet<D: Device> {
     /// The counts last written, so an unchanged frame uploads nothing.
     written: Option<CullCountInput>,
     visible_atoms: Option<D::Buffer>,
@@ -39,8 +39,8 @@ pub(super) struct VisibilitySet<D: Device> {
     counts: Option<D::Buffer>,
     visible_atoms_capacity: u64,
     visible_bonds_capacity: u64,
-    pub(super) atom_count: u32,
-    pub(super) bond_count: u32,
+    pub(in crate::scene_gpu) atom_count: u32,
+    pub(in crate::scene_gpu) bond_count: u32,
 }
 
 impl<D: Device> Default for VisibilitySet<D> {
@@ -60,10 +60,10 @@ impl<D: Device> Default for VisibilitySet<D> {
 
 /// Borrowed handle over one shared visible set.
 #[derive(Debug)]
-pub(super) struct VisibilitySetRef<'a, D: Device> {
-    pub(super) visible_atoms: &'a D::Buffer,
-    pub(super) visible_bonds: &'a D::Buffer,
-    pub(super) counts: &'a D::Buffer,
+pub(in crate::scene_gpu) struct VisibilitySetRef<'a, D: Device> {
+    pub(in crate::scene_gpu) visible_atoms: &'a D::Buffer,
+    pub(in crate::scene_gpu) visible_bonds: &'a D::Buffer,
+    pub(in crate::scene_gpu) counts: &'a D::Buffer,
 }
 
 impl<D: Device> Clone for VisibilitySetRef<'_, D> {
@@ -81,7 +81,7 @@ pub(crate) struct VisibilityCache<D: Device> {
 }
 
 impl<D: Device> VisibilityCache<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             entries: Vec::new(),
         }
@@ -90,7 +90,7 @@ impl<D: Device> VisibilityCache<D> {
     /// Allocates the visible lists and counts for every key in `needed`.
     ///
     /// `counts` runs once per key, never once per representation.
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -118,7 +118,7 @@ impl<D: Device> VisibilityCache<D> {
     }
 
     #[must_use]
-    pub(super) fn get(&self, key: VisibilityKey) -> Option<&VisibilitySet<D>> {
+    pub(in crate::scene_gpu) fn get(&self, key: VisibilityKey) -> Option<&VisibilitySet<D>> {
         self.entries
             .binary_search_by_key(&key, |(key, _)| *key)
             .ok()
@@ -151,14 +151,14 @@ impl<D: Device> VisibilitySet<D> {
     ) -> Result<(), RenderError> {
         self.atom_count = atom_count;
         self.bond_count = bond_count;
-        super::buffers::ensure_indices(
+        crate::scene_gpu::buffers::ensure_indices(
             device,
             "visible atom indices",
             atom_count.saturating_mul(2),
             &mut self.visible_atoms,
             &mut self.visible_atoms_capacity,
         )?;
-        super::buffers::ensure_indices(
+        crate::scene_gpu::buffers::ensure_indices(
             device,
             "visible bond indices",
             bond_count,
@@ -174,7 +174,7 @@ impl<D: Device> VisibilitySet<D> {
         if self.counts.is_none() {
             self.counts = Some(device.create_buffer(&molgfx_gpu::BufferDesc {
                 label: "cull counts",
-                size: std::mem::size_of::<super::slot_types::CullCounts>() as u64,
+                size: std::mem::size_of::<crate::scene_gpu::slot_types::CullCounts>() as u64,
                 usage: molgfx_gpu::BufferUsage::UNIFORM.union(molgfx_gpu::BufferUsage::COPY_DST),
             })?);
         }
@@ -189,12 +189,12 @@ impl<D: Device> VisibilitySet<D> {
         let Some(counts) = self.counts.as_ref() else {
             return;
         };
-        super::buffers::write_counts_into::<D>(queue, counts, input);
+        crate::scene_gpu::buffers::write_counts_into::<D>(queue, counts, input);
         self.written = Some(input);
     }
 
     #[must_use]
-    pub(super) fn as_ref(&self) -> Option<VisibilitySetRef<'_, D>> {
+    pub(in crate::scene_gpu) fn as_ref(&self) -> Option<VisibilitySetRef<'_, D>> {
         Some(VisibilitySetRef {
             visible_atoms: self.visible_atoms.as_ref()?,
             visible_bonds: self.visible_bonds.as_ref()?,
@@ -205,6 +205,6 @@ impl<D: Device> VisibilitySet<D> {
     pub(crate) fn resident_bytes(&self) -> u64 {
         self.visible_atoms_capacity
             .saturating_add(self.visible_bonds_capacity)
-            .saturating_add(std::mem::size_of::<super::slot_types::CullCounts>() as u64)
+            .saturating_add(std::mem::size_of::<crate::scene_gpu::slot_types::CullCounts>() as u64)
     }
 }

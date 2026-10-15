@@ -51,7 +51,7 @@ impl<D: Device> SurfaceFieldCache<D> {
     ///
     /// A second surface over the same key takes the existing field untouched,
     /// so only the first one allocates and only the first one generates.
-    pub(super) fn prepare(
+    pub(in crate::scene_gpu) fn prepare(
         &mut self,
         sync: &super::surface_field::FieldSync<'_, D>,
     ) -> Result<(), crate::error::RenderError> {
@@ -75,12 +75,12 @@ impl<D: Device> SurfaceFieldCache<D> {
     }
 
     /// Releases every field no surface asked for this frame.
-    pub(super) fn retain(&mut self, live: &[super::surface_field::SurfaceFieldKey]) {
+    pub(in crate::scene_gpu) fn retain(&mut self, live: &[super::surface_field::SurfaceFieldKey]) {
         self.entries.retain(|(key, _)| live.contains(key));
     }
 
     /// The resident field for `key`, if any.
-    pub(super) fn get(
+    pub(in crate::scene_gpu) fn get(
         &self,
         key: super::surface_field::SurfaceFieldKey,
     ) -> Option<&SharedField<D>> {
@@ -92,7 +92,7 @@ impl<D: Device> SurfaceFieldCache<D> {
     }
 
     /// The mutable field for `key`, for its generation pass.
-    pub(super) fn get_mut(
+    pub(in crate::scene_gpu) fn get_mut(
         &mut self,
         key: super::surface_field::SurfaceFieldKey,
     ) -> Option<&mut SharedField<D>> {

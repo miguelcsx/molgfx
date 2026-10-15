@@ -1,6 +1,6 @@
 //! Byte-exact direct-volume representation parameters.
 
-use super::uniforms::{clip_meta, clip_planes, material_uniforms};
+use crate::scene_gpu::uniforms::{clip_meta, clip_planes, material_uniforms};
 use molgfx_core::{
     MAX_CLIP_PLANES, MAX_RAMP_STOPS, OccupancyStream, PlacedStructure, Representation, ScalarVolume,
 };
@@ -12,26 +12,29 @@ mod tests;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct VolumeUniforms {
-    pub(super) voxel_to_world: Mat4,
-    pub(super) world_to_voxel: Mat4,
-    pub(super) dimensions: [u32; 4],
-    pub(super) empty_space_dimensions: [u32; 4],
-    pub(super) scalar: [f32; 4],
-    pub(super) sampling: [f32; 4],
-    pub(super) transfer_values: [[f32; 4]; MAX_RAMP_STOPS],
-    pub(super) transfer_colors: [[f32; 4]; MAX_RAMP_STOPS],
-    pub(super) transfer_meta: [u32; 4],
-    pub(super) clip_planes: [[f32; 4]; MAX_CLIP_PLANES],
-    pub(super) clip_meta: [u32; 4],
-    pub(super) crop_minimum: [u32; 4],
-    pub(super) crop_maximum: [u32; 4],
-    pub(super) slice_plane: [f32; 4],
-    pub(super) material: [f32; 4],
+pub(in crate::scene_gpu) struct VolumeUniforms {
+    pub(in crate::scene_gpu) voxel_to_world: Mat4,
+    pub(in crate::scene_gpu) world_to_voxel: Mat4,
+    pub(in crate::scene_gpu) dimensions: [u32; 4],
+    pub(in crate::scene_gpu) empty_space_dimensions: [u32; 4],
+    pub(in crate::scene_gpu) scalar: [f32; 4],
+    pub(in crate::scene_gpu) sampling: [f32; 4],
+    pub(in crate::scene_gpu) transfer_values: [[f32; 4]; MAX_RAMP_STOPS],
+    pub(in crate::scene_gpu) transfer_colors: [[f32; 4]; MAX_RAMP_STOPS],
+    pub(in crate::scene_gpu) transfer_meta: [u32; 4],
+    pub(in crate::scene_gpu) clip_planes: [[f32; 4]; MAX_CLIP_PLANES],
+    pub(in crate::scene_gpu) clip_meta: [u32; 4],
+    pub(in crate::scene_gpu) crop_minimum: [u32; 4],
+    pub(in crate::scene_gpu) crop_maximum: [u32; 4],
+    pub(in crate::scene_gpu) slice_plane: [f32; 4],
+    pub(in crate::scene_gpu) material: [f32; 4],
 }
 
 impl VolumeUniforms {
-    pub(super) fn new(volume: &ScalarVolume, representation: &Representation) -> Self {
+    pub(in crate::scene_gpu) fn new(
+        volume: &ScalarVolume,
+        representation: &Representation,
+    ) -> Self {
         Self::from_parts(
             volume.voxel_to_world(),
             volume.dimensions(),
@@ -41,7 +44,7 @@ impl VolumeUniforms {
         )
     }
 
-    pub(super) fn new_occupancy(
+    pub(in crate::scene_gpu) fn new_occupancy(
         stream: &OccupancyStream,
         placed: &PlacedStructure,
         representation: &Representation,

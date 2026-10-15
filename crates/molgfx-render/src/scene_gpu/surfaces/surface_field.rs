@@ -5,10 +5,10 @@
 //! makes two surfaces the same field) apart from the allocation question (what
 //! one field owns and how its bind groups are described).
 
-use super::record_cache::RecordGeometry;
 use super::surface_components::{SurfaceComponentSync, SurfaceComponents};
-use super::uniforms::RepresentationUniforms;
 use crate::error::RenderError;
+use crate::scene_gpu::record_cache::RecordGeometry;
+use crate::scene_gpu::uniforms::RepresentationUniforms;
 use molgfx_core::{Representation, SurfaceComponentPolicy, SurfaceComponentThreshold, SurfaceKind};
 use molgfx_gpu::{
     BindGroupDesc, BindGroupEntry, BufferDesc, BufferUsage, Device, Queue as _, TextureDesc,
@@ -142,13 +142,13 @@ fn component_key(policy: SurfaceComponentPolicy) -> [u64; 3] {
 
 /// One 3-D field texture and its bindable view.
 #[derive(Debug)]
-pub(super) struct FieldTexture<D: Device> {
+pub(in crate::scene_gpu) struct FieldTexture<D: Device> {
     _texture: D::Texture,
-    pub(super) view: D::TextureView,
+    pub(in crate::scene_gpu) view: D::TextureView,
 }
 
 impl<D: Device> FieldTexture<D> {
-    pub(super) fn create(
+    pub(in crate::scene_gpu) fn create(
         device: &D,
         dimensions: [u32; 3],
         label: &'static str,
@@ -177,41 +177,41 @@ impl<D: Device> FieldTexture<D> {
 /// component working set are generated once and read by every surface that
 /// shares the key.
 #[derive(Debug)]
-pub(super) struct SharedField<D: Device> {
+pub(in crate::scene_gpu) struct SharedField<D: Device> {
     /// Probe-inflated distance field: the generation input, and the shading
     /// field for boundaries that neither erode nor filter. A boundary that
     /// erodes lets it go once the eroded field exists, since nothing reads it
     /// again and it is as large as the field shading uses.
-    pub(super) inflated: Option<FieldTexture<D>>,
+    pub(in crate::scene_gpu) inflated: Option<FieldTexture<D>>,
     /// Eroded solvent-excluded field, for boundaries that erode.
-    pub(super) field: Option<FieldTexture<D>>,
+    pub(in crate::scene_gpu) field: Option<FieldTexture<D>>,
     /// Connected-component working set, for policies that filter.
-    pub(super) components: Option<SurfaceComponents<D>>,
+    pub(in crate::scene_gpu) components: Option<SurfaceComponents<D>>,
     /// Generation output, erosion pair and generation input.
-    pub(super) output: Option<D::BindGroup>,
-    pub(super) erosion: Option<D::BindGroup>,
-    pub(super) input: D::BindGroup,
+    pub(in crate::scene_gpu) output: Option<D::BindGroup>,
+    pub(in crate::scene_gpu) erosion: Option<D::BindGroup>,
+    pub(in crate::scene_gpu) input: D::BindGroup,
     /// The field's own copy of the representation uniforms.
     ///
     /// The field pass reads the boundary kind, probe, grid and radius scale out
     /// of this block. Those are exactly the values the key covers, so every
     /// surface sharing the key would write identical contents; owning the block
     /// keeps the field independent of any one slot's buffer.
-    pub(super) _uniforms: D::Buffer,
+    pub(in crate::scene_gpu) _uniforms: D::Buffer,
     /// Rolling-probe offsets, sized and filled for this key's probe radius.
-    pub(super) _erosion_offsets: Option<D::Buffer>,
-    pub(super) erosion_offsets_size: u64,
-    pub(super) dimensions: [u32; 3],
+    pub(in crate::scene_gpu) _erosion_offsets: Option<D::Buffer>,
+    pub(in crate::scene_gpu) erosion_offsets_size: u64,
+    pub(in crate::scene_gpu) dimensions: [u32; 3],
     /// Whether this field is generated from a Gaussian density.
-    pub(super) gaussian: bool,
+    pub(in crate::scene_gpu) gaussian: bool,
     /// Whether the field still owes its generation dispatch.
     ///
     /// Set once when the key is created and cleared by the record pass, so a
     /// field shared by four surfaces is generated once, not four times.
-    pub(super) pending: bool,
+    pub(in crate::scene_gpu) pending: bool,
     /// Last interpolated pose sampled into the resident field.
-    pub(super) coordinate_revision: u64,
-    pub(super) dynamic: bool,
+    pub(in crate::scene_gpu) coordinate_revision: u64,
+    pub(in crate::scene_gpu) dynamic: bool,
 }
 
 impl<D: Device> SharedField<D> {
@@ -220,7 +220,7 @@ impl<D: Device> SharedField<D> {
     /// Absent only for a boundary that erodes and has not yet released its
     /// input, which never leaves it without the eroded field.
     #[must_use]
-    pub(super) fn shading_field(&self) -> Option<&D::TextureView> {
+    pub(in crate::scene_gpu) fn shading_field(&self) -> Option<&D::TextureView> {
         if let Some(filtered) = self.components.as_ref().and_then(SurfaceComponents::field) {
             return Some(filtered);
         }
@@ -232,7 +232,7 @@ impl<D: Device> SharedField<D> {
 
     /// Lets the generation input go; only a boundary that erodes may, because
     /// otherwise the inflated field is the one shading reads.
-    pub(super) fn release_generation_input(&mut self) {
+    pub(in crate::scene_gpu) fn release_generation_input(&mut self) {
         if self.field.is_some() && !self.dynamic {
             self.inflated = None;
             self.output = None;
@@ -242,7 +242,7 @@ impl<D: Device> SharedField<D> {
 
     /// Device bytes this field holds.
     #[must_use]
-    pub(super) fn resident_bytes(&self) -> u64 {
+    pub(in crate::scene_gpu) fn resident_bytes(&self) -> u64 {
         let cells = self
             .dimensions
             .iter()
@@ -262,28 +262,28 @@ impl<D: Device> SharedField<D> {
 }
 
 /// Inputs one field needs from the scene.
-pub(super) struct FieldSync<'a, D: Device> {
-    pub(super) device: &'a D,
-    pub(super) queue: &'a D::Queue,
-    pub(super) output_layout: &'a D::BindGroupLayout,
-    pub(super) input_layout: &'a D::BindGroupLayout,
-    pub(super) erosion_layout: &'a D::BindGroupLayout,
-    pub(super) component_layout: &'a D::BindGroupLayout,
-    pub(super) key: SurfaceFieldKey,
-    pub(super) coordinate_revision: u64,
+pub(in crate::scene_gpu) struct FieldSync<'a, D: Device> {
+    pub(in crate::scene_gpu) device: &'a D,
+    pub(in crate::scene_gpu) queue: &'a D::Queue,
+    pub(in crate::scene_gpu) output_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) input_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) erosion_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) component_layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) key: SurfaceFieldKey,
+    pub(in crate::scene_gpu) coordinate_revision: u64,
     /// The policy the key encodes, for the component uniforms.
-    pub(super) policy: SurfaceComponentPolicy,
-    pub(super) dimensions: [u32; 3],
-    pub(super) atoms: &'a D::Buffer,
+    pub(in crate::scene_gpu) policy: SurfaceComponentPolicy,
+    pub(in crate::scene_gpu) dimensions: [u32; 3],
+    pub(in crate::scene_gpu) atoms: &'a D::Buffer,
     /// The placement whose coordinate and BVH slices the field samples.
-    pub(super) structure: &'a super::structure::GpuStructure<D>,
-    pub(super) asset_arena: &'a super::asset_arena::AssetArena<D>,
-    pub(super) compaction: &'a D::Buffer,
-    pub(super) uniforms: &'a RepresentationUniforms,
+    pub(in crate::scene_gpu) structure: &'a crate::scene_gpu::structure::GpuStructure<D>,
+    pub(in crate::scene_gpu) asset_arena: &'a crate::scene_gpu::asset_arena::AssetArena<D>,
+    pub(in crate::scene_gpu) compaction: &'a D::Buffer,
+    pub(in crate::scene_gpu) uniforms: &'a RepresentationUniforms,
 }
 
 /// Allocates one field's textures, bind groups and component working set.
-pub(super) fn build_field<D: Device>(
+pub(in crate::scene_gpu) fn build_field<D: Device>(
     sync: &FieldSync<'_, D>,
 ) -> Result<SharedField<D>, RenderError> {
     let dimensions = sync.dimensions;

@@ -4,11 +4,11 @@ use molgfx_math::Vec3;
 
 /// A field's cell size and dimensions, and whether the memory budget set them.
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub(super) struct GridFit {
-    pub(super) cell: f32,
-    pub(super) dimensions: [u32; 3],
+pub(in crate::scene_gpu) struct GridFit {
+    pub(in crate::scene_gpu) cell: f32,
+    pub(in crate::scene_gpu) dimensions: [u32; 3],
     /// The field was coarsened to fit `max_cells`, not by an axis or the device.
-    pub(super) memory_limited: bool,
+    pub(in crate::scene_gpu) memory_limited: bool,
 }
 
 /// How much one coarsening step grows the cell; about 12 % fewer voxels each.
@@ -20,7 +20,10 @@ const COARSENING_STEP: f32 = 1.04;
 /// allowed, and then it grows in small steps until the whole field fits the
 /// voxel budget. The result is what shading, generation and the reported
 /// spacing all read, so none of them can disagree about it.
-pub(super) fn fit_grid(extent: Vec3, limits: super::detail::GridLimits) -> GridFit {
+pub(in crate::scene_gpu) fn fit_grid(
+    extent: Vec3,
+    limits: crate::scene_gpu::detail::GridLimits,
+) -> GridFit {
     let max_divisions = dimension_f32(limits.max_dimension.saturating_sub(1));
     let mut cell = (extent.max_element() / max_divisions).max(limits.spacing);
     let mut memory_limited = false;

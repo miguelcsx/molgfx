@@ -1,11 +1,11 @@
 //! Persistent direct-volume texture and representation binding.
 
-use super::asset_arena::AssetArena;
 use super::occupancy_slot::GpuOccupancy;
-use super::structure::GpuStructure;
 use super::volume_uniforms::VolumeUniforms;
 use crate::error::RenderError;
 use crate::passes::OccupancyPass;
+use crate::scene_gpu::asset_arena::AssetArena;
+use crate::scene_gpu::structure::GpuStructure;
 use molgfx_core::{
     OccupancyStream, PlacedStructure, Representation, RepresentationHandle, ScalarVolume,
     VolumeHandle, VolumeRendering,
@@ -16,20 +16,20 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub(super) struct GpuVolumeSlot<D: Device> {
-    pub(super) representation: RepresentationHandle,
+pub(in crate::scene_gpu) struct GpuVolumeSlot<D: Device> {
+    pub(in crate::scene_gpu) representation: RepresentationHandle,
     uniforms: Option<D::Buffer>,
     sparse_pages: Option<D::Buffer>,
     sparse_config: Option<D::Buffer>,
     group: Option<D::BindGroup>,
     rendering: VolumeRendering,
-    pub(super) boundary_index: Option<usize>,
+    pub(in crate::scene_gpu) boundary_index: Option<usize>,
     synced: Option<(u64, VolumeHandle, u64)>,
 }
 
 #[derive(Debug)]
-pub(super) struct GpuVolumeResource<D: Device> {
-    pub(super) handle: VolumeHandle,
+pub(in crate::scene_gpu) struct GpuVolumeResource<D: Device> {
+    pub(in crate::scene_gpu) handle: VolumeHandle,
     texture: Option<D::Texture>,
     view: Option<D::TextureView>,
     bounds_texture: Option<D::Texture>,
@@ -39,34 +39,34 @@ pub(super) struct GpuVolumeResource<D: Device> {
     binding_revision: u64,
 }
 
-pub(super) struct VolumeSync<'a, D: Device> {
-    pub(super) device: &'a D,
-    pub(super) queue: &'a D::Queue,
-    pub(super) layout: &'a D::BindGroupLayout,
-    pub(super) uniforms: VolumeUniforms,
-    pub(super) representation: &'a Representation,
-    pub(super) representation_revision: u64,
-    pub(super) volume_handle: VolumeHandle,
-    pub(super) volume_view: &'a D::TextureView,
-    pub(super) empty_space_bounds_view: &'a D::TextureView,
-    pub(super) volume_binding_revision: u64,
+pub(in crate::scene_gpu) struct VolumeSync<'a, D: Device> {
+    pub(in crate::scene_gpu) device: &'a D,
+    pub(in crate::scene_gpu) queue: &'a D::Queue,
+    pub(in crate::scene_gpu) layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) uniforms: VolumeUniforms,
+    pub(in crate::scene_gpu) representation: &'a Representation,
+    pub(in crate::scene_gpu) representation_revision: u64,
+    pub(in crate::scene_gpu) volume_handle: VolumeHandle,
+    pub(in crate::scene_gpu) volume_view: &'a D::TextureView,
+    pub(in crate::scene_gpu) empty_space_bounds_view: &'a D::TextureView,
+    pub(in crate::scene_gpu) volume_binding_revision: u64,
 }
 
-pub(super) struct OccupancySync<'a, D: Device> {
-    pub(super) device: &'a D,
-    pub(super) queue: &'a D::Queue,
-    pub(super) layout: &'a D::BindGroupLayout,
-    pub(super) bounds_format: TextureFormat,
-    pub(super) stream: &'a OccupancyStream,
-    pub(super) selected_rows: &'a [u32],
-    pub(super) placed: &'a PlacedStructure,
-    pub(super) structure: &'a GpuStructure<D>,
-    pub(super) asset_arena: &'a AssetArena<D>,
-    pub(super) revision: u64,
+pub(in crate::scene_gpu) struct OccupancySync<'a, D: Device> {
+    pub(in crate::scene_gpu) device: &'a D,
+    pub(in crate::scene_gpu) queue: &'a D::Queue,
+    pub(in crate::scene_gpu) layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) bounds_format: TextureFormat,
+    pub(in crate::scene_gpu) stream: &'a OccupancyStream,
+    pub(in crate::scene_gpu) selected_rows: &'a [u32],
+    pub(in crate::scene_gpu) placed: &'a PlacedStructure,
+    pub(in crate::scene_gpu) structure: &'a GpuStructure<D>,
+    pub(in crate::scene_gpu) asset_arena: &'a AssetArena<D>,
+    pub(in crate::scene_gpu) revision: u64,
 }
 
 impl<D: Device> GpuVolumeResource<D> {
-    pub(super) const fn new(handle: VolumeHandle) -> Self {
+    pub(in crate::scene_gpu) const fn new(handle: VolumeHandle) -> Self {
         Self {
             handle,
             texture: None,
@@ -79,7 +79,7 @@ impl<D: Device> GpuVolumeResource<D> {
         }
     }
 
-    pub(super) fn sync_static(
+    pub(in crate::scene_gpu) fn sync_static(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -107,7 +107,7 @@ impl<D: Device> GpuVolumeResource<D> {
         Ok(true)
     }
 
-    pub(super) fn sync_occupancy(
+    pub(in crate::scene_gpu) fn sync_occupancy(
         &mut self,
         input: &OccupancySync<'_, D>,
     ) -> Result<bool, RenderError> {
@@ -187,7 +187,7 @@ impl<D: Device> GpuVolumeResource<D> {
         Ok(())
     }
 
-    pub(super) fn binding(&self) -> Option<(&D::TextureView, u64)> {
+    pub(in crate::scene_gpu) fn binding(&self) -> Option<(&D::TextureView, u64)> {
         let view = self
             .occupancy
             .as_ref()
@@ -195,14 +195,14 @@ impl<D: Device> GpuVolumeResource<D> {
         Some((view, self.binding_revision))
     }
 
-    pub(super) fn empty_space_binding(&self) -> Option<&D::TextureView> {
+    pub(in crate::scene_gpu) fn empty_space_binding(&self) -> Option<&D::TextureView> {
         self.occupancy.as_ref().map_or_else(
             || self.bounds_view.as_ref(),
             |occupancy| Some(occupancy.bounds_view()),
         )
     }
 
-    pub(super) fn record_occupancy<P: ComputePassEncoder<D>>(
+    pub(in crate::scene_gpu) fn record_occupancy<P: ComputePassEncoder<D>>(
         &mut self,
         pass: &mut P,
         pipelines: &OccupancyPass<D>,
@@ -213,13 +213,13 @@ impl<D: Device> GpuVolumeResource<D> {
         occupancy.record(pass, pipelines);
     }
 
-    pub(super) fn occupancy_dirty(&self) -> bool {
+    pub(in crate::scene_gpu) fn occupancy_dirty(&self) -> bool {
         self.occupancy.as_ref().is_some_and(GpuOccupancy::is_dirty)
     }
 }
 
 impl<D: Device> GpuVolumeSlot<D> {
-    pub(super) fn new(representation: RepresentationHandle) -> Self {
+    pub(in crate::scene_gpu) fn new(representation: RepresentationHandle) -> Self {
         Self {
             representation,
             uniforms: None,
@@ -232,7 +232,10 @@ impl<D: Device> GpuVolumeSlot<D> {
         }
     }
 
-    pub(super) fn sync(&mut self, input: &VolumeSync<'_, D>) -> Result<bool, RenderError> {
+    pub(in crate::scene_gpu) fn sync(
+        &mut self,
+        input: &VolumeSync<'_, D>,
+    ) -> Result<bool, RenderError> {
         let current = (
             input.representation_revision,
             input.volume_handle,
@@ -315,7 +318,7 @@ impl<D: Device> GpuVolumeSlot<D> {
         }));
     }
 
-    pub(super) fn draw(&self) -> Option<(VolumeRendering, &D::BindGroup)> {
+    pub(in crate::scene_gpu) fn draw(&self) -> Option<(VolumeRendering, &D::BindGroup)> {
         Some((self.rendering, self.group.as_ref()?))
     }
 }

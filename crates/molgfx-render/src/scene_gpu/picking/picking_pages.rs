@@ -1,7 +1,7 @@
 //! Bounded resident picking pages derived from the render working set.
 
-use super::GpuScene;
 use crate::RenderError;
+use crate::scene_gpu::GpuScene;
 use hashbrown::HashMap;
 use molgfx_core::{
     ChunkId, ChunkSpan, DatasetId, EntityKind, GlobalPickIdentity, GpuPickToken, LogicalRow,
@@ -22,7 +22,7 @@ struct PagePlan {
     source_keys: Option<Arc<[u64]>>,
 }
 
-pub(super) type ChunkPickPlan = (DatasetId, ChunkId, ChunkSpan, EntityKind);
+pub(in crate::scene_gpu) type ChunkPickPlan = (DatasetId, ChunkId, ChunkSpan, EntityKind);
 
 #[derive(Clone, Copy, Debug)]
 struct PageBinding {
@@ -44,7 +44,7 @@ struct PickRevision {
 
 /// Fixed-capacity host page table paired with the core resolver.
 #[derive(Debug)]
-pub(super) struct PickPages {
+pub(in crate::scene_gpu) struct PickPages {
     resolver: PagedPickResolver,
     bindings: Vec<PageBinding>,
     source_keys: Vec<Option<Arc<[u64]>>>,
@@ -57,7 +57,7 @@ pub(super) struct PickPages {
 }
 
 impl PickPages {
-    pub(super) fn new(capacity: u32) -> Result<Self, RenderError> {
+    pub(in crate::scene_gpu) fn new(capacity: u32) -> Result<Self, RenderError> {
         let resolver = PagedPickResolver::new(capacity)?;
         let capacity = resolver.capacity();
         let mut bindings = Vec::new();
@@ -94,7 +94,7 @@ impl PickPages {
         })
     }
 
-    pub(super) fn capacity(&self) -> usize {
+    pub(in crate::scene_gpu) fn capacity(&self) -> usize {
         self.resolver.capacity()
     }
 
@@ -129,7 +129,7 @@ impl PickPages {
         Ok(())
     }
 
-    pub(super) fn sync(&mut self, scene: &Scene) -> Result<bool, RenderError> {
+    pub(in crate::scene_gpu) fn sync(&mut self, scene: &Scene) -> Result<bool, RenderError> {
         let revision = revision(scene);
         if self.revision == Some(revision) {
             return Ok(false);
@@ -141,7 +141,7 @@ impl PickPages {
         Ok(true)
     }
 
-    pub(super) fn sync_draw_chunks(
+    pub(in crate::scene_gpu) fn sync_draw_chunks(
         &mut self,
         plans: &[ChunkPickPlan],
     ) -> Result<bool, RenderError> {
@@ -177,21 +177,21 @@ impl PickPages {
         Ok(true)
     }
 
-    pub(super) fn sync_bond_chunks(
+    pub(in crate::scene_gpu) fn sync_bond_chunks(
         &mut self,
         plans: &[ChunkPickPlan],
     ) -> Result<bool, RenderError> {
         self.sync_chunk_kind(plans, EntityKind::Bond)
     }
 
-    pub(super) fn sync_instance_chunks(
+    pub(in crate::scene_gpu) fn sync_instance_chunks(
         &mut self,
         plans: &[ChunkPickPlan],
     ) -> Result<bool, RenderError> {
         self.sync_chunk_kind(plans, EntityKind::TemplatePart)
     }
 
-    pub(super) fn sync_relation_chunks(
+    pub(in crate::scene_gpu) fn sync_relation_chunks(
         &mut self,
         plans: &[ChunkPickPlan],
     ) -> Result<bool, RenderError> {
@@ -256,15 +256,15 @@ impl PickPages {
         Ok(())
     }
 
-    pub(super) const fn table_revision(&self) -> u64 {
+    pub(in crate::scene_gpu) const fn table_revision(&self) -> u64 {
         self.table_revision
     }
 
-    pub(super) const fn scene_table_revision(&self) -> u64 {
+    pub(in crate::scene_gpu) const fn scene_table_revision(&self) -> u64 {
         self.scene_table_revision
     }
 
-    pub(super) fn pages_for(&self, dataset: DatasetId) -> [u32; 9] {
+    pub(in crate::scene_gpu) fn pages_for(&self, dataset: DatasetId) -> [u32; 9] {
         let mut pages = [EMPTY_PAGE; 9];
         for kind in STRUCTURE_ENTITY_KINDS {
             if let Some(page) = self
@@ -277,7 +277,7 @@ impl PickPages {
         pages
     }
 
-    pub(super) fn page_for_chunk(
+    pub(in crate::scene_gpu) fn page_for_chunk(
         &self,
         dataset: DatasetId,
         chunk: ChunkId,
@@ -288,7 +288,7 @@ impl PickPages {
             .copied()
     }
 
-    pub(super) fn page_for_table(
+    pub(in crate::scene_gpu) fn page_for_table(
         &self,
         dataset: DatasetId,
         chunk: ChunkId,
@@ -300,13 +300,17 @@ impl PickPages {
     }
 
     #[cfg(test)]
-    pub(super) fn page_for(&self, dataset: DatasetId, kind: EntityKind) -> Option<u32> {
+    pub(in crate::scene_gpu) fn page_for(
+        &self,
+        dataset: DatasetId,
+        kind: EntityKind,
+    ) -> Option<u32> {
         self.binding_index
             .get(&(dataset, MONOLITHIC_CHUNK, kind, false))
             .copied()
     }
 
-    pub(super) fn capture(&self, destination: &mut [Option<PickPageTicket>]) {
+    pub(in crate::scene_gpu) fn capture(&self, destination: &mut [Option<PickPageTicket>]) {
         destination.fill(None);
         for binding in &self.bindings {
             let index = binding.ticket.page().get() as usize;
@@ -316,7 +320,7 @@ impl PickPages {
         }
     }
 
-    pub(super) fn resolve(
+    pub(in crate::scene_gpu) fn resolve(
         &self,
         token: GpuPickToken,
         submission: &[Option<PickPageTicket>],

@@ -10,7 +10,7 @@ use molgfx_gpu::Device;
 mod tests;
 
 /// Packs one record set's atoms, bonds and compaction map into scratch.
-pub(super) fn pack_records<D: Device>(
+pub(in crate::scene_gpu) fn pack_records<D: Device>(
     input: &RecordPrepare<'_, D>,
     scratch: &mut RecordScratch<'_>,
 ) -> Result<(), RenderError> {

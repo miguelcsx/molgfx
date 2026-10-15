@@ -12,27 +12,27 @@
 //! cache mutably while binding needs it immutably — resolving first keeps those
 //! two borrows in separate passes rather than fighting inside one.
 
-use super::record_cache::RecordGeometry;
 use super::surface_cache::SurfaceFieldCache;
 use super::surface_field::{FieldSampling, SharedField, SurfaceFieldKey};
-use super::uniforms::RepresentationUniforms;
+use crate::scene_gpu::record_cache::RecordGeometry;
+use crate::scene_gpu::uniforms::RepresentationUniforms;
 use molgfx_core::RepresentationKind;
 use molgfx_gpu::Device;
 
 #[derive(Debug)]
-pub(super) struct SurfaceSlot {
+pub(in crate::scene_gpu) struct SurfaceSlot {
     /// The field this slot shades, absent when the slot shades no surface.
     key: Option<SurfaceFieldKey>,
 }
 
 impl SurfaceSlot {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self { key: None }
     }
 
     /// The field key this slot shades, and the key the frame must retain.
     #[must_use]
-    pub(super) const fn key(&self) -> Option<SurfaceFieldKey> {
+    pub(in crate::scene_gpu) const fn key(&self) -> Option<SurfaceFieldKey> {
         self.key
     }
 
@@ -45,7 +45,7 @@ impl SurfaceSlot {
     /// differently-styled surfaces share one field. A slot that shades no
     /// surface resolves a key of `None`, and a slot whose key is unchanged is
     /// left alone.
-    pub(super) fn resolve_key(
+    pub(in crate::scene_gpu) fn resolve_key(
         &mut self,
         uniforms: &RepresentationUniforms,
         representation: &molgfx_core::Representation,
@@ -65,7 +65,7 @@ impl SurfaceSlot {
     ///
     /// Looked up rather than stored, so the slot never holds a second handle to
     /// a texture the cache owns and the two stay independently borrowable.
-    pub(super) fn field_binding<'a, D: Device>(
+    pub(in crate::scene_gpu) fn field_binding<'a, D: Device>(
         &self,
         fields: &'a SurfaceFieldCache<D>,
         fallback: &'a D::TextureView,
@@ -83,7 +83,7 @@ impl SurfaceSlot {
 
 /// The field key one representation and its uniforms describe.
 #[must_use]
-pub(super) fn key_of(
+pub(in crate::scene_gpu) fn key_of(
     uniforms: &RepresentationUniforms,
     representation: &molgfx_core::Representation,
     geometry: RecordGeometry,
@@ -115,7 +115,7 @@ pub(super) fn key_of(
 ///
 /// The debt lives on the shared field, so the first surface to reach it
 /// generates and every later surface over the same key finds it clean.
-pub(super) fn record_generation<D: Device>(
+pub(in crate::scene_gpu) fn record_generation<D: Device>(
     encoder: &mut D::CommandEncoder,
     pass: &crate::passes::SurfaceFieldPass<D>,
     components: &crate::passes::SurfaceComponentPass<D>,

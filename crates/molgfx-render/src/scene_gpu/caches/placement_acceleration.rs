@@ -14,7 +14,7 @@ use molgfx_gpu::{
 use molgfx_math::Mat4;
 
 #[derive(Debug)]
-pub(super) struct PlacementAcceleration<D: Device> {
+pub(in crate::scene_gpu) struct PlacementAcceleration<D: Device> {
     tlas: Option<D::Tlas>,
     group: Option<D::BindGroup>,
     pending: bool,
@@ -22,7 +22,7 @@ pub(super) struct PlacementAcceleration<D: Device> {
 }
 
 impl<D: Device> PlacementAcceleration<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             tlas: None,
             group: None,
@@ -31,17 +31,17 @@ impl<D: Device> PlacementAcceleration<D> {
         }
     }
 
-    pub(super) fn group(&self) -> Option<&D::BindGroup> {
+    pub(in crate::scene_gpu) fn group(&self) -> Option<&D::BindGroup> {
         self.group.as_ref()
     }
 
     #[cfg(test)]
-    pub(super) const fn failure(&self) -> Option<HardwareFailure> {
+    pub(in crate::scene_gpu) const fn failure(&self) -> Option<HardwareFailure> {
         self.failure
     }
 
     /// Instantiates the shared BLAS under this placement's transform.
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         blas: Option<&D::Blas>,
@@ -61,7 +61,7 @@ impl<D: Device> PlacementAcceleration<D> {
         }
     }
 
-    pub(super) fn record(&mut self, encoder: &mut D::CommandEncoder) {
+    pub(in crate::scene_gpu) fn record(&mut self, encoder: &mut D::CommandEncoder) {
         if !self.pending {
             return;
         }

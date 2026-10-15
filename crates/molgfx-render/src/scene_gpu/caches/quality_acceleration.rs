@@ -4,8 +4,8 @@
 //! ray can stop at either kind of occluder without walking a second hierarchy.
 //! Rebuilding costs O(atoms + bonds) and runs only when packed records change.
 
-use super::buffers::upload_grow;
 use crate::error::RenderError;
+use crate::scene_gpu::buffers::upload_grow;
 use molgfx_core::{AtomGpu, BondGpu, EntityKind, PlacedStructure};
 use molgfx_gpu::Device;
 use molgfx_math::{Aabb, Bvh, BvhBuildScratch, Vec3};
@@ -22,13 +22,13 @@ struct BondPrimitive {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-pub(super) struct HierarchyCounts {
-    pub(super) nodes: u32,
-    pub(super) indices: u32,
+pub(in crate::scene_gpu) struct HierarchyCounts {
+    pub(in crate::scene_gpu) nodes: u32,
+    pub(in crate::scene_gpu) indices: u32,
 }
 
 #[derive(Debug)]
-pub(super) struct QualityAcceleration<D: Device> {
+pub(in crate::scene_gpu) struct QualityAcceleration<D: Device> {
     nodes: Option<D::Buffer>,
     nodes_capacity: u64,
     bounds: Vec<Aabb>,
@@ -40,7 +40,7 @@ pub(super) struct QualityAcceleration<D: Device> {
 }
 
 impl<D: Device> QualityAcceleration<D> {
-    pub(super) fn new() -> Self {
+    pub(in crate::scene_gpu) fn new() -> Self {
         Self {
             nodes: None,
             nodes_capacity: 0,
@@ -53,21 +53,21 @@ impl<D: Device> QualityAcceleration<D> {
         }
     }
 
-    pub(super) fn nodes(&self) -> Option<&D::Buffer> {
+    pub(in crate::scene_gpu) fn nodes(&self) -> Option<&D::Buffer> {
         self.nodes.as_ref()
     }
 
-    pub(super) const fn counts(&self) -> HierarchyCounts {
+    pub(in crate::scene_gpu) const fn counts(&self) -> HierarchyCounts {
         self.counts
     }
 
     /// Resident device bytes of the packed analytic hierarchy.
     #[must_use]
-    pub(super) fn resident_bytes(&self) -> u64 {
+    pub(in crate::scene_gpu) fn resident_bytes(&self) -> u64 {
         self.nodes_capacity
     }
 
-    pub(super) fn sync_topology(
+    pub(in crate::scene_gpu) fn sync_topology(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -123,7 +123,9 @@ impl<D: Device> QualityAcceleration<D> {
     }
 }
 
-pub(super) fn hierarchy_counts(hierarchy: &Bvh) -> Result<HierarchyCounts, RenderError> {
+pub(in crate::scene_gpu) fn hierarchy_counts(
+    hierarchy: &Bvh,
+) -> Result<HierarchyCounts, RenderError> {
     let index_count = hierarchy
         .primitive_indices
         .len()

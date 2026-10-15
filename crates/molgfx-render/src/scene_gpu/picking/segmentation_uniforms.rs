@@ -1,7 +1,7 @@
 //! Byte-exact categorical-volume representation parameters.
 
 use super::segmentation_lookup::{LookupMode, SegmentLookup};
-use super::uniforms::{clip_meta, clip_planes, material_uniforms};
+use crate::scene_gpu::uniforms::{clip_meta, clip_planes, material_uniforms};
 use molgfx_core::{MAX_CLIP_PLANES, Representation, SegmentedVolume};
 use molgfx_math::Mat4;
 
@@ -11,22 +11,22 @@ mod tests;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct SegmentationUniforms {
-    pub(super) voxel_to_world: Mat4,
-    pub(super) world_to_voxel: Mat4,
-    pub(super) dimensions: [u32; 4],
-    pub(super) sampling: [f32; 4],
-    pub(super) lookup: [u32; 4],
-    pub(super) clip_planes: [[f32; 4]; MAX_CLIP_PLANES],
-    pub(super) clip_meta: [u32; 4],
-    pub(super) crop_minimum: [u32; 4],
-    pub(super) crop_maximum: [u32; 4],
-    pub(super) slice_plane: [f32; 4],
-    pub(super) material: [f32; 4],
+pub(in crate::scene_gpu) struct SegmentationUniforms {
+    pub(in crate::scene_gpu) voxel_to_world: Mat4,
+    pub(in crate::scene_gpu) world_to_voxel: Mat4,
+    pub(in crate::scene_gpu) dimensions: [u32; 4],
+    pub(in crate::scene_gpu) sampling: [f32; 4],
+    pub(in crate::scene_gpu) lookup: [u32; 4],
+    pub(in crate::scene_gpu) clip_planes: [[f32; 4]; MAX_CLIP_PLANES],
+    pub(in crate::scene_gpu) clip_meta: [u32; 4],
+    pub(in crate::scene_gpu) crop_minimum: [u32; 4],
+    pub(in crate::scene_gpu) crop_maximum: [u32; 4],
+    pub(in crate::scene_gpu) slice_plane: [f32; 4],
+    pub(in crate::scene_gpu) material: [f32; 4],
 }
 
 impl SegmentationUniforms {
-    pub(super) fn new(
+    pub(in crate::scene_gpu) fn new(
         volume: &SegmentedVolume,
         representation: &Representation,
         source_id: u32,

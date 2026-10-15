@@ -19,7 +19,7 @@ use molgfx_gpu::{
 use molgfx_math::{Aabb, Mat4, Vec3};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum HardwareFailure {
+pub(in crate::scene_gpu) enum HardwareFailure {
     Unavailable,
     Limit,
     DeviceLost,
@@ -28,7 +28,7 @@ pub(super) enum HardwareFailure {
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct RayAabb {
+pub(in crate::scene_gpu) struct RayAabb {
     lower: [f32; 3],
     upper: [f32; 3],
 }
@@ -43,7 +43,7 @@ impl From<Aabb> for RayAabb {
 }
 
 #[derive(Debug)]
-pub(super) struct QualityBlas<D: Device> {
+pub(in crate::scene_gpu) struct QualityBlas<D: Device> {
     aabbs: Option<D::Buffer>,
     aabb_capacity: u64,
     primitive_count: u32,
@@ -54,7 +54,7 @@ pub(super) struct QualityBlas<D: Device> {
 }
 
 impl<D: Device> QualityBlas<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             aabbs: None,
             aabb_capacity: 0,
@@ -69,17 +69,17 @@ impl<D: Device> QualityBlas<D> {
         }
     }
 
-    pub(super) fn blas(&self) -> Option<&D::Blas> {
+    pub(in crate::scene_gpu) fn blas(&self) -> Option<&D::Blas> {
         self.blas.as_ref()
     }
 
     #[must_use]
-    pub(super) const fn resident_bytes(&self) -> u64 {
+    pub(in crate::scene_gpu) const fn resident_bytes(&self) -> u64 {
         self.aabb_capacity
     }
 
     /// Rebuilds the AABB list and bottom-level structure for one record set.
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -111,7 +111,7 @@ impl<D: Device> QualityBlas<D> {
         }
     }
 
-    pub(super) fn record(&mut self, encoder: &mut D::CommandEncoder) {
+    pub(in crate::scene_gpu) fn record(&mut self, encoder: &mut D::CommandEncoder) {
         if !self.pending {
             return;
         }
@@ -194,7 +194,7 @@ impl<D: Device> QualityBlas<D> {
     }
 }
 
-pub(super) fn classify(error: &GpuError) -> HardwareFailure {
+pub(in crate::scene_gpu) fn classify(error: &GpuError) -> HardwareFailure {
     match error {
         GpuError::Capability { .. } => HardwareFailure::Unavailable,
         GpuError::LimitExceeded { .. } => HardwareFailure::Limit,
@@ -203,7 +203,7 @@ pub(super) fn classify(error: &GpuError) -> HardwareFailure {
     }
 }
 
-pub(super) fn affine_rows(transform: Mat4) -> [f32; 12] {
+pub(in crate::scene_gpu) fn affine_rows(transform: Mat4) -> [f32; 12] {
     let x = transform.x_axis;
     let y = transform.y_axis;
     let z = transform.z_axis;

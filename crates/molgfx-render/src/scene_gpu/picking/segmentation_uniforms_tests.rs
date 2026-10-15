@@ -1,5 +1,5 @@
 use super::SegmentationUniforms;
-use crate::scene_gpu::segmentation_lookup::{LookupMode, SegmentLookup};
+use crate::scene_gpu::picking::segmentation_lookup::{LookupMode, SegmentLookup};
 use molgfx_core::{
     ClipPlane, Representation, Scene, SegmentStyle, SegmentStyleTable, SegmentationStyle,
     SegmentedVolume, VolumeRegion, VolumeSlice,

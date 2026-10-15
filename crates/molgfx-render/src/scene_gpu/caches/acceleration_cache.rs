@@ -19,34 +19,34 @@ use std::collections::BTreeMap;
 
 /// Per-key quality acceleration, built once and drawn by every sharer.
 #[derive(Debug)]
-pub(super) struct AccelerationCache<D: Device> {
+pub(in crate::scene_gpu) struct AccelerationCache<D: Device> {
     entries: Vec<(RecordKey, SharedAcceleration<D>)>,
 }
 
 /// Everything derived from one record set that a placement instantiates.
 #[derive(Debug)]
-pub(super) struct SharedAcceleration<D: Device> {
+pub(in crate::scene_gpu) struct SharedAcceleration<D: Device> {
     hierarchy: QualityAcceleration<D>,
     hardware: QualityBlas<D>,
 }
 
 impl<D: Device> SharedAcceleration<D> {
-    pub(super) fn hierarchy(&self) -> &QualityAcceleration<D> {
+    pub(in crate::scene_gpu) fn hierarchy(&self) -> &QualityAcceleration<D> {
         &self.hierarchy
     }
 
     /// Instantiates this geometry's hardware BLAS under one placement.
-    pub(super) fn blas(&self) -> Option<&D::Blas> {
+    pub(in crate::scene_gpu) fn blas(&self) -> Option<&D::Blas> {
         self.hardware.blas()
     }
 
-    pub(super) fn record(&mut self, encoder: &mut D::CommandEncoder) {
+    pub(in crate::scene_gpu) fn record(&mut self, encoder: &mut D::CommandEncoder) {
         self.hardware.record(encoder);
     }
 
     /// Resident device bytes of this shared geometry.
     #[must_use]
-    pub(super) fn resident_bytes(&self) -> u64 {
+    pub(in crate::scene_gpu) fn resident_bytes(&self) -> u64 {
         self.hierarchy
             .resident_bytes()
             .saturating_add(self.hardware.resident_bytes())
@@ -54,14 +54,14 @@ impl<D: Device> SharedAcceleration<D> {
 }
 
 impl<D: Device> AccelerationCache<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             entries: Vec::new(),
         }
     }
 
     /// Builds the hierarchy for one freshly packed key.
-    pub(super) fn build(
+    pub(in crate::scene_gpu) fn build(
         &mut self,
         key: RecordKey,
         device: &D,
@@ -93,7 +93,7 @@ impl<D: Device> AccelerationCache<D> {
     /// A hierarchy is only worth keeping while its record set is: the ledger
     /// evicts the two together, because the hierarchy cannot be rebuilt without
     /// the records it was built from.
-    pub(super) fn retain(
+    pub(in crate::scene_gpu) fn retain(
         &mut self,
         needed: &BTreeMap<RecordKey, usize>,
         requires_bvh: bool,
@@ -118,7 +118,7 @@ impl<D: Device> AccelerationCache<D> {
     }
 
     #[must_use]
-    pub(super) fn get(&self, key: RecordKey) -> Option<&SharedAcceleration<D>> {
+    pub(in crate::scene_gpu) fn get(&self, key: RecordKey) -> Option<&SharedAcceleration<D>> {
         self.entries
             .binary_search_by_key(&key, |(key, _)| *key)
             .ok()
@@ -127,7 +127,7 @@ impl<D: Device> AccelerationCache<D> {
     }
 
     /// Builds the hardware BLAS of every shared geometry, once per key.
-    pub(super) fn record_hardware(&mut self, encoder: &mut D::CommandEncoder) {
+    pub(in crate::scene_gpu) fn record_hardware(&mut self, encoder: &mut D::CommandEncoder) {
         for (_, acceleration) in &mut self.entries {
             acceleration.record(encoder);
         }

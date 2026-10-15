@@ -4,33 +4,33 @@ use bytemuck::Zeroable;
 use molgfx_core::SegmentStyle;
 
 /// Direct indexing stays bounded and cache-friendly for compact label domains.
-pub(super) const DIRECT_LABEL_LIMIT: u32 = 1_048_576;
+pub(in crate::scene_gpu) const DIRECT_LABEL_LIMIT: u32 = 1_048_576;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub(super) struct SegmentStyleGpu {
-    pub(super) label: u32,
-    pub(super) present: u32,
-    pub(super) opacity: f32,
-    pub(super) padding: u32,
-    pub(super) color: [f32; 4],
+pub(in crate::scene_gpu) struct SegmentStyleGpu {
+    pub(in crate::scene_gpu) label: u32,
+    pub(in crate::scene_gpu) present: u32,
+    pub(in crate::scene_gpu) opacity: f32,
+    pub(in crate::scene_gpu) padding: u32,
+    pub(in crate::scene_gpu) color: [f32; 4],
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum LookupMode {
+pub(in crate::scene_gpu) enum LookupMode {
     Direct,
     Hash,
 }
 
 #[derive(Clone, Debug)]
-pub(super) struct SegmentLookup {
+pub(in crate::scene_gpu) struct SegmentLookup {
     entries: Vec<SegmentStyleGpu>,
     mode: LookupMode,
     max_label: u32,
 }
 
 impl SegmentLookup {
-    pub(super) fn new(styles: &[SegmentStyle]) -> Self {
+    pub(in crate::scene_gpu) fn new(styles: &[SegmentStyle]) -> Self {
         let max_label = styles.last().map_or(0, |style| style.label);
         let count = styles.len();
         let direct = count > 0
@@ -80,15 +80,15 @@ impl SegmentLookup {
         }
     }
 
-    pub(super) fn entries(&self) -> &[SegmentStyleGpu] {
+    pub(in crate::scene_gpu) fn entries(&self) -> &[SegmentStyleGpu] {
         &self.entries
     }
 
-    pub(super) const fn mode(&self) -> LookupMode {
+    pub(in crate::scene_gpu) const fn mode(&self) -> LookupMode {
         self.mode
     }
 
-    pub(super) const fn max_label(&self) -> u32 {
+    pub(in crate::scene_gpu) const fn max_label(&self) -> u32 {
         self.max_label
     }
 }
@@ -116,7 +116,7 @@ fn hash_capacity(count: usize) -> usize {
     capacity
 }
 
-pub(super) fn hash_label(label: u32) -> u32 {
+pub(in crate::scene_gpu) fn hash_label(label: u32) -> u32 {
     let mut hash = label.wrapping_mul(747_796_405).wrapping_add(2_891_336_453);
     hash = ((hash >> ((hash >> 28) + 4)) ^ hash).wrapping_mul(277_803_737);
     (hash >> 22) ^ hash

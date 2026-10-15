@@ -12,8 +12,8 @@ use molgfx_gpu::{
 };
 
 #[derive(Debug)]
-pub(super) struct GpuSegmentationSlot<D: Device> {
-    pub(super) representation: RepresentationHandle,
+pub(in crate::scene_gpu) struct GpuSegmentationSlot<D: Device> {
+    pub(in crate::scene_gpu) representation: RepresentationHandle,
     uniforms: Option<D::Buffer>,
     lookup: Option<D::Buffer>,
     sparse_pages: Option<D::Buffer>,
@@ -80,32 +80,32 @@ impl SegmentationPipelineKey {
 }
 
 #[derive(Debug)]
-pub(super) struct GpuSegmentationResource<D: Device> {
-    pub(super) handle: SegmentationHandle,
+pub(in crate::scene_gpu) struct GpuSegmentationResource<D: Device> {
+    pub(in crate::scene_gpu) handle: SegmentationHandle,
     texture: Option<D::Texture>,
     view: Option<D::TextureView>,
     synced_revision: Option<u64>,
     binding_revision: u64,
     source_id: u32,
-    pub(super) boundary: super::field_boundary::GpuFieldBoundary<D>,
-    pub(super) needs_boundary: bool,
+    pub(in crate::scene_gpu) boundary: crate::scene_gpu::field_boundary::GpuFieldBoundary<D>,
+    pub(in crate::scene_gpu) needs_boundary: bool,
 }
 
-pub(super) struct SegmentationSync<'a, D: Device> {
-    pub(super) device: &'a D,
-    pub(super) queue: &'a D::Queue,
-    pub(super) layout: &'a D::BindGroupLayout,
-    pub(super) volume: &'a SegmentedVolume,
-    pub(super) representation: &'a Representation,
-    pub(super) representation_revision: u64,
-    pub(super) segmentation_handle: SegmentationHandle,
-    pub(super) volume_view: &'a D::TextureView,
-    pub(super) volume_binding_revision: u64,
-    pub(super) source_id: u32,
+pub(in crate::scene_gpu) struct SegmentationSync<'a, D: Device> {
+    pub(in crate::scene_gpu) device: &'a D,
+    pub(in crate::scene_gpu) queue: &'a D::Queue,
+    pub(in crate::scene_gpu) layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) volume: &'a SegmentedVolume,
+    pub(in crate::scene_gpu) representation: &'a Representation,
+    pub(in crate::scene_gpu) representation_revision: u64,
+    pub(in crate::scene_gpu) segmentation_handle: SegmentationHandle,
+    pub(in crate::scene_gpu) volume_view: &'a D::TextureView,
+    pub(in crate::scene_gpu) volume_binding_revision: u64,
+    pub(in crate::scene_gpu) source_id: u32,
 }
 
 impl<D: Device> GpuSegmentationResource<D> {
-    pub(super) fn new(handle: SegmentationHandle) -> Self {
+    pub(in crate::scene_gpu) fn new(handle: SegmentationHandle) -> Self {
         Self {
             handle,
             texture: None,
@@ -113,16 +113,16 @@ impl<D: Device> GpuSegmentationResource<D> {
             synced_revision: None,
             binding_revision: 0,
             source_id: u32::MAX,
-            boundary: super::field_boundary::GpuFieldBoundary::default(),
+            boundary: crate::scene_gpu::field_boundary::GpuFieldBoundary::default(),
             needs_boundary: false,
         }
     }
 
-    pub(super) const fn set_source_id(&mut self, source_id: u32) {
+    pub(in crate::scene_gpu) const fn set_source_id(&mut self, source_id: u32) {
         self.source_id = source_id;
     }
 
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -180,17 +180,17 @@ impl<D: Device> GpuSegmentationResource<D> {
         Ok(())
     }
 
-    pub(super) fn binding(&self) -> Option<(&D::TextureView, u64)> {
+    pub(in crate::scene_gpu) fn binding(&self) -> Option<(&D::TextureView, u64)> {
         Some((self.view.as_ref()?, self.binding_revision))
     }
 
-    pub(super) const fn source_id(&self) -> u32 {
+    pub(in crate::scene_gpu) const fn source_id(&self) -> u32 {
         self.source_id
     }
 }
 
 impl<D: Device> GpuSegmentationSlot<D> {
-    pub(super) fn new(representation: RepresentationHandle) -> Self {
+    pub(in crate::scene_gpu) fn new(representation: RepresentationHandle) -> Self {
         Self {
             representation,
             uniforms: None,
@@ -208,7 +208,10 @@ impl<D: Device> GpuSegmentationSlot<D> {
         }
     }
 
-    pub(super) fn sync(&mut self, input: &SegmentationSync<'_, D>) -> Result<bool, RenderError> {
+    pub(in crate::scene_gpu) fn sync(
+        &mut self,
+        input: &SegmentationSync<'_, D>,
+    ) -> Result<bool, RenderError> {
         let current = (
             input.representation_revision,
             input.segmentation_handle,
@@ -334,7 +337,7 @@ impl<D: Device> GpuSegmentationSlot<D> {
         }));
     }
 
-    pub(super) fn draw(&self) -> Option<(SegmentationPipelineKey, &D::BindGroup)> {
+    pub(in crate::scene_gpu) fn draw(&self) -> Option<(SegmentationPipelineKey, &D::BindGroup)> {
         if self.has_styles {
             Some((self.pipeline, self.group.as_ref()?))
         } else {
@@ -342,15 +345,15 @@ impl<D: Device> GpuSegmentationSlot<D> {
         }
     }
 
-    pub(super) const fn source_is_drawable(&self) -> bool {
+    pub(in crate::scene_gpu) const fn source_is_drawable(&self) -> bool {
         self.has_styles
     }
 
-    pub(super) fn source(&self) -> Option<SegmentationHandle> {
+    pub(in crate::scene_gpu) fn source(&self) -> Option<SegmentationHandle> {
         self.synced.map(|key| key.1)
     }
 
-    pub(super) fn source_index(&self) -> Option<usize> {
+    pub(in crate::scene_gpu) fn source_index(&self) -> Option<usize> {
         usize::try_from(self.synced?.3).ok()
     }
 }

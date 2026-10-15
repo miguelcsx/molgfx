@@ -14,17 +14,17 @@
 /// This matches the sample count the erosion shader reads from the surface
 /// uniform, so every generated direction is used and none is skipped. It is a
 /// `u8` so the loop counter converts to `f32` without loss.
-pub(super) const PROBE_SAMPLE_COUNT: u8 = 32;
+pub(in crate::scene_gpu) const PROBE_SAMPLE_COUNT: u8 = 32;
 
 /// The direction count as an array length.
-pub(super) const PROBE_SAMPLE_LEN: usize = PROBE_SAMPLE_COUNT as usize;
+pub(in crate::scene_gpu) const PROBE_SAMPLE_LEN: usize = PROBE_SAMPLE_COUNT as usize;
 
 /// Returns `PROBE_SAMPLE_COUNT` probe offsets, each a unit Fibonacci-sphere
 /// direction scaled by `probe`. The fourth lane is unused padding.
 ///
 /// The set is small and fixed, so it lives on the stack and is returned by
 /// value for a direct upload — generation allocates nothing.
-pub(super) fn probe_offsets(probe: f32) -> [[f32; 4]; PROBE_SAMPLE_LEN] {
+pub(in crate::scene_gpu) fn probe_offsets(probe: f32) -> [[f32; 4]; PROBE_SAMPLE_LEN] {
     // The golden angle, pi*(3 - sqrt(5)) in radians, is the turn per step that
     // spreads the points evenly. Sampling each equal-area latitude band at its
     // midpoint avoids spending two of the fixed directions on the poles and

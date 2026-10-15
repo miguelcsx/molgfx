@@ -15,10 +15,10 @@
 //! iteration, so a resident record set costs device bytes and nothing else.
 
 use super::acceleration_cache::AccelerationCache;
-use super::asset::GpuAssetIdentity;
-use super::buffers::{count, upload_grow};
-use super::slot_types::{RecordState, SelectionIdentity, SelectionKey};
 use crate::error::RenderError;
+use crate::scene_gpu::asset::GpuAssetIdentity;
+use crate::scene_gpu::buffers::{count, upload_grow};
+use crate::scene_gpu::slot_types::{RecordState, SelectionIdentity, SelectionKey};
 use molgfx_core::{AtomGpu, BondGpu, PlacedStructure, Representation, RepresentationKind, Scene};
 use molgfx_gpu::Device;
 use std::collections::BTreeMap;
@@ -75,37 +75,37 @@ impl RecordKey {
 }
 
 /// Borrowed inputs for one packing pass.
-pub(super) struct RecordPrepare<'a, D: Device> {
-    pub(super) device: &'a D,
-    pub(super) queue: &'a D::Queue,
-    pub(super) placed: &'a PlacedStructure,
-    pub(super) representation: &'a Representation,
-    pub(super) selection: &'a molgfx_core::AtomSelection,
-    pub(super) color: molgfx_geometry::ColorContext<'a>,
+pub(in crate::scene_gpu) struct RecordPrepare<'a, D: Device> {
+    pub(in crate::scene_gpu) device: &'a D,
+    pub(in crate::scene_gpu) queue: &'a D::Queue,
+    pub(in crate::scene_gpu) placed: &'a PlacedStructure,
+    pub(in crate::scene_gpu) representation: &'a Representation,
+    pub(in crate::scene_gpu) selection: &'a molgfx_core::AtomSelection,
+    pub(in crate::scene_gpu) color: molgfx_geometry::ColorContext<'a>,
 }
 
 /// The ledger and frame a shared resource registers itself against.
-pub(super) struct RecordBudget<'a, D: Device> {
-    pub(super) ledger: &'a mut crate::DerivedCache,
-    pub(super) frame: u64,
-    pub(super) _device: std::marker::PhantomData<D>,
+pub(in crate::scene_gpu) struct RecordBudget<'a, D: Device> {
+    pub(in crate::scene_gpu) ledger: &'a mut crate::DerivedCache,
+    pub(in crate::scene_gpu) frame: u64,
+    pub(in crate::scene_gpu) _device: std::marker::PhantomData<D>,
 }
 
 /// Caller-owned packing scratch, reused across every key in one frame.
-pub(super) struct RecordScratch<'a> {
-    pub(super) atoms: &'a mut Vec<AtomGpu>,
-    pub(super) bonds: &'a mut Vec<BondGpu>,
-    pub(super) compaction: &'a mut Vec<u32>,
+pub(in crate::scene_gpu) struct RecordScratch<'a> {
+    pub(in crate::scene_gpu) atoms: &'a mut Vec<AtomGpu>,
+    pub(in crate::scene_gpu) bonds: &'a mut Vec<BondGpu>,
+    pub(in crate::scene_gpu) compaction: &'a mut Vec<u32>,
 }
 
 /// One shared pair of packed record buffers.
 #[derive(Debug)]
-pub(super) struct RecordSet<D: Device> {
+pub(in crate::scene_gpu) struct RecordSet<D: Device> {
     atoms: Option<D::Buffer>,
     bonds: Option<D::Buffer>,
     compaction: Option<D::Buffer>,
-    pub(super) atom_count: u32,
-    pub(super) bond_count: u32,
+    pub(in crate::scene_gpu) atom_count: u32,
+    pub(in crate::scene_gpu) bond_count: u32,
     atoms_capacity: u64,
     bonds_capacity: u64,
     compaction_capacity: u64,
@@ -128,12 +128,12 @@ impl<D: Device> Default for RecordSet<D> {
 
 /// Borrowed handle over one shared set, handed to a slot's sync.
 #[derive(Debug)]
-pub(super) struct RecordSetRef<'a, D: Device> {
-    pub(super) atoms: &'a D::Buffer,
-    pub(super) bonds: &'a D::Buffer,
-    pub(super) compaction: &'a D::Buffer,
-    pub(super) atom_count: u32,
-    pub(super) bond_count: u32,
+pub(in crate::scene_gpu) struct RecordSetRef<'a, D: Device> {
+    pub(in crate::scene_gpu) atoms: &'a D::Buffer,
+    pub(in crate::scene_gpu) bonds: &'a D::Buffer,
+    pub(in crate::scene_gpu) compaction: &'a D::Buffer,
+    pub(in crate::scene_gpu) atom_count: u32,
+    pub(in crate::scene_gpu) bond_count: u32,
 }
 
 /// The derived `Copy` would require `D: Copy`, which no device is.
@@ -152,7 +152,7 @@ pub(crate) struct RecordCache<D: Device> {
 }
 
 impl<D: Device> RecordCache<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             entries: Vec::new(),
         }
@@ -160,7 +160,7 @@ impl<D: Device> RecordCache<D> {
 
     /// The key one representation packs under.
     #[must_use]
-    pub(super) fn key(
+    pub(in crate::scene_gpu) fn key(
         scene: &Scene,
         placed: &PlacedStructure,
         structure: molgfx_core::StructureHandle,
@@ -208,7 +208,7 @@ impl<D: Device> RecordCache<D> {
     ///
     /// `prepare` runs once per key, never once per representation, so a frame
     /// with eight representations over one selection packs and builds once.
-    pub(super) fn sync<'a>(
+    pub(in crate::scene_gpu) fn sync<'a>(
         &mut self,
         acceleration: &mut AccelerationCache<D>,
         budget: &mut RecordBudget<'_, D>,
@@ -263,7 +263,7 @@ impl<D: Device> RecordCache<D> {
     /// derived cache. A set the budget refuses (one larger than the whole
     /// limit) therefore stays resident and unaccounted: dropping it would
     /// draw nothing and repack and re-upload every atom on every frame.
-    pub(super) fn admit(
+    pub(in crate::scene_gpu) fn admit(
         &mut self,
         ledger: &mut crate::DerivedCache,
         key: RecordKey,
@@ -287,7 +287,7 @@ impl<D: Device> RecordCache<D> {
 
     /// The shared set for one key, when resident.
     #[must_use]
-    pub(super) fn get(&self, key: RecordKey) -> Option<&RecordSet<D>> {
+    pub(in crate::scene_gpu) fn get(&self, key: RecordKey) -> Option<&RecordSet<D>> {
         self.entries
             .binary_search_by_key(&key, |(key, _)| *key)
             .ok()
@@ -315,7 +315,7 @@ impl<D: Device> RecordSet<D> {
         )?;
         if input.representation.kind == molgfx_core::RepresentationKind::Beads {
             let mut recipes = Vec::new();
-            super::bead_recipes::append_recipes(
+            crate::scene_gpu::bead_recipes::append_recipes(
                 input.placed,
                 input.selection,
                 scratch.atoms,
@@ -354,7 +354,7 @@ impl<D: Device> RecordSet<D> {
 
     /// Borrowed handle for a slot's bind-group construction.
     #[must_use]
-    pub(super) fn as_ref(&self) -> Option<RecordSetRef<'_, D>> {
+    pub(in crate::scene_gpu) fn as_ref(&self) -> Option<RecordSetRef<'_, D>> {
         Some(RecordSetRef {
             atoms: self.atoms.as_ref()?,
             bonds: self.bonds.as_ref()?,

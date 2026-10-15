@@ -20,7 +20,7 @@ struct ComponentConfig {
 }
 
 #[derive(Debug)]
-pub(super) struct SurfaceComponents<D: Device> {
+pub(in crate::scene_gpu) struct SurfaceComponents<D: Device> {
     filtered: Option<FieldTexture<D>>,
     parents: Option<D::Buffer>,
     statistics: Option<D::Buffer>,
@@ -30,20 +30,20 @@ pub(super) struct SurfaceComponents<D: Device> {
     dimensions: [u32; 3],
 }
 
-pub(super) struct SurfaceComponentSync<'a, D: Device> {
-    pub(super) device: &'a D,
-    pub(super) queue: &'a D::Queue,
-    pub(super) layout: &'a D::BindGroupLayout,
-    pub(super) source: &'a D::TextureView,
-    pub(super) dimensions: [u32; 3],
-    pub(super) cell: f32,
-    pub(super) isolevel: f32,
-    pub(super) gaussian: bool,
-    pub(super) policy: SurfaceComponentPolicy,
+pub(in crate::scene_gpu) struct SurfaceComponentSync<'a, D: Device> {
+    pub(in crate::scene_gpu) device: &'a D,
+    pub(in crate::scene_gpu) queue: &'a D::Queue,
+    pub(in crate::scene_gpu) layout: &'a D::BindGroupLayout,
+    pub(in crate::scene_gpu) source: &'a D::TextureView,
+    pub(in crate::scene_gpu) dimensions: [u32; 3],
+    pub(in crate::scene_gpu) cell: f32,
+    pub(in crate::scene_gpu) isolevel: f32,
+    pub(in crate::scene_gpu) gaussian: bool,
+    pub(in crate::scene_gpu) policy: SurfaceComponentPolicy,
 }
 
 impl<D: Device> SurfaceComponents<D> {
-    pub(super) const fn new() -> Self {
+    pub(in crate::scene_gpu) const fn new() -> Self {
         Self {
             filtered: None,
             parents: None,
@@ -55,7 +55,10 @@ impl<D: Device> SurfaceComponents<D> {
         }
     }
 
-    pub(super) fn sync(&mut self, input: &SurfaceComponentSync<'_, D>) -> Result<(), RenderError> {
+    pub(in crate::scene_gpu) fn sync(
+        &mut self,
+        input: &SurfaceComponentSync<'_, D>,
+    ) -> Result<(), RenderError> {
         if !input.policy.is_enabled() {
             self.release();
             return Ok(());
@@ -142,15 +145,15 @@ impl<D: Device> SurfaceComponents<D> {
         Ok(())
     }
 
-    pub(super) fn group(&self) -> Option<&D::BindGroup> {
+    pub(in crate::scene_gpu) fn group(&self) -> Option<&D::BindGroup> {
         self.group.as_ref()
     }
 
-    pub(super) fn field(&self) -> Option<&D::TextureView> {
+    pub(in crate::scene_gpu) fn field(&self) -> Option<&D::TextureView> {
         self.filtered.as_ref().map(|field| &field.view)
     }
 
-    pub(super) fn release(&mut self) {
+    pub(in crate::scene_gpu) fn release(&mut self) {
         self.filtered = None;
         self.parents = None;
         self.statistics = None;

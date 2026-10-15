@@ -1,7 +1,7 @@
 //! Source-owned indexed field buffers, independent of presentation styles.
 
-use super::buffers::{upload_grow, write_draw_args};
 use crate::RenderError;
+use crate::scene_gpu::buffers::{upload_grow, write_draw_args};
 use molgfx_core::{ScalarVolume, SegmentedVolume};
 use molgfx_gpu::{
     BindGroupDesc, BindGroupEntry, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, Device,
@@ -26,13 +26,13 @@ struct BoundaryKey {
 }
 
 #[derive(Clone, Copy)]
-pub(super) enum BoundarySource<'a> {
+pub(in crate::scene_gpu) enum BoundarySource<'a> {
     Labels(&'a SegmentedVolume),
     Scalar { grid: &'a ScalarVolume, level: f32 },
 }
 
 #[derive(Debug)]
-pub(super) struct GpuFieldBoundary<D: Device> {
+pub(in crate::scene_gpu) struct GpuFieldBoundary<D: Device> {
     vertices: Option<D::Buffer>,
     vertex_capacity: u64,
     indices: Option<D::Buffer>,
@@ -58,7 +58,7 @@ impl<D: Device> Default for GpuFieldBoundary<D> {
     }
 }
 
-pub(super) fn layout<D: Device>(device: &D) -> D::BindGroupLayout {
+pub(in crate::scene_gpu) fn layout<D: Device>(device: &D) -> D::BindGroupLayout {
     device.create_bind_group_layout(&BindGroupLayoutDesc {
         label: "group3: indexed field boundary",
         entries: &[0, 1].map(|binding| BindGroupLayoutEntry {
@@ -70,7 +70,7 @@ pub(super) fn layout<D: Device>(device: &D) -> D::BindGroupLayout {
 }
 
 impl<D: Device> GpuFieldBoundary<D> {
-    pub(super) fn sync(
+    pub(in crate::scene_gpu) fn sync(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -148,7 +148,7 @@ impl<D: Device> GpuFieldBoundary<D> {
         Ok(true)
     }
 
-    pub(super) fn draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
+    pub(in crate::scene_gpu) fn draw(&self) -> Option<(&D::BindGroup, &D::Buffer)> {
         (self.vertex_count > 0).then_some((self.group.as_ref()?, self.arguments.as_ref()?))
     }
 }
