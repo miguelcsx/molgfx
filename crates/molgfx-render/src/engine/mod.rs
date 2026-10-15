@@ -1,5 +1,12 @@
 //! The engine: owns the device, the graph and every pass's state.
 
+mod timing;
+use timing::cpu_stages;
+use timing::gpu_timing;
+use timing::pass_profiling;
+use timing::profiling;
+use timing::statistics;
+
 mod output;
 use output::exposure;
 use output::exr;
@@ -25,29 +32,24 @@ use chunk::derived_cache;
 mod adaptive;
 mod backdrop;
 mod config;
-mod cpu_stages;
 mod depth_cue;
 mod effective_quality;
 mod focus_target;
 mod frame;
-mod gpu_timing;
 mod graph_setup;
 mod graph_transparency;
 pub use stereo::{StereoImages, StereoLayout};
 mod init;
 mod lighting_environment;
 mod optics;
-mod pass_profiling;
 mod picking;
 pub(crate) mod pipeline_cache;
 mod presentation;
 mod profile;
 mod profile_numeric;
-mod profiling;
 mod session;
 mod settings;
 mod shadow;
-mod statistics;
 mod target;
 mod temporal;
 mod temporal_scene;

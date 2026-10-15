@@ -6,13 +6,13 @@ use std::sync::atomic::Ordering;
 #[test]
 fn cancelling_a_submitted_profile_preserves_storage_and_waits_before_reuse() {
     for held_fence in [1, 2] {
-        let mut engine = super::super::tests::engine();
+        let mut engine = crate::engine::tests::engine();
         engine.device = MockDevice::with_timestamp_queries();
         engine.queue = engine.device.queue();
         engine.profiler =
             GpuProfiler::new(&engine.device, molgfx_gpu::TextureFormat::Bgra8Unorm).unwrap();
         let scene = Scene::new();
-        let camera = super::super::tests::camera();
+        let camera = crate::engine::tests::camera();
         let config = ImageConfig {
             width: 8,
             height: 8,
@@ -50,9 +50,9 @@ fn cancelling_a_submitted_profile_preserves_storage_and_waits_before_reuse() {
 
 #[test]
 fn sample_preparation_failure_does_not_destroy_reusable_capture() {
-    let mut engine = super::super::tests::engine();
+    let mut engine = crate::engine::tests::engine();
     let scene = Scene::new();
-    let camera = super::super::tests::camera();
+    let camera = crate::engine::tests::camera();
     let config = ImageConfig {
         width: 8,
         height: 8,
@@ -80,7 +80,7 @@ fn sample_preparation_failure_does_not_destroy_reusable_capture() {
 
 #[test]
 fn an_interactive_profile_completes_exactly_one_sample_and_reports_itself_progressive() {
-    let mut engine = super::super::tests::engine();
+    let mut engine = crate::engine::tests::engine();
     let config = ImageConfig {
         width: 64,
         height: 64,
@@ -89,7 +89,7 @@ fn an_interactive_profile_completes_exactly_one_sample_and_reports_itself_progre
         let timing = engine
             .profile_frame(
                 &Scene::new(),
-                &super::super::tests::camera(),
+                &crate::engine::tests::camera(),
                 config,
                 MeasuredOutput::Interactive,
             )
@@ -126,10 +126,14 @@ fn profiling_target_uses_the_render_pipeline_format() {
 #[test]
 fn timestamp_pairs_do_not_cross_output_boundaries() {
     for (start, end, expected) in [
-        (1_000_u64, 1_750_u64, super::super::GpuTiming::Resolved(750)),
-        (2_000, 1_750, super::super::GpuTiming::InvalidOrder),
-        (0, 0, super::super::GpuTiming::Unresolved),
-        (4_000, 4_000, super::super::GpuTiming::Resolved(0)),
+        (
+            1_000_u64,
+            1_750_u64,
+            crate::engine::GpuTiming::Resolved(750),
+        ),
+        (2_000, 1_750, crate::engine::GpuTiming::InvalidOrder),
+        (0, 0, crate::engine::GpuTiming::Unresolved),
+        (4_000, 4_000, crate::engine::GpuTiming::Resolved(0)),
     ] {
         let mut bytes = [0; 16];
         bytes[..8].copy_from_slice(&start.to_le_bytes());
@@ -152,7 +156,7 @@ fn long_gpu_intervals_are_not_clamped_to_u32_ticks() {
 
 #[test]
 fn invalid_timestamp_payloads_never_become_zero_durations() {
-    use super::super::GpuTiming;
+    use crate::engine::GpuTiming;
     assert_eq!(
         GpuProfiler::<MockDevice>::decode_timing(&[0; 8], 1.0).unwrap(),
         GpuTiming::Malformed

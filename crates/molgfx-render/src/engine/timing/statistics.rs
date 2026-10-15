@@ -1,6 +1,6 @@
 //! Allocation-free counters for compact ligand pose synchronization.
 
-use super::Engine;
+use crate::engine::Engine;
 use crate::{DerivedCacheUsage, ResidencyCounters, ResidencyMetrics};
 use molgfx_gpu::Device;
 

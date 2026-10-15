@@ -49,7 +49,7 @@ impl GpuTiming {
         }
     }
 
-    pub(super) fn from_timestamps(
+    pub(in crate::engine) fn from_timestamps(
         start: u64,
         end: u64,
         period: f32,

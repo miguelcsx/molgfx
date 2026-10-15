@@ -1,8 +1,8 @@
 //! Completed-output latency and capability-gated whole-graph GPU timing.
 
-use super::image::ImagePurpose;
-use super::{Engine, ImageConfig, QualityTier};
 use crate::ResidencyMetrics;
+use crate::engine::image::ImagePurpose;
+use crate::engine::{Engine, ImageConfig, QualityTier};
 use crate::error::RenderError;
 use molgfx_core::Scene;
 use molgfx_gpu::{
@@ -22,7 +22,7 @@ pub enum MeasuredOutput {
 }
 
 impl MeasuredOutput {
-    pub(super) const fn purpose(self) -> ImagePurpose {
+    pub(in crate::engine) const fn purpose(self) -> ImagePurpose {
         match self {
             Self::Converged => ImagePurpose::Converged,
             Self::Interactive => ImagePurpose::Progressive,
@@ -34,11 +34,11 @@ impl MeasuredOutput {
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct FrameTiming {
     /// GPU interval or an explicit timestamp availability reason.
-    pub gpu_timing: super::GpuTiming,
+    pub gpu_timing: crate::engine::GpuTiming,
     /// Host frame-construction time in nanoseconds.
     pub cpu_ns: u64,
     /// Disjoint elapsed host intervals; waiting is not CPU utilization.
-    pub cpu_stages: super::CpuStages,
+    pub cpu_stages: crate::engine::CpuStages,
     /// End-to-end blocking profile duration, including device completion and
     /// timestamp readback. This is the conservative frame-budget metric when
     /// an adapter reports unusable timestamp values.
@@ -46,9 +46,9 @@ pub struct FrameTiming {
     /// Real residency, upload, command and backpressure counters at completion.
     pub residency: ResidencyMetrics,
     /// Selected settings and exposure completion observed with this timing.
-    pub quality: super::EffectiveQuality,
+    pub quality: crate::engine::EffectiveQuality,
     /// Actual pass capture coverage, including explicit bounded overflow.
-    pub pass_coverage: super::PassTimingCoverage,
+    pub pass_coverage: crate::engine::PassTimingCoverage,
 }
 
 impl FrameTiming {
@@ -61,9 +61,9 @@ impl FrameTiming {
 
 #[derive(Debug)]
 pub(crate) struct GpuProfiler<D: Device> {
-    passes: super::pass_profiling::PassProfiler<D>,
+    passes: crate::engine::pass_profiling::PassProfiler<D>,
     completion: molgfx_gpu::FenceValue,
-    cpu_stages: super::CpuStages,
+    cpu_stages: crate::engine::CpuStages,
     target: Option<D::Texture>,
     target_view: Option<D::TextureView>,
     target_size: (u32, u32),
@@ -75,11 +75,11 @@ impl<D: Device> GpuProfiler<D> {
         device: &D,
         target_format: molgfx_gpu::TextureFormat,
     ) -> Result<Option<Self>, RenderError> {
-        let passes = super::pass_profiling::PassProfiler::new(device)?;
+        let passes = crate::engine::pass_profiling::PassProfiler::new(device)?;
         Ok(Some(Self {
             passes,
             completion: molgfx_gpu::FenceValue::default(),
-            cpu_stages: super::CpuStages::default(),
+            cpu_stages: crate::engine::CpuStages::default(),
             target: None,
             target_view: None,
             target_size: (0, 0),
@@ -110,7 +110,7 @@ impl<D: Device> GpuProfiler<D> {
         &mut self,
         device: &D,
         queue: &D::Queue,
-    ) -> Result<super::GpuTiming, RenderError> {
+    ) -> Result<crate::engine::GpuTiming, RenderError> {
         let wait_started = Instant::now();
         queue.wait_fence(device, self.completion).await?;
         self.cpu_stages.completion_wait_ns = self
@@ -134,7 +134,7 @@ impl<D: Device> GpuProfiler<D> {
         &mut self,
         device: &D,
         queue: &D::Queue,
-    ) -> Result<super::GpuTiming, RenderError> {
+    ) -> Result<crate::engine::GpuTiming, RenderError> {
         let wait_started = Instant::now();
         queue.wait_fence_blocking(device, self.completion)?;
         self.cpu_stages.completion_wait_ns = self
@@ -152,18 +152,18 @@ impl<D: Device> GpuProfiler<D> {
     }
 
     #[cfg(test)]
-    fn decode_timing(data: &[u8], period: f32) -> Result<super::GpuTiming, RenderError> {
+    fn decode_timing(data: &[u8], period: f32) -> Result<crate::engine::GpuTiming, RenderError> {
         let (Some(start), Some(end)) = (read_u64(data, 0), read_u64(data, 8)) else {
-            return Ok(super::GpuTiming::Malformed);
+            return Ok(crate::engine::GpuTiming::Malformed);
         };
-        super::GpuTiming::from_timestamps(start, end, period)
+        crate::engine::GpuTiming::from_timestamps(start, end, period)
     }
 }
 
 impl<D: Device> Engine<D> {
     /// Actual passes from the latest completed profile; borrowed until the next profile.
     #[must_use]
-    pub fn last_pass_timings(&self) -> &[super::PassTiming] {
+    pub fn last_pass_timings(&self) -> &[crate::engine::PassTiming] {
         self.profiler
             .as_ref()
             .map_or(&[], |profiler| profiler.passes.timings())
@@ -194,9 +194,9 @@ impl<D: Device> Engine<D> {
         let Some(mut profiler) = self.profiler.take() else {
             return Err(molgfx_gpu::GpuError::DeviceLost.into());
         };
-        profiler.cpu_stages = super::CpuStages {
+        profiler.cpu_stages = crate::engine::CpuStages {
             completion_wait_ns: previous_wait_ns,
-            ..super::CpuStages::default()
+            ..crate::engine::CpuStages::default()
         };
         let submitted = self.submit_profile(&mut profiler, cpu_start, config, quality);
         // Only synchronous recording borrows the profiler out of the engine.
@@ -250,9 +250,9 @@ impl<D: Device> Engine<D> {
         let Some(mut profiler) = self.profiler.take() else {
             return Err(molgfx_gpu::GpuError::DeviceLost.into());
         };
-        profiler.cpu_stages = super::CpuStages {
+        profiler.cpu_stages = crate::engine::CpuStages {
             completion_wait_ns: previous_wait_ns,
-            ..super::CpuStages::default()
+            ..crate::engine::CpuStages::default()
         };
         let result = self.profile_with(
             &mut profiler,
@@ -283,7 +283,7 @@ impl<D: Device> Engine<D> {
         camera: &Camera,
         config: ImageConfig,
         output: MeasuredOutput,
-    ) -> Result<(Instant, super::exposure::Exposure), RenderError> {
+    ) -> Result<(Instant, crate::engine::exposure::Exposure), RenderError> {
         config.validate(self.device.capabilities().max_texture_dim)?;
         let cpu_start = Instant::now();
         self.width = config.width;
@@ -292,7 +292,7 @@ impl<D: Device> Engine<D> {
         Ok((cpu_start, exposure))
     }
 
-    fn profile_quality(&self, output: MeasuredOutput) -> super::EffectiveQuality {
+    fn profile_quality(&self, output: MeasuredOutput) -> crate::engine::EffectiveQuality {
         let mut quality = match output {
             MeasuredOutput::Converged => self.effective_quality(
                 self.tier().image_samples(),
@@ -317,7 +317,7 @@ impl<D: Device> Engine<D> {
         cpu_start: Instant,
         frame_start: Instant,
         config: ImageConfig,
-        quality: super::exposure::Exposure,
+        quality: crate::engine::exposure::Exposure,
         output: MeasuredOutput,
     ) -> Result<FrameTiming, RenderError> {
         let cpu_ns = self.submit_profile(profiler, cpu_start, config, quality)?;
@@ -338,7 +338,7 @@ impl<D: Device> Engine<D> {
         profiler: &mut GpuProfiler<D>,
         cpu_start: Instant,
         config: ImageConfig,
-        mut exposure: super::exposure::Exposure,
+        mut exposure: crate::engine::exposure::Exposure,
     ) -> Result<u64, RenderError> {
         profiler.cpu_stages.preparation_ns = profiler
             .cpu_stages

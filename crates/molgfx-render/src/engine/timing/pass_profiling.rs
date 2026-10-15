@@ -1,7 +1,7 @@
 //! Reusable capture storage owned until the exposure fence completes.
 
-use super::GpuTiming;
 use crate::RenderError;
+use crate::engine::GpuTiming;
 use molgfx_gpu::{
     BufferDesc, BufferUsage, CommandEncoder, Device, MAX_TIMESTAMP_CAPTURE_PASSES,
     PassTimestampAbsence, PassTimestampCapture, Queue, TimestampCaptureIncomplete,
@@ -50,7 +50,7 @@ pub struct PassTimingCoverage {
 }
 
 #[derive(Debug)]
-pub(super) struct PassProfiler<D: Device> {
+pub(in crate::engine) struct PassProfiler<D: Device> {
     capture: Option<PassTimestampCapture<D::QuerySet>>,
     buffers: Option<TimestampBuffers<D>>,
     decoded: Vec<PassTiming>,
@@ -67,7 +67,7 @@ struct TimestampBuffers<D: Device> {
 }
 
 impl<D: Device> PassProfiler<D> {
-    pub(super) fn new(device: &D) -> Result<Self, RenderError> {
+    pub(in crate::engine) fn new(device: &D) -> Result<Self, RenderError> {
         let capture = if device.capabilities().timestamp_queries() {
             PassTimestampCapture::new(device, MAX_TIMESTAMP_CAPTURE_PASSES)
         } else {
@@ -107,7 +107,10 @@ impl<D: Device> PassProfiler<D> {
         })
     }
 
-    pub(super) fn attach(&mut self, encoder: &mut D::CommandEncoder) -> Result<(), RenderError> {
+    pub(in crate::engine) fn attach(
+        &mut self,
+        encoder: &mut D::CommandEncoder,
+    ) -> Result<(), RenderError> {
         let Some(mut capture) = self.capture.take() else {
             return Err(molgfx_gpu::GpuError::DeviceLost.into());
         };
@@ -121,7 +124,10 @@ impl<D: Device> PassProfiler<D> {
     }
 
     /// Recovers capture storage from commands that will never be submitted.
-    pub(super) fn discard(&mut self, encoder: &mut D::CommandEncoder) -> Result<(), RenderError> {
+    pub(in crate::engine) fn discard(
+        &mut self,
+        encoder: &mut D::CommandEncoder,
+    ) -> Result<(), RenderError> {
         let Some(mut capture) = encoder.set_timestamp_capture(None) else {
             return Err(molgfx_gpu::GpuError::DeviceLost.into());
         };
@@ -130,7 +136,10 @@ impl<D: Device> PassProfiler<D> {
         Ok(())
     }
 
-    pub(super) fn detach(&mut self, encoder: &mut D::CommandEncoder) -> Result<(), RenderError> {
+    pub(in crate::engine) fn detach(
+        &mut self,
+        encoder: &mut D::CommandEncoder,
+    ) -> Result<(), RenderError> {
         let Some(capture) = encoder.set_timestamp_capture(None) else {
             return Err(molgfx_gpu::GpuError::DeviceLost.into());
         };
@@ -140,7 +149,7 @@ impl<D: Device> PassProfiler<D> {
 
     /// Resolve only after sampling completion; early Metal resolves can read
     /// stale counter slots even when their command buffer finishes normally.
-    pub(super) fn submit_resolve(
+    pub(in crate::engine) fn submit_resolve(
         &self,
         device: &D,
         queue: &D::Queue,
@@ -160,7 +169,7 @@ impl<D: Device> PassProfiler<D> {
         Some(queue.submit_tracked(encoder))
     }
 
-    pub(super) async fn read_async(
+    pub(in crate::engine) async fn read_async(
         &mut self,
         device: &D,
         queue: &D::Queue,
@@ -183,7 +192,11 @@ impl<D: Device> PassProfiler<D> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(super) fn read(&mut self, device: &D, queue: &D::Queue) -> Result<GpuTiming, RenderError> {
+    pub(in crate::engine) fn read(
+        &mut self,
+        device: &D,
+        queue: &D::Queue,
+    ) -> Result<GpuTiming, RenderError> {
         let size = self.read_size();
         if let Some(buffers) = &self.buffers
             && size != 0
@@ -317,10 +330,10 @@ impl<D: Device> PassProfiler<D> {
         }
     }
 
-    pub(super) fn timings(&self) -> &[PassTiming] {
+    pub(in crate::engine) fn timings(&self) -> &[PassTiming] {
         &self.decoded
     }
-    pub(super) const fn coverage(&self) -> PassTimingCoverage {
+    pub(in crate::engine) const fn coverage(&self) -> PassTimingCoverage {
         self.coverage
     }
 }
