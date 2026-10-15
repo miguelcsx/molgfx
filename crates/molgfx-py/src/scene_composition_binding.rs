@@ -2,7 +2,7 @@
 //! view, and placed copies of a structure.
 
 use crate::binding::{error, selection};
-use crate::scene_binding::{PyScene, deliver};
+use crate::scene_binding::{PyScene, deliver_nonempty};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -162,11 +162,7 @@ impl PyScene {
         let of = of.map(crate::id_binding::structure_id).transpose()?;
         let (patch, described) = {
             let mut this = slf.borrow_mut();
-            if this.pending.is_some() {
-                return Err(PyValueError::new_err(
-                    "an assembly cannot be added inside a scene transaction",
-                ));
-            }
+            this.reject_pending("an assembly cannot be added inside a scene transaction")?;
             let target = match of {
                 Some(of) => of,
                 None => this.structure_id,
@@ -195,9 +191,7 @@ impl PyScene {
                 described,
             )
         };
-        if !patch.operations.is_empty() {
-            deliver(slf, py, &patch)?;
-        }
+        deliver_nonempty(slf, py, &patch)?;
         Ok(described)
     }
 
@@ -212,11 +206,7 @@ impl PyScene {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let (ids, patch) = {
             let mut this = slf.borrow_mut();
-            if this.pending.is_some() {
-                return Err(PyValueError::new_err(
-                    "default forms cannot be added inside a scene transaction",
-                ));
-            }
+            this.reject_pending("default forms cannot be added inside a scene transaction")?;
             let target = match structure {
                 Some(structure) => crate::id_binding::structure_id(structure)?,
                 None => this.structure_id,
@@ -228,9 +218,7 @@ impl PyScene {
                 .map_err(error)?;
             this.describe_added(py, base_revision, inserted, Vec::new())
         }?;
-        if !patch.operations.is_empty() {
-            deliver(slf, py, &patch)?;
-        }
+        deliver_nonempty(slf, py, &patch)?;
         Ok(ids)
     }
 
@@ -249,11 +237,7 @@ impl PyScene {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let (ids, patch) = {
             let mut this = slf.borrow_mut();
-            if this.pending.is_some() {
-                return Err(PyValueError::new_err(
-                    "a pocket view cannot be added inside a scene transaction",
-                ));
-            }
+            this.reject_pending("a pocket view cannot be added inside a scene transaction")?;
             let target = match structure {
                 Some(structure) => crate::id_binding::structure_id(structure)?,
                 None => this.structure_id,
@@ -270,9 +254,7 @@ impl PyScene {
             };
             this.describe_added(py, base_revision, inserted, vec![focus])
         }?;
-        if !patch.operations.is_empty() {
-            deliver(slf, py, &patch)?;
-        }
+        deliver_nonempty(slf, py, &patch)?;
         Ok(ids)
     }
 
@@ -365,11 +347,7 @@ fn place_copies(
     let of = structure.map(crate::id_binding::structure_id).transpose()?;
     let (ids, patch) = {
         let mut this = slf.borrow_mut();
-        if this.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "a placement cannot be added inside a scene transaction",
-            ));
-        }
+        this.reject_pending("a placement cannot be added inside a scene transaction")?;
         let of = match of {
             Some(of) => of,
             None => this.structure_id,
@@ -388,8 +366,6 @@ fn place_copies(
             },
         )
     };
-    if !patch.operations.is_empty() {
-        deliver(slf, py, &patch)?;
-    }
+    deliver_nonempty(slf, py, &patch)?;
     Ok(ids)
 }

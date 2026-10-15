@@ -1,7 +1,7 @@
 //! Ensemble overlays and property-difference views on the Python scene.
 
 use crate::binding::selection;
-use crate::scene_binding::{PyScene, deliver};
+use crate::scene_binding::{PyScene, deliver_nonempty};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -30,11 +30,7 @@ impl PyScene {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let (ids, patch) = {
             let mut this = slf.borrow_mut();
-            if this.pending.is_some() {
-                return Err(PyValueError::new_err(
-                    "an ensemble cannot be added inside a scene transaction",
-                ));
-            }
+            this.reject_pending("an ensemble cannot be added inside a scene transaction")?;
             let members = members
                 .into_iter()
                 .map(|(structure, weight, color)| {
@@ -64,9 +60,7 @@ impl PyScene {
                 .map_err(crate::binding::error)?;
             this.describe_added(py, base_revision, inserted, Vec::new())
         }?;
-        if !patch.operations.is_empty() {
-            deliver(slf, py, &patch)?;
-        }
+        deliver_nonempty(slf, py, &patch)?;
         Ok(ids)
     }
 
@@ -83,11 +77,7 @@ impl PyScene {
     ) -> PyResult<Py<PyAny>> {
         let (mut ids, patch) = {
             let mut this = slf.borrow_mut();
-            if this.pending.is_some() {
-                return Err(PyValueError::new_err(
-                    "a difference view cannot be added inside a scene transaction",
-                ));
-            }
+            this.reject_pending("a difference view cannot be added inside a scene transaction")?;
             let structure = match structure {
                 Some(structure) => crate::id_binding::structure_id(structure)?,
                 None => this.structure_id,
@@ -108,9 +98,7 @@ impl PyScene {
                 .map_err(crate::binding::error)?;
             this.describe_added(py, base_revision, vec![inserted], Vec::new())
         }?;
-        if !patch.operations.is_empty() {
-            deliver(slf, py, &patch)?;
-        }
+        deliver_nonempty(slf, py, &patch)?;
         ids.pop()
             .ok_or_else(|| PyValueError::new_err("the difference view was not added"))
     }

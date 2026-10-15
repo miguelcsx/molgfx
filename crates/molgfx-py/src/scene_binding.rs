@@ -51,6 +51,14 @@ impl PyScene {
     pub(super) fn for_structure(structure: &Bound<'_, PyAny>) -> PyResult<Self> {
         Self::new(Some(structure))
     }
+
+    /// Refuses an edit made while a scene transaction is open.
+    pub(crate) fn reject_pending(&self, message: &'static str) -> PyResult<()> {
+        if self.pending.is_some() {
+            return Err(PyValueError::new_err(message));
+        }
+        Ok(())
+    }
 }
 
 /// Refuses a representation that would select no atom, naming the query.
@@ -105,6 +113,18 @@ pub(super) fn deliver(
     // Keep the authoritative list in the scene while callbacks run: a callback
     // can unsubscribe itself, subscribe another view, or publish a nested edit.
     crate::subscription_binding::publish(slf, py, &encoded, false)
+}
+
+/// Delivers `patch` to subscribers unless it changes nothing.
+pub(super) fn deliver_nonempty(
+    slf: &Bound<'_, PyScene>,
+    py: Python<'_>,
+    patch: &molgfx::ScenePatch,
+) -> PyResult<()> {
+    if patch.operations.is_empty() {
+        return Ok(());
+    }
+    deliver(slf, py, patch)
 }
 
 #[pymethods]
@@ -178,11 +198,7 @@ impl PyScene {
     ) -> PyResult<Py<PyAny>> {
         let (id, patch) = {
             let mut this = slf.borrow_mut();
-            if this.pending.is_some() {
-                return Err(PyValueError::new_err(
-                    "scene items cannot be added inside a scene transaction",
-                ));
-            }
+            this.reject_pending("scene items cannot be added inside a scene transaction")?;
             let base_revision = this.inner.revision();
             let (id, operation) =
                 if let Ok(representation) = item.extract::<PyRef<'_, PyRepresentation>>() {
@@ -322,11 +338,7 @@ impl PyScene {
     fn apply(slf: &Bound<'_, Self>, py: Python<'_>, patch: &PyScenePatch) -> PyResult<()> {
         {
             let mut scene = slf.borrow_mut();
-            if scene.pending.is_some() {
-                return Err(PyValueError::new_err(
-                    "patches cannot be applied inside a scene transaction",
-                ));
-            }
+            scene.reject_pending("patches cannot be applied inside a scene transaction")?;
             scene.inner.apply(&patch.0).map_err(error)?;
         }
         deliver(slf, py, &patch.0)
@@ -390,11 +402,7 @@ impl PyScene {
     ) -> PyResult<crate::id_binding::PyStructureId> {
         let (identity, patch) = {
             let mut this = slf.borrow_mut();
-            if this.pending.is_some() {
-                return Err(PyValueError::new_err(
-                    "structures cannot be added inside a scene transaction",
-                ));
-            }
+            this.reject_pending("structures cannot be added inside a scene transaction")?;
             let provider = Arc::new(crate::native_adapter::NativeProvider::import(structure)?);
             let source = crate::native_adapter::source(&provider);
             let base_revision = this.inner.revision();

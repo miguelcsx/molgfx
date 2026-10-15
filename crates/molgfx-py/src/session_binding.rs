@@ -50,11 +50,7 @@ impl PySession {
     fn run(&mut self, py: Python<'_>, program: &Program) -> PyResult<PyCommandResult> {
         let outcome = {
             let mut scene = self.scene.borrow_mut(py);
-            if scene.pending.is_some() {
-                return Err(PyValueError::new_err(
-                    "commands cannot run inside a scene transaction",
-                ));
-            }
+            scene.reject_pending("commands cannot run inside a scene transaction")?;
             self.inner
                 .execute(&mut scene.inner, program)
                 .map_err(|errors| command_error(py, &errors, program.source()))?

@@ -13,11 +13,7 @@ pub(super) fn commit(
 ) -> PyResult<()> {
     let patch = {
         let mut scene = slf.borrow_mut();
-        if scene.pending.is_some() {
-            return Err(PyValueError::new_err(
-                "runtime bindings cannot be changed inside a scene transaction",
-            ));
-        }
+        scene.reject_pending("runtime bindings cannot be changed inside a scene transaction")?;
         let base_revision = scene.inner.revision();
         mutation(&mut scene.inner)?;
         molgfx::ScenePatch {

@@ -109,11 +109,7 @@ impl PyScene {
         let identity = molgfx::StructureId::new(identity);
         let same_interval = {
             let mut scene = slf.borrow_mut();
-            if scene.pending.is_some() {
-                return Err(PyValueError::new_err(
-                    "runtime playback cannot change inside a scene transaction",
-                ));
-            }
+            scene.reject_pending("runtime playback cannot change inside a scene transaction")?;
             let previous = scene
                 .inner
                 .molecular_pose(identity)
@@ -204,11 +200,7 @@ impl PyScene {
         let identity = crate::id_binding::structure_id(structure)?;
         {
             let mut scene = slf.borrow_mut();
-            if scene.pending.is_some() {
-                return Err(PyValueError::new_err(
-                    "runtime samples cannot be changed inside a scene transaction",
-                ));
-            }
+            scene.reject_pending("runtime samples cannot be changed inside a scene transaction")?;
             scene
                 .inner
                 .set_trajectory_time(molgfx::StructureId::new(identity), seconds)

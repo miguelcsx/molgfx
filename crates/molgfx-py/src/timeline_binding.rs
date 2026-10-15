@@ -139,11 +139,7 @@ impl PyTimeline {
             let mut this = slf.borrow_mut();
             let scene_object = this.scene.clone_ref(py);
             let mut scene = scene_object.bind(py).borrow_mut();
-            if scene.pending.is_some() {
-                return Err(PyValueError::new_err(
-                    "runtime playback cannot change inside a scene transaction",
-                ));
-            }
+            scene.reject_pending("runtime playback cannot change inside a scene transaction")?;
             scene
                 .inner
                 .apply_timeline(&mut this.inner, playback_seconds)
