@@ -5,6 +5,7 @@
 //! focus atoms, without row-id aliasing between placed structures.
 
 use crate::handle::{SelectionHandle, StructureHandle};
+use crate::scene::query::spatial_rows;
 use crate::scene::{Scene, StoredSelection};
 use crate::{AtomSelection, CoreError};
 
@@ -338,68 +339,26 @@ impl Scene {
         if self.selections.get(reference.0).is_none() {
             return Err(CoreError::StaleHandle);
         }
-        let distance_sq = distance * distance;
+        let mut traversal = std::mem::take(&mut self.spatial_traversal);
+        let mut candidates = std::mem::take(&mut self.spatial_candidates);
         let mut scoped = Vec::with_capacity(self.structures.len());
         for (raw, placed) in self.structures.iter() {
             let structure = StructureHandle(raw);
-            let Some(reference) = self.selection_for(reference, structure).cloned() else {
+            let Some(reference) = self.selection_for(reference, structure) else {
                 continue;
             };
-            self.spatial_result.clear();
-            let coordinates = placed.atoms.coords().slice();
-            let world_from_model = placed.model_to_world;
-            let inverse_scale_bound = [
-                molgfx_math::Vec3::X,
-                molgfx_math::Vec3::Y,
-                molgfx_math::Vec3::Z,
-            ]
-            .into_iter()
-            .map(|axis| {
-                world_from_model
-                    .inverse()
-                    .transform_vector3(axis)
-                    .length_squared()
-            })
-            .sum::<f32>()
-            .sqrt();
-            let local_radius = distance * inverse_scale_bound;
-            let hierarchy = placed.spatial_bvh()?;
-            reference.for_each(placed.atoms.len(), |source| {
-                let Some(source_position) = coordinates.get(source as usize).copied() else {
-                    return;
-                };
-                let source_position = molgfx_math::Vec3::from_array(source_position);
-                let source_world = world_from_model.transform_point3(source_position);
-                hierarchy.sphere_candidates(
-                    source_position,
-                    local_radius,
-                    &mut self.spatial_traversal,
-                    &mut self.spatial_candidates,
-                );
-                for &candidate in &self.spatial_candidates {
-                    let Some(candidate_position) = coordinates.get(candidate as usize).copied()
-                    else {
-                        continue;
-                    };
-                    let candidate_world = world_from_model
-                        .transform_point3(molgfx_math::Vec3::from_array(candidate_position));
-                    if source_world.distance_squared(candidate_world) <= distance_sq {
-                        if complete_residues {
-                            if let Some(residue) = placed.hierarchy.residue_of_atom(candidate) {
-                                self.spatial_result
-                                    .insert_range(placed.hierarchy.residue_atoms(residue));
-                            }
-                        } else {
-                            self.spatial_result.insert(candidate);
-                        }
-                    }
-                }
-            });
-            scoped.push((
-                structure,
-                AtomSelection::Roaring(self.spatial_result.clone()),
-            ));
+            let rows = spatial_rows(
+                distance,
+                reference.to_bitmap(placed.atoms.len()),
+                complete_residues,
+                placed,
+                &mut traversal,
+                &mut candidates,
+            )?;
+            scoped.push((structure, AtomSelection::Roaring(rows)));
         }
+        self.spatial_traversal = traversal;
+        self.spatial_candidates = candidates;
         Ok(self.add_scoped_selection(scoped))
     }
 }

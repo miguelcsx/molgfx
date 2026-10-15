@@ -105,7 +105,6 @@ pub struct Scene {
     pub(crate) generic_timeline_binding_revision: u64,
     pub(crate) spatial_traversal: Vec<u32>,
     pub(crate) spatial_candidates: Vec<u32>,
-    pub(crate) spatial_result: roaring::RoaringBitmap,
     next_dataset: u64,
 }
 

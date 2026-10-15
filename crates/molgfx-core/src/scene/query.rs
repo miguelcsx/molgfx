@@ -334,7 +334,7 @@ fn box_rows(
         .collect())
 }
 
-fn spatial_rows(
+pub(super) fn spatial_rows(
     distance: f32,
     reference: RoaringBitmap,
     complete_residues: bool,
