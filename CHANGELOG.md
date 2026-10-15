@@ -2,11 +2,14 @@
 
 All notable changes to MolGFX are recorded here. The project follows
 [Semantic Versioning](https://semver.org/); before 1.0 a minor release may
-change the public API. MolGFX 0.5 needs `molframe>=0.5.1`: publish or install
+change the public API. MolGFX 0.5.4 needs `molframe>=0.6.3`: publish or install
 that first.
 
-## Unreleased
+## 0.5.4 — 2026-10-15
 
+- Pin `molframe` 0.6.3 and enable its embedded bonding table, so a browser
+  or CI host with no data directory perceives the same bonds as Python and
+  structure content hashes agree across targets.
 - Surface the real MolFrame error when a structure's BCIF encoding fails:
   `Scene(structure)` and `Scene.add_structure` raise the matching
   `molframe.errors` exception with its `code` and message instead of a
