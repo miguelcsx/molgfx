@@ -8,10 +8,10 @@
 use crate::error::RenderError;
 use crate::graph::PassContext;
 use crate::passes::{AO_DENOISED_RESOURCE, FrameBindings};
+use crate::passes::{fullscreen_pipeline, replace_target};
 use molgfx_gpu::{
-    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, ColorTarget,
-    CommandEncoder as _, Device, LoadOp, PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _,
-    RenderPipelineDesc, ShaderModuleDesc, ShaderStages,
+    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, CommandEncoder as _,
+    Device, LoadOp, RenderPassDesc, RenderPassEncoder as _, ShaderModuleDesc, ShaderStages,
 };
 
 /// Pipeline and layout for the occlusion denoiser.
@@ -47,20 +47,15 @@ impl<D: Device> AoDenoisePass<D> {
             label: "occlusion denoise",
             wgsl: molgfx_shaders::AO_DENOISE,
         })?;
-        let pipeline = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "occlusion denoise",
-            layouts: &[Some(group0), Some(&layout)],
-            shader: &shader,
-            vs_entry: "vs_fullscreen",
-            fs_entry: Some("fs_denoise_occlusion"),
-            color_targets: &[ColorTarget {
-                format: crate::passes::AO_FORMAT,
-                blend: molgfx_gpu::BlendMode::Replace,
-            }],
-            depth: None,
-            constants: &[],
-            topology: PrimitiveTopology::TriangleList,
-        })?;
+        let pipeline = fullscreen_pipeline(
+            device,
+            "occlusion denoise",
+            &[Some(group0), Some(&layout)],
+            &shader,
+            "fs_denoise_occlusion",
+            replace_target(crate::passes::AO_FORMAT),
+            &[],
+        )?;
         Ok(Self { pipeline, layout })
     }
 

@@ -4,12 +4,12 @@ use crate::error::RenderError;
 use crate::graph::PassContext;
 use crate::passes::visual_pipelines::{VisualPipelineSet, constants};
 use crate::passes::{AO_RESOURCE, FrameBindings};
+use crate::passes::{fullscreen_pipeline, replace_target};
 use crate::scene_gpu::DrawFamily;
 use molgfx_gpu::{
     AccelerationStructureLayoutEntry, BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType,
-    ColorAttachment, ColorTarget, CommandEncoder as _, Device, LoadOp, PrimitiveTopology,
-    RayQueryBindGroupLayoutDesc, RenderPassDesc, RenderPassEncoder as _, RenderPipelineDesc,
-    ShaderModuleDesc, ShaderStages, TextureFormat,
+    ColorAttachment, ColorTarget, CommandEncoder as _, Device, LoadOp, RayQueryBindGroupLayoutDesc,
+    RenderPassDesc, RenderPassEncoder as _, ShaderModuleDesc, ShaderStages, TextureFormat,
 };
 
 #[cfg(test)]
@@ -55,45 +55,33 @@ impl<D: Device> AmbientOcclusionPass<D> {
             label: "ambient_occlusion",
             wgsl: molgfx_shaders::AMBIENT_OCCLUSION,
         })?;
-        let realtime = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "molecular ambient occlusion",
-            layouts: &[Some(group0), Some(&layout)],
-            shader: &shader,
-            vs_entry: "vs_fullscreen",
-            fs_entry: Some("fs_ambient_occlusion"),
-            color_targets: &[ColorTarget {
-                format: TextureFormat::Rgba8Unorm,
-                blend: molgfx_gpu::BlendMode::Replace,
-            }],
-            depth: None,
-            constants: &[],
-            topology: PrimitiveTopology::TriangleList,
-        })?;
+        let realtime = fullscreen_pipeline(
+            device,
+            "molecular ambient occlusion",
+            &[Some(group0), Some(&layout)],
+            &shader,
+            "fs_ambient_occlusion",
+            replace_target(TextureFormat::Rgba8Unorm),
+            &[],
+        )?;
         let quality_shader = device.create_shader_module(&ShaderModuleDesc {
             label: "quality_ao",
             wgsl: molgfx_shaders::QUALITY_AO,
         })?;
-        let quality_pipeline = |pipeline_constants: &[(&'static str, f64)]| {
-            device.create_render_pipeline(&RenderPipelineDesc {
-                label: "progressive molecular ray-traced occlusion",
-                layouts: &[Some(group0), Some(&layout), Some(group2)],
-                shader: &quality_shader,
-                vs_entry: "vs_fullscreen",
-                fs_entry: Some("fs_quality_ao"),
-                color_targets: &[ColorTarget {
+        let quality = VisualPipelineSet::build(|set_constants| {
+            fullscreen_pipeline(
+                device,
+                "progressive molecular ray-traced occlusion",
+                &[Some(group0), Some(&layout), Some(group2)],
+                &quality_shader,
+                "fs_quality_ao",
+                ColorTarget {
                     format: TextureFormat::Rgba8Unorm,
                     blend: molgfx_gpu::BlendMode::ReverseMultiply,
-                }],
-                depth: None,
-                constants: pipeline_constants,
-                topology: PrimitiveTopology::TriangleList,
-            })
-        };
-        let quality = VisualPipelineSet::new(
-            quality_pipeline(&[])?,
-            quality_pipeline(&constants(false))?,
-            quality_pipeline(&constants(true))?,
-        );
+                },
+                set_constants,
+            )
+        })?;
         let hardware = create_hardware_quality(device, group0, &layout, group2);
         Ok(Self {
             realtime,
@@ -146,25 +134,23 @@ impl<D: Device> AmbientOcclusionPass<D> {
         // Without hardware tracing the ray-query family is settled only when the
         // set exists, so reaching there is a capability report rather than a
         // silent fallback.
-        Ok(device.create_render_pipeline(&RenderPipelineDesc {
-            label: "specialized progressive molecular occlusion",
-            layouts: &[
+        Ok(fullscreen_pipeline(
+            device,
+            "specialized progressive molecular occlusion",
+            &[
                 Some(group0),
                 Some(&self.layout),
                 Some(quality),
                 hardware_layout,
             ],
-            shader: &shader,
-            vs_entry: "vs_fullscreen",
-            fs_entry: Some("fs_quality_ao"),
-            color_targets: &[ColorTarget {
+            &shader,
+            "fs_quality_ao",
+            ColorTarget {
                 format: TextureFormat::Rgba8Unorm,
                 blend: molgfx_gpu::BlendMode::ReverseMultiply,
-            }],
-            depth: None,
-            constants: &constants(true),
-            topology: PrimitiveTopology::TriangleList,
-        })?)
+            },
+            &constants(true),
+        )?)
     }
 
     pub(crate) fn record(ctx: &mut PassContext<'_, D>) {
@@ -256,33 +242,21 @@ fn create_hardware_quality<D: Device>(
     }) else {
         return None;
     };
-    let pipeline = |pipeline_constants: &[(&'static str, f64)]| {
-        device.create_render_pipeline(&RenderPipelineDesc {
-            label: "hardware progressive molecular occlusion",
-            layouts: &[Some(group0), Some(group1), Some(group2), Some(&layout)],
-            shader: &shader,
-            vs_entry: "vs_fullscreen",
-            fs_entry: Some("fs_quality_ao"),
-            color_targets: &[ColorTarget {
+    let Ok(pipelines) = VisualPipelineSet::build(|set_constants| {
+        fullscreen_pipeline(
+            device,
+            "hardware progressive molecular occlusion",
+            &[Some(group0), Some(group1), Some(group2), Some(&layout)],
+            &shader,
+            "fs_quality_ao",
+            ColorTarget {
                 format: TextureFormat::Rgba8Unorm,
                 blend: molgfx_gpu::BlendMode::ReverseMultiply,
-            }],
-            depth: None,
-            constants: pipeline_constants,
-            topology: PrimitiveTopology::TriangleList,
-        })
-    };
-    let Ok(base) = pipeline(&[]) else {
+            },
+            set_constants,
+        )
+    }) else {
         return None;
     };
-    let Ok(wire) = pipeline(&constants(false)) else {
-        return None;
-    };
-    let Ok(clipped) = pipeline(&constants(true)) else {
-        return None;
-    };
-    Some(HardwareQualityPipelines {
-        pipelines: VisualPipelineSet::new(base, wire, clipped),
-        layout,
-    })
+    Some(HardwareQualityPipelines { pipelines, layout })
 }

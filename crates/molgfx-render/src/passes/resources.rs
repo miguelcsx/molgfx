@@ -74,6 +74,42 @@ pub(crate) fn gbuffer_pipeline<D: Device>(
     })
 }
 
+/// A color target that overwrites its texels.
+pub(crate) const fn replace_target(format: TextureFormat) -> ColorTarget {
+    ColorTarget {
+        format,
+        blend: BlendMode::Replace,
+    }
+}
+
+/// Builds one fullscreen-triangle pipeline with a single color target and no
+/// depth. `fs_entry` names the fragment entry point of `shader`.
+///
+/// # Errors
+///
+/// Pipeline creation failed.
+pub(crate) fn fullscreen_pipeline<D: Device>(
+    device: &D,
+    label: &'static str,
+    layouts: &[Option<&D::BindGroupLayout>],
+    shader: &D::ShaderModule,
+    fs_entry: &'static str,
+    target: ColorTarget,
+    constants: &[(&'static str, f64)],
+) -> Result<D::Pipeline, GpuError> {
+    device.create_render_pipeline(&RenderPipelineDesc {
+        label,
+        layouts,
+        shader,
+        vs_entry: "vs_fullscreen",
+        fs_entry: Some(fs_entry),
+        color_targets: &[target],
+        depth: None,
+        constants,
+        topology: PrimitiveTopology::TriangleList,
+    })
+}
+
 /// Opens a pass over the shared opaque gbuffer, loading every target and the
 /// reversed depth, or `None` when a target is not allocated this frame.
 ///

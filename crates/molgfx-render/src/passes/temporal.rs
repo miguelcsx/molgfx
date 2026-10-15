@@ -6,10 +6,11 @@
 use crate::error::RenderError;
 use crate::graph::PassContext;
 use crate::passes::{FrameBindings, HISTORY_A_RESOURCE, HISTORY_B_RESOURCE};
+use crate::passes::{fullscreen_pipeline, replace_target};
 use molgfx_gpu::{
-    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, ColorTarget,
-    CommandEncoder as _, Device, LoadOp, PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _,
-    RenderPipelineDesc, SamplerDesc, ShaderModuleDesc, ShaderStages, TextureFormat,
+    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, CommandEncoder as _,
+    Device, LoadOp, RenderPassDesc, RenderPassEncoder as _, SamplerDesc, ShaderModuleDesc,
+    ShaderStages, TextureFormat,
 };
 
 #[derive(Debug)]
@@ -52,20 +53,15 @@ impl<D: Device> TemporalPass<D> {
             label: "temporal resolve",
             wgsl: molgfx_shaders::TEMPORAL_RESOLVE,
         })?;
-        let pipeline = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "temporal HDR resolve",
-            layouts: &[Some(group0), Some(&layout)],
-            shader: &shader,
-            vs_entry: "vs_fullscreen",
-            fs_entry: Some("fs_temporal_resolve"),
-            color_targets: &[ColorTarget {
-                format: TextureFormat::Rgba16Float,
-                blend: molgfx_gpu::BlendMode::Replace,
-            }],
-            depth: None,
-            constants: &[],
-            topology: PrimitiveTopology::TriangleList,
-        })?;
+        let pipeline = fullscreen_pipeline(
+            device,
+            "temporal HDR resolve",
+            &[Some(group0), Some(&layout)],
+            &shader,
+            "fs_temporal_resolve",
+            replace_target(TextureFormat::Rgba16Float),
+            &[],
+        )?;
         Ok(Self {
             pipeline,
             layout,

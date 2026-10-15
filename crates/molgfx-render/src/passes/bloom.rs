@@ -8,10 +8,11 @@
 use crate::error::RenderError;
 use crate::graph::PassContext;
 use crate::passes::{BLOOM_A_RESOURCE, BLOOM_B_RESOURCE, BLOOM_C_RESOURCE, FrameBindings};
+use crate::passes::{fullscreen_pipeline, replace_target};
 use molgfx_gpu::{
-    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, ColorTarget,
-    CommandEncoder as _, Device, LoadOp, PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _,
-    RenderPipelineDesc, ShaderModuleDesc, ShaderStages, TextureFormat,
+    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, CommandEncoder as _,
+    Device, LoadOp, RenderPassDesc, RenderPassEncoder as _, ShaderModuleDesc, ShaderStages,
+    TextureFormat,
 };
 
 /// Pipelines and the shared single-source layout for the three bloom stages.
@@ -38,20 +39,15 @@ impl<D: Device> BloomPass<D> {
             wgsl: molgfx_shaders::BLOOM,
         })?;
         let stage = |label: &'static str, entry: &'static str| {
-            device.create_render_pipeline(&RenderPipelineDesc {
+            fullscreen_pipeline(
+                device,
                 label,
-                layouts: &[Some(group0), Some(&layout)],
-                shader: &shader,
-                vs_entry: "vs_fullscreen",
-                fs_entry: Some(entry),
-                color_targets: &[ColorTarget {
-                    format: TextureFormat::Rgba16Float,
-                    blend: molgfx_gpu::BlendMode::Replace,
-                }],
-                depth: None,
-                constants: &[],
-                topology: PrimitiveTopology::TriangleList,
-            })
+                &[Some(group0), Some(&layout)],
+                &shader,
+                entry,
+                replace_target(TextureFormat::Rgba16Float),
+                &[],
+            )
         };
         let bright_pipeline = stage("bloom bright pass", "fs_bloom_bright")?;
         let horizontal_pipeline = stage("bloom horizontal blur", "fs_bloom_horizontal")?;

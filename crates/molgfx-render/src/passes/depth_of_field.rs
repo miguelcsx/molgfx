@@ -7,10 +7,11 @@
 use crate::error::RenderError;
 use crate::graph::PassContext;
 use crate::passes::{DOF_RESOURCE, DOF_TILE_RESOURCE, FrameBindings};
+use crate::passes::{fullscreen_pipeline, replace_target};
 use molgfx_gpu::{
-    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, ColorTarget,
-    CommandEncoder as _, Device, LoadOp, PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _,
-    RenderPipelineDesc, ShaderModuleDesc, ShaderStages, TextureFormat,
+    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, CommandEncoder as _,
+    Device, LoadOp, RenderPassDesc, RenderPassEncoder as _, ShaderModuleDesc, ShaderStages,
+    TextureFormat,
 };
 
 /// Pipelines and layouts for the classification and bounded gather stages.
@@ -56,34 +57,24 @@ impl<D: Device> DepthOfFieldPass<D> {
             label: "thin-lens depth of field",
             wgsl: molgfx_shaders::DEPTH_OF_FIELD,
         })?;
-        let classify_pipeline = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "depth-of-field tile classification",
-            layouts: &[Some(group0), Some(&classify_layout)],
-            shader: &shader,
-            vs_entry: "vs_fullscreen",
-            fs_entry: Some("fs_classify_dof"),
-            color_targets: &[ColorTarget {
-                format: TextureFormat::R8Unorm,
-                blend: molgfx_gpu::BlendMode::Replace,
-            }],
-            depth: None,
-            constants: &[],
-            topology: PrimitiveTopology::TriangleList,
-        })?;
-        let resolve_pipeline = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "depth-of-field bounded gather",
-            layouts: &[Some(group0), None, Some(&resolve_layout)],
-            shader: &shader,
-            vs_entry: "vs_fullscreen",
-            fs_entry: Some("fs_resolve_dof"),
-            color_targets: &[ColorTarget {
-                format: TextureFormat::Rgba16Float,
-                blend: molgfx_gpu::BlendMode::Replace,
-            }],
-            depth: None,
-            constants: &[],
-            topology: PrimitiveTopology::TriangleList,
-        })?;
+        let classify_pipeline = fullscreen_pipeline(
+            device,
+            "depth-of-field tile classification",
+            &[Some(group0), Some(&classify_layout)],
+            &shader,
+            "fs_classify_dof",
+            replace_target(TextureFormat::R8Unorm),
+            &[],
+        )?;
+        let resolve_pipeline = fullscreen_pipeline(
+            device,
+            "depth-of-field bounded gather",
+            &[Some(group0), None, Some(&resolve_layout)],
+            &shader,
+            "fs_resolve_dof",
+            replace_target(TextureFormat::Rgba16Float),
+            &[],
+        )?;
         Ok(Self {
             classify_pipeline,
             resolve_pipeline,

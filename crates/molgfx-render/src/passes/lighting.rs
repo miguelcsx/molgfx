@@ -3,10 +3,11 @@
 use crate::error::RenderError;
 use crate::graph::PassContext;
 use crate::passes::{FrameBindings, HDR_RESOURCE};
+use crate::passes::{fullscreen_pipeline, replace_target};
 use molgfx_gpu::{
-    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, ColorTarget,
-    CommandEncoder as _, Device, LoadOp, PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _,
-    RenderPipelineDesc, ShaderModuleDesc, ShaderStages, TextureFormat,
+    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, CommandEncoder as _,
+    Device, LoadOp, RenderPassDesc, RenderPassEncoder as _, ShaderModuleDesc, ShaderStages,
+    TextureFormat,
 };
 
 #[derive(Debug)]
@@ -46,20 +47,15 @@ impl<D: Device> LightingPass<D> {
             wgsl: molgfx_shaders::LIGHTING,
         })?;
         let pipeline = |label, constants| {
-            device.create_render_pipeline(&RenderPipelineDesc {
+            fullscreen_pipeline(
+                device,
                 label,
-                layouts: &[Some(group0), Some(&layout)],
-                shader: &shader,
-                vs_entry: "vs_fullscreen",
-                fs_entry: Some("fs_lighting"),
-                color_targets: &[ColorTarget {
-                    format: TextureFormat::Rgba16Float,
-                    blend: molgfx_gpu::BlendMode::Replace,
-                }],
-                depth: None,
+                &[Some(group0), Some(&layout)],
+                &shader,
+                "fs_lighting",
+                replace_target(TextureFormat::Rgba16Float),
                 constants,
-                topology: PrimitiveTopology::TriangleList,
-            })
+            )
         };
         Ok(Self {
             pipeline: pipeline("HDR deferred lighting", &[])?,

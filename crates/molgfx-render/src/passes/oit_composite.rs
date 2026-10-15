@@ -3,10 +3,11 @@
 use crate::error::RenderError;
 use crate::graph::PassContext;
 use crate::passes::{COMPOSITE_RESOURCE, FrameBindings};
+use crate::passes::{fullscreen_pipeline, replace_target};
 use molgfx_gpu::{
-    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, BlendMode, ColorAttachment,
-    ColorTarget, CommandEncoder as _, Device, LoadOp, PrimitiveTopology, RenderPassDesc,
-    RenderPassEncoder as _, RenderPipelineDesc, ShaderModuleDesc, ShaderStages, TextureFormat,
+    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, CommandEncoder as _,
+    Device, LoadOp, RenderPassDesc, RenderPassEncoder as _, ShaderModuleDesc, ShaderStages,
+    TextureFormat,
 };
 
 #[derive(Debug)]
@@ -34,20 +35,15 @@ impl<D: Device> OitCompositePass<D> {
             label: "weighted transparency composite",
             wgsl: molgfx_shaders::OIT_COMPOSITE,
         })?;
-        let pipeline = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "weighted transparency composite",
-            layouts: &[None, Some(layout)],
-            shader: &shader,
-            vs_entry: "vs_fullscreen",
-            fs_entry: Some("fs_oit_composite"),
-            color_targets: &[ColorTarget {
-                format: TextureFormat::Rgba16Float,
-                blend: BlendMode::Replace,
-            }],
-            depth: None,
-            constants: &[],
-            topology: PrimitiveTopology::TriangleList,
-        })?;
+        let pipeline = fullscreen_pipeline(
+            device,
+            "weighted transparency composite",
+            &[None, Some(layout)],
+            &shader,
+            "fs_oit_composite",
+            replace_target(TextureFormat::Rgba16Float),
+            &[],
+        )?;
         Ok(Self { pipeline })
     }
 

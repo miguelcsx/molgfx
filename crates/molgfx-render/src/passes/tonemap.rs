@@ -4,10 +4,11 @@ use crate::engine::{DisplayGamut, TransferFunction};
 use crate::error::RenderError;
 use crate::graph::{DisplayEncoding, PassContext, PassEnv, ResourceId};
 use crate::passes::{FrameBindings, Lazy};
+use crate::passes::{fullscreen_pipeline, replace_target};
 use molgfx_gpu::{
-    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, ColorTarget,
-    CommandEncoder as _, Device, LoadOp, PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _,
-    RenderPipelineDesc, ShaderModuleDesc, ShaderStages, TextureFormat,
+    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, CommandEncoder as _,
+    Device, LoadOp, RenderPassDesc, RenderPassEncoder as _, ShaderModuleDesc, ShaderStages,
+    TextureFormat,
 };
 
 /// One pipeline per display encoding.
@@ -84,18 +85,14 @@ impl<D: Device> TonemapPass<D> {
         encoding: DisplayEncoding,
         smoothed: bool,
     ) -> Result<D::Pipeline, RenderError> {
-        Ok(env.device.create_render_pipeline(&RenderPipelineDesc {
-            label: "HDR tonemap",
-            layouts: &[Some(&env.scene.group0_layout), Some(&self.layout)],
-            shader: &self.shader,
-            vs_entry: "vs_fullscreen",
-            fs_entry: Some("fs_tonemap"),
-            color_targets: &[ColorTarget {
-                format: self.target_format,
-                blend: molgfx_gpu::BlendMode::Replace,
-            }],
-            depth: None,
-            constants: &[
+        Ok(fullscreen_pipeline(
+            env.device,
+            "HDR tonemap",
+            &[Some(&env.scene.group0_layout), Some(&self.layout)],
+            &self.shader,
+            "fs_tonemap",
+            replace_target(self.target_format),
+            &[
                 ("PRESENTATION_GAMUT_TAG", f64::from(encoding.gamut.tag())),
                 (
                     "PRESENTATION_TRANSFER_TAG",
@@ -103,8 +100,7 @@ impl<D: Device> TonemapPass<D> {
                 ),
                 ("FXAA_ENABLED", f64::from(u8::from(smoothed))),
             ],
-            topology: PrimitiveTopology::TriangleList,
-        })?)
+        )?)
     }
 
     pub(crate) fn record_capture(
@@ -115,20 +111,15 @@ impl<D: Device> TonemapPass<D> {
         target: &D::TextureView,
     ) -> Result<(), RenderError> {
         let pipeline = self.capture.get_or_build(|| {
-            Ok(env.device.create_render_pipeline(&RenderPipelineDesc {
-                label: "linear HDR coverage capture",
-                layouts: &[Some(&env.scene.group0_layout), Some(&self.layout)],
-                shader: &self.shader,
-                vs_entry: "vs_fullscreen",
-                fs_entry: Some("fs_hdr_capture"),
-                color_targets: &[ColorTarget {
-                    format: TextureFormat::Rgba16Float,
-                    blend: molgfx_gpu::BlendMode::Replace,
-                }],
-                depth: None,
-                constants: &[],
-                topology: PrimitiveTopology::TriangleList,
-            })?)
+            Ok(fullscreen_pipeline(
+                env.device,
+                "linear HDR coverage capture",
+                &[Some(&env.scene.group0_layout), Some(&self.layout)],
+                &self.shader,
+                "fs_hdr_capture",
+                replace_target(TextureFormat::Rgba16Float),
+                &[],
+            )?)
         })?;
         let mut pass = encoder.begin_render_pass(&RenderPassDesc {
             label: "linear HDR coverage capture",

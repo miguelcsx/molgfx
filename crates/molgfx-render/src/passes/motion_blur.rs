@@ -9,10 +9,11 @@
 use crate::error::RenderError;
 use crate::graph::PassContext;
 use crate::passes::{FrameBindings, MOTION_BLUR_RESOURCE};
+use crate::passes::{fullscreen_pipeline, replace_target};
 use molgfx_gpu::{
-    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, ColorTarget,
-    CommandEncoder as _, Device, LoadOp, PrimitiveTopology, RenderPassDesc, RenderPassEncoder as _,
-    RenderPipelineDesc, ShaderModuleDesc, ShaderStages, TextureFormat,
+    BindGroupLayoutDesc, BindGroupLayoutEntry, BindingType, ColorAttachment, CommandEncoder as _,
+    Device, LoadOp, RenderPassDesc, RenderPassEncoder as _, ShaderModuleDesc, ShaderStages,
+    TextureFormat,
 };
 
 /// Fullscreen motion-vector gather state.
@@ -48,20 +49,15 @@ impl<D: Device> MotionBlurPass<D> {
             label: "camera-shutter motion blur",
             wgsl: molgfx_shaders::MOTION_BLUR,
         })?;
-        let pipeline = device.create_render_pipeline(&RenderPipelineDesc {
-            label: "camera-shutter motion blur",
-            layouts: &[Some(group0), Some(&layout)],
-            shader: &shader,
-            vs_entry: "vs_fullscreen",
-            fs_entry: Some("fs_motion_blur"),
-            color_targets: &[ColorTarget {
-                format: TextureFormat::Rgba16Float,
-                blend: molgfx_gpu::BlendMode::Replace,
-            }],
-            depth: None,
-            constants: &[],
-            topology: PrimitiveTopology::TriangleList,
-        })?;
+        let pipeline = fullscreen_pipeline(
+            device,
+            "camera-shutter motion blur",
+            &[Some(group0), Some(&layout)],
+            &shader,
+            "fs_motion_blur",
+            replace_target(TextureFormat::Rgba16Float),
+            &[],
+        )?;
         Ok(Self { pipeline, layout })
     }
 
