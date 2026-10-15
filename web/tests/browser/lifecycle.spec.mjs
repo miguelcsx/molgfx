@@ -161,7 +161,7 @@ test("pointer hover highlights a molecule, restores on leave and settles on the 
   const canvas = page.locator("canvas");
   // Software adapters can still be accumulating presentation samples here;
   // the baseline must be the settled image the restored frame converges to.
-  await expect.poll(async () => {
+  const settle = () => expect.poll(async () => {
     const start = await page.evaluate(async () => {
       await window.hoverReview.queue.onSubmittedWorkDone();
       return window.hoverReview.submits();
@@ -169,11 +169,14 @@ test("pointer hover highlights a molecule, restores on leave and settles on the 
     await page.waitForTimeout(200);
     return (await page.evaluate(() => window.hoverReview.submits())) === start;
   }, { timeout: 60000 }).toBe(true);
+  await settle();
   const before = await canvas.screenshot({ path: "../target/vmd-fixed/hover/before.png" });
   await canvas.hover({ position: point });
   await expect(canvas).toHaveClass(/is-hovering-entity/);
   await page.waitForTimeout(750);
   expect((await canvas.screenshot({ path: "../target/vmd-fixed/hover/highlight.png" })).equals(before)).toBe(false);
+  // The highlight accumulates samples on software adapters before it settles.
+  await settle();
   const settled = await page.evaluate(() => window.hoverReview.submits());
   await canvas.hover({ position: { x: point.x + 1, y: point.y } });
   await page.waitForTimeout(350);
