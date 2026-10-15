@@ -69,7 +69,7 @@ path = "src/bin/frame_time.rs"
 
 [[bin]]
 name = "parity"
-path = "src/bin/parity.rs"
+path = "src/bin/parity/main.rs"
 
 [[bin]]
 name = "trajectory_video"
