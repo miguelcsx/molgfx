@@ -14,7 +14,7 @@ use molgfx_core::{PlacedStructure, Scene, StructureHandle};
 use molgfx_math::{Aabb, Camera, Vec3};
 
 #[cfg(test)]
-#[path = "streaming_tests.rs"]
+#[path = "plan_tests.rs"]
 mod tests;
 
 /// Stable identity of one biological cluster.

@@ -9,7 +9,6 @@ use super::plan::{LodFrame, LodIndex};
 use crate::LodLevel;
 use molgfx_core::{CoreError, PrimitiveHandle, RepresentationHandle, Scene, StructureHandle};
 
-#[path = "lod_scene_helpers.rs"]
 mod helpers;
 use helpers::{
     bind_native, binding, clamp_unit, has_native_binding, set_binding_alpha, set_detail_alpha,

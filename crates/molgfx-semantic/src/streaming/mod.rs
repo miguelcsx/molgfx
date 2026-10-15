@@ -2,7 +2,6 @@
 
 mod bricks;
 mod lod_scene;
-#[path = "streaming.rs"]
 pub(crate) mod plan;
 mod planner;
 mod spatial;
