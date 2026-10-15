@@ -69,95 +69,60 @@ impl ControlValue for bool {
     }
 }
 
-impl ControlValue for u8 {
-    const KIND: OptionKind = OptionKind::Integer;
-    type Native = u8;
-    fn parse(text: &str) -> Result<Self, String> {
-        text.parse()
-            .map_err(|_| format!("'{text}' is not an integer between zero and 255"))
-    }
-    fn native(self) -> u8 {
-        self
-    }
-    fn word(self) -> String {
-        self.to_string()
-    }
+/// Declares an unsigned integer control with its range in the error text.
+macro_rules! integer {
+    ($type:ty, $range:literal) => {
+        impl ControlValue for $type {
+            const KIND: OptionKind = OptionKind::Integer;
+            type Native = $type;
+
+            fn parse(text: &str) -> Result<Self, String> {
+                text.parse()
+                    .map_err(|_| format!("'{text}' is not an integer between {}", $range))
+            }
+
+            fn native(self) -> $type {
+                self
+            }
+
+            fn word(self) -> String {
+                self.to_string()
+            }
+        }
+    };
 }
 
-impl ControlValue for u16 {
-    const KIND: OptionKind = OptionKind::Integer;
-    type Native = u16;
-    fn parse(text: &str) -> Result<Self, String> {
-        text.parse()
-            .map_err(|_| format!("'{text}' is not an integer between zero and 65535"))
-    }
-    fn native(self) -> u16 {
-        self
-    }
-    fn word(self) -> String {
-        self.to_string()
-    }
+integer!(u8, "zero and 255");
+integer!(u16, "zero and 65535");
+
+/// Declares a validated scalar control of the given kind.
+macro_rules! scalar_control {
+    ($type:ty, $kind:ident) => {
+        impl ControlValue for $type {
+            const KIND: OptionKind = OptionKind::$kind;
+            type Native = f32;
+
+            fn parse(text: &str) -> Result<Self, String> {
+                let value = text
+                    .parse::<f32>()
+                    .map_err(|_| format!("'{text}' is not a number"))?;
+                Self::new(value).map_err(str::to_owned)
+            }
+
+            fn native(self) -> f32 {
+                self.get()
+            }
+
+            fn word(self) -> String {
+                self.to_string()
+            }
+        }
+    };
 }
 
-impl ControlValue for Positive {
-    const KIND: OptionKind = OptionKind::Positive;
-    type Native = f32;
-
-    fn parse(text: &str) -> Result<Self, String> {
-        let value = text
-            .parse::<f32>()
-            .map_err(|_| format!("'{text}' is not a number"))?;
-        Self::new(value).map_err(str::to_owned)
-    }
-
-    fn native(self) -> f32 {
-        self.get()
-    }
-
-    fn word(self) -> String {
-        self.to_string()
-    }
-}
-
-impl ControlValue for NonNegative {
-    const KIND: OptionKind = OptionKind::NonNegative;
-    type Native = f32;
-
-    fn parse(text: &str) -> Result<Self, String> {
-        let value = text
-            .parse::<f32>()
-            .map_err(|_| format!("'{text}' is not a number"))?;
-        Self::new(value).map_err(str::to_owned)
-    }
-
-    fn native(self) -> f32 {
-        self.get()
-    }
-
-    fn word(self) -> String {
-        self.to_string()
-    }
-}
-
-impl ControlValue for Finite {
-    const KIND: OptionKind = OptionKind::Finite;
-    type Native = f32;
-
-    fn parse(text: &str) -> Result<Self, String> {
-        let value = text
-            .parse::<f32>()
-            .map_err(|_| format!("'{text}' is not a number"))?;
-        Self::new(value).map_err(str::to_owned)
-    }
-
-    fn native(self) -> f32 {
-        self.get()
-    }
-
-    fn word(self) -> String {
-        self.to_string()
-    }
-}
+scalar_control!(Positive, Positive);
+scalar_control!(NonNegative, NonNegative);
+scalar_control!(Finite, Finite);
 
 /// Declares a word-valued control type from its spellings.
 macro_rules! choice {
