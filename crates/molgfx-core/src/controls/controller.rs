@@ -20,16 +20,16 @@ const PAN_SPEED: f32 = 1.5e-3;
 /// The inspection default: rotation about the target in any direction, no
 /// fixed pole, so a molecule can be tumbled freely.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct ArcballController {
-    dragging: bool,
-    panning: bool,
-    last: Option<(f32, f32)>,
-}
+pub struct ArcballController(DragState);
 
 /// Orbit: like arcball, but the horizon stays level (yaw around world +Y,
 /// clamped pitch).
 #[derive(Clone, Copy, Debug, Default)]
-pub struct OrbitController {
+pub struct OrbitController(DragState);
+
+/// Pointer state shared by the tumbling controllers.
+#[derive(Clone, Copy, Debug, Default)]
+struct DragState {
     dragging: bool,
     panning: bool,
     last: Option<(f32, f32)>,
@@ -86,9 +86,15 @@ fn pan(camera: &mut Camera, dx: f32, dy: f32) {
     camera.target += shift;
 }
 
-impl ArcballController {
-    /// Feeds one event; mutates the camera in place.
-    pub fn update(&mut self, event: InputEvent, camera: &mut Camera) {
+impl DragState {
+    /// Feeds one event: right/middle drags pan, left drags call `tumble`
+    /// with the pixel delta, scroll and pinch zoom.
+    fn update(
+        &mut self,
+        event: InputEvent,
+        camera: &mut Camera,
+        tumble: impl FnOnce(&mut Camera, f32, f32),
+    ) {
         match event {
             InputEvent::PointerButton {
                 button: Button::Left,
@@ -112,16 +118,7 @@ impl ArcballController {
                         pan(camera, dx, dy);
                     }
                 } else if let Some((dx, dy)) = drag_delta(&mut self.last, self.dragging, x, y) {
-                    // Tumble: yaw around the camera's own up, pitch around
-                    // its right axis; no fixed pole.
-                    let offset = camera.eye - camera.target;
-                    let view_dir = -offset.normalize_or_zero();
-                    let right = view_dir.cross(camera.up).normalize_or_zero();
-                    let yaw = Quat::from_axis_angle(camera.up, -dx * ROTATE_SPEED);
-                    let pitch = Quat::from_axis_angle(right, -dy * ROTATE_SPEED);
-                    let rotation = yaw * pitch;
-                    camera.eye = camera.target + rotation * offset;
-                    camera.up = (rotation * camera.up).normalize_or_zero();
+                    tumble(camera, dx, dy);
                 }
             }
             InputEvent::Scroll { delta } => zoom(camera, ZOOM_STEP.powf(delta)),
@@ -135,55 +132,47 @@ impl ArcballController {
     }
 }
 
+/// Free tumble: yaw around the camera's own up, pitch around its right
+/// axis; no fixed pole.
+fn arcball_tumble(camera: &mut Camera, dx: f32, dy: f32) {
+    let offset = camera.eye - camera.target;
+    let view_dir = -offset.normalize_or_zero();
+    let right = view_dir.cross(camera.up).normalize_or_zero();
+    let yaw = Quat::from_axis_angle(camera.up, -dx * ROTATE_SPEED);
+    let pitch = Quat::from_axis_angle(right, -dy * ROTATE_SPEED);
+    let rotation = yaw * pitch;
+    camera.eye = camera.target + rotation * offset;
+    camera.up = (rotation * camera.up).normalize_or_zero();
+}
+
+/// Level-horizon tumble: yaw around world +Y, clamped pitch.
+fn orbit_tumble(camera: &mut Camera, dx: f32, dy: f32) {
+    let offset = camera.eye - camera.target;
+    let radius = offset.length().max(1e-4);
+    let mut yaw = offset.z.atan2(offset.x);
+    let mut pitch = (offset.y / radius).clamp(-1.0, 1.0).asin();
+    yaw += dx * ROTATE_SPEED;
+    pitch = (pitch + dy * ROTATE_SPEED).clamp(
+        -std::f32::consts::FRAC_PI_2 + 0.01,
+        std::f32::consts::FRAC_PI_2 - 0.01,
+    );
+    let (sp, cp) = pitch.sin_cos();
+    let (sy, cy) = yaw.sin_cos();
+    camera.eye = camera.target + Vec3::new(cp * cy, sp, cp * sy) * radius;
+    camera.up = Vec3::Y;
+}
+
+impl ArcballController {
+    /// Feeds one event; mutates the camera in place.
+    pub fn update(&mut self, event: InputEvent, camera: &mut Camera) {
+        self.0.update(event, camera, arcball_tumble);
+    }
+}
+
 impl OrbitController {
     /// Feeds one event; mutates the camera in place, keeping +Y up.
     pub fn update(&mut self, event: InputEvent, camera: &mut Camera) {
-        match event {
-            InputEvent::PointerButton {
-                button: Button::Left,
-                pressed,
-                ..
-            } => {
-                self.dragging = pressed;
-                self.last = None;
-            }
-            InputEvent::PointerButton {
-                button: Button::Right | Button::Middle,
-                pressed,
-                ..
-            } => {
-                self.panning = pressed;
-                self.last = None;
-            }
-            InputEvent::PointerMove { x, y } => {
-                if self.panning {
-                    if let Some((dx, dy)) = drag_delta(&mut self.last, true, x, y) {
-                        pan(camera, dx, dy);
-                    }
-                } else if let Some((dx, dy)) = drag_delta(&mut self.last, self.dragging, x, y) {
-                    let offset = camera.eye - camera.target;
-                    let radius = offset.length().max(1e-4);
-                    let mut yaw = offset.z.atan2(offset.x);
-                    let mut pitch = (offset.y / radius).clamp(-1.0, 1.0).asin();
-                    yaw += dx * ROTATE_SPEED;
-                    pitch = (pitch + dy * ROTATE_SPEED).clamp(
-                        -std::f32::consts::FRAC_PI_2 + 0.01,
-                        std::f32::consts::FRAC_PI_2 - 0.01,
-                    );
-                    let (sp, cp) = pitch.sin_cos();
-                    let (sy, cy) = yaw.sin_cos();
-                    camera.eye = camera.target + Vec3::new(cp * cy, sp, cp * sy) * radius;
-                    camera.up = Vec3::Y;
-                }
-            }
-            InputEvent::Scroll { delta } => zoom(camera, ZOOM_STEP.powf(delta)),
-            InputEvent::Pinch { scale } => {
-                if scale > 0.0 {
-                    zoom(camera, 1.0 / scale);
-                }
-            }
-            InputEvent::Key { .. } => {}
-        }
+        self.0.update(event, camera, orbit_tumble);
     }
 }
 
