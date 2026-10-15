@@ -10,6 +10,9 @@ pub(crate) trait Locked<T> {
 
 impl<T> Locked<T> for Mutex<T> {
     fn locked(&self) -> MutexGuard<'_, T> {
-        self.lock().unwrap_or_else(|error| panic!("{error}"))
+        match self.lock() {
+            Ok(guard) => guard,
+            Err(error) => panic!("{error}"),
+        }
     }
 }
