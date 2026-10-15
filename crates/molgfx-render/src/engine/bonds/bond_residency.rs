@@ -3,10 +3,12 @@
 #[path = "bond_residency_support.rs"]
 mod support;
 
-use super::bond_draw_plan::{
+use crate::engine::bond_draw_plan::{
     PagedBondGpu, ResidentAtomPage, ResidentBondPlacement, ResidentBondRange,
 };
-use super::{BondChunkPlacement, ChunkPlacementError, ChunkPlacementId, ChunkPlacementStatus};
+use crate::engine::{
+    BondChunkPlacement, ChunkPlacementError, ChunkPlacementId, ChunkPlacementStatus,
+};
 use crate::residency::LazyUploadRing;
 use crate::{RenderError, ResidencyConfig};
 use hashbrown::HashMap;
@@ -71,7 +73,7 @@ impl<D: Device> BondGpuResidency<D> {
     pub(crate) fn new(
         device: &D,
         config: ResidencyConfig,
-    ) -> Result<Self, super::ChunkResidencyError> {
+    ) -> Result<Self, crate::engine::ChunkResidencyError> {
         let arena = PagedArena::new(config.page_size, config.page_count)?;
         let uploads = LazyUploadRing::new(config.uploads)?;
         let buffer = device.create_buffer(&BufferDesc {
@@ -107,9 +109,9 @@ impl<D: Device> BondGpuResidency<D> {
         ticket: ResidencyTicket,
         payload: &ChunkPayload,
         atoms: &[ResidentAtomPage],
-    ) -> Result<(), super::ChunkResidencyError> {
+    ) -> Result<(), crate::engine::ChunkResidencyError> {
         if self.tracked.len() == self.tracked.capacity() {
-            return Err(super::ChunkResidencyError::TrackingCapacity);
+            return Err(crate::engine::ChunkResidencyError::TrackingCapacity);
         }
         if !endpoints_resident(payload, atoms)? {
             self.insert_tracked(BondState::Blocked {
@@ -131,22 +133,22 @@ impl<D: Device> BondGpuResidency<D> {
         payload: ChunkPayload,
         atoms: &[ResidentAtomPage],
         announce: bool,
-    ) -> Result<(), super::ChunkResidencyError> {
+    ) -> Result<(), crate::engine::ChunkResidencyError> {
         let ChunkPayload::ProviderBond(bonds) = &payload else {
-            return Err(super::ChunkResidencyError::UnsupportedPayload);
+            return Err(crate::engine::ChunkResidencyError::UnsupportedPayload);
         };
         let rows = bonds.descriptor().rows();
         if rows == 0 {
-            return Err(super::ChunkResidencyError::EmptyChunk);
+            return Err(crate::engine::ChunkResidencyError::EmptyChunk);
         }
         self.scratch.clear();
         self.scratch
             .try_reserve(rows as usize)
-            .map_err(|_| super::ChunkResidencyError::SizeOverflow)?;
+            .map_err(|_| crate::engine::ChunkResidencyError::SizeOverflow)?;
         for local in 0..rows {
-            let record = bonds
-                .record(molframe::LocalRow::new(local))
-                .map_err(|_| super::ChunkResidencyError::ProviderBondRecord { local_row: local })?;
+            let record = bonds.record(molframe::LocalRow::new(local)).map_err(|_| {
+                crate::engine::ChunkResidencyError::ProviderBondRecord { local_row: local }
+            })?;
             self.scratch.push(PagedBondGpu {
                 coordinate_a: resolve_endpoint(
                     atoms,
@@ -163,8 +165,8 @@ impl<D: Device> BondGpuResidency<D> {
         }
         self.ensure_buffer(device)?;
         let bytes = bytemuck::cast_slice(self.scratch.as_slice());
-        let len =
-            u64::try_from(bytes.len()).map_err(|_| super::ChunkResidencyError::SizeOverflow)?;
+        let len = u64::try_from(bytes.len())
+            .map_err(|_| crate::engine::ChunkResidencyError::SizeOverflow)?;
         let allocation = self.arena.allocate(len)?;
         let reservation = match self.uploads.ensure()?.reserve(bytes.len()) {
             Ok(value) => value,
@@ -212,7 +214,7 @@ impl<D: Device> BondGpuResidency<D> {
         queue: &D::Queue,
         atoms: &[ResidentAtomPage],
         completed_out: &mut Vec<ResidencyTicket>,
-    ) -> Result<(), super::ChunkResidencyError> {
+    ) -> Result<(), crate::engine::ChunkResidencyError> {
         let completed = queue.completed_fence(device)?;
         if let Some(uploads) = self.uploads.get_mut() {
             let _ = uploads.retire(completed);
@@ -271,7 +273,7 @@ impl<D: Device> BondGpuResidency<D> {
         device: &D,
         queue: &D::Queue,
         atoms: &[ResidentAtomPage],
-    ) -> Result<(), super::ChunkResidencyError> {
+    ) -> Result<(), crate::engine::ChunkResidencyError> {
         let mut index = 0;
         while index < self.tracked.len() {
             let BondState::Blocked {
@@ -308,7 +310,7 @@ impl<D: Device> BondGpuResidency<D> {
         &mut self,
         dataset: molgfx_core::DatasetId,
         span: ChunkSpan,
-    ) -> Result<(), super::ChunkResidencyError> {
+    ) -> Result<(), crate::engine::ChunkResidencyError> {
         let mut changed = false;
         for state in &mut self.tracked {
             if !depends_on(state, dataset, span)? {
@@ -342,7 +344,7 @@ impl<D: Device> BondGpuResidency<D> {
     pub(crate) fn cancel_or_evict(
         &mut self,
         ticket: ResidencyTicket,
-    ) -> Result<(), super::ChunkResidencyError> {
+    ) -> Result<(), crate::engine::ChunkResidencyError> {
         let Some(&index) = self.tracked_index.get(&ticket_key(ticket)) else {
             return Ok(());
         };
@@ -364,7 +366,7 @@ impl<D: Device> BondGpuResidency<D> {
         &mut self,
         key: molgfx_core::ResidencyKey,
         generation: u64,
-    ) -> Result<(), super::ChunkResidencyError> {
+    ) -> Result<(), crate::engine::ChunkResidencyError> {
         let Some(&index) = self.tracked_index.get(&(key, generation)) else {
             return Ok(());
         };

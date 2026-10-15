@@ -1,6 +1,6 @@
 //! Compact plans and endpoint references for paged provider bonds.
 
-use super::BondChunkPlacement;
+use crate::engine::BondChunkPlacement;
 use molgfx_core::{ChunkId, ChunkSpan, DatasetId, LogicalRow, ResidencyTicket};
 use molgfx_gpu::ArenaAllocation;
 

@@ -1,5 +1,9 @@
 //! The engine: owns the device, the graph and every pass's state.
 
+mod bonds;
+pub(crate) use bonds::bond_draw_plan;
+use bonds::bond_residency;
+
 mod chunk;
 pub(crate) use chunk::chunk_draw_plan;
 use chunk::chunk_placement;
@@ -10,8 +14,6 @@ use chunk::derived_cache;
 
 mod adaptive;
 mod backdrop;
-pub(crate) mod bond_draw_plan;
-mod bond_residency;
 mod config;
 mod cpu_stages;
 mod depth_cue;
