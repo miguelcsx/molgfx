@@ -29,6 +29,7 @@ pub(in crate::scene_gpu) struct RibbonSlot<D: Device> {
     args: Option<D::Buffer>,
     group: Option<D::BindGroup>,
     clipping: Option<D::Buffer>,
+    distinct_previous: bool,
     index_count: u32,
 }
 
@@ -45,6 +46,7 @@ impl<D: Device> RibbonSlot<D> {
             args: None,
             group: None,
             clipping: None,
+            distinct_previous: false,
             index_count: 0,
         }
     }
@@ -96,7 +98,12 @@ impl<D: Device> RibbonSlot<D> {
             self.index_count,
             &mut self.args,
         )?;
-        self.sync_clipping(input.device, input.queue, input.representation)?;
+        self.sync_clipping(
+            input.device,
+            input.queue,
+            input.representation,
+            input.distinct_previous,
+        )?;
         if input.mesh.vertices.capacity() > RETAINED_SCRATCH_VERTICES {
             *input.mesh = RibbonMesh::default();
         }
@@ -108,6 +115,7 @@ impl<D: Device> RibbonSlot<D> {
         device: &D,
         queue: &D::Queue,
         representation: &Representation,
+        distinct_previous: bool,
     ) -> Result<(), RenderError> {
         if self.clipping.is_none() {
             self.clipping = Some(device.create_buffer(&BufferDesc {
@@ -123,7 +131,25 @@ impl<D: Device> RibbonSlot<D> {
                 bytemuck::bytes_of(&ClipUniforms::new(representation)),
             );
         }
+        self.distinct_previous = false;
+        self.set_distinct_previous(queue, distinct_previous);
         Ok(())
+    }
+
+    /// Tells the vertex stage whether the previous coordinates differ from the
+    /// current ones; when they do not, it deforms each vertex once.
+    pub(in crate::scene_gpu) fn set_distinct_previous(&mut self, queue: &D::Queue, distinct: bool) {
+        if self.distinct_previous == distinct {
+            return;
+        }
+        if let Some(clipping) = &self.clipping {
+            queue.write_buffer(
+                clipping,
+                ClipUniforms::DISTINCT_PREVIOUS_OFFSET,
+                bytemuck::bytes_of(&if distinct { 2.0_f32 } else { 1.0_f32 }),
+            );
+            self.distinct_previous = distinct;
+        }
     }
 
     pub(in crate::scene_gpu) fn bind(
@@ -431,6 +457,8 @@ pub(in crate::scene_gpu) struct RibbonSync<'a, D: Device> {
     pub(in crate::scene_gpu) representation: &'a Representation,
     pub(in crate::scene_gpu) selection: &'a AtomSelection,
     pub(in crate::scene_gpu) mesh: &'a mut RibbonMesh,
+    /// Whether the structure carries previous-sample coordinates.
+    pub(in crate::scene_gpu) distinct_previous: bool,
     /// The columns the colour scheme, its overlay and its appearance read.
     pub(in crate::scene_gpu) color: molgfx_geometry::ColorContext<'a>,
 }

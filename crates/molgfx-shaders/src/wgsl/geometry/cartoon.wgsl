@@ -243,13 +243,18 @@ fn vs_cartoon(
             false,
         );
 
-    let previous =
-        ribbon_deform(
-            vertex_id,
-            base_position,
-            base_normal,
-            true,
-        );
+    // Lane 2.0 marks previous coordinates held apart from the current ones;
+    // otherwise the previous deformation is the current one.
+    var previous = current;
+    if ribbon_uniforms.tube.w > 1.5 {
+        previous =
+            ribbon_deform(
+                vertex_id,
+                base_position,
+                base_normal,
+                true,
+            );
+    }
 
     let current_enabled =
         current.enabled != 0u;

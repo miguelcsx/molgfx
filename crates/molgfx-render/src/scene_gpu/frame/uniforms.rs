@@ -374,6 +374,10 @@ pub(in crate::scene_gpu) struct ClipUniforms {
 }
 
 impl ClipUniforms {
+    /// Byte offset of the lane that says whether previous coordinates differ.
+    pub(in crate::scene_gpu) const DISTINCT_PREVIOUS_OFFSET: u64 =
+        std::mem::offset_of!(Self, tube) as u64 + 3 * std::mem::size_of::<f32>() as u64;
+
     pub(in crate::scene_gpu) fn for_material_and_clipping(
         material: Material,
         clipping: &ClipSet,

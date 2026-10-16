@@ -312,6 +312,8 @@ impl<D: Device> GpuSlot<D> {
             input.structure_gpu,
             input.asset_arena,
         );
+        self.ribbon
+            .set_distinct_previous(input.queue, input.structure_gpu.has_previous_coords());
         self.ribbon.bind(
             input.device,
             input.ribbon_layout,
@@ -396,12 +398,17 @@ impl<D: Device> GpuSlot<D> {
                 representation: input.representation,
                 selection: input.selection,
                 mesh: input.ribbon,
+                distinct_previous: input.structure_gpu.has_previous_coords(),
                 color: input.color,
             })?;
         } else {
             if representation_changed {
-                self.ribbon
-                    .sync_clipping(input.device, input.queue, input.representation)?;
+                self.ribbon.sync_clipping(
+                    input.device,
+                    input.queue,
+                    input.representation,
+                    input.structure_gpu.has_previous_coords(),
+                )?;
             }
             if self
                 .synced

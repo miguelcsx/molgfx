@@ -179,6 +179,11 @@ impl<D: Device> GpuStructure<D> {
         arena.entry(binding, self.asset.coordinates())
     }
 
+    /// Whether the previous coordinates are a buffer apart from the current ones.
+    pub(in crate::scene_gpu) fn has_previous_coords(&self) -> bool {
+        self.trajectory.previous_output().is_some()
+    }
+
     pub(in crate::scene_gpu) fn previous_coords_entry<'a>(
         &'a self,
         arena: &'a AssetArena<D>,
