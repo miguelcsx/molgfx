@@ -7,9 +7,11 @@
 //! Each scenario reports nanosecond percentiles of the blocking `pick` call and
 //! the heap allocations one call makes. `idle` waits for the previous frame
 //! before it asks; `in_flight` asks straight after submitting a frame, which is
-//! the case a hover meets on every pointer move.
+//! the case a hover meets on every pointer move. `stream` asks through
+//! `request_pick`, drives `poll` until the answer arrives and takes it; its
+//! allocation count covers the request, every poll and the take.
 
-use molgfx::{Renderer, Scene, profile, rep, sel};
+use molgfx::{PickStream, Renderer, Scene, StreamPick, profile, rep, sel};
 use molgfx_bench::{HeapMeasurement, measure_heap, percentile, synthetic};
 use std::error::Error;
 use std::io;
@@ -83,6 +85,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     let (x, y) = (options.size.0 / 2, options.size.1 / 2);
     let total = options.warmup + options.picks;
+    let mut answers: Vec<StreamPick> = Vec::with_capacity(8);
+    let mut streamed = Vec::with_capacity(options.picks);
+    let mut streamed_heap = Vec::with_capacity(options.picks);
 
     let mut idle = Vec::with_capacity(options.picks);
     let mut idle_heap = Vec::with_capacity(options.picks);
@@ -109,8 +114,29 @@ fn main() -> Result<(), Box<dyn Error>> {
             in_flight.push(elapsed);
             in_flight_heap.push(heap);
         }
+
+        renderer.render_to_host(&scene, &camera, &target)?;
+        let started = Instant::now();
+        let (heap, outcome) = measure_heap(|| -> Result<(), Box<dyn Error>> {
+            renderer.request_pick(PickStream::Hover, x, y)?;
+            loop {
+                renderer.poll()?;
+                renderer.take_picks(&scene, &mut answers);
+                if !answers.is_empty() {
+                    answers.clear();
+                    return Ok(());
+                }
+            }
+        });
+        outcome?;
+        let elapsed = u64::try_from(started.elapsed().as_nanos())?;
+        if round >= options.warmup {
+            streamed.push(elapsed);
+            streamed_heap.push(heap);
+        }
     }
     report("idle", &mut idle, &idle_heap);
     report("in_flight", &mut in_flight, &in_flight_heap);
+    report("stream", &mut streamed, &streamed_heap);
     Ok(())
 }
