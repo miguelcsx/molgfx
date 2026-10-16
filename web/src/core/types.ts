@@ -1,6 +1,7 @@
 import type {
   Camera,
   PickReadback,
+  PickStream,
   Renderer,
   Scene,
   Session,
@@ -11,5 +12,6 @@ export type RuntimeModule = typeof Runtime;
 export type WasmRenderer = Renderer;
 export type WasmScene = Scene;
 export type WasmPickReadback = PickReadback;
+export type WasmPickStream = PickStream;
 export type WasmCamera = Camera;
 export type WasmSession = Session;

@@ -2,6 +2,7 @@ import { dimensions } from "./camera.js";
 import type {
   WasmCamera,
   WasmPickReadback,
+  WasmPickStream,
   WasmRenderer,
   WasmScene,
 } from "../core/types.js";
@@ -19,6 +20,18 @@ interface PendingHover {
   resolve(result: PickResult): void;
   reject(error: unknown): void;
 }
+interface HoverInFlight extends PendingHover {
+  epoch: number;
+}
+interface StreamAnswer {
+  stream: string;
+  x: number;
+  y: number;
+  pick?: unknown;
+  error?: string;
+}
+/** Wire value of `PickStream.Hover`; the enum itself is a runtime export. */
+const HOVER_STREAM = 0 satisfies WasmPickStream;
 /** One demand scheduler and one detached readback queue per canvas. */
 export class RenderLoop {
   readonly #canvas: HTMLCanvasElement;
@@ -36,7 +49,8 @@ export class RenderLoop {
   #pickTail: Promise<void> = Promise.resolve();
   #hoverFrame: number | undefined;
   #hoverPending: PendingHover | undefined;
-  #hoverInFlight = false;
+  #hoverInFlight: HoverInFlight | undefined;
+  #streamFrame: number | undefined;
   #viewEpoch = 0;
   #hoverMemo:
     { x: number; y: number; epoch: number; result: PickResult } | undefined;
@@ -262,23 +276,78 @@ export class RenderLoop {
       this.#hoverFrame = undefined;
       const pending = this.#hoverPending;
       this.#hoverPending = undefined;
-      if (!pending || this.#disposed) {
+      if (!pending || this.#disposed || !this.hasScene) {
         pending?.resolve({ performed: false });
         return;
       }
-      this.#hoverInFlight = true;
-      const epoch = this.#viewEpoch;
-      void this.pick(pending.x, pending.y)
-        .then((result) => {
-          if (result.performed && epoch === this.#viewEpoch)
-            this.#hoverMemo = { x: pending.x, y: pending.y, epoch, result };
-          pending.resolve(result);
-        }, pending.reject)
-        .finally(() => {
-          this.#hoverInFlight = false;
-          this.#scheduleHover();
-        });
+      try {
+        // Picking reuses settled buffers; see `pick`.
+        if (this.#needsDraw()) this.drawNow();
+        this.#renderer.requestPick(HOVER_STREAM, pending.x, pending.y);
+      } catch (error) {
+        pending.reject(error);
+        this.#scheduleHover();
+        return;
+      }
+      this.#hoverInFlight = { ...pending, epoch: this.#viewEpoch };
+      this.#pollStreams();
     });
+  }
+  #needsDraw(): boolean {
+    return (
+      this.#frame !== undefined ||
+      this.#cameraDirty ||
+      this.#sizeDirty ||
+      this.#pixelRatio !== (window.devicePixelRatio || 1)
+    );
+  }
+  /** One non-blocking poll per animation frame until the hover answers. */
+  #pollStreams(): void {
+    if (this.#streamFrame !== undefined) return;
+    this.#streamFrame = requestAnimationFrame(() => {
+      this.#streamFrame = undefined;
+      const flight = this.#hoverInFlight;
+      if (!flight || this.#disposed) return;
+      try {
+        if (this.#renderer.poll() > 0) {
+          const answers = JSON.parse(
+            this.#renderer.takePicks(this.#scene),
+          ) as StreamAnswer[];
+          let answer: StreamAnswer | undefined;
+          for (const entry of answers)
+            if (entry.stream === "hover") answer = entry;
+          if (answer) {
+            this.#finishHover(flight, answer);
+            return;
+          }
+        }
+      } catch (error) {
+        this.#hoverInFlight = undefined;
+        flight.reject(error);
+        this.#scheduleHover();
+        return;
+      }
+      this.#pollStreams();
+    });
+  }
+  #finishHover(flight: HoverInFlight, answer: StreamAnswer): void {
+    this.#hoverInFlight = undefined;
+    if (answer.error !== undefined) {
+      flight.reject(new Error(answer.error));
+    } else {
+      // Camera motion, resize, edits and scene replacement invalidate the
+      // image a pick belongs to, exactly as for a detached readback.
+      const result: PickResult =
+        flight.epoch !== this.#viewEpoch
+          ? { performed: false }
+          : answer.pick === null || answer.pick === undefined
+            ? { performed: true }
+            : { performed: true, result: JSON.stringify(answer.pick) };
+      if (result.performed)
+        this.#hoverMemo = { x: flight.x, y: flight.y, epoch: flight.epoch, result };
+      flight.resolve(result);
+    }
+    this.#scheduleHover();
   }
   settled(): Promise<void> {
     return this.#pickTail;
@@ -289,6 +358,10 @@ export class RenderLoop {
     this.invalidatePicks();
     if (this.#frame !== undefined) cancelAnimationFrame(this.#frame);
     if (this.#hoverFrame !== undefined) cancelAnimationFrame(this.#hoverFrame);
+    if (this.#streamFrame !== undefined) cancelAnimationFrame(this.#streamFrame);
+    this.#streamFrame = undefined;
+    this.#hoverInFlight?.resolve({ performed: false });
+    this.#hoverInFlight = undefined;
     this.#frame = undefined;
     this.#hoverFrame = undefined;
     this.#hoverPending?.resolve({ performed: false });
