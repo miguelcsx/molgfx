@@ -225,7 +225,9 @@ fn delta(counter: &'static str, previous: u64, current: u64) -> Result<u64, Metr
         .ok_or(MetricsError::CounterRegression { counter })
 }
 
-fn percentile(sorted: &[u64], percentile: usize) -> Option<u64> {
+/// The nearest-rank `percentile` of an ascending slice, `None` when it is empty.
+#[must_use]
+pub fn percentile(sorted: &[u64], percentile: usize) -> Option<u64> {
     // Split the multiplication to avoid overflow even for very large slices.
     let rank = (sorted.len() / 100 * percentile
         + ((sorted.len() % 100) * percentile).div_ceil(100))

@@ -12,6 +12,11 @@ autobins = false
 # succeed for it even by accident.
 publish = false
 
+[features]
+# Benchmarks that render into engine-owned host targets, which is the only way
+# to leave a frame in flight without a window.
+host = ["molgfx/host"]
+
 [dependencies]
 thiserror.workspace = true
 molgfx = { path = "../molgfx" }
@@ -78,3 +83,8 @@ path = "src/bin/trajectory_video/main.rs"
 [[bench]]
 name = "interaction_scaling"
 harness = false
+
+[[bin]]
+name = "pick_latency"
+path = "src/bin/pick_latency.rs"
+required-features = ["host"]

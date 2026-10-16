@@ -17,6 +17,6 @@ pub mod synthetic;
 pub use fallback::fallback;
 pub use metrics::{
     CumulativeTelemetry, FrameSample, FrameSummary, HeapMeasurement, MetricsError, measure_heap,
-    summarize,
+    percentile, summarize,
 };
 pub use profile_metadata::profile_metadata_json;
