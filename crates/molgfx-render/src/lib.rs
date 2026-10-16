@@ -28,11 +28,11 @@ pub use engine::{
     FocusTarget, FrameCompleteness, FrameDegradation, FrameMetrics, FrameReport, FrameStatus,
     FrameTiming, GpuTiming, HdrImage, Image, ImageConfig, InstanceChunkPlacement,
     InstanceChunkWindow, LigandPoseStats, LightingEnvironment, MeasuredOutput, MotionBlur,
-    PICK_READBACK_BYTES, PendingPick, Pick, PickEntity, PointChunkPlacement, PresentationEffect,
-    QualityTier, RelationChunkPlacement, RenderMode, RenderProfile, RenderSession,
-    ResidentGenericChunk, ResidentStructureChunk, ResidentTrajectoryChunk, ResolvedRenderPlan,
-    ShapeCueStyle, StereoImages, StereoLayout, StructureChunkPlacement, ToneMapping,
-    TrajectoryChunkWindow, TransferFunction,
+    PICK_READBACK_BYTES, PendingPick, Pick, PickEntity, PickPolicy, PickStream, PickUpdate,
+    PointChunkPlacement, PollReport, PresentationEffect, QualityTier, RelationChunkPlacement,
+    RenderMode, RenderProfile, RenderSession, ResidentGenericChunk, ResidentStructureChunk,
+    ResidentTrajectoryChunk, ResolvedRenderPlan, ShapeCueStyle, StereoImages, StereoLayout,
+    StructureChunkPlacement, ToneMapping, TrajectoryChunkWindow, TransferFunction,
 };
 pub use engine::{CompletedFrame, CpuStages, EffectiveQuality, SurfaceLimit};
 pub(crate) use engine::{

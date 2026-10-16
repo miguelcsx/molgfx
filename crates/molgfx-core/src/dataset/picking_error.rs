@@ -20,6 +20,9 @@ pub enum PickingError {
     /// Every readback buffer is awaiting an earlier pick.
     #[error("every pick readback is already in flight")]
     InFlightExhausted,
+    /// An ordered pick stream already holds every request it can.
+    #[error("the pick stream is full; poll and take its results before asking again")]
+    StreamBusy,
     /// Every slot belongs to the current resident working set.
     #[error(
         "picking resolver working set is full (raise EngineConfig::picking_page_capacity or reduce resident chunks)"

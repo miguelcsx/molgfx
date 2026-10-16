@@ -2,7 +2,8 @@
 
 pub use molgfx_render::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming,
-    MeasuredOutput, PassTiming, PassTimingCoverage, PollOutcome, QualityTier, SurfaceLimit,
+    MeasuredOutput, PassTiming, PassTimingCoverage, PickPolicy, PickStream, PollOutcome,
+    PollReport, QualityTier, SurfaceLimit,
 };
 
 mod device_loss;
@@ -14,6 +15,7 @@ mod host;
 pub use host::{HostFrame, HostOutputFormat, HostTarget};
 mod pick;
 pub use pick::PickReadback;
+pub use pick::StreamPick;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod hdr_image;

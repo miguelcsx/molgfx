@@ -2,9 +2,11 @@
 
 use crate::engine::Engine;
 use crate::error::RenderError;
+use crate::graph::TransientPool;
 use crate::passes::{
     ENTITY_RESOURCE, SEGMENT_LABEL_RESOURCE, SEGMENT_VOLUME_RESOURCE, STRUCTURE_RESOURCE,
 };
+use crate::scene_gpu::GpuScene;
 use molgfx_core::{
     AtomSelection, EntityKind, GlobalPickIdentity, GpuPickToken, PickPageTicket, VolumeSegmentRef,
 };
@@ -230,20 +232,11 @@ impl<D: Device> Engine<D> {
         let Some(pool) = &self.pool else {
             return Ok(None);
         };
-        let (
-            Some(entity_texture),
-            Some(structure_texture),
-            Some(segment_volume_texture),
-            Some(segment_label_texture),
-        ) = (
-            pool.texture(ENTITY_RESOURCE),
-            pool.texture(STRUCTURE_RESOURCE),
-            pool.texture(SEGMENT_VOLUME_RESOURCE),
-            pool.texture(SEGMENT_LABEL_RESOURCE),
-        )
-        else {
+        let mut encoder = self.device.create_command_encoder();
+        let destination = &self.picker.buffers[index].buffer;
+        if !encode_pick_copies::<D>(&mut encoder, pool, (x, y), destination) {
             return Ok(None);
-        };
+        }
         let mut submission = Vec::new();
         submission
             .try_reserve_exact(self.scene_gpu.pick_page_capacity())
@@ -251,40 +244,6 @@ impl<D: Device> Engine<D> {
         submission.resize(self.scene_gpu.pick_page_capacity(), None);
         let mut submission = submission.into_boxed_slice();
         self.scene_gpu.capture_pick_submission(&mut submission)?;
-        let destination = &self.picker.buffers[index].buffer;
-        let mut encoder = self.device.create_command_encoder();
-        encoder.copy_texture_to_buffer(
-            entity_texture,
-            (x, y),
-            (1, 1),
-            READBACK_BYTES,
-            0,
-            destination,
-        );
-        encoder.copy_texture_to_buffer(
-            structure_texture,
-            (x, y),
-            (1, 1),
-            READBACK_BYTES,
-            u64::from(READBACK_BYTES),
-            destination,
-        );
-        encoder.copy_texture_to_buffer(
-            segment_volume_texture,
-            (x, y),
-            (1, 1),
-            READBACK_BYTES,
-            u64::from(READBACK_BYTES) * 2,
-            destination,
-        );
-        encoder.copy_texture_to_buffer(
-            segment_label_texture,
-            (x, y),
-            (1, 1),
-            READBACK_BYTES,
-            u64::from(READBACK_BYTES) * 3,
-            destination,
-        );
         self.queue.submit(encoder);
         Ok(Some(submission))
     }
@@ -294,39 +253,7 @@ impl<D: Device> Engine<D> {
         packed: &[u8],
         submission: &[Option<PickPageTicket>],
     ) -> Result<Option<Pick>, RenderError> {
-        let local_row = pick_field(packed, 0);
-        let resident_page = pick_field(packed, 1);
-        let segment_volume = pick_field(packed, 2);
-        let segment_label = pick_field(packed, 3);
-        if let (Some(source_id), Some(label)) = (read_u32(segment_volume), read_u32(segment_label))
-            && source_id != u32::MAX
-            && let Some(segment) = self.scene_gpu.resolve_segment(source_id, label)
-        {
-            return Ok(Some(Pick {
-                entity: PickEntity::VolumeSegment(segment),
-                selection: AtomSelection::Empty,
-            }));
-        }
-        let (Some(local_row), Some(resident_page)) = (read_u32(local_row), read_u32(resident_page))
-        else {
-            return Ok(None);
-        };
-        let token = GpuPickToken::new(resident_page, local_row);
-        if token == GpuPickToken::NONE {
-            return Ok(None);
-        }
-        let identity = self.scene_gpu.resolve_global_pick(token, submission)?;
-        let selection = match (identity.kind(), u32::try_from(identity.row().get())) {
-            (EntityKind::Atom, Ok(row)) => match row.checked_add(1) {
-                Some(end) => AtomSelection::Range(row..end),
-                None => AtomSelection::Empty,
-            },
-            _ => AtomSelection::Empty,
-        };
-        Ok(Some(Pick {
-            entity: PickEntity::Structure(identity),
-            selection,
-        }))
+        resolve_packed_pick(&self.scene_gpu, packed, submission)
     }
 
     #[cfg(test)]
@@ -357,6 +284,92 @@ impl<D: Device> Engine<D> {
     ) -> Result<GlobalPickIdentity, RenderError> {
         self.scene_gpu.resolve_global_pick(token, submission)
     }
+}
+
+/// Records the four identity-texel copies for one pixel into `destination`.
+/// Returns `false` when the gbuffer is not resident.
+pub(super) fn encode_pick_copies<D: Device>(
+    encoder: &mut D::CommandEncoder,
+    pool: &TransientPool<D>,
+    (x, y): (u32, u32),
+    destination: &D::Buffer,
+) -> bool {
+    let (
+        Some(entity_texture),
+        Some(structure_texture),
+        Some(segment_volume_texture),
+        Some(segment_label_texture),
+    ) = (
+        pool.texture(ENTITY_RESOURCE),
+        pool.texture(STRUCTURE_RESOURCE),
+        pool.texture(SEGMENT_VOLUME_RESOURCE),
+        pool.texture(SEGMENT_LABEL_RESOURCE),
+    )
+    else {
+        return false;
+    };
+    let field = u64::from(READBACK_BYTES);
+    for (index, texture) in [
+        entity_texture,
+        structure_texture,
+        segment_volume_texture,
+        segment_label_texture,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        encoder.copy_texture_to_buffer(
+            texture,
+            (x, y),
+            (1, 1),
+            READBACK_BYTES,
+            field * index as u64,
+            destination,
+        );
+    }
+    true
+}
+
+/// Resolves one packed identity readback against the page generations its
+/// request captured.
+pub(super) fn resolve_packed_pick<D: Device>(
+    scene_gpu: &GpuScene<D>,
+    packed: &[u8],
+    submission: &[Option<PickPageTicket>],
+) -> Result<Option<Pick>, RenderError> {
+    let local_row = pick_field(packed, 0);
+    let resident_page = pick_field(packed, 1);
+    let segment_volume = pick_field(packed, 2);
+    let segment_label = pick_field(packed, 3);
+    if let (Some(source_id), Some(label)) = (read_u32(segment_volume), read_u32(segment_label))
+        && source_id != u32::MAX
+        && let Some(segment) = scene_gpu.resolve_segment(source_id, label)
+    {
+        return Ok(Some(Pick {
+            entity: PickEntity::VolumeSegment(segment),
+            selection: AtomSelection::Empty,
+        }));
+    }
+    let (Some(local_row), Some(resident_page)) = (read_u32(local_row), read_u32(resident_page))
+    else {
+        return Ok(None);
+    };
+    let token = GpuPickToken::new(resident_page, local_row);
+    if token == GpuPickToken::NONE {
+        return Ok(None);
+    }
+    let identity = scene_gpu.resolve_global_pick(token, submission)?;
+    let selection = match (identity.kind(), u32::try_from(identity.row().get())) {
+        (EntityKind::Atom, Ok(row)) => match row.checked_add(1) {
+            Some(end) => AtomSelection::Range(row..end),
+            None => AtomSelection::Empty,
+        },
+        _ => AtomSelection::Empty,
+    };
+    Ok(Some(Pick {
+        entity: PickEntity::Structure(identity),
+        selection,
+    }))
 }
 
 fn readback<D: Device>(device: &D, label: &'static str) -> Result<D::Buffer, RenderError> {

@@ -61,6 +61,7 @@ mod view;
 use view::depth_cue;
 use view::focus_target;
 use view::optics;
+use view::pick_stream;
 use view::picking;
 
 pub use stereo::{StereoImages, StereoLayout};
@@ -93,6 +94,7 @@ pub use init::Engine;
 pub use lighting_environment::LightingEnvironment;
 pub use optics::{DepthOfField, FocusTarget, MotionBlur};
 pub use pass_profiling::{PassTiming, PassTimingCoverage};
+pub use pick_stream::{PickPolicy, PickStream, PickUpdate, PollReport};
 pub use picking::{PICK_READBACK_BYTES, PendingPick, Pick, PickEntity};
 pub use profile::{
     AntiAliasingStyle, BloomStyle, EffectLayer, PresentationEffect, RenderProfile,

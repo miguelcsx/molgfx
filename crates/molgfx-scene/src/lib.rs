@@ -68,16 +68,17 @@ pub use overlay::{
 pub use patch::{PatchOperation, ScenePatch};
 pub use profile::{AntiAliasing, DepthCue, Effect, EffectKind, EffectSet, Quality, RenderProfile};
 pub use property::{PropertySpec, ScalarProperty, ScalarPropertyBinding};
-pub use render::PickReadback;
 pub use render::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming,
-    MeasuredOutput, PassTiming, PassTimingCoverage, PollOutcome, QualityTier, SurfaceLimit,
+    MeasuredOutput, PassTiming, PassTimingCoverage, PickPolicy, PickStream, PollOutcome,
+    PollReport, QualityTier, SurfaceLimit,
 };
 pub use render::{DeviceLossReport, PointCloud, Renderer};
 pub use render::{FrameSchedule, SequenceManifest};
 #[cfg(not(target_arch = "wasm32"))]
 pub use render::{HdrImage, Image, StereoImages, StereoLayout};
 pub use render::{PickKind, PickResult};
+pub use render::{PickReadback, StreamPick};
 
 /// Host interop: render into textures owned by an embedding application.
 ///

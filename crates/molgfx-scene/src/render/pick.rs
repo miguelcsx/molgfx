@@ -9,6 +9,19 @@
 use super::Renderer;
 use crate::{Error, PickKind, PickResult, ResolvedPick, Scene};
 
+/// One stream pick resolved against the live scene.
+#[derive(Debug)]
+pub struct StreamPick {
+    /// The stream that asked.
+    pub stream: super::PickStream,
+    /// Requested pixel column, top-left origin.
+    pub x: u32,
+    /// Requested pixel row, top-left origin.
+    pub y: u32,
+    /// The entity under the pixel, `None` over the background.
+    pub result: Result<Option<ResolvedPick>, Error>,
+}
+
 /// A detached pick readback over one renderer frame.
 ///
 /// It borrows neither the renderer nor its device, so a caller can keep
@@ -33,6 +46,37 @@ impl PickReadback {
 }
 
 impl Renderer {
+    /// Asks for the entity under one target pixel and returns at once.
+    ///
+    /// The answer arrives through [`Self::take_picks`] after later
+    /// [`Self::poll`] calls. A hover stream keeps only its newest request and
+    /// result; an activation stream answers every request in order.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when an ordered stream is full.
+    pub fn request_pick(&mut self, stream: super::PickStream, x: u32, y: u32) -> Result<(), Error> {
+        self.inner.request_pick(stream, x, y).map_err(Error::from)
+    }
+
+    /// Resolves every finished stream pick against the current scene, oldest
+    /// first, appending to `out`.
+    pub fn take_picks(&mut self, scene: &Scene, out: &mut Vec<StreamPick>) {
+        let source_id = self.pick_source_id;
+        out.extend(self.inner.take_picks().map(|update| {
+            let result = update.pick.map_err(Error::from).and_then(|raw| {
+                raw.map(|raw| scene.resolve_pick(&semantic_pick(&raw, source_id)))
+                    .transpose()
+            });
+            StreamPick {
+                stream: update.stream,
+                x: update.x,
+                y: update.y,
+                result,
+            }
+        }));
+    }
+
     /// Asynchronously resolves the entity under one target pixel.
     ///
     /// # Errors

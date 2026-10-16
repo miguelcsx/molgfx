@@ -114,7 +114,7 @@ impl Renderer {
     /// # Errors
     ///
     /// Returns an error when the device is lost.
-    pub fn poll(&self) -> Result<super::PollOutcome, Error> {
+    pub fn poll(&mut self) -> Result<super::PollReport, Error> {
         Ok(self.inner.poll()?)
     }
 

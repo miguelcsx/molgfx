@@ -39,6 +39,7 @@ pub struct Engine<D: Device> {
     pub(crate) target_format: TextureFormat,
     pub(crate) profiler: Option<GpuProfiler<D>>,
     pub(crate) picker: Picker<D>,
+    pub(crate) streams: crate::engine::pick_stream::StreamPicker<D>,
     pub(crate) temporal: TemporalState,
     pub(crate) temporal_scene_identity: Option<crate::engine::temporal_scene::TemporalSceneKey>,
     pub(crate) mode: RenderMode,
@@ -250,6 +251,7 @@ impl<D: Device> Engine<D> {
 
         let profiler = GpuProfiler::new(&device, target_format)?;
         let picker = Picker::new(&device)?;
+        let streams = crate::engine::pick_stream::StreamPicker::new(&device, &opened.queue)?;
         let chunk_residency = ChunkGpuResidency::new(&device, config.residency)?;
         Ok(Self {
             device,
@@ -268,6 +270,7 @@ impl<D: Device> Engine<D> {
             target_format,
             profiler,
             picker,
+            streams,
             temporal: TemporalState::default(),
             temporal_scene_identity: None,
             mode: config.mode,
