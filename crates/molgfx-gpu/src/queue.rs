@@ -36,6 +36,25 @@ pub trait Readback: std::fmt::Debug {
         size: u64,
         output: &'a mut [u8],
     ) -> impl Future<Output = Result<(), GpuError>> + 'a;
+
+    /// Requests a map of one range and returns at once.
+    ///
+    /// The map completes as the device is polled. One request is outstanding
+    /// per handle, so a ring reuses its handles and allocates nothing per
+    /// request; pair every call with [`Self::try_finish_into`].
+    ///
+    /// # Errors
+    /// Returns an invalid, unaligned or overflowing range, an unreadable
+    /// buffer, or a request already outstanding on this handle.
+    fn begin_map(&self, offset: u64, size: u64) -> Result<(), GpuError>;
+
+    /// Copies the requested range into `output` and unmaps once the map
+    /// completed. Returns `Ok(false)` while it is still pending; never blocks.
+    ///
+    /// # Errors
+    /// Returns device or mapping errors, no request outstanding, or an output
+    /// shorter than the requested range.
+    fn try_finish_into(&self, output: &mut [u8]) -> Result<bool, GpuError>;
 }
 
 /// Uploads and submission. One submission per frame is the discipline the

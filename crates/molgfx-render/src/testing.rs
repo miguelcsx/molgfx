@@ -57,6 +57,8 @@ pub(crate) struct MockLog {
     pub completed_fence: AtomicU64,
     /// Keeps asynchronous waits pending until a test releases this queue.
     pub hold_fence: std::sync::atomic::AtomicBool,
+    /// Keeps requested readback maps pending until a test releases them.
+    pub hold_maps: std::sync::atomic::AtomicBool,
     /// First fence held when asynchronous completion is paused.
     pub hold_fence_from: AtomicU64,
     /// Source id returned by categorical pick fixtures.
@@ -102,6 +104,7 @@ impl Default for MockLog {
             submitted_fence: AtomicU64::new(0),
             completed_fence: AtomicU64::new(0),
             hold_fence: std::sync::atomic::AtomicBool::new(false),
+            hold_maps: std::sync::atomic::AtomicBool::new(false),
             hold_fence_from: AtomicU64::new(0),
             segment_pick_source: Mutex::new(u32::MAX),
             segment_pick_label: Mutex::new(0),
@@ -426,6 +429,7 @@ impl molgfx_gpu::Queue<MockDevice> for MockQueue {
             size: buffer.size,
             usage: buffer.usage,
             log: Arc::clone(&self.log),
+            request: std::sync::Mutex::default(),
         }
     }
 

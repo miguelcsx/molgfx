@@ -12,6 +12,7 @@ pub(crate) struct MockReadback {
     pub(super) size: u64,
     pub(super) usage: BufferUsage,
     pub(super) log: Arc<MockLog>,
+    pub(super) request: std::sync::Mutex<Option<(u64, u64)>>,
 }
 
 impl molgfx_gpu::Readback for MockReadback {
@@ -30,6 +31,36 @@ impl molgfx_gpu::Readback for MockReadback {
         output: &'a mut [u8],
     ) -> impl Future<Output = Result<(), GpuError>> + 'a {
         std::future::ready(self.copy_bytes(offset, size, output))
+    }
+
+    fn begin_map(&self, offset: u64, size: u64) -> Result<(), GpuError> {
+        self.validate_range(offset, size, None)?;
+        let mut request = self.request.lock().map_err(|_| GpuError::DeviceLost)?;
+        if request.is_some() {
+            return Err(GpuError::Runtime {
+                detail: "GPU readback already has a map outstanding".to_owned(),
+            });
+        }
+        *request = Some((offset, size));
+        Ok(())
+    }
+
+    fn try_finish_into(&self, output: &mut [u8]) -> Result<bool, GpuError> {
+        let mut request = self.request.lock().map_err(|_| GpuError::DeviceLost)?;
+        let Some((offset, size)) = *request else {
+            return Err(GpuError::Runtime {
+                detail: "GPU readback has no map outstanding".to_owned(),
+            });
+        };
+        if self
+            .log
+            .hold_maps
+            .load(std::sync::atomic::Ordering::Acquire)
+        {
+            return Ok(false);
+        }
+        *request = None;
+        self.copy_bytes(offset, size, output).map(|()| true)
     }
 }
 

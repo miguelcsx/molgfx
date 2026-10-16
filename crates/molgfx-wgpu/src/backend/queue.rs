@@ -4,8 +4,8 @@ use super::device_errors::DeviceErrors;
 use super::resource::{WgpuBuffer, WgpuTexture};
 use crate::device::WgpuDevice;
 use molgfx_gpu::{FenceValue, GpuError, Readback as _, TextureWrite};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 
 /// The wgpu queue.
 #[derive(Debug)]
@@ -161,6 +161,7 @@ impl molgfx_gpu::Queue<WgpuDevice> for WgpuQueue {
             device: device.device.clone(),
             errors: Arc::clone(&device.errors),
             buffer: buffer.raw.clone(),
+            map: Arc::default(),
         }
     }
 
@@ -177,7 +178,20 @@ pub struct WgpuReadback {
     device: wgpu::Device,
     errors: Arc<DeviceErrors>,
     buffer: wgpu::Buffer,
+    map: Arc<MapState>,
 }
+
+/// The one outstanding map of a readback handle, shared with its callback.
+#[derive(Debug, Default)]
+struct MapState {
+    status: AtomicU8,
+    range: Mutex<(u64, u64)>,
+}
+
+const MAP_IDLE: u8 = 0;
+const MAP_PENDING: u8 = 1;
+const MAP_READY: u8 = 2;
+const MAP_FAILED: u8 = 3;
 
 impl molgfx_gpu::Readback for WgpuReadback {
     async fn resolve(&self, offset: u64, size: u64) -> Result<Vec<u8>, GpuError> {
@@ -195,6 +209,67 @@ impl molgfx_gpu::Readback for WgpuReadback {
             output[..bytes.len()].copy_from_slice(bytes);
         })
         .await
+    }
+
+    fn begin_map(&self, offset: u64, size: u64) -> Result<(), GpuError> {
+        let end = self.checked_range(offset, size, None)?;
+        self.map
+            .status
+            .compare_exchange(MAP_IDLE, MAP_PENDING, Ordering::AcqRel, Ordering::Acquire)
+            .map_err(|_| GpuError::Runtime {
+                detail: "GPU readback already has a map outstanding".to_owned(),
+            })?;
+        *self.map.range.lock().map_err(|_| GpuError::DeviceLost)? = (offset, size);
+        let state = Arc::clone(&self.map);
+        self.buffer
+            .slice(offset..end)
+            .map_async(wgpu::MapMode::Read, move |result| {
+                let status = if result.is_ok() {
+                    MAP_READY
+                } else {
+                    MAP_FAILED
+                };
+                state.status.store(status, Ordering::Release);
+            });
+        Ok(())
+    }
+
+    fn try_finish_into(&self, output: &mut [u8]) -> Result<bool, GpuError> {
+        self.errors.check()?;
+        match self.map.status.load(Ordering::Acquire) {
+            MAP_PENDING => Ok(false),
+            MAP_READY => {
+                let (offset, size) = *self.map.range.lock().map_err(|_| GpuError::DeviceLost)?;
+                let length = usize::try_from(size).map_err(|_| GpuError::DeviceLost)?;
+                let slice = self.buffer.slice(offset..offset + size);
+                let copied = match (output.get_mut(..length), slice.get_mapped_range()) {
+                    (Some(output), Ok(view)) => {
+                        output.copy_from_slice(&view);
+                        Ok(())
+                    }
+                    (None, _) => Err(GpuError::Runtime {
+                        detail: "GPU readback output is shorter than the requested range"
+                            .to_owned(),
+                    }),
+                    (_, Err(error)) => Err(GpuError::Runtime {
+                        detail: format!("GPU mapped readback is unavailable: {error}"),
+                    }),
+                };
+                self.buffer.unmap();
+                self.map.status.store(MAP_IDLE, Ordering::Release);
+                copied.map(|()| true)
+            }
+            MAP_FAILED => {
+                self.buffer.unmap();
+                self.map.status.store(MAP_IDLE, Ordering::Release);
+                Err(GpuError::Runtime {
+                    detail: "GPU readback mapping failed".to_owned(),
+                })
+            }
+            _ => Err(GpuError::Runtime {
+                detail: "GPU readback has no map outstanding".to_owned(),
+            }),
+        }
     }
 }
 

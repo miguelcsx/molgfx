@@ -81,3 +81,33 @@ fn invalid_mock_read_ranges_leave_reserved_scratch_unchanged() {
     ));
     assert_eq!(output, [0xcc; 8]);
 }
+
+#[test]
+fn a_held_map_stays_pending_then_finishes_into_scratch() {
+    let opened = MockDevice::opened();
+    let buffer = opened
+        .device
+        .create_buffer(&BufferDesc {
+            label: "packed pick readback",
+            size: 1024,
+            usage: BufferUsage::COPY_DST.union(BufferUsage::MAP_READ),
+        })
+        .expect("buffer allocates");
+    let handle = opened.queue.readback(&opened.device, &buffer);
+    let mut output = [0xcc; 1024];
+    opened
+        .device
+        .log
+        .hold_maps
+        .store(true, std::sync::atomic::Ordering::Release);
+    handle.begin_map(0, 1024).expect("map requests");
+    assert!(!handle.try_finish_into(&mut output).expect("pending"));
+    assert!(output.iter().all(|byte| *byte == 0xcc));
+    opened
+        .device
+        .log
+        .hold_maps
+        .store(false, std::sync::atomic::Ordering::Release);
+    assert!(handle.try_finish_into(&mut output).expect("finishes"));
+    assert!(handle.try_finish_into(&mut output).is_err());
+}

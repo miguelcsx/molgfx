@@ -173,3 +173,31 @@ fn dropping_a_pending_readback_unmaps_so_the_buffer_reads_again() {
         .expect("buffer maps after the cancelled read");
     assert_eq!(bytes, [0; 16]);
 }
+
+#[test]
+#[ignore = "requires a native GPU adapter"]
+fn a_requested_map_finishes_only_after_polling_and_the_handle_is_reusable() {
+    use molgfx_gpu::Readback as _;
+    let (device, queue, buffer) = readback_fixture();
+    let handle = queue.readback(&device, &buffer);
+    let mut output = [0xcc; 16];
+    assert!(matches!(
+        handle.try_finish_into(&mut output),
+        Err(GpuError::Runtime { .. })
+    ));
+    for _ in 0..3 {
+        handle.begin_map(0, 16).expect("map requests");
+        assert!(matches!(
+            handle.begin_map(0, 16),
+            Err(GpuError::Runtime { .. })
+        ));
+        let mut polls = 0_u32;
+        while !handle.try_finish_into(&mut output).expect("map finishes") {
+            device.poll().expect("device polls");
+            polls += 1;
+            assert!(polls < 100_000, "map never completed");
+        }
+        assert_eq!(output, [0; 16]);
+        output.fill(0xcc);
+    }
+}
