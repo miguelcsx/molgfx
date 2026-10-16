@@ -2,7 +2,7 @@
 
 pub use molgfx_render::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming,
-    MeasuredOutput, PassTiming, PassTimingCoverage, QualityTier, SurfaceLimit,
+    MeasuredOutput, PassTiming, PassTimingCoverage, PollOutcome, QualityTier, SurfaceLimit,
 };
 
 mod device_loss;

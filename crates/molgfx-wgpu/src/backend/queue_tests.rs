@@ -41,7 +41,7 @@ fn reused_readback_scratch_preserves_tail_and_recovers_after_invalid_requests() 
                 .read_buffer_into_blocking(&device, &buffer, 0, 32_768, &mut output)
                 .expect("blocking scratch reads");
         } else {
-            pollster::block_on(detached.resolve_into(0, 32_768, &mut output))
+            molgfx_gpu::block_on_polling(&device, detached.resolve_into(0, 32_768, &mut output))
                 .expect("detached scratch reads");
         }
         assert_eq!(&output[..32_768], &input);
@@ -57,18 +57,18 @@ fn reused_readback_scratch_preserves_tail_and_recovers_after_invalid_requests() 
         (0, 16, 15),
     ] {
         output.fill(0xcc);
-        let result = pollster::block_on(queue.read_buffer_into_async(
+        let result = molgfx_gpu::block_on_polling(
             &device,
-            &buffer,
-            offset,
-            size,
-            &mut output[..capacity],
-        ));
+            queue.read_buffer_into_async(&device, &buffer, offset, size, &mut output[..capacity]),
+        );
         assert!(matches!(result, Err(GpuError::Runtime { .. })));
         assert!(output.iter().all(|byte| *byte == 0xcc));
     }
-    pollster::block_on(queue.read_buffer_into_async(&device, &buffer, 8, 16, &mut output))
-        .expect("async scratch reads subrange after errors");
+    molgfx_gpu::block_on_polling(
+        &device,
+        queue.read_buffer_into_async(&device, &buffer, 8, 16, &mut output),
+    )
+    .expect("async scratch reads subrange after errors");
     assert_eq!(&output[..16], &input[8..24]);
     assert_eq!(&output[16..], &vec![0xcc; output.len() - 16]);
     assert_eq!(
@@ -77,10 +77,12 @@ fn reused_readback_scratch_preserves_tail_and_recovers_after_invalid_requests() 
             .expect("owned reads"),
         input[8..24]
     );
-    let error = pollster::block_on(detached.resolve(u64::MAX - 7, 16));
+    let error = molgfx_gpu::block_on_polling(&device, detached.resolve(u64::MAX - 7, 16));
     assert!(matches!(error, Err(GpuError::Runtime { .. })));
-    let error =
-        pollster::block_on(queue.read_buffer_into_async(&device, &source, 0, 4, &mut output));
+    let error = molgfx_gpu::block_on_polling(
+        &device,
+        queue.read_buffer_into_async(&device, &source, 0, 4, &mut output),
+    );
     assert!(matches!(error, Err(GpuError::Runtime { .. })));
     device
         .check_errors()
@@ -119,4 +121,55 @@ fn mapping_failure_unmaps_the_buffer_before_the_next_read() {
         .expect("read after failed map completes");
     assert_eq!(output, [0; 16]);
     device.check_errors().expect("mapping lifecycle validates");
+}
+
+fn readback_fixture() -> (WgpuDevice, WgpuQueue, WgpuBuffer) {
+    let opened = WgpuDevice::open_blocking(&DeviceDesc::default(), None).expect("device opens");
+    let buffer = opened
+        .device
+        .create_buffer(&BufferDesc {
+            label: "honest readback",
+            size: 16,
+            usage: BufferUsage::COPY_DST.union(BufferUsage::MAP_READ),
+        })
+        .expect("readback allocates");
+    (opened.device, opened.queue, buffer)
+}
+
+#[test]
+#[ignore = "requires a native GPU adapter"]
+fn a_mapped_readback_stays_pending_until_the_device_is_polled() {
+    use std::task::{Context, Poll, Waker};
+    let (device, queue, buffer) = readback_fixture();
+    let mut read = std::pin::pin!(queue.read_buffer_async(&device, &buffer, 0, 16));
+    let mut context = Context::from_waker(Waker::noop());
+    assert!(read.as_mut().poll(&mut context).is_pending());
+    assert!(read.as_mut().poll(&mut context).is_pending());
+    let mut polls = 0_u32;
+    let bytes = loop {
+        device.poll().expect("device polls");
+        if let Poll::Ready(result) = read.as_mut().poll(&mut context) {
+            break result.expect("readback resolves");
+        }
+        polls += 1;
+        assert!(polls < 100_000, "readback never resolved");
+    };
+    assert_eq!(bytes, [0; 16]);
+}
+
+#[test]
+#[ignore = "requires a native GPU adapter"]
+fn dropping_a_pending_readback_unmaps_so_the_buffer_reads_again() {
+    use std::task::{Context, Waker};
+    let (device, queue, buffer) = readback_fixture();
+    {
+        let mut read = Box::pin(queue.read_buffer_async(&device, &buffer, 0, 16));
+        let mut context = Context::from_waker(Waker::noop());
+        assert!(read.as_mut().poll(&mut context).is_pending());
+    }
+    device.poll().expect("device polls");
+    let bytes = queue
+        .read_buffer_blocking(&device, &buffer, 0, 16)
+        .expect("buffer maps after the cancelled read");
+    assert_eq!(bytes, [0; 16]);
 }

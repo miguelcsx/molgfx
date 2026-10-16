@@ -13,6 +13,8 @@ mod capabilities;
 mod descriptors;
 mod device;
 mod device_loss;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+mod drive;
 mod encoder;
 mod error;
 mod host;
@@ -35,10 +37,12 @@ pub use descriptors::{
     TriangleGeometry, TriangleGeometrySize,
 };
 pub use device::{
-    Device, DeviceDesc, Opened, PowerPreference, RayQueryDevice, ResourceMemory, WindowSource,
-    WindowTarget,
+    Device, DeviceDesc, Opened, PollOutcome, PowerPreference, RayQueryDevice, ResourceMemory,
+    WindowSource, WindowTarget,
 };
 pub use device_loss::{DeviceLoss, DeviceLossReason};
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub use drive::block_on_polling;
 pub use encoder::{CommandEncoder, ComputePassEncoder, RayQueryCommandEncoder, RenderPassEncoder};
 pub use error::GpuError;
 pub use host::{HostDevice, HostDeviceDesc, ImportedTarget};

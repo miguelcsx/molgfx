@@ -44,6 +44,7 @@ pub use engine::{HostFrame, HostTarget};
 pub use engine::{PassTiming, PassTimingCoverage};
 pub use error::RenderError;
 pub use molgfx_geometry::PackingError;
+pub use molgfx_gpu::PollOutcome;
 pub use residency::{
     ImmutableArenaMetrics, ResidencyConfig, ResidencyCounters, ResidencyInitError,
     ResidencyMetrics, ResidencyWorkspace,

@@ -106,6 +106,18 @@ impl Renderer {
         self.inner.device_loss().as_ref().map(Into::into)
     }
 
+    /// Advances completed GPU work without waiting for it.
+    ///
+    /// Every pending readback and fence future resolves only as this is
+    /// called, so call it once per frame from the loop that owns the thread.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the device is lost.
+    pub fn poll(&self) -> Result<super::PollOutcome, Error> {
+        Ok(self.inner.poll()?)
+    }
+
     /// Resizes the current presentation target.
     pub fn resize(&mut self, size: (u32, u32)) {
         self.inner.resize(size.0.max(1), size.1.max(1));

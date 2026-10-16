@@ -70,16 +70,6 @@ impl molgfx_gpu::Queue<WgpuDevice> for WgpuQueue {
         Ok(FenceValue(self.completed_fence.load(Ordering::Acquire)))
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    fn wait_fence<'a>(
-        &'a self,
-        device: &'a WgpuDevice,
-        fence: FenceValue,
-    ) -> impl Future<Output = Result<(), GpuError>> + 'a {
-        std::future::ready(self.wait_fence_blocking(device, fence))
-    }
-
-    #[cfg(target_arch = "wasm32")]
     async fn wait_fence<'a>(
         &'a self,
         device: &'a WgpuDevice,
@@ -147,10 +137,10 @@ impl molgfx_gpu::Queue<WgpuDevice> for WgpuQueue {
         size: u64,
         output: &mut [u8],
     ) -> Result<(), GpuError> {
-        pollster::block_on(
-            self.readback(device, buffer)
-                .resolve_into(offset, size, output),
-        )
+        self.readback(device, buffer)
+            .wait_mapped(offset, size, Some(output.len()), |bytes| {
+                output[..bytes.len()].copy_from_slice(bytes);
+            })
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -161,11 +151,13 @@ impl molgfx_gpu::Queue<WgpuDevice> for WgpuQueue {
         offset: u64,
         size: u64,
     ) -> Result<Vec<u8>, GpuError> {
-        pollster::block_on(self.readback(device, buffer).resolve(offset, size))
+        self.readback(device, buffer)
+            .wait_mapped(offset, size, None, <[u8]>::to_vec)
     }
 
     fn readback(&self, device: &WgpuDevice, buffer: &WgpuBuffer) -> WgpuReadback {
         WgpuReadback {
+            #[cfg(not(target_arch = "wasm32"))]
             device: device.device.clone(),
             errors: Arc::clone(&device.errors),
             buffer: buffer.raw.clone(),
@@ -181,6 +173,7 @@ impl molgfx_gpu::Queue<WgpuDevice> for WgpuQueue {
 /// neither the queue nor the device that recorded the copy.
 #[derive(Debug)]
 pub struct WgpuReadback {
+    #[cfg(not(target_arch = "wasm32"))]
     device: wgpu::Device,
     errors: Arc<DeviceErrors>,
     buffer: wgpu::Buffer,
@@ -205,14 +198,17 @@ impl molgfx_gpu::Readback for WgpuReadback {
     }
 }
 
+type MapResult = Result<(), wgpu::BufferAsyncError>;
+
 impl WgpuReadback {
-    async fn with_mapped_bytes<T>(
+    /// Validates the range and returns its end, so no map is requested for a
+    /// read the backend would reject.
+    fn checked_range(
         &self,
         offset: u64,
         size: u64,
         output_capacity: Option<usize>,
-        copy: impl FnOnce(&[u8]) -> T,
-    ) -> Result<T, GpuError> {
+    ) -> Result<u64, GpuError> {
         self.errors.check()?;
         let end = offset.checked_add(size).ok_or_else(|| GpuError::Runtime {
             detail: "GPU readback range overflows its address space".to_owned(),
@@ -239,6 +235,38 @@ impl WgpuReadback {
                 detail: "GPU readback buffer does not permit host reads".to_owned(),
             });
         }
+        Ok(end)
+    }
+
+    /// Copies a mapped range out once its map has completed.
+    fn read_mapped<T>(
+        &self,
+        slice: wgpu::BufferSlice<'_>,
+        mapped: MapResult,
+        copy: impl FnOnce(&[u8]) -> T,
+    ) -> Result<T, GpuError> {
+        self.errors.check()?;
+        mapped.map_err(|error| GpuError::Runtime {
+            detail: format!("GPU readback mapping failed: {error}"),
+        })?;
+        let view = slice
+            .get_mapped_range()
+            .map_err(|error| GpuError::Runtime {
+                detail: format!("GPU mapped readback is unavailable: {error}"),
+            })?;
+        Ok(copy(&view))
+    }
+
+    /// Resolves once the embedder polls the device far enough for the map to
+    /// complete; it never polls itself.
+    async fn with_mapped_bytes<T>(
+        &self,
+        offset: u64,
+        size: u64,
+        output_capacity: Option<usize>,
+        copy: impl FnOnce(&[u8]) -> T,
+    ) -> Result<T, GpuError> {
+        let end = self.checked_range(offset, size, output_capacity)?;
         let slice = self.buffer.slice(offset..end);
         let (sender, receiver) = futures_channel::oneshot::channel();
         slice.map_async(wgpu::MapMode::Read, move |result| {
@@ -247,29 +275,40 @@ impl WgpuReadback {
         // This guard also cancels an outstanding map if the future is dropped.
         // It precedes the view so the view always drops before unmapping.
         let _unmap = UnmapOnDrop(&self.buffer);
-        #[cfg(not(target_arch = "wasm32"))]
-        let poll_type = wgpu::PollType::wait_indefinitely();
-        #[cfg(target_arch = "wasm32")]
-        let poll_type = wgpu::PollType::Poll;
-        if self.device.poll(poll_type).is_err() {
+        let mapped = receiver.await.map_err(|error| GpuError::Runtime {
+            detail: format!("GPU readback completion failed: {error}"),
+        })?;
+        self.read_mapped(slice, mapped, copy)
+    }
+
+    /// Blocks the calling thread until the map completes.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn wait_mapped<T>(
+        &self,
+        offset: u64,
+        size: u64,
+        output_capacity: Option<usize>,
+        copy: impl FnOnce(&[u8]) -> T,
+    ) -> Result<T, GpuError> {
+        let end = self.checked_range(offset, size, output_capacity)?;
+        let slice = self.buffer.slice(offset..end);
+        let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+        slice.map_async(wgpu::MapMode::Read, move |result| {
+            let _ = sender.send(result);
+        });
+        let _unmap = UnmapOnDrop(&self.buffer);
+        if self
+            .device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .is_err()
+        {
             self.errors.check()?;
             return Err(GpuError::DeviceLost);
         }
-        let mapped = receiver.await;
-        self.errors.check()?;
-        mapped
-            .map_err(|error| GpuError::Runtime {
-                detail: format!("GPU readback completion failed: {error}"),
-            })?
-            .map_err(|error| GpuError::Runtime {
-                detail: format!("GPU readback mapping failed: {error}"),
-            })?;
-        let view = slice
-            .get_mapped_range()
-            .map_err(|error| GpuError::Runtime {
-                detail: format!("GPU mapped readback is unavailable: {error}"),
-            })?;
-        Ok(copy(&view))
+        let mapped = receiver.try_recv().map_err(|error| GpuError::Runtime {
+            detail: format!("GPU readback completion failed: {error}"),
+        })?;
+        self.read_mapped(slice, mapped, copy)
     }
 }
 

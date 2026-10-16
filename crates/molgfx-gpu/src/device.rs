@@ -50,6 +50,15 @@ pub type WindowTarget = Arc<dyn WindowSource>;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub type WindowTarget = web_sys::HtmlCanvasElement;
 
+/// What one [`Device::poll`] left behind.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PollOutcome {
+    /// No submitted work was outstanding when the poll began.
+    Idle,
+    /// Submitted work is still executing; poll again later.
+    Busy,
+}
+
 /// Which adapter class to prefer when several are present.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum PowerPreference {
@@ -249,6 +258,21 @@ pub trait Device: Sized + 'static {
     /// Returns the first pending runtime diagnostic or a sticky device loss.
     fn check_errors(&self) -> Result<(), GpuError> {
         Ok(())
+    }
+
+    /// Advances completed GPU work without waiting for it.
+    ///
+    /// Fence waits and mapped readbacks resolve only as the embedder calls
+    /// this: no future blocks the thread to make progress on its own. Backends
+    /// that deliver completions from their own event loop have nothing to
+    /// drive and report [`PollOutcome::Idle`].
+    ///
+    /// # Errors
+    ///
+    /// Returns a pending runtime diagnostic or [`GpuError::DeviceLost`].
+    fn poll(&self) -> Result<PollOutcome, GpuError> {
+        self.check_errors()?;
+        Ok(PollOutcome::Idle)
     }
 
     /// Returns live physical resource accounting when the backend supports it.

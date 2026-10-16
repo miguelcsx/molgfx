@@ -40,6 +40,18 @@ impl<D: Device> Engine<D> {
         self.device.device_loss()
     }
 
+    /// Advances completed GPU work without waiting for it.
+    ///
+    /// Fence waits and readbacks resolve only as this is called: call it once
+    /// per frame, or from whatever loop owns the thread. Nothing here blocks.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed device error, including a sticky device loss.
+    pub fn poll(&self) -> Result<molgfx_gpu::PollOutcome, RenderError> {
+        Ok(self.device.poll()?)
+    }
+
     /// Changes rendering strategy without rebuilding the scene or device.
     pub fn set_render_mode(&mut self, mode: RenderMode) {
         if self.mode != mode {

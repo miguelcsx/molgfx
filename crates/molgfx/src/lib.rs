@@ -28,7 +28,7 @@ pub use molgfx_scene::{
 };
 pub use molgfx_scene::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, PassTiming, PassTimingCoverage,
-    QualityTier, SurfaceLimit,
+    PollOutcome, QualityTier, SurfaceLimit,
 };
 pub use molgfx_scene::{DeviceLossReport, PointCloud, Renderer};
 #[cfg(not(target_arch = "wasm32"))]

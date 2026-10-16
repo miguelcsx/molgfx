@@ -71,7 +71,7 @@ pub use property::{PropertySpec, ScalarProperty, ScalarPropertyBinding};
 pub use render::PickReadback;
 pub use render::{
     CompletedFrame, CpuStages, EffectiveQuality, FrameReport, FrameTiming, GpuTiming,
-    MeasuredOutput, PassTiming, PassTimingCoverage, QualityTier, SurfaceLimit,
+    MeasuredOutput, PassTiming, PassTimingCoverage, PollOutcome, QualityTier, SurfaceLimit,
 };
 pub use render::{DeviceLossReport, PointCloud, Renderer};
 pub use render::{FrameSchedule, SequenceManifest};
