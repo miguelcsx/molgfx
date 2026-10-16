@@ -220,7 +220,10 @@ impl WebRenderer {
     /// Returns a JavaScript error on device loss.
     pub fn poll(&mut self) -> Result<u32, JsError> {
         let report = self.inner.poll().map_err(javascript_error)?;
-        Ok(u32::try_from(report.picks_resolved).unwrap_or(u32::MAX))
+        let Ok(count) = u32::try_from(report.picks_resolved) else {
+            return Ok(u32::MAX);
+        };
+        Ok(count)
     }
 
     /// Queues a pick on a stream and returns at once.
