@@ -9,6 +9,7 @@ pub(crate) mod diagnostics;
 pub(crate) mod encoder;
 #[cfg(feature = "host")]
 pub(crate) mod host;
+pub(crate) mod poll;
 pub(crate) mod queue;
 pub(crate) mod ray_query;
 pub(crate) mod resource;

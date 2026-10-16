@@ -449,17 +449,7 @@ impl molgfx_gpu::Device for WgpuDevice {
     }
 
     fn poll(&self) -> Result<molgfx_gpu::PollOutcome, GpuError> {
-        self.errors.check()?;
-        let status = self
-            .device
-            .poll(wgpu::PollType::Poll)
-            .map_err(|_| self.errors.check().err().unwrap_or(GpuError::DeviceLost))?;
-        self.errors.check()?;
-        Ok(if status.is_queue_empty() {
-            molgfx_gpu::PollOutcome::Idle
-        } else {
-            molgfx_gpu::PollOutcome::Busy
-        })
+        self.poll_impl()
     }
 
     fn resource_memory(&self) -> molgfx_gpu::ResourceMemory {
