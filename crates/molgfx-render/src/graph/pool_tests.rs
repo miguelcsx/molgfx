@@ -44,6 +44,7 @@ fn pass(name: &'static str, reads: &[u32], writes: &[u32]) -> PassNode<MockDevic
         writes: writes.iter().map(|&w| ResourceId(w)).collect(),
         kind: PassKind::Graphics,
         record: noop,
+        final_sample_only: false,
     }
 }
 

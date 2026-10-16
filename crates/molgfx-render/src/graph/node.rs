@@ -69,6 +69,9 @@ pub(crate) struct PassNode<D: Device> {
     pub kind: PassKind,
     /// Records the pass's commands.
     pub record: fn(&mut PassContext<'_, D>),
+    /// Skipped on every sample of a multi-sample exposure but the last: the
+    /// pass only turns accumulated history into the displayed image.
+    pub final_sample_only: bool,
 }
 
 impl<D: Device> std::fmt::Debug for PassNode<D> {

@@ -264,7 +264,7 @@ impl<D: Device> Engine<D> {
                 self.record_scene_compute(&mut encoder, traced, None);
             }
             self.scene_gpu.set_cull_view_reuse(sample > 0);
-            self.record_image(&mut encoder, view, None, traced, false)?;
+            self.record_exposure_sample(&mut encoder, view, traced, (sample, samples))?;
             if let Some(copy) = copy
                 && sample + 1 == samples
             {
@@ -341,6 +341,21 @@ impl<D: Device> Engine<D> {
         })
     }
 
+    /// Records one sample of an exposure. Only the last one runs the passes
+    /// that display the accumulated image; the rest feed history alone.
+    pub(in crate::engine) fn record_exposure_sample(
+        &mut self,
+        encoder: &mut D::CommandEncoder,
+        target: &D::TextureView,
+        quality: bool,
+        (sample, samples): (u32, u32),
+    ) -> Result<(), RenderError> {
+        self.defer_presentation = sample + 1 < samples;
+        let recorded = self.record_image(encoder, target, None, quality, false);
+        self.defer_presentation = false;
+        recorded
+    }
+
     pub(in crate::engine) fn record_image(
         &self,
         encoder: &mut D::CommandEncoder,
@@ -373,6 +388,9 @@ impl<D: Device> Engine<D> {
             let Some(node) = self.pass_nodes.get(index) else {
                 continue;
             };
+            if self.defer_presentation && node.final_sample_only {
+                continue;
+            }
             let boundary = position == 0 || position + 1 == self.order.len();
             (node.record)(&mut PassContext {
                 encoder,

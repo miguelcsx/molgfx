@@ -362,7 +362,7 @@ impl<D: Device> Engine<D> {
                 self.record_scene_compute(&mut encoder, quality, None);
             }
             self.scene_gpu.set_cull_view_reuse(sample > 0);
-            self.record_image(&mut encoder, target, None, quality, false)?;
+            self.record_exposure_sample(&mut encoder, target, quality, (sample, exposure.samples))?;
         }
         profiler.passes.detach(&mut encoder)?;
         profiler.cpu_stages.recording_ns = profiler
