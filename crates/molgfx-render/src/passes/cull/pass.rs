@@ -144,7 +144,7 @@ impl<D: Device> CullPass<D> {
         let cull = &ctx.passes.cull;
         // An empty compute pass leaves its timestamps unresolved, which voids
         // the frame's GPU timing, so a sample with nothing to cull has no pass.
-        if ctx.timestamps.is_none() && reuses_whole_cull(scene) {
+        if nothing_to_cull(scene) || reuses_whole_cull(scene) {
             return;
         }
         let mut pass = ctx.encoder.begin_compute_pass(&ComputePassDesc {
@@ -157,6 +157,16 @@ impl<D: Device> CullPass<D> {
         record_relations(&mut pass, scene, cull);
         record_paged(&mut pass, scene, cull);
     }
+}
+
+/// Whether the scene has no culling work of any kind, as a cartoon-only scene.
+fn nothing_to_cull<D: Device>(scene: &crate::scene_gpu::GpuScene<D>) -> bool {
+    scene.cull_dispatches().next().is_none()
+        && scene.generic_point_dispatches().next().is_none()
+        && scene.generic_instance_dispatches().next().is_none()
+        && scene.relation_cull_dispatches().next().is_none()
+        && scene.paged_chunk_cull().is_none()
+        && scene.paged_bond_cull().is_none()
 }
 
 /// Whether this sample's culling is entirely the standing occlusion cull.
