@@ -54,6 +54,45 @@ pub(crate) enum PassKind {
     Compute,
 }
 
+/// Which samples of a multi-sample exposure record a pass.
+///
+/// Passes whose output is the same on every sample of one exposure run on the
+/// first; passes that only turn accumulated history into the displayed image
+/// run on the last.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum SampleCadence {
+    /// Every sample.
+    Every,
+    /// The first sample only: the result holds for the whole exposure.
+    First,
+    /// The last sample only: the result is the displayed image.
+    Last,
+}
+
+/// Where a sample sits in its exposure.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) struct SamplePosition {
+    pub first: bool,
+    pub last: bool,
+}
+
+impl SamplePosition {
+    /// A frame that is its own exposure.
+    pub(crate) const ONLY: Self = Self {
+        first: true,
+        last: true,
+    };
+
+    /// Whether a pass of this cadence records at this position.
+    pub(crate) const fn runs(self, cadence: SampleCadence) -> bool {
+        match cadence {
+            SampleCadence::Every => true,
+            SampleCadence::First => self.first,
+            SampleCadence::Last => self.last,
+        }
+    }
+}
+
 /// One declared pass: name, dependencies, and its record function. The
 /// record function is a plain function pointer — pass state (pipelines,
 /// bind groups) lives in the registry the context exposes, so recording
@@ -69,9 +108,8 @@ pub(crate) struct PassNode<D: Device> {
     pub kind: PassKind,
     /// Records the pass's commands.
     pub record: fn(&mut PassContext<'_, D>),
-    /// Skipped on every sample of a multi-sample exposure but the last: the
-    /// pass only turns accumulated history into the displayed image.
-    pub final_sample_only: bool,
+    /// Which samples of a multi-sample exposure record the pass.
+    pub cadence: SampleCadence,
 }
 
 impl<D: Device> std::fmt::Debug for PassNode<D> {

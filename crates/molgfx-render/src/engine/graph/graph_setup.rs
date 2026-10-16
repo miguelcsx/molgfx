@@ -6,7 +6,7 @@
 //! and pipeline creation do.
 
 use crate::engine::profile::ResolvedRenderPlan;
-use crate::graph::{self, PassKind, PassNode, ResourceDesc, SizeClass};
+use crate::graph::{self, PassKind, PassNode, ResourceDesc, SampleCadence, SizeClass};
 use crate::passes::{
     ALBEDO_RESOURCE, AO_DENOISED_RESOURCE, AO_RESOURCE, AmbientOcclusionPass, AoDenoisePass,
     BLOOM_A_RESOURCE, BLOOM_B_RESOURCE, BLOOM_C_RESOURCE, BloomPass, BondPass, COMPOSITE_RESOURCE,
@@ -79,7 +79,7 @@ pub(in crate::engine) fn realtime_nodes<D: Device>(topology: GraphTopology) -> V
             writes: gbuffer.clone(),
             kind: PassKind::Graphics,
             record: ClearPass::record,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "visibility culling",
@@ -87,7 +87,7 @@ pub(in crate::engine) fn realtime_nodes<D: Device>(topology: GraphTopology) -> V
             writes: smallvec![],
             kind: PassKind::Compute,
             record: CullPass::record,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "scene-fit analytic shadows",
@@ -95,7 +95,7 @@ pub(in crate::engine) fn realtime_nodes<D: Device>(topology: GraphTopology) -> V
             writes: smallvec![SHADOW_RESOURCE],
             kind: PassKind::Graphics,
             record: ShadowPass::record,
-            final_sample_only: false,
+            cadence: SampleCadence::First,
         },
         PassNode {
             name: "sphere impostors",
@@ -103,7 +103,7 @@ pub(in crate::engine) fn realtime_nodes<D: Device>(topology: GraphTopology) -> V
             writes: gbuffer.clone(),
             kind: PassKind::Graphics,
             record: SpherePass::record,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         point_node(gbuffer.clone()),
         PassNode {
@@ -112,7 +112,7 @@ pub(in crate::engine) fn realtime_nodes<D: Device>(topology: GraphTopology) -> V
             writes: gbuffer.clone(),
             kind: PassKind::Graphics,
             record: BondPass::record,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "cartoon ribbons",
@@ -120,7 +120,7 @@ pub(in crate::engine) fn realtime_nodes<D: Device>(topology: GraphTopology) -> V
             writes: gbuffer.clone(),
             kind: PassKind::Graphics,
             record: CartoonPass::record,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "analytic primitives",
@@ -128,7 +128,7 @@ pub(in crate::engine) fn realtime_nodes<D: Device>(topology: GraphTopology) -> V
             writes: gbuffer.clone(),
             kind: PassKind::Graphics,
             record: PrimitivePass::record,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "implicit molecular surfaces",
@@ -136,7 +136,7 @@ pub(in crate::engine) fn realtime_nodes<D: Device>(topology: GraphTopology) -> V
             writes: gbuffer,
             kind: PassKind::Graphics,
             record: SurfacePass::record,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
     ];
     nodes.extend(lighting_nodes());
@@ -160,7 +160,7 @@ fn lighting_nodes<D: Device>() -> [PassNode<D>; 3] {
             writes: smallvec![AO_RESOURCE],
             kind: PassKind::Graphics,
             record: AmbientOcclusionPass::record,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "occlusion denoise",
@@ -168,7 +168,7 @@ fn lighting_nodes<D: Device>() -> [PassNode<D>; 3] {
             writes: smallvec![AO_DENOISED_RESOURCE],
             kind: PassKind::Graphics,
             record: AoDenoisePass::record,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "HDR deferred lighting",
@@ -182,7 +182,7 @@ fn lighting_nodes<D: Device>() -> [PassNode<D>; 3] {
             writes: smallvec![HDR_RESOURCE],
             kind: PassKind::Graphics,
             record: LightingPass::record,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
     ]
 }
@@ -205,7 +205,7 @@ fn presentation_nodes<D: Device>(
         writes: smallvec![HISTORY_A_RESOURCE, HISTORY_B_RESOURCE],
         kind: PassKind::Graphics,
         record: TemporalPass::record,
-        final_sample_only: false,
+        cadence: SampleCadence::Every,
     }];
     if depth_of_field {
         nodes.extend([
@@ -215,7 +215,7 @@ fn presentation_nodes<D: Device>(
                 writes: smallvec![DOF_TILE_RESOURCE],
                 kind: PassKind::Graphics,
                 record: DepthOfFieldPass::classify,
-                final_sample_only: true,
+                cadence: SampleCadence::Last,
             },
             PassNode {
                 name: "depth-of-field bounded gather",
@@ -228,7 +228,7 @@ fn presentation_nodes<D: Device>(
                 writes: smallvec![DOF_RESOURCE],
                 kind: PassKind::Graphics,
                 record: DepthOfFieldPass::resolve,
-                final_sample_only: true,
+                cadence: SampleCadence::Last,
             },
         ]);
     }
@@ -245,7 +245,7 @@ fn presentation_nodes<D: Device>(
         writes: smallvec![graph::ResourceId::SWAPCHAIN],
         kind: PassKind::Graphics,
         record: OverlayPass::record,
-        final_sample_only: true,
+        cadence: SampleCadence::Last,
     });
     nodes
 }
@@ -261,7 +261,7 @@ fn motion_blur_node<D: Device>(depth_of_field: bool) -> PassNode<D> {
         writes: smallvec![MOTION_BLUR_RESOURCE],
         kind: PassKind::Graphics,
         record: MotionBlurPass::record,
-        final_sample_only: true,
+        cadence: SampleCadence::Last,
     }
 }
 
@@ -273,7 +273,7 @@ fn bloom_nodes<D: Device>(depth_of_field: bool, motion_blur: bool) -> [PassNode<
             writes: smallvec![BLOOM_A_RESOURCE],
             kind: PassKind::Graphics,
             record: BloomPass::bright,
-            final_sample_only: true,
+            cadence: SampleCadence::Last,
         },
         PassNode {
             name: "bloom horizontal blur",
@@ -281,7 +281,7 @@ fn bloom_nodes<D: Device>(depth_of_field: bool, motion_blur: bool) -> [PassNode<
             writes: smallvec![BLOOM_B_RESOURCE],
             kind: PassKind::Graphics,
             record: BloomPass::horizontal,
-            final_sample_only: true,
+            cadence: SampleCadence::Last,
         },
         PassNode {
             name: "bloom vertical blur",
@@ -289,7 +289,7 @@ fn bloom_nodes<D: Device>(depth_of_field: bool, motion_blur: bool) -> [PassNode<
             writes: smallvec![BLOOM_C_RESOURCE],
             kind: PassKind::Graphics,
             record: BloomPass::vertical,
-            final_sample_only: true,
+            cadence: SampleCadence::Last,
         },
     ]
 }
@@ -305,7 +305,7 @@ fn tonemap_node<D: Device>(depth_of_field: bool, motion_blur: bool, bloom: bool)
         writes: smallvec![graph::ResourceId::SWAPCHAIN],
         kind: PassKind::Graphics,
         record: TonemapPass::record,
-        final_sample_only: true,
+        cadence: SampleCadence::Last,
     }
 }
 
@@ -329,7 +329,7 @@ fn point_node<D: Device>(gbuffer: smallvec::SmallVec<[graph::ResourceId; 4]>) ->
         writes: gbuffer,
         kind: PassKind::Graphics,
         record: PointPass::record,
-        final_sample_only: false,
+        cadence: SampleCadence::Every,
     }
 }
 

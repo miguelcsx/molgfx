@@ -1,5 +1,5 @@
 use super::*;
-use crate::graph::node::{PassKind, ResourceId};
+use crate::graph::node::{PassKind, ResourceId, SampleCadence};
 use crate::testing::{Locked, MockDevice};
 use molgfx_gpu::{TextureFormat, TextureUsage};
 
@@ -44,7 +44,7 @@ fn pass(name: &'static str, reads: &[u32], writes: &[u32]) -> PassNode<MockDevic
         writes: writes.iter().map(|&w| ResourceId(w)).collect(),
         kind: PassKind::Graphics,
         record: noop,
-        final_sample_only: false,
+        cadence: SampleCadence::Every,
     }
 }
 

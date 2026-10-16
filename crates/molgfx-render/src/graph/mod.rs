@@ -12,6 +12,8 @@ mod pool;
 mod schedule;
 
 pub(crate) use context::{DisplayEncoding, PassContext, PassEnv, ResourceTable};
-pub(crate) use node::{PassKind, PassNode, ResourceDesc, ResourceId, SizeClass};
+pub(crate) use node::{
+    PassKind, PassNode, ResourceDesc, ResourceId, SampleCadence, SamplePosition, SizeClass,
+};
 pub(crate) use pool::{SHADOW_MAP_EXTENT, TransientPool, plan_aliases};
 pub(crate) use schedule::schedule;

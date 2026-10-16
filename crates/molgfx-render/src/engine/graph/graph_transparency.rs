@@ -1,6 +1,6 @@
 //! Render-graph declaration for weighted transparency and annotations.
 
-use crate::graph::{PassKind, PassNode};
+use crate::graph::{PassKind, PassNode, SampleCadence};
 use crate::passes::{
     AO_RESOURCE, COMPOSITE_RESOURCE, ClearPass, DEPTH_RESOURCE, ENTITY_RESOURCE, HDR_RESOURCE,
     InteractionPass, LabelPass, OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE, OPAQUE_DEPTH_RESOURCE,
@@ -30,7 +30,7 @@ pub(in crate::engine) fn transparency_nodes<D: Device>(depth_snapshot: bool) -> 
             writes: smallvec![OPAQUE_DEPTH_RESOURCE],
             kind: PassKind::Graphics,
             record: OpaqueDepthPass::record,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         });
     }
     nodes.extend(transparency_molecule_nodes(depth_snapshot));
@@ -42,7 +42,7 @@ pub(in crate::engine) fn transparency_nodes<D: Device>(depth_snapshot: bool) -> 
             writes: smallvec![crate::passes::SEGMENT_DEPTH_RESOURCE],
             kind: PassKind::Graphics,
             record: crate::passes::copy_segment_depth,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "nearest categorical identities",
@@ -54,7 +54,7 @@ pub(in crate::engine) fn transparency_nodes<D: Device>(depth_snapshot: bool) -> 
             ],
             kind: PassKind::Graphics,
             record: crate::passes::record_segment_identity,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
     ]);
     nodes.extend(transparency_annotation_nodes());
@@ -70,7 +70,7 @@ fn transparency_clear_nodes<D: Device>() -> [PassNode<D>; 2] {
             writes: smallvec![SEGMENT_VOLUME_RESOURCE, SEGMENT_LABEL_RESOURCE],
             kind: PassKind::Graphics,
             record: ClearPass::segment_ids,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "clear transparency accumulation",
@@ -78,7 +78,7 @@ fn transparency_clear_nodes<D: Device>() -> [PassNode<D>; 2] {
             writes: smallvec![OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE],
             kind: PassKind::Graphics,
             record: OitPass::clear,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
     ]
 }
@@ -91,7 +91,7 @@ fn transparency_molecule_nodes<D: Device>(depth_snapshot: bool) -> [PassNode<D>;
             writes: smallvec![OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE],
             kind: PassKind::Graphics,
             record: OitPass::spheres,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "transparent atom points",
@@ -99,7 +99,7 @@ fn transparency_molecule_nodes<D: Device>(depth_snapshot: bool) -> [PassNode<D>;
             writes: smallvec![OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE],
             kind: PassKind::Graphics,
             record: OitPass::points,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "transparent bond capsules",
@@ -107,7 +107,7 @@ fn transparency_molecule_nodes<D: Device>(depth_snapshot: bool) -> [PassNode<D>;
             writes: smallvec![OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE],
             kind: PassKind::Graphics,
             record: OitPass::bonds,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "transparent cartoon ribbons",
@@ -115,7 +115,7 @@ fn transparency_molecule_nodes<D: Device>(depth_snapshot: bool) -> [PassNode<D>;
             writes: smallvec![OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE],
             kind: PassKind::Graphics,
             record: OitPass::cartoons,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "transparent implicit molecular surfaces",
@@ -123,7 +123,7 @@ fn transparency_molecule_nodes<D: Device>(depth_snapshot: bool) -> [PassNode<D>;
             writes: smallvec![OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE],
             kind: PassKind::Graphics,
             record: OitPass::surfaces,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "transparent analytic primitives",
@@ -131,7 +131,7 @@ fn transparency_molecule_nodes<D: Device>(depth_snapshot: bool) -> [PassNode<D>;
             writes: smallvec![OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE],
             kind: PassKind::Graphics,
             record: OitPass::primitive,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
     ]
 }
@@ -144,7 +144,7 @@ fn transparency_volume_nodes<D: Device>(depth_snapshot: bool) -> [PassNode<D>; 2
             writes: smallvec![OIT_ACCUM_RESOURCE, OIT_REVEAL_RESOURCE],
             kind: PassKind::Graphics,
             record: OitPass::volumes,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "categorical segment volumes",
@@ -157,7 +157,7 @@ fn transparency_volume_nodes<D: Device>(depth_snapshot: bool) -> [PassNode<D>; 2
             ],
             kind: PassKind::Graphics,
             record: crate::passes::record_segmentations,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
     ]
 }
@@ -175,7 +175,7 @@ fn transparency_annotation_nodes<D: Device>() -> [PassNode<D>; 3] {
             ],
             kind: PassKind::Graphics,
             record: InteractionPass::record,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "semantic label decluttering",
@@ -183,7 +183,7 @@ fn transparency_annotation_nodes<D: Device>() -> [PassNode<D>; 3] {
             writes: smallvec![],
             kind: PassKind::Compute,
             record: LabelPass::declutter,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
         PassNode {
             name: "semantic labels and measurements",
@@ -196,7 +196,7 @@ fn transparency_annotation_nodes<D: Device>() -> [PassNode<D>; 3] {
             ],
             kind: PassKind::Graphics,
             record: LabelPass::render,
-            final_sample_only: false,
+            cadence: SampleCadence::Every,
         },
     ]
 }
@@ -208,6 +208,6 @@ fn transparency_composite_node<D: Device>() -> PassNode<D> {
         writes: smallvec![COMPOSITE_RESOURCE],
         kind: PassKind::Graphics,
         record: OitCompositePass::record,
-        final_sample_only: false,
+        cadence: SampleCadence::Every,
     }
 }

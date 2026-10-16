@@ -31,9 +31,9 @@ pub struct Engine<D: Device> {
     pub(crate) resources: Vec<ResourceDesc>,
     pub(crate) pass_nodes: Vec<PassNode<D>>,
     pub(crate) order: Vec<usize>,
-    /// Set while a non-final sample of an exposure records: passes that only
-    /// display the accumulated image are skipped.
-    pub(crate) defer_presentation: bool,
+    /// Where the sample being recorded sits in its exposure: passes of a
+    /// first-only or last-only cadence skip the others.
+    pub(crate) sample_position: graph::SamplePosition,
     pub(crate) pool: Option<TransientPool<D>>,
     pub(crate) bindings: Option<FrameBindings<D>>,
     pub(crate) scene_gpu: GpuScene<D>,
@@ -265,7 +265,7 @@ impl<D: Device> Engine<D> {
             resources,
             pass_nodes,
             order,
-            defer_presentation: false,
+            sample_position: graph::SamplePosition::ONLY,
             pool: None,
             bindings: None,
             scene_gpu,

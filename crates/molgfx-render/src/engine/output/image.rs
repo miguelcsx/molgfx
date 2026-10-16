@@ -341,8 +341,9 @@ impl<D: Device> Engine<D> {
         })
     }
 
-    /// Records one sample of an exposure. Only the last one runs the passes
-    /// that display the accumulated image; the rest feed history alone.
+    /// Records one sample of an exposure. The first alone runs the passes whose
+    /// result holds for the whole exposure, the last alone those that display
+    /// the accumulated image.
     pub(in crate::engine) fn record_exposure_sample(
         &mut self,
         encoder: &mut D::CommandEncoder,
@@ -350,9 +351,12 @@ impl<D: Device> Engine<D> {
         quality: bool,
         (sample, samples): (u32, u32),
     ) -> Result<(), RenderError> {
-        self.defer_presentation = sample + 1 < samples;
+        self.sample_position = crate::graph::SamplePosition {
+            first: sample == 0,
+            last: sample + 1 == samples,
+        };
         let recorded = self.record_image(encoder, target, None, quality, false);
-        self.defer_presentation = false;
+        self.sample_position = crate::graph::SamplePosition::ONLY;
         recorded
     }
 
@@ -388,7 +392,7 @@ impl<D: Device> Engine<D> {
             let Some(node) = self.pass_nodes.get(index) else {
                 continue;
             };
-            if self.defer_presentation && node.final_sample_only {
+            if !self.sample_position.runs(node.cadence) {
                 continue;
             }
             let boundary = position == 0 || position + 1 == self.order.len();
