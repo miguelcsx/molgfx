@@ -12,6 +12,33 @@ pub struct WebRenderer {
     width: u32,
     height: u32,
     last_report: Option<molgfx::FrameReport>,
+    answers: Vec<molgfx::StreamPick>,
+}
+
+#[wasm_bindgen(js_name = PickStream)]
+#[derive(Clone, Copy, Debug)]
+/// An independent source of picks with its own overlap policy.
+pub enum WebPickStream {
+    /// Pointer motion: only the newest request matters.
+    Hover = 0,
+    /// A click or tap: every request is answered, in order.
+    Activate = 1,
+}
+
+impl WebPickStream {
+    const fn engine(self) -> molgfx::PickStream {
+        match self {
+            Self::Hover => molgfx::PickStream::Hover,
+            Self::Activate => molgfx::PickStream::Activate,
+        }
+    }
+
+    const fn name(stream: molgfx::PickStream) -> &'static str {
+        match stream {
+            molgfx::PickStream::Hover => "hover",
+            molgfx::PickStream::Activate => "activate",
+        }
+    }
 }
 
 #[wasm_bindgen(js_class = Renderer)]
@@ -70,6 +97,7 @@ impl WebRenderer {
             width,
             height,
             last_report: None,
+            answers: Vec::with_capacity(8),
         })
     }
 
@@ -179,6 +207,69 @@ impl WebRenderer {
         };
         let bytes = readback.resolve().await?;
         self.finish_pick(scene, &readback, &bytes)
+    }
+
+    /// Drives the device and the pick streams without blocking.
+    ///
+    /// Call once per animation frame: browser readbacks complete on their own,
+    /// but queued stream requests are recorded and finished here. Returns how
+    /// many picks became ready for [`Self::take_picks`].
+    ///
+    /// # Errors
+    ///
+    /// Returns a JavaScript error on device loss.
+    pub fn poll(&mut self) -> Result<u32, JsError> {
+        let report = self.inner.poll().map_err(javascript_error)?;
+        Ok(u32::try_from(report.picks_resolved).unwrap_or(u32::MAX))
+    }
+
+    /// Queues a pick on a stream and returns at once.
+    ///
+    /// The answer arrives through [`Self::take_picks`] after later polls. A
+    /// hover request replaces an unrecorded older one.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JavaScript error when an ordered stream is full.
+    #[wasm_bindgen(js_name = requestPick)]
+    pub fn request_pick(&mut self, stream: WebPickStream, x: u32, y: u32) -> Result<(), JsError> {
+        self.inner
+            .request_pick(stream.engine(), x, y)
+            .map_err(javascript_error)
+    }
+
+    /// Hands over resolved stream picks, oldest first, as a JSON array of
+    /// `{stream, x, y, pick}` or `{stream, x, y, error}`; `pick` is `null`
+    /// over the background.
+    ///
+    /// # Errors
+    ///
+    /// Returns a JavaScript error if the scene is unresolved or encoding fails.
+    #[wasm_bindgen(js_name = takePicks)]
+    pub fn take_picks(&mut self, scene: &WebScene) -> Result<String, JsError> {
+        let resolved = scene
+            .resolved
+            .as_ref()
+            .ok_or_else(|| JsError::new("scene must be resolved before picking"))?;
+        self.inner.take_picks(resolved, &mut self.answers);
+        let entries = self
+            .answers
+            .drain(..)
+            .map(|answer| {
+                let mut entry = serde_json::json!({
+                    "stream": WebPickStream::name(answer.stream),
+                    "x": answer.x,
+                    "y": answer.y,
+                });
+                match answer.result {
+                    Ok(pick) => entry["pick"] = serde_json::to_value(pick)?,
+                    Err(error) => entry["error"] = error.to_string().into(),
+                }
+                Ok(entry)
+            })
+            .collect::<Result<Vec<_>, serde_json::Error>>()
+            .map_err(javascript_error)?;
+        serde_json::to_string(&entries).map_err(javascript_error)
     }
 
     /// Records one pixel pick and detaches its readback.
