@@ -2,8 +2,19 @@
 
 All notable changes to MolGFX are recorded here. The project follows
 [Semantic Versioning](https://semver.org/); before 1.0 a minor release may
-change the public API. MolGFX 0.5.5 needs `molframe>=0.6.4`: publish or install
+change the public API. MolGFX 0.5.6 needs `molframe>=0.6.4`: publish or install
 that first.
+
+## 0.5.6 — 2026-10-16
+
+- Add `Device::poll` and readback futures that stay pending until the
+  embedder polls, so GPU completion no longer needs a blocking wait.
+- Add `Renderer::request_pick`, `poll` and `take_picks`: batched picks over
+  a fixed ring of readback slots, with a latest-wins hover stream and an
+  ordered activation stream. Requests and idle polls allocate nothing.
+- Expose `poll`, `requestPick` and `takePicks` in the browser bindings and
+  drive viewer hover through them, once per animation frame.
+- Add a `stream` scenario to the `pick_latency` benchmark.
 
 ## 0.5.5 — 2026-10-15
 
