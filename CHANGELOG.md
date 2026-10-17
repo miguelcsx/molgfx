@@ -2,8 +2,17 @@
 
 All notable changes to MolGFX are recorded here. The project follows
 [Semantic Versioning](https://semver.org/); before 1.0 a minor release may
-change the public API. MolGFX 0.5.6 needs `molframe>=0.6.4`: publish or install
+change the public API. MolGFX 0.5.7 needs `molframe>=0.6.4`: publish or install
 that first.
+
+## 0.5.7 — 2026-10-16
+
+- Converged exposures draw the shadow map once and show the presentation
+  pass only on the last sample, skipping the culling pass for scenes with
+  nothing to cull.
+- Cartoon ribbons deform once per vertex when no trajectory is active,
+  instead of recomputing the previous-frame deformation: output is
+  byte-identical and converged L2 frames run 11-32% faster.
 
 ## 0.5.6 — 2026-10-16
 
